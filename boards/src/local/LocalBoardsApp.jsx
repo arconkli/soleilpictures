@@ -478,16 +478,20 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Same contract as App's mutators (no cap here): addCard returns the id it
+  // placed, addCards what it placed — a cross-pane move deletes from its
+  // source only what landed.
   const addCard = (card) => {
     updateBoardState(state => ({
       ...state,
       cards: [...state.cards, { z: getNextZ(state.cards), ...card }],
     }));
     if (card?.kind !== 'board') tourFireRef.current?.({ type: 'content_added', boardId: currentId, kind: card?.kind || 'card' });
+    return card?.id ?? null;
   };
 
   const addCards = (cardsToAdd) => {
-    if (!cardsToAdd?.length) return;
+    if (!cardsToAdd?.length) return { added: 0, requested: 0, capHit: false, placedIds: [] };
     updateBoardState(state => {
       let z = getNextZ(state.cards);
       return {
@@ -495,6 +499,7 @@ export function LocalBoardsApp({ user, signOut }) {
         cards: [...state.cards, ...cardsToAdd.map(card => ({ z: z++, ...card }))],
       };
     });
+    return { added: cardsToAdd.length, requested: cardsToAdd.length, capHit: false, placedIds: cardsToAdd.map((c) => c.id) };
   };
 
   const updateCard = (cardId, patch) => {

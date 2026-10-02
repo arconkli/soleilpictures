@@ -43,8 +43,17 @@ const RUNDOWN_ROW_RE = /\/r:[^/]+$/;
 // Same tags as gridSequence.hasLabelTag, inline so this module stays
 // dependency-free.
 const LABEL_TAG_RE = /\[#{1,3}\]|\[A\]/;
-function isSlate(cell) {
-  return cell?.type === 'text' && LABEL_TAG_RE.test(String(cell.html || ''));
+// A slate is short: a label and a number. Text with a tag in it that runs past
+// this is someone's writing, and costs a card like any other text.
+const SLATE_MAX_CHARS = 40;
+// Exported for gridSequence.stampCarry, which carries exactly these and nothing
+// else — so a stamped copy is never charged for what stamping put in it.
+export function isSlate(cell) {
+  if (cell?.type !== 'text') return false;
+  const html = String(cell.html || '');
+  if (!LABEL_TAG_RE.test(html)) return false;
+  const visible = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+  return visible.length <= SLATE_MAX_CHARS;
 }
 
 // Number of cells in a { cellId: record } map that cost a card: filled, and not

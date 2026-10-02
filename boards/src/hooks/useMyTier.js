@@ -73,6 +73,9 @@ const _store = {
   inflight: null,
   refetchQueued: false,
   subs: new Set(),
+  // When a read from anywhere but the index-sync path (mount, focus, the
+  // pricing modal's open) last started — see _onIndexSynced.
+  lastReadAt: 0,
 };
 
 function _emit() { for (const fn of _store.subs) fn(); }
@@ -84,13 +87,15 @@ function _reset(userId) {
   _store.loading = Boolean(userId);
   _store.error = null;
   _store.refetchQueued = false;
+  _store.lastReadAt = 0;
   // an in-flight fetch for the previous user resolves into a store that has
   // moved on; its writes are discarded by the userId check in _fetchTier.
   _emit();
 }
 
-async function _fetchTier() {
+async function _fetchTier({ fromIndexSync = false } = {}) {
   if (!supabase || !_store.userId) { _store.loading = false; _emit(); return; }
+  if (!fromIndexSync) _store.lastReadAt = Date.now();
   if (_store.inflight) {
     // A refetch requested mid-flight must produce FRESHER data than the
     // request already running (e.g. the post-activation refetch racing the
@@ -164,16 +169,40 @@ function _notePlaced(n = 1) {
 // re-read it then. Debounced so a multi-board flush costs one RPC, and skipped
 // for tiers the cap doesn't apply to.
 const INDEX_SYNC_REFETCH_MS = 600;
+// How long after a read from elsewhere every sync still owes a re-read: the
+// index sync runs at most ten seconds after a placement (boardsApi
+// SYNC_THROTTLE_MS), plus room for the write itself.
+const READ_REARM_MS = 15000;
 let _focusAttached = false;
 let _indexSyncTimer = null;
 function _onFocus() { if (_store.userId) _fetchTier(); }
+// It also re-reads after a read from elsewhere. That read settled the whole
+// local delta against card_index as it stood, and card_index lags placements by
+// the ten-second sync — so a focus or a pricing-modal refetch inside that window
+// settled cards the server had not counted yet, the delta went to zero, and the
+// first condition never fired again: the count sat low, admitting adds the
+// server then refused. Every board that held such a card announces on its own
+// throttle, so EVERY sync within READ_REARM_MS of that read owes a re-read, not
+// just the first one (with two boards, the second's card was never re-read).
+// Reads made by this path don't arm it, so a sync can never set off a read that
+// sets off the next one.
 function _onIndexSynced() {
-  if (!_store.userId || _store.placedDelta === 0) return;
+  if (!_store.userId) return;
   const tier = _store.data.tier;
   if (tier && tier !== 'demo') return;
+  const readRecently = _store.lastReadAt > 0 && Date.now() - _store.lastReadAt <= READ_REARM_MS;
+  const owed = _store.placedDelta !== 0 || readRecently;
+  if (!owed) return;
   if (_indexSyncTimer) clearTimeout(_indexSyncTimer);
-  _indexSyncTimer = setTimeout(() => { _indexSyncTimer = null; _fetchTier(); }, INDEX_SYNC_REFETCH_MS);
+  _indexSyncTimer = setTimeout(() => { _indexSyncTimer = null; _fetchTier({ fromIndexSync: true }); }, INDEX_SYNC_REFETCH_MS);
 }
+// A card is about to reach card_index that this tab did not charge for — a
+// cluster's card the reconcile effect put back (it restores; the cluster's
+// creator charged). Re-read the count after the syncs that carry it, exactly as
+// after a read from elsewhere; otherwise the next add is gated on a count one
+// short of the server's, admitted, and then taken back behind the wall.
+export function expectIndexChange() { _store.lastReadAt = Date.now(); }
+
 function _syncFocusListener() {
   const want = _store.subs.size > 0;
   if (want && !_focusAttached) {

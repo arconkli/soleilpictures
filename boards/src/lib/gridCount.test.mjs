@@ -5,7 +5,7 @@
 // Plain Node ESM, no framework — exit 0 on pass, non-zero on failure.
 
 import { isCellFilled, cellsWeight, cardWeight } from './gridCount.js';
-import { hasLabelTag } from './gridSequence.js';
+import { hasLabelTag, stampCarry } from './gridSequence.js';
 
 let failed = 0, passed = 0;
 function assertEq(actual, expected, msg) {
@@ -60,6 +60,9 @@ for (const t of ['[#]', '[##]', '[###]', '[A]', 'SHOT [#]', '[####]', '[a]', '[2
   const free = cardWeight('grid', { a: { type: 'text', html: t } }) === 0;
   assertEq(free, hasLabelTag(t), `slate test agrees with hasLabelTag on ${JSON.stringify(t)}`);
 }
+// A slate is short. Someone's writing with a tag in it is writing, and counts.
+assertEq(cardWeight('grid', { a: { type: 'text', html: 'SHOT [#] — EXT. NIGHT' } }), 0, 'a long-ish slate is still a slate');
+assertEq(cardWeight('grid', { a: { type: 'text', html: '<p>[A] The team meets at the warehouse and Sam explains the plan for the night.</p>' } }), 1, 'real text that happens to carry a tag counts');
 // The slate is still FILLED for a template re-cut, which must report it dropped.
 assertEq(isCellFilled({ type: 'text', html: 'SHOT [#]' }), true, 'a slate is still filled');
 assertEq(cellsWeight({
@@ -106,6 +109,23 @@ assertEq(cardWeight('grid', {
 assertEq(cardWeight('schedule', {
   'd:2026-09-08/h:09/i:x': { type: 'image', src: 'r2:1' },
 }), 1, 'an item under an hour row still counts');
+
+// Stamping carries exactly the slates and nothing else, so every copy a + handle
+// or Generate matrix stamps out weighs nothing — stamping isn't gated against
+// the cap, and a long tagged caption carried into 24 copies cost 24 cards no
+// gate had approved.
+{
+  const src = {
+    a: { type: 'text', html: 'SHOT [#]' },
+    b: { type: 'text', html: 'Panel [#]: Maya enters the diner and looks around' },
+    c: { type: 'image', src: 'r2:frame' },
+    d: { type: 'text', html: 'he walks in' },
+  };
+  const { cells } = stampCarry(src, null);
+  assertEq(Object.keys(cells), ['a'], 'only the slate is carried');
+  assertEq(cardWeight('grid', cells), 0, 'a stamped copy weighs nothing');
+  assertEq(cardWeight('grid', src), 3, 'the source still pays for its writing and its frame');
+}
 
 console.log(`gridCount.test: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

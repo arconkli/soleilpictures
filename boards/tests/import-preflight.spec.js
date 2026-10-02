@@ -163,7 +163,8 @@ test.describe('a refused batch keeps the cards that fit (boardsApi path)', () =>
     // withdrawn — including the ones the user still had room for. That is why
     // both big importers finished BELOW their own cap.
     expect(s).toMatch(/async function landUpToCap/);
-    expect(s).toMatch(/const rejected = await landUpToCap\(\{ boardId, rows: overflow, sigFor, cache \}\)/);
+    // The overflow, the cards this tab just placed first (see cardIndexSync.test.mjs).
+    expect(s).toMatch(/const rejected = \(idsChanged && !cleaned\) \? \[\] : await landUpToCap\(\{ boardId, rows: ordered, sigFor, cache \}\)/);
   });
 
   test('the room comes from the server, not from a client guess', () => {
@@ -174,12 +175,17 @@ test.describe('a refused batch keeps the cards that fit (boardsApi path)', () =>
 
   test('a lost race degrades to probing rather than to data loss', () => {
     const s = boardsApi();
-    // The trigger's test is monotonic, so the first refusal ends the walk and
-    // everything before it is already persisted.
-    expect(s).toMatch(/if \(res\.error\) return rows\.slice\(i\)/);
+    // Room is weight, so a refused heavy card says nothing about a lighter one:
+    // the walk refuses untried only what is at least as heavy as a card already
+    // refused, and still tries the lighter ones. (cardIndexSync.test.mjs runs
+    // this for real.)
+    expect(s).toMatch(/if \(w >= lightestRefused\) \{ refused\.push\(r\); continue; \}/);
+    // A write that fails for any reason but the cap ends the walk and refuses
+    // nothing more: those rows retry next sync rather than being taken back.
+    expect(s).toMatch(/if \(!_isCapRefusal\(res\.error\)\) \{ console\.warn\('syncCardIndex probe', res\.error\); return refused; \}/);
     // Only rows that actually landed may cache a signature; the rest keep a
     // stale one on purpose so a later sync retries them.
-    expect(s).toMatch(/cache\.sigs\.set\(rows\[i\]\.card_id, sigFor\(rows\[i\]\)\)/);
+    expect(s).toMatch(/if \(!res\.error\) \{ cache\.sigs\.set\(r\.card_id, sigFor\(r\)\); continue; \}/);
   });
 });
 

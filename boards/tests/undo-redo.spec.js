@@ -223,7 +223,9 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     // (and get mis-tagged by) the delete transact.
     expect(app).toMatch(/return \{ stackItem \}/);
     // Upload rollbacks are off-stack: a failed upload is not a user action.
-    expect(app).toMatch(/const deleteCardsSilent = \(ids\)/);
+    // (Its refund option: the abandoned-upload sweep never refunds.)
+    expect(app).toMatch(/const deleteCardsSilent = \(ids, \{ refund = true \} = \{\}\) => \{/);
+    expect(app).toMatch(/ydoc\.transact\(\(\) => removeCardsFromDoc\(idSet\), 'upload'\);/);
   });
 
   test('upload rollbacks and async src patches stay off the undo stack', () => {
@@ -280,7 +282,8 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
 test.describe('Undo coverage phases 1-3 (source guard)', () => {
   test('cross-board moves are atomic — no half-undo duplication', () => {
     const app = read('src/App.jsx');
-    expect(app).toMatch(/const deleteCardsForMove = \(ids\)/);
+    expect(app).toMatch(/const deleteCardsForMove = \(ids, \{ refund = false \} = \{\}\) => \{/);
+    expect(app).toMatch(/ydoc\.transact\(\(\) => removeCardsFromDoc\(new Set\(ids\)\), 'cross-board-move'\);/);
     const cs = read('src/components/CanvasSurface.jsx');
     // Both the drag-into-board and cross-pane source deletes use the
     // untracked MOVE variant; the one undo affordance reverses both sides.

@@ -61,6 +61,16 @@ export function createPlacementLedger({ windowMs = WITHDRAW_WINDOW_MS, now = () 
       return { withdraw, keep };
     },
 
+    // Drop entries the caller no longer needs to judge — syncCardIndex forgets
+    // every card the index now holds.
+    forgetWhere(pred) {
+      for (const id of [...placed.keys()]) if (pred(id)) placed.delete(id);
+    },
+
+    // Whether a refusal would take this card back — the sync lands these first
+    // when room frees, so a card the person just placed is never the one cut
+    // in favour of a card that was kept from before.
+    has(id) { prune(); return placed.has(String(id)); },
     clear() { placed.clear(); },
 
     get size() { prune(); return placed.size; },

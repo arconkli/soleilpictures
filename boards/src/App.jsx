@@ -16,7 +16,7 @@ import { useScrollEdges } from './hooks/useScrollEdges.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
-import { useMyTier } from './hooks/useMyTier.js';
+import { useMyTier, expectIndexChange } from './hooks/useMyTier.js';
 import { useCreatorIntentResume } from './hooks/useCreatorIntentResume.js';
 import { setCapture } from './lib/captureState.js';
 import { maskName, maskEmail } from './lib/captureIdentity.js';
@@ -133,13 +133,14 @@ import { trackRegistration } from './lib/metaPixel.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
+import { isAbandonedUpload } from './lib/abandonedUploads.js';
 import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
 import { ancestorPath, boardDepth, planReparent } from './lib/boardTree.js';
 import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { evaluateDemoCap, fitByCost, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
@@ -505,6 +506,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     return merged;
   }, [ownedBoards, sharedBoards]);
+  // The pane mutators are memoized on their Y.Doc, so a `boards` they close over
+  // is the map from the render their doc first painted — {} after a reload, and
+  // missing every cluster made since. Whose cap applies and whether a move stays
+  // in one workspace are read through this instead (like myTierRef).
+  const boardsRef = useRef(boards);
+  boardsRef.current = boards;
   // list_shared_boards now returns descendants too (0244) so a shared
   // production carries its shoot days into the boards map. The sidebar still
   // lists only what was actually shared WITH you — otherwise a 60-day shoot
@@ -1369,8 +1376,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the server_cap path keeps blaming, and which would also make the
     // preflight's refetch pointless, since the re-plan would read the same
     // frozen number it just paid a round trip to replace.
+    // What card_index counts for a card, read through its fields: its weight
+    // (an empty grid 0, a filled grid its filled boxes, else 1), and nothing for
+    // a photo whose upload died with its page — the index skips those
+    // (abandonedUploads.js). Every charge AND every refund goes through this,
+    // so a delete gives back exactly what the add took: refunding one per card
+    // handed back room an empty grid never cost, and room a stuck photo no
+    // longer held, and the next add was admitted and then taken back.
+    const countedWeight = (get) => (isAbandonedUpload(get) ? 0 : cardIndexWeight(get('kind') || 'note', get));
+    const placementCost = (card) => countedWeight((k) => card?.[k]);
+    // The refund for removing `ids` from this board: what the index counted for
+    // each, skipping onboarding seeds (never indexed) and ids not on the board.
+    const countedWeightOf = (m, ids) => {
+      let n = 0;
+      for (const id of ids) {
+        const ym = m.get(id);
+        if (!ym || isSeedCard({ id, seed: ym.get('seed') })) continue;
+        n += countedWeight((k) => ym.get(k));
+      }
+      return n;
+    };
     const capSource = () => {
-      const b = boards?.[boardId];
+      const b = boardsRef.current?.[boardId];
       const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
       if (own) {
         const mt = myTierRef.current || myTier;
@@ -1507,8 +1534,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
     };
 
+    // Returns the id it placed, or null when nothing was placed (the cap
+    // refused it, or the board isn't ready) — so a caller never reports a card
+    // that does not exist.
     const addCard = (card, { afterInsert = null } = {}) => {
-      const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
+      const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return null; }
       // Owner-pays cap: hard-block at the limit (cards total across the
       // OWNER's workspaces — 0187). The trigger on card_index enforces the
       // same subject server-side; this check reads the cached value.
@@ -1517,17 +1547,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // records 0 (gridCount.cardWeight), so placing one never meets the wall
       // and never moves the count — its boxes are gated one at a time as they
       // fill (guardWeightedAdd).
-      const cost = cardIndexWeight(card?.kind || 'note', (k) => card?.[k]);
+      const cost = placementCost(card);
       let gated = false;
+      const cs = capSource();
       {
-        const cs = capSource();
+        // An unresolved tier (get_my_tier in flight or failed) lets the card
+        // through ungated, which is exactly when the server is likeliest to
+        // refuse it. It is still this tab's own fresh placement, so it is noted:
+        // a refusal then takes it back and shows the wall, instead of leaving
+        // it on the canvas uncounted with nothing said.
+        if (!cs.resolved && cost > 0) gated = true;
         if (cs.capped && cost > 0) {
           gated = true;
           const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: cost, limit: cs.limit });
           if (capHit) {
             if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal/toast opens below
             surfaceCapHit(cs);
-            return;
+            return null;
           }
           nearCapToast(cs, cost);
         }
@@ -1554,8 +1590,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // Keep the cached cap count moving between fetches, so the NEXT add is
         // gated on a number that reflects this one. Seeds are never indexed, so
         // they never count — same boundary card_placed uses. An empty grid
-        // costs nothing, so it moves nothing.
-        if (cost > 0) myTier.notePlaced?.(cost);
+        // costs nothing, so it moves nothing. Only the owner's own count moves:
+        // a card on someone else's cluster is on THEIR meter.
+        if (cost > 0 && cs.own) myTier.notePlaced?.(cost);
         logEventNow(EV.CARD_PLACED, {
           n: 1, kind: card?.kind || 'card', cards_after: genuineCountInDoc(),
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
@@ -1579,6 +1616,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           tourFireRef.current?.({ type: 'content_added', boardId, kind: card?.kind || 'card' });
         }
       }
+      return placedId;
     };
 
     // Gate for FILLING a grid cell with weighted content (image / link / file /
@@ -1600,24 +1638,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addCards = (cardsToAdd, opts = {}) => {
-      // Returns { added, requested, capHit } so callers (e.g. the remix seed) can
-      // tell whether the demo cap silently dropped cards and toast accordingly.
+      // Returns { added, requested, capHit, placedIds } so callers (e.g. the
+      // remix seed) can tell whether the demo cap silently dropped cards and
+      // toast accordingly — and a MOVE can delete from its source only what
+      // actually landed here.
       // opts.suppressPlaced: skip the card_placed beacon for batches that carry
       // their own event (the remix clone logs remix_clone with the same n —
       // card_placed must keep meaning "the user placed cards").
+      // opts.moveFrom: the board these cards are leaving (a cross-pane move).
+      // opts.restore: cards put back for things that already exist (the tile
+      // the reconcile effect places for a cluster with no card here).
       const requested = cardsToAdd?.length || 0;
       let capHit = false;
-      const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit }; }
+      const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit, placedIds: [] }; }
       const csBatch = capSource();
-      if (csBatch.capped) {
-        const evald = evaluateDemoCap({ tier: 'demo', demoCardCount: csBatch.count, requested: cardsToAdd.length, limit: csBatch.limit });
-        const accepted = evald.accepted; capHit = evald.capHit;
-        if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); surfaceCapHit(csBatch); return { added: 0, requested, capHit }; }
+      // A move between two clusters of one workspace takes nothing from the
+      // owner's room — a row leaves the source as one arrives here — so it is
+      // not gated, not charged, and not noted as a placement the cap may take
+      // back. Gating it is how a move at the limit lost the cards: this side
+      // refused them and the source deleted them anyway. If the server refuses
+      // the arrival before the source's row is released, the card is kept and
+      // retried, never withdrawn.
+      // A restored tile is the same: the cluster exists whether or not its card
+      // is on this canvas, so putting the card back is not an add — gated, it
+      // re-showed the wall on every edit for a cluster made at the limit.
+      const fromWs = opts.moveFrom ? boardsRef.current?.[opts.moveFrom]?.workspace_id : null;
+      const neutralMove = !!opts.restore || (!!fromWs && fromWs === boardsRef.current?.[boardId]?.workspace_id);
+      if (csBatch.capped && !neutralMove) {
+        // Charged by weight, like addCard: an empty grid in the batch costs
+        // nothing and is never the card that gets cut (fitByCost).
+        const { remaining } = evaluateDemoCap({ tier: 'demo', demoCardCount: csBatch.count, requested: 0, limit: csBatch.limit });
+        const fit = fitByCost(cardsToAdd, placementCost, remaining);
+        capHit = fit.capHit;
+        if (capHit && fit.kept.length === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); surfaceCapHit(csBatch); return { added: 0, requested, capHit, placedIds: [] }; }
         if (capHit) {
-          cardsToAdd = cardsToAdd.slice(0, accepted);
+          cardsToAdd = fit.kept;
           surfaceCapHit(csBatch);
-        } else {
-          nearCapToast(csBatch, cardsToAdd.length);
+        } else if (fit.cost > 0) {
+          nearCapToast(csBatch, fit.cost);
         }
       }
       breakUndo();
@@ -1630,7 +1688,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           placedIds.push(c.id);
         }
       }, 'local');
-      if (csBatch.capped) notePlacedThroughCap(placedIds);
+      // A card moved in is existing work even when the move was gated: its
+      // source deleted it the moment it landed here, so a refusal must keep it
+      // (uncounted, retried) — taking it back would leave it on neither board.
+      if ((csBatch.capped || !csBatch.resolved) && !neutralMove && !opts.moveFrom) notePlacedThroughCap(placedIds);
       // One ticker entry per bulk action (collapsed) — "placed N cards".
       // Count only genuine cards so the onboarding seed batch (all onb-*) never
       // emits a card_placed — the seed was being counted as activation.
@@ -1638,7 +1699,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Cap accounting tracks what was INDEXED, not what was reported — a remix
       // clone passes suppressPlaced to log its own event, but its cards still
       // occupy cap room, so this sits outside that branch.
-      if (genuine.length) myTier.notePlaced?.(genuine.length);
+      const genuineCost = genuine.reduce((n, c) => n + placementCost(c), 0);
+      if (genuineCost && csBatch.own && !neutralMove) myTier.notePlaced?.(genuineCost);
       const kinds = new Set(genuine.map((c) => c?.kind).filter(Boolean));
       if (genuine.length && !opts.suppressPlaced) {
         logEventNow(EV.CARD_PLACED, {
@@ -1662,7 +1724,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           kind: contentKinds.length === 1 ? contentKinds[0] : 'mixed',
         });
       }
-      return { added: cardsToAdd.length, requested, capHit };
+      return { added: cardsToAdd.length, requested, capHit, placedIds, neutral: neutralMove };
     };
 
     const updateCard = (cardId, patch) => {
@@ -1763,13 +1825,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         logEvent(EV.CARD_DELETED, { n: ids.length, kinds, board_id: boardId });
       } catch (_) {}
       // Give the cap room back locally too, or "delete some cards to make
-      // space" doesn't work until the next tier fetch. Seeds were never
-      // indexed, so they were never counted and must not be refunded.
-      // Read `seed` off the Y.Map rather than inferring from the id: the seeded
-      // Ideas board carries the flag but must keep its real DB uuid as its card
-      // id, so an id-only test would refund it.
+      // space" doesn't work until the next tier fetch — exactly the room the
+      // index counted for them (countedWeightOf), and only on the owner's own
+      // board. Seeds were never indexed and are never refunded; `seed` is read
+      // off the Y.Map rather than inferred from the id, because the seeded Ideas
+      // board carries the flag but keeps its real DB uuid as its card id.
       {
-        const freed = ids.filter(id => !isSeedCard({ id, seed: m.get(id)?.get('seed') })).length;
+        const freed = capSource().own ? countedWeightOf(m, ids) : 0;
         if (freed) myTier.notePlaced?.(-freed);
       }
       if (boundary) breakUndo();
@@ -1858,13 +1920,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const idSet = new Set(ids);
       // Same refund as deleteCards. This path carries the failed-upload cleanup
       // AND the withdrawal of cards the server's cap trigger refused — in both
-      // cases addCard already counted them locally, so not refunding here would
+      // cases the add already counted them locally, so not refunding here would
       // leave the user permanently short of the room they actually have. The
       // abandoned-upload sweep passes refund:false: those cards were placed in a
       // page that no longer exists and were never counted in this one.
-      const freed = ids.filter(id => m.has(id) && !isSeedCard({ id, seed: m.get(id)?.get('seed') })).length;
+      //
+      // Returns how many cards it actually removed, so a caller reports only
+      // what happened (a guarded no-op returns nothing).
+      const present = ids.filter((id) => m.has(id));
+      const freed = refund && capSource().own ? countedWeightOf(m, present) : 0;
       ydoc.transact(() => removeCardsFromDoc(idSet), 'upload');
-      if (refund && freed) myTier.notePlaced?.(-freed);
+      if (freed) myTier.notePlaced?.(-freed);
+      return present.length;
     };
 
     // Source-side delete for a cross-board MOVE (drag into a board card /
@@ -1876,10 +1943,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // undo affordance is the "Moved — Undo" toast, which reverses BOTH
     // sides. Same arrow cascade as deleteCards. Board cards never route
     // through this path (they reparent instead).
-    const deleteCardsForMove = (ids) => {
+    //
+    // `refund`: the move left the owner's room (another owner's cluster — the
+    // target charged nobody here), so the room these cards held comes back now,
+    // not at the next tier read. A move inside one workspace is neutral and
+    // refunds nothing: its target charged nothing either.
+    const deleteCardsForMove = (ids, { refund = false } = {}) => {
       if (!ids?.length) return;
       const m = cardsMap(); if (!m) return;
+      const freed = refund && capSource().own ? countedWeightOf(m, ids) : 0;
       ydoc.transact(() => removeCardsFromDoc(new Set(ids)), 'cross-board-move');
+      if (freed) myTier.notePlaced?.(-freed);
     };
 
     const duplicateCards = (ids) => {
@@ -1890,33 +1964,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Owner-pays cap: same gate as addCard/addCards — block at the limit,
       // slice an over-cap batch to what fits, warn when crossing the threshold.
       const csDup = capSource();
+      // A duplicate costs what its source weighs: an empty grid nothing, a
+      // filled one its filled boxes (cardIndexWeight reads the Y.Map's cells).
+      const dupCost = (ym) => countedWeight((k) => ym.get(k));
       if (csDup.capped) {
-        const { accepted, capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: csDup.count, requested: sources.length, limit: csDup.limit });
-        if (capHit && accepted === 0) { if (sources.length) noteBlocked('demo_cap'); surfaceCapHit(csDup); return []; }
-        if (capHit) {
-          sources = sources.slice(0, accepted);
+        const { remaining } = evaluateDemoCap({ tier: 'demo', demoCardCount: csDup.count, requested: 0, limit: csDup.limit });
+        const fit = fitByCost(sources, dupCost, remaining);
+        if (fit.capHit && fit.kept.length === 0) { if (sources.length) noteBlocked('demo_cap'); surfaceCapHit(csDup); return []; }
+        if (fit.capHit) {
+          sources = fit.kept;
           surfaceCapHit(csDup);
-        } else {
-          nearCapToast(csDup, sources.length);
+        } else if (fit.cost > 0) {
+          nearCapToast(csDup, fit.cost);
         }
       }
+      const dupTotal = sources.reduce((n, ym) => n + dupCost(ym), 0);
       const newIds = [];
       breakUndo();
       ydoc.transact(() => {
         let z = nextZ();
-        for (const ym of sources) {
+        const stamp = Date.now();
+        sources.forEach((ym, i) => {
           const obj = {};
           ym.forEach((v, k) => { obj[k] = v; });
-          obj.id = `${obj.kind || 'card'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+          // The index keeps ids unique within the batch: two random draws in
+          // one millisecond collided, and the second card overwrote the first.
+          obj.id = `${obj.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`;
+          // A copy of a starter card is the person's own card — indexed and
+          // counted, as it was charged — not another seed nobody can find.
+          delete obj.seed;
           obj.x = (obj.x || 0) + 24;
           obj.y = (obj.y || 0) + 24;
           obj.z = z++;
           m.set(obj.id, cardToYMap(obj));
           newIds.push(obj.id);
-        }
+        });
       }, 'local');
-      if (csDup.capped) notePlacedThroughCap(newIds);
-      if (newIds.length) myTier.notePlaced?.(newIds.length);
+      if (csDup.capped || !csDup.resolved) notePlacedThroughCap(newIds);
+      if (dupTotal && csDup.own) myTier.notePlaced?.(dupTotal);
       return newIds;
     };
     const duplicateCard = (cardId) => duplicateCards([cardId]);
@@ -2649,6 +2734,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // opts.name = caller-supplied name (the project_first intent seed) — a
       // pre-named cluster also skips the rename autofocus below.
       const defaultName = opts.name || (view === 'list' ? 'Untitled list' : 'Untitled cluster');
+      // Ask the cap before the cluster exists, the way addNewProject does: its
+      // card on this canvas costs one. Asked only by addCard below, the refusal
+      // came after createBoard — a cluster with no card, logged as created,
+      // whose card the reconcile effect then kept trying to place.
+      if (!opts.seed) {
+        const cs = capSource();
+        if (cs.capped) {
+          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+          if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
+        }
+      }
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -3517,7 +3613,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       y: spot.y,
       w, h,
     }));
-    mainMutators.addCards?.(newCards);
+    // restore: these clusters already exist, so their cards are put back, not
+    // added — never gated, never charged (their creators charged). The count
+    // is re-read once the cards reach the index, so it can't stay one short.
+    mainMutators.addCards?.(newCards, { restore: true });
+    expectIndexChange();
   }, [currentYDoc, yb.cards, boards, currentId, boardsLoading, mainMutators]);
 
   // ── Reconcile drift the OTHER way: orphan board / boardlink cards on
@@ -3667,9 +3767,40 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // addNewBoard (which targets the currently-open board and seeds a canvas
   // card), this targets the passed parent and adds no card — the reconcile-
   // drift effect adds the kind:'board' mirror when that parent is opened.
+  // The cap a card placed on cluster `id` answers to — the question the pane
+  // mutators' capSource asks, for the paths that run outside a pane (the
+  // sidebar). Through refs: these handlers outlive the render that made them.
+  const capForBoard = (id) => {
+    const b = boardsRef.current?.[id];
+    const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
+    if (own) {
+      const mt = myTierRef.current || myTier;
+      return { own, resolved: mt.tier != null, capped: mt.tier === 'demo', count: mt.demoCardCount, limit: mt.effectiveCardLimit || DEMO_CARD_LIMIT };
+    }
+    const cap = boardCapacity.get(id);
+    return { own, resolved: Boolean(cap), capped: Boolean(cap?.isCapped), count: cap?.used || 0, limit: cap?.cap || DEMO_CARD_LIMIT };
+  };
+  // Whether `cost` more fits on cluster `id`; when it doesn't, the wall (or,
+  // on someone else's cluster, the owner-limit toast) and false.
+  const askCapFor = (id, cost) => {
+    const cs = capForBoard(id);
+    if (!cs.capped || !(cost > 0)) return { ok: true, cs };
+    const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: cost, limit: cs.limit });
+    if (!capHit) return { ok: true, cs };
+    try { logEvent(EV.CARD_CREATE_BLOCKED, { reason: 'demo_cap', board_id: id }); } catch (_) {}
+    if (cs.own) pitchCapWall(cs);
+    else feedback.toast({ type: 'warning', message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.` });
+    return { ok: false, cs };
+  };
+
   const createBoardInside = async (parentId) => {
     const parent = boards[parentId];
     if (!parent) return;
+    // The new cluster's card on its parent costs one, and arrives through the
+    // reconcile effect, which restores rather than adds — so the cap is asked
+    // here, before the cluster exists, and the count moved now.
+    const ask = askCapFor(parentId, 1);
+    if (!ask.ok) return;
     const d = defaultsRef.current?.board || {};
     const view = d.view || 'canvas';
     try {
@@ -3685,6 +3816,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           via: 'sidebar_inside', parent_depth: boardDepth(boards, parentId), opened: false, board_id: b?.id || null,
         });
       } catch (_) {}
+      if (ask.cs.own) myTier.notePlaced?.(1);
       await refreshBoards();
     } catch (e) {
       console.error('createBoardInside failed', e);
@@ -3837,6 +3969,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return;
     }
     try {
+      // What the copy will cost — its card on the target, plus every card it
+      // carries, by what the index counts — asked before anything is made. A
+      // paste at the limit used to make the cluster anyway, its contents and its
+      // card kept on the board uncounted.
+      const snap = await loadBoardSnapshot(clip.boardId);
+      let carried = 0;
+      if (snap) {
+        const peek = new Y.Doc();
+        try {
+          Y.applyUpdate(peek, b64ToBytes(snap));
+          peek.getMap('cards').forEach((v, id) => {
+            const get = (k) => (v?.get ? v.get(k) : v?.[k]);
+            const kind = get('kind') || 'note';
+            if (kind === 'board' || kind === 'boardlink') return;   // dropped from the copy below
+            if (isSeedCard({ id, seed: get('seed') }) || isAbandonedUpload(get)) return;
+            carried += cardIndexWeight(kind, get);
+          });
+        } finally { peek.destroy(); }
+      }
+      const ask = askCapFor(targetId, 1 + carried);
+      if (!ask.ok) return;
       const newBoard = await createBoard({
         workspaceId: target.workspace_id,
         parentBoardId: targetId,
@@ -3849,7 +4002,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           via: 'paste_copy', parent_depth: boardDepth(boards, targetId), opened: false, board_id: newBoard?.id || null,
         });
       } catch (_) {}
-      const snap = await loadBoardSnapshot(clip.boardId);
       if (snap) {
         const tmp = boardDoc(clip.boardId);
         Y.applyUpdate(tmp, b64ToBytes(snap));
@@ -3866,6 +4018,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await saveBoardSnapshot(newBoard.id, tmp);
         tmp.destroy();
       }
+      if (ask.cs.own) myTier.notePlaced?.(1 + carried);
       await refreshBoards();
       feedback.toast({ type: 'success', message: 'Pasted cluster.' });
     } catch (e) {
@@ -4897,8 +5050,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // and re-admits the very next add).
       const rb = rejectedBoardId ? boards?.[rejectedBoardId] : null;
       const ownRejected = !rb || (rb.workspace_id === workspace?.id && workspace?.created_by === user?.id);
-      if (ownRejected) myTier.refetch?.();
-      else boardCapacity.refetch?.(rejectedBoardId);
+      const refreshCap = () => {
+        if (ownRejected) myTier.refetch?.();
+        else boardCapacity.refetch?.(rejectedBoardId);
+      };
 
       // Refused but KEPT: existing work the cap would not index. A card placed
       // while the account was paid whose sync never ran, one restored by undo
@@ -4916,7 +5071,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
         } catch (_) {}
       }
-      if (!(Number(e?.detail?.rejected) > 0)) return;
+      if (!(Number(e?.detail?.rejected) > 0)) { refreshCap(); return; }
 
       try {
         logEvent(EV.CARD_CREATE_BLOCKED, {
@@ -4940,6 +5095,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (rejectedIds.length && rejectedBoardId === currentId) {
         try { mainMutators.deleteCardsSilent?.(rejectedIds); } catch (_) {}
       }
+      // The refetch comes AFTER the withdrawal's refund, never before it. A
+      // refetch settles the delta it saw when it started; started first, it
+      // settled the refused cards' +N and the refund then took another N off,
+      // leaving the count N under the server's — room the user did not have.
+      refreshCap();
 
       // Same once-per-episode latch the client-side gate uses, so a refusal
       // that arrives from the server doesn't re-open a pitch the user has
@@ -7342,6 +7502,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // never sees a scary "not found" message.
     if (!board) return <div className="surface-wrap" />;
     const ready = yh.ready && yh.boardId === board.id;
+    const synced = ready && !!yh.synced;
     const yd = ready ? yh.ydoc : null;
     // Hide orphan board / boardlink references — see the comment above
     // currentCards. We filter at the render layer for both panes (main +
@@ -7405,6 +7566,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                             first-board shape from the server card count: no cards anywhere
                             means this is the first board (lib/firstBoardCopy). */
                          boardReady={ready}
+                         boardSynced={synced}
                          firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
                          firstBoardKind={firstBoardKind}
                          freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}

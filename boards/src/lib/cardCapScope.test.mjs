@@ -194,9 +194,13 @@ test('an empty grid costs nothing — in the trigger, in the index row and at th
   assert.equal(cardIndexWeight('grid', () => undefined), 0);
 
   const app = readSrc('App.jsx');
-  assert.match(app, /const cost = cardIndexWeight\(card\?\.kind \|\| 'note', \(k\) => card\?\.\[k\]\);/,
-    'addCard charges what card_index will record');
+  assert.match(app, /const countedWeight = \(get\) => \(isAbandonedUpload\(get\) \? 0 : cardIndexWeight\(get\('kind'\) \|\| 'note', get\)\);/,
+    'one cost function: what card_index will record');
+  assert.match(app, /const placementCost = \(card\) => countedWeight\(\(k\) => card\?\.\[k\]\);/);
+  assert.match(app, /const cost = placementCost\(card\);/, 'addCard charges it');
+  assert.match(app, /fitByCost\(cardsToAdd, placementCost, remaining\)/, 'addCards charges it');
+  assert.match(app, /fitByCost\(sources, dupCost, remaining\)/, 'duplicateCards charges it');
   assert.match(app, /if \(cs\.capped && cost > 0\) \{/, 'a zero-cost card never meets the wall');
   assert.match(app, /requested: cost, limit: cs\.limit/);
-  assert.match(app, /if \(cost > 0\) myTier\.notePlaced\?\.\(cost\);/, 'and never moves the count');
+  assert.match(app, /if \(cost > 0 && cs\.own\) myTier\.notePlaced\?\.\(cost\);/, 'and never moves the count');
 });

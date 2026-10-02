@@ -17,6 +17,8 @@
 // Literal text typed around a tag ("SHOT [#]", "Scene [#][A]") is the custom
 // prefix/suffix — no separate config needed.
 
+import { isSlate } from './gridCount.js';
+
 export const SEQ_TUNING = Object.freeze({
   ROW_EPS_PX: 40,   // y-center tolerance for banding Grids into the same row
                     //   (and x-center for columns in the 'n' pattern)
@@ -115,10 +117,17 @@ export function hasLabelTag(raw) {
 // because a stamped grid is LINKED: it shares the source's templateId, hence one
 // layout, hence the very same leaf ids. Re-mapping by reading order — which is
 // what applying a TEMPLATE has to do — would be wrong here.
+//
+// A slate is what gridCount.isSlate says it is — a sequence label, short — and
+// nothing longer is carried. Someone's sentence with a [#] in it is writing,
+// which a copy must not inherit; and since a slate costs no card, a stamped
+// copy is never charged for what stamping put in it. Stamping is not gated
+// against the cap, so it must stay free: carrying a long caption made each copy
+// of a Generate matrix cost a card no gate had approved.
 export function stampCarry(cells, hints) {
   const out = {};
   for (const [k, cell] of Object.entries(cells || {})) {
-    if (cell && cell.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
+    if (isSlate(cell)) out[k] = { type: 'text', html: cell.html };
   }
   // Null rather than {} when there is nothing to carry, so a caller can skip
   // writing the key at all and an unhinted grid stays unhinted.

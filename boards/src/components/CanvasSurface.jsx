@@ -143,7 +143,7 @@ import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
-import { isAbandonedUpload, planAbandonedSweep, abandonedNotice } from '../lib/abandonedUploads.js';
+import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading } from '../lib/abandonedUploads.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals, uprightLabelAngle,
@@ -488,6 +488,7 @@ export function CanvasSurface({
                            // tiles even on a SEEDED (non-empty) root until the user
                            // places their own genuine card (the guided first-card flow).
   boardReady = true,       // the Y.Doc has hydrated. Until it has, cards is []
+  boardSynced = false,     // the SERVER's snapshot is in, not just the instant cache paint
                            // on a board that may hold dozens — the empty panel
                            // must not paint (or log) over a populated board.
   firstBoard = false,      // this person has no cards anywhere yet: the panel is
@@ -991,6 +992,9 @@ export function CanvasSurface({
   // returning true on a write that no-ops would swallow the drag (snap-back).
   const routeCardIntoCell = useCallback((card, gridId, cellId) => {
     if (!card || !gridId || !cellId) return false;
+    // A photo still uploading has no src to put in the cell, and pouring it in
+    // deletes the card its upload is about to land in. It stays a card.
+    if (isStillUploading(card)) return false;
     const k = card.kind;
     // cardById is the stable in-place singleton (declared below; initialized by
     // the time any drop fires) — intentionally NOT in deps.
@@ -3319,15 +3323,30 @@ export function CanvasSurface({
 
   // Abandoned uploads (lib/abandonedUploads.js): photo cards saved without
   // their file by a page that went away mid-upload. Writers only, a few seconds
-  // after the board settles. Recover each one whose original reached the images
-  // table (only the src patch was lost); remove the rest and say so once. This
-  // is a cleanup of placeholders that never held anything, not a delete of
-  // someone's work, so it carries a plain notice rather than an undo — undoing
-  // would restore cards that can never load.
+  // after the board settles — and only once the SERVER's snapshot is in: the
+  // instant cache paint can be a day old, showing a card unfinished that
+  // another device has since completed. Recover each one whose original reached
+  // the images table (only the src patch was lost); remove the ones past a day
+  // — never sooner, since another tab or device could still be uploading — and
+  // say so once. This is a cleanup of placeholders that never held anything,
+  // not a delete of someone's work, so it carries a plain notice rather than an
+  // undo — undoing would restore cards that can never load.
+  //
+  // A card looked up and left (not found, under a day old) is not looked up
+  // again on every render — the cards array changes on every edit — but once
+  // SWEEP_RECHECK_MS has passed.
+  // Scoped to the board: this surface isn't remounted between clusters, and a
+  // map carried across would skip the next open's look on a card seen minutes
+  // ago on the last visit.
+  const sweepCheckedRef = useRef({ boardId: null, at: new Map() });   // card id → when last looked up
   useEffect(() => {
-    if (!canEdit || isPublic || useLocalImages || !board?.id) return undefined;
+    if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
     const now = Date.now();
-    const stale = cards.filter((c) => isAbandonedUpload((k) => c[k], now) && !localImagePreviewRef.current?.[c.id]);
+    if (sweepCheckedRef.current.boardId !== board.id) sweepCheckedRef.current = { boardId: board.id, at: new Map() };
+    const checked = sweepCheckedRef.current.at;
+    const stale = cards.filter((c) => isAbandonedUpload((k) => c[k], now)
+      && !localImagePreviewRef.current?.[c.id]
+      && !(now - (checked.get(c.id) || 0) < SWEEP_RECHECK_MS));
     if (!stale.length) return undefined;
     const sweepBoardId = board.id;
     const t = setTimeout(async () => {
@@ -3345,21 +3364,34 @@ export function CanvasSurface({
         for (const r of data || []) if (r.card_id && r.storage_path) found.set(r.card_id, r.storage_path);
       } catch (_) { return; }
       if (boardIdRef.current !== sweepBoardId) return;
-      const plan = planAbandonedSweep(ids, found);
+      const at = Date.now();
+      for (const id of ids) checked.set(id, at);
+      // Judge each card as it is NOW, not as it was when the timer was set (or
+      // before the query's await): one finished meanwhile is left alone.
+      const live = new Map((cardsRef.current || []).map((c) => [c.id, c]));
+      const swept = ids
+        .map((id) => live.get(id))
+        .filter((c) => c && isAbandonedUpload((k) => c[k], at) && !localImagePreviewRef.current?.[c.id])
+        .map((c) => ({ id: c.id, age: uploadAge((k) => c[k], at) }));
+      const plan = planAbandonedSweep(swept, found);
       const m = sweepMutatorsRef.current;
       for (const r of plan.recover) m?.updateCardSilent?.(r.id, { src: r.src, pending: false });
-      if (plan.remove.length) {
-        m?.deleteCardsSilent?.(plan.remove, { refund: false });
-        feedbackRef.current?.toast?.({ type: 'info', message: abandonedNotice(plan.remove.length), ttl: 9000 });
+      // Say only what actually happened: a delete that did nothing (a guarded
+      // mutator) is not "removed".
+      const removed = plan.remove.length ? (Number(m?.deleteCardsSilent?.(plan.remove, { refund: false })) || 0) : 0;
+      if (removed) feedbackRef.current?.toast?.({ type: 'info', message: abandonedNotice(removed), ttl: 9000 });
+      // Logged when something was done, not every time a card was looked at
+      // and left for later.
+      if (plan.recover.length || removed) {
+        try {
+          logEvent(EV.UPLOAD_ABANDONED, {
+            board_id: sweepBoardId, n: swept.length, recovered: plan.recover.length, removed,
+          });
+        } catch (_) {}
       }
-      try {
-        logEvent(EV.UPLOAD_ABANDONED, {
-          board_id: sweepBoardId, n: ids.length, recovered: plan.recover.length, removed: plan.remove.length,
-        });
-      } catch (_) {}
     }, 4000);
     return () => clearTimeout(t);
-  }, [board?.id, cards, canEdit, isPublic, useLocalImages]);
+  }, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);
 
   // Drop a PDF: add a pending card immediately, then upload + render the
   // page-1 thumbnail in the background (same optimistic pattern as images).
@@ -4310,11 +4342,14 @@ export function CanvasSurface({
   }, [selected, cardById, board.id]);
 
   const doCut = useCallback(async () => {
-    const items = [...selected].map(id => cardById[id]).filter(Boolean);
+    // A card still uploading is not cut: the paste re-ids it, and its upload,
+    // landing by the old id, would never reach the copy (see moveCardsIntoBoard).
+    const all = [...selected].map(id => cardById[id]).filter(Boolean);
+    const items = keepUploadsInPlace(all) ? all.filter((c) => !isStillUploading(c)) : all;
     if (items.length === 0) return;
     setClipboard(items, board.id, { cut: true });
     mutators.breakUndo?.();
-    await doDeleteIds([...selected]);
+    await doDeleteIds(items.map((c) => c.id));
   }, [selected, cardById, board.id, doDeleteIds, mutators]);
 
   const doPaste = useCallback(async (atCanvas) => {
@@ -5072,6 +5107,22 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [eyedropFor]);
 
+  // Cards that are still uploading never travel to another cluster (see
+  // moveCardsIntoBoard). Says so once; returns how many were held back.
+  const keepUploadsInPlace = (list) => {
+    const n = (list || []).filter(isStillUploading).length;
+    if (n) {
+      feedback.toast({
+        type: 'info',
+        message: n === 1
+          ? 'A card that is still uploading stayed where it was — move it once it has finished.'
+          : `${n} cards that are still uploading stayed where they were — move them once they have finished.`,
+        ttl: 7000,
+      });
+    }
+    return n;
+  };
+
   // Move cards from THIS canvas into another cluster. Dropping cards on a
   // cluster card and "Move to cluster…" in the card menu both land here, so the
   // menu inherits everything the drag earned: the pre-move snapshot, the
@@ -5082,6 +5133,17 @@ export function CanvasSurface({
   // around the source delete and roll back via bulletproofRestore if the
   // invariant fails. Cluster cards never come through here — they nest.
   const moveCardsIntoBoard = async (dragIds, targetBoardId, movedCards, { via = 'drag' } = {}) => {
+    // A card still uploading stays where it is: its upload writes the file into
+    // THIS card, by id, when it lands. A moved copy has a new id on another
+    // cluster and would never be told — it would spin, and in a day be swept
+    // away as unfinished though its file had arrived.
+    const held = keepUploadsInPlace(movedCards);
+    if (held) {
+      movedCards = movedCards.filter((c) => !isStillUploading(c));
+      const keep = new Set(movedCards.map((c) => c.id));
+      dragIds = dragIds.filter((id) => keep.has(id));
+      if (!movedCards.length) return;
+    }
     const cardsMap = ydoc?.getMap?.('cards');
     const beforeKeys = cardsMap ? [...cardsMap.keys()] : [];
     const beforeCount = beforeKeys.length;
@@ -5696,7 +5758,10 @@ export function CanvasSurface({
       // independently (onUp), so drop accuracy is unchanged. On throttled-out
       // frames the current highlight is left as-is (no flicker).
       const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
-      const wantHitTest = (dropCandidateIds.length > 0 || CELL_DROP_KINDS.has(soloKind))
+      // A card still uploading can't go into a cell (routeCardIntoCell), so it
+      // never lights one up either.
+      const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
+      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable)
         && (Math.abs(dx) + Math.abs(dy) > 4);
       if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
         lastHitTestT = nowT;
@@ -5748,7 +5813,7 @@ export function CanvasSurface({
         // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
         // a multi-select drag never shows a misleading affordance.
         let nextCell = null;
-        if (!nextDropTarget && CELL_DROP_KINDS.has(soloKind)) {
+        if (!nextDropTarget && soloCellable) {
           for (const el of stack) {
             const cellEl = el?.closest?.('[data-cell-id]');
             if (!cellEl) continue;
@@ -6552,8 +6617,10 @@ export function CanvasSurface({
               const f = input.files?.[0]; if (!f) return;
               try {
                 const payload = await imageFileToPayload(f, c.x + c.w / 2, c.y + c.h / 2);
-                // Clear any prior adjustments — they belonged to the old image.
-                mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null });
+                // Clear any prior adjustments — they belonged to the old image —
+                // and `pending`: a stuck "Uploading…" card fixed this way has its
+                // file now, and must not spin, or be held back from moves, for good.
+                mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null, pending: false });
               } catch (err) {
                 feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
               }
@@ -9283,18 +9350,20 @@ export function CanvasSurface({
       // Don't try to "move" board-kind cards across boards — they reference
       // a single postgres board which can't have two parents on one canvas.
       // Just create a boardlink instead.
+      let placed;
       if (c.kind === 'board' && payload.sourceBoardId !== board.id) {
-        mutators.addCard?.({
+        placed = mutators.addCard?.({
           id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
           kind: 'boardlink', target: c.id,
           x: c.x, y: c.y, w: c.w || 220, h: c.h || 160,
         });
       } else {
-        mutators.addCard?.(c);
+        placed = mutators.addCard?.(c);
       }
       // For move: dispatch a custom event the source canvas listens for to
-      // delete itself. Key by the original id + sourceBoardId.
-      if (!isCopy) {
+      // delete itself. Key by the original id + sourceBoardId. Only once the
+      // card has actually landed here — a card the cap refused stays put.
+      if (!isCopy && placed) {
         document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
           detail: { sourceBoardId: payload.sourceBoardId, cardId: payload.card.id },
         }));
@@ -9361,7 +9430,7 @@ export function CanvasSurface({
   // the source after a successful cross-pane move.
   useEffect(() => {
     const onTransferred = (e) => {
-      const { sourceBoardId, cardIds, cardId } = e.detail || {};
+      const { sourceBoardId, cardIds, cardId, neutral } = e.detail || {};
       if (sourceBoardId !== board.id) return;
       const idList = Array.isArray(cardIds)
         ? cardIds
@@ -9392,8 +9461,9 @@ export function CanvasSurface({
         });
       }
       // MOVE variant (untracked origin): Cmd+Z on this pane must not
-      // resurrect cards that now live on the other pane's board.
-      mutators.deleteCardsForMove?.(idList);
+      // resurrect cards that now live on the other pane's board. A move into
+      // another owner's cluster gives this owner back the room the cards held.
+      mutators.deleteCardsForMove?.(idList, { refund: neutral === false });
     };
     document.addEventListener('soleil-card-transferred', onTransferred);
     return () => document.removeEventListener('soleil-card-transferred', onTransferred);
@@ -9491,7 +9561,8 @@ export function CanvasSurface({
   // emits this event after detecting pointerup over a different .canvas-wrap).
   useEffect(() => {
     const onDrop = (e) => {
-      const { sourceBoardId, isCopy, cards: payload, clientX, clientY } = e.detail || {};
+      const { sourceBoardId, isCopy, clientX, clientY } = e.detail || {};
+      let payload = e.detail?.cards;
       if (!payload?.length || sourceBoardId === board.id) return;
       const wrap = wrapRef.current;
       if (!wrap) return;
@@ -9515,34 +9586,52 @@ export function CanvasSurface({
         });
       }
       const { x: cx, y: cy } = clientToCanvas(clientX, clientY);
+      // A card still uploading stays in its own pane, moved or copied: its
+      // upload lands in it by id, so a re-id'd card here would never get its file.
+      keepUploadsInPlace(payload);
+      payload = payload.filter((c) => !isStillUploading(c));
+      if (!payload.length) return;
       // Maintain relative positions between the dragged group's items.
       let minX = Infinity, minY = Infinity;
       payload.forEach(c => { if (c.x < minX) minX = c.x; if (c.y < minY) minY = c.y; });
-      const newCards = payload.map(c => {
+      const stamp = Date.now();
+      const newCards = payload.map((c, i) => {
         const isBoard = c.kind === 'board';
         const baseX = (c.x - minX) + (cx - 60);
         const baseY = (c.y - minY) + (cy - 40);
         // Cross-board 'board' cards become 'boardlink' cards instead.
         if (isBoard && !isCopy) {
           return {
-            id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            id: `xlink-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`,
             kind: 'boardlink', target: c.id,
             x: Math.max(8, Math.round(baseX)), y: Math.max(8, Math.round(baseY)),
             w: c.w || 220, h: c.h || 160,
           };
         }
+        // The index keeps ids unique in the batch: two random draws in one
+        // millisecond collided, one card overwrote the other here, and the
+        // source deleted both.
         return {
           ...c,
-          id: `${c.kind || 'card'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+          id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`,
           x: Math.max(8, Math.round(baseX)), y: Math.max(8, Math.round(baseY)),
         };
       });
-      mutators.addCards?.(newCards);
+      const res = mutators.addCards?.(newCards, isCopy ? {} : { moveFrom: sourceBoardId });
       if (!isCopy) {
-        // Tell the source canvas to delete the originals.
-        document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
-          detail: { sourceBoardId, cardIds: payload.map(c => c.id) },
-        }));
+        // Tell the source canvas to delete the originals — only the ones that
+        // landed here. This used to send every id whatever the cap kept off
+        // this board, so a move at the limit deleted cards from the source
+        // that had arrived nowhere. newCards[i] is payload[i] re-id'd.
+        const placed = new Set(res?.placedIds || []);
+        const moved = payload.filter((_, i) => placed.has(newCards[i].id)).map((c) => c.id);
+        if (moved.length) {
+          document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
+            // neutral: the move stayed in one workspace, so the source's room is
+            // unchanged; otherwise the source gives its owner the room back.
+            detail: { sourceBoardId, cardIds: moved, neutral: !!res?.neutral },
+          }));
+        }
       }
     };
     document.addEventListener('soleil-cross-pane-drop', onDrop);

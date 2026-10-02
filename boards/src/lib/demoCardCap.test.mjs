@@ -13,7 +13,7 @@
 // constant. The one place a literal is still correct is the pair of cohort
 // tests at the bottom, which exist precisely to pin the two real cap values.
 
-import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from './demoCardCap.js';
+import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT, fitByCost } from './demoCardCap.js';
 
 let failed = 0;
 let passed = 0;
@@ -128,6 +128,21 @@ for (const bad of [null, undefined, {}, 'nope', 0]) {
   assertEq(rejectedNoun(bad, 3), 'cards', `junk kinds degrade to cards: ${JSON.stringify(bad)}`);
 }
 assertEq(rejectedNoun({ image: 1 }, '1'), 'photo', 'a stringified count still reads as singular');
+
+// fitByCost — a mixed batch charged by weight. A free item (an empty grid)
+// always fits and is never the one cut; costly items fit while the total does,
+// in order.
+{
+  const cost = (it) => it.w;
+  const items = [{ id: 'img1', w: 1 }, { id: 'grid', w: 0 }, { id: 'img2', w: 1 }, { id: 'big', w: 5 }, { id: 'img3', w: 1 }];
+  const r = fitByCost(items, cost, 3);
+  assertEq(r.kept.map((x) => x.id), ['img1', 'grid', 'img2', 'img3'], 'the 5-weight grid is cut, the cheap card after it still fits');
+  assertEq(r.cost, 3, 'cost is the sum of what was kept');
+  assertEq(r.capHit, true, 'something was left out');
+  assertEq(fitByCost(items, cost, 0).kept.map((x) => x.id), ['grid'], 'at zero room only the free grid fits');
+  assertEq(fitByCost(items, cost, 100).capHit, false, 'room for all is not a cap hit');
+  assertEq(fitByCost([], cost, 5), { kept: [], cost: 0, capHit: false }, 'empty batch');
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
