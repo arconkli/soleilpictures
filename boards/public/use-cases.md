@@ -16,6 +16,16 @@ Clusters is a single visual workspace, but people reach for it at different mome
 - Storyboard maker — lay shots out in a grid, sequence to sequence
 - Shot list maker — a visual shot list your whole crew can use
 
+## For production departments
+
+The same canvas, set up for the way each department actually works — with the honest limits of each written down.
+
+- Shared reference boards — one live wall for a studio art team
+- Director’s treatment — build the look live, export a PDF
+- Production design — a board per set for the art department
+- Costume design — a board per character, looks by scene
+- Cinematography lookbook — light, lens and frame references
+
 ## See real boards
 
 The best way to understand Clusters is to look at boards people have actually built. Browse the Explore gallery for curated example boards — mood boards, palettes, and reference collections — you can open and learn from.

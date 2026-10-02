@@ -76,6 +76,10 @@ Everything is real time. Two people can move cards on the same canvas, type in
 the same [note](/docs/canvas/notes), or write in the same
 [document](/docs/documents) at once, and edits merge rather than overwriting.
 
+One common shape of this is a studio art team working from a single live
+reference board — the [shared reference boards guide](/tools/shared-reference-board)
+covers setting one up.
+
 ## Undoing someone else's change
 
 `⌘Z` undoes **your own** edits only. To reverse a collaborator's work, use

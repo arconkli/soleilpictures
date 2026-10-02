@@ -467,6 +467,83 @@ export const DOCS_CONTENT = {
     ],
     [
      {
+      "t": "text",
+      "v": "For production departments: "
+     },
+     {
+      "t": "link",
+      "v": "Shared reference boards for art teams",
+      "href": "/tools/shared-reference-board",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared reference boards for art teams"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " · "
+     },
+     {
+      "t": "link",
+      "v": "Director’s treatment",
+      "href": "/tools/directors-treatment",
+      "children": [
+       {
+        "t": "text",
+        "v": "Director’s treatment"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " · "
+     },
+     {
+      "t": "link",
+      "v": "Production design",
+      "href": "/tools/production-design-mood-board",
+      "children": [
+       {
+        "t": "text",
+        "v": "Production design"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " · "
+     },
+     {
+      "t": "link",
+      "v": "Costume design",
+      "href": "/tools/costume-design-mood-board",
+      "children": [
+       {
+        "t": "text",
+        "v": "Costume design"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " · "
+     },
+     {
+      "t": "link",
+      "v": "Cinematography lookbook",
+      "href": "/tools/cinematography-lookbook",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cinematography lookbook"
+       }
+      ]
+     }
+    ],
+    [
+     {
       "t": "link",
       "v": "Coming from another tool",
       "href": "/docs/migrating",
@@ -20293,6 +20370,42 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "A director’s treatment, as a PDF",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A director’s treatment, as a PDF"
+    }
+   ],
+   "id": "a-director-s-treatment-as-a-pdf"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A treatment is mostly images held together by short sections, which is exactly what a multi-page document with inline images exports well: give each section its own page and the PDF breaks there. The "
+    },
+    {
+     "t": "link",
+     "v": "director’s treatment guide",
+     "href": "/tools/directors-treatment",
+     "children": [
+      {
+       "t": "text",
+       "v": "director’s treatment guide"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " walks the whole thing, from building the look on a board to the PDF you send."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Exporting the board instead",
    "inline": [
     {
@@ -22997,6 +23110,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " at once, and edits merge rather than overwriting."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One common shape of this is a studio art team working from a single live reference board — the "
+    },
+    {
+     "t": "link",
+     "v": "shared reference boards guide",
+     "href": "/tools/shared-reference-board",
+     "children": [
+      {
+       "t": "text",
+       "v": "shared reference boards guide"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " covers setting one up."
     }
    ]
   },

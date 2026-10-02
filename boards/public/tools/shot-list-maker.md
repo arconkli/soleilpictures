@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, group shots into a cluster per shoot day, and share one live link with the crew.
 
-_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-07-22_
+_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-10-01_
 
 Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.
 

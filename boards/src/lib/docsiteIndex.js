@@ -1756,6 +1756,10 @@ export const DOCS_PAGES = [
         "text": "On a phone or tablet"
       },
       {
+        "id": "a-director-s-treatment-as-a-pdf",
+        "text": "A director’s treatment, as a PDF"
+      },
+      {
         "id": "exporting-the-board-instead",
         "text": "Exporting the board instead"
       }

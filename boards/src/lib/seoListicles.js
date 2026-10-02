@@ -802,6 +802,7 @@ const PAGES = [
     "related": [
       "/vs/pureref",
       "/tools/reference-board-maker",
+      "/tools/shared-reference-board",
       "/tools/mood-board-maker",
       "/use-cases"
     ],
@@ -1564,6 +1565,7 @@ const PAGES = [
       "/vs/milanote",
       "/tools/mood-board-maker",
       "/tools/storyboard-maker",
+      "/tools/production-design-mood-board",
       "/use-cases"
     ],
     "cta": {
@@ -2282,6 +2284,7 @@ const PAGES = [
       "/vs/storyflow",
       "/tools/mood-board-maker",
       "/tools/free-mood-board-maker",
+      "/tools/production-design-mood-board",
       "/vs/milanote",
       "/use-cases"
     ],
@@ -2919,6 +2922,8 @@ const PAGES = [
     "related": [
       "/tools/storyboard-maker",
       "/tools/shot-list-maker",
+      "/tools/directors-treatment",
+      "/tools/cinematography-lookbook",
       "/best/mood-board-apps",
       "/use-cases"
     ],

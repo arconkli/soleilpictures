@@ -54,6 +54,7 @@ of board, start to finish.
 - [What you can make with Clusters](/use-cases) — the full index
 - [Mood board maker](/tools/mood-board-maker) · [Storyboard maker](/tools/storyboard-maker) · [Shot list maker](/tools/shot-list-maker) · [Look book maker](/tools/look-book-maker)
 - [Building a board with an AI assistant](/tools/ai-mood-board-maker) — what it can and cannot do for you
+- For production departments: [Shared reference boards for art teams](/tools/shared-reference-board) · [Director’s treatment](/tools/directors-treatment) · [Production design](/tools/production-design-mood-board) · [Costume design](/tools/costume-design-mood-board) · [Cinematography lookbook](/tools/cinematography-lookbook)
 - [Coming from another tool](/docs/migrating) — PureRef, Milanote, Miro and the rest
 
 ## What changed, and when

@@ -46,6 +46,14 @@ Clusters runs in the mobile browser (and from the home screen as a web app), so
 an export arrives as a browser download; from there the device's own share
 sheet sends it to Files, Mail, or another app. There is no store app yet.
 
+## A director’s treatment, as a PDF
+
+A treatment is mostly images held together by short sections, which is exactly
+what a multi-page document with inline images exports well: give each section
+its own page and the PDF breaks there. The
+[director’s treatment guide](/tools/directors-treatment) walks the whole thing,
+from building the look on a board to the PDF you send.
+
 ## Exporting the board instead
 
 To export the whole cluster rather than one document — the canvas with its

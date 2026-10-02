@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.
 
-_Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-10-01_
 
 Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.
 

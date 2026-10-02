@@ -42,6 +42,7 @@ These are walkthroughs rather than reference — the whole workflow for one kind
 What you can make with Clusters — the full index
 Mood board maker · Storyboard maker · Shot list maker · Look book maker
 Building a board with an AI assistant — what it can and cannot do for you
+For production departments: Shared reference boards for art teams · Director’s treatment · Production design · Costume design · Cinematography lookbook
 Coming from another tool — PureRef, Milanote, Miro and the rest
 
 What changed, and when
@@ -2405,6 +2406,10 @@ On a phone or tablet
 
 Clusters runs in the mobile browser (and from the home screen as a web app), so an export arrives as a browser download; from there the device's own share sheet sends it to Files, Mail, or another app. There is no store app yet.
 
+A director’s treatment, as a PDF
+
+A treatment is mostly images held together by short sections, which is exactly what a multi-page document with inline images exports well: give each section its own page and the PDF breaks there. The director’s treatment guide walks the whole thing, from building the look on a board to the PDF you send.
+
 Exporting the board instead
 
 To export the whole cluster rather than one document — the canvas with its cards, arrows and drawings — see Exporting a board.
@@ -2751,6 +2756,8 @@ Messages — direct and group conversations with anyone you share a board with
 Notifications — mentions, replies, invitations
 
 Everything is real time. Two people can move cards on the same canvas, type in the same note, or write in the same document at once, and edits merge rather than overwriting.
+
+One common shape of this is a studio art team working from a single live reference board — the shared reference boards guide covers setting one up.
 
 Undoing someone else's change
 
@@ -6420,13 +6427,13 @@ Yes. Connecting an assistant costs nothing and works on the free plan. The usual
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/storyboard-maker
-Updated: 2026-07-07
+Updated: 2026-10-01
 
 # Storyboard Maker
 
 > Soleil Clusters is an online storyboard maker: split a grid card into panels, drop a still or sketch into each frame, caption and re-order shots by dragging, and keep the shot list beside the boards. Your director, DP, and AD can edit the same storyboard live, and one link shares it with the whole crew.
 
-_Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2026-07-07_
+_Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2026-10-01_
 
 Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.
 
@@ -6480,13 +6487,13 @@ Yes. The free Demo tier covers 50 cards — every cluster you make is one of the
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/shot-list-maker
-Updated: 2026-07-22
+Updated: 2026-10-01
 
 # Shot List Maker
 
 > Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, group shots into a cluster per shoot day, and share one live link with the crew.
 
-_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-07-22_
+_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-10-01_
 
 Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.
 
@@ -6775,14 +6782,490 @@ PureRef is a beloved offline desktop app — free to use personally, and excelle
 
 
 ========================================================================
+URL: https://clusters.soleilpictures.com/tools/shared-reference-board
+Updated: 2026-10-01
+
+# Shared Reference Boards for Studio Art Teams
+
+> Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.
+
+_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-01_
+
+One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
+
+## Why a reference wall stops working at team size
+
+A desktop reference app is built for one artist on one machine. The board is a file; whoever made it has the latest version; everyone else has a screenshot of it from Tuesday. That is fine for a personal study sheet and wrong for a production, where the same reference has to steer six artists, survive a supervisor’s notes, and still be findable when the sequence comes back for revisions. A shared board moves the wall to a URL: one source, edited live, open on any workstation without installing anything — locked-down studio machines included.
+
+- One board at a URL, not a file on one machine
+- Live cursors and presence show who is in the board
+- Nothing to install on studio workstations
+
+## Notes that stay on the image
+
+Feedback in a chat thread drifts away from the picture it is about. In Clusters a comment anchors to the card, or to a point on it, so “push the rim light here” sits on the exact frame — with a thread, @mentions, and a resolve once it is handled. When the team has to choose between options, a vote card settles which of the five without a meeting. Reviewers you invite comment and vote free.
+
+- Comments on a card, a group, or a point on the image
+- Threads, @mentions and resolve
+- Vote cards for “which of these” decisions
+
+## Organised the way a studio thinks
+
+Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and palettes pulled from any image keep the reference working as reference, not just a gallery.
+
+- Nested clusters per character, environment or shot
+- Typed tags gather a character’s references across boards
+- Black-and-white value checks and palettes from any image
+
+## One plan for the team, not a licence per seat
+
+Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards, with each cluster counting as one, shared by everyone working in it. Creator lifts that ceiling for the whole workspace at once and adds any file type with no per-file size limit — so a team of six pays for one plan, not six.
+
+## Where a desktop app is still the right call
+
+If an artist needs reference floating always-on-top over their paint app on a flight, a local desktop app like PureRef does that and Clusters does not — it needs a connection and lives in a browser tab. Plenty of studios keep both: PureRef for the personal study sheet beside the canvas, and a shared Clusters board for the reference the team has to agree on.
+
+## How a studio sets one up
+
+1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
+2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
+3. **Pull reference in bulk** — Drop a whole folder at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.
+4. **Mark what matters** — Comment on a card or a point on the image, tag references by character or setting, and vote between options when the team has to pick one.
+5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
+
+## What it costs
+
+Start free. Pay when you outgrow it.
+
+**Free — $0 forever**
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+**Creator — $25/mo, or $20/mo billed annually**
+
+- Unlimited cards
+- Any file type
+- No size limits
+- Covers your whole workspace
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+Compare the plans side by side: https://clusters.soleilpictures.com/pricing
+
+## Frequently asked questions
+
+### What is the best way for an art team to share reference boards?
+
+Put the reference in one board everyone can open and edit at once, instead of passing files around. Clusters does this in the browser: artists add reference live, comments pin to the image they are about, and a view-only link shows the board to anyone without an account.
+
+### Do the artists I invite need to pay?
+
+No. Editors are free on every plan. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.
+
+### Can a client or supervisor see the board without an account?
+
+Yes. A view-only link opens the board in any browser with no account, can include its nested clusters, and can expire after 7 or 30 days. To comment or vote, invite them instead — that is free too.
+
+### Can we bring our PureRef boards over?
+
+Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, and drop the whole folder onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.
+
+### Does it work offline?
+
+No. Clusters is a browser workspace and needs a connection. In exchange the board is backed up and identical on every machine and for every artist.
+
+### Is it free?
+
+Free for 50 cards across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and adds any file type; see “What it costs” on this page.
+
+
+
+========================================================================
+URL: https://clusters.soleilpictures.com/tools/directors-treatment
+Updated: 2026-10-01
+
+# Director’s Treatment Template
+
+> A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.
+
+_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-10-01_
+
+Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
+
+## What a treatment has to do
+
+A treatment wins or loses the job before anything is shot. For a commercial it answers a brief the agency already holds; for a music video it sells a world to an artist; for a short or a feature it shows financiers and heads of department the film you can see. Whatever the format, the reader should finish knowing what it will look and feel like — which is why the strongest treatments are mostly images, held together by a few confident paragraphs.
+
+## Build it on a board, with the people who will make it
+
+The slow part of a treatment is not the layout; it is agreeing the look. Clusters is an infinite canvas your producer, DP and designer can work in at the same time: pull references in by the folder, sort them into clusters for tone, casting, wardrobe and locations, comment on the exact frame, and vote between options when it comes down to two. Nobody waits for a version to be emailed round.
+
+- Live co-editing with cursors and presence
+- Comments pinned to the frame they are about
+- Vote cards for when it comes down to two
+
+## Write it as a document, images inline
+
+When the look is settled, write the treatment as a Clusters document beside the board. Documents take headings, tables and images inline, and run to as many pages as you need; give each section its own page and the export breaks the PDF there. Export to PDF from the browser’s print dialog, or to HTML or Markdown. The images are embedded in the export, so the file stands on its own.
+
+- Headings, tables and inline images
+- Multi-page documents, a page per section
+- PDF, HTML and Markdown export
+
+## Share it before it is a PDF
+
+Most treatments go through rounds. Send the board itself as a view-only link — no account needed, set to expire after 7 or 30 days — so a producer or an agency can see where it is heading before the document is final. Invite them instead and they can comment on the frames, free.
+
+## What Clusters is not
+
+It is not a deck designer. There are no slide templates, no presentation mode, and no branded or password-protected links, and the PDF is a well-set document rather than a magazine spread. If the treatment has to be art-directed page by page, finish the layout in InDesign or Keynote — plenty of directors do the thinking in Clusters and the final pass there.
+
+## The treatment template, section by section
+
+1. **Concept** — One paragraph: what the piece is and why it works. Write it first, at the top of the document.
+2. **Tone and references** — The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.
+3. **Look and light** — Palette, lensing, light and texture. Pull a palette from any reference image and keep it beside the frames it came from.
+4. **Casting** — Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.
+5. **Wardrobe and art direction** — Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.
+6. **Locations** — Scout photos and found references, a cluster per setting.
+7. **Edit, music and pace** — How it moves: reference clips as video cards, tracks as audio cards, and the rhythm you are after.
+8. **Export and send** — Lay the chosen images into the document, a page per section, and export a PDF from the browser’s print dialog.
+
+## What it costs
+
+Start free. Pay when you outgrow it.
+
+**Free — $0 forever**
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+**Creator — $25/mo, or $20/mo billed annually**
+
+- Unlimited cards
+- Any file type
+- No size limits
+- Covers your whole workspace
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+Compare the plans side by side: https://clusters.soleilpictures.com/pricing
+
+## Frequently asked questions
+
+### What should a director’s treatment include?
+
+Concept; tone and references; look and lighting; casting; wardrobe and art direction; locations; and edit, music and pace — usually in that order, mostly images, with a short paragraph per section. The outline above works as a template.
+
+### How long should a treatment be?
+
+As long as it takes to make the look unmistakable, and no longer — the reader is deciding quickly. Most of the length should be images, with the writing kept to what the pictures cannot say.
+
+### Can I export a treatment as a PDF?
+
+Yes. Write it as a Clusters document with the images inline and export to PDF from the browser’s print dialog; the images are embedded, so the file stands alone. HTML and Markdown exports are there too.
+
+### Can my producer and DP work on it with me?
+
+Yes. Invite them as editors — free on every plan — and you work in the same board at once. A view-only link shows it to anyone else without an account.
+
+### Is there a music video treatment template?
+
+The same structure works: concept, world and look, performance and casting, wardrobe, locations, and edit and music. Music video treatments lean harder on reference clips, and Clusters boards hold video and audio cards beside the stills.
+
+### Is it free?
+
+Free for 50 cards — each cluster counts as one — with free editors. Image-heavy treatments can outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+
+
+
+========================================================================
+URL: https://clusters.soleilpictures.com/tools/production-design-mood-board
+Updated: 2026-10-01
+
+# Production Design Mood Boards
+
+> Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.
+
+_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-10-01_
+
+A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.
+
+## A board per set, not one wall for the whole film
+
+Production design is many decisions per set, made by several people at once. One giant wall turns into a scroll, and a deck is out of date by Thursday. In Clusters the project is a cluster and each set is a cluster inside it, so the diner’s references, palette and notes live together and the motel room’s never get in the way. Live thumbnails show what is inside each one at a glance.
+
+- Nested clusters per set, location or department
+- Live thumbnails of every nested board
+- A relationship graph connects the project
+
+## References, palettes and plans together
+
+A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Palettes come straight out of any reference. On Creator, any file type rides along as an attachment — a .psd, a .zip of drawings, a model file.
+
+- PDF plans and drawings beside the references
+- Palettes pulled from any image, with hex values
+- Any file type as an attachment on Creator
+
+## The whole department, live
+
+Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — a point on a reference, not a paragraph in an email — and a vote card settles “which of these three chairs” without a meeting.
+
+## Tag by setting and character
+
+Tags cut across the nesting. Type a tag as a setting — the diner — and its view gathers every reference for that place from anywhere in the workspace, including the costume and camera boards. Tag a character, and their room, their props and their wardrobe come back in one view.
+
+## What it does not do
+
+Clusters is a reference and decision tool, not a drafting or budgeting one. Draw the plans in Vectorworks or SketchUp and attach them; keep the budget and the breakdown where they already live. What Clusters holds is the look of each set and the record of how it was agreed.
+
+## How an art department uses it
+
+1. **A cluster per set** — Nest one cluster per set or location inside the project — the diner, the motel room, the night exterior.
+2. **Pull the references** — Drop period photography, film frames and scout photos in by the folder; attach plans and drawings as PDFs.
+3. **Set the palette** — Pull a palette from any reference and keep the hex values beside the set they belong to.
+4. **Split the work** — Set decoration, props and graphics each work in their own nested clusters, inside the set.
+5. **Get the director’s notes** — The director comments on the exact image; when it comes down to two options, a vote card decides.
+
+## What it costs
+
+Start free. Pay when you outgrow it.
+
+**Free — $0 forever**
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+**Creator — $25/mo, or $20/mo billed annually**
+
+- Unlimited cards
+- Any file type
+- No size limits
+- Covers your whole workspace
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+Compare the plans side by side: https://clusters.soleilpictures.com/pricing
+
+## Frequently asked questions
+
+### What should a production design mood board include?
+
+For each set: period and genre references, film frames with the feel you want, a palette, textures and materials, key props, and any plans or drawings — plus a note on what the set has to do for the story. One board per set keeps each one readable.
+
+### Can the whole art department work on the same boards?
+
+Yes. Invite set decorators, prop masters and graphics as editors — free on every plan — and everyone works in the same project live, each in their own nested cluster.
+
+### Can I attach floor plans and drawings?
+
+Yes. PDFs of plans and drawings sit on the board as cards beside the references. Other formats — a .psd, a .zip, a model file — attach on Creator, which accepts any file type.
+
+### How do I share the boards with the director and producer?
+
+Invite them to comment and vote, free — or send a view-only link that opens without an account, includes the nested sets, and can expire after 7 or 30 days.
+
+### Is it free?
+
+Free for 50 cards across the workspace — each cluster counts as one — with free editors. A full art department will outgrow that; Creator removes the cap for the whole workspace at once. See “What it costs” on this page.
+
+
+
+========================================================================
+URL: https://clusters.soleilpictures.com/tools/costume-design-mood-board
+Updated: 2026-10-01
+
+# Costume Design Mood Boards
+
+> Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.
+
+_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-10-01_
+
+A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
+
+## A board per character, a look per scene
+
+Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a cell per scene or change, holding the look, a caption and the fabric. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.
+
+- A cluster per character
+- A grid of looks, a cell per scene or change
+- Captions and swatches beside each look
+
+## Swatches, colour and fittings together
+
+Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Pull a palette from a swatch or a reference and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.
+
+## One character tag, every reference
+
+Tags in Clusters can be typed as characters. Tag a reference with the character once, and the tag’s view gathers every image of them from wherever it lives in the workspace — your boards, the production designer’s, the camera team’s. Nothing moves; the tag just finds it.
+
+## Assistants, buyers and the director, live
+
+Invite assistant designers, buyers and the supervisor as editors — free on every plan — and the department works in the same boards at once. The director comments on the exact image and votes between options, so sign-off is a thread on the look rather than an email chain.
+
+## What it does not do
+
+Clusters holds the look and the decision, not the paperwork. It does not track a costume budget, measurements or a rental inventory, and it is not a sketching or pattern tool — draw in Procreate or on paper and drop the sketch on the board.
+
+## How a costume department uses it
+
+1. **A cluster per character** — Nest one cluster per principal inside the project, and one for background.
+2. **Research and inspiration** — Period photography, paintings, runway and street references, dropped in by the folder.
+3. **Lay out the looks** — A grid per character with a cell per scene or change — the look, a caption, and the swatch.
+4. **Swatches and colour** — Photograph fabrics and trims, pull palettes from them, and keep the hex values beside the look.
+5. **Fittings and sign-off** — Drop fitting photos into the character’s board; the director comments on the exact image, and a vote card picks between options.
+
+## What it costs
+
+Start free. Pay when you outgrow it.
+
+**Free — $0 forever**
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+**Creator — $25/mo, or $20/mo billed annually**
+
+- Unlimited cards
+- Any file type
+- No size limits
+- Covers your whole workspace
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+Compare the plans side by side: https://clusters.soleilpictures.com/pricing
+
+## Frequently asked questions
+
+### What should a costume mood board include?
+
+Per character: research and inspiration, the silhouette and colour story, a look for each scene or change, fabric and trim swatches, and fitting photos as they happen. A board per character keeps the arc readable.
+
+### How do I lay out costume changes by scene?
+
+Put a grid inside the character’s board with a cell per scene or change, and caption each cell with the scene and what changes. The grid reads in story order, and everyone with access sees the same one.
+
+### Can I share it with the director without an account?
+
+Yes. A view-only link opens in any browser with no account and can expire after 7 or 30 days. To comment or vote, invite them — free on every plan.
+
+### Does it handle continuity?
+
+For the looks, yes: fitting and continuity photos live in the character’s grid beside the intended look. It is not a dedicated continuity database — there is no per-take logging.
+
+### Is it free?
+
+Free for 50 cards across the workspace — each cluster counts as one — with free editors. A full principal cast will outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+
+
+
+========================================================================
+URL: https://clusters.soleilpictures.com/tools/cinematography-lookbook
+Updated: 2026-10-01
+
+# Cinematography Lookbook
+
+> Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and pull palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.
+
+_Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-10-01_
+
+Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.
+
+## Frames, light and lens on one board
+
+A lookbook is an argument about how the film will look, made with other people’s pictures. In Clusters each look gets a cluster, and inside it the frames that define it sit beside the notes that make it repeatable — lens, height, source, diffusion. Reference clips play on the board as video cards, so movement and camera behaviour live in the same place as the stills.
+
+- A cluster per scene or look
+- Lens and lighting notes beside each frame
+- Reference clips as playable video cards
+
+## Check values, not just vibes
+
+Flip any reference to black and white to read where its values actually sit, and nudge warmth, contrast and saturation to compare it with your tests. The adjustments are non-destructive, so the original frame is always one click away. Pull a palette from any image to hand the colourist a concrete starting point.
+
+- Black and white for reading values
+- Warmth, contrast and saturation, non-destructively
+- Palettes pulled from any frame
+
+## Director, gaffer and colourist on the same page
+
+A lookbook only helps if the people executing it see the same thing. Invite the gaffer, the key grip and the colourist as editors — free on every plan — and they work in the board live. The director comments on the exact frame, and a vote card settles “this one or that one” before the tech scout instead of during it.
+
+## From lookbook to shot list
+
+Keep the shot list in a document beside the frames — a table of shot, lens and movement — and the storyboard sequences in a grid in the same project. The look, the frames and the plan stay linked instead of living in three apps.
+
+## What it does not do
+
+Clusters is not a shot-design or previs tool — there is no 3D camera simulation or lens calculator — and it does not manage camera reports. Use it for the look and the agreement on it; use your previs and reporting tools for the rest.
+
+## How a DP builds one
+
+1. **A cluster per scene or look** — Night exteriors, the apartment, the flashback — each look gets its own cluster.
+2. **Collect the frames** — Film stills, photographs and your own tests, dropped in by the folder; reference clips as video cards.
+3. **Read the light** — Flip any frame to black and white to read its values; nudge warmth and contrast to compare against your tests.
+4. **Note lens and setup** — A note or caption beside each frame: focal length, stop, height, source, diffusion.
+5. **Bring in the team** — The gaffer and the colourist edit free; the director comments on the exact frame.
+
+## What it costs
+
+Start free. Pay when you outgrow it.
+
+**Free — $0 forever**
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+**Creator — $25/mo, or $20/mo billed annually**
+
+- Unlimited cards
+- Any file type
+- No size limits
+- Covers your whole workspace
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+Compare the plans side by side: https://clusters.soleilpictures.com/pricing
+
+## Frequently asked questions
+
+### What is a cinematography lookbook?
+
+A collection of reference images — film frames, photographs, tests — that defines how a film will look: light, contrast, colour, lensing and movement, organised by scene or look, with notes on how to achieve each.
+
+### How do I make a DP lookbook?
+
+Make a cluster per scene or look, drop in the defining frames, note lens and lighting beside each, check values in black and white, and share it with the director and the team. The steps above walk through it.
+
+### Can I put reference clips in it?
+
+Yes. Video cards play on the board beside the stills. The free plan caps each clip’s size and length; Creator lifts that.
+
+### Can the colourist see it without an account?
+
+Yes, through a view-only link that opens in any browser and can expire after 7 or 30 days. To comment, invite them — free on every plan.
+
+### Is it free?
+
+Free for 50 cards — each cluster counts as one — with free editors. A full lookbook can outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+
+
+
+========================================================================
 URL: https://clusters.soleilpictures.com/vs/milanote
-Updated: 2026-08-10
+Updated: 2026-10-01
 
 # A Milanote Alternative Built for Production Teams
 
 > Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.
 
-_Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-10-01_
 
 Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.
 
@@ -6901,13 +7384,13 @@ Clusters connects to Claude and any other MCP client with a single URL, so you c
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/storyflow
-Updated: 2026-09-19
+Updated: 2026-10-01
 
 # A Storyflow Alternative for Crews That Work Live
 
 > Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.
 
-_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-09-19_
+_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-10-01_
 
 Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.
 
@@ -7321,6 +7804,16 @@ Clusters is a single visual workspace, but people reach for it at different mome
 - Look book maker — polished, client-ready visual presentations
 - Storyboard maker — lay shots out in a grid, sequence to sequence
 - Shot list maker — a visual shot list your whole crew can use
+
+## For production departments
+
+The same canvas, set up for the way each department actually works — with the honest limits of each written down.
+
+- Shared reference boards — one live wall for a studio art team
+- Director’s treatment — build the look live, export a PDF
+- Production design — a board per set for the art department
+- Costume design — a board per character, looks by scene
+- Cinematography lookbook — light, lens and frame references
 
 ## See real boards
 

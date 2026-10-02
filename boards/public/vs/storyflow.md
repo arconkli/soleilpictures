@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.
 
-_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-09-19_
+_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-10-01_
 
 Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.
 
