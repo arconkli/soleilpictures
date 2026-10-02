@@ -134,7 +134,7 @@ import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensu
 import { undoToast } from './lib/undoToast.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { isAbandonedUpload } from './lib/abandonedUploads.js';
-import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
+import { forceBoardThumbnail, boardDoc, loadYBoard } from './lib/yboard.js';
 import { ancestorPath, boardDepth, planReparent } from './lib/boardTree.js';
 import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
@@ -5040,24 +5040,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     window.addEventListener('beforeunload', guard);
 
     const writeCluster = async (id, cards) => {
-      // A NEW cluster nobody has open: build its doc from whatever is stored
-      // (nothing, normally), add the finished cards, write it whole, and reset
-      // its room so anyone who did open it mid-import reloads into the cards —
-      // the same path a cross-cluster move writes its target with.
-      const doc = boardDoc(id);
+      // Through the cluster's LIVE room, never around it. The top cluster's card
+      // is on the board from the first second, so someone can open it — or a
+      // subfolder from the sidebar — while the import runs and start adding to
+      // it. The move path's way (write board_state whole, then reset the room)
+      // would destroy that: the reset disconnects every client and makes each
+      // reload from board_state, and the room's own persistence can land
+      // between the write and the reset and drop the imported cards instead.
+      // A handle that has synced with the room MERGES, so neither side loses.
+      // No presence (user: null): an import is not a person in the room.
+      const handle = loadYBoard(id, { userId: user.id, user: null, workspaceId: workspace.id, hasThumb: true });
       try {
-        const snap = await loadBoardSnapshot(id);
-        if (snap) Y.applyUpdate(doc, b64ToBytes(snap));
-        doc.transact(() => {
-          const m = doc.getMap('cards');
+        await handle.ready;
+        await handle.whenRoomSynced(8000);
+        handle.ydoc.transact(() => {
+          const m = handle.ydoc.getMap('cards');
           for (const c of cards) if (!m.has(c.id)) m.set(c.id, cardToYMap(c));
         }, 'folder-import');
-        await saveBoardSnapshot(id, doc);
+        // The room persists what it holds; this is the backstop for a room this
+        // handle could not reach, and it runs the card_index sync (search, the
+        // card count) now rather than on the room's schedule.
+        await saveBoardSnapshot(id, handle.ydoc);
       } finally {
-        doc.destroy();
+        handle.destroy();
       }
-      try { await forceResetBoardRoom(id); } catch (_) { /* nobody is in the room */ }
-      try { window.__soleilEmitBoardReset?.(id); } catch (_) {}
     };
     const upload = (item, { boardId, cardId }) => {
       const opts = { file: item.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(item.file) };

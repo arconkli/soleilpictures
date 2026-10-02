@@ -280,6 +280,9 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
 
   return {
     awareness,
+    // Same interface as yPartyKit's: this transport has no room handshake to
+    // wait for — board_state is the shared state — so there is nothing to wait on.
+    whenSynced() { return Promise.resolve(true); },
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }

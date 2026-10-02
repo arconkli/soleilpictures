@@ -178,6 +178,26 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
 
   return {
     awareness,
+    // Resolves true once this doc has finished the Yjs handshake with the room
+    // (it holds everything the room holds), false on timeout. A caller writing
+    // into a board it did not open — the folder import — waits for this so its
+    // write MERGES with whatever the room has, rather than overwriting it.
+    whenSynced(timeoutMs = 8000) {
+      if (provider.synced) return Promise.resolve(true);
+      return new Promise((resolve) => {
+        const onSync = (isSynced) => {
+          if (!isSynced) return;
+          clearTimeout(timer);
+          try { provider.off('sync', onSync); } catch (_) {}
+          resolve(true);
+        };
+        const timer = setTimeout(() => {
+          try { provider.off('sync', onSync); } catch (_) {}
+          resolve(false);
+        }, timeoutMs);
+        provider.on('sync', onSync);
+      });
+    },
     destroy() {
       destroyed = true;
       reconnector.dispose();

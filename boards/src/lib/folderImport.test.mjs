@@ -185,7 +185,16 @@ test('App asks once for the whole folder, guards the tab, and writes clusters th
   assert.match(fn, /slicePlan\(plan\.nodes, Math\.min\(plan\.cost, Number\(take\) \|\| 0\)\)/);
   assert.match(fn, /window\.addEventListener\('beforeunload', guard\)/);
   assert.match(fn, /window\.removeEventListener\('beforeunload', guard\)/);
-  assert.match(fn, /await saveBoardSnapshot\(id, doc\);/);
-  assert.match(fn, /await forceResetBoardRoom\(id\);/);
+  // Written through the cluster's live room: synced first, then merged — never
+  // a whole-state write plus a room reset, which destroys a concurrent edit by
+  // anyone who opened the cluster mid-import (the reset force-reloads every
+  // client from board_state).
+  const write = fn.slice(fn.indexOf('const writeCluster = async (id, cards) => {'), fn.indexOf('const upload = (item'));
+  assert.match(write, /loadYBoard\(id, \{[^}]*user: null/);
+  const synced = write.indexOf('await handle.whenRoomSynced(');
+  const merged = write.indexOf('handle.ydoc.transact(');
+  assert.ok(synced > 0 && merged > synced, 'the room handshake must finish before the cards are added');
+  assert.match(write, /await saveBoardSnapshot\(id, handle\.ydoc\);/);
+  assert.doesNotMatch(write, /forceResetBoardRoom|__soleilEmitBoardReset/, 'an additive write must never reset the room');
   assert.match(fn, /originalName: meaningfulFileName\(item\.file\)/, 'imported files keep their names too');
 });

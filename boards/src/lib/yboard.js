@@ -610,6 +610,14 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     flushNow,
     sessionId,
     getAwareness: () => realtime?.awareness || null,
+    // After `ready` (the cold load) the realtime attach runs; this waits for it
+    // to finish syncing with the room. true = synced, false = timed out.
+    whenRoomSynced: async (timeoutMs = 8000) => {
+      await ready;
+      await Promise.resolve();   // the attach is a then() on `ready`
+      if (destroyed || typeof realtime?.whenSynced !== 'function') return false;
+      return realtime.whenSynced(timeoutMs);
+    },
     serverApplied: () => serverApplied,
     // Mark this handle's doc corrupt so its teardown skips all persistence.
     // Called by useYBoard right before it purges caches + remounts.
