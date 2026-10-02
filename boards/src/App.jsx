@@ -17,6 +17,7 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
+import { useCreatorIntentResume } from './hooks/useCreatorIntentResume.js';
 import { setCapture } from './lib/captureState.js';
 import { maskName, maskEmail } from './lib/captureIdentity.js';
 import { useCaptureState } from './hooks/useCaptureState.js';
@@ -4432,7 +4433,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
     },
   });
-  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | null ('shared-edit' died with 0188)
+  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | 'pricing-intent' | null ('shared-edit' died with 0188)
+  // A "Get Creator" pressed on the public pricing page before signing up
+  // reopens the offer here, with the plan that was picked there.
+  const [upgradePlan, setUpgradePlan] = useState(null);
+  useCreatorIntentResume({
+    tier: myTier.tier,
+    ready: !myTier.loading && !!myTier.tier,
+    onResume: (plan) => { setUpgradePlan(plan); setUpgradeReason('pricing-intent'); },
+  });
 
   // The pending over-cap import question, or null. Carries the `resolve` of the
   // promise preflightImport is awaiting, so the drop is genuinely SUSPENDED —
@@ -8257,7 +8266,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // episode must not surface on the storage or generic pitch, where it
           // would describe something that didn't just happen.
           rejected={upgradeReason === 'cap-hit' ? capRejected : null}
-          onClose={() => { setUpgradeReason(null); setCapRejected(null); }}
+          initialPlan={upgradeReason === 'pricing-intent' ? upgradePlan : null}
+          onClose={() => { setUpgradeReason(null); setCapRejected(null); setUpgradePlan(null); }}
         />
       )}
 

@@ -31,6 +31,7 @@ import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { PricingPageView } from './PricingPageView.jsx';
 import { CTA, PRICING, PRICING_PAGE } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
+import { stashCreatorIntent } from '../lib/creatorIntent.js';
 
 const SURFACE = 'public_page';
 
@@ -83,7 +84,11 @@ export function PublicPricingPage() {
     // `pos` is the lp_cta_click position and also decides the up_* outcome.
     // Every free button is a demo_cta whichever position it sits in.
     up.outcome(pos === 'creator' ? 'cta' : 'demo_cta', { plan: extra?.plan });
-    logEvent(ev, { surface: SURFACE, pos, ...extra });
+    // "I want Creator" has to survive the sign-in it is about to go through:
+    // the signed-in app reads this back and opens the offer
+    // (useCreatorIntentResume). Before 2026-10-01 nothing remembered it.
+    const carried = pos === 'creator' ? stashCreatorIntent({ plan: extra?.plan, from: 'public_pricing' }) : false;
+    logEvent(ev, { surface: SURFACE, pos, ...extra, ...(pos === 'creator' ? { carried } : {}) });
     lp.tracker.ctaClick(pos, '/');
     window.location.assign('/');
   };

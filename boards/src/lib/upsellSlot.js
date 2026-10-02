@@ -65,7 +65,12 @@ const ALWAYS_WINS = 'cap-hit';
 // one, so it may follow an offer still holding the slot (FOLLOWS). Behind
 // anything else it waits like every other ambient kind — and its asker treats a
 // refusal as "not this time", never as an answer.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason']);
+// 'pricing-intent' is the Creator offer reopened for someone who pressed "Get
+// Creator" on the public pricing page before they had an account. It is a
+// request they made, not an ask, so it is not AMBIENT and spends no visit; it
+// claims so the ambient kinds stand down around it, and it waits (rather than
+// stacking) if the wall or another offer holds the minute.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent']);
 
 // The surfaces that put an offer on screen. Only these may be followed. (The
 // wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then

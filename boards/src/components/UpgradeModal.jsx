@@ -5,6 +5,9 @@
 //   'first-value' → warm "you're building something" copy (the first-value nudge)
 //   'storage'     → "Room for everything you make" copy (the file-upload paywall)
 //   'manual' / null → generic "Everything your work deserves" copy
+//   'pricing-intent' → generic copy, opened because the person pressed "Get
+//                      Creator" on the public pricing page before signing up
+//                      (useCreatorIntentResume); the plan they chose comes too
 //
 // (The old 'shared-edit' reason died with migration 0188 — editing shared
 // clusters is no longer a paid gate — so it's no longer mapped here.)
@@ -15,7 +18,7 @@
 
 import { PricingModal } from './PricingModal.jsx';
 
-export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null }) {
+export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null, initialPlan = null }) {
   const header = reason === 'cap-hit' ? 'cap-hit'
                : reason === 'near-cap' ? 'near-cap'
                : reason === 'first-value' ? 'first-value'
@@ -28,9 +31,10 @@ export function UpgradeModal({ onClose, reason = null, clusterCount = null, reje
             : reason === 'near-cap' ? 'near_cap_toast'
             : reason === 'storage' ? 'storage_gate'
             : reason === 'first-value' ? 'first_value_banner'
+            : reason === 'pricing-intent' ? 'pricing_page'
             : null;
   // Only the cap-hit variant uses these (to name what the user has built, and
   // what the cap just cost them), but they are passed through unconditionally
   // so callers don't have to know which reasons consume them.
-  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} rejected={rejected} />;
+  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} rejected={rejected} initialPlan={initialPlan} />;
 }

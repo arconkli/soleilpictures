@@ -38,7 +38,7 @@ import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null, initialPlan = null }) {
   const { user } = useAuth();
   // `tierPreview` is the admin Surface Gallery's seam and nothing else's. Which
   // of the four headers you get is a prop, but whether the TRIAL is offered is
@@ -122,7 +122,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
       ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
       : 0,
   });
-  const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons (24/28 in 30d)
+  // monthly-first: annual-default drove pricing abandons (24/28 in 30d). The one
+  // exception is a plan the person already chose on /pricing before signing up.
+  const [plan, setPlan]   = useState(initialPlan === 'annual' ? 'annual' : 'monthly');
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
