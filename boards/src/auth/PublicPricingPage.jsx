@@ -29,9 +29,9 @@ import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { PricingPageView } from './PricingPageView.jsx';
-import { CTA, PRICING, PRICING_PAGE } from '../lib/billingCopy.js';
+import { CTA, PRICING, PRICING_PAGE, creatorIntentLabels } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
-import { stashCreatorIntent } from '../lib/creatorIntent.js';
+import { stashCreatorIntent, clearCreatorIntent } from '../lib/creatorIntent.js';
 
 const SURFACE = 'public_page';
 
@@ -87,7 +87,12 @@ export function PublicPricingPage() {
     // "I want Creator" has to survive the sign-in it is about to go through:
     // the signed-in app reads this back and opens the offer
     // (useCreatorIntentResume). Before 2026-10-01 nothing remembered it.
-    const carried = pos === 'creator' ? stashCreatorIntent({ plan: extra?.plan, from: 'public_pricing' }) : false;
+    // Any FREE button clears an earlier one: someone who pressed Get Creator,
+    // came back and chose Start free has changed their mind, and the offer
+    // must not ambush their first screen anyway.
+    const carried = pos === 'creator'
+      ? stashCreatorIntent({ plan: extra?.plan, from: 'public_pricing', ...creatorIntentLabels(extra?.plan) })
+      : (clearCreatorIntent(), false);
     logEvent(ev, { surface: SURFACE, pos, ...extra, ...(pos === 'creator' ? { carried } : {}) });
     lp.tracker.ctaClick(pos, '/');
     window.location.assign('/');

@@ -27,6 +27,7 @@ import { BenefitGrid, PlanToggle, CreatorPriceRow, TrialPriceRow } from './Prici
 import {
   CTA, PRICING, COPY_REV, PLAN_NAME, TRIAL_FROM_LABEL,
   creatorBenefits, ownWorkSummary, trialNote, currentPlanRow,
+  PRICING_INTENT_COPY,
 } from '../lib/billingCopy.js';
 import { OwnWorkStrip } from './OwnWorkStrip.jsx';
 import { readOwnWork } from '../lib/ownWork.js';
@@ -280,6 +281,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
              : header === 'near-cap'  ? "You're close to the free limit."
              : header === 'first-value' ? "You're building something."
              : header === 'storage'   ? 'Room for everything you make.'
+             : header === 'pricing-intent' ? PRICING_INTENT_COPY.title
              : 'Everything your work deserves.'}
           </h2>
 
@@ -320,6 +322,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
           )}
           {header === 'first-value' && (
             <p className="upgrade-sub t-body">Your first cluster is taking shape.</p>
+          )}
+          {header === 'pricing-intent' && (
+            <p className="upgrade-sub t-body">{PRICING_INTENT_COPY.sub}</p>
           )}
         </div>
 

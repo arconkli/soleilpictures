@@ -2568,7 +2568,7 @@ export const DOCS_PAGES = [
     "answer": "The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
-    "updated": "2026-10-01",
+    "updated": "2026-10-02",
     "navLabel": "Plans and pricing",
     "headings": [
       {

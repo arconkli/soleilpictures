@@ -29039,6 +29039,43 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pressing "
+    },
+    {
+     "t": "strong",
+     "v": "Get Creator",
+     "children": [
+      {
+       "t": "text",
+       "v": "Get Creator"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " there before you have an account signs you in first, then opens the Creator offer in the app with the plan you picked — monthly or annual — rather than leaving you to find it. The choice is kept on that device for 24 hours. Pressing "
+    },
+    {
+     "t": "strong",
+     "v": "Start free",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start free"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " instead, there or on any other page, drops it."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Demo — free",

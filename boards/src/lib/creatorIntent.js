@@ -36,14 +36,25 @@ function store(storage) {
   try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (_) { return null; }
 }
 
+// The sign-in screen says what is waiting ("Sign in to finish getting Creator
+// at $25/mo"), and it must not import billingCopy to do it: AuthGate is the
+// first thing '/' paints and stays import-light. So /pricing, which already has
+// billingCopy, writes the two labels in with the intent. Read back, they are
+// shown only if they still look like a plan name and a price — storage is the
+// visitor's own, but a garbled label should vanish rather than render.
+const LABEL_RE = /^[\w$.,/ -]{1,40}$/;
+const label = (v) => (typeof v === 'string' && LABEL_RE.test(v) ? v : null);
+
 // Returns whether it stuck — a caller has no other way to know storage refused.
-export function stashCreatorIntent({ plan, from = 'public_pricing', now = Date.now() } = {}, storage) {
+export function stashCreatorIntent({ plan, from = 'public_pricing', planName = null, priceLabel = null, now = Date.now() } = {}, storage) {
   const s = store(storage);
   if (!s) return false;
   try {
     s.setItem(CREATOR_INTENT_KEY, JSON.stringify({
       plan: PLANS.has(plan) ? plan : 'monthly',
       from: String(from || 'public_pricing').slice(0, 40),
+      planName: label(planName),
+      priceLabel: label(priceLabel),
       at: now,
     }));
     return true;
@@ -71,7 +82,10 @@ export function readCreatorIntent({ now = Date.now(), maxAgeMs = CREATOR_INTENT_
     clearCreatorIntent(s);
     return null;
   }
-  return { plan: v.plan, from: v.from || 'public_pricing', ageMs: age };
+  return {
+    plan: v.plan, from: v.from || 'public_pricing', ageMs: age,
+    planName: label(v.planName), priceLabel: label(v.priceLabel),
+  };
 }
 
 export function clearCreatorIntent(storage) {

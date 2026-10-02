@@ -5,7 +5,7 @@ h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-10-01
+updated: 2026-10-02
 answer: The free Demo plan gives you {{fact:demoCardLimit}} cards — each cluster counts as one — and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
@@ -34,6 +34,12 @@ Two plans. The difference between them is deliberately small and deliberately
 honest — three enforced limits, listed below, and nothing else. The
 [pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
 is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
+
+Pressing **Get {{fact:planName}}** there before you have an account signs you in
+first, then opens the {{fact:planName}} offer in the app with the plan you picked —
+monthly or annual — rather than leaving you to find it. The choice is kept on
+that device for {{fact:creatorIntentHours}} hours. Pressing **Start free** instead, there or on any other
+page, drops it.
 
 ## Demo — free
 

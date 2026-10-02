@@ -164,6 +164,7 @@ export const RENDERERS = {
                   ownWorkPreview={OWN_WORK_FIXTURE} />
   ),
   'pricing-modal-first-value': ({ close }) => <PricingModal onClose={close} header="first-value" surface="first_value" via="first_value_banner" tierPreview={tierShape({ demoCardCount: 13, serverCardCount: 13 })} />,
+  'pricing-modal-pricing-intent': ({ close }) => <PricingModal onClose={close} header="pricing-intent" surface="modal" via="pricing_page" initialPlan="annual" tierPreview={tierShape()} />,
   'pricing-modal-storage': ({ close }) => <PricingModal onClose={close} header="storage" surface="storage" via="upload_blocked" tierPreview={tierShape()} />,
   'first-value-banner': () => <FirstValueUpgradeBanner onSeeCreator={NOOP} onDismiss={NOOP} />,
   'first-value-banner-trial': () => <FirstValueUpgradeBanner trialOffer onSeeCreator={NOOP} onDismiss={NOOP} />,

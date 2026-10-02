@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { supabase } from '../lib/supabase.js';
 import { describeTarget, isJourneyOpen } from '../lib/journey.js';
+import { clearCreatorIntent } from '../lib/creatorIntent.js';
 import {
   setLandingSink, createLandingTracker, isInteractiveTarget,
   lpCtaClick, TRACE_FLUSH_MS, HOVER_HESITATION_MS,
@@ -48,7 +49,19 @@ export function useLandingEngagement({ page, pageKind, scroll = 'container', get
       get tracker() { return state.tracker; },
       __renew() { state.tracker = createLandingTracker({ page, pageKind, legacy }); },
       ctaProps(pos, href, extra) {
-        return { 'data-lp-cta': pos, onClick: () => state.tracker.ctaClick(pos, href, extra) };
+        return {
+          'data-lp-cta': pos,
+          onClick: () => {
+            // Every CTA here without intent:'nav' is a free start. One pressed
+            // after a "Get Creator" on /pricing means the visitor chose free,
+            // so the stored intent goes — otherwise the Creator offer would open
+            // over the first screen of someone who just picked the free plan.
+            // (The sign-in form's own click goes through lpCtaClick, not this,
+            // so finishing the sign-in /pricing sent them to never clears it.)
+            if (extra?.intent !== 'nav') clearCreatorIntent();
+            state.tracker.ctaClick(pos, href, extra);
+          },
+        };
       },
       exampleClick(slug, pos) { state.tracker.exampleClick(slug, pos); },
       faqOpen(idx, q) { state.tracker.faqOpen(idx, q); },

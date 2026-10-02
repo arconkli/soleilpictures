@@ -60,6 +60,8 @@ export const GALLERY_ENTRIES = Object.freeze([
     keywords: 'cap wall limit blocked full refused cards hit 50 100 upgrade paywall' },
   { id: 'pricing-modal-first-value', label: 'First-value upgrade modal', group: 'upgrade', kind: 'overlay',
     keywords: 'first value upgrade modal see creator banner follow on' },
+  { id: 'pricing-modal-pricing-intent', label: 'Creator pricing — picked on /pricing', group: 'upgrade', kind: 'overlay',
+    keywords: 'get creator pricing page intent resumed after sign in picked plan offer' },
   { id: 'pricing-modal-storage', label: 'Storage gate', group: 'upgrade', kind: 'overlay',
     keywords: 'storage gate upload blocked file size quota gb upgrade' },
   { id: 'first-value-banner', label: 'First-value banner', group: 'upgrade', kind: 'overlay',

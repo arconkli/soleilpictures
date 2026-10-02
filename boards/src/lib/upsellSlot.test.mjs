@@ -145,7 +145,7 @@ assertEq(claimUpsellSlot('storage', T), false, "'storage' is not a slot kind —
 // offer itself claimed. As an ordinary ambient kind it would be refused by the
 // very surface it follows, every time — so it may follow an OFFER, and nothing
 // else.
-for (const offer of ['cap-hit', 'first-value', 'cap-toast', 'storage-gate']) {
+for (const offer of ['cap-hit', 'first-value', 'cap-toast', 'storage-gate', 'pricing-intent']) {
   __resetUpsellSlot();
   assertEq(claimUpsellSlot(offer, T), true, `${offer} shows`);
   assertEq(claimUpsellSlot('upgrade-reason', T + 5000), true, `the reason ask may follow ${offer}`);
@@ -156,6 +156,19 @@ for (const other of ['share-ask', 'mix-prompt', 'return-reason', 'invite-nudge',
   assertEq(claimUpsellSlot(other, T), true, `${other} shows`);
   assertEq(claimUpsellSlot('upgrade-reason', T + 5000), false, `the reason ask waits behind ${other}, which is not an offer`);
 }
+// 'pricing-intent' is the Creator offer someone asked for on /pricing before
+// signing up. It is an offer (the reason ask may follow it, above), it is not
+// an ask (it spends no visit), and it does not stack on another offer.
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('pricing-intent', T, 'v9'), true, 'the resumed offer takes a free slot');
+assertEq(claimUpsellSlot('share-ask', T + 1000, 'v9'), false, 'ambient asks stand down behind it');
+assertEq(claimUpsellSlot('share-ask', T + UPSELL_STACK_WINDOW_MS + 1, 'v9'), true,
+  'and it spent no visit: the same visit still gets its one ask once the window passes');
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('cap-hit', T), true, 'the wall holds the minute');
+assertEq(claimUpsellSlot('pricing-intent', T + 2000), false, 'the resumed offer waits rather than stacking on it');
+assertEq(claimUpsellSlot('pricing-intent', T + UPSELL_STACK_WINDOW_MS + 1), true, 'and shows once the window passes');
+
 __resetUpsellSlot();
 assertEq(claimUpsellSlot('upgrade-reason', T), true, 'a free slot takes it');
 assertEq(claimUpsellSlot('cap-hit', T + 1000), true, 'and the wall still overrides it');

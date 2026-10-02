@@ -28,6 +28,7 @@ import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
+import { readCreatorIntent } from '../lib/creatorIntent.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail } from '../lib/emailTypo.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
@@ -588,6 +589,9 @@ function SignIn() {
   // no email to pre-fill (the link is multi-use, not addressed to anyone), so
   // the payoff is purely context: name the cluster they were invited to.
   const [joinHint, setJoinHint] = useState(null);
+  // Non-null when "Get Creator" on /pricing sent them here (creatorIntent.js).
+  // Read once: an expired entry is removed on read and simply shows nothing.
+  const [creatorHint] = useState(() => { try { return readCreatorIntent(); } catch (_) { return null; } });
   const codeRef = useRef(null);
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
   const codeEngagedRef  = useRef(false);
@@ -790,6 +794,18 @@ function SignIn() {
           {joinHint.name
             ? <>You've been invited to collaborate on <b>{joinHint.name}</b>. Sign in to join.</>
             : <>You've been invited to collaborate. Sign in to join.</>}
+        </div>
+      )}
+
+      {/* "Get Creator" on /pricing sends a signed-out visitor here. Without a
+          line saying so, the sign-in screen looked like the free signup they
+          had just declined, and nothing said the offer was still coming. The
+          labels were written in by /pricing (creatorIntent.js). */}
+      {!inviteHint && !joinHint && creatorHint && (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          Sign in to finish getting <b>{creatorHint.planName || 'the paid plan'}</b>
+          {creatorHint.priceLabel ? <> at <b>{creatorHint.priceLabel}</b></> : null}
+          {' '}— the offer opens as soon as you are in.
         </div>
       )}
 

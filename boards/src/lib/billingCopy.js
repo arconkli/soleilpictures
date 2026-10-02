@@ -341,6 +341,27 @@ export function newProjectSentence({ count, limit } = {}) {
 // The trial is NOT on this page, unchanged from the standing decision above —
 // and it is moot here besides: eligibility needs a real body of work, which a
 // signed-out visitor does not have.
+// What a "Get Creator" pressed on /pricing carries through sign-in
+// (creatorIntent.js): the plan's name and the price the visitor picked, so the
+// sign-in screen can say what is waiting without importing this module.
+export function creatorIntentLabels(plan) {
+  return {
+    planName: PLAN_NAME,
+    priceLabel: plan === 'annual'
+      ? `${PRICING.annual.perMonthLabel}/mo billed annually`
+      : PRICING.monthly.billedLabel,
+  };
+}
+
+// The Creator offer reopened after sign-in for someone who pressed "Get
+// Creator" on /pricing first (useCreatorIntentResume). It names that moment:
+// the generic "Everything your work deserves." arrived on a brand-new account's
+// first screen reading like a pitch nobody asked for, when they had asked.
+export const PRICING_INTENT_COPY = {
+  title: `Here’s ${PLAN_NAME}, as you picked it.`,
+  sub: 'You chose it on the pricing page before you signed in.',
+};
+
 export const PRICING_PAGE = {
   h1: 'Start free. Pay when you outgrow it.',
   // Every number in this sentence is injected, none typed.

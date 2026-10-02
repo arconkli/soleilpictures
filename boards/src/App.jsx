@@ -4601,9 +4601,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // A "Get Creator" pressed on the public pricing page before signing up
   // reopens the offer here, with the plan that was picked there.
   const [upgradePlan, setUpgradePlan] = useState(null);
+  // …but not over a first run still assembling itself. A brand-new account
+  // lands while the seed is still writing cards and the tour is about to start;
+  // the offer used to open 1.5s after the tier loaded, on top of both, with the
+  // generic header. "Settled" is any of: onboarding already seeded or done (a
+  // returning account), the seed finishing (PS_SEED_DONE), the seed deciding
+  // not to run for a reason that will not change (noteSeedSkip, below), or ten
+  // seconds — so a seed that never reports cannot hold the offer back forever.
+  const [firstRunSettled, setFirstRunSettled] = useState(false);
+  useEffect(() => {
+    if (firstRunSettled) return undefined;
+    if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) {
+      setFirstRunSettled(true);
+      return undefined;
+    }
+    if (myTier.loading) return undefined;
+    const t = setTimeout(() => setFirstRunSettled(true), 10_000);
+    return () => clearTimeout(t);
+  }, [firstRunSettled, myTier.loading, myTier.onboarding]);
   useCreatorIntentResume({
     tier: myTier.tier,
-    ready: !myTier.loading && !!myTier.tier,
+    ready: !myTier.loading && !!myTier.tier && yb.ready && firstRunSettled,
     onResume: (plan) => { setUpgradePlan(plan); setUpgradeReason('pricing-intent'); },
   });
 
@@ -5258,6 +5276,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // so an already-onboarded user's legitimate 'already_seeded' skip never emits.
   const seedSkipLoggedRef = useRef(new Set());
   const noteSeedSkip = (gate) => {
+    // A skip that will not change settles the first run for the resumed Creator
+    // offer (above). 'loading' and 'doc_not_ready' are waits, not answers.
+    if (gate !== 'loading' && gate !== 'doc_not_ready') setFirstRunSettled(true);
     if (seedSkipLoggedRef.current.has(gate)) return;
     seedSkipLoggedRef.current.add(gate);
     try { setJourneyState({ phase: JOURNEY_PHASE.SEED }); journey(EV.PS_SEED_SKIP, { gate }); } catch (_) {}
@@ -5357,7 +5378,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     onboarding: myTier.onboarding,
     persist: persistTour,
     emit: emitTourStep,
-    enabled: tourActive,
+    // Paused while the Creator offer they asked for on /pricing is open: a tour
+    // step anchored behind a modal is a step nobody can do. `enabled` only
+    // gates which step is surfaced, so progress is kept and it resumes on close.
+    enabled: tourActive && upgradeReason !== 'pricing-intent',
     variant: tourVariantRef.current,
   });
   // Only feed tour events while the tour is actually running — otherwise a
@@ -5616,6 +5640,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase });
       try { journey(EV.PS_SEED_DONE, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase }); } catch (_) {}
+      setFirstRunSettled(true);
       setOnboardingUiActive(true);
       // Make the new child board visible in the boards map so its card renders as
       // a real board (not an orphan tile). After addCards so reconcile sees it.
@@ -8445,7 +8470,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {/* Arm B gets the guided tour (below) instead of the static pill. */}
-      {showCoachmark && !onboardingArmB && (
+      {showCoachmark && !onboardingArmB && upgradeReason !== 'pricing-intent' && (
         <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('onboarding_v2')} />
       )}
 

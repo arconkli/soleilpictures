@@ -76,7 +76,7 @@ const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 
 // wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then
 // storage-gate" nearby as a promotion of the storage gate, which this is not.)
 const FOLLOWS = Object.freeze({
-  'upgrade-reason': new Set(['first-value', 'cap-toast', 'storage-gate', ALWAYS_WINS]),
+  'upgrade-reason': new Set(['first-value', 'cap-toast', 'storage-gate', 'pricing-intent', ALWAYS_WINS]),
 });
 
 // THE VISIT. The window stops two surfaces landing in the same minute; it never
