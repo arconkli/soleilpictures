@@ -35,6 +35,7 @@ import { readUpgradePrompts, stampUpgradePrompt } from '../lib/upgradePrompts.js
 import { buildFeedbackContext, describeFeedbackContext } from '../lib/feedbackContext.js';
 import { feedbackEnv } from '../lib/feedbackEnv.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
+import { useAuth } from '../auth/AuthGate.jsx';
 
 // The server's closed list (submit_upgrade_reason, 0348) and its labels
 // (_upgrade_reason_label). feedbackContract.test.mjs compares both, in order.
@@ -51,8 +52,15 @@ const CHOICES = [
   { id: 'other',        label: 'Something else',                 probe: 'What is it?' },
 ];
 
-const ASKED_KEY = 'soleil.upgradereason.v1';
-const PENDING_KEY = 'soleil.upgradereason.pending.v1';
+// PER ACCOUNT, not per device. On a shared computer a device-wide marker meant
+// one account answering retired the question for the next, and a pending answer
+// written in one account's session could be delivered in another's — filed by
+// auth.uid() under the wrong person. Both the asked marker and the pending
+// answer are keyed by account: each account's unsent answer waits in its own
+// slot, is only ever sent in that account's session, and can't be overwritten
+// by the next account's.
+const askedKey = (uid) => `soleil.upgradereason.v1:${uid || 'anon'}`;
+const pendingKey = (uid) => `soleil.upgradereason.pending.v1:${uid || 'anon'}`;
 const MAX_TRIES = 3;
 const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TERMINAL = new Set(['23514', '22023', '42501', '42883', '23505']);
@@ -68,20 +76,20 @@ function readKey(k) { try { return localStorage.getItem(k); } catch (_) { return
 function writeKey(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* private mode */ } }
 function dropKey(k) { try { localStorage.removeItem(k); } catch (_) {} }
 
-let serverAsked = false;
-function alreadyHandled() { return serverAsked || !!readKey(ASKED_KEY); }
+let serverAskedFor = null;   // the account the server said has been asked
+function alreadyHandled(uid) { return (uid && serverAskedFor === uid) || !!readKey(askedKey(uid)); }
 
-function readPending() {
+function readPending(uid) {
   try {
-    const raw = readKey(PENDING_KEY);
+    const raw = readKey(pendingKey(uid));
     if (!raw) return null;
     const p = JSON.parse(raw);
     if (!p?.choice) return null;
-    if (!Number.isFinite(p.at) || Date.now() - p.at > PENDING_TTL_MS) { dropKey(PENDING_KEY); return null; }
+    if (!Number.isFinite(p.at) || Date.now() - p.at > PENDING_TTL_MS) { dropKey(pendingKey(uid)); return null; }
     return p;
-  } catch (_) { dropKey(PENDING_KEY); return null; }
+  } catch (_) { dropKey(pendingKey(uid)); return null; }
 }
-function writePending(p) { try { writeKey(PENDING_KEY, JSON.stringify(p)); } catch (_) {} }
+function writePending(uid, p) { try { writeKey(pendingKey(uid), JSON.stringify(p)); } catch (_) {} }
 
 // `data === false` is SUCCESS: the server already holds this account's answer.
 async function deliver(choice, note, context) {
@@ -103,19 +111,25 @@ async function deliver(choice, note, context) {
 
 // Module scope, not a ref: StrictMode double-invokes effects in dev, and a
 // per-mount guard would spend two of the three attempts on one page load.
-let flushed = false;
-async function flushPending() {
-  if (flushed) return;
-  flushed = true;
-  const p = readPending();
-  if (!p) return;
-  if ((Number(p.tries) || 0) >= MAX_TRIES) { dropKey(PENDING_KEY); return; }
-  writePending({ ...p, tries: (Number(p.tries) || 0) + 1 });
+// Once per account per page load; another account's record waits in its own
+// slot for that account's session.
+const flushedFor = new Set();
+async function flushPending(uid) {
+  if (!uid || flushedFor.has(uid)) return;
+  flushedFor.add(uid);
+  const p = readPending(uid);
+  if (!p || p.uid !== uid) return;
+  if ((Number(p.tries) || 0) >= MAX_TRIES) { dropKey(pendingKey(uid)); return; }
+  writePending(uid, { ...p, tries: (Number(p.tries) || 0) + 1 });
   const res = await deliver(p.choice, p.note, p.context);
-  if (res.ok || res.terminal) dropKey(PENDING_KEY);
+  if (res.ok || res.terminal) dropKey(pendingKey(uid));
 }
 
 export function UpgradeReasonAsk() {
+  const { user } = useAuth() || {};
+  const uid = user?.id || null;
+  const uidRef = useRef(uid);
+  uidRef.current = uid;
   const [ask, setAsk] = useState(null);       // { offer, surface, method, trial, context }
   const [picked, setPicked] = useState(null);
   const [note, setNote] = useState('');
@@ -128,14 +142,16 @@ export function UpgradeReasonAsk() {
   const openRef = useRef(false);
   openRef.current = !!ask;
 
+  useEffect(() => { flushPending(uid); }, [uid]);
+
   useEffect(() => {
-    flushPending();
     let cancelled = false;
 
     const onDismissed = async (e) => {
       const d = e?.detail || {};
+      const who = uidRef.current;
       if (openRef.current || pendingShowRef.current) return;
-      if (alreadyHandled()) return;
+      if (alreadyHandled(who)) return;
       if (d.tier !== 'demo') return;
       // Import-dialog answers carry no dwell; a modal that was flicked shut does.
       if (Number.isFinite(d.dwell_ms) && d.dwell_ms < MIN_OFFER_DWELL_MS) return;
@@ -146,13 +162,13 @@ export function UpgradeReasonAsk() {
       pendingShowRef.current = 'reading';
       try {
         const prompts = await readUpgradePrompts();
-        if (prompts?.upgrade_reason_asked_at) serverAsked = true;
+        if (prompts?.upgrade_reason_asked_at) serverAskedFor = who;
       } catch (_) { /* unreadable: fall back to this device's marker */ }
-      if (cancelled || alreadyHandled()) { pendingShowRef.current = null; return; }
+      if (cancelled || alreadyHandled(who) || uidRef.current !== who) { pendingShowRef.current = null; return; }
 
       pendingShowRef.current = setTimeout(() => {
         pendingShowRef.current = null;
-        if (cancelled || alreadyHandled()) return;
+        if (cancelled || alreadyHandled(who) || uidRef.current !== who) return;
         // Claimed at show time. A refusal is "not this time" — nothing has been
         // stamped, so the next dismissal can ask again.
         if (!claimUpsellSlot('upgrade-reason')) return;
@@ -164,7 +180,7 @@ export function UpgradeReasonAsk() {
           cards: d.cards, server_cards: d.server_cards, cap: d.cap, tier: d.tier,
         }, feedbackEnv());
         setPicked(null); setNote(''); setReceipt(false); touchedRef.current = false;
-        setAsk({ offer: d.offer || null, surface: d.surface || null, method: d.method || null, trial: d.trial === true, context });
+        setAsk({ uid: who, offer: d.offer || null, surface: d.surface || null, method: d.method || null, trial: d.trial === true, context });
       }, SHOW_DELAY_MS);
     };
 
@@ -187,8 +203,8 @@ export function UpgradeReasonAsk() {
       if (onScreen < DELIVERED_MS) return;
       clearInterval(deliveredRef.current);
       deliveredRef.current = null;
-      if (readKey(ASKED_KEY)) return;
-      writeKey(ASKED_KEY, 'shown');
+      if (readKey(askedKey(ask.uid))) return;
+      writeKey(askedKey(ask.uid), 'shown');
       try { logEvent(EV.UPGRADE_REASON_SHOWN, { offer: ask.offer, surface: ask.surface, method: ask.method, trial: ask.trial }); } catch (_) {}
       stampUpgradePrompt({ upgrade_reason_asked_at: new Date().toISOString() });
     }, TICK_MS);
@@ -207,15 +223,25 @@ export function UpgradeReasonAsk() {
   const current = CHOICES.find((c) => c.id === picked) || null;
   const contextLine = describeFeedbackContext(ask.context);
 
+  // The delivery tick's event, logged now if the tick hasn't run: a tap or a
+  // close inside the first seconds otherwise retired the tick before it logged,
+  // so the denominator left out every fast response. The tick writes the
+  // marker, so either it or this runs — the return question's rule.
+  const markShown = () => {
+    if (readKey(askedKey(ask.uid))) return;
+    try { logEvent(EV.UPGRADE_REASON_SHOWN, { offer: ask.offer, surface: ask.surface, method: ask.method, trial: ask.trial }); } catch (_) {}
+  };
+
   const bank = async (choice) => {
     if (busy || picked) return;
     setBusy(true);
-    writeKey(ASKED_KEY, 'answered');
-    writePending({ choice, note: null, context: ask.context, tries: 1, at: Date.now() });
+    markShown();
+    writeKey(askedKey(ask.uid), 'answered');
+    writePending(ask.uid, { uid: ask.uid, choice, note: null, context: ask.context, tries: 1, at: Date.now() });
     try { logEventNow(EV.UPGRADE_REASON_ANSWERED, { choice, offer: ask.offer, surface: ask.surface, trial: ask.trial }); } catch (_) {}
     stampUpgradePrompt({ upgrade_reason_asked_at: new Date().toISOString() });
     const res = await deliver(choice, null, ask.context);
-    if (res.ok || res.terminal) dropKey(PENDING_KEY);
+    if (res.ok || res.terminal) dropKey(pendingKey(ask.uid));
     setBusy(false);
     setPicked(choice);
   };
@@ -224,10 +250,13 @@ export function UpgradeReasonAsk() {
     const text = note.trim();
     if (!text || busy) return;
     setBusy(true);
-    writePending({ choice: picked, note: text, context: null, tries: 1, at: Date.now() });
+    // The tap's context travels with the note: if the tap's own write failed,
+    // this is the write that creates the row, and without it the answer would
+    // be banded by its author's plan and count TODAY, not when they answered.
+    writePending(ask.uid, { uid: ask.uid, choice: picked, note: text, context: ask.context, tries: 1, at: Date.now() });
     try { logEvent(EV.UPGRADE_REASON_NOTE, { choice: picked, len: text.length }); } catch (_) {}
-    const res = await deliver(picked, text, null);
-    if (res.ok || res.terminal) dropKey(PENDING_KEY);
+    const res = await deliver(picked, text, ask.context);
+    if (res.ok || res.terminal) dropKey(pendingKey(ask.uid));
     setBusy(false);
     setReceipt(true);
     setTimeout(() => setAsk(null), RECEIPT_MS);
@@ -237,7 +266,8 @@ export function UpgradeReasonAsk() {
   // every device — not only this browser, as it would if only the local marker
   // were written.
   const dismiss = (via) => {
-    if (!picked && !readKey(ASKED_KEY)) writeKey(ASKED_KEY, 'dismissed');
+    if (!picked) markShown();
+    if (!picked && !readKey(askedKey(ask.uid))) writeKey(askedKey(ask.uid), 'dismissed');
     if (!picked) stampUpgradePrompt({ upgrade_reason_asked_at: new Date().toISOString() });
     try { logEvent(EV.UPGRADE_REASON_DISMISSED, { via }); } catch (_) {}
     setAsk(null);

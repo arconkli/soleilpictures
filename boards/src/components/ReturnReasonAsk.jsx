@@ -131,7 +131,10 @@ const ROLES = [
   { id: 'student',      label: 'Student' },
   { id: 'other',        label: 'Something else' },
 ];
-const ROLE_KEY = 'soleil.role.v1';
+// Per account: on a shared computer a device-wide role marker would skip the
+// question for the next account, and a pending role written in one session
+// would be delivered (and filed by auth.uid()) in another's.
+const roleKey = (uid) => `soleil.role.v1:${uid || 'anon'}`;
 const ROLE_PENDING_KEY = 'soleil.role.pending.v1';
 
 function readKey(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
@@ -210,11 +213,14 @@ async function deliver(choice, note, context = null) {
 // a per-mount guard would spend two of the three attempts on one page load.
 let flushed = false;
 
-async function flushPending() {
-  if (flushed) return;
+async function flushPending(uid) {
+  if (flushed || !uid) return;
   flushed = true;
   const p = readPending();
   if (!p) return;
+  // Only in the session of the account that wrote it; a record from before
+  // records carried an account is delivered as it always was.
+  if (p.uid && p.uid !== uid) { flushed = false; return; }
   if ((Number(p.tries) || 0) >= MAX_TRIES) { dropKey(PENDING_KEY); return; }
   writePending({ ...p, tries: (Number(p.tries) || 0) + 1 });
   const res = await deliver(p.choice, p.note, p.context);
@@ -238,13 +244,14 @@ async function deliverRole(role) {
 }
 
 let roleFlushed = false;
-async function flushRolePending() {
-  if (roleFlushed) return;
+async function flushRolePending(uid) {
+  if (roleFlushed || !uid) return;
   roleFlushed = true;
   try {
     const raw = readKey(ROLE_PENDING_KEY);
     if (!raw) return;
     const p = JSON.parse(raw);
+    if (p?.uid && p.uid !== uid) { roleFlushed = false; return; }
     if (!p?.role || !Number.isFinite(p.at) || Date.now() - p.at > PENDING_TTL_MS || (Number(p.tries) || 0) >= MAX_TRIES) {
       dropKey(ROLE_PENDING_KEY);
       return;
@@ -270,13 +277,13 @@ function arrivedViaSomeoneElse() {
   } catch (_) { return false; }
 }
 
-export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput = null } = {}) {
+export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput = null, userId = null } = {}) {
   serverAsked = !!askedOnServer;
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(null);   // choice id once tapped
   const [role, setRole] = useState(null);       // role id once tapped
   // Read once: a role answered on this device is never asked again here.
-  const [askRole] = useState(() => !readKey(ROLE_KEY));
+  const [askRole] = useState(() => !readKey(roleKey(userId)));
   const [note, setNote] = useState('');
   const [receipt, setReceipt] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -289,6 +296,7 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   const rootRef = useRef(null);
   const pointerDownRef = useRef(false);
   const touchedRef = useRef(false);   // the follow-up has been typed in
+  const tapContextRef = useRef(null);  // what the tap was sent with — the note carries it too
 
   // Real pointer state, not a mousemove heuristic. Capture phase and passive so
   // nothing on the canvas can stop us seeing it, and so we never delay a frame.
@@ -321,8 +329,8 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
 
   useEffect(() => {
     migrateLegacyKey();
-    flushPending();
-    flushRolePending();
+    flushPending(userId);
+    flushRolePending(userId);
 
     if (alreadyHandled()) return undefined;
     if (arrivedViaSomeoneElse()) return undefined;
@@ -456,9 +464,23 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   const contextLine = describeFeedbackContext(context);
   const showRoles = !!picked && picked !== NOTHING && askRole;
 
+  // The delivery tick's work, done now if the tick hasn't run yet. A tap or a
+  // close inside the first seconds used to skip it for good — the tick then saw
+  // the answer's marker and stood down — so the account was never stamped as
+  // asked on the server, and every other browser asked again (where a typed
+  // note then overwrote the first answer's choice). ASKED_KEY is unset exactly
+  // while the tick hasn't fired — it writes 'shown' — so this runs once.
+  const markDelivered = () => {
+    if (readKey(ASKED_KEY)) return;
+    try { logEvent(EV.RETURN_REASON_SHOWN, { days_since_last_seen: daysRef.current }); } catch (_) {}
+    if (!serverAsked) { try { onAsked?.(); } catch (_) {} }
+  };
+
   const bank = async (choice) => {
     if (busy) return;
     setBusy(true);
+    markDelivered();
+    tapContextRef.current = context;
     // Written before the round trip, and that is deliberate now rather than
     // accidental. Two things make it safe that were not true before: by this
     // point the delivery marker has usually already retired the account anyway,
@@ -474,7 +496,7 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
     // RETURN_REASON_WRITE_FAILED exists for exactly this, and its absence is
     // the reason the last such bug went a week without anyone noticing.
     writeKey(ASKED_KEY, 'answered');
-    writePending({ choice, note: null, context, tries: 1, at: Date.now() });
+    writePending({ uid: userId, choice, note: null, context, tries: 1, at: Date.now() });
     try {
       logEventNow(EV.RETURN_REASON_ANSWERED, {
         choice,
@@ -496,8 +518,8 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   const pickRole = async (id) => {
     if (busy || role) return;
     setRole(id);
-    writeKey(ROLE_KEY, id);
-    writeKey(ROLE_PENDING_KEY, JSON.stringify({ role: id, tries: 1, at: Date.now() }));
+    writeKey(roleKey(userId), id);
+    writeKey(ROLE_PENDING_KEY, JSON.stringify({ uid: userId, role: id, tries: 1, at: Date.now() }));
     try { logEventNow(EV.ROLE_ANSWERED, { role: id, surface: 'return_banner' }); } catch (_) {}
     const res = await deliverRole(id);
     if (res.ok || res.terminal) dropKey(ROLE_PENDING_KEY);
@@ -507,12 +529,15 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
     const text = note.trim();
     if (!text || busy) return;
     setBusy(true);
-    writePending({ choice: picked, note: text, context: null, tries: 1, at: Date.now() });
+    // The tap's context travels with the note: if the tap's own write failed,
+    // this is the write that creates the row.
+    const tapContext = tapContextRef.current;
+    writePending({ uid: userId, choice: picked, note: text, context: tapContext, tries: 1, at: Date.now() });
     // Length only, never the text. This repo has never put typed content on an
     // analytics event and one useful metric is not a reason to start; the note
     // goes to public.feedback and nowhere else.
     try { logEvent(EV.RETURN_REASON_NOTE, { choice: picked, len: text.length }); } catch (_) {}
-    const res = await deliver(picked, text);
+    const res = await deliver(picked, text, tapContext);
     if (res.ok || res.terminal) dropKey(PENDING_KEY);
     setBusy(false);
     setReceipt(true);
@@ -520,6 +545,7 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   };
 
   const dismiss = () => {
+    markDelivered();
     writeKey(ASKED_KEY, 'dismissed');
     try { logEvent(EV.RETURN_REASON_DISMISSED, { days_since_last_seen: daysRef.current, via: 'x' }); } catch (_) {}
     setOpen(false);

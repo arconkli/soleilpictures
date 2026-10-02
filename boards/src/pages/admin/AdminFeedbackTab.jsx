@@ -247,8 +247,10 @@ export function AdminFeedbackTab() {
 // admin_feedback_breakdown (0348): every answer counted by what was asked, what
 // was said, the author's role and how deep they were when they said it. This is
 // where the pre-registered reads are taken — the "What's holding you back?"
-// shares by depth, and the role mix of the people who build.
-const DEPTHS = ['0', '1-12', '13+', '80%+ of cap', 'anonymous', 'unknown'];
+// shares by depth, and the role mix of the people who build. An answer from a
+// paying (or admin) author is its own band since 0349: Creator has no cap, so
+// measuring it against the free one filed buyers among the walled.
+const DEPTHS = ['0', '1-12', '13+', '80%+ of cap', 'paid', 'anonymous', 'unknown'];
 const GROUPS = [
   { id: 'upgrade_reason', label: "What's holding you back?", kinds: ['upgrade_reason'] },
   { id: 'return_reason',  label: 'What brings you back',     kinds: ['return_reason'] },

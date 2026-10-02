@@ -8475,6 +8475,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {/* Inert until an offer closes; once per account (UpgradeReasonAsk). */}
       <UpgradeReasonAsk />
       <ReturnReasonAsk
+        userId={user?.id || null}
         askedOnServer={!!myTier.onboarding?.return_reason_asked_at}
         contextInput={{
           cards: myTier.demoCardCount, server_cards: myTier.serverCardCount,

@@ -33,7 +33,9 @@ test('it asks, shows what it sends, and takes one tap', async ({ page }) => {
   await expect(ask.locator('.fv-banner-title')).toHaveText('Thanks — that helps.');
   await expect(ask.locator('.fv-banner-body')).toHaveText('What would feel fair?');
   await expect(ask.locator('textarea.rr-note')).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('soleil.upgradereason.v1'))).toBe('answered');
+  expect(await page.evaluate(() => localStorage.getItem('soleil.upgradereason.v1:local-qa-user'))).toBe('answered');
+  // Per account: nothing device-wide that would retire the question for the next account.
+  expect(await page.evaluate(() => localStorage.getItem('soleil.upgradereason.v1'))).toBeNull();
 
   await ask.getByRole('button', { name: 'Skip' }).click();
   await expect(page.locator('.ur-ask')).toHaveCount(0);
@@ -45,7 +47,7 @@ test('"Not now" ends it, and another closed offer does not bring it back', async
   await expect(ask).toBeVisible({ timeout: 15_000 });
   await ask.getByRole('button', { name: 'Not now' }).click();
   await expect(page.locator('.ur-ask')).toHaveCount(0);
-  expect(await page.evaluate(() => localStorage.getItem('soleil.upgradereason.v1'))).toBe('dismissed');
+  expect(await page.evaluate(() => localStorage.getItem('soleil.upgradereason.v1:local-qa-user'))).toBe('dismissed');
 
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('soleil:offer-dismissed', {
     detail: { offer: 'near-cap', surface: 'pricing_modal', method: 'x', trial: true, dwell_ms: 3000, cards: 40, cap: 50, tier: 'demo' },

@@ -249,6 +249,28 @@ test('the admin Feedback tab can filter to every kind that exists', () => {
   }
 });
 
+test('the admin breakdown shows a column for every depth band the server can return', () => {
+  // The table prints only the bands its DEPTHS list names, so a band the
+  // server adds and the client never learns is counted in the total and shown
+  // nowhere — the paid band (0349) would have vanished exactly that way.
+  const defs = migrationsInOrder().filter((m) => /create or replace function public\.admin_feedback_breakdown\(/.test(m.sql));
+  assert.ok(defs.length > 0, 'found no migration defining admin_feedback_breakdown');
+  const latest = defs[defs.length - 1];
+  const body = latest.sql.slice(latest.sql.indexOf('create or replace function public.admin_feedback_breakdown('));
+  const caseBody = body.slice(body.indexOf('case'), body.indexOf('end as depth'));
+  const bands = [...caseBody.matchAll(/(?:then|else)\s+'([^']+)'/g)].map((x) => x[1]);
+  assert.ok(bands.length >= 6, `extracted only ${bands.length} depth bands from ${latest.name}`);
+  assert.ok(bands.includes('paid'), `${latest.name} no longer bands paid authors apart`);
+  const tab = read(path.join(here, '..', 'pages', 'admin', 'AdminFeedbackTab.jsx'));
+  const m = tab.match(/const\s+DEPTHS\s*=\s*\[([^\]]*)\]/);
+  assert.ok(m, 'AdminFeedbackTab.jsx no longer declares DEPTHS');
+  const listed = [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+  assert.ok(listed.length > 0, 'admin DEPTHS extracted as EMPTY');
+  for (const b of bands) {
+    assert.ok(listed.includes(b), `${latest.name} can return depth '${b}' but the admin breakdown has no column for it`);
+  }
+});
+
 test('the closed choice list is identical in the client and the RPC', () => {
   const { name, ids } = choicesInMigrations();
   const client = choicesInClient();
