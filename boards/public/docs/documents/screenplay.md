@@ -50,9 +50,9 @@ Bring in a script from Final Draft, work on it here, take it back out. Nothing
 is trapped in the format.
 
 Two ways in. From an open script, **Import** in the export menu replaces its
-content. Or drop a `.fountain` or `.fdx` file straight onto a canvas — or paste
-one — and it becomes a new script document, opened and ready, with its title
-page filled in. Importing is free on every plan.
+content. Or drop a `.fountain` or `.fdx` file onto a canvas or into the list
+view — or paste one — and it becomes a new script document holding your script,
+title page included, ready for you to open. Importing is free on every plan.
 
 PDF export is real vector output in Courier — selectable, searchable text at the
 correct metrics, not a screenshot of the editor.

@@ -3800,7 +3800,7 @@ export function CanvasSurface({
       });
     }
 
-    // After the media, so the script card that opens lands on top of them.
+    // After the media, so the script card lands on top of them.
     if (scripts.length) {
       await importDroppedScripts(scripts, {
         addScriptCard: mutators.addScriptCard, pos: { x: cx, y: cy }, source, toast: feedback.toast,

@@ -19901,7 +19901,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " file straight onto a canvas — or paste one — and it becomes a new script document, opened and ready, with its title page filled in. Importing is free on every plan."
+     "v": " file onto a canvas or into the list view — or paste one — and it becomes a new script document holding your script, title page included, ready for you to open. Importing is free on every plan."
     }
    ]
   },

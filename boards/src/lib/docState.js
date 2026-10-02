@@ -674,6 +674,74 @@ export function readDocSummary(ydoc, max = 240, scope) {
   return { pages, firstText, firstPageName: firstPage?.name || '' };
 }
 
+// ── The first page follows the card's title ─────────────────────────────────
+// …while it still "tracks" it: its name is the previous title or a seeded
+// default. The moment the person names the page themselves it stops, so a card
+// rename never clobbers an intentional page name. One rule for the open doc
+// (DocSurface) and the closed card's title field (DocCard): a script dropped and
+// renamed before its first open kept the file's title on its page for good.
+const TRACKING_DEFAULT_NAMES = new Set(['', 'Untitled', 'Untitled doc']);
+export function followTitle(ydoc, scope, prevTitle, nextTitle) {
+  if (!nextTitle || nextTitle === prevTitle) return false;
+  const primary = readPages(ydoc, scope)
+    .filter((p) => p.parent_id == null)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+  if (!primary) return false;
+  const tracking = primary.name === prevTitle || TRACKING_DEFAULT_NAMES.has(primary.name || '');
+  if (tracking) renamePage(ydoc, primary.id, nextTitle, scope);
+  return tracking;
+}
+
+// ── A dropped script's body, written when its card is made ──────────────────
+// A screenplay dropped or pasted onto a board (lib/scriptImport.js) has its
+// first page and its whole body written inside the card's own creation
+// transaction, with no editor involved — so the script is in the shared doc
+// from the first moment: on every device, for view-only readers and the public
+// page, in previews and exports, and one canvas undo takes the whole import
+// back.
+//
+// It used to wait for the card's first editor. A new doc card doesn't open by
+// itself, and the list view has no editor at all, so a body waiting in page
+// memory came back empty after a reload; waiting in docMeta instead, two
+// devices opening the new card together each imported the whole script.
+//
+// `docJSON` is ProseMirror JSON (screenplayIO.blocksToDocJSON): top-level
+// block nodes, each carrying plain unmarked text. They are written as the very
+// tree y-prosemirror's binding writes for them — one Y.XmlElement per node,
+// named by node type, every non-null attribute set, the node's text as one
+// Y.XmlText. scriptImport.test.mjs reads the result back through y-prosemirror
+// against the doc schema: a block that would not validate there would be
+// DELETED by the editor's binding on first render, so it fails a test instead.
+export function writeScriptBody(ydoc, scope, docJSON, { name = 'Untitled' } = {}) {
+  const nodes = (docJSON && Array.isArray(docJSON.content)) ? docJSON.content.map(scriptNodeToYXml).filter(Boolean) : [];
+  if (!nodes.length) return null;
+  let pageId = null;
+  ydoc.transact(() => {
+    pageId = addPage(ydoc, { name, scope });
+    const frag = pageContentMap(ydoc, scope)?.get(pageId);
+    if (frag) frag.insert(0, nodes);
+  }, DOC_ORIGIN);
+  return pageId;
+}
+
+function scriptNodeToYXml(node) {
+  if (!node || typeof node.type !== 'string' || node.type === 'text') return null;
+  const el = new Y.XmlElement(node.type);
+  for (const [k, v] of Object.entries(node.attrs || {})) {
+    if (v !== null && v !== undefined) el.setAttribute(k, v);
+  }
+  const text = (node.content || [])
+    .filter((c) => c?.type === 'text' && typeof c.text === 'string')
+    .map((c) => c.text)
+    .join('');
+  if (text) {
+    const t = new Y.XmlText();
+    t.insert(0, text);
+    el.insert(0, [t]);
+  }
+  return el;
+}
+
 export function buildPageTree(pages) {
   const byParent = new Map();
   for (const p of pages) {

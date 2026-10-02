@@ -7,16 +7,15 @@
 // buy storage for a file the product would have opened for nothing, and a
 // paying owner got an opaque download card rather than their script.
 //
-// A drop now creates a script card (App's addScriptCard: screenplay mode, opens
-// immediately) and the parsed script waits here, keyed by card id, until that
-// card's editor exists; DocSurface applies it the first time one is ready. The
-// map is page-lifetime only — a script is opened by the same gesture that
-// creates it, so nothing here needs to survive a reload.
+// A drop now creates a script card (App's addScriptCard: screenplay mode) with
+// its title page and its whole body written into the card's doc as the card is
+// made (docState.writeScriptBody) — never left waiting for an editor: a new doc
+// card does not open by itself, and the list view has no editor at all.
 //
 // parseScriptText is the ONE parse path: DocExportMenu's own import uses it
 // too, so a dropped script and an imported one can never come out different.
 
-import { parseFountainTitlePage, fountainToBlocks, fdxToBlocks, fdxToTitlePage } from './screenplayIO.js';
+import { parseFountainTitlePage, fountainToBlocks, fdxToBlocks, fdxToTitlePage, blocksToDocJSON } from './screenplayIO.js';
 
 export const SCRIPT_FILE_RE = /\.(fountain|fdx)$/i;
 
@@ -46,24 +45,13 @@ export function parseScriptText(text, name = '') {
   };
 }
 
+// The ProseMirror JSON the card's first page is written with — the same shape
+// the toolbar's Import hands setContent.
+export function scriptBody(parsed) {
+  return parsed?.blocks?.length ? blocksToDocJSON(parsed.blocks) : null;
+}
+
 // Nothing worth creating a card for: no script blocks and no title page.
 export function isEmptyScript(parsed) {
   return !parsed || ((!parsed.blocks || parsed.blocks.length === 0) && !parsed.titlePage);
-}
-
-const pending = new Map();
-
-export function stashScriptImport(cardId, parsed) {
-  if (!cardId || !parsed) return;
-  pending.set(String(cardId), parsed);
-}
-
-// Returns the waiting script for this card exactly once, then forgets it.
-export function takeScriptImport(cardId) {
-  if (!cardId) return null;
-  const key = String(cardId);
-  const v = pending.get(key);
-  if (!v) return null;
-  pending.delete(key);
-  return v;
 }

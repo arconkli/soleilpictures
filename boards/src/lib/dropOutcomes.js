@@ -33,15 +33,17 @@ export function reportSkippedFiles({ partial = [], pureref = [] } = {}, { surfac
 
 export const SCRIPT_UNREADABLE = "Couldn't read that file — it doesn't look like Fountain or Final Draft.";
 export const SCRIPT_EMPTY = 'Nothing importable found in that file.';
-export const SCRIPT_ONE_AT_A_TIME = 'One script at a time — drop the next once this one is open.';
+export const SCRIPT_ONE_AT_A_TIME = 'One script at a time — the first is on the board; drop the next on its own.';
 
-// Turn the FIRST screenplay in a gesture into a script card that opens
-// straight into its editor. One per gesture on purpose: the card that opens
-// is the one whose editor applies the import, and a second card created by
-// the same drop would wait for an editor that might not open before a reload.
+// Turn the FIRST screenplay in a gesture into a script card, its title page and
+// body written into the card's doc as it is made (App's addScriptCard). One per gesture: every script in a drop would be
+// placed on the same spot, each exactly on top of the last, and the toast says
+// to drop the next on its own.
+// Returns the card's id, or null when nothing was made (unreadable, empty, or
+// refused by the cap — which shows its own wall), and only a card that exists
+// is counted as imported.
 export async function importDroppedScripts(files, { addScriptCard, pos = null, source, toast } = {}) {
   if (!files?.length) return null;
-  if (files.length > 1) toast?.({ type: 'info', message: SCRIPT_ONE_AT_A_TIME, ttl: 6000 });
   const file = files[0];
   let parsed;
   let mod;
@@ -54,9 +56,10 @@ export async function importDroppedScripts(files, { addScriptCard, pos = null, s
     return null;
   }
   if (mod.isEmptyScript(parsed)) { toast?.({ type: 'error', message: SCRIPT_EMPTY }); return null; }
-  const id = addScriptCard?.(pos, { title: parsed.title });
+  const id = addScriptCard?.(pos, { title: parsed.title, script: { titlePage: parsed.titlePage, body: mod.scriptBody(parsed) } });
   if (!id) return null;
-  mod.stashScriptImport(id, parsed);
   try { logEvent(EV.SCRIPT_IMPORTED, { source, format: parsed.format, blocks: parsed.blocks.length }); } catch (_) {}
+  // Said only once the first one is really on the board.
+  if (files.length > 1) toast?.({ type: 'info', message: SCRIPT_ONE_AT_A_TIME, ttl: 6000 });
   return id;
 }

@@ -15,9 +15,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager } from '../lib/docState.js';
-import { takeScriptImport, stashScriptImport } from '../lib/scriptImport.js';
-import { blocksToDocJSON } from '../lib/screenplayIO.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -441,15 +439,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const prev = prevTitleRef.current;
     prevTitleRef.current = titleOverride;
     if (!titleOverride || titleOverride === prev || !pages.length) return;
-    const primary = [...pages]
-      .filter(p => p.parent_id == null)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
-    if (!primary) return;
-    // "Tracking" = the page still has an auto-generated name (so syncing the
-    // first real card title is welcome) or its name equals the previous title.
-    const DEFAULT_NAMES = new Set(['', 'Untitled', 'Untitled doc']);
-    const tracking = primary.name === prev || DEFAULT_NAMES.has(primary.name || '');
-    if (tracking) renamePage(ydoc, primary.id, titleOverride, scope);
+    followTitle(ydoc, scope, prev, titleOverride);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titleOverride]);
 
@@ -578,33 +568,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     exposeEditor(ed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // A screenplay dropped on the canvas becomes this card, and its parsed
-  // script waits for the card's first editor (lib/scriptImport.js). Taken
-  // exactly once — reopening the card must never re-import over edits — and
-  // applied through the same two calls the toolbar's Import makes: the body
-  // via setContent, the title page through docMeta. Deferred a tick so the
-  // collab binding has finished attaching the editor to its fragment.
-  //
-  // No cleanup on purpose: this effect runs every render, so a cleanup that
-  // cancelled the tick would fire on the very next render and drop a script
-  // already taken from the map. The tick checks the editor itself instead,
-  // and hands the script back if that editor is gone, for the next one.
-  useEffect(() => {
-    const ed = editorRef.current;
-    if (!ed || !scope?.cardId) return;
-    const cardId = scope.cardId;
-    const script = takeScriptImport(cardId);
-    if (!script) return;
-    setTimeout(() => {
-      if (ed.isDestroyed) { stashScriptImport(cardId, script); return; }
-      try {
-        if (script.blocks?.length) ed.chain().setContent(blocksToDocJSON(script.blocks)).run();
-        if (script.titlePage && ydoc) setTitlePage(ydoc, scope, { enabled: true, ...script.titlePage });
-      } catch (err) {
-        console.error('[drop] screenplay import failed', err);
-      }
-    }, 0);
-  });
   const onEditorDestroy = useCallback((sheetId) => {
     if (!sheetId || !editorsRef.current.has(sheetId)) return;
     const ed = editorsRef.current.get(sheetId);

@@ -155,7 +155,7 @@ import { publishOwnWork } from './lib/ownWork.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
 import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
-import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
+import { initCardDocStore, cardScope, setDocMode, setTitlePage, writeScriptBody } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
 import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/gridLayoutLibrary.js';
 // Generated projection of the kind:'template' seoLanding specs — the preset id
@@ -2293,28 +2293,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // surfaces the app's screenwriting depth as a one-click starting point. The
     // mode lives in the per-card docMeta map, so we flip it in the same afterInsert
     // (right after the store exists) via setDocMode on the card's own scope.
-    // `opts.title` names a script that arrived as a file (scriptImport.js);
-    // the id is returned so that caller can hand the parsed script to this
-    // card's editor when it opens.
+    // `opts.title` and `opts.script` carry a script that arrived as a file
+    // (scriptImport.js): its title page and its first page with the whole body
+    // are written here (docState.writeScriptBody), inside the card's own
+    // creation transaction — so it is in the shared doc at once, everywhere,
+    // and one ⌘Z takes back the whole import. Returns the card's id, or null
+    // when the cap refused it.
     const addScriptCard = (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.doc || {};
       const w = d.w || 320, h = d.h || 240;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
-      addCard({
-        id, kind: 'doc', title: (opts && typeof opts.title === 'string' && opts.title.trim()) || 'Untitled script',
+      const script = opts?.script || null;
+      const title = (opts && typeof opts.title === 'string' && opts.title.trim()) || 'Untitled script';
+      const placed = addCard({
+        id, kind: 'doc', title,
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       }, {
         afterInsert: (cardYM) => {
           if (!cardYM) return;
           initCardDocStore(ydoc, cardYM);
-          try { setDocMode(ydoc, cardScope(cardYM), 'screenplay'); } catch (_) {}
+          const scope = cardScope(cardYM);
+          try { setDocMode(ydoc, scope, 'screenplay'); } catch (_) {}
+          if (script) {
+            try { if (script.titlePage) setTitlePage(ydoc, scope, { enabled: true, ...script.titlePage }); } catch (_) {}
+            try { if (script.body) writeScriptBody(ydoc, scope, script.body, { name: title }); } catch (_) {}
+          }
         },
       });
-      setAutoFocusId(id);
-      return id;
+      if (!placed) return null;
+      setAutoFocusId(placed);
+      return placed;
     };
 
     const setBoardBgColor = async (color) => {
