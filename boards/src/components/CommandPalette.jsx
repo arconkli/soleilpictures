@@ -283,7 +283,8 @@ export function CommandPalette({
       id: 'cards', label: 'Cards & notes',
       items: asyncGroups.cards.map(r => ({
         key: r.id, kind: r.kind, icon: KIND_ICON[r.kind] || FileText,
-        title: r.title || 'Untitled', sub: r.body || null,
+        // A photo usually has no title; its file's own name is the one people type.
+        title: r.title || r.meta?.fileName || 'Untitled', sub: r.body || null,
         activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
       })),
     });

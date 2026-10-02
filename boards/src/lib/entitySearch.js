@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { entitySearchFilter, entitySearchRank } from './entitySearchFilter.js';
 
 // Workspace-scoped entity search backed by the entity_search Postgres view.
 // Returns rows shaped { id, kind, workspace_id, board_id, card_id, title,
@@ -14,23 +15,15 @@ export async function searchEntities({ workspaceId, query, kinds, limit = 30 }) 
     .limit(limit);
   if (kinds?.length) req = req.in('kind', kinds);
   if (q) {
-    // Escape PostgREST wildcards in the user query to avoid injection.
-    const safe = q.replace(/[%,]/g, ' ').trim();
-    if (safe) req = req.or(`title.ilike.%${safe}%,body.ilike.%${safe}%`);
+    // Title, text, and an uploaded file's own name (entitySearchFilter).
+    const filter = entitySearchFilter(q);
+    if (filter) req = req.or(filter);
   }
   const { data, error } = await req;
   if (error) { console.warn('entity search failed', error); return []; }
   if (q) {
     const lq = q.toLowerCase();
-    return [...data].sort((a, b) => rank(a, lq) - rank(b, lq));
+    return [...data].sort((a, b) => entitySearchRank(a, lq) - entitySearchRank(b, lq));
   }
   return data;
-}
-
-function rank(row, lq) {
-  const t = (row.title || '').toLowerCase();
-  if (t === lq) return 0;
-  if (t.startsWith(lq)) return 1;
-  if (t.includes(lq)) return 2;
-  return 3;
 }

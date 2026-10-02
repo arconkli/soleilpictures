@@ -22542,6 +22542,30 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — by the name the file was uploaded with, so a photo nobody captioned is found as "
+     },
+     {
+      "t": "code",
+      "v": "diner_ext_dusk_04.jpg"
+     },
+     {
+      "t": "text",
+      "v": " (photos and videos uploaded since names were kept; audio, PDFs and attachments always had theirs)"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Tags",
       "children": [
        {

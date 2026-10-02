@@ -423,7 +423,7 @@ export function ListSurface({
         const hits = (rows || [])
           .filter(r => r.board_id && descSet.has(r.board_id) && r.card_id)
           .slice(0, 12)
-          .map(r => ({ id: r.card_id || r.id, name: r.title || 'Untitled', kind: r.kind, boardId: r.board_id, clusterName: boards[r.board_id]?.name || 'Sub-cluster' }));
+          .map(r => ({ id: r.card_id || r.id, name: r.title || r.meta?.fileName || 'Untitled', kind: r.kind, boardId: r.board_id, clusterName: boards[r.board_id]?.name || 'Sub-cluster' }));
         setDescHits(hits);
       } catch (_) { if (!cancelled) setDescHits([]); }
     }, 250);

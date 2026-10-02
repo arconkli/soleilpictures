@@ -27,6 +27,9 @@ related:
 - **Recents** — what you have had open
 - **Clusters** — by name
 - **Cards and notes** — by title, and by the first {{fact:searchBodyChars}} characters of their text
+- **Files** — by the name the file was uploaded with, so a photo nobody captioned
+  is found as `diner_ext_dusk_04.jpg` (photos and videos uploaded since names
+  were kept; audio, PDFs and attachments always had theirs)
 - **Tags**
 - **Docs** — by title
 
