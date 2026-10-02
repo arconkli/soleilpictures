@@ -14,6 +14,8 @@ faq:
     a: Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas.
   - q: Can I make list the default?
     a: Yes, in Settings under Defaults. You can also set the view per cluster.
+  - q: Can I use Clusters like Google Drive?
+    a: For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that.
 related:
   - /docs/clusters
   - /docs/canvas
@@ -165,6 +167,32 @@ that way from day one and discover the canvas later.
 
 That discovery is nudged exactly once, the first time a cluster gets full enough
 for it to matter.
+
+## Can I use Clusters like Google Drive?
+
+For the files a project is working from, largely yes — and the difference is
+that the same files are also a canvas your team arranges and argues over. For
+what a drive is really for, no. Here is the line:
+
+| Like a drive | In Clusters |
+|---|---|
+| Browse a folder's contents | Yes — list view, as a table or a gallery |
+| Sort and filter | Yes — by name, type, size and dates, filtered to one kind of content |
+| Preview without opening | Yes — every item has a real preview, and the detail panel a large one |
+| Download | Yes — one file, or a selection as a zip of up to {{fact:zipMaxFiles}} files or {{fact:zipMaxSize}} |
+| Folders inside folders | Yes — nested clusters, as deep as you like |
+| Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free |
+| Store any kind of file | On {{fact:planName}}, any file type on a {{fact:creatorStorage}} drive. The free plan takes standard media under its [size caps](/docs/account/plans), and every file is one of its {{fact:demoCardLimit}} cards |
+| Keep each file's original name | For audio, PDFs and attachments. Images and videos come down under a generic name |
+| Share one file by its own link | No — sharing is per cluster. **Copy link** opens a card on its board, for people who can already open that board |
+| Sync a folder on your computer | No — there is no desktop sync app |
+| Work offline | No |
+| Back up your files | No — a cluster is where work happens, not a backup of it |
+
+So use a cluster the way a team uses a project folder: the references, files
+and documents a production is working from, organised where everyone on it can
+see them. Keep Google Drive, Dropbox or your own server for what a drive does
+best — backup, sync to your computer and offline copies.
 
 ---
 

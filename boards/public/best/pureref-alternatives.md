@@ -60,7 +60,7 @@ Eagle's capture workflow is the best we tested anywhere in this category. The br
 
 Its limits are structural rather than fixable. Eagle's own site offers Windows 10+ and macOS 10.15+ downloads and nothing else — no Linux, no phone, no tablet, no web app — checked on 26 August 2026. There is no built-in sync or collaboration either, so multi-machine use means parking the library in a cloud drive and hoping two people never edit at once. The licence covers two devices; each additional machine is $17.47, and the 30-day trial runs once per device.
 
-The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the major 5.0 release is confirmed free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good.
+The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the 5.0 it is rebuilding is announced free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good.
 
 | | PureRef | Eagle |
 | --- | --- | --- |
@@ -207,16 +207,16 @@ Eagle solves a different problem than PureRef. PureRef is a wall: today's refere
 
 The browser extension is the best capture workflow we tested: drag-to-save, batch collection of a whole page, full-page screenshots, and an Alt+Right-Click grab that works on sites that disable right-click. If your reference gathering happens mostly in a browser at midnight, Eagle removes almost all of the friction between seeing a thing and keeping it. Many artists keep Eagle even after adopting a board tool.
 
-It is actively developed — 4.0 builds shipped through 2026, and Eagle 5.0's AI search and automation features have been announced as a free upgrade for license holders, though as of August 2026 the shipping stable version is still 4.0. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once.
+It is actively developed — 4.0 builds shipped through 2026, and two official plugins arrived in March 2026: AI Search, which finds assets by an image or a description entirely offline, and AI Action, which turns your own organising rules into automated AI workflows. A rebuilt 5.0 is announced as a free upgrade but has no date. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once.
 
 - Local-first library on your own disk — fast, offline, no account required
 - Handles images, video, audio (MP3/WAV/AAC/FLAC/M4A), fonts, and bookmarks in one browser
 - Auto Tag folders and Smart Folders that organize by name, tag, color, or format
 - Search assets by dominant color
 - Browser extension: drag-to-save, batch collection, full-page screenshots, right-click-bypass grabs
-- Eagle 5.0 (AI search, batch auto-tagging, MCP) announced as a free upgrade for license owners
+- AI Search and AI Action plugins (March 2026): find assets by image or description offline, and organise by your own rules
 
-**Pros:** Genuine one-time purchase with lifetime updates — and the major 5.0 release is confirmed free for owners; Local-first speed and privacy at large library sizes; The strongest web-capture workflow in this roundup
+**Pros:** Genuine one-time purchase with lifetime updates — and the rebuilt 5.0 is announced free for owners; Local-first speed and privacy at large library sizes; The strongest web-capture workflow in this roundup
 
 **Cons:** Desktop-only: no phone, tablet, or web access at all; No built-in sync or collaboration — team use rides on third-party cloud drives, with conflict risk; License covers 2 devices; more machines cost $17.47 each, and the trial runs once per device
 

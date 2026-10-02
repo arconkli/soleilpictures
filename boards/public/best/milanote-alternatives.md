@@ -396,20 +396,20 @@ As the board itself, it fails the becoming test completely. Boards are algorithm
 
 The librarian of this list: a one-time-purchase local database that swallows everything and shares nothing.
 
-Eagle is not a canvas; it is a digital asset manager, and for personal reference volume it is the strongest one here. A one-time $34.95 license covers two devices with lifetime free updates — the teased 5.0 release, with AI search and batch auto-tagging, is confirmed free for existing owners. The library lives on your own disk, so tens of thousands of stills, clips, audio files, and fonts browse instantly, offline, with no account. Auto-tag rules, smart folders, and search by dominant color do the organizing, and the browser extension's batch capture is the fastest web-harvesting we have used.
+Eagle is not a canvas; it is a digital asset manager, and for personal reference volume it is the strongest one here. A one-time $34.95 license covers two devices with lifetime free updates, and its AI Search and AI Action plugins, shipped in March 2026, find assets by image or description and sort them by your own rules. The library lives on your own disk, so tens of thousands of stills, clips, audio files, and fonts browse instantly, offline, with no account. Auto-tag rules, smart folders, and search by dominant color do the organizing, and the browser extension's batch capture is the fastest web-harvesting we have used.
 
-The limits are the mirror image of the strengths. Desktop-only: no mobile app, no web viewer, so nothing can be checked from a phone on set. No cloud sync or collaboration — the official answer for teams is parking the library in a shared drive, which risks conflicts with simultaneous editors. And as of August 2026 the shipping version is still 4.0; the 5.0 AI features remain a teaser. Treat Eagle as the deep archive feeding your boards — the vault behind the wall, not the wall itself — and it earns its price several times over.
+The limits are the mirror image of the strengths. Desktop-only: no mobile app, no web viewer, so nothing can be checked from a phone on set. No cloud sync or collaboration — the official answer for teams is parking the library in a shared drive, which risks conflicts with simultaneous editors. Its AI arrived as plugins to 4.0 in March 2026; the rebuilt 5.0 has no date. Treat Eagle as the deep archive feeding your boards — the vault behind the wall, not the wall itself — and it earns its price several times over.
 
 - Local-first library: assets on your own disk, instant browsing, fully offline
 - Handles images, video, audio, fonts, and bookmarks in one browser
 - Auto Tag rules, Smart Folders, and search by dominant color
 - Browser extension with batch collection and full-page screenshot capture
-- Eagle 5.0 (AI search, AI actions, MCP) a free upgrade for license holders
+- AI Search and AI Action plugins (March 2026); a rebuilt 5.0 announced free for license holders
 - Windows and macOS only — no mobile or web version
 
-**Pros:** Genuine one-time pricing with lifetime updates, including the 5.0 upgrade; Fast, private, offline handling of very large reference libraries; Best-in-class web capture via the browser extension
+**Pros:** Genuine one-time pricing with lifetime updates, including the announced 5.0 upgrade; Fast, private, offline handling of very large reference libraries; Best-in-class web capture via the browser extension
 
-**Cons:** Desktop-only — no mobile, no web viewer, no on-set access; No built-in sync or collaboration; team use means shared-drive workarounds; The headline 5.0 AI features had not shipped in stable as of August 2026
+**Cons:** Desktop-only — no mobile, no web viewer, no on-set access; No built-in sync or collaboration; team use means shared-drive workarounds; 5.0 is being rebuilt, with no release date (August 2026)
 
 ## Which one is for you
 

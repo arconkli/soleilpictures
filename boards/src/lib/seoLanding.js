@@ -1162,6 +1162,103 @@ const PAGES = [
     siblingListicle: { path: '/best/mood-board-apps', label: 'See all 12 mood board apps, ranked by a film studio.' },
     related: ['/vs/milanote', '/best/mood-board-apps', '/best/milanote-alternatives', '/tools/ai-mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/use-cases'],
   },
+  // /vs/eagle — PRE-REGISTERED 2026-10-02 (the CLAUDE.md ritual).
+  //
+  // Eagle (eagle.cool) is the artist's asset LIBRARY, and the category the owner
+  // wants Clusters seen in ("the artist's Google Drive"). The honest frame is a
+  // division of labour, not a replacement: Eagle is one person's private library,
+  // Clusters is the room a team builds in. "pureref vs eagle" already reaches
+  // this site, and /best/pureref-alternatives ranks Eagle third.
+  //   Google predicate: query ~* 'eagle' on this path, search_type = 'web',
+  //     query = '' rows for the page total; 60 days from the production
+  //     promotion, never inside 3 days of it; floor 200 impressions before any
+  //     title or meta edit.
+  //   AEO predicate: the probe questions "best Eagle app alternative for a team"
+  //     and "Eagle vs Soleil Clusters" (aeo_probe_questions) cite this domain
+  //     within 8 weekly runs of promotion — readable only once the probe's
+  //     OpenAI credits are restored (it has failed every run since 2026-09-06).
+  //   Fold rule: under 50 impressions at day 60 → 301 into
+  //     /best/pureref-alternatives via RETIRED_PAGES (worker.js), retiring the
+  //     health expectations by url AND by expected (0262 / 0263).
+  // Facts re-verified 2026-10-02 on Eagle's own pages: the store lists US$34.95
+  // as a one-time purchase with free lifetime updates, two devices per licence,
+  // macOS and Windows. Its blog: AI Search (find by image or description, fully
+  // offline) shipped as an official plugin 2026-03-17 and AI Action (your own
+  // organising rules as AI workflows) 2026-03-30; 5.0 is being rebuilt with no
+  // date (2026-08-11). Its support: no official iPad or mobile app; teams share
+  // a library through a NAS or a synced folder, with a warning about two people
+  // writing at once. The extra-device price and the trial length were NOT on
+  // the store page that day, so this page states neither.
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    path: '/vs/eagle',
+    kind: 'compare',
+    title: 'Eagle Alternative for Teams — A Shared Reference Canvas',
+    metaDescription:
+      'An Eagle alternative for teams: a shared reference canvas in the browser, built live with your crew. Honest about where Eagle’s private library wins.',
+    h1: 'An Eagle Alternative for Teams That Build Boards Together',
+    subhead:
+      'Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.',
+    answer:
+      'Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.',
+    updated: '2026-10-02',
+    cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
+    stepsHeading: 'How to bring an Eagle project into Clusters',
+    steps: [
+      { t: 'Pick the project, not the archive', d: 'Leave the library in Eagle. Gather the references one project needs — a tag or a smart folder in Eagle is a quick way to collect them.' },
+      { t: 'Bring the originals over', d: 'Eagle keeps every original as a real file on your disk. Select the ones the project needs and drag them onto a new cluster; they upload in parallel and lay themselves out.' },
+      { t: 'Rebuild the structure as nested boards', d: 'A cluster per scene, character or location, nested inside the project, with notes and docs beside the images.' },
+      { t: 'Invite the team', d: 'Everyone you invite edits free, and one link shows the board to anyone, with no account needed to view it.' },
+    ],
+    sections: [
+      {
+        heading: 'Eagle is a library. Clusters is a room.',
+        body: 'Eagle is a digital asset manager: a fast library on your own disk of everything you have ever saved, organised by tags, smart folders and colour, and searchable by an image or a description with its AI Search plugin, offline. For one person’s collection it is excellent, and a one-time price makes it easy to own. Clusters starts where a collection becomes a project other people work on: a canvas in the browser where a team arranges the references for this production, writes beside them and decides — together, at the same time.',
+        bullets: [
+          'Eagle: a private, local library — organised, searchable, offline',
+          'Clusters: a shared canvas — arranged, discussed, decided',
+          'They do different jobs, and plenty of artists keep both',
+        ],
+      },
+      {
+        heading: 'What a team gets that a library cannot give it',
+        body: 'Eagle has no shared, live workspace. Teams share an Eagle library by keeping it on a NAS or in a synced folder, and Eagle’s own support warns about two people writing to it at once. In Clusters the board is the shared thing: live cursors and presence, comments pinned to the card they are about, a vote card beside each option, and a nested cluster per scene or set. A director opens it from a link in any browser, with no install and no account needed to view, and everyone you invite edits free.',
+        bullets: [
+          'Live cursors, and comments pinned to the card in question',
+          'One link opens a read-only view; invited editors are free',
+          'Runs in any browser; on a phone it adds to the home screen',
+        ],
+      },
+      {
+        heading: 'Where Eagle is still the better choice',
+        body: 'If the job is keeping tens of thousands of references findable — offline, on your own disk, with AI search by image or description and AI Action sorting them by rules you write — Eagle does that and Clusters does not. It also costs US$34.95 once for two devices, against $25 a month for Clusters’ Creator plan. A solo artist building a lifetime library should buy Eagle. Clusters earns its place when a team has to work from the same board.',
+      },
+    ],
+    compare: {
+      competitor: 'Eagle',
+      intro: 'How the two compare. Eagle figures are from its own store, blog and support pages, October 2026:',
+      rows: [
+        { feature: 'Where it runs', us: 'Any browser; phones via the home-screen web app', them: 'macOS and Windows desktop apps' },
+        { feature: 'Real-time collaboration', us: 'Yes — live cursors and presence', them: 'No; teams share a library on a NAS or a synced folder' },
+        { feature: 'Works offline, on your own disk', us: 'No — it lives in the cloud', them: 'Yes' },
+        { feature: 'AI search by image or description', us: 'No', them: 'Yes — the AI Search plugin, offline' },
+        { feature: 'Organising', us: 'Tags and nested clusters', them: 'Tags, smart folders and colour search' },
+        { feature: 'Notes, docs and a screenplay beside the images', us: 'Yes', them: 'Notes on each asset' },
+        { feature: 'Comments and votes from a team', us: 'Yes', them: 'No' },
+        { feature: 'Price', us: `Free to start (${DEMO_CARD_LIMIT} cards); Creator $25/mo`, them: 'US$34.95 once, two devices' },
+      ],
+    },
+    faq: [
+      { q: 'Is Soleil Clusters a good Eagle alternative?', a: 'For a team, yes: a shared canvas in the browser where a crew builds reference boards together, live, and shares them with one link. For one person’s offline library of every reference they have ever saved, Eagle is the better tool, and plenty of artists keep both.' },
+      { q: 'Eagle vs Soleil Clusters — what is the difference?', a: 'Eagle is a desktop library on your own disk: tags, smart folders, colour search and AI search by image or description, offline, for US$34.95 once. Clusters is a shared canvas in the browser: live editing, comments, votes, nested boards and docs, free to start and $25/mo for Creator.' },
+      { q: 'Can I use Eagle and Clusters together?', a: 'Yes, and it is the natural split. Keep the archive in Eagle. When a project starts, bring the references it needs onto a cluster — Eagle keeps every original as a real file on your disk — and build the board with your team there.' },
+      { q: 'Does Clusters work offline like Eagle?', a: 'No. Clusters lives in the cloud and needs a connection, and anything on a board can be downloaded again. If offline access to a large personal library matters most, Eagle is built for exactly that.' },
+      { q: 'Is there a Clusters app for iPhone or iPad?', a: 'Clusters runs in the mobile browser and can be added to the home screen as a web app, where it opens without browser chrome. There is no App Store or Play Store listing yet. Eagle has no official mobile app either.' },
+      { q: 'How much does Eagle cost?', a: 'As of October 2026, Eagle’s store lists US$34.95 as a one-time purchase with free lifetime updates, and each licence covers two devices. Clusters is free to start; Creator is $25 a month for unlimited cards, 100GB of storage and any file type.' },
+    ],
+    siblingListicle: { path: '/best/pureref-alternatives', label: 'See every PureRef alternative, Eagle included, ranked by a film studio.' },
+    related: ['/vs/pureref', '/best/pureref-alternatives', '/tools/reference-board-maker', '/tools/shared-reference-board', '/vs/milanote', '/use-cases'],
+  },
   {
     path: '/vs/pureref',
     kind: 'compare',
@@ -1443,6 +1540,7 @@ const PAGES = [
       '/vs/pureref',
       '/vs/miro',
       '/vs/storyflow',
+      '/vs/eagle',
       '/tools/ai-mood-board-maker',
       '/tools/shared-reference-board',
       '/tools/directors-treatment',
@@ -1511,6 +1609,7 @@ const EXAMPLES_BY_PATH = {
   '/vs/pureref':                  ['film-noir-look-book', 'neon-noir-look-book', 'japandi-living-room'],
   '/vs/miro':                     ['screenplay-beat-sheet', 'short-film-shot-list', 'world-cup-2026-moodboard'],
   '/vs/storyflow':                ['screenplay-beat-sheet', 'short-film-shot-list', 'neon-noir-look-book'],
+  '/vs/eagle':                    ['film-noir-look-book', 'japandi-living-room', 'neon-noir-look-book'],
   '/use-cases':                   ['world-cup-2026-moodboard', 'neon-noir-look-book', 'sage-terracotta-wedding'],
   '/tools/shared-reference-board':        ['film-noir-look-book', 'neon-noir-look-book', 'world-cup-2026-moodboard'],
   '/tools/directors-treatment':           ['neon-noir-look-book', 'film-noir-look-book', 'screenplay-beat-sheet'],
@@ -1531,6 +1630,7 @@ const EYEBROW_BY_PATH = {
   '/vs/pureref':                  'PureRef alternative',
   '/vs/miro':                     'Miro alternative',
   '/vs/storyflow':                'Storyflow alternative',
+  '/vs/eagle':                    'Eagle alternative',
   '/use-cases':                   'What you can make',
   '/templates':                   'Grid templates',
   '/tools/shared-reference-board':        'For studio art teams',

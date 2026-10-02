@@ -3459,6 +3459,32 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "[Eagle](/vs/eagle)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Eagle",
+       "href": "/vs/eagle",
+       "children": [
+        {
+         "t": "text",
+         "v": "Eagle"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — a different job, so it is usually not a move at all. Eagle stays the private library on your disk; bring the references one project needs onto a cluster, where the team builds the board together. Eagle keeps every original as a real file, so they drag in like any other files."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "[Milanote](/vs/milanote)",
      "children": [
       {
@@ -3618,22 +3644,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — production management. Clusters covers the visual and document side and the "
+     "v": " — production management. Clusters covers the visual and document side; it is not a call-sheet-and-crew-management system, and its "
     },
     {
      "t": "link",
-     "v": "schedule",
+     "v": "schedule cards",
      "href": "/docs/canvas/schedule",
      "children": [
       {
        "t": "text",
-       "v": "schedule"
+       "v": "schedule cards"
       }
      ]
     },
     {
      "t": "text",
-     "v": "; it is not a call-sheet-and-crew-management system. The "
+     "v": " are being rebuilt. The "
     },
     {
      "t": "link",
@@ -17235,6 +17261,252 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "That discovery is nudged exactly once, the first time a cluster gets full enough for it to matter."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Can I use Clusters like Google Drive?",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Can I use Clusters like Google Drive?"
+    }
+   ],
+   "id": "can-i-use-clusters-like-google-drive"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For the files a project is working from, largely yes — and the difference is that the same files are also a canvas your team arranges and argues over. For what a drive is really for, no. Here is the line:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Like a drive"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In Clusters"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Browse a folder's contents"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes — list view, as a table or a gallery"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Sort and filter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes — by name, type, size and dates, filtered to one kind of content"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Preview without opening"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes — every item has a real preview, and the detail panel a large one"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes — one file, or a selection as a zip of up to 500 files or 500 MB"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Folders inside folders"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes — nested clusters, as deep as you like"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A whole cluster, yes: one link opens it read-only, and everyone you invite edits free"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Store any kind of file"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "On Creator, any file type on a 100GB drive. The free plan takes standard media under its "
+      },
+      {
+       "t": "link",
+       "v": "size caps",
+       "href": "/docs/account/plans",
+       "children": [
+        {
+         "t": "text",
+         "v": "size caps"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", and every file is one of its 50 cards"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Keep each file's original name"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "For audio, PDFs and attachments. Images and videos come down under a generic name"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Share one file by its own link"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No — sharing is per cluster. "
+      },
+      {
+       "t": "strong",
+       "v": "Copy link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Copy link"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " opens a card on its board, for people who can already open that board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Sync a folder on your computer"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No — there is no desktop sync app"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Work offline"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Back up your files"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No — a cluster is where work happens, not a backup of it"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "So use a cluster the way a team uses a project folder: the references, files and documents a production is working from, organised where everyone on it can see them. Keep Google Drive, Dropbox or your own server for what a drive does best — backup, sync to your computer and offline copies."
     }
    ]
   },

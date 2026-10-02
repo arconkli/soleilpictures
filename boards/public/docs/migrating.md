@@ -38,6 +38,11 @@ What is worth knowing is how the concepts map.
 collaboration, sharing and cloud storage; the tradeoff is that Clusters is a
 browser app rather than a native always-on-top window.
 
+**[Eagle](/vs/eagle)** — a different job, so it is usually not a move at all.
+Eagle stays the private library on your disk; bring the references one project
+needs onto a cluster, where the team builds the board together. Eagle keeps every
+original as a real file, so they drag in like any other files.
+
 **[Milanote](/vs/milanote)** — very similar shape. Boards become clusters,
 nesting maps directly, and the card model is comparable.
 
@@ -54,8 +59,8 @@ tools](/best/storyboard-software)** — panels become
 [screenplay document](/docs/documents/screenplay) on the same board.
 
 **StudioBinder** — production management. Clusters covers the visual and
-document side and the [schedule](/docs/canvas/schedule); it is not a
-call-sheet-and-crew-management system. The
+document side; it is not a call-sheet-and-crew-management system, and its
+[schedule cards](/docs/canvas/schedule) are being rebuilt. The
 [storyboard software roundup](/best/storyboard-software) compares the two
 directly.
 

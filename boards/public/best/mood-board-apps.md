@@ -310,7 +310,7 @@ Not where the mood board lives — where the ten thousand images behind it live.
 
 Eagle is the librarian of this list: a local-first desktop app that swallows entire reference collections — images, video, audio, fonts, bookmarks — into one fast library on your own disk, browsable offline with no account. The organizational tools are the draw: auto-tagging folders, smart folders that sort by name, tag, color, or format, and search by dominant color — one of the most production-useful features here when you need every frame in a certain teal.
 
-Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and the teased Eagle 5.0, with AI search and batch tagging, is confirmed free for existing license holders, though as of August 2026 the shipping version is still 4.0.
+Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and AI Search and AI Action arrived as official plugins in March 2026, with a rebuilt 5.0 announced free for owners but not yet dated.
 
 The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app or web viewer, and no built-in sync or collaboration — team use means parking the library in a cloud drive, which official docs endorse but which risks conflicts with simultaneous editors. Eagle does not replace a board tool. It makes whichever one you pick faster, because the right reference is always findable.
 
@@ -320,7 +320,7 @@ The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app
 - Search assets by dominant color
 - Browser extension with batch capture, even from right-click-disabled sites
 
-**Pros:** Genuine one-time pricing, with the 5.0 AI release confirmed free for owners; Color search and smart folders make huge reference libraries instantly navigable; Best web-capture workflow of anything on this list
+**Pros:** Genuine one-time pricing, with AI search and organising plugins shipped in March 2026; Color search and smart folders make huge reference libraries instantly navigable; Best web-capture workflow of anything on this list
 
 **Cons:** Desktop-only — no mobile app or web viewer for on-set access; No built-in sync or collaboration; team use relies on third-party cloud drives; No free tier — a once-per-device 30-day trial, then the license
 

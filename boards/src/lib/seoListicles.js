@@ -216,7 +216,7 @@ const PAGES = [
         "paras": [
           "Eagle solves a different problem than PureRef. PureRef is a wall: today's references, arranged for today's work. Eagle is a library: every reference you have ever saved, tagged, and findable. Assets live in a local Eagle Library on your own disk — images, video, audio, even fonts — and a big collection browses instantly with no upload step and full offline access. Auto Tag applies tags to anything dropped into a folder, Smart Folders organize by name, tag, color, or format, and you can search by dominant color — a quiet gift for building a color story.",
           "The browser extension is the best capture workflow we tested: drag-to-save, batch collection of a whole page, full-page screenshots, and an Alt+Right-Click grab that works on sites that disable right-click. If your reference gathering happens mostly in a browser at midnight, Eagle removes almost all of the friction between seeing a thing and keeping it. Many artists keep Eagle even after adopting a board tool.",
-          "It is actively developed — 4.0 builds shipped through 2026, and Eagle 5.0's AI search and automation features have been announced as a free upgrade for license holders, though as of August 2026 the shipping stable version is still 4.0. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once."
+          "It is actively developed — 4.0 builds shipped through 2026, and two official plugins arrived in March 2026: AI Search, which finds assets by an image or a description entirely offline, and AI Action, which turns your own organising rules into automated AI workflows. A rebuilt 5.0 is announced as a free upgrade but has no date. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once."
         ],
         "features": [
           "Local-first library on your own disk — fast, offline, no account required",
@@ -224,14 +224,14 @@ const PAGES = [
           "Auto Tag folders and Smart Folders that organize by name, tag, color, or format",
           "Search assets by dominant color",
           "Browser extension: drag-to-save, batch collection, full-page screenshots, right-click-bypass grabs",
-          "Eagle 5.0 (AI search, batch auto-tagging, MCP) announced as a free upgrade for license owners"
+          "AI Search and AI Action plugins (March 2026): find assets by image or description offline, and organise by your own rules"
         ],
         "pricing": {
           "summary": "US$34.95 one-time for 2 devices with lifetime free updates; extra device $17.47; 30-day free trial (once per device), no perpetual free tier",
           "asOf": "August 2026"
         },
         "pros": [
-          "Genuine one-time purchase with lifetime updates — and the major 5.0 release is confirmed free for owners",
+          "Genuine one-time purchase with lifetime updates — and the rebuilt 5.0 is announced free for owners",
           "Local-first speed and privacy at large library sizes",
           "The strongest web-capture workflow in this roundup"
         ],
@@ -676,7 +676,7 @@ const PAGES = [
           "paras": [
             "Eagle's capture workflow is the best we tested anywhere in this category. The browser extension does drag-to-save, batch collection of every image on a page, full-page screenshots, and an Alt+Right-Click grab that still works on sites which disable right-click. It holds images, video, audio, fonts and bookmarks in one browser, with Auto Tag folders, Smart Folders, and search by dominant colour. If your reference gathering happens mostly in a browser at midnight, Eagle removes almost all the friction between seeing a thing and keeping it.",
             "Its limits are structural rather than fixable. Eagle's own site offers Windows 10+ and macOS 10.15+ downloads and nothing else — no Linux, no phone, no tablet, no web app — checked on 26 August 2026. There is no built-in sync or collaboration either, so multi-machine use means parking the library in a cloud drive and hoping two people never edit at once. The licence covers two devices; each additional machine is $17.47, and the 30-day trial runs once per device.",
-            "The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the major 5.0 release is confirmed free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good."
+            "The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the 5.0 it is rebuilding is announced free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good."
           ],
           "rows": [
             { "feature": "The job", "left": "A wall: today's references, arranged", "right": "A library: everything you have ever saved" },
@@ -801,6 +801,7 @@ const PAGES = [
     ],
     "related": [
       "/vs/pureref",
+      "/vs/eagle",
       "/tools/reference-board-maker",
       "/tools/shared-reference-board",
       "/tools/mood-board-maker",
@@ -1244,15 +1245,15 @@ const PAGES = [
         "bestFor": "A local asset library for collectors with serious reference volume",
         "verdict": "The librarian of this list: a one-time-purchase local database that swallows everything and shares nothing.",
         "paras": [
-          "Eagle is not a canvas; it is a digital asset manager, and for personal reference volume it is the strongest one here. A one-time $34.95 license covers two devices with lifetime free updates — the teased 5.0 release, with AI search and batch auto-tagging, is confirmed free for existing owners. The library lives on your own disk, so tens of thousands of stills, clips, audio files, and fonts browse instantly, offline, with no account. Auto-tag rules, smart folders, and search by dominant color do the organizing, and the browser extension's batch capture is the fastest web-harvesting we have used.",
-          "The limits are the mirror image of the strengths. Desktop-only: no mobile app, no web viewer, so nothing can be checked from a phone on set. No cloud sync or collaboration — the official answer for teams is parking the library in a shared drive, which risks conflicts with simultaneous editors. And as of August 2026 the shipping version is still 4.0; the 5.0 AI features remain a teaser. Treat Eagle as the deep archive feeding your boards — the vault behind the wall, not the wall itself — and it earns its price several times over."
+          "Eagle is not a canvas; it is a digital asset manager, and for personal reference volume it is the strongest one here. A one-time $34.95 license covers two devices with lifetime free updates, and its AI Search and AI Action plugins, shipped in March 2026, find assets by image or description and sort them by your own rules. The library lives on your own disk, so tens of thousands of stills, clips, audio files, and fonts browse instantly, offline, with no account. Auto-tag rules, smart folders, and search by dominant color do the organizing, and the browser extension's batch capture is the fastest web-harvesting we have used.",
+          "The limits are the mirror image of the strengths. Desktop-only: no mobile app, no web viewer, so nothing can be checked from a phone on set. No cloud sync or collaboration — the official answer for teams is parking the library in a shared drive, which risks conflicts with simultaneous editors. Its AI arrived as plugins to 4.0 in March 2026; the rebuilt 5.0 has no date. Treat Eagle as the deep archive feeding your boards — the vault behind the wall, not the wall itself — and it earns its price several times over."
         ],
         "features": [
           "Local-first library: assets on your own disk, instant browsing, fully offline",
           "Handles images, video, audio, fonts, and bookmarks in one browser",
           "Auto Tag rules, Smart Folders, and search by dominant color",
           "Browser extension with batch collection and full-page screenshot capture",
-          "Eagle 5.0 (AI search, AI actions, MCP) a free upgrade for license holders",
+          "AI Search and AI Action plugins (March 2026); a rebuilt 5.0 announced free for license holders",
           "Windows and macOS only — no mobile or web version"
         ],
         "pricing": {
@@ -1260,14 +1261,14 @@ const PAGES = [
           "asOf": "August 2026"
         },
         "pros": [
-          "Genuine one-time pricing with lifetime updates, including the 5.0 upgrade",
+          "Genuine one-time pricing with lifetime updates, including the announced 5.0 upgrade",
           "Fast, private, offline handling of very large reference libraries",
           "Best-in-class web capture via the browser extension"
         ],
         "cons": [
           "Desktop-only — no mobile, no web viewer, no on-set access",
           "No built-in sync or collaboration; team use means shared-drive workarounds",
-          "The headline 5.0 AI features had not shipped in stable as of August 2026"
+          "5.0 is being rebuilt, with no release date (August 2026)"
         ],
         "rating": 8.2
       }
@@ -1971,7 +1972,7 @@ const PAGES = [
         "verdict": "Not where the mood board lives — where the ten thousand images behind it live.",
         "paras": [
           "Eagle is the librarian of this list: a local-first desktop app that swallows entire reference collections — images, video, audio, fonts, bookmarks — into one fast library on your own disk, browsable offline with no account. The organizational tools are the draw: auto-tagging folders, smart folders that sort by name, tag, color, or format, and search by dominant color — one of the most production-useful features here when you need every frame in a certain teal.",
-          "Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and the teased Eagle 5.0, with AI search and batch tagging, is confirmed free for existing license holders, though as of August 2026 the shipping version is still 4.0.",
+          "Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and AI Search and AI Action arrived as official plugins in March 2026, with a rebuilt 5.0 announced free for owners but not yet dated.",
           "The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app or web viewer, and no built-in sync or collaboration — team use means parking the library in a cloud drive, which official docs endorse but which risks conflicts with simultaneous editors. Eagle does not replace a board tool. It makes whichever one you pick faster, because the right reference is always findable."
         ],
         "features": [
@@ -1986,7 +1987,7 @@ const PAGES = [
           "asOf": "August 2026"
         },
         "pros": [
-          "Genuine one-time pricing, with the 5.0 AI release confirmed free for owners",
+          "Genuine one-time pricing, with AI search and organising plugins shipped in March 2026",
           "Color search and smart folders make huge reference libraries instantly navigable",
           "Best web-capture workflow of anything on this list"
         ],

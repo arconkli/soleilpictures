@@ -370,6 +370,8 @@ By tool
 
 PureRef — the closest match for pure reference work. You gain collaboration, sharing and cloud storage; the tradeoff is that Clusters is a browser app rather than a native always-on-top window.
 
+Eagle — a different job, so it is usually not a move at all. Eagle stays the private library on your disk; bring the references one project needs onto a cluster, where the team builds the board together. Eagle keeps every original as a real file, so they drag in like any other files.
+
 Milanote — very similar shape. Boards become clusters, nesting maps directly, and the card model is comparable.
 
 Miro — the whiteboard-to-canvas mapping is direct. Clusters is built around media and reference rather than diagramming and facilitation.
@@ -378,7 +380,7 @@ Storyflow — boards map to clusters and the references come across as files. Wh
 
 Boords, Storyboarder and the other storyboard tools — panels become grid cells, and the script side becomes a screenplay document on the same board.
 
-StudioBinder — production management. Clusters covers the visual and document side and the schedule; it is not a call-sheet-and-crew-management system. The storyboard software roundup compares the two directly.
+StudioBinder — production management. Clusters covers the visual and document side; it is not a call-sheet-and-crew-management system, and its schedule cards are being rebuilt. The storyboard software roundup compares the two directly.
 
 Comparisons and alternatives
 
@@ -1968,6 +1970,26 @@ This is the framing worth internalising. A cluster is not "a canvas that also ha
 
 That discovery is nudged exactly once, the first time a cluster gets full enough for it to matter.
 
+Can I use Clusters like Google Drive?
+
+For the files a project is working from, largely yes — and the difference is that the same files are also a canvas your team arranges and argues over. For what a drive is really for, no. Here is the line:
+
+Like a drive | In Clusters
+Browse a folder's contents | Yes — list view, as a table or a gallery
+Sort and filter | Yes — by name, type, size and dates, filtered to one kind of content
+Preview without opening | Yes — every item has a real preview, and the detail panel a large one
+Download | Yes — one file, or a selection as a zip of up to 500 files or 500 MB
+Folders inside folders | Yes — nested clusters, as deep as you like
+Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free
+Store any kind of file | On Creator, any file type on a 100GB drive. The free plan takes standard media under its size caps, and every file is one of its 50 cards
+Keep each file's original name | For audio, PDFs and attachments. Images and videos come down under a generic name
+Share one file by its own link | No — sharing is per cluster. Copy link opens a card on its board, for people who can already open that board
+Sync a folder on your computer | No — there is no desktop sync app
+Work offline | No
+Back up your files | No — a cluster is where work happens, not a backup of it
+
+So use a cluster the way a team uses a project folder: the references, files and documents a production is working from, organised where everyone on it can see them. Keep Google Drive, Dropbox or your own server for what a drive does best — backup, sync to your computer and offline copies.
+
 Coming from a reference tool that only does one of these? See how Clusters compares.
 
 ## Frequently asked questions
@@ -1980,6 +2002,9 @@ A: Yes. Drag files into it, or use Add files in the toolbar. They land on the cl
 
 Q: Can I make list the default?
 A: Yes, in Settings under Defaults. You can also set the view per cluster.
+
+Q: Can I use Clusters like Google Drive?
+A: For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that.
 
 
 ========================================================================
@@ -7506,6 +7531,108 @@ Yes. Clusters runs in the mobile browser and can be added to the home screen as 
 
 
 ========================================================================
+URL: https://clusters.soleilpictures.com/vs/eagle
+Updated: 2026-10-02
+
+# An Eagle Alternative for Teams That Build Boards Together
+
+> Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.
+
+_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-02_
+
+Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.
+
+## Eagle is a library. Clusters is a room.
+
+Eagle is a digital asset manager: a fast library on your own disk of everything you have ever saved, organised by tags, smart folders and colour, and searchable by an image or a description with its AI Search plugin, offline. For one person’s collection it is excellent, and a one-time price makes it easy to own. Clusters starts where a collection becomes a project other people work on: a canvas in the browser where a team arranges the references for this production, writes beside them and decides — together, at the same time.
+
+- Eagle: a private, local library — organised, searchable, offline
+- Clusters: a shared canvas — arranged, discussed, decided
+- They do different jobs, and plenty of artists keep both
+
+## What a team gets that a library cannot give it
+
+Eagle has no shared, live workspace. Teams share an Eagle library by keeping it on a NAS or in a synced folder, and Eagle’s own support warns about two people writing to it at once. In Clusters the board is the shared thing: live cursors and presence, comments pinned to the card they are about, a vote card beside each option, and a nested cluster per scene or set. A director opens it from a link in any browser, with no install and no account needed to view, and everyone you invite edits free.
+
+- Live cursors, and comments pinned to the card in question
+- One link opens a read-only view; invited editors are free
+- Runs in any browser; on a phone it adds to the home screen
+
+## Where Eagle is still the better choice
+
+If the job is keeping tens of thousands of references findable — offline, on your own disk, with AI search by image or description and AI Action sorting them by rules you write — Eagle does that and Clusters does not. It also costs US$34.95 once for two devices, against $25 a month for Clusters’ Creator plan. A solo artist building a lifetime library should buy Eagle. Clusters earns its place when a team has to work from the same board.
+
+## How to bring an Eagle project into Clusters
+
+1. **Pick the project, not the archive** — Leave the library in Eagle. Gather the references one project needs — a tag or a smart folder in Eagle is a quick way to collect them.
+2. **Bring the originals over** — Eagle keeps every original as a real file on your disk. Select the ones the project needs and drag them onto a new cluster; they upload in parallel and lay themselves out.
+3. **Rebuild the structure as nested boards** — A cluster per scene, character or location, nested inside the project, with notes and docs beside the images.
+4. **Invite the team** — Everyone you invite edits free, and one link shows the board to anyone, with no account needed to view it.
+
+## Soleil Clusters vs Eagle
+
+How the two compare. Eagle figures are from its own store, blog and support pages, October 2026:
+
+| | Soleil Clusters | Eagle |
+| --- | --- | --- |
+| Where it runs | Any browser; phones via the home-screen web app | macOS and Windows desktop apps |
+| Real-time collaboration | Yes — live cursors and presence | No; teams share a library on a NAS or a synced folder |
+| Works offline, on your own disk | No — it lives in the cloud | Yes |
+| AI search by image or description | No | Yes — the AI Search plugin, offline |
+| Organising | Tags and nested clusters | Tags, smart folders and colour search |
+| Notes, docs and a screenplay beside the images | Yes | Notes on each asset |
+| Comments and votes from a team | Yes | No |
+| Price | Free to start (50 cards); Creator $25/mo | US$34.95 once, two devices |
+
+## What it costs
+
+Start free. Pay when you outgrow it.
+
+**Free — $0 forever**
+
+- **50 cards** to build with
+- No separate limit on clusters — each one counts as one of your cards
+- Free collaboration — invite editors to any cluster
+
+**Creator — $25/mo, or $20/mo billed annually**
+
+- Unlimited cards
+- Any file type
+- No size limits, on a 100GB drive
+
+One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+
+Compare the plans side by side: https://clusters.soleilpictures.com/pricing
+
+## Frequently asked questions
+
+### Is Soleil Clusters a good Eagle alternative?
+
+For a team, yes: a shared canvas in the browser where a crew builds reference boards together, live, and shares them with one link. For one person’s offline library of every reference they have ever saved, Eagle is the better tool, and plenty of artists keep both.
+
+### Eagle vs Soleil Clusters — what is the difference?
+
+Eagle is a desktop library on your own disk: tags, smart folders, colour search and AI search by image or description, offline, for US$34.95 once. Clusters is a shared canvas in the browser: live editing, comments, votes, nested boards and docs, free to start and $25/mo for Creator.
+
+### Can I use Eagle and Clusters together?
+
+Yes, and it is the natural split. Keep the archive in Eagle. When a project starts, bring the references it needs onto a cluster — Eagle keeps every original as a real file on your disk — and build the board with your team there.
+
+### Does Clusters work offline like Eagle?
+
+No. Clusters lives in the cloud and needs a connection, and anything on a board can be downloaded again. If offline access to a large personal library matters most, Eagle is built for exactly that.
+
+### Is there a Clusters app for iPhone or iPad?
+
+Clusters runs in the mobile browser and can be added to the home screen as a web app, where it opens without browser chrome. There is no App Store or Play Store listing yet. Eagle has no official mobile app either.
+
+### How much does Eagle cost?
+
+As of October 2026, Eagle’s store lists US$34.95 as a one-time purchase with free lifetime updates, and each licence covers two devices. Clusters is free to start; Creator is $25 a month for unlimited cards, 100GB of storage and any file type.
+
+
+
+========================================================================
 URL: https://clusters.soleilpictures.com/vs/pureref
 Updated: 2026-10-02
 
@@ -7942,7 +8069,7 @@ Eagle's capture workflow is the best we tested anywhere in this category. The br
 
 Its limits are structural rather than fixable. Eagle's own site offers Windows 10+ and macOS 10.15+ downloads and nothing else — no Linux, no phone, no tablet, no web app — checked on 26 August 2026. There is no built-in sync or collaboration either, so multi-machine use means parking the library in a cloud drive and hoping two people never edit at once. The licence covers two devices; each additional machine is $17.47, and the 30-day trial runs once per device.
 
-The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the major 5.0 release is confirmed free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good.
+The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the 5.0 it is rebuilding is announced free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good.
 
 | | PureRef | Eagle |
 | --- | --- | --- |
@@ -8089,16 +8216,16 @@ Eagle solves a different problem than PureRef. PureRef is a wall: today's refere
 
 The browser extension is the best capture workflow we tested: drag-to-save, batch collection of a whole page, full-page screenshots, and an Alt+Right-Click grab that works on sites that disable right-click. If your reference gathering happens mostly in a browser at midnight, Eagle removes almost all of the friction between seeing a thing and keeping it. Many artists keep Eagle even after adopting a board tool.
 
-It is actively developed — 4.0 builds shipped through 2026, and Eagle 5.0's AI search and automation features have been announced as a free upgrade for license holders, though as of August 2026 the shipping stable version is still 4.0. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once.
+It is actively developed — 4.0 builds shipped through 2026, and two official plugins arrived in March 2026: AI Search, which finds assets by an image or a description entirely offline, and AI Action, which turns your own organising rules into automated AI workflows. A rebuilt 5.0 is announced as a free upgrade but has no date. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once.
 
 - Local-first library on your own disk — fast, offline, no account required
 - Handles images, video, audio (MP3/WAV/AAC/FLAC/M4A), fonts, and bookmarks in one browser
 - Auto Tag folders and Smart Folders that organize by name, tag, color, or format
 - Search assets by dominant color
 - Browser extension: drag-to-save, batch collection, full-page screenshots, right-click-bypass grabs
-- Eagle 5.0 (AI search, batch auto-tagging, MCP) announced as a free upgrade for license owners
+- AI Search and AI Action plugins (March 2026): find assets by image or description offline, and organise by your own rules
 
-**Pros:** Genuine one-time purchase with lifetime updates — and the major 5.0 release is confirmed free for owners; Local-first speed and privacy at large library sizes; The strongest web-capture workflow in this roundup
+**Pros:** Genuine one-time purchase with lifetime updates — and the rebuilt 5.0 is announced free for owners; Local-first speed and privacy at large library sizes; The strongest web-capture workflow in this roundup
 
 **Cons:** Desktop-only: no phone, tablet, or web access at all; No built-in sync or collaboration — team use rides on third-party cloud drives, with conflict risk; License covers 2 devices; more machines cost $17.47 each, and the trial runs once per device
 
@@ -8761,20 +8888,20 @@ As the board itself, it fails the becoming test completely. Boards are algorithm
 
 The librarian of this list: a one-time-purchase local database that swallows everything and shares nothing.
 
-Eagle is not a canvas; it is a digital asset manager, and for personal reference volume it is the strongest one here. A one-time $34.95 license covers two devices with lifetime free updates — the teased 5.0 release, with AI search and batch auto-tagging, is confirmed free for existing owners. The library lives on your own disk, so tens of thousands of stills, clips, audio files, and fonts browse instantly, offline, with no account. Auto-tag rules, smart folders, and search by dominant color do the organizing, and the browser extension's batch capture is the fastest web-harvesting we have used.
+Eagle is not a canvas; it is a digital asset manager, and for personal reference volume it is the strongest one here. A one-time $34.95 license covers two devices with lifetime free updates, and its AI Search and AI Action plugins, shipped in March 2026, find assets by image or description and sort them by your own rules. The library lives on your own disk, so tens of thousands of stills, clips, audio files, and fonts browse instantly, offline, with no account. Auto-tag rules, smart folders, and search by dominant color do the organizing, and the browser extension's batch capture is the fastest web-harvesting we have used.
 
-The limits are the mirror image of the strengths. Desktop-only: no mobile app, no web viewer, so nothing can be checked from a phone on set. No cloud sync or collaboration — the official answer for teams is parking the library in a shared drive, which risks conflicts with simultaneous editors. And as of August 2026 the shipping version is still 4.0; the 5.0 AI features remain a teaser. Treat Eagle as the deep archive feeding your boards — the vault behind the wall, not the wall itself — and it earns its price several times over.
+The limits are the mirror image of the strengths. Desktop-only: no mobile app, no web viewer, so nothing can be checked from a phone on set. No cloud sync or collaboration — the official answer for teams is parking the library in a shared drive, which risks conflicts with simultaneous editors. Its AI arrived as plugins to 4.0 in March 2026; the rebuilt 5.0 has no date. Treat Eagle as the deep archive feeding your boards — the vault behind the wall, not the wall itself — and it earns its price several times over.
 
 - Local-first library: assets on your own disk, instant browsing, fully offline
 - Handles images, video, audio, fonts, and bookmarks in one browser
 - Auto Tag rules, Smart Folders, and search by dominant color
 - Browser extension with batch collection and full-page screenshot capture
-- Eagle 5.0 (AI search, AI actions, MCP) a free upgrade for license holders
+- AI Search and AI Action plugins (March 2026); a rebuilt 5.0 announced free for license holders
 - Windows and macOS only — no mobile or web version
 
-**Pros:** Genuine one-time pricing with lifetime updates, including the 5.0 upgrade; Fast, private, offline handling of very large reference libraries; Best-in-class web capture via the browser extension
+**Pros:** Genuine one-time pricing with lifetime updates, including the announced 5.0 upgrade; Fast, private, offline handling of very large reference libraries; Best-in-class web capture via the browser extension
 
-**Cons:** Desktop-only — no mobile, no web viewer, no on-set access; No built-in sync or collaboration; team use means shared-drive workarounds; The headline 5.0 AI features had not shipped in stable as of August 2026
+**Cons:** Desktop-only — no mobile, no web viewer, no on-set access; No built-in sync or collaboration; team use means shared-drive workarounds; 5.0 is being rebuilt, with no release date (August 2026)
 
 ## Which one is for you
 
@@ -9164,7 +9291,7 @@ Not where the mood board lives — where the ten thousand images behind it live.
 
 Eagle is the librarian of this list: a local-first desktop app that swallows entire reference collections — images, video, audio, fonts, bookmarks — into one fast library on your own disk, browsable offline with no account. The organizational tools are the draw: auto-tagging folders, smart folders that sort by name, tag, color, or format, and search by dominant color — one of the most production-useful features here when you need every frame in a certain teal.
 
-Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and the teased Eagle 5.0, with AI search and batch tagging, is confirmed free for existing license holders, though as of August 2026 the shipping version is still 4.0.
+Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and AI Search and AI Action arrived as official plugins in March 2026, with a rebuilt 5.0 announced free for owners but not yet dated.
 
 The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app or web viewer, and no built-in sync or collaboration — team use means parking the library in a cloud drive, which official docs endorse but which risks conflicts with simultaneous editors. Eagle does not replace a board tool. It makes whichever one you pick faster, because the right reference is always findable.
 
@@ -9174,7 +9301,7 @@ The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app
 - Search assets by dominant color
 - Browser extension with batch capture, even from right-click-disabled sites
 
-**Pros:** Genuine one-time pricing, with the 5.0 AI release confirmed free for owners; Color search and smart folders make huge reference libraries instantly navigable; Best web-capture workflow of anything on this list
+**Pros:** Genuine one-time pricing, with AI search and organising plugins shipped in March 2026; Color search and smart folders make huge reference libraries instantly navigable; Best web-capture workflow of anything on this list
 
 **Cons:** Desktop-only — no mobile app or web viewer for on-set access; No built-in sync or collaboration; team use relies on third-party cloud drives; No free tier — a once-per-device 30-day trial, then the license
 
