@@ -5,7 +5,7 @@ h1: Soleil Clusters documentation
 navLabel: Overview
 section: start
 order: 0
-updated: 2026-08-26
+updated: 2026-10-02
 answer: Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.
 faq:
   - q: Is Soleil Clusters free?

@@ -5,7 +5,7 @@ h1: Webhooks
 navLabel: Webhooks
 section: developers
 order: 12
-updated: 2026-08-09
+updated: 2026-10-02
 answer: Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 faq:
   - q: Do webhooks fire for changes made in the app?

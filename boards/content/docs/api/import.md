@@ -5,7 +5,7 @@ h1: Import
 navLabel: Import
 section: developers
 order: 6
-updated: 2026-08-10
+updated: 2026-10-02
 answer: POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 faq:
   - q: What happens if I run the same import twice?

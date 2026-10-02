@@ -2,7 +2,7 @@
 
 > Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-09-10_
+_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-10-02_
 
 Collaboration is deliberately not a paid feature. Inviting people is how boards
 become useful, and charging per seat would make the product worse at the thing

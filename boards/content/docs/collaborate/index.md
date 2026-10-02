@@ -5,7 +5,7 @@ h1: Collaborating
 navLabel: Overview
 section: collaborate
 order: 0
-updated: 2026-09-10
+updated: 2026-10-02
 answer: Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 faq:
   - q: Do collaborators need to pay?

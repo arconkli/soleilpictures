@@ -2,7 +2,7 @@
 
 > POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 
-_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-10-02_
 
 Reference rarely starts life in Clusters. It is in a shared drive folder, on a
 CDN, in somebody's export from another tool. `import` is how it gets here

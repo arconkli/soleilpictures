@@ -2,7 +2,7 @@
 
 > Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 
-_Source: https://clusters.soleilpictures.com/docs/api/webhooks · Updated 2026-08-09_
+_Source: https://clusters.soleilpictures.com/docs/api/webhooks · Updated 2026-10-02_
 
 Register an HTTPS endpoint and we post to it when something changes.
 

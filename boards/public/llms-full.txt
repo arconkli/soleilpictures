@@ -6,7 +6,7 @@ Generated from https://clusters.soleilpictures.com/docs. Terminology: a "cluster
 ========================================================================
 # Soleil Clusters documentation
 URL: https://clusters.soleilpictures.com/docs
-Updated: 2026-08-26
+Updated: 2026-10-02
 
 Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.
 
@@ -2712,7 +2712,7 @@ A: Forward slash opens it too, when you are not typing into something.
 ========================================================================
 # Collaborating
 URL: https://clusters.soleilpictures.com/docs/collaborate
-Updated: 2026-09-10
+Updated: 2026-10-02
 
 Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
@@ -5087,7 +5087,7 @@ A: The board owner's, exactly as in the app. Going past it returns 402.
 ========================================================================
 # Import
 URL: https://clusters.soleilpictures.com/docs/api/import
-Updated: 2026-08-10
+Updated: 2026-10-02
 
 POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 
@@ -5885,7 +5885,7 @@ A: 402 means a quota — the card cap or storage. 403 means permission — an in
 ========================================================================
 # Webhooks
 URL: https://clusters.soleilpictures.com/docs/api/webhooks
-Updated: 2026-08-09
+Updated: 2026-10-02
 
 Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 

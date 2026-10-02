@@ -68,7 +68,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.",
     "section": "start",
     "order": 0,
-    "updated": "2026-08-26",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2016,7 +2016,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-09-10",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
@@ -3401,7 +3401,7 @@ export const DOCS_PAGES = [
     "answer": "POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.",
     "section": "developers",
     "order": 6,
-    "updated": "2026-08-10",
+    "updated": "2026-10-02",
     "navLabel": "Import",
     "headings": [
       {
@@ -3790,7 +3790,7 @@ export const DOCS_PAGES = [
     "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
     "section": "developers",
     "order": 12,
-    "updated": "2026-08-09",
+    "updated": "2026-10-02",
     "navLabel": "Webhooks",
     "headings": [
       {
