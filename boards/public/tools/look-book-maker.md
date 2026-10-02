@@ -1,6 +1,6 @@
 # Look Book Maker
 
-> Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to a polished, interactive presentation — no account or download required to view it.
+> Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to the polished, interactive board itself — no account or download required to view it.
 
 _Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 2026-07-07_
 

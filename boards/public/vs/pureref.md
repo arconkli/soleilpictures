@@ -32,10 +32,10 @@ A reference board is rarely just pictures. Clusters cards can be images, notes, 
 
 ## Switching from PureRef takes an afternoon
 
-Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. Auto-tagging reads and files each image as it lands, so the board organizes itself while you rebuild the layout you had — and stays organized as the project grows.
+Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.
 
 - Drag a whole folder of references in at once
-- Auto-tagging organizes images as they land
+- Tags and nested boards keep a growing board findable
 - One board per project — or nest boards inside it
 
 ## Reference boards your whole team can stand around
@@ -61,7 +61,7 @@ If you want a tiny, free, fully-offline window that floats over your art app and
 ## How to move a PureRef board to Clusters
 
 1. **Collect your images** — Export the images from PureRef, or gather the original files you pinned.
-2. **Drag them onto a new board** — Drop the whole set at once — auto-tagging files each reference as it lands.
+2. **Drag them onto a new board** — Drop the whole set at once — a folder of references lands in one go.
 3. **Add what PureRef couldn’t hold** — Put notes, links, video, and color palettes right beside the imagery.
 4. **Share one link** — Send the board to your team or client — it opens in the browser, nothing to install.
 
@@ -111,7 +111,7 @@ No. A PureRef board is a local file on one machine; sharing it means sending the
 
 ### Can Clusters open .pur files?
 
-Not directly — .pur is PureRef’s own local format. Export your images from PureRef (or gather the originals) and drag the whole set onto a Clusters board; auto-tagging files each reference as it lands, and the layout takes minutes to rebuild.
+Not directly — .pur is PureRef’s own local format. Export your images from PureRef (or gather the originals) and drag the whole set onto a Clusters board in one drop, and the layout takes minutes to rebuild.
 
 ### Is there a free PureRef alternative?
 
@@ -127,7 +127,7 @@ Clusters is built for exactly that: live cursors and presence, comments pinned t
 
 ### How do I move my PureRef boards into Clusters?
 
-Export the images from PureRef (or gather the originals), then drag the whole set onto a new Clusters board. Auto-tagging files each reference as it lands, and you can rebuild your layout in minutes.
+Export the images from PureRef (or gather the originals), then drag the whole set onto a new Clusters board. It lands in one drop, and you can rebuild your layout in minutes.
 
 ### Does Clusters work offline like PureRef?
 

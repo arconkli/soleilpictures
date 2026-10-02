@@ -32,7 +32,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 - Steal the palette — extract a color palette from any image and keep it on the board beside the work it came from.
 - Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; Creator accepts any file type.
 - Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.
-- One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and auto-tagging files a dropped image to the right board for you.
+- One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.
 
 ## Free to start, flat when you grow
 

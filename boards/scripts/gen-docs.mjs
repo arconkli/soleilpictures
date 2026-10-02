@@ -1220,7 +1220,7 @@ export function isChangelogPath(pathname) {
     '# Soleil Clusters',
     '',
     '> An infinite-canvas creative workspace for film, photo, design and brand teams.',
-    '> Organize references, storyboards, shot lists, scripts and schedules on shared boards.',
+    '> Organize references, storyboards, shot lists and scripts on shared boards.',
     `> Read and write it from your own code with the ${SITE_ORIGIN}/api/v1 REST API or the MCP server.`,
     '',
     'Terminology: the product calls a board a **cluster**. The API and database call the same object a `board`.',

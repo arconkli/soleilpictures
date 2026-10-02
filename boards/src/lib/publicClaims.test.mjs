@@ -181,7 +181,68 @@ const RULES = [
     // must keep passing — the alternations name the false shapes, not the noun.
     pattern: /ships as (native )?(iOS|Android)|native apps for iOS and Android|native (iOS|Android)( and Android)? apps? (for|handle|land|open)|native (iOS|Android)( and Android)? apps? (are|is) (also )?available|(Yes|yes),? for iOS and Android|share sheet from photos|the (native )?iOS and Android apps|also iOS and Android builds|in the native apps|native iOS app as well|(export|exports) (goes?|are delivered) through the (platform's own |system )?share sheet/i,
   },
+  {
+    // Twenty-five marketing lines, four compare-table rows and the homepage's
+    // crawlable body said a dropped file is read, tagged and "filed to the right
+    // board automatically". The tags doc says the opposite in as many words — a
+    // tag is not a location, tagging moves nothing, and nothing is tagged until
+    // you accept a suggestion — and the AI tagger behind the claim has never
+    // run (tag_ai_usage and autotag_log were both empty on 2026-10-01). Removed
+    // 2026-10-01. Competitors' auto-tagging (Eagle's, refern's) is theirs to
+    // claim; these shapes are ours.
+    name: 'tagging suggests and moves nothing — never sell dropped files as auto-tagged or auto-filed',
+    scoped: false,
+    pattern: /auto-?tagging (files|reads and files|organi[sz]es (images|them|references))|reads it,? tags it,? and files it|tags and files each one|files (each|every) (dropped )?(reference|image|one) (as it lands|to the right board)|files (them|it|a dropped image) to the right board|automatic organi[sz]ation of dropped files/i,
+  },
 ];
+
+// Schedule cards have been held off production since 2026-09-01 (owner: "these
+// are so bad, they should NOT be on prod right now"). appHost's
+// scheduleCreationAllowed() is DEV-or-preview only, the docs say "being
+// rebuilt" — and until 2026-10-01 eight SEO pages still told visitors to "add a
+// schedule card to map shots to shoot days" and ranked us first "from mood board
+// to call sheet". A professional who arrived on that promise found no such
+// button. This guard reads the hold out of appHost.js itself, so it lifts on its
+// own the day the gate opens, and the claims can come back with the feature.
+// Marketing surfaces only: the docs DESCRIBE existing schedule cards under a
+// being-rebuilt banner, which is true, and competitors' call sheets and
+// stripboards are real and stay in the listicles.
+const SCHEDULE_GATE = (readFileSync(resolve(BOARDS, 'src/lib/appHost.js'), 'utf8')
+  .match(/export function scheduleCreationAllowed\(\)\s*\{([\s\S]*?)\n\}/) || [])[1] || '';
+const SCHEDULE_HELD = /onPreviewHost\(\)/.test(SCHEDULE_GATE) && /import\.meta\.env\.DEV/.test(SCHEDULE_GATE);
+const SCHEDULE_CLAIM = /schedule card|schedules? and the screenplay|schedule, the screenplay|map(s|ping)? (each |every )?shots? to (its |their )?(shoot )?days|mood board to call sheet|reach a call sheet|grids, schedules|palettes?, (and )?(a )?schedules?|(shot list|storyboard|mood board),? (and )?(the )?schedule (are|as|live|become)|the shot list,? (and )?the schedule|production schedule and screenplay/i;
+
+test('no marketing copy sells schedules, shoot days or call sheets while schedule creation is held', () => {
+  // The pattern must keep catching the claims it was written for, or the guard
+  // passes vacuously the first time someone rephrases one.
+  for (const known of [
+    'Add a schedule card to map shots to shoot days',
+    'taking a production team from mood board to call sheet',
+    'the mood board, the storyboard grid, the visual shot list, and the schedule are linked boards',
+    'palettes, grids, schedules, and vote cards',
+  ]) assert.ok(SCHEDULE_CLAIM.test(known), `the schedule guard no longer recognises: ${known}`);
+  // Competitor facts must keep passing: StudioBinder really does ship these.
+  for (const theirs of [
+    'Autofilled call sheets driven by a contact database, with delivery analytics',
+    'Shot list scheduling that ties coverage to shoot days',
+    'Concepting only — no shot list, schedule or production context around the board',
+  ]) assert.ok(!SCHEDULE_CLAIM.test(theirs), `the schedule guard would flag a competitor fact: ${theirs}`);
+
+  // If the gate function moves or is renamed, say so — a guard that quietly
+  // stops reading the hold is the failure this test exists to prevent.
+  assert.ok(SCHEDULE_GATE, 'appHost.js no longer exports scheduleCreationAllowed() — point this guard at the new gate');
+  if (!SCHEDULE_HELD) return; // the hold is lifted — schedule claims may return
+  const hits = [];
+  for (const rel of ['src/lib/seoLanding.js', 'src/lib/seoListicles.js', 'index.html', 'scripts/gen-docs.mjs']) {
+    const raw = readFileSync(resolve(BOARDS, rel), 'utf8');
+    const text = rel.endsWith('.html') ? raw : stripCodeComments(raw);
+    sentences(text).forEach((s) => {
+      if (SCHEDULE_CLAIM.test(s) && !isFaqQuestion(s)) hits.push(`${rel}: ${s.trim().slice(0, 160)}`);
+    });
+  }
+  assert.deepEqual(hits, [],
+    `schedule creation is held off production (appHost.scheduleCreationAllowed), so these sell a feature a visitor cannot use:\n  ${hits.join('\n  ')}`);
+});
 
 for (const rule of RULES) {
   test(`no public copy claims: ${rule.name}`, () => {

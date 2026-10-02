@@ -16,7 +16,7 @@ Clusters' grid cards give you a clean, modular storyboard layout: split any cell
 
 ## Shot list and storyboard, side by side
 
-A storyboard without a shot list is half the picture. Put a rich-text doc or schedule card right next to your frames — lens, movement, location, day — so the visual and the logistics never drift apart. Screenplay mode is built in if you want to write the scene beside the board.
+A storyboard without a shot list is half the picture. Put a rich-text doc right next to your frames — a table of lens, movement, location and day — so the visual and the logistics never drift apart. Screenplay mode is built in if you want to write the scene beside the board.
 
 ## Get the crew on the same page
 
@@ -27,7 +27,7 @@ Share the storyboard with a link, or invite your DP and 1st AD to edit alongside
 1. **Add a grid card** — Drop a grid onto the board and split it into the number of panels your sequence needs.
 2. **Fill each frame** — Drop a reference still or a sketch into each cell, and caption it with the action.
 3. **Order your shots** — Drag panels to re-sequence the scene, and number them automatically.
-4. **Add the shot list** — Put a doc or schedule card beside the frames for lens, camera movement, and shoot day.
+4. **Add the shot list** — Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.
 5. **Share with the crew** — Send one link, or invite your DP and AD to edit and comment on the frames in real time.
 
 ## Frequently asked questions
@@ -42,7 +42,7 @@ Yes. You can sketch directly on the canvas with the draw tools, or drop in refer
 
 ### Can I keep a shot list with the storyboard?
 
-Yes. Put a doc or schedule card beside your frames to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.
+Yes. Put a doc beside your frames — tables work — to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.
 
 ### Can my crew collaborate on the storyboard?
 

@@ -83,7 +83,7 @@ const PAGES = [
     // text thread, one sentence per bubble, so a 33-word sentence is a bubble
     // nobody reads. Anything over ~22 words has to be split at the source.
     answer:
-      'Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup — your board and account are created the first time you text.',
+      'Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup. It is invite-only while the line is set up — leave your number to get one.',
     updated: '2026-08-07',
     cta: { label: 'Start scouting — free', sub: 'No app. No signup. Text and it exists.' },
     stepsHeading: 'How Soleil Scout works',
@@ -167,7 +167,7 @@ const PAGES = [
     stepsHeading: 'How to make a mood board',
     steps: [
       { t: 'Start a board', d: 'Open Clusters and create a blank board — an infinite canvas you can pan and zoom.' },
-      { t: 'Drop in your references', d: 'Drag images, screenshots, links, and files straight onto the canvas; Clusters tags and files each one for you.' },
+      { t: 'Drop in your references', d: 'Drag images, screenshots, links, and files straight onto the canvas — a whole folder lands in one drop.' },
       { t: 'Add color and notes', d: 'Pull a color palette and add rich-text notes or a brief right beside the imagery.' },
       { t: 'Arrange and connect', d: 'Move cards freely, group related references, and draw arrows to show how ideas relate.' },
       { t: 'Share it', d: 'Send one link for a clean, interactive preview — or invite your team to build the board live with you.' },
@@ -175,10 +175,10 @@ const PAGES = [
     sections: [
       {
         heading: 'Everything in one place, not fifteen tabs',
-        body: 'A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Drop a file and Clusters reads it, tags it, and files it to the right board automatically — so the board organizes itself as it grows.',
+        body: 'A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.',
         bullets: [
           'Drag in images, links, video, PDFs — and any file type on Creator',
-          'Auto-tagging files each reference to the right board',
+          'Tags gather references from every board into one view',
           'Color palettes and notes sit right beside the imagery',
         ],
       },
@@ -306,7 +306,7 @@ const PAGES = [
       { t: 'Add a grid card', d: 'Drop a grid onto the board and split it into the number of panels your sequence needs.' },
       { t: 'Fill each frame', d: 'Drop a reference still or a sketch into each cell, and caption it with the action.' },
       { t: 'Order your shots', d: 'Drag panels to re-sequence the scene, and number them automatically.' },
-      { t: 'Add the shot list', d: 'Put a doc or schedule card beside the frames for lens, camera movement, and shoot day.' },
+      { t: 'Add the shot list', d: 'Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.' },
       { t: 'Share with the crew', d: 'Send one link, or invite your DP and AD to edit and comment on the frames in real time.' },
     ],
     sections: [
@@ -321,7 +321,7 @@ const PAGES = [
       },
       {
         heading: 'Shot list and storyboard, side by side',
-        body: 'A storyboard without a shot list is half the picture. Put a rich-text doc or schedule card right next to your frames — lens, movement, location, day — so the visual and the logistics never drift apart. Screenplay mode is built in if you want to write the scene beside the board.',
+        body: 'A storyboard without a shot list is half the picture. Put a rich-text doc right next to your frames — a table of lens, movement, location and day — so the visual and the logistics never drift apart. Screenplay mode is built in if you want to write the scene beside the board.',
       },
       {
         heading: 'Get the crew on the same page',
@@ -331,7 +331,7 @@ const PAGES = [
     faq: [
       { q: 'How do I make a storyboard in Clusters?', a: 'Add a grid card, split it into the number of panels you need, then drop a reference still or sketch into each cell and caption it. You can re-order panels by dragging and number them automatically.' },
       { q: 'Can I draw my own frames?', a: 'Yes. You can sketch directly on the canvas with the draw tools, or drop in reference photos, screenshots, or AI-generated frames — whatever your process uses.' },
-      { q: 'Can I keep a shot list with the storyboard?', a: 'Yes. Put a doc or schedule card beside your frames to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.' },
+      { q: 'Can I keep a shot list with the storyboard?', a: 'Yes. Put a doc beside your frames — tables work — to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.' },
       { q: 'Can my crew collaborate on the storyboard?', a: 'Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on the same storyboard at once with live cursors and presence.' },
       { q: 'Is it free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with uploads never metered. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaborators edit free.` },
     ],
@@ -346,9 +346,9 @@ const PAGES = [
       'Build a shot list your crew will actually use: every shot carries its reference frame, lens, and notes. Toggle canvas or list view. Share one live link.',
     h1: 'Shot List Maker',
     subhead:
-      'Keep your shots, reference frames, and schedule on one board — visual and organized, not buried in a spreadsheet.',
+      'Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.',
     answer:
-      'Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, map shots to shoot days with a schedule card, and share one live link with the crew.',
+      'Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, group shots into a cluster per shoot day, and share one live link with the crew.',
     updated: '2026-07-22',
     cta: { label: 'Build a shot list — free', sub: 'Free to start. No install.' },
     stepsHeading: 'How to make a shot list',
@@ -356,7 +356,7 @@ const PAGES = [
       { t: 'Start a board for the scene', d: 'One board per scene or setup keeps the day organized.' },
       { t: 'Add a card per shot', d: 'Give each shot its own card with a reference frame plus lens and movement notes.' },
       { t: 'Switch views as needed', d: 'Toggle to list view for a clean table; back to canvas to see the frames.' },
-      { t: 'Map shots to days', d: 'Add a schedule card to tie each shot to its shoot day and location.' },
+      { t: 'Group shots by day', d: 'Make a cluster per shoot day or location and drag each shot card into it.' },
       { t: 'Share live', d: 'Invite the crew so everyone works from one source of truth that updates in real time.' },
     ],
     sections: [
@@ -366,7 +366,7 @@ const PAGES = [
         bullets: [
           'Every shot carries its reference frame and notes',
           'Toggle between visual canvas and a clean list view',
-          'Add a schedule card to map shots to shoot days',
+          'Group shots into a cluster per scene or shoot day',
         ],
       },
       {
@@ -380,9 +380,9 @@ const PAGES = [
       },
       {
         heading: 'From shot list to shoot day',
-        body: 'A shot list earns its keep on the day. Add a schedule card to map every shot to its shoot day and location, and when the plan changes — a company move runs long, a setup gets dropped — update the board once and the whole crew sees it live. If someone insists on paper, export to PDF and hand it to them.',
+        body: 'A shot list earns its keep on the day. File every shot into a cluster for its shoot day or location, and when the plan changes — a company move runs long, a setup gets dropped — move the card once and the whole crew sees it live. If someone insists on paper, print the board or a doc to PDF and hand it to them.',
         bullets: [
-          'Schedule card maps shots to days and locations',
+          'A cluster per day or location keeps the order of play visible',
           'Changes propagate live to everyone on the link',
           'PDF export for the paper people',
         ],
@@ -393,14 +393,14 @@ const PAGES = [
       },
     ],
     faq: [
-      { q: 'How is this better than a shot list spreadsheet?', a: 'Each shot can carry its own reference frame, lens, and movement notes on a visual board, and you can still toggle to a clean list view. It connects directly to your storyboard, mood board, and schedule instead of living in a separate file.' },
-      { q: 'Can I organize shots by scene or day?', a: 'Yes. Group shots on the canvas, use nested boards per scene, and add a schedule card to map each shot to its shoot day and location.' },
+      { q: 'How is this better than a shot list spreadsheet?', a: 'Each shot can carry its own reference frame, lens, and movement notes on a visual board, and you can still toggle to a clean list view. It connects directly to your storyboard and mood board instead of living in a separate file.' },
+      { q: 'Can I organize shots by scene or day?', a: 'Yes. Group shots on the canvas, and make a nested board per scene or per shoot day — drag a shot card into it to file it there.' },
       { q: 'Can the crew see updates in real time?', a: 'Yes. Clusters is a live board, so when you change a shot everyone viewing or editing sees the update immediately.' },
       { q: 'Can I export or share the shot list?', a: 'Yes. Share a live link with your crew, or export boards and docs to PDF.' },
       { q: 'Is it free to start?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.` },
-      { q: 'How do I make a shot list for a short film?', a: 'Make a board per scene, add a card per shot with its reference frame, lens, and movement, then add a schedule card to map shots to days. Open the short-film shot list example board below to see a finished one.' },
-      { q: 'Does Clusters have a shot list template?', a: 'The fastest start is the public short-film shot list example board — open it, see how the shot cards and schedule are structured, and rebuild that structure in your own board in a few minutes.' },
-      { q: 'Is this a shot planner?', a: 'Yes — planning the shots is the whole point. Each shot card carries its reference frame, lens, and movement, the schedule card maps shots to shoot days and locations, and the crew works from one live board. If what you searched for was a shot planner, this is that tool with the pictures kept in.' },
+      { q: 'How do I make a shot list for a short film?', a: 'Make a board per scene, add a card per shot with its reference frame, lens, and movement, then group the shots into a cluster per shoot day. Open the short-film shot list example board below to see a finished one.' },
+      { q: 'Does Clusters have a shot list template?', a: 'The fastest start is the public short-film shot list example board — open it, see how the shot cards are structured, and rebuild that structure in your own board in a few minutes.' },
+      { q: 'Is this a shot planner?', a: 'Yes — planning the shots is the whole point. Each shot card carries its reference frame, lens, and movement, nested clusters group the shots by shoot day and location, and the crew works from one live board. If what you searched for was a shot planner, this is that tool with the pictures kept in.' },
     ],
     related: ['/tools/storyboard-maker', '/tools/mood-board-maker', '/best/storyboard-software', '/use-cases', '/tools/ai-mood-board-maker'],
   },
@@ -414,7 +414,7 @@ const PAGES = [
     subhead:
       'Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.',
     answer:
-      'Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to a polished, interactive presentation — no account or download required to view it.',
+      'Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to the polished, interactive board itself — no account or download required to view it.',
     updated: '2026-07-07',
     cta: { label: 'Make a look book — free', sub: 'Free to start. Share with one link.' },
     stepsHeading: 'How to make a look book',
@@ -486,7 +486,7 @@ const PAGES = [
       },
       {
         heading: 'From a quick pin to a real project',
-        body: 'Start with a scratch board of references, then grow it into a structured project as the idea firms up: nest boards, connect them, and let auto-tagging keep things filed. You never have to migrate to a "real" tool later — this is the real tool.',
+        body: 'Start with a scratch board of references, then grow it into a structured project as the idea firms up: nest boards, connect them, and tag what matters so it stays findable. You never have to migrate to a "real" tool later — this is the real tool.',
       },
       {
         heading: 'Made for creative work',
@@ -551,7 +551,7 @@ const PAGES = [
           'Steal the palette — extract a color palette from any image and keep it on the board beside the work it came from.',
           'Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; Creator accepts any file type.',
           'Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.',
-          'One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and auto-tagging files a dropped image to the right board for you.',
+          'One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.',
         ],
       },
       {
@@ -590,16 +590,16 @@ const PAGES = [
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
     answer:
-      'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, auto-tagging that files dropped references, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
+      'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
     updated: '2026-08-10',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
         heading: 'Where Clusters is different',
-        body: 'Both tools are beautiful, board-based, and made for creative work. Clusters leans harder into real-time team production: a live multiplayer canvas with cursors and presence, auto-tagging that files your references for you, a relationship graph that connects a whole project, and 100GB of storage for any file type on Creator. If you are organizing a shoot or a campaign with a team, that is the difference.',
+        body: 'Both tools are beautiful, board-based, and made for creative work. Clusters leans harder into real-time team production: a live multiplayer canvas with cursors and presence, comments pinned to the exact card they are about, a relationship graph that connects a whole project, and 100GB of storage for any file type on Creator. If you are organizing a shoot or a campaign with a team, that is the difference.',
         bullets: [
           'Live multiplayer canvas with cursors and presence',
-          'Auto-tagging files dropped references for you',
+          'Comments pinned to the exact card they are about',
           'A relationship graph connects the whole project',
         ],
       },
@@ -614,7 +614,7 @@ const PAGES = [
       },
       {
         heading: 'For filmmakers: from mood board to shot list',
-        body: 'Milanote markets itself to filmmakers, and its planning templates are genuinely pleasant. Where Clusters pulls ahead is when pre-production gets real: the mood board, the storyboard grid, the visual shot list, and the schedule are linked boards in one project, with screenplay mode built in for writing beside the imagery. Your DP and AD edit the same boards live, and the whole pre-pro package shares with one link the producer can open without an account.',
+        body: 'Milanote markets itself to filmmakers, and its planning templates are genuinely pleasant. Where Clusters pulls ahead is when pre-production gets real: the mood board, the storyboard grid, and the visual shot list are linked boards in one project, with screenplay mode built in for writing beside the imagery. Your DP and AD edit the same boards live, and the whole pre-pro package shares with one link the producer can open without an account.',
         bullets: [
           'Mood board, storyboard, and shot list as connected boards',
           'Screenplay mode and docs beside the imagery',
@@ -635,7 +635,6 @@ const PAGES = [
       intro: 'How the two compare on the things production teams care about:',
       rows: [
         { feature: 'Real-time multiplayer canvas (live cursors)', us: 'Yes', them: 'Limited' },
-        { feature: 'Auto-tagging of dropped files', us: 'Yes', them: 'No' },
         { feature: 'Relationship graph across boards', us: 'Yes', them: 'No' },
         { feature: 'Any file type, up to 100GB', us: 'Yes (Creator)', them: 'Limited' },
         { feature: 'Video & audio on the board', us: 'Yes', them: 'Limited' },
@@ -652,14 +651,14 @@ const PAGES = [
       ],
     },
     faq: [
-      { q: 'Is Soleil Clusters a good Milanote alternative?', a: 'Yes, especially for teams doing visual, media-heavy, collaborative work. Clusters adds a real-time multiplayer canvas, auto-tagging, a relationship graph, and 100GB storage for any file type on Creator.' },
-      { q: 'How is Clusters different from Milanote?', a: 'Clusters focuses on live team production — multiplayer editing with cursors and presence, automatic organization of dropped files, and connecting a whole project through a relationship graph — rather than solo planning boards.' },
+      { q: 'Is Soleil Clusters a good Milanote alternative?', a: 'Yes, especially for teams doing visual, media-heavy, collaborative work. Clusters adds a real-time multiplayer canvas, screenplay mode, a relationship graph, and 100GB storage for any file type on Creator.' },
+      { q: 'How is Clusters different from Milanote?', a: 'Clusters focuses on live team production — multiplayer editing with cursors and presence, screenplay mode and docs beside the imagery, and connecting a whole project through a relationship graph — rather than solo planning boards.' },
       { q: 'Does Clusters have a free tier like Milanote?', a: `Yes. The Demo tier is free with no credit card and covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.` },
       { q: 'Can I move my Milanote boards over?', a: 'You can drag your images, links, and files straight into a new Clusters board and share it — there is no complex migration to do first.' },
       { q: 'Does Milanote limit how many items I can add?', a: 'Yes — Milanote’s free plan caps the total number of items across your boards, and separately allows 10 file uploads, ever. Clusters’ free Demo tier also caps cards, but never meters uploads and has no time limit; Creator ($25/mo) removes the card cap and adds 100GB of storage.' },
       { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually, because Clusters is flat-priced: Creator is $25/mo rather than a per-person subscription, and anyone you share a board with can view it free with one link.' },
       { q: 'Is there a free Milanote alternative without item caps?', a: 'Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters has no separate upload budget, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.' },
-      { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard, the shot list, and the schedule as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
+      { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard and the shot list as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
       { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas that never meters uploads, where the finished board shares with one link a client can open without an account.' },
           { q: 'Can I drive it from an AI assistant?', a: 'Clusters connects to Claude and any other MCP client with a single URL, so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.' },
 ],
@@ -692,8 +691,10 @@ const PAGES = [
   // wedge here and this page never claims it. The MCP registry was queried the
   // same day (registry.modelcontextprotocol.io) and lists no Storyflow server;
   // the claim below is scoped to that, never a world-wide negative. The two
-  // compare rows on nesting/graph and auto-tagging are scoped the same way, to
-  // the pricing page's feature list, which mentions neither.
+  // compare rows on nesting/graph and screenplay mode are scoped the same way, to
+  // the pricing page's feature list, which mentions neither. (2026-10-01: the
+  // auto-tagging row is gone — our tagger only suggests and files nothing — and
+  // the schedule half of the screenplay row went with the schedule hold.)
   // ────────────────────────────────────────────────────────────────────────
   {
     path: '/vs/storyflow',
@@ -705,14 +706,14 @@ const PAGES = [
     subhead:
       'Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.',
     answer:
-      'Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists, schedules and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.',
+      'Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.',
     updated: '2026-09-19',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     stepsHeading: 'How to move a Storyflow project to Clusters',
     steps: [
       { t: 'Export what you made', d: 'Storyflow exports boards as PNG, SVG or PDF and documents as files. Keep the original images you gathered as well — those are the references, and they are yours.' },
-      { t: 'Drop them on a new board', d: 'Drag the set onto a fresh cluster. Auto-tagging files each reference as it lands, so the sorting you did by hand happens on arrival.' },
-      { t: 'Rebuild the structure as nested boards', d: 'A mood board, a storyboard grid, a shot list and a schedule become linked boards in one project rather than one long canvas.' },
+      { t: 'Drop them on a new board', d: 'Drag the whole set onto a fresh cluster in one drop, then group and tag the references as you rebuild.' },
+      { t: 'Rebuild the structure as nested boards', d: 'A mood board, a storyboard grid and a shot list become linked boards in one project rather than one long canvas.' },
       { t: 'Share one link', d: 'Send it to the crew or the client. It opens in the browser, no account is needed to view, and everyone you invite edits free.' },
     ],
     sections: [
@@ -727,10 +728,10 @@ const PAGES = [
       },
       {
         heading: 'Where Clusters is different',
-        body: 'A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list, the schedule and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Auto-tagging files every dropped reference. Any file type up to 100GB rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.',
+        body: 'A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file type up to 100GB rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.',
         bullets: [
-          'Mood board, storyboard, shot list, schedule and screenplay as nested boards',
-          'Auto-tagging and a relationship graph across the whole project',
+          'Mood board, storyboard, shot list and screenplay as nested boards',
+          'Tags and a relationship graph across the whole project',
           'Connect Claude or any MCP client with one URL — no in-app allowance',
         ],
       },
@@ -749,7 +750,7 @@ const PAGES = [
       },
       {
         heading: 'Two small vendors, one honest comparison',
-        body: 'Both of these tools come from small teams, and you should weigh that either way. What stands behind Clusters is a working film studio: it is built by Soleil Pictures and used on our own productions, which is why the schedule, the screenplay mode and the shot list exist at all. It runs in the browser on any machine; on a phone or tablet it can be added to the home screen as a web app. There is no store app yet, and we say so.',
+        body: 'Both of these tools come from small teams, and you should weigh that either way. What stands behind Clusters is a working film studio: it is built by Soleil Pictures and used on our own productions, which is why the screenplay mode and the shot list exist at all. It runs in the browser on any machine; on a phone or tablet it can be added to the home screen as a web app. There is no store app yet, and we say so.',
       },
     ],
     compare: {
@@ -762,8 +763,7 @@ const PAGES = [
         { feature: 'Drafts a board from a prompt', us: 'No', them: 'Yes' },
         { feature: 'Real-time multiplayer canvas', us: 'Yes', them: 'Yes' },
         { feature: 'Nested boards with a relationship graph', us: 'Yes', them: 'Not on its pricing page (September 2026)' },
-        { feature: 'Production schedule and screenplay mode', us: 'Yes', them: 'Calendars and trackers; no production schedule or screenplay mode' },
-        { feature: 'Auto-tagging of dropped files', us: 'Yes', them: 'Not on its pricing page (September 2026)' },
+        { feature: 'Screenplay mode (Final Draft and Fountain)', us: 'Yes', them: 'Not on its pricing page (September 2026)' },
         { feature: 'Any file type, up to 100GB', us: 'Yes (Creator)', them: 'Unlimited uploads on paid plans; 20 on the coming free plan' },
         // Our own number, stated plainly, the same way /vs/milanote states it.
         { feature: 'Free-plan card cap', us: `${DEMO_CARD_LIMIT} cards, uploads never metered`, them: 'No object or board limit on any plan; uploads and AI are capped' },
@@ -773,7 +773,7 @@ const PAGES = [
     },
     faq: [
       { q: 'Is Storyflow free?', a: 'Not yet. Storyflow’s own pricing page says it is paid-only during early access and that its Free plan launches before the end of 2026; collaborators invited by a paid member can join free in the meantime. Soleil Clusters is free to start today, with no credit card.' },
-      { q: 'Is Soleil Clusters a good Storyflow alternative?', a: 'For a crew, yes: a free real-time canvas where mood boards, storyboards, shot lists, schedules and the screenplay are nested boards in one project, at a flat price with no AI allowance. If you want boards drafted from a prompt, Storyflow is the tool that does that.' },
+      { q: 'Is Soleil Clusters a good Storyflow alternative?', a: 'For a crew, yes: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay are nested boards in one project, at a flat price with no AI allowance. If you want boards drafted from a prompt, Storyflow is the tool that does that.' },
       { q: 'Storyflow vs Soleil Clusters — which is better for a film crew?', a: 'Storyflow drafts a first pass for one person; Clusters is where the crew builds the real one. Choose Storyflow for a solo pitch you want generated. Choose Clusters when the DP, the AD and the producer need to edit the same boards live and carry them into the shoot.' },
       { q: 'Does Clusters generate boards with AI like Storyflow does?', a: 'No. Clusters does not generate boards or images. It connects to Claude and any other MCP client with one URL, so your own assistant can create a board, bring in references from links and arrange them — working with images you already have. No Storyflow server is listed in the official Model Context Protocol registry at the time of writing.' },
       { q: 'How much does Storyflow cost?', a: 'As of September 2026: Plus is $9.99/mo, or $7.99/mo billed annually ($95.88 once a year); Pro $19/mo, or $14/mo annually ($168); Max $49/mo, or $39/mo annually ($468). Each tier carries a different AI usage allowance. Clusters’ Creator plan is a flat $25 a month.' },
@@ -818,7 +818,7 @@ const PAGES = [
     stepsHeading: 'How to move a PureRef board to Clusters',
     steps: [
       { t: 'Collect your images', d: 'Export the images from PureRef, or gather the original files you pinned.' },
-      { t: 'Drag them onto a new board', d: 'Drop the whole set at once — auto-tagging files each reference as it lands.' },
+      { t: 'Drag them onto a new board', d: 'Drop the whole set at once — a folder of references lands in one go.' },
       { t: 'Add what PureRef couldn’t hold', d: 'Put notes, links, video, and color palettes right beside the imagery.' },
       { t: 'Share one link', d: 'Send the board to your team or client — it opens in the browser, nothing to install.' },
     ],
@@ -857,10 +857,10 @@ const PAGES = [
       },
       {
         heading: 'Switching from PureRef takes an afternoon',
-        body: 'Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. Auto-tagging reads and files each image as it lands, so the board organizes itself while you rebuild the layout you had — and stays organized as the project grows.',
+        body: 'Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.',
         bullets: [
           'Drag a whole folder of references in at once',
-          'Auto-tagging organizes images as they land',
+          'Tags and nested boards keep a growing board findable',
           'One board per project — or nest boards inside it',
         ],
       },
@@ -911,11 +911,11 @@ const PAGES = [
       { q: 'Is there an open-source PureRef alternative?', a: 'BeeRef is the best-known one — a free, open-source desktop reference board for Windows, Mac, and Linux. Like PureRef it is desktop-only, with no web version or collaboration. Clusters is not open source; it is the option to pick when you want reference boards in the browser, shared with a link.' },
       { q: 'Can I use PureRef on an iPad?', a: 'PureRef does not ship an iPad or Android app. Clusters runs in the browser, so the same reference board opens on your desktop, laptop, or iPad — useful when you want your reference with you on set or away from your workstation.' },
       { q: 'Does PureRef have a collaboration mode?', a: 'No. A PureRef board is a local file on one machine; sharing it means sending the file or an exported image. Clusters boards are collaborative by default — live cursors, comments pinned to images, and one link that always shows the current board.' },
-      { q: 'Can Clusters open .pur files?', a: 'Not directly — .pur is PureRef’s own local format. Export your images from PureRef (or gather the originals) and drag the whole set onto a Clusters board; auto-tagging files each reference as it lands, and the layout takes minutes to rebuild.' },
+      { q: 'Can Clusters open .pur files?', a: 'Not directly — .pur is PureRef’s own local format. Export your images from PureRef (or gather the originals) and drag the whole set onto a Clusters board in one drop, and the layout takes minutes to rebuild.' },
       { q: 'Is there a free PureRef alternative?', a: 'Yes — Soleil Clusters is free to start on the Demo tier, with no credit card and nothing to install. To be fair, PureRef itself is pay-what-you-want; the difference is that Clusters adds sharing, real-time collaboration, and cloud sync.' },
       { q: 'Is there a PureRef alternative that works online, with no download?', a: 'Yes. Clusters runs entirely in the browser — open a board on any machine and it is the same board, synced and backed up. Nothing to install for you or for anyone you share it with.' },
       { q: 'What is the best PureRef alternative for teams?', a: 'Clusters is built for exactly that: live cursors and presence, comments pinned to the image they are about, and one shared board as the team’s source of truth instead of a file on one artist’s machine.' },
-      { q: 'How do I move my PureRef boards into Clusters?', a: 'Export the images from PureRef (or gather the originals), then drag the whole set onto a new Clusters board. Auto-tagging files each reference as it lands, and you can rebuild your layout in minutes.' },
+      { q: 'How do I move my PureRef boards into Clusters?', a: 'Export the images from PureRef (or gather the originals), then drag the whole set onto a new Clusters board. It lands in one drop, and you can rebuild your layout in minutes.' },
       { q: 'Does Clusters work offline like PureRef?', a: 'Clusters is a cloud, browser-based workspace, so it is not a fully-offline desktop window the way PureRef is. In exchange you get sharing, collaboration, and cross-device sync.' },
       { q: 'Can I put more than images on a Clusters board?', a: 'Yes — images, notes, links, video, PDFs, docs, and color palettes all live on the same canvas, with non-destructive image adjustments built in.' },
       { q: 'Is Clusters free?', a: 'Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited cards, 100GB storage, and any file type.' },
@@ -934,17 +934,17 @@ const PAGES = [
     subhead:
       'Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.',
     answer:
-      'Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, auto-tagging, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.',
+      'Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.',
     updated: '2026-07-12',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
         heading: 'Purpose-built beats general-purpose',
-        body: 'Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, auto-tagging, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.',
+        body: 'Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.',
         bullets: [
           'Image-first cards with photo adjustments and palettes',
           'Docs and screenplay mode built in',
-          'Auto-tagging and a relationship graph across boards',
+          'Tags and a relationship graph across boards',
         ],
       },
       {
@@ -953,10 +953,10 @@ const PAGES = [
       },
       {
         heading: 'Your client should not need a Miro account',
-        body: 'The moment of truth for a creative board is showing it. With Miro, that usually means inviting someone into a workspace and hoping they find their way around. A Clusters board is one link: the client opens a clean, read-only presentation view in the browser — no account, no seat, no toolbar to explain.',
+        body: 'The moment of truth for a creative board is showing it. With Miro, that usually means inviting someone into a workspace and hoping they find their way around. A Clusters board is one link: the client opens a clean, read-only view of the board in the browser — no account, no seat, no toolbar to explain.',
         bullets: [
           'One link — no workspace invite or account',
-          'A clean read-only view made for presenting',
+          'A clean read-only view of the real board',
           'You control visibility and search indexing per board',
         ],
       },
@@ -971,7 +971,6 @@ const PAGES = [
       rows: [
         { feature: 'Built for creative reference & mood', us: 'Yes', them: 'General whiteboard' },
         { feature: 'Image adjustments & color palettes', us: 'Yes', them: 'Basic' },
-        { feature: 'Auto-tagging of dropped files', us: 'Yes', them: 'No' },
         { feature: 'Relationship graph across boards', us: 'Yes', them: 'No' },
         { feature: 'Docs & screenplay mode', us: 'Yes', them: 'No' },
         { feature: 'Real-time collaboration', us: 'Yes', them: 'Yes' },
@@ -982,7 +981,7 @@ const PAGES = [
       ],
     },
     faq: [
-      { q: 'Why choose Clusters over Miro?', a: 'Clusters is purpose-built for visual creative work — mood boards, look books, storyboards, and film pre-production — with image adjustments, palettes, auto-tagging, and a relationship graph. Miro is a general whiteboard; Clusters is pointed at creative reference workflows.' },
+      { q: 'Why choose Clusters over Miro?', a: 'Clusters is purpose-built for visual creative work — mood boards, look books, storyboards, and film pre-production — with image adjustments, palettes, screenplay mode, and a relationship graph. Miro is a general whiteboard; Clusters is pointed at creative reference workflows.' },
       { q: 'Is Miro overkill for mood boards?', a: 'For many creative teams, yes. Miro is powerful for diagramming and workshops, but a reference-first tool like Clusters is lighter and better tuned for mood boards, look books, and storyboards.' },
       { q: 'Can clients view a Clusters board without an account?', a: 'Yes. Share a link and they see a clean, interactive read-only preview — no workspace invite required.' },
       { q: 'Does Clusters have a free tier?', a: 'Yes. The Demo tier is free; Creator is $25/mo for unlimited cards, 100GB storage, and any file type.' },

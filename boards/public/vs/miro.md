@@ -1,6 +1,6 @@
 # A Miro Alternative for Filmmakers and Creative Teams
 
-> Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, auto-tagging, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.
+> Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.
 
 _Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-07-12_
 
@@ -8,11 +8,11 @@ Miro is a whiteboard for everything. Clusters is a canvas built specifically for
 
 ## Purpose-built beats general-purpose
 
-Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, auto-tagging, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.
+Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.
 
 - Image-first cards with photo adjustments and palettes
 - Docs and screenplay mode built in
-- Auto-tagging and a relationship graph across boards
+- Tags and a relationship graph across boards
 
 ## Lighter, and made for showing work
 
@@ -20,10 +20,10 @@ Clusters shares as a clean, interactive preview a client can open with one link 
 
 ## Your client should not need a Miro account
 
-The moment of truth for a creative board is showing it. With Miro, that usually means inviting someone into a workspace and hoping they find their way around. A Clusters board is one link: the client opens a clean, read-only presentation view in the browser — no account, no seat, no toolbar to explain.
+The moment of truth for a creative board is showing it. With Miro, that usually means inviting someone into a workspace and hoping they find their way around. A Clusters board is one link: the client opens a clean, read-only view of the board in the browser — no account, no seat, no toolbar to explain.
 
 - One link — no workspace invite or account
-- A clean read-only view made for presenting
+- A clean read-only view of the real board
 - You control visibility and search indexing per board
 
 ## Where Miro still wins
@@ -38,7 +38,6 @@ Different tools for different jobs:
 | --- | --- | --- |
 | Built for creative reference & mood | Yes | General whiteboard |
 | Image adjustments & color palettes | Yes | Basic |
-| Auto-tagging of dropped files | Yes | No |
 | Relationship graph across boards | Yes | No |
 | Docs & screenplay mode | Yes | No |
 | Real-time collaboration | Yes | Yes |
@@ -51,7 +50,7 @@ Different tools for different jobs:
 
 ### Why choose Clusters over Miro?
 
-Clusters is purpose-built for visual creative work — mood boards, look books, storyboards, and film pre-production — with image adjustments, palettes, auto-tagging, and a relationship graph. Miro is a general whiteboard; Clusters is pointed at creative reference workflows.
+Clusters is purpose-built for visual creative work — mood boards, look books, storyboards, and film pre-production — with image adjustments, palettes, screenplay mode, and a relationship graph. Miro is a general whiteboard; Clusters is pointed at creative reference workflows.
 
 ### Is Miro overkill for mood boards?
 

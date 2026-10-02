@@ -23,7 +23,7 @@ So the useful question is not 'which storyboard software is best'. It is 'which 
 We are a film studio. These are the tools we have run real boards through — shorts, commercials and pitch work between 2024 and 2026 — not demo sequences built for screenshots. Every price on this page was read off the vendor's own pricing page or store in August 2026, because a striking number of the aggregator numbers we cross-checked were stale, and one competitor's own blog contradicted its own checkout.
 
 - **Which storyboard it makes** — Drawn boards and assembled boards need opposite tools. We say plainly which one each product is built for instead of scoring them on one scale.
-- **Does the board stay connected** — A storyboard is worthless detached from the shot list and script. We tested whether frames, coverage and schedule live together or in four files.
+- **Does the board stay connected** — A storyboard is worthless detached from the shot list and script. We tested whether frames, coverage and script live together or in four files.
 - **The one-link test** — Can a director or client open the board with nothing installed and no account? It is where most boarding workflows collapse into emailed PDFs.
 - **What a full crew costs** — Per-seat pricing is the hidden expense of boarding tools. We priced each product for a realistic team, not for one seat.
 - **Pricing as printed** — We quote what each vendor's own page showed in August 2026. Several tools default their pricing toggle to the annual rate, which is how wrong numbers spread.
@@ -43,20 +43,20 @@ Frames in a grid, next to the coverage plan and the screenplay, on one canvas th
 
 Clusters exists because our own boards kept dying in transit. We would build a sequence in a slide deck, export a PDF, email it, and by the second revision nobody knew which version the director had seen — and the shot list it referred to lived in a spreadsheet that had moved on without it. So we built the board as a place instead of a deliverable: an infinite canvas in the browser where the frames, the coverage plan and the script sit in one document that only ever has one current version.
 
-The storyboard mechanic is the grid card. Drop a grid on the canvas, choose the frame count, and each cell holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch. Cells reorder by dragging, captions sit under each frame, and arrows connect a frame to the shot on the list that covers it. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table, a colour palette and a schedule — so the board argues for itself instead of needing a meeting to explain.
+The storyboard mechanic is the grid card. Drop a grid on the canvas, choose the frame count, and each cell holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch. Cells reorder by dragging, captions sit under each frame, and arrows connect a frame to the shot on the list that covers it. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.
 
 The team mechanics are why it survives a production. Live cursors and presence show who is on the board. Comments pin to a specific frame, so 'the third one' is unambiguous. A director or client opens a read-only view from one link with no account and nothing installed, on a laptop or an iPad at a scout. Invited collaborators edit free on every tier, so adding the first AD or the production designer does not change the invoice. Vote cards settle 'which of these five frames' without a thread.
 
 The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, with a card cap on the free tier; Creator is a flat $25 a month, not per person, for unlimited cards, 100GB of storage and any file type.
 
 - Grid cards as storyboard frames — set the frame count, drop images into cells, reorder by dragging, caption each frame
-- The board holds the rest of pre-production too: shot-list tables, documents with screenplay mode, palettes, schedules, PDFs, video and audio
+- The board holds the rest of pre-production too: shot-list tables, documents with screenplay mode, palettes, PDFs, video and audio
 - One-link sharing — viewers need no account or install; invited collaborators edit free on every tier
 - Real-time multiplayer with live cursors, presence and comments pinned to an individual frame
 - Arrows connect frames to shots and boards to boards; nested boards with live thumbnails map a whole project
 - Runs in the browser on desktop, tablet and phone, including touch and iPad; export the board as PNG or PDF
 
-**Pros:** The storyboard stays joined to the shot list, script and schedule instead of becoming a detached PDF; Flat $25/mo Creator pricing and free collaborators — a full crew does not multiply the bill; Built and used daily by a working film studio on its own productions
+**Pros:** The storyboard stays joined to the shot list and script instead of becoming a detached PDF; Flat $25/mo Creator pricing and free collaborators — a full crew does not multiply the bill; Built and used daily by a working film studio on its own productions
 
 **Cons:** Not a drawing program: no pressure-sensitive brush engine, no onion skinning, no camera-move keyframing; No animatic timeline — you cannot play the board against scratch audio to check timing; No AI frame generation, and a smaller template library than Milanote or the dedicated boarding tools
 
@@ -305,7 +305,7 @@ The pricing has an unusual shape. The free plan covers one user with two project
 
 ## Which one is for you
 
-- **Director whose board has to stay in step with a moving shot list and schedule** → Soleil Clusters: Frames, coverage, script and schedule are one document with one current version.
+- **Director whose board has to stay in step with a moving shot list and script** → Soleil Clusters: Frames, coverage and script live in one project with one current version.
 - **Storyboard artist who draws every frame for animation or VFX** → Toon Boom Storyboard Pro: The only tool here that draws, times and plays back a real animatic in one document.
 - **Commercial agency that lives or dies by client sign-off** → Boords: Review links, frame comments, versions and browser animatics built around approval.
 - **Producer who needs call sheets and stripboards more than pretty frames** → StudioBinder: The board is one module inside the deepest production paperwork in the category.

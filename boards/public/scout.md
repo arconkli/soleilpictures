@@ -1,6 +1,6 @@
 # Text your scout photos. Get a board.
 
-> Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup — your board and account are created the first time you text.
+> Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup. It is invite-only while the line is set up — leave your number to get one.
 
 _Source: https://clusters.soleilpictures.com/scout · Updated 2026-08-07_
 

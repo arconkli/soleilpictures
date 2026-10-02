@@ -144,15 +144,15 @@ const PAGES = [
         "verdict": "The reference wall that follows the project — in the browser, shared with one link, edited live by the whole team.",
         "paras": [
           "Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.",
-          "The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Auto-tagging files dropped references to the right board, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.",
-          "A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, schedules, and vote cards — that last one settles 'which of these five frames' arguments without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.",
+          "The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.",
+          "A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — that last one settles 'which of these five frames' arguments without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.",
           "It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, with a card cap on the free tier; Creator is a flat $25 a month — not per person — for unlimited cards, 100GB of storage, and any file type. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef."
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
           "One-link sharing — viewers need no account; free editors can collaborate",
-          "Auto-tagging files dropped references; relationship graph connects boards across a project",
-          "Boards hold images, video, audio, PDFs, links, notes, docs (with screenplay mode), palettes, grids, schedules, and vote cards",
+          "Tags on cards, groups and boards; a relationship graph connects boards across a project",
+          "Boards hold images, video, audio, PDFs, links, notes, docs (with screenplay mode), palettes, grids, and vote cards",
           "Non-destructive photo adjustments; nested boards with live thumbnails",
           "Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live"
         ],
@@ -819,13 +819,13 @@ const PAGES = [
     "subhead": "Twelve tools, ranked by the only question that matters: what does your board have to become next?",
     "answerHeading": "What is the best Milanote alternative in 2026?",
     "answer": "Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier with no separate upload budget — files just count as cards — where Milanote stops at 10 file uploads ever, plus flat $25/mo pricing instead of per-person seats and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.",
-    "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to call sheet — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
+    "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to shot list — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
     "published": "2026-08-04",
     "updated": "2026-09-19",
     "thesis": {
-      "heading": "From mood board to call sheet",
+      "heading": "From mood board to shot list",
       "paras": [
-        "Milanote is a genuinely lovely place to collect ideas — calm, structured, pleasant to think in. But on a real project the board does not get to stay a collection. The mood board has to become a look book, the look book a shot list, the shot list a schedule, and the schedule has to survive contact with a crew, a client, and a calendar. Every tool here is judged by that arc — how far down the pipeline the board travels before you must export it and start over somewhere else.",
+        "Milanote is a genuinely lovely place to collect ideas — calm, structured, pleasant to think in. But on a real project the board does not get to stay a collection. The mood board has to become a look book, the look book a storyboard, the storyboard a shot list, and the shot list has to survive contact with a crew, a client, and a calendar. Every tool here is judged by that arc — how far down the pipeline the board travels before you must export it and start over somewhere else.",
         "Milanote's limits show up exactly at that handoff. The free plan is a hard wall: 100 notes, images, and links in total, plus 10 file uploads, ever — a budget one scene's reference pull can spend in an afternoon. It is not a monthly allowance; it does not reset. And paid is per person, so bringing in your DP, production designer, and editor multiplies the bill. A tool for ideas that gets more expensive the moment other people show up has the economics backwards for production work.",
         "So choose by naming what your board must become. A live team workspace: a real-time canvas whose limits are not an upload budget you spend in an afternoon. A polished client deliverable: templates and export. A private research archive that works on a plane: local files and no account. And if it only ever needs to be a beautiful collection under 100 cards, you may not need an alternative at all — we say so below.",
         "One more thing most listicles on this SERP skip: we checked whether the tools still exist. Kosmik, still recommended by several rival roundups, shut down May 31, 2026. InVision shut down at the end of 2024. Products die, and a roundup that still recommends them was not tested. Everything here was verified against primary sources in August 2026 (Storyflow re-verified in September 2026)."
@@ -837,7 +837,7 @@ const PAGES = [
       "criteria": [
         {
           "name": "How far the board travels",
-          "why": "A board that cannot become a shot list, a schedule, or a deliverable forces an export-and-rebuild at the worst moment. We rank by how much of the pipeline a tool covers."
+          "why": "A board that cannot become a shot list, a script, or a deliverable forces an export-and-rebuild at the worst moment. We rank by how much of the pipeline a tool covers."
         },
         {
           "name": "Where the wall is",
@@ -864,18 +864,18 @@ const PAGES = [
         "name": "Soleil Clusters",
         "anchor": "soleil-clusters",
         "isUs": true,
-        "bestFor": "Production teams that need the mood board to become the shot list, the schedule, and the deliverable",
+        "bestFor": "Production teams that need the mood board to become the storyboard, the shot list, and the deliverable",
         "verdict": "The one tool on this list built so the board never has to be exported to become the next thing.",
         "paras": [
-          "Clusters is what we built when our own pre-production kept splintering across four apps: a real-time multiplayer canvas in the browser whose boards hold images, video, audio, PDFs, links, notes, docs, color palettes, image grids, schedules, and vote cards, with non-destructive photo adjustments built in. The point is not the format list — it is that the mood board, storyboard, shot list, and schedule live as connected boards in one project, tied together by a relationship graph. The board becomes the next thing instead of being rebuilt as it.",
+          "Clusters is what we built when our own pre-production kept splintering across four apps: a real-time multiplayer canvas in the browser whose boards hold images, video, audio, PDFs, links, notes, docs, color palettes, image grids, and vote cards, with non-destructive photo adjustments built in. The point is not the format list — it is that the mood board, storyboard, shot list, and script live as connected boards in one project, tied together by a relationship graph. The board becomes the next thing instead of being rebuilt as it.",
           "Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters has no separate upload budget — files count as cards, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards, 100GB of storage, and any file type. On Milanote, adding your DP and production designer multiplies the bill. On Clusters it does not, and free editors can collaborate.",
-          "Sharing is one link. Viewers need no account — a producer opens the live board in a browser, sees cursors and presence, and comments land on the exact image they are about. Drop a folder of references and auto-tagging files them to the right board — at hour three of a pull, nobody hand-sorts. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.",
-          "The honest limits: Clusters is browser-only — no offline mode, no always-on-top overlay over your paint tool; PureRef keeps that crown. The template library is smaller than Milanote's or Canva's, there is no integrations marketplace, and it is a young product from a small studio. If your work is solo, offline, and image-only, tools further down this list fit better. If your board has to reach a call sheet with other people involved, this is the one built for that."
+          "Sharing is one link. Viewers need no account — a producer opens the live board in a browser — and anyone you invite, free, can comment right on the exact image they mean. Drop a folder of references and it lands in one go — at hour three of a pull, nobody uploads one file at a time. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.",
+          "The honest limits: Clusters is browser-only — no offline mode, no always-on-top overlay over your paint tool; PureRef keeps that crown. The template library is smaller than Milanote's or Canva's, there is no integrations marketplace, and it is a young product from a small studio. If your work is solo, offline, and image-only, tools further down this list fit better. If your board has to reach a shot list with other people involved, this is the one built for that."
         ],
         "features": [
           "Real-time multiplayer canvas with live cursors, presence, and pinned comments",
-          "Boards hold images, video, audio, PDFs, links, notes, docs, palettes, grids, schedules, and vote cards",
-          "Auto-tagging files dropped references; a relationship graph connects the project",
+          "Boards hold images, video, audio, PDFs, links, notes, docs, palettes, grids, and vote cards",
+          "Tags on cards, groups and boards; a relationship graph connects the project",
           "Screenplay mode in docs; non-destructive photo adjustments",
           "One-link sharing — viewers need no account; free editors can collaborate",
           "Nested boards with live thumbnails; published template boards open live"
@@ -887,7 +887,7 @@ const PAGES = [
         "pros": [
           "Free tier has no trial clock and no 10-upload budget to spend",
           "Flat $25/mo Creator — the price does not multiply per teammate",
-          "Covers the whole arc: mood board, storyboard, shot list, schedule, script"
+          "Covers the whole arc: mood board, look book, storyboard, shot list, script"
         ],
         "cons": [
           "Browser-only — no offline mode or always-on-top overlay",
@@ -1281,7 +1281,7 @@ const PAGES = [
     ],
     "tableCells": {
       "soleil-clusters": [
-        "Production teams, mood board to call sheet",
+        "Production teams, mood board to shot list",
         "Free; Creator $25/mo flat",
         "Yes — no trial clock",
         "Card cap on free; no separate upload budget",
@@ -1367,7 +1367,7 @@ const PAGES = [
     },
     "personas": [
       {
-        "who": "A filmmaker or producer whose mood board has to become the shot list and the schedule",
+        "who": "A filmmaker or producer whose mood board has to become the storyboard and the shot list",
         "pick": "Soleil Clusters",
         "why": "The whole pipeline lives as connected boards, edited live, shared with one link."
       },
@@ -1512,7 +1512,7 @@ const PAGES = [
       "paras": [
         "This page exists because we outgrew Milanote, not because Milanote is bad, and pretending otherwise would make this the kind of vendor listicle we are trying to outrank. Milanote remains one of the most pleasant thinking surfaces ever made. The calm is real. The template library — 40+ categories, including genuinely good storyboard, shot-list, and mood-board templates — is bigger and more polished than ours. Platform coverage is the broadest here: first-party web, Mac, Windows, iPhone, iPad, and Android apps, with real editing on mobile. And it has a decade of track record in a category that just watched Kosmik, InVision, and refern's web app die inside two years.",
         "Its free-tier collaboration deserves credit too: shared boards are unlimited on free, and content shared to a free user does not count against that user's own 100-card cap — only cards they add do. For a Pro owner working with free clients, that is thoughtful design.",
-        "So here is the honest boundary. If you work alone, plan in text more than media, and live comfortably under 100 cards, stay with Milanote — nothing here will feel as good for that job. The case for leaving starts when the board must become something: when the reference pull passes the card wall, when the tenth upload is spent, when the crew shows up and every seat multiplies the bill, or when the board needs to reach a shot list and a schedule without being rebuilt. That is the job we built Clusters for, and the job this ranking is organized around."
+        "So here is the honest boundary. If you work alone, plan in text more than media, and live comfortably under 100 cards, stay with Milanote — nothing here will feel as good for that job. The case for leaving starts when the board must become something: when the reference pull passes the card wall, when the tenth upload is spent, when the crew shows up and every seat multiplies the bill, or when the board needs to reach a storyboard and a shot list without being rebuilt. That is the job we built Clusters for, and the job this ranking is organized around."
       ],
       "points": [
         "Best-in-class polish and a calm, distraction-free solo planning flow",
@@ -1549,7 +1549,7 @@ const PAGES = [
       },
       {
         "q": "What do filmmakers use instead of Milanote?",
-        "a": "A stack, usually: Pinterest for discovery, PureRef or Eagle for personal reference libraries, and a collaborative canvas as the production hub. We built Soleil Clusters to be that hub — mood board, storyboard, shot list, and schedule as connected boards with screenplay mode, edited live by the crew and shared with one link, no account needed."
+        "a": "A stack, usually: Pinterest for discovery, PureRef or Eagle for personal reference libraries, and a collaborative canvas as the production hub. We built Soleil Clusters to be that hub — mood board, storyboard, shot list, and script as connected boards with screenplay mode, edited live by the crew and shared with one link, no account needed."
       },
       {
         "q": "Is Milanote worth it for teams?",
@@ -1587,7 +1587,7 @@ const PAGES = [
       "heading": "A mood board is a decision document",
       "paras": [
         "Anyone can make a collage. Drag thirty images onto a canvas, nudge them around, export a JPEG — every app here can do that, and so can a corkboard. A working mood board is something else: a decision document. It exists to get a director, a client, a department head, and a budget to agree on what something should look like before money is spent making it look that way.",
-        "So the real test of a mood board app is everything that happens after the board looks good. Can two people argue over it live, moving images while they talk, instead of trading screenshots? Can the client open it from one link, on a phone, without creating an account? And when the look is approved, does the board carry into the look book, the shot list, the schedule — or die as a pretty export while the production starts over elsewhere?",
+        "So the real test of a mood board app is everything that happens after the board looks good. Can two people argue over it live, moving images while they talk, instead of trading screenshots? Can the client open it from one link, on a phone, without creating an account? And when the look is approved, does the board carry into the look book, the storyboard, the shot list — or die as a pretty export while the production starts over elsewhere?",
         "Most mood board apps fail this test in one of three ways. They cap the free tier so low the board hits a wall mid-project. They treat sharing as an export — a static file, stale the moment the conversation continues. Or they simply stop existing: since late 2023, SampleBoard, GoMoodboard, InVision, and Kosmik have all shut down, and most competing roundups still recommend at least one of them.",
         "This list, written in August 2026, judges twelve living apps on what the board does after it looks good: who can argue over it, who can approve it, and what it becomes next. We build one of these tools, and we use all of them. The rankings reflect the work, not the marketing."
       ]
@@ -1606,7 +1606,7 @@ const PAGES = [
         },
         {
           "name": "What the board becomes",
-          "why": "An approved board should flow into look books, shot lists, and schedules. We scored how far each tool carries the work before you start over elsewhere."
+          "why": "An approved board should flow into look books, storyboards, and shot lists. We scored how far each tool carries the work before you start over elsewhere."
         },
         {
           "name": "The free tier tells the truth",
@@ -1632,16 +1632,16 @@ const PAGES = [
         "bestFor": "Film and photo production mood boards a crew and a client act on",
         "verdict": "The only app on this list where the mood board is argued over live, approved in one link, and then becomes the look book and the shot list.",
         "paras": [
-          "Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Drop a folder of references and auto-tagging files each one as it lands, so the board organizes itself while you argue about the layout.",
+          "Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Drop a folder of references and it lands in one go, so the time goes into arguing about the layout, not uploading.",
           "The arguing is the point. Boards are real-time multiplayer — live cursors, presence, comments pinned to the image they are about — so the director and the production designer move frames while they talk instead of trading screenshots. When the look settles, you send one link; the client opens the current board in any browser, on a laptop or a phone — no account, no install — not last Tuesday's export.",
-          "Then the board keeps working. Boards nest with live thumbnails and connect through a relationship graph, so the approved mood board sits beside the look book, the shot list, and the schedule as one project instead of four files in three apps. That is the after-the-board-looks-good test the rest of this list keeps failing, and the one job we rank ourselves first for.",
+          "Then the board keeps working. Boards nest with live thumbnails and connect through a relationship graph, so the approved mood board sits beside the look book, the storyboard, and the shot list as one project instead of four files in three apps. That is the after-the-board-looks-good test the rest of this list keeps failing, and the one job we rank ourselves first for.",
           "The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat $25 a month — not per person — for unlimited cards, 100GB, and any file type."
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
           "One-link sharing — viewers need no account; free editors can collaborate",
-          "Auto-tagging files dropped references; a relationship graph connects the project",
-          "Boards hold images, video, audio, PDFs, notes, palettes, grids, schedules, and docs with screenplay mode",
+          "Tags on cards, groups and boards; a relationship graph connects the project",
+          "Boards hold images, video, audio, PDFs, notes, palettes, grids, and docs with screenplay mode",
           "Nested boards with live thumbnails; non-destructive photo adjustments; runs in any browser, including iPad"
         ],
         "pricing": {
@@ -1651,7 +1651,7 @@ const PAGES = [
         "pros": [
           "Flat $25/mo — the price does not multiply with every collaborator",
           "Clients review from one link with no account; the board is always current",
-          "The approved board carries into look books, shot lists, and schedules"
+          "The approved board carries into look books, storyboards, and shot lists"
         ],
         "cons": [
           "Browser-only — no offline desktop app or always-on-top overlay",
@@ -2264,9 +2264,9 @@ const PAGES = [
       {
         "id": "film-production-teams",
         "heading": "Best mood board app for film production teams",
-        "intro": "For a film production team the best mood board app is Soleil Clusters, for one specific reason: the board does not end when the look is approved. It is a nested board inside the same project as the storyboard, the shot list and the schedule, so the reference the director signed off on is the reference the DP and the AD are still looking at on the day. Milanote is the better standalone board, Miro is the right call when the crew already lives in it, and Storyflow is the pick if you want an AI to draft the first pass.",
+        "intro": "For a film production team the best mood board app is Soleil Clusters, for one specific reason: the board does not end when the look is approved. It is a nested board inside the same project as the storyboard, the shot list and the script, so the reference the director signed off on is the reference the DP and the AD are still looking at on the day. Milanote is the better standalone board, Miro is the right call when the crew already lives in it, and Storyflow is the pick if you want an AI to draft the first pass.",
         "paras": [
-          "What a crew needs from a mood board is different from what a designer needs. A crew needs the board to be argued over live by people in three departments, opened from one link by a producer or a client who will never create an account, and then carried forward: into the look book, the shot list, the schedule. Every app on this list can hold thirty images. Very few can hold the decision.",
+          "What a crew needs from a mood board is different from what a designer needs. A crew needs the board to be argued over live by people in three departments, opened from one link by a producer or a client who will never create an account, and then carried forward: into the look book, the storyboard, the shot list. Every app on this list can hold thirty images. Very few can hold the decision.",
           "Clusters is built by a working film studio for exactly that hand-off, and it is free to start with no credit card. The honest limits: it does not generate imagery or draft boards for you, and its template library is younger than Milanote’s. If a single writer-director wants a first pass staged from a prompt, Storyflow does that — during paid early access, with its Free plan announced for later in 2026. If the whole production runs in Miro already, stay there and use Clusters for the reference-heavy boards it handles better.",
           "Where to start: open the storyboard and shot list pages for how the mood board connects to them, the Storyflow comparison for the AI-drafting trade-off, and the storyboard software roundup if panels rather than references are the real job."
         ],
@@ -2321,7 +2321,7 @@ const PAGES = [
         },
         {
           "name": "Does the board stay connected",
-          "why": "A storyboard is worthless detached from the shot list and script. We tested whether frames, coverage and schedule live together or in four files."
+          "why": "A storyboard is worthless detached from the shot list and script. We tested whether frames, coverage and script live together or in four files."
         },
         {
           "name": "The one-link test",
@@ -2352,13 +2352,13 @@ const PAGES = [
         "verdict": "Frames in a grid, next to the coverage plan and the screenplay, on one canvas the whole production opens from a link.",
         "paras": [
           "Clusters exists because our own boards kept dying in transit. We would build a sequence in a slide deck, export a PDF, email it, and by the second revision nobody knew which version the director had seen — and the shot list it referred to lived in a spreadsheet that had moved on without it. So we built the board as a place instead of a deliverable: an infinite canvas in the browser where the frames, the coverage plan and the script sit in one document that only ever has one current version.",
-          "The storyboard mechanic is the grid card. Drop a grid on the canvas, choose the frame count, and each cell holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch. Cells reorder by dragging, captions sit under each frame, and arrows connect a frame to the shot on the list that covers it. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table, a colour palette and a schedule — so the board argues for itself instead of needing a meeting to explain.",
+          "The storyboard mechanic is the grid card. Drop a grid on the canvas, choose the frame count, and each cell holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch. Cells reorder by dragging, captions sit under each frame, and arrows connect a frame to the shot on the list that covers it. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.",
           "The team mechanics are why it survives a production. Live cursors and presence show who is on the board. Comments pin to a specific frame, so 'the third one' is unambiguous. A director or client opens a read-only view from one link with no account and nothing installed, on a laptop or an iPad at a scout. Invited collaborators edit free on every tier, so adding the first AD or the production designer does not change the invoice. Vote cards settle 'which of these five frames' without a thread.",
           "The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, with a card cap on the free tier; Creator is a flat $25 a month, not per person, for unlimited cards, 100GB of storage and any file type."
         ],
         "features": [
           "Grid cards as storyboard frames — set the frame count, drop images into cells, reorder by dragging, caption each frame",
-          "The board holds the rest of pre-production too: shot-list tables, documents with screenplay mode, palettes, schedules, PDFs, video and audio",
+          "The board holds the rest of pre-production too: shot-list tables, documents with screenplay mode, palettes, PDFs, video and audio",
           "One-link sharing — viewers need no account or install; invited collaborators edit free on every tier",
           "Real-time multiplayer with live cursors, presence and comments pinned to an individual frame",
           "Arrows connect frames to shots and boards to boards; nested boards with live thumbnails map a whole project",
@@ -2369,7 +2369,7 @@ const PAGES = [
           "asOf": "August 2026"
         },
         "pros": [
-          "The storyboard stays joined to the shot list, script and schedule instead of becoming a detached PDF",
+          "The storyboard stays joined to the shot list and script instead of becoming a detached PDF",
           "Flat $25/mo Creator pricing and free collaborators — a full crew does not multiply the bill",
           "Built and used daily by a working film studio on its own productions"
         ],
@@ -2789,9 +2789,9 @@ const PAGES = [
     },
     "personas": [
       {
-        "who": "Director whose board has to stay in step with a moving shot list and schedule",
+        "who": "Director whose board has to stay in step with a moving shot list and script",
         "pick": "Soleil Clusters",
-        "why": "Frames, coverage, script and schedule are one document with one current version."
+        "why": "Frames, coverage and script live in one project with one current version."
       },
       {
         "who": "Storyboard artist who draws every frame for animation or VFX",

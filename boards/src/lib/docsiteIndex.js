@@ -65,7 +65,7 @@ export const DOCS_PAGES = [
     "title": "Soleil Clusters Documentation",
     "metaDescription": "Complete documentation for Soleil Clusters — the infinite canvas for film, photo and design teams. Features, guides, REST API and MCP reference.",
     "h1": "Soleil Clusters documentation",
-    "answer": "Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists, scripts and schedules onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.",
+    "answer": "Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.",
     "section": "start",
     "order": 0,
     "updated": "2026-08-26",

@@ -1,6 +1,6 @@
 # A Storyflow Alternative for Crews That Work Live
 
-> Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists, schedules and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.
+> Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.
 
 _Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-09-19_
 
@@ -16,10 +16,10 @@ Storyflow is an AI visual workspace. You describe a board and its assistant draf
 
 ## Where Clusters is different
 
-A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list, the schedule and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Auto-tagging files every dropped reference. Any file type up to 100GB rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
+A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file type up to 100GB rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
 
-- Mood board, storyboard, shot list, schedule and screenplay as nested boards
-- Auto-tagging and a relationship graph across the whole project
+- Mood board, storyboard, shot list and screenplay as nested boards
+- Tags and a relationship graph across the whole project
 - Connect Claude or any MCP client with one URL — no in-app allowance
 
 ## A free plan you can use today, and a flat price after it
@@ -36,13 +36,13 @@ If what you want is a first pass you did not have to make — type the premise, 
 
 ## Two small vendors, one honest comparison
 
-Both of these tools come from small teams, and you should weigh that either way. What stands behind Clusters is a working film studio: it is built by Soleil Pictures and used on our own productions, which is why the schedule, the screenplay mode and the shot list exist at all. It runs in the browser on any machine; on a phone or tablet it can be added to the home screen as a web app. There is no store app yet, and we say so.
+Both of these tools come from small teams, and you should weigh that either way. What stands behind Clusters is a working film studio: it is built by Soleil Pictures and used on our own productions, which is why the screenplay mode and the shot list exist at all. It runs in the browser on any machine; on a phone or tablet it can be added to the home screen as a web app. There is no store app yet, and we say so.
 
 ## How to move a Storyflow project to Clusters
 
 1. **Export what you made** — Storyflow exports boards as PNG, SVG or PDF and documents as files. Keep the original images you gathered as well — those are the references, and they are yours.
-2. **Drop them on a new board** — Drag the set onto a fresh cluster. Auto-tagging files each reference as it lands, so the sorting you did by hand happens on arrival.
-3. **Rebuild the structure as nested boards** — A mood board, a storyboard grid, a shot list and a schedule become linked boards in one project rather than one long canvas.
+2. **Drop them on a new board** — Drag the whole set onto a fresh cluster in one drop, then group and tag the references as you rebuild.
+3. **Rebuild the structure as nested boards** — A mood board, a storyboard grid and a shot list become linked boards in one project rather than one long canvas.
 4. **Share one link** — Send it to the crew or the client. It opens in the browser, no account is needed to view, and everyone you invite edits free.
 
 ## Soleil Clusters vs Storyflow
@@ -57,8 +57,7 @@ How the two compare on the things production teams care about. Storyflow figures
 | Drafts a board from a prompt | No | Yes |
 | Real-time multiplayer canvas | Yes | Yes |
 | Nested boards with a relationship graph | Yes | Not on its pricing page (September 2026) |
-| Production schedule and screenplay mode | Yes | Calendars and trackers; no production schedule or screenplay mode |
-| Auto-tagging of dropped files | Yes | Not on its pricing page (September 2026) |
+| Screenplay mode (Final Draft and Fountain) | Yes | Not on its pricing page (September 2026) |
 | Any file type, up to 100GB | Yes (Creator) | Unlimited uploads on paid plans; 20 on the coming free plan |
 | Free-plan card cap | 50 cards, uploads never metered | No object or board limit on any plan; uploads and AI are capped |
 | Template library | Growing (grid templates) | 200+ frameworks on paid plans |
@@ -72,7 +71,7 @@ Not yet. Storyflow’s own pricing page says it is paid-only during early access
 
 ### Is Soleil Clusters a good Storyflow alternative?
 
-For a crew, yes: a free real-time canvas where mood boards, storyboards, shot lists, schedules and the screenplay are nested boards in one project, at a flat price with no AI allowance. If you want boards drafted from a prompt, Storyflow is the tool that does that.
+For a crew, yes: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay are nested boards in one project, at a flat price with no AI allowance. If you want boards drafted from a prompt, Storyflow is the tool that does that.
 
 ### Storyflow vs Soleil Clusters — which is better for a film crew?
 

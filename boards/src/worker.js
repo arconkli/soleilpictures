@@ -1974,7 +1974,7 @@ export function buildLandingJsonLd(spec, url) {
       name: 'Soleil Clusters',
       applicationCategory: 'BusinessApplication',
       applicationSubCategory: spec.h1,
-      operatingSystem: 'Web, iOS, Android',
+      operatingSystem: 'Web',
       url,
       description: spec.metaDescription,
       screenshot: og,

@@ -16,7 +16,7 @@ A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you bui
 
 ## From a quick pin to a real project
 
-Start with a scratch board of references, then grow it into a structured project as the idea firms up: nest boards, connect them, and let auto-tagging keep things filed. You never have to migrate to a "real" tool later — this is the real tool.
+Start with a scratch board of references, then grow it into a structured project as the idea firms up: nest boards, connect them, and tag what matters so it stays findable. You never have to migrate to a "real" tool later — this is the real tool.
 
 ## Made for creative work
 
