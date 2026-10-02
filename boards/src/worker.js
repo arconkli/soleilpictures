@@ -18,6 +18,7 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
+import { handleMediaRoute } from './worker-media.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
@@ -579,6 +580,8 @@ const worker = {
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
+      // A web image dragged onto a canvas, kept as a copy (worker-media.js).
+      if (url.pathname.startsWith('/api/media/')) return await handleMediaRoute(url, request, env);
       // The public API. Authenticated by a personal access token, which is
       // exchanged for the user's OWN Supabase session — so everything below
       // runs under ordinary RLS. See lib/apiAuth.js.

@@ -159,6 +159,7 @@ import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor } from '../lib/fileIngest.js';
+import { saveWebImageCopy } from '../lib/webImageClient.js';
 import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
@@ -9252,8 +9253,9 @@ export function CanvasSurface({
       // generic link tile. Same defensive idea as the inbox case above
       // but for cross-tab drags from outside the app.
       const isImage = /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i.test(url);
-      // Two outcomes, decided below: an image card with the remote src (same
-      // hotlink semantics as before), or the link tile with an OG preview.
+      // Two outcomes, decided below: an image card, or the link tile with an OG
+      // preview. The image card paints from the remote src at once, and moves
+      // onto a copy in the workspace's own storage when one lands.
       const placeRemoteImage = () => {
           // Optimistic 320x240 placeholder; patch to natural dims once the
           // browser has loaded the image (cap at 1200 along longer axis).
@@ -9291,6 +9293,31 @@ export function CanvasSurface({
             };
             probe.src = url;
           } catch (_) {}
+          // The hotlink is only the first paint. A hotlink breaks the day the
+          // page it came from moves, expires a signed link or goes behind a
+          // login, so ask for a copy (worker-media.js) and move the card onto
+          // it when it lands. Silent either way: a failure leaves the card the
+          // hotlink it always was. A board left mid-save keeps the hotlink —
+          // these mutators would write to the wrong board.
+          const dropBoardId = board?.id;
+          if (dropBoardId && !useLocalImages) {
+            saveWebImageCopy({
+              url, boardId: dropBoardId, cardId: id,
+              getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
+            }).then((res) => {
+              try {
+                logEvent(EV.WEB_IMAGE_SAVE, {
+                  board_id: dropBoardId, ok: !!res?.ok,
+                  code: res?.ok ? (res.reused ? 'reused' : 'saved') : (res?.code || 'unknown'),
+                  bytes: res?.ok ? (res.bytes ?? null) : null,
+                });
+              } catch (_) {}
+              if (!res?.ok || boardIdRef.current !== dropBoardId) return;
+              mutators.updateCardSilent?.(id, {
+                src: res.src, sourceUrl: url, ...(res.fileName ? { fileName: res.fileName } : {}),
+              });
+            });
+          }
       };
       const placeLinkCard = () => {
         const embed = detectEmbed(url);

@@ -476,6 +476,10 @@ export const DOCS_PAGES = [
         "text": "Adding images"
       },
       {
+        "id": "images-from-the-web",
+        "text": "Images from the web"
+      },
+      {
         "id": "progressive-loading",
         "text": "Progressive loading"
       },

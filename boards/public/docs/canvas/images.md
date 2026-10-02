@@ -13,6 +13,8 @@ upload in parallel and lay themselves out rather than landing in a heap. See
 ## Adding images
 
 - **Drag from the desktop** — many at once is fine.
+- **Drag from another tab** — an image dragged off a web page is kept as a
+  copy in your workspace (see [below](#images-from-the-web)).
 - **Paste** from the clipboard.
 - **The image tool** in the rail, for a file picker.
 - **[Soleil Scout](/docs/scout)** — text them from your phone.
@@ -28,6 +30,23 @@ every one `image.png`), so it is not given one.
 
 HEIC and HEIF from an iPhone are handled, including the awkward case where the
 browser reports no MIME type at all.
+
+## Images from the web
+
+Drag an image out of another tab and it shows up on the canvas straight away,
+loaded from the page it came from. A moment later Clusters keeps its own copy in
+your workspace and the card switches to it. A link to someone else's server
+breaks when that page moves, expires its link or goes behind a login, and the
+copy does not. It keeps the file's name when the address has one, like
+`ext_dusk_04.jpg`.
+
+The copy is counted against your storage like any upload. The same image
+dragged in twice in one workspace is stored once.
+
+Sometimes no copy can be made: the image sits behind a login, is larger than
+25 MB, your storage is full, or it isn't a format every
+browser can show (SVG and HEIC from the web stay as links). The card then keeps showing the image from
+the page it came from, the way every web image did before.
 
 ## Progressive loading
 

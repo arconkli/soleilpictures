@@ -622,6 +622,7 @@ Images are the reason most boards exist. Getting them in is meant to be thoughtl
 Adding images
 
 Drag from the desktop — many at once is fine.
+Drag from another tab — an image dragged off a web page is kept as a copy in your workspace (see below).
 Paste from the clipboard.
 The image tool in the rail, for a file picker.
 Soleil Scout — text them from your phone.
@@ -631,6 +632,14 @@ Uploads go straight to storage from your browser. Large batches run a few at a t
 Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in list view and comes back out of Download under it. Give a card a caption and the caption is what list view shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one image.png), so it is not given one.
 
 HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all.
+
+Images from the web
+
+Drag an image out of another tab and it shows up on the canvas straight away, loaded from the page it came from. A moment later Clusters keeps its own copy in your workspace and the card switches to it. A link to someone else's server breaks when that page moves, expires its link or goes behind a login, and the copy does not. It keeps the file's name when the address has one, like ext_dusk_04.jpg.
+
+The copy is counted against your storage like any upload. The same image dragged in twice in one workspace is stored once.
+
+Sometimes no copy can be made: the image sits behind a login, is larger than 25 MB, your storage is full, or it isn't a format every browser can show (SVG and HEIC from the web stay as links). The card then keeps showing the image from the page it came from, the way every web image did before.
 
 Progressive loading
 
