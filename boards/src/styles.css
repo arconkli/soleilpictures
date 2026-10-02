@@ -6608,7 +6608,14 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
   color: var(--ink-2);
   font: 600 13px/1 var(--font-sans);
 }
-.pp-trust { margin: 0 0 clamp(48px, 8vh, 80px); }
+.pp-trust { margin: 0 0 clamp(20px, 3vh, 32px); }
+/* The answer card sits between the trust line and the product shot, and takes
+   over the gap the trust line used to leave before the shot. */
+.pp-answer { margin: 0 auto clamp(48px, 8vh, 80px); }
+/* Docs + machine-readable links in the footer. Neutral ink: gold is for
+   active/selection/focus only. */
+.pp-machine { text-align: center; margin: 0 0 14px; }
+.pp-machine a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
 .pp-free-list { margin-top: 2px; }
 .pp-foot {
   display: flex;

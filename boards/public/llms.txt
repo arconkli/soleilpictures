@@ -123,7 +123,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Comparisons and tool pages
 
-- [Text your scout photos. Get a board.](https://clusters.soleilpictures.com/scout): Text photos, links and notes from set. They land arranged on an infinite canvas, grouped by scene. No app to install, no login, no forms.
+- [Text your scout photos. Get a board.](https://clusters.soleilpictures.com/scout): Soleil Scout turns texted photos, links and notes into a board, grouped by scene. Invite-only for now: leave your number and we text you when you are in.
 - [Mood Board Maker](https://clusters.soleilpictures.com/tools/mood-board-maker): Make a mood board online, free. Drag images, notes, and palettes onto an infinite canvas, build it live with your team, and share it with one link.
 - [AI Mood Board Maker](https://clusters.soleilpictures.com/tools/ai-mood-board-maker): Connect Claude or any MCP client to Soleil Clusters and ask for a mood board. It gathers and arranges your own references — it does not invent pictures.
 - [Storyboard Maker](https://clusters.soleilpictures.com/tools/storyboard-maker): Make a storyboard online: drop frames in a grid, caption and re-order shots, keep the shot list beside the frames, and share one link with your crew.

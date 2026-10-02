@@ -1,8 +1,8 @@
 # Text your scout photos. Get a board.
 
-> Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup. It is invite-only while the line is set up — leave your number to get one.
+> Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is invite-only for now. Leave your number and we text you when your line is ready.
 
-_Source: https://clusters.soleilpictures.com/scout · Updated 2026-08-07_
+_Source: https://clusters.soleilpictures.com/scout · Updated 2026-10-02_
 
 Text what you’re looking at. It lands on a canvas your whole team can open.
 
@@ -30,7 +30,7 @@ What arrives is not a chat log. It is an infinite canvas you can rearrange, draw
 - Share the whole board with one link, no account needed to view
 - Free to start — 50 cards, free collaborators, uploads never metered
 
-## How Soleil Scout works
+## How Soleil Scout works once you are in
 
 1. **Text the number** — Send your first photo. A board and an account are created behind you — no form, no password.
 2. **Say what it is** — Add "Scene 4 diner" or "power drops look sketchy". Scout reads it and titles the group.
@@ -42,7 +42,7 @@ What arrives is not a chat log. It is an infinite canvas you can rearrange, draw
 
 ### Do I need to install anything?
 
-No. You text a number from the messages app already on your phone. No download, no account, no password. Your board exists from the first photo you send.
+No. Once you are in, you text a number from the messages app already on your phone. No download, no account, no password. Your board exists from the first photo you send.
 
 ### Does it work on Android?
 
@@ -62,5 +62,5 @@ Yes, to start. The free tier covers 50 cards — each cluster is one — with fr
 
 ### Can I use it with a board I already have?
 
-Say "put these in <board name>" any time and Scout files into that board. Linking Scout to an account you already have is coming. For now, your first text creates a board of its own.
+Yes, once you are in. Settings → Connections gives you a code to text Scout, and your photos land in the workspace you already use. Say "put these in <board name>" to file them into a board.
 

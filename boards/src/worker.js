@@ -20,7 +20,7 @@ import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
-import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME } from './lib/billingCopy.js';
+import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
 import { hasPlanBlock, planBlockHtml } from './lib/planBlock.js';
 import {
@@ -2029,9 +2029,12 @@ export function buildLandingJsonLd(spec, url) {
         highPrice: String(PRICING.monthly.perMonth),
         offerCount: 2,
         // Named rather than bare numbers so the free tier is not mistaken for a
-        // trial and the paid one not mistaken for a one-off purchase.
+        // trial and the paid one not mistaken for a one-off purchase. The free
+        // plan's name comes from the /pricing card it is shown as ("Free"):
+        // this said "Demo" while /pricing and its own JSON-LD said "Free", so a
+        // machine reading both saw three plans.
         offers: [
-          { '@type': 'Offer', name: 'Demo', price: '0', priceCurrency: 'USD' },
+          { '@type': 'Offer', name: PRICING_PAGE.freeCardName, price: '0', priceCurrency: 'USD' },
           {
             '@type': 'Offer',
             name: PLAN_NAME,

@@ -17,15 +17,32 @@
 // tool pages, the listicles or '/': solo readers lose to per-seat competitors'
 // single-seat prices, and nothing there shows price-seeking.
 //
-// PRE-REGISTERED READ (2026-10-01). Predicate: first lp_view with
-// page_kind='compare', user_id null, internal sessions excluded (NOT EXISTS).
-// Window: production ship +3d to +31d; floor 120 sessions.
-//   Primary: desktop topbar_pricing clickers / desktop sessions falls from the
-//     16.2% baseline (21/130, 09-05..09-30) to <=10% — the price was answered
-//     in place.
-//   Guardrail: /vs/pureref same-device visitor->signup stays >=18% (baseline
-//     35/143 = 24.5%). Below it, pull the block.
-//   Also read: plan_block / plan_block_pricing / hero_pricing clicks.
+// PRE-REGISTERED READ (rewritten 2026-10-02 — the first version measured the
+// wrong thing). The block carries its own "Compare plans" link, so counting
+// only topbar "Pricing" clicks would score clicks the block DIVERTED as a
+// question the block ANSWERED. The measure is any path to /pricing.
+//   Population: first lp_view with page_kind='compare', user_id null,
+//     device_type 'desktop', internal sessions excluded with NOT EXISTS (a NOT
+//     IN over a list containing a NULL session_id returns nothing).
+//   Primary: the share of those sessions with a later /pricing view in the same
+//     session — pricing_view surface 'public_page', or an lp_view of /pricing —
+//     whichever link got them there (topbar, footer, hero, block). Prediction:
+//     it FALLS, because the price is answered on the page.
+//   Guardrail: same-session visitor -> ps_signup on the same pages. Pull the
+//     block if the point estimate falls by more than a third — deliberately
+//     trigger-happy, because the test cannot confirm a fall that size.
+//   Two phases. /vs/pureref carries roughly nine in ten compare sessions and is
+//     held without the block (planBlock: false) until two weeks after its
+//     corrected copy is live on production. Until then the block runs on pages
+//     too quiet to read anything from: collect, do not grade. The read starts
+//     the day /vs/pureref gets the block — window +3d to +31d from that
+//     production deploy, never inside 3 days of it.
+//   Power, stated now so nobody over-reads it later: at this page family's
+//     traffic only a fall of about three-quarters is distinguishable from noise
+//     (80% power, alpha 0.05). A smaller effect reports as "not detected",
+//     never as "no effect".
+//   Baselines are in the project notes, not in this public file.
+//   Also read: plan_block / plan_block_pricing / hero_pricing / footer_pricing.
 //
 // Everything here is built from billingCopy, the same objects /pricing renders.
 // No number is typed. The trial is never mentioned: it is in-product only.
@@ -34,15 +51,28 @@
 // scripts/gen-docs.mjs (the .md twins), so the three cannot say different things.
 
 import {
-  PLAN_NAME, PRICING, PRICING_PAGE, CREATOR_BENEFITS, DEMO_FEATURES,
+  PLAN_NAME, PRICING, PRICING_PAGE, CREATOR_BENEFITS, DEMO_FEATURES, CREATOR_STORAGE_LABEL,
 } from './billingCopy.js';
 
 export const PLAN_BLOCK_ID = 'what-it-costs';
 export const PLAN_BLOCK_HEADING = 'What it costs';
 
 // Which pages carry it. One predicate, shared by every renderer and the tests.
+// An explicit `planBlock: false` wins over kind:'compare' — that is how a
+// comparison page is held back (see /vs/pureref).
 export function hasPlanBlock(spec) {
-  return !!spec && !spec.storefront && (spec.kind === 'compare' || spec.planBlock === true);
+  if (!spec || spec.storefront || spec.planBlock === false) return false;
+  return spec.kind === 'compare' || spec.planBlock === true;
+}
+
+// The Creator lines the block shows. Titles only, with two corrections:
+// "No size limits" alone read as no limit at all, when there is a drive behind
+// it — so the line names the drive. And the workspace benefit is dropped,
+// because the block's closing note says the same thing in full one line later.
+function creatorLines() {
+  return CREATOR_BENEFITS
+    .filter((b) => b.key !== 'workspace')
+    .map((b) => (b.key === 'storage' ? `${b.title}, on a ${CREATOR_STORAGE_LABEL} drive` : b.title));
 }
 
 export function planBlockModel() {
@@ -61,7 +91,7 @@ export function planBlockModel() {
       name: PLAN_NAME,
       price: PRICING.monthly.billedLabel,
       annual: `or ${PRICING.annual.perMonthLabel}/mo billed annually`,
-      lines: CREATOR_BENEFITS.map((b) => b.title),
+      lines: creatorLines(),
     },
     note: PRICING_PAGE.workspaceNote,
     compareLabel: 'Compare plans',

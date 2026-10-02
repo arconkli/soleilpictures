@@ -64,13 +64,27 @@ const PAGES = [
   // SMS/RCS as included but ships no provider doc for it, and their own
   // FAQ asks when it's coming. Nothing here promises Android until that's
   // answered — see the FAQ entry, which says so plainly.
+  //
+  // INVITE-ONLY, EVERYWHERE (2026-10-02). The bot is not running: /scout
+  // collects numbers for a waitlist. Until then every surface on this page says
+  // so — the meta, the answer, the CTA and the steps heading — rather than the
+  // answer's last sentence contradicting the four above it.
+  //
+  // PRE-REGISTRATION (metaDescription, 2026-10-02). Target predicate: queries
+  // on this path matching '%scout%' or '%text%photo%', search_type 'web',
+  // query='' rows for the page total. Window: ±14 days around the production
+  // promotion, impression-weighted position. Floor: 200 post-change
+  // impressions. This page has never come within an order of magnitude of
+  // that floor, so the change is UNGRADABLE by design: it ships for truth (the
+  // old meta described a live product), not for traffic. Do not read a result
+  // off it.
   // ────────────────────────────────────────────────────────────────────────
   {
     path: '/scout',
     kind: 'tool',
     title: 'Soleil Scout — Text Your Location Photos Onto a Board',
     metaDescription:
-      'Text photos, links and notes from set. They land arranged on an infinite canvas, grouped by scene. No app to install, no login, no forms.',
+      'Soleil Scout turns texted photos, links and notes into a board, grouped by scene. Invite-only for now: leave your number and we text you when you are in.',
     h1: 'Text your scout photos. Get a board.',
     // One line, and deliberately NOT about location scouting. The product is
     // named Scout and the page ranks for scouting terms, but a location manager
@@ -83,10 +97,10 @@ const PAGES = [
     // text thread, one sentence per bubble, so a 33-word sentence is a bubble
     // nobody reads. Anything over ~22 words has to be split at the source.
     answer:
-      'Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup. It is invite-only while the line is set up — leave your number to get one.',
-    updated: '2026-08-07',
-    cta: { label: 'Start scouting — free', sub: 'No app. No signup. Text and it exists.' },
-    stepsHeading: 'How Soleil Scout works',
+      'Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is invite-only for now. Leave your number and we text you when your line is ready.',
+    updated: '2026-10-02',
+    cta: { label: 'Join the Scout list — free', sub: 'Invite-only for now. Leave your number and we text you when your line is ready.' },
+    stepsHeading: 'How Soleil Scout works once you are in',
     steps: [
       { t: 'Text the number', d: 'Send your first photo. A board and an account are created behind you — no form, no password.' },
       { t: 'Say what it is', d: 'Add "Scene 4 diner" or "power drops look sketchy". Scout reads it and titles the group.' },
@@ -129,7 +143,7 @@ const PAGES = [
       },
     ],
     faq: [
-      { q: 'Do I need to install anything?', a: 'No. You text a number from the messages app already on your phone. No download, no account, no password. Your board exists from the first photo you send.' },
+      { q: 'Do I need to install anything?', a: 'No. Once you are in, you text a number from the messages app already on your phone. No download, no account, no password. Your board exists from the first photo you send.' },
       // Deliberately does NOT rule Android out. Whether SMS/RCS is live is
       // Photon's open question 3 (scout/README.md) — their pricing lists it as
       // included, their own FAQ asks when it ships. Nobody is signing up for a
@@ -140,11 +154,10 @@ const PAGES = [
       { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else sees them unless you share it.' },
       { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the group. Everything collects in your Scout Bin until you file it — and Scout shows you exactly what will move first.' },
       { q: 'Is it free?', a: `Yes, to start. The free tier covers ${DEMO_CARD_LIMIT} cards — each cluster is one — with free collaborators and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and any file type.` },
-      // Honest about what is actually live: linking Scout to an account you
-      // already have needs the Settings → Scout tab, which is deliberately not
-      // shipped yet (the bot has no line to answer on). Restore the "connect
-      // from Settings" wording in the same change that promotes that tab.
-      { q: 'Can I use it with a board I already have?', a: 'Say "put these in <board name>" any time and Scout files into that board. Linking Scout to an account you already have is coming. For now, your first text creates a board of its own.' },
+      // Settings → Connections (settings/ConnectionsTab.jsx) shipped with the
+      // connect code, so "linking is coming" became false. The bot still has no
+      // line to answer on, which is why the answer opens with "once you are in".
+      { q: 'Can I use it with a board I already have?', a: 'Yes, once you are in. Settings → Connections gives you a code to text Scout, and your photos land in the workspace you already use. Say "put these in <board name>" to file them into a board.' },
     ],
     related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/look-book-maker', '/use-cases'],
   },
@@ -935,16 +948,20 @@ const PAGES = [
     kind: 'compare',
     title: 'Free Milanote Alternative — Flat Price, Real-Time Teams',
     // META PRE-REGISTERED 2026-10-01 (CLAUDE.md ritual). The description sold
-    // "auto-tagging", which files nothing (the tags doc: tagging moves nothing,
-    // suggestions only) and whose AI layer has never run. Swapped for screenplay
-    // mode, a live and differentiating feature. One surface, this commit only.
+    // "auto-tagging" that files dropped work, and tagging moves nothing (and
+    // reads text, never pictures). Swapped for screenplay mode, a live and
+    // differentiating feature. One surface, that commit only.
     //   Predicate: path = '/vs/milanote', query = '' (page level),
     //     search_type = 'web'; CTR and impression-weighted position.
     //   Window: ±7 and ±14 days around the PRODUCTION deploy, never inside 3
     //     days of it. Floor: 200 post-change web impressions before reading.
-    //   Expectation: no material change — no query on this page has ever
-    //     contained "tag"/"auto"/"organize" (0 impressions, 90d to 2026-09-28);
-    //     baseline 764 impressions / 11 clicks in the 28 days to 2026-10-01.
+    //   Expectation: no material change — no query on this page has carried
+    //     "tag", "auto" or "organize".
+    //   READ IS CONFOUNDED (2026-10-02). The same release rewrites this page's
+    //     pricing body (Milanote's team plan is flat, not per person) and adds
+    //     the "What it costs" block, so a before/after cannot be pinned on the
+    //     description. It shipped for truth; read any movement as the release.
+    //     The baseline lives in the project notes, not in this public file.
     metaDescription:
       'The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with screenplay mode, 100GB storage and link sharing.',
     h1: 'A Milanote Alternative Built for Production Teams',
@@ -952,7 +969,7 @@ const PAGES = [
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
     answer:
       'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
-    updated: '2026-10-01',
+    updated: '2026-10-02',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
@@ -966,7 +983,7 @@ const PAGES = [
       },
       {
         heading: 'A free Milanote alternative without the per-person bill',
-        body: 'Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. And its paid plans are priced per person. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.',
+        body: 'Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.',
         bullets: [
           'No trial clock on the free Demo tier',
           'Flat $25/mo Creator — not per-person pricing',
@@ -1017,7 +1034,7 @@ const PAGES = [
       { q: 'Does Clusters have a free tier like Milanote?', a: `Yes. The Demo tier is free with no credit card and covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.` },
       { q: 'Can I move my Milanote boards over?', a: 'You can drag your images, links, and files straight into a new Clusters board and share it — there is no complex migration to do first.' },
       { q: 'Does Milanote limit how many items I can add?', a: 'Yes — Milanote’s free plan caps the total number of items across your boards, and separately allows 10 file uploads, ever. Clusters’ free Demo tier also caps cards, but never meters uploads and has no time limit; Creator ($25/mo) removes the card cap and adds 100GB of storage.' },
-      { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually, because Clusters is flat-priced: Creator is $25/mo rather than a per-person subscription, and anyone you share a board with can view it free with one link.' },
+      { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.' },
       { q: 'Is there a free Milanote alternative without item caps?', a: 'Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters has no separate upload budget, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.' },
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard and the shot list as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
       { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas that never meters uploads, where the finished board shares with one link a client can open without an account.' },
@@ -1148,6 +1165,12 @@ const PAGES = [
   {
     path: '/vs/pureref',
     kind: 'compare',
+    // HELD without the "What it costs" block (owner, 2026-10-01). This page
+    // carries most of the comparison traffic and converts best of them, and its
+    // copy was corrected 2026-10-02. Turn the block on — delete this line — two
+    // weeks after that corrected copy is live on production, not before: one
+    // change at a time on the page that pays.
+    planBlock: false,
     // 2026-08-23 INTENT SPLIT. The 2026-08-04 experiment (lead with the
     // film-studio credential) worked: 0 clicks → 10 and position 11.3 → 8.9
     // across the pivot, on real per-day data (seo_page_daily, 0254). This is

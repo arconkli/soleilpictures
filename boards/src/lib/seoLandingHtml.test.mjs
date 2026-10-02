@@ -109,3 +109,21 @@ test('the JSON-LD graph is serializable and self-consistent', () => {
     assert.equal(typed(spec, 'WebPage').url, url);
   }
 });
+
+// One name for the free plan, everywhere a machine reads one. The landing
+// graph's Offer said "Demo" while /pricing — its cards, its body and its own
+// JSON-LD — said "Free", so an engine reading both saw three plans.
+test('the landing JSON-LD names the free plan the way /pricing does', async () => {
+  const { PRICING_PAGE } = await import('./billingCopy.js');
+  const offers = [];
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (n['@type'] === 'Offer') offers.push(n);
+    Object.values(n).forEach(walk);
+  };
+  for (const spec of SEO_LANDING_PAGES) walk(buildLandingJsonLd(spec, `${ORIGIN}${spec.path}`));
+  const free = offers.filter((o) => String(o.price) === '0');
+  assert.ok(free.length > 0, 'expected a free Offer in the landing graph');
+  for (const o of free) assert.equal(o.name, PRICING_PAGE.freeCardName);
+  assert.ok(!offers.some((o) => /\bdemo\b/i.test(o.name || '')), 'no Offer may still be called Demo');
+});

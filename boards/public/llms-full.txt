@@ -6214,13 +6214,13 @@ A: 30 days.
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/scout
-Updated: 2026-08-07
+Updated: 2026-10-02
 
 # Text your scout photos. Get a board.
 
-> Soleil Scout is a text-message ingest bot for film crews. Send photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. No app to install and no signup. It is invite-only while the line is set up — leave your number to get one.
+> Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is invite-only for now. Leave your number and we text you when your line is ready.
 
-_Source: https://clusters.soleilpictures.com/scout · Updated 2026-08-07_
+_Source: https://clusters.soleilpictures.com/scout · Updated 2026-10-02_
 
 Text what you’re looking at. It lands on a canvas your whole team can open.
 
@@ -6248,7 +6248,7 @@ What arrives is not a chat log. It is an infinite canvas you can rearrange, draw
 - Share the whole board with one link, no account needed to view
 - Free to start — 50 cards, free collaborators, uploads never metered
 
-## How Soleil Scout works
+## How Soleil Scout works once you are in
 
 1. **Text the number** — Send your first photo. A board and an account are created behind you — no form, no password.
 2. **Say what it is** — Add "Scene 4 diner" or "power drops look sketchy". Scout reads it and titles the group.
@@ -6260,7 +6260,7 @@ What arrives is not a chat log. It is an infinite canvas you can rearrange, draw
 
 ### Do I need to install anything?
 
-No. You text a number from the messages app already on your phone. No download, no account, no password. Your board exists from the first photo you send.
+No. Once you are in, you text a number from the messages app already on your phone. No download, no account, no password. Your board exists from the first photo you send.
 
 ### Does it work on Android?
 
@@ -6280,7 +6280,7 @@ Yes, to start. The free tier covers 50 cards — each cluster is one — with fr
 
 ### Can I use it with a board I already have?
 
-Say "put these in <board name>" any time and Scout files into that board. Linking Scout to an account you already have is coming. For now, your first text creates a board of its own.
+Yes, once you are in. Settings → Connections gives you a code to text Scout, and your photos land in the workspace you already use. Say "put these in <board name>" to file them into a board.
 
 
 
@@ -6849,8 +6849,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -6949,8 +6948,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -7046,8 +7044,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -7135,8 +7132,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -7228,8 +7224,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -7261,13 +7256,13 @@ Free for 50 cards — each cluster counts as one — with free editors. A full l
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/milanote
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 # A Milanote Alternative Built for Production Teams
 
 > Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.
 
-_Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-10-02_
 
 Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.
 
@@ -7281,7 +7276,7 @@ Both tools are beautiful, board-based, and made for creative work. Clusters lean
 
 ## A free Milanote alternative without the per-person bill
 
-Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. And its paid plans are priced per person. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.
+Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.
 
 - No trial clock on the free Demo tier
 - Flat $25/mo Creator — not per-person pricing
@@ -7333,8 +7328,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -7364,7 +7358,7 @@ Yes — Milanote’s free plan caps the total number of items across your boards
 
 ### Is Clusters cheaper than Milanote for a team?
 
-Usually, because Clusters is flat-priced: Creator is $25/mo rather than a per-person subscription, and anyone you share a board with can view it free with one link.
+Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.
 
 ### Is there a free Milanote alternative without item caps?
 
@@ -7467,8 +7461,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -7598,27 +7591,6 @@ Two different philosophies for reference boards:
 | Organize boards into projects | Yes — nested boards + graph | One file per board |
 | Fully offline | No | Yes |
 | Free to start | Yes | Pay what you want |
-
-## What it costs
-
-Start free. Pay when you outgrow it.
-
-**Free — $0 forever**
-
-- **50 cards** to build with
-- No separate limit on clusters — each one counts as one of your cards
-- Free collaboration — invite editors to any cluster
-
-**Creator — $25/mo, or $20/mo billed annually**
-
-- Unlimited cards
-- Any file type
-- No size limits
-- Covers your whole workspace
-
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
-
-Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
 ## Frequently asked questions
 
@@ -7750,8 +7722,7 @@ Start free. Pay when you outgrow it.
 
 - Unlimited cards
 - Any file type
-- No size limits
-- Covers your whole workspace
+- No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 

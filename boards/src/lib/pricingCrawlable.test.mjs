@@ -36,7 +36,8 @@ test('the crawlable body carries everything the React page renders', () => {
     PRICING_PAGE.freeCardName, PRICING_PAGE.freeCardPrice, PRICING_PAGE.freeCardSub,
     PLAN_NAME, PRICING.monthly.billedLabel, PRICING.annual.billedLabel, PRICING_PAGE.paidCardSub,
     PRICING_PAGE.paidHeading, PRICING_PAGE.paidBody, PRICING_PAGE.workspaceNote,
-    PRICING_PAGE.closing, PRICING_PAGE.closingSub,
+    PRICING_PAGE.closing, PRICING_PAGE.closingSub, PRICING_PAGE.startFreeSub, PRICING_PAGE.trustLine,
+    PRICING_PAGE.shot.caption,
     ...DEMO_FEATURES.map(plain),
     ...CREATOR_BENEFITS.flatMap((b) => [b.title, plain(b.body)]),
     ...PLAN_COMPARISON.flatMap((r) => [r.label, r.demo, r.creator]),
@@ -44,6 +45,48 @@ test('the crawlable body carries everything the React page renders', () => {
   ];
   const missing = must.filter((s) => !text.includes(plain(s)));
   assert.deepEqual(missing, [], 'the server-rendered /pricing body dropped copy the React page shows');
+});
+
+// The other direction. The forward test above proves crawlers get everything
+// a visitor sees; this proves visitors get everything crawlers see. The first
+// version of this body carried an eyebrow, the answer paragraph and the docs
+// links that the React page never rendered — copy shown only to crawlers,
+// which is the definition of what parity exists to prevent. Checked at the
+// source: each element the Worker prints names the export the view draws it
+// from, and the view must draw from it.
+test('the React page renders everything the crawlable body says', () => {
+  // Comments AND imports out: an identifier only counts if the view USES it —
+  // the first version of this test passed with the answer deleted from the
+  // JSX, because its name was still on the import line.
+  const view = readFileSync(resolve(BOARDS, 'src/auth/PricingPageView.jsx'), 'utf8')
+    .split('\n').filter((l) => !/^\s*(\/\/|\{?\/\*|\*|import\b)/.test(l)).join('\n');
+  const bits = readFileSync(resolve(BOARDS, 'src/components/PricingBits.jsx'), 'utf8');
+  const drawnFrom = [
+    'PRICING_PAGE.h1', 'PRICING_PAGE.subhead', 'PRICING_ANSWER',
+    'PRICING_PAGE.freeCardName', 'PRICING_PAGE.freeCardPrice', 'PRICING_PAGE.freeCardUnit',
+    'PRICING_PAGE.freeCardSub', 'DEMO_FEATURES', 'PLAN_NAME', 'PRICING_PAGE.paidCardSub',
+    'CREATOR_BENEFITS', 'PRICING_PAGE.startFreeSub', 'PRICING_PAGE.trustLine', 'shot.caption',
+    'PRICING_PAGE.paidHeading', 'PRICING_PAGE.paidBody', 'PLAN_COMPARISON', 'PRICING_PAGE.workspaceNote',
+    'PRICING_FAQ', 'PRICING_PAGE.closing', 'PRICING_PAGE.closingSub',
+    'CreatorPriceRow', 'PlanToggle',
+  ];
+  const missing = drawnFrom.filter((id) => !view.includes(id));
+  assert.deepEqual(missing, [], 'the crawlable /pricing body says things the React page does not render');
+  // The prices the body states come through the shared price row and toggle.
+  for (const id of ['SAVINGS_PCT_LABEL', 'planPerMonth', 'planBilling']) {
+    assert.ok(bits.includes(id), `PricingBits no longer renders ${id}`);
+  }
+  // Links the body carries, rendered by the view too.
+  for (const href of ['/docs/account/plans', '/pricing.md', '/llms.txt']) {
+    assert.ok(html.includes(`href="${href}"`), `the body lost ${href}`);
+    assert.ok(view.includes(`href="${href}"`), `the React page does not render the ${href} link the body carries`);
+  }
+  // And nothing crawler-only: the view has no eyebrow, so the body has none.
+  assert.doesNotMatch(html, /text-transform:uppercase/, 'an eyebrow line the React page does not show');
+  // Same order as the view: plans, then the answer, then the table.
+  const at = (s) => text.indexOf(plain(s));
+  assert.ok(at(PRICING_PAGE.freeCardSub) < at(PRICING_ANSWER) && at(PRICING_ANSWER) < at(PRICING_PAGE.paidHeading),
+    'the answer moved relative to the plans or the table — move PricingPageView with it');
 });
 
 test('the twin and the body state both prices and the workspace scope', () => {

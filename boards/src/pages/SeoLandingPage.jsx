@@ -394,7 +394,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
                     <li key={d.path}><a href={d.path}>{d.label}</a></li>
                   ))}
                   <li><a href="/explore">Explore example boards</a></li>
-                  <li><a href="/pricing">Pricing</a></li>
+                  <li><a href="/pricing" {...lp.ctaProps('footer_pricing', '/pricing', { intent: 'nav' })}>Pricing</a></li>
                   {/* Kept in lockstep with the Worker's fallback nav in
                       worker.js — /docs was an island with no inbound link. */}
                   <li><a href="/docs">Docs</a></li>

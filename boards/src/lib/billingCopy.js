@@ -103,8 +103,9 @@ export function planBilling(plan) {
 // CanvasSurface's canAttemptFiles = !(ownsWorkspace && !isPaidPlan) lets a
 // collaborator in someone else's workspace attempt optimistically and let the
 // server decide. So one subscription raises the ceiling for everyone working in
-// that workspace. Every individual competitor in this category charges per
-// seat; we do not, and never said so.
+// that workspace. That is true and worth saying, but it is not unique —
+// Milanote sells a flat team plan and Air charges no seats at all — so the copy
+// states what we do and never claims nobody else does.
 //
 // Say it as SCOPE, never as access or seats. "Full edit access, everywhere
 // you're invited" was the line 0188 made free and this file had to delete, and
@@ -352,6 +353,9 @@ export const PRICING_PAGE = {
     `The free plan is a real plan, not a countdown. ${PLAN_NAME} lifts its three limits for ${PRICING.monthly.billedLabel}.`,
   startFree: 'Start free',
   startFreeSub: 'No credit card. Nothing to install.',
+  // The second half of the trust line under the plans. Here rather than typed
+  // into the JSX so the crawlable /pricing body can say it too (parity).
+  trustLine: 'Built by a film studio, for real productions.',
   // The frame beneath the hero.
   //
   // It shows OUR board: the Clusters brand book — approved marks, the palette
@@ -395,9 +399,11 @@ export const PRICING_PAGE = {
   // the table are the two places that have to change with it.
   // The fourth CREATOR_FEATURES line. It is NOT a limit, so it has no row in
   // the table above — but it is the one genuinely competitive thing on the
-  // list (migration 0187 keyed every gate to the workspace OWNER, and every
-  // individual plan in this category charges per seat), so it gets said out
-  // loud rather than left to the FAQ. Keyed 'workspace' to match.
+  // list (migration 0187 keyed every gate to the workspace OWNER), so it gets
+  // said out loud rather than left to the FAQ. Keyed 'workspace' to match.
+  // Competitive, NOT unique: Milanote's team plan is flat ($49/mo for up to
+  // ten) and Air charges no seats on any plan. Say what we do; never say
+  // nobody else does.
   workspaceNote: `One ${PLAN_NAME} plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.`,
   // The free plan as a card, so the page can put the two side by side and let
   // someone compare them in one look. `price` is not a number from PRICING —

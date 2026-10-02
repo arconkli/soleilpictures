@@ -76,6 +76,8 @@ export function pricingModel() {
       rows: PLAN_COMPARISON.map((r) => ({ label: r.label, free: r.demo, creator: r.creator })),
       note: PRICING_PAGE.workspaceNote,
     },
+    trust: [PRICING_PAGE.startFreeSub, PRICING_PAGE.trustLine],
+    shot: { href: PRICING_PAGE.shot.href, caption: PRICING_PAGE.shot.caption },
     faq: PRICING_FAQ,
     closing: PRICING_PAGE.closing,
     closingSub: PRICING_PAGE.closingSub,
@@ -86,10 +88,11 @@ export function buildPricingCrawlableHtml() {
   const m = pricingModel();
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const parts = [];
-  parts.push('<p style="color:#FFA500;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin:0 0 .8em;">Pricing</p>');
+  // Same order as PricingPageView: hero, the two plans, the trust line, the
+  // answer, the product shot, the table, the FAQ, the close. No eyebrow — the
+  // React page has none, and a crawler-only line is the thing parity forbids.
   parts.push(`<h1 style="font-size:1.9rem;font-weight:700;margin:0 0 .4em;">${esc(m.h1)}</h1>`);
   parts.push(`<p style="color:#b7b1a6;font-size:1.15rem;margin:0 0 1.4em;">${esc(m.subhead)}</p>`);
-  parts.push(`<p><b>${esc(m.answer)}</b></p>`);
 
   parts.push(`<section><h2 style="${H2}">${esc(m.free.name)} — ${esc(m.free.price)}</h2><p>${esc(m.free.sub)}</p><ul>`);
   for (const f of m.free.features) parts.push(`<li>${emph(f)}</li>`);
@@ -99,6 +102,10 @@ export function buildPricingCrawlableHtml() {
   parts.push(`<p>${esc(m.creator.annual)}. ${esc(m.creator.sub)}</p><ul>`);
   for (const b of m.creator.benefits) parts.push(`<li><b>${esc(b.title)}</b> — ${emph(b.body)}</li>`);
   parts.push('</ul></section>');
+
+  parts.push(`<p>${esc(m.trust.join(' '))}</p>`);
+  parts.push(`<p><b>${esc(m.answer)}</b></p>`);
+  parts.push(`<p><a href="${esc(m.shot.href)}" style="color:#FFA500;">${esc(m.shot.caption)}</a></p>`);
 
   parts.push(`<section><h2 style="${H2}">${esc(m.comparison.heading)}</h2><p>${esc(m.comparison.body)}</p>`);
   parts.push(`<table><thead><tr><th></th><th>${esc(m.free.name)}</th><th>${esc(m.creator.name)}</th></tr></thead><tbody>`);
