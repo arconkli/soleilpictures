@@ -30,6 +30,8 @@ import {
   buildToneLUT, buildColorMatrix, buildSharpenKernel, clarityParams, LUMA,
 } from './imageAdjust.js';
 
+const IMAGE_EXT_RE = /\.(jpe?g|jfif|png|gif|webp|avif|heic|heif|bmp|svg|tiff?|jxl)$/i;
+
 // Safe download filename. `forceExt` overrides the extension (used when the
 // baked blob is a PNG regardless of the source format).
 export function filenameFor(s, t, forceExt) {
@@ -39,11 +41,14 @@ export function filenameFor(s, t, forceExt) {
     base = m ? decodeURIComponent(m[1]) : 'image';
   }
   base = base.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+  // Kept files arrive with their own extension (fileIngest keeps the real
+  // name), so the list covers what cameras and scanners write — a scan.tif
+  // must not come down as scan.tif.jpg.
   if (forceExt) {
-    base = base.replace(/\.(jpe?g|png|gif|webp|avif|heic|bmp|svg)$/i, '');
+    base = base.replace(IMAGE_EXT_RE, '');
     return `${base}.${forceExt}`;
   }
-  if (!/\.(jpe?g|png|gif|webp|avif|heic|bmp|svg)$/i.test(base)) base += '.jpg';
+  if (!IMAGE_EXT_RE.test(base)) base += '.jpg';
   return base;
 }
 

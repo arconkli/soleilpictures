@@ -98,3 +98,12 @@ test('a degenerate card does not throw', () => {
   assert.equal(bare.bpm, null);
   assert.equal(bare.sub, '');
 });
+
+test('a photo row is named by its file when nobody captioned it', () => {
+  const named = toListItem({ id: 'i1', kind: 'image', src: 'r2:k', fileName: 'diner_ext_dusk_04.jpg' });
+  assert.equal(named.name, 'diner_ext_dusk_04.jpg');
+  const captioned = toListItem({ id: 'i2', kind: 'image', src: 'r2:k', title: 'Diner, dusk', fileName: 'IMG_1.HEIC' });
+  assert.equal(captioned.name, 'Diner, dusk', 'a typed caption still wins');
+  assert.equal(toListItem({ id: 'i3', kind: 'image', src: 'r2:k' }).name, 'Image');
+  assert.equal(toListItem({ id: 'v1', kind: 'video', src: 'r2:v', fileName: 'take_03.mov' }).name, 'take_03.mov');
+});

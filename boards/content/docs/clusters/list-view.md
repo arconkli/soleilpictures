@@ -101,10 +101,12 @@ the fastest way through a folder of samples.
 ## Downloading
 
 Hover any row holding a file — an image, PDF, video, audio clip or attachment —
-and a download button appears at the end of it. Audio, PDFs and attachments
-keep their **original names**, so renaming a card for readability never costs you
-the extension. Images and videos do not keep the name they were uploaded with,
-and come down under a generic one.
+and a download button appears at the end of it. Files come down under their
+**original names**, so renaming a card for readability never costs you the
+extension. Images and videos uploaded before they started keeping names (see
+the [changelog](/changelog)) come down under the card's title, or a generic name
+if it has none. A name a browser invents for a pasted image — `image.png` — is
+not kept.
 
 **Download all** sits above the table whenever there is more than one file to
 take. It follows the search and the filters, so it reads *Download 14* once you
@@ -183,7 +185,7 @@ what a drive is really for, no. Here is the line:
 | Folders inside folders | Yes — nested clusters, as deep as you like |
 | Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free |
 | Store any kind of file | On {{fact:planName}}, any file type on a {{fact:creatorStorage}} drive. The free plan takes standard media under its [size caps](/docs/account/plans), and every file is one of its {{fact:demoCardLimit}} cards |
-| Keep each file's original name | For audio, PDFs and attachments. Images and videos come down under a generic name |
+| Keep each file's original name | Yes — images and videos from the [change that added it](/changelog) on; audio, PDFs and attachments always |
 | Share one file by its own link | No — sharing is per cluster. **Copy link** opens a card on its board, for people who can already open that board |
 | Sync a folder on your computer | No — there is no desktop sync app |
 | Work offline | No |

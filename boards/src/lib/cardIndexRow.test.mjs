@@ -216,3 +216,30 @@ test('only an EMPTY grid weighs zero — every other card is at least one', () =
   assert.equal(cardIndexWeight('schedule', (k) => ({ schedView: 'month', gridCells: {} }[k])), 1, 'empty schedule');
   assert.equal(cardIndexWeight('schedule', () => undefined), 1, 'legacy schedule');
 });
+
+// ── An uploaded image's or video's own name (2026-10) ───────────────────────
+// It is searchable from meta.fileName and NEVER the title: the title is the
+// caption, the alt text and the sitemap entry on a published /c/<slug> page.
+test('an image or video name goes to meta, never to the title', () => {
+  for (const kind of ['image', 'video']) {
+    const card = { id: `${kind}-n`, kind, src: 'r2:ws/x', fileName: 'client_v3_DO_NOT_SHARE.jpg' };
+    for (const row of [rowFromPlain(card), rowFromYMap(card)]) {
+      assert.equal(row.title, '', `${kind}: a file name must not become public caption text`);
+      assert.equal(row.meta.fileName, 'client_v3_DO_NOT_SHARE.jpg', `${kind}: but it is searchable from meta`);
+    }
+  }
+  // A caption the person typed still wins, as it always did.
+  const titled = rowFromPlain({ id: 'i-t', kind: 'image', src: 'r2:ws/x', title: 'Diner, dusk', fileName: 'IMG_1.HEIC' });
+  assert.equal(titled.title, 'Diner, dusk');
+});
+
+test('a card without a file name projects exactly what it always did', () => {
+  for (const card of [
+    { id: 'i0', kind: 'image', src: 'r2:ws/a.jpg', alt: 'x', w: 1, h: 1 },
+    { id: 'v0', kind: 'video', src: 'r2:ws/a.mov', poster: 'r2:ws/p.jpg' },
+  ]) {
+    assert.ok(!('fileName' in rowFromPlain(card).meta), `${card.kind}: no key unless there is a name`);
+  }
+  // Files and PDFs are titled by their name, as before — that is what they are.
+  assert.equal(rowFromPlain({ id: 'f0', kind: 'file', fileName: 'plates.zip' }).title, 'plates.zip');
+});

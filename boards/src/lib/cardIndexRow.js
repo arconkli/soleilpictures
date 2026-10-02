@@ -72,6 +72,10 @@ export function buildCardMeta(kind, get) {
       return {
         src: get('src') || null, alt: get('alt') || null,
         w: get('w') || null, h: get('h') || null,
+        // The uploaded file's name, when it had a real one (fileIngest
+        // meaningfulFileName). In META, never the title — see cardIndexTitle.
+        // Added only when present, so every existing row stays byte-identical.
+        ...(get('fileName') ? { fileName: String(get('fileName')).slice(0, 200) } : {}),
       };
     case 'palette':
       return { swatches: (get('swatches') || []).slice(0, 12) };
@@ -125,6 +129,7 @@ export function buildCardMeta(kind, get) {
         src: get('src') || null,
         poster: get('poster') || null,
         duration: get('duration') || null,
+        ...(get('fileName') ? { fileName: String(get('fileName')).slice(0, 200) } : {}),
       };
     // audio / pdf / file had no case, so every one of them projected null meta —
     // no preview in the universal popover, nothing on the public /c/<slug> page,
@@ -164,12 +169,20 @@ export function buildCardMeta(kind, get) {
   }
 }
 
-export function cardIndexTitle(get) {
+export function cardIndexTitle(get, kind = null) {
   // `fileName` is where a generic file card keeps its name (CanvasSurface.jsx:2279)
   // and it was not read here, so every uploaded file was indexed with an empty
   // title — invisible to search under the only string anybody knows it by.
+  //
+  // EXCEPT an image's or a video's. Those carry a fileName too since 2026-10,
+  // and the title is what a published /c/<slug> page prints as the caption, the
+  // alt text and the sitemap entry: "IMG_2034.HEIC" or "client_v3_DO_NOT_SHARE.jpg"
+  // must never become public copy because a board was published. Their name
+  // lives in meta.fileName instead, where the owner's own search can match it
+  // and the public RPCs, which pick meta keys by name, never return it.
+  const named = kind === 'image' || kind === 'video' ? null : get('fileName');
   return String(
-    get('title') || get('name') || get('fileName') || get('label') || get('url') || '',
+    get('title') || get('name') || named || get('label') || get('url') || '',
   ).slice(0, TITLE_MAX);
 }
 
@@ -246,7 +259,7 @@ export function buildCardIndexRow({ workspaceId, boardId, cardId, get, groupName
     board_id: boardId,
     card_id: cardId,
     kind,
-    title: cardIndexTitle(get),
+    title: cardIndexTitle(get, kind),
     body: cardIndexBody(kind, get),
     meta: withGroup,
     weight: cardIndexWeight(kind, get),

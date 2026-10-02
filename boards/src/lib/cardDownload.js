@@ -117,7 +117,11 @@ export async function fetchCardBlob(card, kind) {
 // behaviour has to survive this consolidation.
 export async function downloadCardAsset(card, kind, { surface = null } = {}) {
   if (kind === 'image' && card?.src) {
-    await downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust });
+    // The uploaded file's own name first, the same rule assetFilename applies to
+    // every other kind: a card titled "Diner, dusk" still downloads as the
+    // diner_ext_dusk_04.jpg it was dropped as. Older cards have no fileName and
+    // fall back to the title, as before.
+    await downloadImage({ src: card.src, title: card.fileName || card.title || card.label || '', adjust: card.adjust });
     return true;
   }
   const src = assetSrcFor(card, kind);

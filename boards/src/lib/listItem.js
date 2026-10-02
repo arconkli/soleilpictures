@@ -97,7 +97,9 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
 
   switch (kind) {
     case 'image':
-      item.name = card.title || card.label || 'Image';
+      // A caption someone typed, then the file's own name (fileIngest, 2026-10),
+      // then the generic word — which every photo in a cluster used to share.
+      item.name = card.title || card.label || card.fileName || 'Image';
       item.sub = card.caption || '';
       item.preview = card.src ? { mode: 'r2', src: card.src, kind } : { mode: 'placeholder', tone: card.tone, kind };
       item.sizeBytes = mediaSizeFrom(getMeta, card.src);

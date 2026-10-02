@@ -132,7 +132,9 @@ test('a card still uploading never leaves the card its upload will land in', () 
   const cell = canvas.slice(canvas.indexOf('const routeCardIntoCell = useCallback('));
   assert.match(cell.slice(0, 600), /if \(isStillUploading\(card\)\) return false;/, 'into a grid cell');
   assert.match(canvas, /const soloCellable = CELL_DROP_KINDS\.has\(soloKind\) && !isStillUploading\(cardById\[dragIds\[0\]\]\);/);
-  assert.match(canvas, /mutators\.updateCard\?\.\(c\.id, \{ src: payload\.publicUrl, adjust: null, pending: false \}\);/, 'Replace image… clears pending');
+  // (The replacement also carries its own file name since 2026-10 — or clears
+  // the old one; the assertion is about `pending`, so it allows that field.)
+  assert.match(canvas, /mutators\.updateCard\?\.\(c\.id, \{ src: payload\.publicUrl, adjust: null, pending: false(, fileName: payload\.fileName \|\| null)? \}\);/, 'Replace image… clears pending');
 });
 
 test('each open of a cluster gets its own look, whatever was looked up on the last visit', () => {

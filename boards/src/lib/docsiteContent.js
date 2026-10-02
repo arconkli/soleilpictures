@@ -6293,6 +6293,46 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Each image keeps the name its file had — "
+    },
+    {
+     "t": "code",
+     "v": "diner_ext_dusk_04.jpg"
+    },
+    {
+     "t": "text",
+     "v": " stays that in "
+    },
+    {
+     "t": "link",
+     "v": "list view",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "list view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and comes back out of Download under it. Give a card a caption and the caption is what list view shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one "
+    },
+    {
+     "t": "code",
+     "v": "image.png"
+    },
+    {
+     "t": "text",
+     "v": "), so it is not given one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all."
     }
    ]
@@ -16810,7 +16850,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. Audio, PDFs and attachments keep their "
+     "v": "Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. Files come down under their "
     },
     {
      "t": "strong",
@@ -16824,7 +16864,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", so renaming a card for readability never costs you the extension. Images and videos do not keep the name they were uploaded with, and come down under a generic one."
+     "v": ", so renaming a card for readability never costs you the extension. Images and videos uploaded before they started keeping names (see the "
+    },
+    {
+     "t": "link",
+     "v": "changelog",
+     "href": "/changelog",
+     "children": [
+      {
+       "t": "text",
+       "v": "changelog"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ") come down under the card's title, or a generic name if it has none. A name a browser invents for a pasted image — "
+    },
+    {
+     "t": "code",
+     "v": "image.png"
+    },
+    {
+     "t": "text",
+     "v": " — is not kept."
     }
    ]
   },
@@ -17425,7 +17488,22 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "For audio, PDFs and attachments. Images and videos come down under a generic name"
+       "v": "Yes — images and videos from the "
+      },
+      {
+       "t": "link",
+       "v": "change that added it",
+       "href": "/changelog",
+       "children": [
+        {
+         "t": "text",
+         "v": "change that added it"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on; audio, PDFs and attachments always"
       }
      ]
     ],
@@ -23878,7 +23956,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality — audio, PDFs and attachments under their original names. That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away."
+     "v": " mean the files stay behind glass: anyone who opens the link can download the images, audio, video, PDFs and attachments on it, at full quality and under their original names (for images and videos, the ones uploaded since names were kept). That is what makes a link worth sending — a sample pack or a stills selects is only useful if the other person can take it away."
     }
    ]
   },

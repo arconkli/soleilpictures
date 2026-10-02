@@ -9,7 +9,9 @@ import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
 import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 
-export function ImageLightbox({ src, title, alt, adjust, cardId, onClose }) {
+// `downloadName` — the uploaded file's own name, when the card kept one; the
+// download uses it over the display title (cardDownload's rule).
+export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null }) {
   // 'fit'    → contained inside the viewport (default)
   // 'actual' → natural size, pannable
   // Touch: pinch-zoom interpolates continuously between fit and 4× scale,
@@ -91,7 +93,7 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose }) {
     setDownloading(true);
     // Delegates to the shared module, which bakes any photo adjustments into
     // the file (or streams the original when there are none).
-    try { await downloadImage({ src, title, adjust }); }
+    try { await downloadImage({ src, title: downloadName || title, adjust }); }
     finally { setDownloading(false); }
   };
 

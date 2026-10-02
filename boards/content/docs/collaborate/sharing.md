@@ -53,8 +53,8 @@ created when they sign in and take it.
 
 Read-only means nobody can change the cluster. It does **not** mean the files
 stay behind glass: anyone who opens the link can download the images, audio,
-video, PDFs and attachments on it, at full quality — audio, PDFs and attachments
-under their original names. That is what makes a link worth sending — a sample pack or a stills
+video, PDFs and attachments on it, at full quality and under their original
+names (for images and videos, the ones uploaded since names were kept). That is what makes a link worth sending — a sample pack or a stills
 selects is only useful if the other person can take it away.
 
 Treat the link itself as the access control. If the contents should not leave,

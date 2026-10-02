@@ -176,7 +176,7 @@ import { analyzeAudioFile, analyzable } from './lib/audioAnalysis.js';
 import { parseLoopMeta } from './lib/loopMeta.js';
 import { lowMemoryDevice } from './lib/device.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
-import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
+import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor } from './lib/fileIngest.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
@@ -2377,7 +2377,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setAutoFocusId(id);
     };
     const addTextLink = addNote; // identical for now
-    const dropImageBlob = ({ id, publicUrl, width, height, x, y }) => {
+    const dropImageBlob = ({ id, publicUrl, width, height, x, y, fileName = null }) => {
       // Preserve natural dimensions and aspect ratio. Same sizing
       // approach as optimisticDropImage in CanvasSurface: scale DOWN
       // proportionally above MAX, scale UP proportionally below MIN,
@@ -2403,6 +2403,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         x: Math.max(8, Math.round((x ?? 200) - w / 2)),
         y: Math.max(8, Math.round((y ?? 200) - h / 2)),
         w, h,
+        ...(fileName ? { fileName } : {}),
       });
     };
     const addImageAt = (clickPos) => {
@@ -2416,8 +2417,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // ↔ image link consistent end-to-end.
         const cardId = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         try {
-          const up = await uploadImage({ file: f, workspaceId: workspace.id, boardId: boardId, cardId, userId: user.id });
-          dropImageBlob({ ...up, id: cardId, x: clickPos?.x, y: clickPos?.y });
+          const up = await uploadImage({ file: f, workspaceId: workspace.id, boardId: boardId, cardId, userId: user.id, originalName: meaningfulFileName(f) });
+          dropImageBlob({ ...up, id: cardId, x: clickPos?.x, y: clickPos?.y, fileName: meaningfulFileName(f) });
         } catch (e) {
           console.error(e);
           feedback.toast({ type: 'error', message: 'Image upload failed: ' + (e.message || e) });
@@ -2445,7 +2446,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           y: Math.max(8, Math.round((clickPos?.y ?? 200) - h / 2)), w, h,
         });
         try {
-          const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id });
+          const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id, originalName: meaningfulFileName(f) });
           // Silent (origin 'upload'): the async src patch must not become its
           // own undo step, or Cmd+Z "peels" the PDF back to pending before
           // removing the card.
@@ -2623,6 +2624,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const prepared = positioned.map((it, i) => {
         const id = `${prefixFor(it.kind)}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`;
         const card = { id, kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, pending: true };
+        // Images and videos keep the file's own name too (fileIngest), the same
+        // as the canvas drop — so a folder's worth dropped in list view comes back
+        // out of Download under the names it went in with.
+        if (it.kind === 'image' || it.kind === 'video') Object.assign(card, fileMetaFor(it.file));
         if (it.kind === 'pdf') card.name = it.file.name || 'PDF';
         else if (it.kind === 'audio') {
           // `title` is the editable display name; fileName/ext/mime/sizeBytes
@@ -2664,18 +2669,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await Promise.all(live.map(({ it, id }) => listUploadLimiter(async () => {
         try {
           if (it.route === 'image') {
-            const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
             updateCardSilent(id, { src: up.src, pending: false });
           } else if (it.route === 'pdf') {
-            const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
             updateCardSilent(id, { src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount, name: up.name, w: up.w, h: up.h, pending: false });
           } else if (it.route === 'video') {
             // canAttemptFiles mirrors CanvasSurface's allowLong semantics
             // (owner-pays: own board → own plan, shared board → owner's).
-            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file), ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
             updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
-            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id });
+            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file) });
             updateCardSilent(id, {
               src: up.src, duration: up.duration || null, pending: false,
               peaks: up.peaks || null, sampleRate: up.sampleRate || null,
@@ -2684,7 +2689,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             });
           } else {
             // 'largeMedia' (over-cap video/audio) + 'file' → multipart upload.
-            const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
             if (it.kind === 'audio') {
               // The canvas path reads audio duration before uploading; this one
               // patched only { src, pending } and silently dropped it, so an

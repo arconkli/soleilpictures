@@ -158,7 +158,7 @@ import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
-import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor } from '../lib/fileIngest.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
@@ -1394,7 +1394,7 @@ export function CanvasSurface({
   // all three reach the same lightbox.
   const openImageLightbox = useCallback((c) => {
     if (!c?.src) return;
-    setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust, cardId: c.id });
+    setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust, cardId: c.id, downloadName: c.fileName || null });
   }, []);
   // Photo editing: compact popover { cardId, anchorRect } and the full-screen
   // editor { cardId }. Both read the live card from `cards` each render so
@@ -3128,8 +3128,8 @@ export function CanvasSurface({
     }
     // Used by the "replace image" path on existing cards — keeps the
     // synchronous-await contract since there's no card to add.
-    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId });
-    return { publicUrl: up.src, width: up.width, height: up.height, x, y };
+    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId, originalName: meaningfulFileName(file) });
+    return { publicUrl: up.src, width: up.width, height: up.height, x, y, fileName: meaningfulFileName(file) };
   }, [useLocalImages, workspaceId, board?.id, userId]);
 
   // Optimistic image drop/paste. Adds the card immediately with a local
@@ -3288,12 +3288,14 @@ export function CanvasSurface({
       x: placed.x, y: placed.y,
       w, h,
       pending: true,
+      // The file's own name, when it has a real one (not a paste's "image.png").
+      ...fileMetaFor(file),
     });
     try {
       const onProgress = (frac) => {
         setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       };
-      const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       // If the user navigated to a different board mid-upload, the active
       // mutators no longer target the board this card lives on — skip the
       // patch. The upload has landed with the card id on its images row, so
@@ -3418,7 +3420,7 @@ export function CanvasSurface({
                          x: placed.x, y: placed.y, w, h, pending: true });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
         mutators.updateCardSilent?.(id, {
           src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
@@ -3460,7 +3462,7 @@ export function CanvasSurface({
                          sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h, pending: true });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
         mutators.updateCardSilent?.(id, {
           fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
@@ -3485,6 +3487,7 @@ export function CanvasSurface({
       w = Math.max(240, Math.min(560, meta.w || 360));
       const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
       h = Math.max(160, Math.round(w * aspect));
+      extra = { ...fileMetaFor(file) };
     } else {
       const meta = await readAudioMeta(file);
       ({ w, h } = FALLBACK_DIMS.audio);
@@ -3502,7 +3505,7 @@ export function CanvasSurface({
     mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { src: up.src, pending: false });
       // Poster from the local File, not from a re-download. Without this the
       // card is posterless until useVideoPosterBackfill rescues it by fetching
@@ -3541,7 +3544,7 @@ export function CanvasSurface({
     // through dropLargeMedia/multipart).
     let up;
     try {
-      up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId,
+      up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId, originalName: meaningfulFileName(file),
                                ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
     } catch (e) {
       // The free-tier length cap is a paid limit like the others, and the only
@@ -3566,6 +3569,7 @@ export function CanvasSurface({
       kind: 'video',
       src: up.src,
       ...(up.poster ? { poster: up.poster } : {}),
+      ...fileMetaFor(file),
       x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
       y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
       w, h,
@@ -3603,7 +3607,7 @@ export function CanvasSurface({
     });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, userId, onProgress });
+      const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
         mutators.updateCardSilent?.(id, {
           src: up.src, duration: up.duration || null, pending: false,
@@ -6620,7 +6624,9 @@ export function CanvasSurface({
                 // Clear any prior adjustments — they belonged to the old image —
                 // and `pending`: a stuck "Uploading…" card fixed this way has its
                 // file now, and must not spin, or be held back from moves, for good.
-                mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null, pending: false });
+                // The name goes with the file it named: a replacement either
+                // brings its own or clears the old one (null drops the key).
+                mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null, pending: false, fileName: payload.fileName || null });
               } catch (err) {
                 feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
               }
@@ -8584,7 +8590,7 @@ export function CanvasSurface({
     setCellUploads((p) => ({ ...p, [key]: 0 }));   // show the spinner the moment upload starts
     try {
       if (mime.startsWith('image/')) {
-        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
+        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
       } else if (mime.startsWith('video/')) {
         // canAttemptFiles, exactly as the canvas and list drop paths do it.
@@ -8592,11 +8598,11 @@ export function CanvasSurface({
         // owners too — the one upload route that never learned about the
         // plan — so a Creator account was refused a long clip by the ceiling
         // its own offer says it removed.
-        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress,
+        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress, originalName: meaningfulFileName(f),
                                        ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY, maxBytes: Number.POSITIVE_INFINITY } : {}) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
       } else {
-        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
+        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
       }
     } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
@@ -11648,6 +11654,7 @@ export function CanvasSurface({
       )}
       {lightbox && (
         <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
+                       downloadName={lightbox.downloadName || null}
                        onClose={() => setLightbox(null)} />
       )}
       {/* Per-card photo-adjustment SVG filter defs, referenced by id. Keyed off

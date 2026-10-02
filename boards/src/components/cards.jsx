@@ -238,8 +238,10 @@ function describeListItem(card, boards = {}) {
              meta: 'link', color: COVER_TINTS[target?.cover || 'neutral'] || dot };
   }
   if (card.kind === 'image') {
+    // A caption someone typed first, then the file's own name (fileIngest) —
+    // before 2026-10 every photo in list view was a row called "image".
     return { ...base, src: card.src || null,
-             name: card.title || card.label || 'image', meta: 'image' };
+             name: card.title || card.label || card.fileName || 'image', meta: 'image' };
   }
   if (card.kind === 'note') {
     const text = htmlToText(card.html, 80) || (card.body || '').toString().slice(0, 80);
@@ -263,7 +265,7 @@ function describeListItem(card, boards = {}) {
     return { ...base, name: card.title || 'Audio', meta: 'audio' };
   }
   if (card.kind === 'video') {
-    return { ...base, name: card.title || 'Video', meta: 'video' };
+    return { ...base, name: card.title || card.fileName || 'Video', meta: 'video' };
   }
   if (card.kind === 'pdf') {
     return { ...base, src: card.src || null,

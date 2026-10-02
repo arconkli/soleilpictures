@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  classifyDropFile, sizeBucket, fitImageDims,
+  classifyDropFile, sizeBucket, fitImageDims, meaningfulFileName, fileMetaFor,
   FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FALLBACK_DIMS,
 } from './fileIngest.js';
 
@@ -133,4 +133,35 @@ test('the skipped-files sentence covers both kinds and is silent when nothing wa
   assert.match(skippedFilesNotice({ partial: 3 }), /3 unfinished downloads/);
   assert.match(skippedFilesNotice({ pureref: 1 }), /PureRef/);
   assert.doesNotMatch(skippedFilesNotice({ partial: 1, pureref: 2 }), /paid|upgrade|Creator/i);
+});
+
+// ── meaningfulFileName / fileMetaFor ────────────────────────────────────────
+
+test('a real file name is kept, normalised to a clean basename', () => {
+  assert.equal(meaningfulFileName({ name: 'diner_ext_dusk_04.jpg' }), 'diner_ext_dusk_04.jpg');
+  assert.equal(meaningfulFileName({ name: 'IMG_2034.HEIC' }), 'IMG_2034.HEIC');
+  assert.equal(meaningfulFileName({ name: 'Screenshot 2026-10-02 at 10.11.12.png' }), 'Screenshot 2026-10-02 at 10.11.12.png');
+  // macOS decomposed accent → composed, so it matches a typed search.
+  assert.equal(meaningfulFileName({ name: 'cafe\u0301.jpg' }), 'caf\u00e9.jpg');
+  // A path never survives, and control characters are dropped.
+  assert.equal(meaningfulFileName({ name: 'refs/scene 4/diner.png' }), 'diner.png');
+  assert.equal(meaningfulFileName({ name: 'C:\\shots\\a.png' }), 'a.png');
+  assert.equal(meaningfulFileName({ name: 'a\u0007b\u0000.png' }), 'ab.png');
+  assert.equal(meaningfulFileName({ name: 'x'.repeat(300) + '.png' }).length, 200);
+});
+
+test('what a browser invents for a paste is not a name', () => {
+  for (const n of ['image.png', 'image.jpg', 'Image.PNG', 'image', 'blob', 'Pasted Graphic.png',
+    'Pasted Graphic 3.png', 'pasted image.png', 'Untitled.png', 'untitled-2.jpg', '', '   ']) {
+    assert.equal(meaningfulFileName({ name: n }), null, JSON.stringify(n));
+  }
+  assert.equal(meaningfulFileName(null), null);
+  assert.equal(meaningfulFileName({}), null);
+  // …but a name that merely starts with one of those words is real.
+  assert.equal(meaningfulFileName({ name: 'image_board_final.png' }), 'image_board_final.png');
+});
+
+test('fileMetaFor adds the name or nothing at all', () => {
+  assert.deepEqual(fileMetaFor({ name: 'diner.jpg' }), { fileName: 'diner.jpg' });
+  assert.deepEqual(fileMetaFor({ name: 'image.png' }), {});
 });

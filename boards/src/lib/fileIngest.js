@@ -157,3 +157,41 @@ export function fitImageDims(width, height) {
   }
   return { w, h };
 }
+
+// ── The name a file had on someone's computer ──────────────────────────────
+//
+// Until 2026-10 an image or video card kept nothing of the file it came from:
+// a folder of `diner_ext_dusk_04.jpg` came back from Download as `download.jpg`
+// and `file-1…file-40`, and no search could find a frame by the name the
+// photographer gave it. Audio, PDFs and attachments always kept theirs. This is
+// the one place that decides what counts as a name worth keeping, so every
+// drop path keeps the same thing.
+//
+// Not worth keeping: what a browser invents for a paste. Chrome and Firefox
+// call every clipboard image "image.png", Safari "Pasted Graphic 3.png", and a
+// Blob passed as a File is "blob". Keeping those would title a hundred cards
+// "image.png" and make the name column noise. A camera's own name
+// (IMG_2034.HEIC, DSC00412.ARW) IS kept — it is how a photographer finds the
+// frame again — and so is a macOS "Screenshot 2026-10-02 at 10.11.12.png".
+const CLIPBOARD_NAME_RE = /^(image|blob|untitled|pasted graphic|pasted image|clipboard)(\s*[-_ ]?\d+)?(\.[a-z0-9]{2,5})?$/i;
+const FILE_NAME_MAX = 200;
+
+export function meaningfulFileName(file) {
+  const raw = typeof file?.name === 'string' ? file.name : '';
+  // NFC: macOS hands over decomposed accents (e + U+0301), which then neither
+  // match a typed search nor compare equal to the same name from Windows.
+  let name = raw.normalize('NFC');
+  // A basename only — a dropped path must not survive into a download name.
+  name = name.split(/[\\/]/).pop() || '';
+  // C0 controls and DEL, written as escapes so the class is reviewable.
+  name = name.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  if (!name || CLIPBOARD_NAME_RE.test(name)) return null;
+  return name.slice(0, FILE_NAME_MAX);
+}
+
+// Spread into a new image or video card: `{ fileName }`, or nothing at all, so
+// a card from a paste stays byte-identical to what it always was.
+export function fileMetaFor(file) {
+  const fileName = meaningfulFileName(file);
+  return fileName ? { fileName } : {};
+}
