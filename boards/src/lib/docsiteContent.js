@@ -3485,6 +3485,32 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "[Google Drive](/vs/google-drive)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Google Drive",
+       "href": "/vs/google-drive",
+       "children": [
+        {
+         "t": "text",
+         "v": "Google Drive"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — keep it for backup and sync. Download the folder a project needs (Drive hands you a zip), unzip it and drop it on a canvas: it becomes a cluster with its folders nested inside, every file under its own name."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "[Milanote](/vs/milanote)",
      "children": [
       {
@@ -17092,22 +17118,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", so renaming a card for readability never costs you the extension. Images and videos uploaded before they started keeping names (see the "
-    },
-    {
-     "t": "link",
-     "v": "changelog",
-     "href": "/changelog",
-     "children": [
-      {
-       "t": "text",
-       "v": "changelog"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ") come down under the card's title, or a generic name if it has none. A name a browser invents for a pasted image — "
+     "v": ", so renaming a card for readability never costs you the extension. Images and videos uploaded before they started keeping names come down under the card's title, or a generic name if it has none. A name a browser invents for a pasted image — "
     },
     {
      "t": "code",
@@ -17745,22 +17756,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Yes — images and videos from the "
-      },
-      {
-       "t": "link",
-       "v": "change that added it",
-       "href": "/changelog",
-       "children": [
-        {
-         "t": "text",
-         "v": "change that added it"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " on; audio, PDFs and attachments always"
+       "v": "Yes — images and videos since names were kept; audio, PDFs and attachments always"
       }
      ]
     ],

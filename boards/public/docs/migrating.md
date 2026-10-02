@@ -43,6 +43,11 @@ Eagle stays the private library on your disk; bring the references one project
 needs onto a cluster, where the team builds the board together. Eagle keeps every
 original as a real file, so they drag in like any other files.
 
+**[Google Drive](/vs/google-drive)** — keep it for backup and sync. Download the
+folder a project needs (Drive hands you a zip), unzip it and drop it on a canvas:
+it becomes a cluster with its folders nested inside, every file under its own
+name.
+
 **[Milanote](/vs/milanote)** — very similar shape. Boards become clusters,
 nesting maps directly, and the card model is comparable.
 

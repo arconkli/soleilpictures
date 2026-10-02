@@ -1260,6 +1260,103 @@ const PAGES = [
     siblingListicle: { path: '/best/pureref-alternatives', label: 'See every PureRef alternative, Eagle included, ranked by a film studio.' },
     related: ['/vs/pureref', '/best/pureref-alternatives', '/tools/reference-board-maker', '/tools/shared-reference-board', '/vs/milanote', '/use-cases'],
   },
+  // /vs/google-drive — PRE-REGISTERED 2026-10-02 (the CLAUDE.md ritual).
+  //
+  // The owner's frame: "the artist's Google Drive — store, access and ORGANIZE
+  // your creative assets, and create new ones." The page competes on organising
+  // and making, NEVER on storing: no price per GB, no "replace Drive", nothing
+  // about sync, offline, backup or apps, and no storage add-ons (a later
+  // project). It ships with what makes it true — kept file names (de3f6550…
+  // 53db6e40) and folder drop (9c5f70aa) — and claims nothing beyond them: no
+  // saved web images and no search inside documents until those exist.
+  //   Google predicate: query ~* 'drive' on this path, search_type = 'web',
+  //     query = '' rows for the page total; 60 days from the production
+  //     promotion, never inside 3 days of it; floor 200 impressions before any
+  //     title or meta edit.
+  //   AEO predicate: the probe questions "Google Drive alternative for creative
+  //     teams" and "can I use Soleil Clusters like Google Drive" cite this domain
+  //     within 8 weekly runs of promotion — readable only once the probe's
+  //     OpenAI credits are restored.
+  //   Fold rule: under 50 impressions at day 60 → 301 into
+  //     /tools/shared-reference-board via RETIRED_PAGES (worker.js), retiring
+  //     the health expectations by url AND by expected (0262 / 0263).
+  // Drive facts, 2026-10-02: a folder downloads as zip files of up to 2GB each
+  // (Google Workspace Updates); Drive search finds words inside some images and
+  // PDFs by OCR; sync, offline, version history and single-file links are
+  // standard. None of them is something Clusters does, and the page says so.
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    path: '/vs/google-drive',
+    kind: 'compare',
+    title: 'Google Drive Alternative for Creative Teams — Clusters',
+    metaDescription:
+      'Keep Drive for backup and sync. Clusters is where a creative team sees its files: drop a folder, get nested boards, every file kept under its own name.',
+    h1: 'A Google Drive Alternative for Creative Work',
+    subhead:
+      'Drive stores your files. Clusters shows them — every reference on one canvas your team builds on together, organised the way your folders were.',
+    answer:
+      'Soleil Clusters is a Google Drive alternative for a creative team’s working files: drop a folder and it becomes nested boards, every file kept under its own name and laid out where the whole team can see it, comment and decide. Keep Drive for backup, sync and offline copies; use Clusters for the work.',
+    updated: '2026-10-02',
+    cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
+    stepsHeading: 'How to bring a Drive folder into Clusters',
+    steps: [
+      { t: 'Download the folder from Drive', d: 'Right-click it in Drive and choose Download. Drive hands you a zip — several for a big folder — so unzip them into one folder.' },
+      { t: 'Drop it on a canvas', d: 'It becomes a cluster named after the folder, with a nested cluster for each folder inside, and every file a card under its own name.' },
+      { t: 'Lay it out and decide', d: 'Arrange the references, write the brief beside them, and pin comments to the frames that need them.' },
+      { t: 'Share one link', d: 'Everyone you invite edits free, and one link shows the board to anyone, with no account needed to view it.' },
+    ],
+    sections: [
+      {
+        heading: 'Drive stores files. Clusters shows them.',
+        body: 'A Drive folder of references is a list of names until you open them one at a time. In Clusters the same folder is a canvas: every image on screen at once, in rows you can rearrange, beside the notes, the script pages and the decisions about it. Nothing is lost on the way in — each file keeps the name it had, and list view still sorts and filters a cluster like a folder when that is what you want.',
+        bullets: [
+          'Drop a folder and its folders become nested clusters',
+          'Every file keeps its name — in list view, in search, in downloads',
+          'List view browses a cluster like a folder: sort, filter, download',
+        ],
+      },
+      {
+        heading: 'Where a team actually works',
+        body: 'Drive shares files; it does not give a team a place to work on them together. In Clusters the board is shared and live: cursors, comments pinned to the card they are about, a vote card beside each option, and a doc with the brief or the screenplay right next to the images. A link opens it read-only in any browser, and everyone you invite edits free.',
+        bullets: [
+          'Live cursors, and comments pinned to the card in question',
+          'Docs and a screenplay mode beside the imagery',
+          'One link to show it; editors are free',
+        ],
+      },
+      {
+        heading: 'What to keep Drive for',
+        body: 'Backup, sync and offline. Drive keeps a copy on your computer, works without a connection, keeps earlier versions of a file, finds words inside some scanned images and PDFs, and shares a single file with its own link. Clusters does none of those, and is not trying to. Keep the archive in Drive and work from Clusters: drop the folder this project needs, and leave the rest where it is.',
+      },
+    ],
+    compare: {
+      competitor: 'Google Drive',
+      intro: 'How the two compare for a creative team’s working files. Drive features as of October 2026:',
+      rows: [
+        { feature: 'A folder of images, all on screen', us: 'Yes — a canvas, laid out', them: 'A thumbnail grid' },
+        { feature: 'Folders keep their structure', us: 'Yes — as nested clusters', them: 'Yes — as folders' },
+        { feature: 'File names kept', us: 'Yes', them: 'Yes' },
+        { feature: 'Notes, docs and comments beside the files', us: 'Yes, on the same canvas', them: 'Comments on a file; Docs separately' },
+        { feature: 'A live board a team works on together', us: 'Yes', them: 'No' },
+        { feature: 'Sync to your computer, and offline', us: 'No', them: 'Yes' },
+        { feature: 'Earlier versions of a file', us: 'No', them: 'Yes' },
+        { feature: 'Share one file by its own link', us: 'No — a whole cluster', them: 'Yes' },
+        { feature: 'Search words inside images and PDFs', us: 'No — file names and card text', them: 'Yes, for some files' },
+      ],
+    },
+    faq: [
+      { q: 'Is Soleil Clusters a Google Drive alternative?', a: 'For a creative team’s working files, yes: drop a folder and it becomes nested boards where every file is on screen, kept under its own name, and worked on together. For backup, sync to your computer and offline copies, keep Drive — Clusters does not do those.' },
+      { q: 'Can I bring a whole folder over from Google Drive?', a: 'Yes. Download it from Drive, which gives you a zip, unzip it, and drop the folder onto a Clusters canvas. It becomes a cluster with a nested cluster for each folder inside, and every file a card under its own name. A very large folder can go in over a few drops.' },
+      { q: 'Does Clusters sync with Google Drive?', a: 'No. Nothing syncs in either direction: Clusters keeps its own copy of what you drop in, and Drive keeps its own. That is why the honest split is Drive for the archive and Clusters for the project you are working on.' },
+      { q: 'Can I find a file by its name in Clusters?', a: 'Yes. Search finds photos and videos by the name their file had, along with cluster names, card text and tags, and list view sorts and filters a cluster like a folder.' },
+      { q: 'Is there a Clusters app for my phone?', a: 'Clusters runs in the mobile browser and can be added to the home screen as a web app. There is no App Store or Play Store listing yet, and a phone cannot drop a whole folder.' },
+    ],
+    docsLinks: [
+      { path: '/docs/clusters/list-view', label: 'Using a cluster like a drive' },
+      { path: '/docs/clusters', label: 'Dropping a folder' },
+    ],
+    related: ['/vs/eagle', '/tools/shared-reference-board', '/tools/reference-board-maker', '/vs/milanote', '/vs/pureref', '/use-cases'],
+  },
   {
     path: '/vs/pureref',
     kind: 'compare',
@@ -1542,6 +1639,7 @@ const PAGES = [
       '/vs/miro',
       '/vs/storyflow',
       '/vs/eagle',
+      '/vs/google-drive',
       '/tools/ai-mood-board-maker',
       '/tools/shared-reference-board',
       '/tools/directors-treatment',
@@ -1611,6 +1709,7 @@ const EXAMPLES_BY_PATH = {
   '/vs/miro':                     ['screenplay-beat-sheet', 'short-film-shot-list', 'world-cup-2026-moodboard'],
   '/vs/storyflow':                ['screenplay-beat-sheet', 'short-film-shot-list', 'neon-noir-look-book'],
   '/vs/eagle':                    ['film-noir-look-book', 'japandi-living-room', 'neon-noir-look-book'],
+  '/vs/google-drive':             ['world-cup-2026-moodboard', 'film-noir-look-book', 'japandi-living-room'],
   '/use-cases':                   ['world-cup-2026-moodboard', 'neon-noir-look-book', 'sage-terracotta-wedding'],
   '/tools/shared-reference-board':        ['film-noir-look-book', 'neon-noir-look-book', 'world-cup-2026-moodboard'],
   '/tools/directors-treatment':           ['neon-noir-look-book', 'film-noir-look-book', 'screenplay-beat-sheet'],
@@ -1632,6 +1731,7 @@ const EYEBROW_BY_PATH = {
   '/vs/miro':                     'Miro alternative',
   '/vs/storyflow':                'Storyflow alternative',
   '/vs/eagle':                    'Eagle alternative',
+  '/vs/google-drive':             'Google Drive alternative',
   '/use-cases':                   'What you can make',
   '/templates':                   'Grid templates',
   '/tools/shared-reference-board':        'For studio art teams',
