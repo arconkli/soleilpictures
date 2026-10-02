@@ -584,8 +584,19 @@ const PAGES = [
     path: '/vs/milanote',
     kind: 'compare',
     title: 'Free Milanote Alternative — Flat Price, Real-Time Teams',
+    // META PRE-REGISTERED 2026-10-01 (CLAUDE.md ritual). The description sold
+    // "auto-tagging", which files nothing (the tags doc: tagging moves nothing,
+    // suggestions only) and whose AI layer has never run. Swapped for screenplay
+    // mode, a live and differentiating feature. One surface, this commit only.
+    //   Predicate: path = '/vs/milanote', query = '' (page level),
+    //     search_type = 'web'; CTR and impression-weighted position.
+    //   Window: ±7 and ±14 days around the PRODUCTION deploy, never inside 3
+    //     days of it. Floor: 200 post-change web impressions before reading.
+    //   Expectation: no material change — no query on this page has ever
+    //     contained "tag"/"auto"/"organize" (0 impressions, 90d to 2026-09-28);
+    //     baseline 764 impressions / 11 clicks in the 28 days to 2026-10-01.
     metaDescription:
-      'The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with auto-tagging, 100GB storage and sharing.',
+      'The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with screenplay mode, 100GB storage and link sharing.',
     h1: 'A Milanote Alternative Built for Production Teams',
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
