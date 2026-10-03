@@ -133,14 +133,42 @@ test('App writes it as a seed, in one transaction, free at the cap, and spends t
   assert.match(fn, /afterInsert: \(cardYM\) => \{[\s\S]*initCardDocStore\(ydoc, cardYM\);[\s\S]*writeScriptBody\(ydoc, scope, p\.docJSON, \{ name: p\.name \}\)/);
   assert.match(app, /const cost = isSeedCard\(card\) \? 0 : placementCost\(card\);/,
     'a seed is never indexed, so the gate must not charge it either');
-  assert.match(app, /useStarterIntentResume\(\{\s*ready: !myTier\.loading && yb\.ready && firstRunSettled && !!currentBoard\?\.id && canEditCurrent,/);
+  assert.match(app, /useStarterIntentResume\(\{\s*ready: !myTier\.loading && yb\.ready && yb\.synced && yb\.boardId === currentBoard\?\.id\s*&& firstRunSettled && !!currentBoard\?\.id && canEditCurrent,/,
+    'placed against the server\'s board, not the cache paint');
   const hook = read('hooks/useStarterIntentResume.js');
-  assert.ok(hook.indexOf('clearStarterIntent();') < hook.indexOf('resumeRef.current(intent);'),
-    'spent before the write — a refusal or a crash never writes it twice');
+  const claim = hook.indexOf('claimStarterIntent().then(');
+  assert.ok(claim > 0 && claim < hook.indexOf('resumeRef.current(intent);'),
+    'spent (claimed) before the write — a refusal or a crash never writes it twice');
 });
 
 test('a free start on the treatment page asks for it; one anywhere else drops an old request', () => {
   const hook = read('hooks/useLandingEngagement.js');
   assert.match(hook, /if \(starter\) stashStarterIntent\(\{ kind: starter, from: page \}\);\s*else clearStarterIntent\(\);/);
   assert.match(read('pages/SeoLandingPage.jsx'), /starter: spec\?\.starter \|\| null,/);
+});
+
+test('two tabs signing in together claim the request once between them', async () => {
+  const { claimStarterIntent } = await import('../hooks/useStarterIntentResume.js');
+  const m = new Map();
+  globalThis.localStorage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) };
+  try {
+    // A Web Lock that really serialises: each holder runs to completion before
+    // the next starts, the way navigator.locks does across tabs.
+    let chain = Promise.resolve();
+    const asked = [];
+    const locks = { request: (name, fn) => { asked.push(name); const run = chain.then(() => fn()); chain = run.catch(() => {}); return run; } };
+    stashStarterIntent({ kind: 'treatment' });
+    const [a, b] = await Promise.all([claimStarterIntent({ locks }), claimStarterIntent({ locks })]);
+    assert.equal([a, b].filter(Boolean).length, 1, 'exactly one tab gets it');
+    // In one process the two never truly race, so what this pins is that the
+    // read-and-clear runs INSIDE the shared lock, which is what holds across tabs.
+    assert.deepEqual(asked, ['soleil.starter-intent', 'soleil.starter-intent']);
+    assert.equal(readStarterIntent(), null);
+    // No lock API at all still claims, once.
+    stashStarterIntent({ kind: 'treatment' });
+    assert.equal((await claimStarterIntent({ locks: null }))?.kind, 'treatment');
+    assert.equal(await claimStarterIntent({ locks: null }), null);
+  } finally {
+    delete globalThis.localStorage;
+  }
 });

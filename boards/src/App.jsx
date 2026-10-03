@@ -6337,9 +6337,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // "Start a treatment" pressed on its page before signing in (lib/starterIntent):
   // the document it promised lands on the first cluster this person can write,
   // once a brand-new account's own first run has finished, beside whatever is
-  // already there, and opens.
+  // already there, and opens. `synced`, not `ready`: ready comes with the
+  // instant cache paint, and the document is placed beside what the SERVER
+  // says is on the board.
   useStarterIntentResume({
-    ready: !myTier.loading && yb.ready && firstRunSettled && !!currentBoard?.id && canEditCurrent,
+    ready: !myTier.loading && yb.ready && yb.synced && yb.boardId === currentBoard?.id
+      && firstRunSettled && !!currentBoard?.id && canEditCurrent,
     onResume: (intent) => {
       const id = mainMutators.addStarterDoc?.(intent.kind, starterDocSpot(yb.cards));
       try {
