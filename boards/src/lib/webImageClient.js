@@ -8,10 +8,14 @@
 // keeps this module free of the Supabase client and testable under node.
 
 const PATH = '/api/media/save-url';
-// A route that is not there (a dev server with no Worker) or a Worker that is
-// struggling is not asked again for a minute, so a run of drags does not
-// become a run of failing requests.
+// A route that is not there (a dev server with no Worker) or one failing for
+// everybody (a 5xx about the route itself, or a 429) is not asked again for a
+// minute, so a run of drags does not become a run of failing requests. A
+// refusal about ONE request — a dead link, a busy isolate — is not a reason to
+// stop asking about the next: old hotlinks are often dead, and one of them must
+// not stall every save in the tab.
 const COOLDOWN_MS = 60_000;
+const ABOUT_ONE_REQUEST = new Set(['source_unavailable', 'busy']);
 let cooldownUntil = 0;
 
 export async function saveWebImageCopy({
@@ -29,7 +33,9 @@ export async function saveWebImageCopy({
     });
     const isJson = /application\/json/i.test(r.headers.get('content-type') || '');
     const data = isJson ? await r.json().catch(() => null) : null;
-    if (!isJson || r.status >= 500 || r.status === 429) cooldownUntil = now() + COOLDOWN_MS;
+    if (!isJson || r.status === 429 || (r.status >= 500 && !ABOUT_ONE_REQUEST.has(data?.error))) {
+      cooldownUntil = now() + COOLDOWN_MS;
+    }
     if (!r.ok) return { ok: false, code: data?.error || `http_${r.status}` };
     if (typeof data?.src !== 'string' || !data.src.startsWith('r2:')) return { ok: false, code: 'bad_response' };
     return { ok: true, ...data };

@@ -24,7 +24,7 @@ const MEMO_MAX = 500;
 const PERMANENT = new Set(['not_an_image', 'too_large', 'unsafe_url', 'bad_request']);
 // Not about this picture — about the account, the board or the route. Stop the
 // pass; the next open asks again.
-const STOPS_PASS = new Set(['over_quota', 'not_writer', 'not_found', 'rate_limited', 'cooldown', 'signed_out', 'storage_unavailable']);
+const STOPS_PASS = new Set(['over_quota', 'not_writer', 'not_found', 'rate_limited', 'cooldown', 'signed_out', 'storage_unavailable', 'busy']);
 export const stopsThePass = (code) => STOPS_PASS.has(code);
 
 export const isHotlinkImage = (c) => c?.kind === 'image' && !c.pending

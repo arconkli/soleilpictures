@@ -156,7 +156,8 @@ import { recordSeen, takeReturn } from './lib/returnVisit.js';
 import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode, setTitlePage, writeScriptBody } from './lib/docState.js';
-import { STARTER_DOCS, starterDocPages, starterDocSpot } from './lib/starterDocs.js';
+import { STARTER_DOCS, isStarterKind, starterDocSpot, writeStarterDoc, starterDocsTouched, isPristineStarter } from './lib/starterDocs.js';
+import { openDocWhenMounted } from './lib/openDocCard.js';
 import { useStarterIntentResume } from './hooks/useStarterIntentResume.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
 import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/gridLayoutLibrary.js';
@@ -2341,37 +2342,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // A document a page promised (lib/starterDocs.js) — the director's
     // treatment's cover and sections, a page each — written in the card's own
     // creation transaction like a dropped script, so it is whole everywhere at
-    // once and one ⌘Z takes it back. Marked `seed`, like the onboarding starter
-    // cards: it is our template, not the person's own work, so it does not
-    // stamp activation (cardIndexRow.isSeedCard keeps it out of card_index,
-    // where 0120's first-card stamps read) or fire first-value. Its pages are
-    // still indexed for search (boardsApi._syncDocIndexForBoard). Returns the
-    // card's id, or null when the board refused it.
+    // once and one ⌘Z takes it back. Placed as a `seed`, like the onboarding
+    // starter cards, while it is still only our template: kept out of
+    // card_index, so it neither counts nor stamps 0120's first-card activation
+    // nor fires first-value. The first change to what it holds drops the flag
+    // (the starter-promotion effect below) and from then on it is the person's
+    // own document. Returns the card's id, or null when the board refused it.
     const addStarterDoc = (kind, clickPos = null) => {
-      const pages = starterDocPages(kind);
-      if (!pages.length) return null;
+      if (!isStarterKind(kind)) return null;
       const d = defaultsRef.current?.doc || {};
       const w = d.w || 320, h = d.h || 240;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
       const placed = addCard({
-        id, kind: 'doc', title: STARTER_DOCS[kind].title, seed: true,
+        id, kind: 'doc', title: STARTER_DOCS[kind].title, seed: true, starter: kind,
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       }, {
-        afterInsert: (cardYM) => {
-          if (!cardYM) return;
-          initCardDocStore(ydoc, cardYM);
-          const scope = cardScope(cardYM);
-          for (const p of pages) {
-            try { writeScriptBody(ydoc, scope, p.docJSON, { name: p.name }); } catch (_) {}
-          }
-        },
+        afterInsert: (cardYM) => { if (cardYM) writeStarterDoc(ydoc, cardYM, kind); },
       });
-      if (!placed) return null;
-      setAutoFocusId(placed);
-      return placed;
+      // Not setAutoFocusId: for a doc that now means "focus the title with its
+      // text selected", so the next keystroke would rename the treatment. The
+      // caller opens it (lib/openDocCard).
+      return placed || null;
     };
 
     const setBoardBgColor = async (color) => {
@@ -6340,11 +6334,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // already there, and opens. `synced`, not `ready`: ready comes with the
   // instant cache paint, and the document is placed beside what the SERVER
   // says is on the board.
+  // Only on a cluster in this person's OWN workspace: a collaborator whose '/'
+  // reopens a cluster shared with them must not have a treatment written into
+  // somebody else's board. The request keeps (a day) until they are home.
+  const onOwnBoard = !!currentBoard?.id && currentBoard.workspace_id === workspace?.id
+    && !!user?.id && workspace?.created_by === user.id;
   useStarterIntentResume({
     ready: !myTier.loading && yb.ready && yb.synced && yb.boardId === currentBoard?.id
-      && firstRunSettled && !!currentBoard?.id && canEditCurrent,
+      && firstRunSettled && !!currentBoard?.id && canEditCurrent && onOwnBoard,
     onResume: (intent) => {
       const id = mainMutators.addStarterDoc?.(intent.kind, starterDocSpot(yb.cards));
+      if (id) openDocWhenMounted({ boardId: currentBoard.id, cardId: id });
       try {
         logEvent(EV.STARTER_DOC_ADDED, {
           kind: intent.kind, from: intent.from, placed: !!id, board_id: currentBoard?.id || null,
@@ -6353,6 +6353,40 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (_) {}
     },
   });
+  // A starter document stops being our template the moment someone changes
+  // what it holds (lib/starterDocs isPristineStarter): the seed flag goes, so
+  // the next save indexes it — searchable, counted as one card, and stamping
+  // the activation it now really is. Watched on BOTH panes' boards, because a
+  // docked document is edited through the split pane's doc. Checked after a
+  // pause rather than per keystroke, and by content, so a re-render that writes
+  // nothing new (or an edit typed and undone) leaves it a template.
+  useEffect(() => {
+    const targets = [
+      { ydoc: yb.ydoc, boardId: yb.boardId },
+      { ydoc: splitYb.ydoc, boardId: splitYb.boardId },
+    ].filter((t, i, all) => t.ydoc && all.findIndex((u) => u.ydoc === t.ydoc) === i);
+    const offs = targets.map(({ ydoc, boardId }) => {
+      const cards = ydoc.getMap('cards');
+      const pending = new Map();   // card id → timer
+      const onDeep = (events) => {
+        for (const id of starterDocsTouched(events, cards)) {
+          if (pending.has(id)) continue;
+          pending.set(id, setTimeout(() => {
+            pending.delete(id);
+            const ym = cards.get(id);
+            if (!ym || ym.get('seed') !== true || !ym.get('starter') || isPristineStarter(ym)) return;
+            // 'upload': not the person's undo step — undoing their typing must
+            // not turn their document back into an uncounted template.
+            ydoc.transact(() => { ym.delete('seed'); }, 'upload');
+            try { logEvent(EV.STARTER_DOC_WRITTEN, { kind: ym.get('starter'), board_id: boardId || null }); } catch (_) {}
+          }, 1500));
+        }
+      };
+      cards.observeDeep(onDeep);
+      return () => { cards.unobserveDeep(onDeep); for (const t of pending.values()) clearTimeout(t); };
+    });
+    return () => offs.forEach((off) => off());
+  }, [yb.ydoc, yb.boardId, splitYb.ydoc, splitYb.boardId]);
   // Same decision for the split pane. This used to be hardcoded `canEdit={true}`
   // — survivable while the pane could only ever show the one board you picked
   // from your own workspace, but not now that you can navigate inside it: a

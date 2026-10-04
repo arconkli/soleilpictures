@@ -13,13 +13,17 @@ Add one with the **doc** tool in the rail.
 ## Starting from a treatment
 
 The [director's treatment](/tools/directors-treatment) page hands you a
-document to start from. Press its button and the first cluster you can edit
-gets a treatment document. It holds a cover, then a page for each section:
-concept, tone and references, look and light, casting, wardrobe and art
-direction, locations, and edit, music and pace. Each page has a line saying
-what goes on it, and the document opens when it lands. Replace the lines with
-your own, bring the chosen images in, and
+document to start from. Press its button, and once you are signed in a
+treatment document is added to a cluster in your own workspace and opens. It
+holds a cover, then a page for each section: concept, tone and references,
+look and light, casting, wardrobe and art direction, locations, and edit,
+music and pace. Each page has a line saying what goes on it. Replace the lines
+with your own, bring the chosen images in, and
 [export](/docs/documents/export) a PDF.
+
+Until you change something in it, the treatment is a template: it does not
+count toward your cards and search does not list it. Your first change makes
+it your document like any other.
 
 ## Opening
 

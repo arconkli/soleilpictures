@@ -12,7 +12,9 @@ import StarterKit from '@tiptap/starter-kit';
 import { yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror';
 import {
   TREATMENT_SECTIONS, TREATMENT_EXPORT_STEP, STARTER_DOCS, treatmentPageSteps, starterDocPages, starterDocSpot, isStarterKind,
+  writeStarterDoc, isPristineStarter, starterDocsTouched, docFingerprint,
 } from './starterDocs.js';
+import { openDocWhenMounted } from './openDocCard.js';
 import { stashStarterIntent, readStarterIntent, clearStarterIntent, STARTER_INTENT_KEY, STARTER_INTENT_MAX_AGE_MS } from './starterIntent.js';
 import { initCardDocStore, cardScope, writeScriptBody, readPages, pageContentMap } from './docState.js';
 import { docPagesText } from './docText.js';
@@ -37,9 +39,8 @@ function boardWithStarter(kind = 'treatment') {
     ym.set('kind', 'doc');
     ym.set('title', STARTER_DOCS[kind].title);
     ym.set('seed', true);
-    initCardDocStore(ydoc, ym);
-    const scope = cardScope(ym);
-    for (const p of starterDocPages(kind)) writeScriptBody(ydoc, scope, p.docJSON, { name: p.name });
+    ym.set('starter', kind);
+    writeStarterDoc(ydoc, ym, kind);   // App's own write
   }, 'local');
   return { ydoc, undo, cards };
 }
@@ -129,12 +130,16 @@ test('the request survives sign-in for a day, and only for a document that exist
 test('App writes it as a seed, in one transaction, free at the cap, and spends the request first', () => {
   const app = read('App.jsx');
   const fn = app.slice(app.indexOf('const addStarterDoc = (kind, clickPos = null) => {'), app.indexOf('const setBoardBgColor = async'));
-  assert.match(fn, /kind: 'doc', title: STARTER_DOCS\[kind\]\.title, seed: true,/);
-  assert.match(fn, /afterInsert: \(cardYM\) => \{[\s\S]*initCardDocStore\(ydoc, cardYM\);[\s\S]*writeScriptBody\(ydoc, scope, p\.docJSON, \{ name: p\.name \}\)/);
+  assert.match(fn, /kind: 'doc', title: STARTER_DOCS\[kind\]\.title, seed: true, starter: kind,/);
+  assert.match(fn, /afterInsert: \(cardYM\) => \{ if \(cardYM\) writeStarterDoc\(ydoc, cardYM, kind\); \},/);
+  assert.doesNotMatch(fn.replace(/^\s*\/\/.*$/gm, ''), /setAutoFocusId/,
+    'autofocus selects a doc\'s TITLE text — the next keystroke would rename the treatment');
   assert.match(app, /const cost = isSeedCard\(card\) \? 0 : placementCost\(card\);/,
     'a seed is never indexed, so the gate must not charge it either');
-  assert.match(app, /useStarterIntentResume\(\{\s*ready: !myTier\.loading && yb\.ready && yb\.synced && yb\.boardId === currentBoard\?\.id\s*&& firstRunSettled && !!currentBoard\?\.id && canEditCurrent,/,
-    'placed against the server\'s board, not the cache paint');
+  assert.match(app, /useStarterIntentResume\(\{\s*ready: !myTier\.loading && yb\.ready && yb\.synced && yb\.boardId === currentBoard\?\.id\s*&& firstRunSettled && !!currentBoard\?\.id && canEditCurrent && onOwnBoard,/,
+    'placed against the server\'s board, not the cache paint — and only on the person\'s own');
+  assert.match(app, /const onOwnBoard = !!currentBoard\?\.id && currentBoard\.workspace_id === workspace\?\.id\s*&& !!user\?\.id && workspace\?\.created_by === user\.id;/);
+  assert.match(app, /if \(id\) openDocWhenMounted\(\{ boardId: currentBoard\.id, cardId: id \}\);/);
   const hook = read('hooks/useStarterIntentResume.js');
   const claim = hook.indexOf('claimStarterIntent().then(');
   assert.ok(claim > 0 && claim < hook.indexOf('resumeRef.current(intent);'),
@@ -171,4 +176,98 @@ test('two tabs signing in together claim the request once between them', async (
   } finally {
     delete globalThis.localStorage;
   }
+});
+
+// ── Template until touched ──────────────────────────────────────────────────
+
+const firstPage = (card) => {
+  const scope = cardScope(card);
+  const pages = scope.pages.toArray();
+  return { scope, id: pages[1].id };   // "Concept"
+};
+
+test('an untouched starter is pristine; any real change makes it the person\'s', () => {
+  const fresh = () => boardWithStarter().cards.get('doc-1');
+  assert.equal(isPristineStarter(fresh()), true);
+
+  const typed = fresh();
+  const { scope, id } = firstPage(typed);
+  scope.content.get(id).get(1).get(0).insert(0, 'A diner at night. ');
+  assert.equal(isPristineStarter(typed), false, 'a word typed');
+
+  const renamed = fresh();
+  const r = firstPage(renamed);
+  const pages = r.scope.pages;
+  const entry = pages.get(1);
+  renamed.doc.transact(() => { pages.delete(1, 1); pages.insert(1, [{ ...entry, name: 'Idea' }]); });
+  assert.equal(isPristineStarter(renamed), false, 'a page renamed');
+
+  const imaged = fresh();
+  const im = firstPage(imaged);
+  im.scope.content.get(im.id).insert(2, [new Y.XmlElement('image')]);
+  assert.equal(isPristineStarter(imaged), false, 'an image dropped in, no words changed');
+
+  const settings = fresh();
+  cardScope(settings).meta.set('zoom', 1.25);
+  assert.equal(isPristineStarter(settings), true, 'a setting is not authorship');
+  assert.equal(isPristineStarter(new Y.Map()), false, 'a card that is not a starter is never "pristine"');
+});
+
+test('only content changes to a STARTER that is still a seed are picked up', () => {
+  const { ydoc, cards } = boardWithStarter();
+  const plain = new Y.Map();
+  ydoc.transact(() => { cards.set('doc-2', plain); plain.set('kind', 'doc'); writeStarterDoc(ydoc, plain, 'treatment'); });
+  const seen = [];
+  cards.observeDeep((events) => seen.push(...starterDocsTouched(events, cards)));
+  const { scope, id } = firstPage(cards.get('doc-1'));
+  scope.content.get(id).get(1).get(0).insert(0, 'x');
+  cardScope(cards.get('doc-1')).meta.set('zoom', 2);                       // settings: ignored
+  const p2 = firstPage(plain);
+  p2.scope.content.get(p2.id).get(1).get(0).insert(0, 'y');                 // not a starter: ignored
+  assert.deepEqual(seen, ['doc-1']);
+  cards.get('doc-1').delete('seed');
+  scope.content.get(id).get(1).get(0).insert(0, 'z');                      // promoted already: ignored
+  assert.deepEqual(seen, ['doc-1']);
+});
+
+test('the fingerprint ignores ids, so every untouched treatment matches every other', () => {
+  const a = boardWithStarter().cards.get('doc-1');
+  const b = boardWithStarter().cards.get('doc-1');
+  assert.notEqual(cardScope(a).pages.get(0).id, cardScope(b).pages.get(0).id);
+  assert.equal(docFingerprint(a), docFingerprint(b));
+});
+
+test('App drops the seed on the first real change, on both panes, outside the person\'s undo', () => {
+  const app = read('App.jsx');
+  const fx = app.slice(app.indexOf('// A starter document stops being our template'));
+  const body = fx.slice(0, fx.indexOf('}, [yb.ydoc, yb.boardId, splitYb.ydoc, splitYb.boardId]);'));
+  assert.match(body, /\{ ydoc: yb\.ydoc, boardId: yb\.boardId \},\s*\{ ydoc: splitYb\.ydoc, boardId: splitYb\.boardId \},/);
+  assert.match(body, /for \(const id of starterDocsTouched\(events, cards\)\)/);
+  assert.match(body, /if \(!ym \|\| ym\.get\('seed'\) !== true \|\| !ym\.get\('starter'\) \|\| isPristineStarter\(ym\)\) return;/);
+  assert.match(body, /ydoc\.transact\(\(\) => \{ ym\.delete\('seed'\); \}, 'upload'\);/);
+  assert.match(body, /cards\.unobserveDeep\(onDeep\);/);
+});
+
+// ── Opening it ──────────────────────────────────────────────────────────────
+
+test('it is centred first, and opened only once its card is in the page', () => {
+  const events = [];
+  let mounted = false;
+  const queue = [];
+  const doc = {
+    dispatchEvent: (e) => events.push([e.type, e.detail]),
+    querySelector: (sel) => (mounted && sel === '[data-card-id="doc-9"]' ? {} : null),
+  };
+  const schedule = (fn) => queue.push(fn);
+  const run = () => { const fn = queue.shift(); fn && fn(); };
+  assert.equal(openDocWhenMounted({ boardId: 'b1', cardId: 'doc-9', doc, schedule }), true);
+  assert.deepEqual(events, [['soleil-flash-card', { boardId: 'b1', cardId: 'doc-9' }]]);
+  run(); run();                                      // not mounted yet: keeps looking
+  assert.equal(events.length, 1);
+  mounted = true;
+  run();                                             // found — one beat for its listener
+  assert.equal(events.length, 1);
+  run();
+  assert.deepEqual(events[1], ['soleil-open-doc-card', { cardId: 'doc-9', pageId: null, scrollTop: 0 }]);
+  assert.equal(openDocWhenMounted({ boardId: null, cardId: 'x', doc, schedule }), false);
 });

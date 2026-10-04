@@ -9,7 +9,7 @@
 //
 // Pure, DOM-free except for the storage it is handed.
 
-import { isStarterKind } from './starterDocs.js';
+import { isStarterKind } from './starterSections.js';
 
 export const STARTER_INTENT_KEY = 'soleil.boards.pending.starter';
 export const STARTER_INTENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;

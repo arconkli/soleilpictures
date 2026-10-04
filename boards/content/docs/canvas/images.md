@@ -56,10 +56,10 @@ breaks when that page moves, expires its link or goes behind a login, and the
 copy does not. It keeps the file's name when the address has one, like
 `ext_dusk_04.jpg`.
 
-The copy is counted against your storage like any upload. The same image
-dragged in twice in one workspace is stored once. Web images that went onto a
-board before copies were kept get copied the same way. It happens a few at a
-time, whenever someone who can edit that cluster opens it.
+The copy counts against storage like any upload. In a cluster someone else
+owns, that is the owner's storage. Web images that went onto a board before
+copies were kept get copied the same way. It happens a few at a time, whenever
+someone who can edit that cluster opens it.
 
 Sometimes no copy can be made: the image sits behind a login, is larger than
 {{fact:webImageMaxSize}}, your storage is full, or it isn't a format every

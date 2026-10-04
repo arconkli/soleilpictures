@@ -3426,7 +3426,7 @@ export function CanvasSurface({
           url: c.src, boardId: passBoardId, cardId: c.id,
           getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
         });
-        const code = res?.ok ? (res.reused ? 'reused' : 'saved') : (res?.code || 'unknown');
+        const code = res?.ok ? 'saved' : (res?.code || 'unknown');
         try {
           logEvent(EV.WEB_IMAGE_SAVE, {
             board_id: passBoardId, source: 'backfill', ok: !!res?.ok, code, bytes: res?.ok ? (res.bytes ?? null) : null,
@@ -9310,7 +9310,10 @@ export function CanvasSurface({
           // browser has loaded the image (cap at 1200 along longer axis).
           const id = `image-${Date.now()}`;
           const fallbackW = 320, fallbackH = 240;
-          mutators.addCard?.({
+          // The id, or null when the board refused the card (the cap) — and a
+          // refused card is never copied: the bytes would be stored and billed
+          // for a card that does not exist.
+          const placed = mutators.addCard?.({
             id,
             kind: 'image', src: url,
             x: Math.max(8, Math.round(cx - fallbackW / 2)),
@@ -9349,7 +9352,7 @@ export function CanvasSurface({
           // hotlink it always was. A board left mid-save keeps the hotlink —
           // these mutators would write to the wrong board.
           const dropBoardId = board?.id;
-          if (dropBoardId && !useLocalImages) {
+          if (placed && dropBoardId && !useLocalImages) {
             saveWebImageCopy({
               url, boardId: dropBoardId, cardId: id,
               getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
@@ -9357,11 +9360,15 @@ export function CanvasSurface({
               try {
                 logEvent(EV.WEB_IMAGE_SAVE, {
                   board_id: dropBoardId, source: 'drop', ok: !!res?.ok,
-                  code: res?.ok ? (res.reused ? 'reused' : 'saved') : (res?.code || 'unknown'),
+                  code: res?.ok ? 'saved' : (res?.code || 'unknown'),
                   bytes: res?.ok ? (res.bytes ?? null) : null,
                 });
               } catch (_) {}
               if (!res?.ok || boardIdRef.current !== dropBoardId) return;
+              // Judged as the card is NOW: one re-pointed meanwhile ("Replace
+              // image…", an undo and redo) keeps what it was re-pointed to.
+              const live = (cardsRef.current || []).find((c) => c.id === id);
+              if (!live || live.src !== url) return;
               mutators.updateCardSilent?.(id, {
                 src: res.src, sourceUrl: url, ...(res.fileName ? { fileName: res.fileName } : {}),
               });

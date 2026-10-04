@@ -6443,7 +6443,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The copy is counted against your storage like any upload. The same image dragged in twice in one workspace is stored once. Web images that went onto a board before copies were kept get copied the same way. It happens a few at a time, whenever someone who can edit that cluster opens it."
+     "v": "The copy counts against storage like any upload. In a cluster someone else owns, that is the owner's storage. Web images that went onto a board before copies were kept get copied the same way. It happens a few at a time, whenever someone who can edit that cluster opens it."
     }
    ]
   },
@@ -19453,7 +19453,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " page hands you a document to start from. Press its button and the first cluster you can edit gets a treatment document. It holds a cover, then a page for each section: concept, tone and references, look and light, casting, wardrobe and art direction, locations, and edit, music and pace. Each page has a line saying what goes on it, and the document opens when it lands. Replace the lines with your own, bring the chosen images in, and "
+     "v": " page hands you a document to start from. Press its button, and once you are signed in a treatment document is added to a cluster in your own workspace and opens. It holds a cover, then a page for each section: concept, tone and references, look and light, casting, wardrobe and art direction, locations, and edit, music and pace. Each page has a line saying what goes on it. Replace the lines with your own, bring the chosen images in, and "
     },
     {
      "t": "link",
@@ -19469,6 +19469,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " a PDF."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Until you change something in it, the treatment is a template: it does not count toward your cards and search does not list it. Your first change makes it your document like any other."
     }
    ]
   },

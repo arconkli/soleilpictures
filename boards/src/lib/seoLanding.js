@@ -42,7 +42,7 @@
 //   }
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
-import { treatmentPageSteps } from './starterDocs.js';
+import { treatmentPageSteps } from './starterSections.js';
 
 const SIGNUP = (campaign) =>
   `/?utm_source=seo&utm_medium=landing&utm_campaign=${campaign}`;

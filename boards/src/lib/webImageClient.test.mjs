@@ -72,8 +72,30 @@ test('the canvas paints the hotlink first and moves the card only onto a copy, o
   const add = fn.indexOf("kind: 'image', src: url,");
   const ask = fn.indexOf('saveWebImageCopy({');
   assert.ok(add > 0 && ask > add, 'the card exists before the copy is asked for');
+  assert.match(fn, /const placed = mutators\.addCard\?\.\(\{/, 'what the board answered is kept');
+  assert.match(fn, /if \(placed && dropBoardId && !useLocalImages\)/,
+    'a card the board refused (the cap) is never copied — nothing stored or billed for it');
   assert.match(fn, /if \(!res\?\.ok \|\| boardIdRef\.current !== dropBoardId\) return;/);
+  assert.match(fn, /const live = \(cardsRef\.current \|\| \[\]\)\.find\(\(c\) => c\.id === id\);\s*if \(!live \|\| live\.src !== url\) return;/,
+    'a card re-pointed meanwhile ("Replace image…") keeps what it was re-pointed to');
   assert.match(fn, /mutators\.updateCardSilent\?\.\(id, \{\s*src: res\.src, sourceUrl: url/,
     'silent: the swap is not its own undo step, like every upload patch');
-  assert.match(fn, /if \(dropBoardId && !useLocalImages\)/);
+});
+
+test('one dead link or a busy isolate does not stop the next save — a failing route does', async () => {
+  let t = 5000;
+  let asked = 0;
+  const reply = (status, error) => async () => { asked++; return jsonRes(status, { error }); };
+  for (const [status, error] of [[502, 'source_unavailable'], [503, 'busy']]) {
+    _resetWebImageCooldown();
+    await saveWebImageCopy({ url: 'https://a.example/dead.jpg', boardId: BOARD, getToken, fetchImpl: reply(status, error), now: () => t });
+    const next = await saveWebImageCopy({ url: 'https://a.example/fine.jpg', boardId: BOARD, getToken, fetchImpl: async () => jsonRes(200, { src: 'r2:k' }), now: () => t + 1 });
+    assert.equal(next.ok, true, `${error} is about one request, not the route`);
+  }
+  _resetWebImageCooldown();
+  asked = 0;
+  await saveWebImageCopy({ url: 'https://a.example/x.jpg', boardId: BOARD, getToken, fetchImpl: reply(500, 'save_failed'), now: () => t });
+  const after = await saveWebImageCopy({ url: 'https://a.example/y.jpg', boardId: BOARD, getToken, fetchImpl: reply(200, null), now: () => t + 1 });
+  assert.equal(after.code, 'cooldown', 'a route failing for everyone is left alone');
+  assert.equal(asked, 1);
 });

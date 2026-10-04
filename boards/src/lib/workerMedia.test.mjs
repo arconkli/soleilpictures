@@ -87,7 +87,6 @@ test('a web picture is stored in the board\'s workspace and recorded under the c
   assert.equal(out.src, 'r2:ws-1/fixed-uuid.png', 'the workspace comes from the board, never the request');
   assert.deepEqual([out.width, out.height], [2, 3]);
   assert.equal(out.fileName, 'ext_dusk_04.png');
-  assert.equal(out.reused, false);
   assert.equal(w.bucket.get('ws-1/fixed-uuid.png').o.httpMetadata.contentType, 'image/png');
   assert.equal(w.inserted.length, 1);
   const row = w.inserted[0];
@@ -145,21 +144,46 @@ test('a row that cannot be written takes its object back with it', async () => {
   assert.equal(w.bucket.size, 0, 'no unreadable, unswept object is left behind');
 });
 
-test('the same picture in one workspace is stored once — while its object exists', async () => {
-  const prior = [{ storage_path: 'ws-1/old.png', width: 10, height: 20, original_name: 'a.png' }];
-  const w = world({ prior });
-  w.bucket.set('ws-1/old.png', { v: PNG, o: {} });
-  const res = await call(w, { url: 'https://cdn.example.com/a.png', boardId: BOARD });
-  const out = await res.json();
-  assert.equal(out.src, 'r2:ws-1/old.png');
-  assert.equal(out.reused, true);
-  assert.deepEqual(w.fetched, [], 'nothing downloaded');
-  assert.equal(w.inserted.length, 0);
+test('every save stores its own copy — an address is not a picture', async () => {
+  // A re-exported frame_012.png at the same link is a new frame; reusing the
+  // first copy would quietly swap it back. And the lookup would have put a
+  // signed link into a query string the database gateway logs.
+  const w = world();
+  w.deps.userSelect = async (_e, _t, table, query) => {
+    assert.notEqual(table, 'images', 'no lookup by address');
+    assert.ok(!query.includes('source_url'), 'no address in a query string');
+    return [{ workspace_id: 'ws-1' }];
+  };
+  const a = await (await call(w, { url: 'https://cdn.example.com/a.png', boardId: BOARD })).json();
+  w.deps.uuid = () => 'second-uuid';
+  const b = await (await call(w, { url: 'https://cdn.example.com/a.png', boardId: BOARD })).json();
+  assert.notEqual(a.src, b.src);
+  assert.equal(w.fetched.length, 2);
+  assert.equal(a.reused, undefined);
+});
 
-  const gone = world({ prior });   // the row survived; its object did not
-  const out2 = await (await call(gone, { url: 'https://cdn.example.com/a.png', boardId: BOARD })).json();
-  assert.equal(out2.reused, false);
-  assert.equal(out2.src, 'r2:ws-1/fixed-uuid.png');
+test('the isolate\'s memory budget: a save that does not fit is "busy", and the budget comes back', async () => {
+  const { makeByteBudget, reservationFor } = await import('./webImageSave.js');
+  const budget = makeByteBudget(30 * 1024 * 1024);
+  const sized = (n) => () => new Response(PNG, { headers: { 'content-length': String(PNG.length) } });
+  // Undeclared length reserves twice the ceiling — more than this budget holds.
+  const w = world({ serve: () => new Response(new ReadableStream({ start(c) { c.enqueue(PNG); c.close(); } })) });
+  w.deps.budget = budget;
+  const res = await call(w, { url: 'https://cdn.example.com/a.png', boardId: BOARD });
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).error, 'busy');
+  assert.equal(w.bucket.size, 0);
+  assert.equal(budget.used, 0, 'a refused save holds nothing');
+  // A declared length reserves just that, and gives it back however it ends.
+  const ok = world({ serve: sized() });
+  ok.deps.budget = budget;
+  assert.equal((await call(ok, { url: 'https://cdn.example.com/a.png', boardId: BOARD })).status, 200);
+  const failing = world({ serve: sized(), insertFails: true });
+  failing.deps.budget = budget;
+  assert.equal((await call(failing, { url: 'https://cdn.example.com/a.png', boardId: BOARD })).status, 500);
+  assert.equal(budget.used, 0, 'released on success and on failure');
+  assert.equal(reservationFor(1000), 1000);
+  assert.equal(reservationFor(null), 2 * WEB_IMAGE.maxBytes);
 });
 
 test('internal addresses are refused up front, and so is a redirect to one', async () => {
@@ -216,9 +240,15 @@ test('names come from addresses that have one, and only those', () => {
   assert.equal(webImageUrlProblem('https://x.example/' + 'a'.repeat(WEB_IMAGE.urlMax)), 'address too long');
 });
 
-test('readCapped returns exactly the bytes under the ceiling', async () => {
-  const out = await readCapped(new Response(PNG), 1000);
-  assert.deepEqual(out, PNG);
+test('readCapped returns exactly the bytes under the ceiling, into one buffer when the length is declared', async () => {
+  assert.deepEqual(await readCapped(new Response(PNG), 1000), PNG);
+  const declared = await readCapped(new Response(PNG, { headers: { 'content-length': String(PNG.length) } }), 1000);
+  assert.deepEqual(declared, PNG);
+  assert.equal(declared.buffer.byteLength, PNG.length, 'sized from the declared length — never held twice');
+  // A body longer than it declared is not the body it described.
+  const liar = new Response(new ReadableStream({ start(c) { c.enqueue(PNG); c.enqueue(PNG); c.close(); } }),
+    { headers: { 'content-length': String(PNG.length) } });
+  await assert.rejects(readCapped(liar, 1000), (e) => e.code === 'too_large');
 });
 
 test('the Worker routes /api/media/* to it', () => {

@@ -58,7 +58,7 @@ test('the memo survives a reload, stays small, and shrugs off junk', () => {
 });
 
 test('account- and route-level refusals stop the pass; picture-level ones do not', () => {
-  for (const c of ['over_quota', 'not_writer', 'rate_limited', 'cooldown', 'signed_out']) assert.equal(stopsThePass(c), true, c);
+  for (const c of ['over_quota', 'not_writer', 'rate_limited', 'cooldown', 'signed_out', 'busy']) assert.equal(stopsThePass(c), true, c);
   for (const c of ['not_an_image', 'too_large', 'source_unavailable', 'network']) assert.equal(stopsThePass(c), false, c);
 });
 

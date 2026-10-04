@@ -28,11 +28,18 @@
 //     before the error goes back, so a failed save leaves nothing behind.
 //   · Addresses are never logged whole — a signed CDN link is a credential.
 //
-// The same picture saved twice in one workspace is stored once: a row with
-// the same source_url (0357) is reused while its object exists. A cluster
-// other than the first can show it, because image reads follow the keys in
-// each board's own snapshot (recompute_image_refs) — the same way a card
-// pasted between clusters keeps working.
+// Every save stores its own copy. 0357 planned to reuse an earlier copy of the
+// same address, and that was dropped before shipping: an address is not a
+// picture (a re-exported `frame_012.png` at the same link is a new frame, and
+// reuse would quietly swap it back to the first one ever saved); two saves of
+// one address at once both missed and stored twice anyway; and the lookup put
+// the whole address — a signed CDN link is a credential — into a query string
+// the database gateway logs. images.source_url stays, as provenance.
+//
+// One isolate serves every request it is given, in 128MB. Each save reserves
+// what it will hold (lib/webImageSave reservationFor) against a per-isolate
+// budget before reading, and is answered 503 'busy' when it does not fit, so a
+// few large saves at the same moment cannot take the app down with them.
 //
 // No previews are made here (a Worker has no decoder). The canvas makes them
 // the first time a writer sees the image, which is immediately: R2Image's
@@ -44,7 +51,7 @@ import { fetchFollowingSafely, ogTargetProblem, UnsafeFetchError } from './lib/s
 import { sniffImageType, imageDimensions } from './lib/imageDims.js';
 import {
   WEB_IMAGE, SAVEABLE_TYPES, SaveError, webImageUrlProblem, nameFromImageUrl,
-  readCapped, makeRateLimiter,
+  readCapped, makeRateLimiter, makeByteBudget, declaredLength, reservationFor,
 } from './lib/webImageSave.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -61,6 +68,7 @@ const DEFAULT_DEPS = {
   fetchImpl: (...args) => fetch(...args),
   uuid: () => crypto.randomUUID(),
   allow: makeRateLimiter(),
+  budget: makeByteBudget(),
 };
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -114,21 +122,6 @@ async function saveWebImage({ env, token, userId, sourceUrl, boardId, cardId, d 
   const canWrite = await d.userRpc(env, token, 'can_write_board', { p_board_id: boardId }).catch(() => false);
   if (canWrite !== true) throw new SaveError('not_writer', 403);
 
-  // Stored once per workspace. A row whose object is gone (swept, or never
-  // finished) is not reused — the save below makes a fresh one.
-  const prior = await d.userSelect(env, token, 'images',
-    `workspace_id=eq.${workspaceId}&source_url=eq.${encodeURIComponent(sourceUrl)}`
-    + '&deleted_at=is.null&select=storage_path,width,height,original_name&order=created_at.desc&limit=1')
-    .catch(() => []);
-  const reuse = prior?.[0];
-  if (reuse?.storage_path && await env.IMAGES.head(reuse.storage_path).catch(() => null)) {
-    return {
-      src: `r2:${reuse.storage_path}`, key: reuse.storage_path,
-      width: reuse.width ?? null, height: reuse.height ?? null,
-      fileName: reuse.original_name ?? null, reused: true, bytes: 0,
-    };
-  }
-
   const { res, url: finalUrl } = await fetchFollowingSafely(sourceUrl, {
     signal: AbortSignal.timeout(WEB_IMAGE.timeoutMs),
     // No cookies or credentials of ours ever ride along; an honest agent,
@@ -147,6 +140,26 @@ async function saveWebImage({ env, token, userId, sourceUrl, boardId, cardId, d 
     throw new SaveError('not_an_image', 415);
   }
 
+  // Reserve the memory this save will hold before reading a byte of it, and
+  // give it back however the save ends.
+  const declared = declaredLength(res);
+  if (declared != null && declared > WEB_IMAGE.maxBytes) {
+    try { await res.body?.cancel?.(); } catch (_) { /* already closed */ }
+    throw new SaveError('too_large', 413);
+  }
+  const reserved = reservationFor(declared);
+  if (!d.budget.take(reserved)) {
+    try { await res.body?.cancel?.(); } catch (_) { /* already closed */ }
+    throw new SaveError('busy', 503);
+  }
+  try {
+    return await storeFetched({ env, token, userId, sourceUrl, finalUrl, boardId, cardId, workspaceId, res, d });
+  } finally {
+    d.budget.give(reserved);
+  }
+}
+
+async function storeFetched({ env, token, userId, sourceUrl, finalUrl, boardId, cardId, workspaceId, res, d }) {
   const bytes = await readCapped(res, WEB_IMAGE.maxBytes);
   const type = sniffImageType(bytes);
   const ext = type ? SAVEABLE_TYPES[type] : null;
@@ -188,6 +201,6 @@ async function saveWebImage({ env, token, userId, sourceUrl, boardId, cardId, d 
   return {
     src: `r2:${key}`, key,
     width: dims?.width ?? null, height: dims?.height ?? null,
-    fileName, reused: false, bytes: bytes.length,
+    fileName, bytes: bytes.length,
   };
 }

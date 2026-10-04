@@ -18,6 +18,13 @@ export const WEB_IMAGE = Object.freeze({
   // Per signed-in person, per Worker isolate. A person dragging pictures in
   // one at a time never meets it; a script looping on the route does.
   perMinute: 40,
+  // What all saves in ONE isolate may hold in memory at once. The isolate has
+  // 128MB and is shared with every other request it is serving — the app, the
+  // API, the SEO pages — so a few large saves at the same moment must not be
+  // able to kill it. A save reserves its declared length, or twice the ceiling
+  // when the length is undeclared (it is read in chunks and joined at the end);
+  // one that does not fit is answered 503 'busy' and the card stays a link.
+  isolateBudgetBytes: 64 * 1024 * 1024,
 });
 
 // What a saved copy may be: pictures every browser draws. HEIC/HEIF are real
@@ -67,12 +74,22 @@ export class SaveError extends Error {
   }
 }
 
+// The body's declared length, or null when it does not say (or says nonsense).
+export function declaredLength(res) {
+  const raw = res.headers?.get?.('content-length');
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+
 // A response body, read up to `max` bytes and no further. A declared length
-// over the ceiling is refused before a byte is read; an undeclared one is
-// counted as it streams and abandoned the moment it passes.
+// over the ceiling is refused before a byte is read, and a declared length is
+// read straight into ONE buffer of that size — the body is never held twice.
+// An undeclared one is counted as it streams, abandoned the moment it passes,
+// and joined at the end.
 export async function readCapped(res, max = WEB_IMAGE.maxBytes) {
-  const declared = Number(res.headers?.get?.('content-length'));
-  if (Number.isFinite(declared) && declared > max) {
+  const declared = declaredLength(res);
+  if (declared != null && declared > max) {
     try { await res.body?.cancel?.(); } catch (_) { /* already closed */ }
     throw new SaveError('too_large', 413);
   }
@@ -82,22 +99,50 @@ export async function readCapped(res, max = WEB_IMAGE.maxBytes) {
     return whole;
   }
   const reader = res.body.getReader();
+  const tooLarge = async () => {
+    try { await reader.cancel(); } catch (_) { /* already closed */ }
+    return new SaveError('too_large', 413);
+  };
+  if (declared != null) {
+    const out = new Uint8Array(declared);
+    let filled = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      // More than it said: not the body it described. Refused rather than grown.
+      if (filled + value.byteLength > declared) throw await tooLarge();
+      out.set(value, filled);
+      filled += value.byteLength;
+    }
+    return filled === declared ? out : out.subarray(0, filled);
+  }
   const chunks = [];
   let total = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
-    if (total > max) {
-      try { await reader.cancel(); } catch (_) { /* already closed */ }
-      throw new SaveError('too_large', 413);
-    }
+    if (total > max) throw await tooLarge();
     chunks.push(value);
   }
   const out = new Uint8Array(total);
   let o = 0;
-  for (const c of chunks) { out.set(c, o); o += c.byteLength; }
+  for (let i = 0; i < chunks.length; i++) { out.set(chunks[i], o); o += chunks[i].byteLength; chunks[i] = null; }
   return out;
+}
+
+// What a save reserves against the isolate's budget before it reads a byte.
+export const reservationFor = (declared, max = WEB_IMAGE.maxBytes) => (declared != null ? declared : 2 * max);
+
+// The isolate's memory budget for saves in flight: take() before reading,
+// give() back in a finally.
+export function makeByteBudget(limit = WEB_IMAGE.isolateBudgetBytes) {
+  let used = 0;
+  return {
+    take(n) { if (used + n > limit) return false; used += n; return true; },
+    give(n) { used = Math.max(0, used - n); },
+    get used() { return used; },
+  };
 }
 
 // A fixed one-minute window per key, in memory. Per isolate on purpose: it
