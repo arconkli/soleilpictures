@@ -44,3 +44,19 @@ export function onPreviewHost() {
 export function scheduleCreationAllowed() {
   return import.meta.env.DEV || onPreviewHost();
 }
+
+// ---------------------------------------------------------------------------
+// The Scout hold
+//
+// Settings → Connections offers a connect code to text to Soleil Scout — and
+// Scout's bot has never run, so on production that code would send people to
+// text a line nothing answers. Production used to hold the section out with a
+// production-only commit, which meant production could never simply BE main:
+// every promote had to remember to re-apply it, and a promote that didn't would
+// have shipped the dead code. The hold lives here instead, in the same
+// allowlist shape as the schedule hold and for the same reasons — local dev and
+// the preview deploy keep the section reviewable, every other origin (the
+// native shells included) is closed until someone opens it on purpose.
+export function scoutConnectAllowed() {
+  return import.meta.env.DEV || onPreviewHost();
+}

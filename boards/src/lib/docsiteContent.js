@@ -28300,21 +28300,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A pending claim on your account is listed in "
-    },
-    {
-     "t": "strong",
-     "v": "Settings → Connections",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Connections"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", so a number you do not recognise is something you can see."
+     "v": "Listing a pending claim in your settings is built but not switched on yet, for the same reason as everything else here. Nothing acts on a claim until the phone confirms, so an unrecognised number cannot reach your boards in the meantime."
     }
    ]
   },
@@ -28335,29 +28321,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you already have a Clusters account and never joined the waitlist, "
-    },
-    {
-     "t": "strong",
-     "v": "Settings → Connections",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Connections"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " gives you a connect code. Text "
-    },
-    {
-     "t": "code",
-     "v": "/code <code>"
-    },
-    {
-     "t": "text",
-     "v": " and the phone is bound to your account, so texted photos land in the workspace you already use."
+     "v": "Binding a phone to an account you already have is built but not switched on, for the same reason as everything else here: there is no line to text. When it is, you will get a connect code from your settings and text it once."
     }
    ]
   },
@@ -28953,37 +28917,6 @@ export const DOCS_CONTENT = {
    "type": "list",
    "ordered": false,
    "items": [
-    [
-     {
-      "t": "strong",
-      "v": "Soleil Scout",
-      "children": [
-       {
-        "t": "text",
-        "v": "Soleil Scout"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — the connect code that binds a phone number to this account, so texted photos land in your workspace. Also lists the phones already connected, and any number still waiting to prove it is yours. See "
-     },
-     {
-      "t": "link",
-      "v": "Soleil Scout",
-      "href": "/docs/scout",
-      "children": [
-       {
-        "t": "text",
-        "v": "Soleil Scout"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": "."
-     }
-    ],
     [
      {
       "t": "strong",

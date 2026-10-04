@@ -358,6 +358,42 @@ test('no marketing copy sells schedules, shoot days or call sheets while schedul
     `schedule creation is held off production (appHost.scheduleCreationAllowed), so these sell a feature a visitor cannot use:\n  ${hits.join('\n  ')}`);
 });
 
+// Settings → Connections is where Soleil Scout's connect code lives — and the
+// bot has never run, so appHost.scoutConnectAllowed() holds the section off
+// production. Production used to carry that hold as its own commit, together
+// with the docs wording; when the hold moved into main (2026-10-03) the docs had
+// to say the same everywhere: a connect code or a pending-claim list in your
+// settings is built but not switched on. This reads the hold out of appHost.js,
+// so it lifts the day the gate opens and the docs can offer the code again.
+const SCOUT_GATE = (readFileSync(resolve(BOARDS, 'src/lib/appHost.js'), 'utf8')
+  .match(/export function scoutConnectAllowed\(\)\s*\{([\s\S]*?)\n\}/) || [])[1] || '';
+const SCOUT_HELD = /onPreviewHost\(\)/.test(SCOUT_GATE) && /import\.meta\.env\.DEV/.test(SCOUT_GATE);
+const SCOUT_CLAIM = /Settings → Connections\**\s+(gives|shows|lists|has) you a connect code|(is|are) listed in \**Settings → Connections\**[^.]*\b(number|claim|phone)|claim[^.]{0,60}listed in \**Settings → Connections|\*\*Soleil Scout\*\* — the connect code|alongside Soleil Scout/i;
+
+test('no docs offer Scout\'s connect code in settings while the Scout section is held', () => {
+  for (const known of [
+    '**Settings → Connections** gives you a connect code. Text `/code <code>` and the phone',
+    'A pending claim on your account is listed in **Settings → Connections**, so a number',
+    '- **Soleil Scout** — the connect code that binds a phone number to this',
+    'Under Connections, alongside Soleil Scout and any apps you have approved.',
+  ]) assert.ok(SCOUT_CLAIM.test(known), `the Scout guard no longer recognises: ${known}`);
+  for (const ok of [
+    'When it is, you will get a connect code from your settings and text it once.',
+    'Afterwards the connection is listed under **Settings → Connections → Connected apps**,',
+  ]) assert.ok(!SCOUT_CLAIM.test(ok), `the Scout guard would flag a true sentence: ${ok}`);
+  assert.ok(SCOUT_GATE, 'appHost.js no longer exports scoutConnectAllowed() — point this guard at the new gate');
+  if (!SCOUT_HELD) return;
+  const hits = [];
+  for (const p of walk(resolve(BOARDS, 'content/docs'), /\.md$/)) {
+    readFileSync(p, 'utf8').split(/\n\s*\n/).forEach((para) => {
+      const flat = para.replace(/\n/g, ' ');
+      if (SCOUT_CLAIM.test(flat)) hits.push(`${p.slice(BOARDS.length + 1)}: ${flat.trim().slice(0, 160)}`);
+    });
+  }
+  assert.deepEqual(hits, [],
+    `Scout's settings section is held off production (appHost.scoutConnectAllowed), so these offer something no one can see:\n  ${hits.join('\n  ')}`);
+});
+
 // Dragging a FOLDER onto the canvas does nothing useful today. No drop path
 // reads a directory — there is no webkitGetAsEntry walk and no webkitdirectory
 // input — so the browser hands over one empty File named after the folder. What

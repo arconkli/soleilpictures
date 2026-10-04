@@ -2576,7 +2576,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where are API tokens?",
-        "a": "Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards."
+        "a": "Under Connections, alongside any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards."
       }
     ]
   },

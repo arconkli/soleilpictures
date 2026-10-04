@@ -3339,11 +3339,11 @@ You already made a Clusters account — you@studio.com. Reply YES and this numbe
 
 Reply YES and the phone is bound, along with anything you had already sent. Ignore it and everything stays where it is; the offer keeps until you take it.
 
-A pending claim on your account is listed in Settings → Connections, so a number you do not recognise is something you can see.
+Listing a pending claim in your settings is built but not switched on yet, for the same reason as everything else here. Nothing acts on a claim until the phone confirms, so an unrecognised number cannot reach your boards in the meantime.
 
 Connecting to an existing account
 
-If you already have a Clusters account and never joined the waitlist, Settings → Connections gives you a connect code. Text /code <code> and the phone is bound to your account, so texted photos land in the workspace you already use.
+Binding a phone to an account you already have is built but not switched on, for the same reason as everything else here: there is no line to text. When it is, you will get a connect code from your settings and text it once.
 
 If you started from Scout with no account, a claim flow attaches an email address to the shell account created behind your number.
 
@@ -3420,7 +3420,6 @@ Connections
 
 Everything that can reach your clusters without being this browser.
 
-Soleil Scout — the connect code that binds a phone number to this account, so texted photos land in your workspace. Also lists the phones already connected, and any number still waiting to prove it is yours. See Soleil Scout.
 API access — create and revoke personal access tokens for the REST API and MCP, and disconnect apps you approved through OAuth. Connecting an AI assistant usually needs no token at all, so the MCP endpoint is offered first, ready to copy. Each token gets a name and one of three levels — Read only, Read & write, or Full access, which is the only one that can delete. The token value is shown once, at creation: it is stored only as a hash and cannot be recovered, so a lost token is revoked and replaced.
 
 Plan & billing
@@ -3493,7 +3492,7 @@ Q: Where do I find my storage usage?
 A: Under Plan and billing, as a meter showing used against your quota.
 
 Q: Where are API tokens?
-A: Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
+A: Under Connections, alongside any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
 
 
 ========================================================================

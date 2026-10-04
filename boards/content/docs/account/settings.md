@@ -15,7 +15,7 @@ faq:
   - q: Where do I find my storage usage?
     a: Under Plan and billing, as a meter showing used against your quota.
   - q: Where are API tokens?
-    a: Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
+    a: Under Connections, alongside any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
 related:
   - /docs/account/plans
   - /docs/account/theme-and-defaults
@@ -76,10 +76,6 @@ and product tips. Anything you turn off still reaches you in-app. See
 
 Everything that can reach your clusters without being this browser.
 
-- **Soleil Scout** — the connect code that binds a phone number to this
-  account, so texted photos land in your workspace. Also lists the phones
-  already connected, and any number still waiting to prove it is yours. See
-  [Soleil Scout](/docs/scout).
 - **API access** — create and revoke
   [personal access tokens](/docs/api/authentication) for the
   [REST API](/docs/api) and [MCP](/docs/mcp), and disconnect apps you approved

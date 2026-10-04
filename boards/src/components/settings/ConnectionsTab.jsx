@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { isShellEmail } from '../ScoutClaimBanner.jsx';
 import { SettingsCategory } from './fields.jsx';
+import { scoutConnectAllowed } from '../../lib/appHost.js';
 
 export function ConnectionsTab({ user }) {
   return (
@@ -18,9 +19,12 @@ export function ConnectionsTab({ user }) {
       <p className="settings-section-hint">
         Everything that can reach your clusters without being this browser.
       </p>
-      <SettingsCategory title="Soleil Scout">
-        <ScoutSection user={user} />
-      </SettingsCategory>
+      {/* Held until Scout's bot runs — see appHost.scoutConnectAllowed. */}
+      {scoutConnectAllowed() && (
+        <SettingsCategory title="Soleil Scout">
+          <ScoutSection user={user} />
+        </SettingsCategory>
+      )}
       <SettingsCategory title="API access">
         <ApiSection user={user} />
       </SettingsCategory>
