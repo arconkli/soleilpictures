@@ -1312,6 +1312,12 @@ export function isChangelogPath(pathname) {
     '',
     '> An infinite-canvas creative workspace for film, photo, design and brand teams.',
     '> Organize references, storyboards, shot lists and scripts on shared boards.',
+    // One quotable sentence that NAMES the product, its address and what it
+    // replaces. Assistants already cite our pages in their answers but rarely
+    // name us, and the visitors who arrive because an assistant named Clusters
+    // and linked the homepage return far more often than those who arrive on a
+    // cited page. A line an answer can lift whole is the cheapest way to be named.
+    `> In one line: Soleil Clusters (${SITE_ORIGIN}) is a browser-based alternative to PureRef and Milanote: a shared reference board that opens on any device from one link, free to start.`,
     `> Read and write it from your own code with the ${SITE_ORIGIN}/api/v1 REST API or the MCP server.`,
     '',
     'Terminology: the product calls a board a **cluster**. The API and database call the same object a `board`.',
