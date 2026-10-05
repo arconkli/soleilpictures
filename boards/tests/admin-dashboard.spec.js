@@ -410,15 +410,43 @@ test.describe('admin dashboard charts', () => {
     // column is the point — a per-bucket share alone does not answer "would a
     // nudge tomorrow reach most of them".
     await openAdmin(page, { view: 'retention', theme: 'dark' });
-    await expect(page.locator('.adm-gap-row').first()).toBeVisible({ timeout: 15000 });
+    // Scoped to the gap widget: the fixed-horizon tables above it share the
+    // .adm-gap row classes, and their "lo–hi · n" column is not cumulative.
+    await expect(page.locator('.adm-return-gap .adm-gap-row').first()).toBeVisible({ timeout: 15000 });
 
-    const cum = await page.$$eval('.adm-gap-cum', (els) =>
+    const cum = await page.$$eval('.adm-return-gap .adm-gap-cum', (els) =>
       els.map((e) => Number(e.textContent.replace(/[^\d]/g, ''))));
     expect(cum.length).toBeGreaterThan(3);
     for (let i = 1; i < cum.length; i += 1) {
       expect(cum[i], 'a cumulative share must never decrease').toBeGreaterThanOrEqual(cum[i - 1]);
     }
     expect(cum[cum.length - 1]).toBe(100);
+  });
+
+  test('built return leads, and the second-sitting panel re-measures its own claim', async ({ page }) => {
+    // 0361. The headline return must be the one a glance cannot move, and the
+    // leading indicator must keep printing the evidence it stands on: inside
+    // each depth band, one sitting next to two+, in that order, so a pair that
+    // ever converges is visible on the panel that relies on it.
+    const errors = watchConsole(page);
+    await openAdmin(page, { view: 'retention', theme: 'dark' });
+    await expect(page.getByText('Back and built within a week').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('A second sitting on day one').first()).toBeVisible();
+
+    const tables = page.locator('.adm-fh');
+    await expect(tables).toHaveCount(3);
+    // DOM order = reading order: built, second sitting, then any-visit.
+    const firstAll = await tables.nth(0).locator('.adm-gap-label').first().textContent();
+    expect(firstAll.trim()).toBe('All');
+    const sittingAll = await tables.nth(1).locator('.adm-gap-label').first().textContent();
+    expect(sittingAll.trim()).toBe('All first visits');
+
+    const linkLabels = await tables.nth(1).locator('.adm-gap-label').evaluateAll((els) =>
+      els.map((e) => e.textContent.trim()).filter((t) => t.includes('sitting')));
+    expect(linkLabels.slice(0, 2)).toEqual(['0-2 · one sitting', '0-2 · two+ sittings']);
+    await expect(tables.nth(1)).toContainText('Back within a week, by sittings');
+    await expect(tables.nth(0)).toContainText('placed, edited or wrote something');
+    expect(errors, errors.join('\n')).toEqual([]);
   });
 
   test('the predictor table refuses to state an effect the bands contradict', async ({ page }) => {

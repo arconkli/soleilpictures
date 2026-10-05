@@ -39,3 +39,33 @@ test('tolerates garbage rows and an empty input', () => {
   assert.deepEqual(groupFixedHorizon([{ dim: 42 }, {}, { dim: 'nocolon' }]).groups, []);
   assert.equal(groupFixedHorizon([{ dim: 'all', n: 'x', returned: null }]).all.n, 0);
 });
+
+test('a custom order picks and orders the groups; unnamed kinds are dropped', () => {
+  const rows = [
+    { dim: 'all', n: 50, returned: 10 },
+    { dim: 'band:3-5', n: 10, returned: 2 },
+    { dim: 'week:2026-09-07', n: 12, returned: 3 },
+    { dim: 'device:desktop', n: 40, returned: 9 },
+    { dim: 'link:3-12 · one sitting', n: 20, returned: 5 },
+  ];
+  const g = groupFixedHorizon(rows, ['link', 'week']);
+  assert.deepEqual(g.groups.map((x) => x.key), ['link', 'week']);
+  // The default order still ignores 'link', so the 0322 panel is unchanged.
+  assert.deepEqual(groupFixedHorizon(rows).groups.map((x) => x.key), ['device', 'band', 'week']);
+});
+
+test('link rows read shallow to deep, one sitting before two+ inside each band', () => {
+  const g = groupFixedHorizon([
+    { dim: 'link:13+ · two+ sittings', n: 24, returned: 18 },
+    { dim: 'link:0-2 · two+ sittings', n: 9, returned: 2 },
+    { dim: 'link:3-12 · one sitting', n: 46, returned: 11 },
+    { dim: 'link:13+ · one sitting', n: 31, returned: 7 },
+    { dim: 'link:0-2 · one sitting', n: 72, returned: 5 },
+    { dim: 'link:3-12 · two+ sittings', n: 10, returned: 7 },
+  ], ['link']);
+  assert.deepEqual(g.groups[0].rows.map((r) => r.label), [
+    '0-2 · one sitting', '0-2 · two+ sittings',
+    '3-12 · one sitting', '3-12 · two+ sittings',
+    '13+ · one sitting', '13+ · two+ sittings',
+  ]);
+});

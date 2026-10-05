@@ -5285,6 +5285,14 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   letter-spacing: .02em;
 }
 
+/* Fixed-horizon tables (0322/0361) carry longer labels than the gap widget —
+   signup weeks, sources, "3-12 · two+ sittings" — and an interval-plus-n
+   column. At the gap widget's 74px every one of those wrapped to two lines. */
+.adm-fh .adm-gap-row { grid-template-columns: 160px 1fr 40px 116px; }
+@media (max-width: 640px) {
+  .adm-fh .adm-gap-row { grid-template-columns: 108px 1fr 36px 96px; }
+}
+
 /* ── Return predictors ──────────────────────────────────────────────────────
  *
  * A table rather than a chart, because the comparison being made is across two

@@ -1023,6 +1023,47 @@ function makeBuilder(table) {
   return b;
 }
 
+// Fixed-horizon family — admin_return_fixed_horizon (0322), admin_built_return
+// and admin_second_sitting (0361). Synthetic numbers in the real SHAPE: built
+// return well under any-visit return, and two-sitting first visits returning
+// far more often than one-sitting ones inside every band. The tail weeks are
+// small on purpose so the faded (<20) rows get exercised.
+const fhWeeks = (n) => Array.from({ length: n }, (_, i) => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay() + 1 - (n - i) * 7);
+  return d.toISOString().slice(0, 10);
+});
+const fhRows = (spec) => spec.map(([dim, n, returned]) => ({
+  dim, n, returned, pct: n ? Number((returned / n).toFixed(4)) : null,
+}));
+RPCS.admin_return_fixed_horizon = fhRows([
+  ['all', 176, 49],
+  ['device:desktop', 141, 44], ['device:mobile', 27, 4], ['device:tablet', 8, 1],
+  ['source:google', 66, 17], ['source:chatgpt', 31, 12], ['source:reddit', 24, 5],
+  ['source:seo', 27, 8], ['source:direct', 18, 3], ['source:share', 10, 4],
+  ['band:0', 58, 5], ['band:1-2', 27, 4], ['band:3-5', 29, 8], ['band:6-12', 24, 10], ['band:13+', 38, 22],
+  ...fhWeeks(6).map((w, i) => [`week:${w}`, [31, 28, 34, 30, 33, 20][i], [9, 7, 10, 8, 10, 5][i]]),
+]);
+RPCS.admin_built_return = fhRows([
+  ['all', 176, 27],
+  ['device:desktop', 141, 25], ['device:mobile', 27, 2], ['device:tablet', 8, 0],
+  ['source:google', 66, 9], ['source:chatgpt', 31, 7], ['source:reddit', 24, 3],
+  ['source:seo', 27, 5], ['source:direct', 18, 1], ['source:share', 10, 2],
+  ['band:0', 58, 1], ['band:1-2', 27, 1], ['band:3-5', 29, 4], ['band:6-12', 24, 6], ['band:13+', 38, 15],
+  ...fhWeeks(6).map((w, i) => [`week:${w}`, [31, 28, 34, 30, 33, 20][i], [5, 4, 6, 4, 5, 3][i]]),
+]);
+RPCS.admin_second_sitting = fhRows([
+  ['all', 214, 47],
+  ['link:0-2 · one sitting', 72, 5], ['link:0-2 · two+ sittings', 9, 2],
+  ['link:3-12 · one sitting', 46, 11], ['link:3-12 · two+ sittings', 10, 7],
+  ['link:13+ · one sitting', 31, 7], ['link:13+ · two+ sittings', 24, 18],
+  ['device:desktop', 172, 42], ['device:mobile', 33, 4], ['device:tablet', 9, 1],
+  ['source:google', 80, 15], ['source:chatgpt', 37, 11], ['source:reddit', 29, 7],
+  ['source:seo', 33, 8], ['source:direct', 23, 3], ['source:share', 12, 3],
+  ['band:0', 70, 3], ['band:1-2', 31, 4], ['band:3-5', 35, 7], ['band:6-12', 28, 9], ['band:13+', 50, 24],
+  ...fhWeeks(7).map((w, i) => [`week:${w}`, [30, 27, 35, 31, 34, 39, 18][i], [6, 6, 8, 7, 8, 8, 4][i]]),
+]);
+
 // Monkeypatch the shared supabase singleton's data methods. Non-invasive: the
 // admin tabs import this same instance, so no tab / useAdminData / supabase.js
 // edits are needed. Returns false if the client is null (env not configured).
