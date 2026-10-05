@@ -75,7 +75,9 @@ test.describe('new project wiring', () => {
 
   test('Home renders the projects panel with the graph as its backdrop', () => {
     const s = app();
-    expect(s).toMatch(/<ProjectsHome[\s\S]{0,1200}graph=\{mobileShell \? null : \(/);
+    // The window spans the element's props, and Home's workspace switcher added
+    // a dozen of them ahead of `graph` — 1,200 characters stopped reaching it.
+    expect(s).toMatch(/<ProjectsHome[\s\S]{0,2400}graph=\{mobileShell \? null : \(/);
     expect(s).toMatch(/<HomeGraph[\s\S]{0,120}backdrop=\{!homeExploring\}/);
   });
 });
