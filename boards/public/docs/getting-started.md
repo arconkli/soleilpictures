@@ -2,7 +2,7 @@
 
 > Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.
 
-_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-10-04_
 
 From an empty account to a board you would show someone, in about five minutes.
 
@@ -16,7 +16,7 @@ canvas is never a blank intimidating rectangle. You can delete all of it.
 
 ## 2. Start a project
 
-Click the **+** next to **Clusters** in the sidebar, choose **New project** on
+Click the **+** next to **Clusters** in the sidebar, choose **New cluster** on
 [Home](/docs/clusters/home-graph), or press `⌘K` and type "new project". Each one
 creates a cluster at the top of your workspace and opens it.
 

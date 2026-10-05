@@ -795,11 +795,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "New project",
+     "v": "New cluster",
      "children": [
       {
        "t": "text",
-       "v": "New project"
+       "v": "New cluster"
       }
      ]
     },
@@ -14189,11 +14189,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "New project",
+      "v": "New cluster",
       "children": [
        {
         "t": "text",
-        "v": "New project"
+        "v": "New cluster"
        }
       ]
      },
@@ -16785,17 +16785,17 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "New project",
+      "v": "New cluster",
       "children": [
        {
         "t": "text",
-        "v": "New project"
+        "v": "New cluster"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — type a name (or don't) and press Enter. The project is created at the top of your workspace and opens, ready for you to paste or drag images in"
+      "v": " — type a name (or don't) and press Enter. The cluster is created at the top of your workspace and opens, ready for you to paste or drag images in"
      }
     ]
    ]
@@ -16835,11 +16835,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Projects",
+     "v": "Clusters",
      "children": [
       {
        "t": "text",
-       "v": "Projects"
+       "v": "Clusters"
       }
      ]
     },
@@ -30634,15 +30634,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is your projects on their own: the boards you were last in, every project, and "
+     "v": " is your clusters on their own: the ones you were last in, every cluster at the top of your workspace, and "
     },
     {
      "t": "strong",
-     "v": "New project",
+     "v": "New cluster",
      "children": [
       {
        "t": "text",
-       "v": "New project"
+       "v": "New cluster"
       }
      ]
     },

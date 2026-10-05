@@ -24,7 +24,7 @@ test.describe('projects home', () => {
     await expect(page.locator('.ph-graph .home-graph-wrap')).toHaveCount(1);
   });
 
-  test('Explore puts the panel away and Projects brings it back', async ({ page }) => {
+  test('Explore puts the panel away and Clusters brings it back', async ({ page }) => {
     await page.goto('/?local=1&reset=1&blank=1');
     await openHome(page);
     await page.locator('.ph-explore').click();

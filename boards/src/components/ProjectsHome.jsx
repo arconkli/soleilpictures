@@ -88,8 +88,8 @@ function NewProjectTile({ onCreate, disabled }) {
       <button type="button" className="ph-tile ph-tile-new" onClick={() => setNaming(true)}>
         <span className="ph-thumb ph-thumb-new" aria-hidden="true"><Icon as={Plus} size={22} /></span>
         <span className="ph-tile-meta">
-          <span className="ph-tile-name">New project</span>
-          <span className="ph-tile-sub">Its own cluster, at the top</span>
+          <span className="ph-tile-name">New cluster</span>
+          <span className="ph-tile-sub">At the top of your workspace</span>
         </span>
       </button>
     );
@@ -102,7 +102,7 @@ function NewProjectTile({ onCreate, disabled }) {
       <span className="ph-thumb ph-thumb-new" aria-hidden="true"><Icon as={Plus} size={22} /></span>
       <span className="ph-tile-meta">
         <input ref={inputRef} className="ph-new-input" value={draft} maxLength={120}
-               placeholder="Name it (optional)" aria-label="New project name"
+               placeholder="Name it (optional)" aria-label="New cluster name"
                onChange={(e) => setDraft(e.target.value)}
                onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setNaming(false); setDraft(''); } }} />
         <span className="ph-tile-sub">Enter to create</span>
@@ -258,7 +258,7 @@ export function ProjectsHome({
 
       {exploring ? (
         <button type="button" className="ph-projects-pill" onClick={() => onExplore?.(false)}>
-          Projects
+          Clusters
         </button>
       ) : (
         <section className="ph-panel surface-frosted" aria-label="Your clusters">
@@ -298,7 +298,7 @@ export function ProjectsHome({
               )}
               {projects.map((b) => (
                 <Tile key={b.id} board={b}
-                      label={UNTITLED_RE.test(b.name || '') ? 'Untitled project' : displayName(b)}
+                      label={UNTITLED_RE.test(b.name || '') ? 'Untitled cluster' : displayName(b)}
                       onOpen={() => onOpenBoard?.(b.id, 'tile')} />
               ))}
               <NewProjectTile disabled={!canCreate} onCreate={onNewProject} />

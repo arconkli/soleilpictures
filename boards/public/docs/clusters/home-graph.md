@@ -1,6 +1,6 @@
 # Home
 
-> Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.
+> Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 
 _Source: https://clusters.soleilpictures.com/docs/clusters/home-graph · Updated 2026-10-04_
 
@@ -28,7 +28,7 @@ A panel shows three things:
   there are none, the ones you worked on most recently anywhere
 - **Your clusters** — **Studio** and every cluster at the top of your workspace,
   newest work first, each with its thumbnail
-- **New project** — type a name (or don't) and press Enter. The project is
+- **New cluster** — type a name (or don't) and press Enter. The cluster is
   created at the top of your workspace and opens, ready for you to paste or drag
   images in
 
@@ -37,7 +37,7 @@ A panel shows three things:
 Behind the panel is the workspace seen as a graph: every cluster, document, card
 and URL as a node, with edges for the relationships between them. It stays
 visible and usable around the panel. **Explore universe** puts the panel away so
-the whole graph is yours; **Projects** brings the panel back.
+the whole graph is yours; **Clusters** brings the panel back.
 
 ## Why a graph
 
