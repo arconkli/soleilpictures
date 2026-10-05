@@ -17,7 +17,7 @@ test.describe('projects home', () => {
     await page.goto('/?local=1&reset=1&blank=1');
     await openHome(page);
     const panel = page.locator('.ph-panel');
-    await expect(panel.locator('.ph-eyebrow', { hasText: 'Your projects' })).toBeVisible();
+    await expect(panel.locator('.ph-eyebrow', { hasText: 'Your clusters' })).toBeVisible();
     await expect(panel.locator('.ph-tile', { hasText: 'Studio' })).toBeVisible();
     await expect(panel.locator('.ph-tile-new')).toBeVisible();
     // The graph is still there, behind the panel.

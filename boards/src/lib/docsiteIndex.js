@@ -1425,15 +1425,19 @@ export const DOCS_PAGES = [
     "title": "Home — Your Projects and Workspace Graph — Soleil Clusters",
     "metaDescription": "Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.",
     "h1": "Home",
-    "answer": "Home shows your projects — the clusters you were last in, every project newest first, and New project — on a panel floating over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.",
+    "answer": "Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.",
     "section": "clusters",
     "order": 2,
-    "updated": "2026-10-01",
+    "updated": "2026-10-04",
     "navLabel": "Home",
     "headings": [
       {
-        "id": "your-projects",
-        "text": "Your projects"
+        "id": "your-workspace",
+        "text": "Your workspace"
+      },
+      {
+        "id": "your-clusters",
+        "text": "Your clusters"
       },
       {
         "id": "the-graph-behind-it",
@@ -1980,7 +1984,7 @@ export const DOCS_PAGES = [
     "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
-    "updated": "2026-10-02",
+    "updated": "2026-10-04",
     "navLabel": "Search",
     "headings": [
       {

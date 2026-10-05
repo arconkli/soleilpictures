@@ -28,6 +28,10 @@ export function WorkspaceMenu({
   onOpenSettings,       // (ws) => void   — owners only; opens Settings → General,
                         //                  where the name sits beside the icon
   onClose,
+  // The button that opens THIS menu. A click on it is the trigger's own toggle,
+  // not an outside click — closing here first would let the toggle reopen it.
+  // The sidebar's is the default; Home passes its own.
+  triggerSelector = '.sb-ws-trigger',
 }) {
   const ref = useRef(null);
   const [filter, setFilter] = useState('');
@@ -43,7 +47,7 @@ export function WorkspaceMenu({
     const onDown = (e) => {
       if (!ref.current) return;
       if (ref.current.contains(e.target)) return;
-      if (e.target.closest?.('.sb-ws-trigger')) return;
+      if (triggerSelector && e.target.closest?.(triggerSelector)) return;
       onClose?.();
     };
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -55,7 +59,7 @@ export function WorkspaceMenu({
       document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
-  }, [onClose]);
+  }, [onClose, triggerSelector]);
 
   const list = workspaces || [];
   const showFilter = list.length > FILTER_THRESHOLD;

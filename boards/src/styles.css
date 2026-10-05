@@ -877,6 +877,9 @@ body {
 .ws-menu-row-wrap:hover .ws-menu-row-more,
 .ws-menu-row-wrap:focus-within .ws-menu-row-more,
 .ws-menu-row-more.is-open { opacity: 1; }
+/* No hover on a touch screen: revealed on hover, the ⋯ could only ever be
+   found by tapping an invisible spot — and tapping the row switches. */
+@media (hover: none) { .ws-menu-row-more { opacity: 1; } }
 .ws-menu-row-more:hover {
   background: var(--bg-2, var(--bg-hov));
   border-color: var(--line-2);
@@ -14937,6 +14940,91 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   animation: none;
 }
 .ph-section { display: flex; flex-direction: column; gap: 10px; }
+/* The workspace these projects belong to, at the top of the panel: the same
+   switcher the sidebar has (WorkspaceMenu, portalled — the panel scrolls and
+   would clip it) and a plain New workspace beside it. Neutral at rest; gold
+   only for keyboard focus. */
+.ph-ws {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-1, rgba(255, 255, 255, 0.06));
+}
+.ph-ws-trigger {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 8px 6px 6px;
+  margin-left: -6px;
+  border-radius: var(--radius-md, 8px);
+  color: var(--ink-0);
+  cursor: pointer;
+  text-align: left;
+}
+.ph-ws-trigger:hover,
+.ph-ws-trigger[aria-expanded="true"] { background: var(--bg-hov); }
+.ph-ws-trigger:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.ph-ws-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font: 700 13px/1 var(--font-sans);
+  color: var(--bg-0);
+  overflow: hidden;
+}
+.ph-ws-avatar-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph-ws-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ph-ws-name {
+  font: 600 16px/1.2 var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ph-ws-sub { font: 500 11.5px/1.2 var(--font-sans); color: var(--ink-2); }
+.ph-ws-chev { color: var(--ink-3); flex-shrink: 0; transition: color var(--dur-fast) var(--ease); }
+.ph-ws-trigger:hover .ph-ws-chev,
+.ph-ws-trigger[aria-expanded="true"] .ph-ws-chev { color: var(--ink-1); }
+.ph-ws-new {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 7px 11px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.ph-ws-new:hover { color: var(--ink-0); background: var(--bg-hov); }
+.ph-ws-new:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* The switcher's menu, fixed under the trigger (position from
+   workspaceMenuPlacement). .ws-menu is normally absolute inside the sidebar
+   head; here its holder does the placing. */
+.ph-ws-pop { position: fixed; z-index: 1000; }
+.ph-ws-pop .ws-menu {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  max-height: min(60vh, 420px);
+}
+@media (max-width: 480px) {
+  /* A phone keeps the name; New workspace keeps its icon. */
+  .ph-ws-new span { display: none; }
+  .ph-ws-new { padding: 7px; }
+}
 .ph-eyebrow {
   font: 600 11px/1 var(--font-sans);
   letter-spacing: 0.08em;

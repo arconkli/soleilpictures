@@ -148,3 +148,14 @@ export function cardMoveTargets(boards, { workspaceId = null, fromId = null, max
     .slice(0, max)
     .map((b) => ({ id: b.id, label: label(b.id) }));
 }
+
+// Where Home's workspace switcher puts its menu: under the trigger, kept on
+// screen. The menu is fixed to the viewport through a portal, because the
+// panel scrolls and would clip a menu positioned inside it.
+export function workspaceMenuPlacement(rect, viewport) {
+  const vw = Math.max(0, Number(viewport?.width) || 0);
+  const width = Math.max(220, Math.min(320, vw - 16));
+  const left = Math.max(8, Math.min(Number(rect?.left) || 0, vw - width - 8));
+  const top = Math.round((Number(rect?.bottom) || 0) + 6);
+  return { top, left: Math.round(left), width: Math.round(width) };
+}
