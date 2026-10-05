@@ -751,12 +751,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/grids",
     "title": "Grids — Soleil Clusters",
-    "metaDescription": "Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Templates and generated matrices.",
+    "metaDescription": "Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Split, merge, or generate a matrix.",
     "h1": "Grids",
-    "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool opens a Templates panel: pick a shape like storyboard, 2x2 or contact sheet, then click the canvas to place it, or apply it to a grid you already have. Cells split and merge by dragging the dividers.",
+    "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.",
     "section": "canvas",
     "order": 7,
-    "updated": "2026-08-27",
+    "updated": "2026-10-04",
     "navLabel": "Grids",
     "headings": [
       {
@@ -766,10 +766,6 @@ export const DOCS_PAGES = [
       {
         "id": "building-a-layout",
         "text": "Building a layout"
-      },
-      {
-        "id": "templates",
-        "text": "Templates"
       },
       {
         "id": "how-grids-count-toward-your-card-limit",
@@ -807,12 +803,8 @@ export const DOCS_PAGES = [
         "a": "Drag the dividers between cells. Cells split and merge as you go, and the rest of the grid reflows around what you changed."
       },
       {
-        "q": "Can I change a grid's shape without losing what is in it?",
-        "a": "Yes. Select the grid, open the Templates panel and pick a new shape. Cell content moves across in reading order, and if the new shape has fewer cells than you had filled, the ones with nowhere to go are named in an Undo toast."
-      },
-      {
         "q": "Can several grids share a layout?",
-        "a": "Yes, but that is a separate feature. A template is a saved shape you stamp out; a grid family is a live link between grids on one board, where changing one reflows the rest."
+        "a": "Yes. Right-click a grid and choose Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Unlink layout takes a grid back out."
       }
     ]
   },

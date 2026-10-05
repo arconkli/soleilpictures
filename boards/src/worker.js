@@ -35,7 +35,7 @@ import { runAeoRetrievalProbe } from './worker-aeo.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
-import { getLandingSpec, SEO_LANDING_PAGES, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
+import { getLandingSpec, SEO_LANDING_LISTED, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
 // Named imports only, so esbuild tree-shakes the rest of the layout engine out
 // of the Worker: a curated template page states its cell count, and that number
 // is DERIVED from the preset rather than typed into the spec beside it.
@@ -48,7 +48,7 @@ import { layoutById } from './lib/templateLayouts.js';
 // Worker's byte budget is a single function body, not a call-site sweep.
 import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from './lib/templateCards.js';
 import { TEMPLATE_ITEMS, getTemplateSpec, isTemplatePath } from './lib/templateIndex.js';
-import { publicTemplateSlug } from './lib/templatePaths.js';
+import { publicTemplateSlug, TEMPLATE_STORE_HELD, isTemplateStorePath, templateStoreOpenOn } from './lib/templatePaths.js';
 import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
@@ -650,11 +650,13 @@ const worker = {
     // server-rendered catalogue matches the one React renders) and for a single
     // published item's page. .catch AT CREATION, not at await — an unawaited
     // rejection would be unhandled on any request that never reaches the branch.
-    const tplStoreMatch = isPageReq && /^\/templates\/?$/i.test(url.pathname);
+    // Neither is fetched where the store is held: that request ends in a 404.
+    const storeOpen = templateStoreOpenOn(url.hostname);
+    const tplStoreMatch = isPageReq && storeOpen && /^\/templates\/?$/i.test(url.pathname);
     const tplStorePromise = tplStoreMatch
       ? anonRpc(env, 'list_public_grid_layouts', { p_limit: 120 }, 1500).catch(() => null)
       : null;
-    const tplPubMatch = isPageReq ? publicTemplateSlug(url.pathname) : null;
+    const tplPubMatch = isPageReq && storeOpen ? publicTemplateSlug(url.pathname) : null;
     const tplPubPromise = tplPubMatch
       ? anonRpc(env, 'get_public_grid_layout', { p_slug: tplPubMatch }, 1500).catch(() => null)
       : null;
@@ -689,6 +691,17 @@ const worker = {
         status: 404,
         headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
       });
+    }
+
+    // The template store is held (lib/templatePaths.js). On every host but the
+    // preview deploy its pages are a definitive miss — a real 404 with noindex,
+    // the same answer an unknown /templates/<slug> gets — so nothing indexes a
+    // page production does not offer, and a /t/ link opened there says so
+    // instead of offering a template the app cannot place. Ahead of every
+    // branch that would otherwise render one: the landing spec, the item and
+    // community lookups, and the /t/ share meta.
+    if (isPageReq && contentType.includes('text/html') && !storeOpen && isTemplateStorePath(url.pathname)) {
+      return notFoundResponse(res);
     }
 
     // /resume carries a single-use session credential in its query string and
@@ -1455,7 +1468,7 @@ function injectExplore(res, boards) {
   // link every landing page (keyword anchors) or they sit as near-orphans.
   const toolsNav = `<nav aria-label="Make it with Clusters" style="margin:0 0 1.6em;">
     <h2 style="font-size:1.1rem;font-weight:600;margin:0 0 .4em;">Make it with Clusters</h2>
-    <p style="margin:0;line-height:1.9;">${SEO_LANDING_PAGES.map((s) =>
+    <p style="margin:0;line-height:1.9;">${SEO_LANDING_LISTED.map((s) =>
       `<a href="${escapeHtml(s.path)}" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">${escapeHtml(s.h1)}</a>`
     ).join('')}${SEO_LISTICLE_PAGES.map((s) =>
       `<a href="${escapeHtml(s.path)}" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">${escapeHtml(s.h1)}</a>`
@@ -2123,13 +2136,14 @@ async function handleSitemap(env, request) {
     { loc: `${SITE_ORIGIN}/explore`, lastmod: newestBoard,  changefreq: 'daily',   priority: '0.8' },
     // Self-authored SEO landing pages (lib/seoLanding.js): tool / "alternative
     // to" / hub. These rank independent of user-uploaded boards.
-    ...SEO_LANDING_PAGES.map((s) => ({
+    ...SEO_LANDING_LISTED.map((s) => ({
       loc: `${SITE_ORIGIN}${s.path}`, lastmod: s.updated || null, changefreq: 'monthly', priority: '0.8',
     })),
     // The template store (content/templates/*.md). Priority below the marketing
     // set: an item page is a real destination but the store front is the page
-    // carrying the topical weight, and the sitemap should say so.
-    ...TEMPLATE_ITEMS.map((t) => ({
+    // carrying the topical weight, and the sitemap should say so. None of it
+    // while the store is held (lib/templatePaths.js): production 404s it.
+    ...(TEMPLATE_STORE_HELD ? [] : TEMPLATE_ITEMS).map((t) => ({
       loc: `${SITE_ORIGIN}${t.path}`, lastmod: t.updated || null, changefreq: 'monthly', priority: '0.6',
     })),
     // /best/* listicles (lib/seoListicles.js) — same honest-lastmod policy.

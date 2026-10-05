@@ -4,6 +4,8 @@ import { GridLayoutThumb } from '../components/GridLayoutThumb.jsx';
 import { sanitizeLayout } from '../lib/gridLayout.js';
 import { getGridLayoutByToken } from '../lib/gridLayoutsApi.js';
 import { encodeRemixParam } from '../lib/remix.js';
+import { templateStoreAllowed } from '../lib/appHost.js';
+import { NotFoundPage } from './NotFoundPage.jsx';
 import './templateSharePage.css';
 
 // /t/<token> — someone sent you a grid template.
@@ -36,7 +38,17 @@ function useHref(token) {
   return param ? `${ctaHref(token, 'use')}&remix=${encodeURIComponent(param)}` : ctaHref(token, 'use');
 }
 
+// Held with the rest of the template store (lib/templatePaths.js). Where it is
+// held the Worker has already answered this URL with a 404, and the app has no
+// Templates panel to place a template from, so the page says not found rather
+// than offering something that cannot be used. Before any hook, so a held page
+// never asks the server about the token.
 export function TemplateSharePage({ token }) {
+  if (!templateStoreAllowed()) return <NotFoundPage />;
+  return <TemplateShare token={token} />;
+}
+
+function TemplateShare({ token }) {
   const [status, setStatus] = useState('loading'); // 'loading' | 'ok' | 'invalid'
   const [tpl, setTpl] = useState(null);
 

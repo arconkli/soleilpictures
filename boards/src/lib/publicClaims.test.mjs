@@ -25,6 +25,9 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TEMPLATE_STORE_HELD } from './templatePaths.js';
+import { SEO_LANDING_LISTED } from './seoLanding.js';
+import { SEO_LISTICLE_PAGES } from './seoListicles.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '../..');
@@ -392,6 +395,49 @@ test('no docs offer Scout\'s connect code in settings while the Scout section is
   }
   assert.deepEqual(hits, [],
     `Scout's settings section is held off production (appHost.scoutConnectAllowed), so these offer something no one can see:\n  ${hits.join('\n  ')}`);
+});
+
+// The template store is held off production (lib/templatePaths.js, owner
+// 2026-10-04): the /templates pages, the /t/ share links, and in the app the
+// grid tool's Templates panel, Save as template and Share in the store. The
+// docs and the marketing pages describe production, so while it is held none of
+// them may send a reader to it or tell them to use it — the pages are a 404 and
+// the panel is not there. The flag is imported rather than parsed, so this
+// lifts by itself the day the store launches.
+const STORE_CLAIM = /\(\/templates[/)#?]|\(\/t\/[0-9a-f]|`\/templates|\*\*Templates\*\* panel|Templates panel|Save (this grid )?as (a )?template|Share in the store|Remove from the store|template store|start from the storyboard template/i;
+
+test('nothing public sends a reader to the template store while it is held', () => {
+  for (const known of [
+    'The grid tool on the left rail arms the placer and opens the **Templates** panel',
+    '| **Store** | The ready-made templates, the same ones at [/templates](/templates). |',
+    'Right-click a grid you like the shape of and choose **Save as template**',
+    'select it and use **Save this grid as a template** at the bottom of the panel.',
+    'Every published template has its own page too, at `/templates/g/<slug>`, showing',
+    'Drop a grid onto the board and cut it into a frame with an action line beneath — or start from the storyboard template.',
+  ]) assert.ok(STORE_CLAIM.test(known), `the store guard no longer recognises: ${known}`);
+  for (const ok of [
+    'Right-click a grid and choose **Share layout** to start one, **Unlink layout** to leave.',
+    'Until you change something in it, the treatment is a template: it does not',
+    'carries its cells and template, a palette its swatches, a schedule its rows.',
+    'Milanote has a polished template library and a long track record',
+  ]) assert.ok(!STORE_CLAIM.test(ok), `the store guard would flag a true sentence: ${ok}`);
+  if (!TEMPLATE_STORE_HELD) return;
+
+  const hits = [];
+  for (const dir of ['content/docs', 'content/changelog']) {
+    for (const p of walk(resolve(BOARDS, dir), /\.md$/)) {
+      readFileSync(p, 'utf8').split(/\n\s*\n/).forEach((para) => {
+        const flat = para.replace(/\n/g, ' ');
+        if (STORE_CLAIM.test(flat)) hits.push(`${relative(BOARDS, p)}: ${flat.trim().slice(0, 160)}`);
+      });
+    }
+  }
+  for (const spec of [...SEO_LANDING_LISTED, ...SEO_LISTICLE_PAGES]) {
+    const m = JSON.stringify(spec).match(STORE_CLAIM);
+    if (m) hits.push(`${spec.path}: …${m[0]}…`);
+  }
+  assert.deepEqual(hits, [],
+    `the template store is held off production (lib/templatePaths.js), so these send a reader to something that is not there:\n  ${hits.join('\n  ')}`);
 });
 
 // Dragging a FOLDER onto the canvas does nothing useful today. No drop path

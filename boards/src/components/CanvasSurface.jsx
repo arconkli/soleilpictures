@@ -5,7 +5,7 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed } from '../lib/appHost.js';
 
 // Live expand map for a schedule card — Yjs gridMeta when present, else the
 // local shell's plain card.gridMeta.
@@ -2421,7 +2421,13 @@ export function CanvasSurface({
   //
   // ?local=1 passes the literal 'local-workspace' rather than a uuid, so the
   // truthiness check alone is not enough to keep the harness off the network.
-  const templatesEnabled = !!userId && !!workspaceId && workspaceId !== 'local-workspace';
+  //
+  // The whole panel is part of the template store, which is held off production
+  // (lib/templatePaths.js). Held, the grid tool is a plain tool again — exactly
+  // what production had before the store — and nothing here reads or writes a
+  // saved template.
+  const templateStoreOpen = templateStoreAllowed();
+  const templatesEnabled = templateStoreOpen && !!userId && !!workspaceId && workspaceId !== 'local-workspace';
   const { rows: savedLayouts, community: publishedLayouts,
     ensureLoaded: ensureGridLayouts, reload: reloadGridLayouts } =
     useGridLayouts(templatesEnabled ? userId : null);
@@ -6775,11 +6781,13 @@ export function CanvasSurface({
             run: () => openSaveTemplate(c.id),
           });
         }
-        items.push({
-          id: 'grid-apply-template',
-          label: 'Apply template…',
-          run: () => { setSelected(new Set([c.id])); setTplPanelOpen(true); },
-        });
+        if (templateStoreOpen) {
+          items.push({
+            id: 'grid-apply-template',
+            label: 'Apply template…',
+            run: () => { setSelected(new Set([c.id])); setTplPanelOpen(true); },
+          });
+        }
         items.push({
           id: 'grid-link',
           // "Share layout" is the LINKED-FAMILY feature (edit one, all reflow),
@@ -11134,7 +11142,7 @@ export function CanvasSurface({
           // it already overflows on landscape phones and scrolls by a pointer
           // gesture. G still places the default instantly for anyone who knows
           // it, and the right-click Add ▸ Grid is untouched.
-          const isTpl = t.id === 'grid';
+          const isTpl = templateStoreOpen && t.id === 'grid';
           const active = isTpl ? (tplPanelOpen || selectedTool === 'grid') : selectedTool === t.id;
           // The grid tool ARMS the placer and opens the picker at the same
           // time. Opening a panel used to swallow the click that follows it,
@@ -11222,7 +11230,7 @@ export function CanvasSurface({
           with nothing selected it arms the placer and the prompt switches to
           "click anywhere". One code path, so the shortcut can never drift from
           the long way round. */}
-      {justAddedTemplate && (
+      {templateStoreOpen && justAddedTemplate && (
         <TemplateAddedPrompt
           template={justAddedTemplate}
           armed={selectedTool === 'grid' && !!pendingGridLayout}

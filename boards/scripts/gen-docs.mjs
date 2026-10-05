@@ -40,7 +40,12 @@ import {
   layoutAlgorithms as layoutAlgorithmList,
 } from './lib/publicSurface.mjs';
 
-import { SEO_LANDING_PAGES } from '../src/lib/seoLanding.js';
+import { SEO_LANDING_PAGES, SEO_LANDING_LISTED } from '../src/lib/seoLanding.js';
+// The template store hold: while it is on, nothing here publishes the store —
+// no .md mirror, no llms.txt section — and any copy already on disk is removed.
+// The JS registries are still generated, because the preview deploy renders the
+// store from them.
+import { TEMPLATE_STORE_HELD } from '../src/lib/templatePaths.js';
 // The layout engine, so a template page's cell count and label order are read
 // off the geometry rather than typed beside it.
 import { computeCellRects, readingOrder } from '../src/lib/gridLayout.js';
@@ -1030,6 +1035,15 @@ function write(absPath, content) {
   }
 }
 
+// The other half of write(): an artifact that must NOT exist, such as a held
+// page's mirror. Counted as a change, so `docs:check` fails while a stale copy
+// is still committed, the same as it fails on a stale write.
+function unwrite(absPath) {
+  if (!existsSync(absPath)) return;
+  changed.push(relative(BOARDS, absPath));
+  if (!CHECK) rmSync(absPath, { force: true });
+}
+
 function emit({ pages, sections, changelog, templates, templateCategories }) {
   // 1. Light index — imported by the Worker (meta, sitemap, 404 decisions), the
   //    React nav, and the tests. Deliberately excludes prose so importing it
@@ -1088,7 +1102,7 @@ export function isDocsPath(pathname) {
   //     the /docs mirrors above; see landingMarkdown/listicleMarkdown for why
   //     these exist (AI assistants cite the comparison pages, not the docs).
   const marketing = [
-    ...SEO_LANDING_PAGES.map((s) => ({
+    ...SEO_LANDING_LISTED.map((s) => ({
       spec: s,
       md: landingMarkdown(s, { items: templates, categories: templateCategories }),
     })),
@@ -1096,6 +1110,11 @@ export function isDocsPath(pathname) {
   ];
   for (const { spec, md } of marketing) {
     write(resolve(BOARDS, 'public', `${marketingMdRel(spec.path)}.md`), md);
+  }
+  // A held page (the template store) has no mirror: dist/ serves these files
+  // straight from the asset layer, past the Worker that 404s the page itself.
+  for (const s of SEO_LANDING_PAGES) {
+    if (!SEO_LANDING_LISTED.includes(s)) unwrite(resolve(BOARDS, 'public', `${marketingMdRel(s.path)}.md`));
   }
 
   // 4c. /pricing.md — the raw twin of /pricing, built from billingCopy by the
@@ -1193,8 +1212,19 @@ const HTML = ${JSON.stringify(Object.fromEntries(templates.map((it) => [it.path,
 export function templateHtml(path) { return HTML[path] || ''; }
 `);
 
-  for (const it of templates) {
-    write(resolve(BOARDS, 'public', `templates/${it.slug}.md`), templateMarkdown(it));
+  // The items' mirrors, unless the store is held — see the import above. Every
+  // file in the folder goes, not only the current slugs, so a template renamed
+  // while held cannot leave an orphan behind.
+  const pubTemplates = resolve(BOARDS, 'public/templates');
+  if (TEMPLATE_STORE_HELD) {
+    if (existsSync(pubTemplates)) {
+      for (const f of readdirSync(pubTemplates)) unwrite(resolve(pubTemplates, f));
+      if (!CHECK) rmSync(pubTemplates, { recursive: true, force: true });
+    }
+  } else {
+    for (const it of templates) {
+      write(resolve(BOARDS, 'public', `templates/${it.slug}.md`), templateMarkdown(it));
+    }
   }
 
   // 4c. The changelog — the same light-index / AST / pre-rendered-HTML split the
@@ -1289,14 +1319,14 @@ export function isChangelogPath(pathname) {
     llms.push(`- [${s.h1}](${SITE_ORIGIN}${s.path}): ${s.metaDescription}`);
   }
   llms.push('', '## Comparisons and tool pages', '');
-  for (const s of SEO_LANDING_PAGES) {
+  for (const s of SEO_LANDING_LISTED) {
     llms.push(`- [${s.h1}](${SITE_ORIGIN}${s.path}): ${s.metaDescription}`);
   }
   // The template store. Grouped by category rather than dumped flat, because
   // "which template do I want" is a browsing question and the categories are the
   // answer to it — an assistant reading this should be able to narrow before
   // fetching, exactly as a person uses the chips on /templates.
-  if (templates.length) {
+  if (templates.length && !TEMPLATE_STORE_HELD) {
     llms.push('', '## Grid templates', '');
     for (const c of templateCategories) {
       const inCat = templates.filter((it) => it.category === c.id);

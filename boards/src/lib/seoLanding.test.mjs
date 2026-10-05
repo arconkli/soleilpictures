@@ -17,7 +17,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEO_LANDING_PAGES, SEO_LANDING_PATHS, getLandingSpec } from './seoLanding.js';
+import { SEO_LANDING_PAGES, SEO_LANDING_PATHS, SEO_LANDING_LISTED, getLandingSpec } from './seoLanding.js';
+import { TEMPLATE_STORE_HELD, isTemplateStorePath } from './templatePaths.js';
 import { SEO_LISTICLE_PAGES } from './seoListicles.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -240,14 +241,18 @@ test('the homepage crawlable nav links every public marketing page', async () =>
   assert.ok(start > -1, 'index.html has no <main id="seo-fallback">');
   const nav = html.slice(start, html.indexOf('</main>', start));
   const hrefs = new Set([...nav.matchAll(/href="([^"]+)"/g)].map((m) => m[1]));
-  // /templates is a landing spec (kind 'hub'), so it arrives via
-  // SEO_LANDING_PATHS on any tree that has the template store — and is not
-  // demanded on one that does not. Only the four fixed spokes are literal.
+  // /templates is a landing spec (kind 'hub'), so it arrives through the
+  // registry on any tree that has the template store — LISTED, because while
+  // the store is held (lib/templatePaths.js) production 404s it and the nav must
+  // not link it. The day the hold lifts this asks for the link back. Only the
+  // four fixed spokes are literal.
   const required = [
-    ...SEO_LANDING_PATHS,
+    ...SEO_LANDING_LISTED.map((p) => p.path),
     ...SEO_LISTICLE_PAGES.map((p) => p.path),
     '/docs', '/changelog', '/explore', '/pricing',
   ];
   const missing = required.filter((p) => !hrefs.has(p));
   assert.deepEqual(missing, [], `index.html crawlable nav is missing: ${missing.join(', ')}`);
+  const held = [...hrefs].filter((h) => TEMPLATE_STORE_HELD && isTemplateStorePath(h));
+  assert.deepEqual(held, [], `index.html links pages held off production: ${held.join(', ')}`);
 });

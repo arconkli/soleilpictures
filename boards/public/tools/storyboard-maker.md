@@ -24,7 +24,7 @@ Share the storyboard with a link, or invite your DP and 1st AD to edit alongside
 
 ## How to make a storyboard
 
-1. **Add a grid card** — Drop a grid onto the board and cut it into a frame with an action line beneath — or start from the storyboard template.
+1. **Add a grid card** — Drop a grid onto the board and cut it into a frame with an action line beneath.
 2. **Fill each frame** — Drop a reference still or a sketch into the frame, and write the action on the line beneath it.
 3. **Number your shots** — Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each new shot carries the box and numbers itself by where it sits.
 4. **Add the shot list** — Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.
@@ -34,7 +34,7 @@ Share the storyboard with a link, or invite your DP and 1st AD to edit alongside
 
 ### How do I make a storyboard in Clusters?
 
-Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each new shot numbers itself by where it sits.
+Add a grid card and cut it into a frame with an action line beneath. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each new shot numbers itself by where it sits.
 
 ### Can I draw my own frames?
 

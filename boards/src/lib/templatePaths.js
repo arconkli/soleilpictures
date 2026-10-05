@@ -24,3 +24,41 @@ export function publicTemplateSlug(pathname) {
   const m = String(pathname || '').match(/^\/templates\/g\/([a-z0-9-]{1,120})\/?$/i);
   return m ? m[1].toLowerCase() : null;
 }
+
+// ---------------------------------------------------------------------------
+// The store hold
+//
+// The template store is built and reviewable on the preview deploy, and held
+// off production (owner, 2026-10-04: "hold the store, ship the rest"). "The
+// store" is everything that came with it, not only the pages: /templates, every
+// /templates/<slug> and /templates/g/<slug> item, the /t/<token> share links,
+// and in the app the grid tool's Templates panel, Save as template and Share in
+// the store. Production had none of it before the hold, so held production
+// behaves exactly as it did: the grid tool places the default storyboard.
+//
+// The flag lives HERE rather than in appHost.js because the Worker has to obey
+// it too, and the Worker can read neither import.meta.env nor window. appHost's
+// templateStoreAllowed() is the client half of the same rule.
+//
+// Setting this to false launches the store everywhere at once: the Worker
+// serves the pages on every host, the sitemap, IndexNow and /explore list them,
+// gen-docs writes the .md mirrors and the llms.txt section, and the canvas shows
+// the panel. Two things are hand-written and will go red until they are put
+// back, deliberately: the /templates link in index.html's crawlable nav
+// (seoLanding.test.mjs) and the store's half of docs/canvas/grids.md.
+export const TEMPLATE_STORE_HELD = true;
+
+// Every page URL the store owns: the store front, an item of ours, a community
+// item, and a private share link (/t/<uuid>, the shape main.jsx's
+// templateShareMatch and the Worker's TEMPLATE_SHARE_PATH_RE accept).
+export function isTemplateStorePath(pathname) {
+  const p = String(pathname || '');
+  return /^\/templates(?:\/.*)?$/i.test(p) || /^\/t\/[0-9a-f-]{36}\/?$/i.test(p);
+}
+
+// May this host serve the store? While it is held, only the preview deploy
+// (*.workers.dev) — the same allowlist shape as appHost's other holds, so a new
+// origin is closed until someone opens it on purpose.
+export function templateStoreOpenOn(hostname) {
+  return !TEMPLATE_STORE_HELD || /\.workers\.dev$/i.test(String(hostname || ''));
+}

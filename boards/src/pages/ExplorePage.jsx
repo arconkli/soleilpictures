@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { getPublicBoards } from '../lib/publicBoardsApi.js';
-import { SEO_LANDING_PAGES, EXPLORE_INTRO, matchToolPath } from '../lib/seoLanding.js';
+import { SEO_LANDING_LISTED, EXPLORE_INTRO, matchToolPath } from '../lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -312,7 +312,7 @@ export function ExplorePage() {
           <section className="exp-tools-band">
             <h2 className="exp-h2">Make it with Clusters</h2>
             <nav className="exp-tools" aria-label="Make it with Clusters">
-              {SEO_LANDING_PAGES.map((s) => (
+              {SEO_LANDING_LISTED.map((s) => (
                 <a key={s.path} className="exp-chip" href={s.path}>{s.h1}</a>
               ))}
               {SEO_LISTICLE_INDEX.map((s) => (

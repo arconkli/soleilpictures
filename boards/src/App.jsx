@@ -168,7 +168,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed } from './lib/appHost.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
@@ -5968,6 +5968,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // share token from /t/<token>, 'gallery' is a public slug from the published
     // gallery on /templates. Both end as one row in your library.
     if (src.kind === 'template' || src.kind === 'gallery' || src.kind === 'curated') {
+      // Held with the template store (lib/templatePaths.js). No page on a held
+      // origin can stash one — they all 404 — so this is only ever a hand-built
+      // ?remix= link, and it is dropped: there is no Templates panel here to put
+      // the template in, and no prompt to place it from.
+      if (!templateStoreAllowed()) return;
       (async () => {
         try {
           // The row that ends up in the library, whichever door it came through.

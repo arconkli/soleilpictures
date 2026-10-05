@@ -43,6 +43,14 @@
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { treatmentPageSteps } from './starterSections.js';
+// The template store hold: data-free, so it costs neither bundle anything.
+import { TEMPLATE_STORE_HELD, isTemplateStorePath } from './templatePaths.js';
+
+// "Start from the storyboard template" is true only where the template store
+// is. While it is held there is no storyboard template on production to start
+// from, so the storyboard maker offers the grid alone — and the offer comes
+// back by itself when the hold lifts.
+const STORYBOARD_TEMPLATE_OFFERED = !TEMPLATE_STORE_HELD;
 
 const SIGNUP = (campaign) =>
   `/?utm_source=seo&utm_medium=landing&utm_campaign=${campaign}`;
@@ -318,7 +326,7 @@ const PAGES = [
     cta: { label: 'Start a storyboard — free', sub: 'No credit card. Free to start.' },
     stepsHeading: 'How to make a storyboard',
     steps: [
-      { t: 'Add a grid card', d: 'Drop a grid onto the board and cut it into a frame with an action line beneath — or start from the storyboard template.' },
+      { t: 'Add a grid card', d: `Drop a grid onto the board and cut it into a frame with an action line beneath${STORYBOARD_TEMPLATE_OFFERED ? ' — or start from the storyboard template' : ''}.` },
       { t: 'Fill each frame', d: 'Drop a reference still or a sketch into the frame, and write the action on the line beneath it.' },
       { t: 'Number your shots', d: 'Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each new shot carries the box and numbers itself by where it sits.' },
       { t: 'Add the shot list', d: 'Put a doc beside the frames — a table works — for lens, camera movement, and shoot day.' },
@@ -344,7 +352,7 @@ const PAGES = [
       },
     ],
     faq: [
-      { q: 'How do I make a storyboard in Clusters?', a: 'Add a grid card and cut it into a frame with an action line beneath, or start from the storyboard template. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each new shot numbers itself by where it sits.' },
+      { q: 'How do I make a storyboard in Clusters?', a: `Add a grid card and cut it into a frame with an action line beneath${STORYBOARD_TEMPLATE_OFFERED ? ', or start from the storyboard template' : ''}. Drop a still or sketch into each frame and write the action underneath. Type SHOT [#] in a box and stamp the next shot from the + on the grid’s edge: each new shot numbers itself by where it sits.` },
       { q: 'Can I draw my own frames?', a: 'Yes. You can sketch directly on the canvas with the draw tools, or drop in reference photos, screenshots, or AI-generated frames — whatever your process uses.' },
       { q: 'Can I keep a shot list with the storyboard?', a: 'Yes. Put a doc beside your frames — tables work — to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.' },
       { q: 'Can my crew collaborate on the storyboard?', a: 'Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on the same storyboard at once with live cursors and presence.' },
@@ -1750,6 +1758,14 @@ const BY_PATH = new Map(PAGES.map((p) => [p.path, p]));
 
 export const SEO_LANDING_PAGES = PAGES;
 export const SEO_LANDING_PATHS = PAGES.map((p) => p.path);
+
+// What production LISTS: every page, minus the template store while it is held
+// (lib/templatePaths.js). Rendering still resolves every spec through
+// getLandingSpec, because the preview deploy serves the held store. Everything
+// that hands a URL to a crawler or a reader reads this instead — the sitemap,
+// IndexNow, /explore's hub nav, the .md mirrors and llms.txt, and the homepage
+// nav test — so a page production 404s is never offered by any of them.
+export const SEO_LANDING_LISTED = PAGES.filter((p) => !(TEMPLATE_STORE_HELD && isTemplateStorePath(p.path)));
 
 // Normalize a request pathname (lowercase, strip trailing slash) and return the
 // matching spec, or null. Shared by the Worker (edge meta) and React (routing).
