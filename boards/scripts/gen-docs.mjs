@@ -119,6 +119,23 @@ if (`${quotaGb}GB` !== CREATOR_STORAGE_LABEL || storageMatch[1].replace(/\s+/g, 
 }
 const api = apiFacts();
 
+// The invite limits (migration 0358 and anything later that redefines the
+// function): read from the LATEST migration that defines _invite_budget_take,
+// as the named constants it declares, so the sharing page states exactly what
+// the server enforces.
+const MIGRATIONS = resolve(BOARDS, '../supabase/migrations');
+const inviteBudgetSql = readdirSync(MIGRATIONS)
+  .filter((f) => f.endsWith('.sql'))
+  .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
+  .map((f) => readFileSync(resolve(MIGRATIONS, f), 'utf8'))
+  .filter((sql) => /create\s+(?:or\s+replace\s+)?function\s+public\._invite_budget_take\s*\(/.test(sql))
+  .pop();
+const inviteDaily = inviteBudgetSql?.match(/c_invite_daily_limit\s+constant\s+integer\s*:=\s*(\d+)/);
+const inviteFirstDay = inviteBudgetSql?.match(/c_invite_first_day_limit\s+constant\s+integer\s*:=\s*(\d+)/);
+if (!inviteDaily || !inviteFirstDay) {
+  throw new Error('gen-docs: invite limits not found in the migration defining _invite_budget_take — update the extractor');
+}
+
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // The cap accounts created before migration 0229 keep, permanently. The plans
@@ -168,6 +185,10 @@ export const FACTS = {
   zipMaxSize: `${ZIP_MAX_BYTES / MB} MB`,
   zipMaxFiles: String(ZIP_MAX_ENTRIES),
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,
+  // Invitations one account can send in a rolling day, and on its first day
+  // (_invite_budget_take, migration 0358). Shares to existing accounts count.
+  inviteDailyLimit: inviteDaily[1],
+  inviteFirstDayLimit: inviteFirstDay[1],
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
   maxPartsPerCall: String(api.maxPartsPerCall),

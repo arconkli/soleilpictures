@@ -2,7 +2,7 @@
 
 > A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-05_
 
 The **Share** panel answers one question — who can open this cluster? — and
 everything in it hangs off that answer. It opens on one button and one picker;
@@ -79,6 +79,13 @@ Use this when you have addresses and want named people rather than whoever holds
 a URL. Enter one address or several separated by commas, pick **Can edit** or
 **Can view**, and send. If they do not have an account yet they get an invitation
 and the access is waiting for them when they sign up.
+
+Each account can send 20 invitations a day, or
+5 on its first day. Sharing a cluster with someone who
+already has an account counts, because they get an email too. Inviting the same
+address to the same cluster again does not. Past the limit, nothing is sent and
+the share panel tells you when you can send more. For a bigger audience, a link
+reaches everyone at once.
 
 Workspace owners get a third choice, **Whole workspace** — that grants every
 cluster in the workspace, not just this one, so only the owner can hand it out.
