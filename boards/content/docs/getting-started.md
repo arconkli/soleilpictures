@@ -12,6 +12,8 @@ faq:
     a: No. Clusters runs in the browser and can be added to your home screen as a web app. There is no App Store or Play Store listing yet, and nothing is required to start.
   - q: Is there a password?
     a: No. Sign-in is a one-time code sent to your email address. There is no password to lose or rotate.
+  - q: My sign-in code didn't arrive. What now?
+    a: Look in Spam or Promotions first. On the code screen, a Gmail, Outlook, Yahoo, iCloud or Proton address gets a button that opens that inbox in a new tab, and for Gmail it searches every folder. Work and school mail servers can hold a code back for a few minutes, so a personal address is the quicker route. You can ask for a new code once the resend timer runs out, and reloading the page keeps you on the code step.
   - q: Can people I share with edit my board?
     a: Only if you invite them as an editor. A public link is view-only. Editors do not need a paid plan — collaboration is free on every tier.
 related:

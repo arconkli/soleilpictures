@@ -5535,6 +5535,11 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .auth-code-input::placeholder { letter-spacing: .42em; opacity: .35; }
 .auth-hint-sep { color: var(--ink-3); margin: 0 4px; }
+/* Code step: the inbox shortcut is a quiet secondary action under the hint
+   (neutral, not gold — nothing here is selected), and the work-mail note sits
+   a register below it. */
+.auth-mailbox { margin-top: 2px; }
+.auth-work-hint { margin-top: 2px; font-size: 12px; line-height: 1.45; }
 .auth-foot-link {
   position: absolute;
   bottom: 56px;
