@@ -1,6 +1,6 @@
 # Home
 
-> Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to, which you can switch or add to from the top of the panel. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.
+> Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.
 
 _Source: https://clusters.soleilpictures.com/docs/clusters/home-graph · Updated 2026-10-04_
 
@@ -12,9 +12,10 @@ _Source: https://clusters.soleilpictures.com/docs/clusters/home-graph · Updated
 The top of the panel names the workspace these projects belong to, and whether
 it is your personal one, another of yours, or shared with you. Click it to
 switch to any workspace you are in: Home stays open and shows that workspace's
-projects. Each workspace in the list has a ⋯ menu for its name and icon, or to
-delete or leave it. **New workspace** beside the name starts a fresh one, with
-its own Studio, and opens it on Home.
+projects. In the list, a workspace you own has a ⋯ menu with **Rename & icon…**
+and **Delete workspace** — your personal workspace can be renamed but never
+deleted — and one shared with you has **Leave workspace**. **New workspace**
+beside the name starts a fresh one, with its own Studio, and opens it on Home.
 
 The same switcher sits at the top of the sidebar. Switching from there takes
 you straight to the workspace's canvas instead.

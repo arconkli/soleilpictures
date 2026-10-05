@@ -117,21 +117,53 @@ function WorkspaceHeader({
 }) {
   const [place, setPlace] = useState(null);   // the open menu's position, or null
   const triggerRef = useRef(null);
+  const popRef = useRef(null);
   const open = !!place;
 
-  // The menu is pinned where the trigger WAS; if the panel scrolls or the
-  // window resizes it would float away from it, so it closes instead.
+  // The menu follows its trigger. The panel is centred, so the trigger moves
+  // whenever the panel's height changes (the projects arriving just after a
+  // switch) or the main area's width does (⌘B); and in the native app the soft
+  // keyboard RESIZES the WebView the moment the filter takes focus, so closing
+  // on resize would shut the menu as it is used. Re-placed on all of those —
+  // with a functional update, so a late callback can never reopen a closed
+  // menu. Only a scroll of the panel, which carries the trigger away under the
+  // person's own hand, closes it.
   useEffect(() => {
     if (!open) return undefined;
     const close = () => setPlace(null);
+    const follow = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) setPlace((p) => (p ? workspaceMenuPlacement(rect, { width: window.innerWidth }) : p));
+    };
     const scroller = triggerRef.current?.closest('.ph-panel');
-    window.addEventListener('resize', close);
+    const root = triggerRef.current?.closest('.ph-root');
+    window.addEventListener('resize', follow);
     scroller?.addEventListener('scroll', close, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(follow) : null;
+    if (ro) { if (scroller) ro.observe(scroller); if (root) ro.observe(root); }
     return () => {
-      window.removeEventListener('resize', close);
+      window.removeEventListener('resize', follow);
       scroller?.removeEventListener('scroll', close);
+      ro?.disconnect();
     };
   }, [open]);
+
+  // Into the menu when it opens: it is portalled to the end of <body>, so Tab
+  // from the trigger would otherwise walk the whole panel before reaching it.
+  // (With enough workspaces for a filter, the filter's autoFocus already has it.)
+  useEffect(() => {
+    if (!open) return;
+    const pop = popRef.current;
+    if (!pop || pop.contains(document.activeElement)) return;
+    (pop.querySelector('.ws-menu-row.is-active') || pop.querySelector('.ws-menu-row'))?.focus({ preventScroll: true });
+  }, [open]);
+  // And back to the trigger when it closes from inside (Escape, a pick), so
+  // focus is never left on a node that no longer exists.
+  const closeMenu = () => {
+    const inside = !!popRef.current?.contains(document.activeElement);
+    setPlace(null);
+    if (inside) triggerRef.current?.focus({ preventScroll: true });
+  };
 
   if (!workspace) return null;
   const isPersonal = workspace.id === personalWorkspaceId;
@@ -172,7 +204,7 @@ function WorkspaceHeader({
         <span>New workspace</span>
       </button>
       {open && typeof document !== 'undefined' && createPortal(
-        <div className="ph-ws-pop" style={{ top: place.top, left: place.left, width: place.width }}>
+        <div ref={popRef} className="ph-ws-pop" style={{ top: place.top, left: place.left, width: place.width }}>
           <WorkspaceMenu
             workspaces={workspaces || []}
             activeWorkspaceId={workspace.id}
@@ -184,7 +216,7 @@ function WorkspaceHeader({
             onAddNew={() => onNew?.()}
             onRemove={onRemove}
             onOpenSettings={onOpenSettings}
-            onClose={() => setPlace(null)}
+            onClose={closeMenu}
           />
         </div>,
         document.body,

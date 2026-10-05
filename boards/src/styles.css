@@ -877,6 +877,9 @@ body {
 .ws-menu-row-wrap:hover .ws-menu-row-more,
 .ws-menu-row-wrap:focus-within .ws-menu-row-more,
 .ws-menu-row-more.is-open { opacity: 1; }
+/* No hover on a touch screen: revealed on hover, the ⋯ could only ever be
+   found by tapping an invisible spot — and tapping the row switches. */
+@media (hover: none) { .ws-menu-row-more { opacity: 1; } }
 .ws-menu-row-more:hover {
   background: var(--bg-2, var(--bg-hov));
   border-color: var(--line-2);

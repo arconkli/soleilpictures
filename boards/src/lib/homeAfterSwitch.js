@@ -15,9 +15,14 @@
 // tab reloaded) cannot send some later mount to Home. sessionStorage: this tab
 // only, gone with it.
 //
+// The same remount throws away an open Settings panel, so a second note carries
+// that across too: "Rename & icon…" on a workspace you are not in switches you
+// into it and has to open its Settings in the NEW mount, not the dying one.
+//
 // Pure apart from the storage handed in.
 
 export const HOME_AFTER_SWITCH_KEY = 'soleil.home.afterSwitch';
+export const SETTINGS_AFTER_SWITCH_KEY = 'soleil.settings.afterSwitch';
 
 function store(storage) {
   if (storage) return storage;
@@ -41,4 +46,30 @@ export function clearHomeAfterSwitch(storage) {
   const s = store(storage);
   if (!s) return;
   try { s.removeItem(HOME_AFTER_SWITCH_KEY); } catch (_) { /* nothing to clear */ }
+}
+
+// Settings to open in the workspace being switched to, and on which tab.
+export function markSettingsAfterSwitch(workspaceId, tab = 'general', storage) {
+  const s = store(storage);
+  if (!s || !workspaceId) return false;
+  try {
+    s.setItem(SETTINGS_AFTER_SWITCH_KEY, JSON.stringify({ ws: String(workspaceId), tab: tab || 'general' }));
+    return true;
+  } catch (_) { return false; }
+}
+
+// The tab to open for THIS workspace, or null. Reads only.
+export function settingsAfterSwitchFor(workspaceId, storage) {
+  const s = store(storage);
+  if (!s || !workspaceId) return null;
+  try {
+    const n = JSON.parse(s.getItem(SETTINGS_AFTER_SWITCH_KEY) || 'null');
+    return n && n.ws === String(workspaceId) && typeof n.tab === 'string' ? n.tab : null;
+  } catch (_) { return null; }
+}
+
+export function clearSettingsAfterSwitch(storage) {
+  const s = store(storage);
+  if (!s) return;
+  try { s.removeItem(SETTINGS_AFTER_SWITCH_KEY); } catch (_) { /* nothing to clear */ }
 }

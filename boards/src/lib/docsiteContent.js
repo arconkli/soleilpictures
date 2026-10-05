@@ -16642,7 +16642,49 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. Each workspace in the list has a ⋯ menu for its name and icon, or to delete or leave it. "
+     "v": "The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. In the list, a workspace you own has a ⋯ menu with "
+    },
+    {
+     "t": "strong",
+     "v": "Rename & icon…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Rename & icon…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Delete workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — your personal workspace can be renamed but never deleted — and one shared with you has "
+    },
+    {
+     "t": "strong",
+     "v": "Leave workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Leave workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". "
     },
     {
      "t": "strong",

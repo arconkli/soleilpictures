@@ -88,7 +88,10 @@ import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
 import { isAiTaggerEnabled } from './lib/aiTaggerFlag.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
-import { markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch } from './lib/homeAfterSwitch.js';
+import {
+  markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch,
+  markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
+} from './lib/homeAfterSwitch.js';
 import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
@@ -559,6 +562,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const feedback = useFeedback();
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
+  // Arrived here by Home's workspace switcher (lib/homeAfterSwitch): open on
+  // Home, not a canvas — and nothing below may treat this mount as landing on
+  // one. Read once, early, because the new-device landing fallback below
+  // runs long before currentSurface is declared.
+  const [arrivedOnHome] = useState(() => homeAfterSwitchFor(workspace.id));
 
   // On cold start, restore the user's last nav position so a returning user lands
   // back in the board they were working in — coming back should be effortless, not
@@ -684,8 +692,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // about. `settingsTab` is which one; null means "no particular tab", which
   // on a phone shows the rail as a list instead of pushing straight into a
   // detail screen.
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState(null);
+  // Settings asked for in this workspace before the switch that mounted it
+  // ("Rename & icon…" on a workspace you were not in): the remount threw the
+  // old panel away, so the note opens it here.
+  const [settingsOpen, setSettingsOpen] = useState(() => !!settingsAfterSwitchFor(workspace.id));
+  const [settingsTab, setSettingsTab] = useState(() => settingsAfterSwitchFor(workspace.id));
   const openSettings = React.useCallback((tab = null) => {
     setSettingsTab(tab);
     setSettingsOpen(true);
@@ -751,6 +762,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (landingFallbackRef.current || boardsLoading || !boardsReady) return;
     landingFallbackRef.current = true;
+    // Arrived on Home: nobody landed on a canvas, so there is nothing to
+    // correct and no LANDING_FALLBACK to count.
+    if (arrivedOnHome) return;
     if (Array.isArray(initialSession?.stack) && initialSession.stack.length) return;
     if (stack.length !== 1 || stack[0] !== rootBoard.id) return;
     const pick = Object.values(ownedBoards || {})
@@ -3731,7 +3745,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // or leave (shared). Deletes require typing the workspace name to enable
   // the confirm button so accidental clicks can't nuke a workspace.
   // If the user removes the currently-active workspace we switch to personal.
-  const removeWorkspace = async (ws, kind /* 'delete' | 'leave' */) => {
+  // `thenHome`: asked for from Home's switcher — removing the workspace you are
+  // in lands you on Home in your personal one, not on its canvas.
+  const removeWorkspace = async (ws, kind /* 'delete' | 'leave' */, { thenHome = false } = {}) => {
     const isDelete = kind === 'delete';
     const ok = await feedback.confirm({
       title: isDelete ? 'Delete workspace' : 'Leave workspace',
@@ -3751,6 +3767,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // If we just removed the active workspace, fall back to personal so
       // the next render doesn't briefly try to load deleted boards.
       if (ws.id === workspace.id && personalWorkspaceId && personalWorkspaceId !== ws.id) {
+        // Only here — after the confirm and a removal that succeeded — so a
+        // cancel or a failure can never leave a note for some later mount.
+        if (thenHome === true) markHomeAfterSwitch(personalWorkspaceId);
         onSwitchWorkspace?.(personalWorkspaceId);
       } else if (ws.id === workspace.id) {
         // Removed the personal workspace itself — clear the override and let
@@ -3770,8 +3789,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // change one of the two. Settings edits the ACTIVE workspace, so renaming one
   // you are not in switches you into it first — deliberate: you are about to
   // look at its settings anyway.
-  const openWorkspaceSettings = (ws) => {
-    if (ws?.id && ws.id !== workspace?.id) onSwitchWorkspace?.(ws.id);
+  //
+  // Switching remounts all of this, Settings included, so opening the panel
+  // here would open it on the instance about to be thrown away (it did, from
+  // the sidebar, since 222745e1): the note opens it in the new mount instead.
+  // `thenHome`: asked for from Home, so that mount opens on Home too.
+  const openWorkspaceSettings = (ws, { thenHome = false } = {}) => {
+    if (ws?.id && ws.id !== workspace?.id) {
+      markSettingsAfterSwitch(ws.id, 'general');
+      if (thenHome === true) markHomeAfterSwitch(ws.id);
+      onSwitchWorkspace?.(ws.id);
+      return;
+    }
     openSettings('general');
   };
 
@@ -4160,8 +4189,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // 'board', unless this workspace was switched to (or created) from Home's
   // switcher — then it opens on Home, showing its own projects
   // (lib/homeAfterSwitch: the switch remounts all of this).
-  const [currentSurface, setCurrentSurface] = useState(() => (homeAfterSwitchFor(workspace.id) ? 'home' : 'board'));
-  useEffect(() => { clearHomeAfterSwitch(); }, []);
+  const [currentSurface, setCurrentSurface] = useState(() => (arrivedOnHome ? 'home' : 'board'));
+  useEffect(() => { clearHomeAfterSwitch(); clearSettingsAfterSwitch(); }, []);
   // Home's panel put away to explore the graph. Per device, like the sidebar's
   // open state: someone who prefers the universe keeps it.
   const HOME_EXPLORE_KEY = 'soleil.home.exploring';
@@ -4175,16 +4204,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   };
   // One row per arrival at Home, never per render: is Home a place people go
   // to get back to their work, and how many projects does it show them.
+  // Not before the board list is in: projects_n counts it, and a mount that
+  // OPENS on Home (a switch from Home's switcher) would otherwise log 0 for
+  // every workspace. The list's loading only ever goes true → false, so this is
+  // still one row per arrival. A switch arrival is tagged via:'switch' — the
+  // person was already on Home, and must not read as a fresh visit.
+  const homeViewViaSwitchRef = useRef(arrivedOnHome);
   useEffect(() => {
-    if (currentSurface !== 'home') return;
+    if (currentSurface !== 'home' || boardsLoading) return;
+    const viaSwitch = homeViewViaSwitchRef.current;
+    homeViewViaSwitchRef.current = false;
     try {
       logEvent(EV.HOME_VIEW, {
         exploring: !!homeExploring,
         projects_n: projectList(boards, rootBoard.id, { workspaceId: workspace.id }).length,
+        ...(viaSwitch ? { via: 'switch' } : {}),
       });
     } catch (_) {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSurface]);
+  }, [currentSurface, boardsLoading]);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
@@ -8493,8 +8531,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               try { logEvent(EV.HOME_WORKSPACE_NEW, { n_workspaces: (workspaces || []).length }); } catch (_) {}
               addNewWorkspace({ thenHome: true });
             }}
-            onRemoveWorkspace={(ws, action) => removeWorkspace(ws, action)}
-            onOpenWorkspaceSettings={(ws) => openWorkspaceSettings(ws)}
+            onRemoveWorkspace={(ws, action) => removeWorkspace(ws, action, { thenHome: true })}
+            onOpenWorkspaceSettings={(ws) => openWorkspaceSettings(ws, { thenHome: true })}
             /* Phones get the panel only: no graph to float over, and no reason
                to load the 3D bundle for scenery. */
             graph={mobileShell ? null : (
