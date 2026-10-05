@@ -95,7 +95,11 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await canvas.click({ position: { x: 820, y: 580 } });
   await expect(page.locator('.pc').last()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+  // Draw moved off the rail into the "+" menu. Activate it there (the palette
+  // we just placed auto-focuses its editor, so the bare 'd' shortcut would be
+  // swallowed — opening the + menu blurs it first).
+  await page.getByRole('button', { name: 'Add menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Draw', exact: true }).click();
   await expect(page.getByTitle('Erase strokes')).toHaveCount(0);
   await expect(page.getByText('Drag to draw')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pen', exact: true })).toHaveClass(/is-active/);
@@ -265,7 +269,8 @@ test('local QA mode lets select marquee delete drawn strokes', async ({ page }) 
   await page.goto('/?local=1&reset=1&blank=1');
 
   const canvas = page.locator('.canvas-wrap');
-  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+  await expect(canvas).toBeVisible(); // ensure the app (and its keydown listener) mounted before the shortcut
+  await page.keyboard.press('d'); // Free-draw is a keyboard shortcut now (moved off the rail into the + menu)
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 300, y: 500 },
     targetPosition: { x: 470, y: 520 },
@@ -292,7 +297,7 @@ test('local QA mode erases part of a stroke from the draw tool', async ({ page }
 
   const canvas = page.locator('.canvas-wrap');
   const cb = await canvas.boundingBox();
-  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+  await page.keyboard.press('d'); // Free-draw is a keyboard shortcut now (moved off the rail into the + menu)
   // Draw a horizontal stroke with PACED intermediate points. trackStroke samples
   // pointermoves on rAF, so a fast multi-move drag coalesces to too few points;
   // a brief pause per move makes each one a real sample (needed both to lay down
