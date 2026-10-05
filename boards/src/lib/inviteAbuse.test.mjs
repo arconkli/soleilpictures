@@ -18,7 +18,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { latestDefinition, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
+import { latestDefinition, latestPolicy, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
 import { safeLabel, safePerson } from '../../../supabase/functions/_shared/email/safeLabel.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -61,11 +61,30 @@ test('safeLabel keeps ordinary names, strips newlines, caps the length', () => {
   assert.equal(safeLabel(null, 60, 'a workspace'), 'a workspace');
 });
 
+test('an invisible character cannot hide a link from safeLabel', () => {
+  // A URL parser deletes these and still reaches the host, so the matcher must
+  // not be split by them (0360's review: the lure survived with any of these).
+  const lure = 'calendar.app.google/am9NAGPQx3hQwC2s9';
+  for (const cp of [0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0x00ad, 0x034f, 0x202e, 0x2066, 0xe0020]) {
+    const hidden = 'Prize ' + lure.replaceAll('.', String.fromCodePoint(cp) + '.');
+    const out = safeLabel(hidden, 60, 'a cluster');
+    assert.equal(out, 'Prize', `U+${cp.toString(16)} kept the link: ${JSON.stringify(out)}`);
+  }
+});
+
 test('safePerson keeps an account email and cleans a display name', () => {
   assert.equal(safePerson('someone@example.com'), 'someone@example.com');
   assert.equal(safePerson('Free money http://x.example'), 'Free money');
   assert.equal(safePerson(''), 'Someone');
   assert.doesNotMatch(safePerson('Name\nInjected: header'), /\n/);
+  // A display name shaped like an address is still a typed name: only a plain
+  // address passes whole, so a link wearing an @ does not.
+  for (const typed of ['https://evil.example/claim@a.bc', 'www.evil.example@attacker.com',
+    'Approved:https://calendar.app.google/x@x.io', 'x'.repeat(120) + '@a.bc']) {
+    const out = safePerson(typed);
+    assert.doesNotMatch(out, /https?:|www\.|evil\.example|calendar\.app/i, `${JSON.stringify(typed)} -> ${JSON.stringify(out)}`);
+    assert.ok([...out].length <= 60, `${JSON.stringify(typed)} was not capped`);
+  }
 });
 
 // ── The templates use it ────────────────────────────────────────────────────
@@ -86,12 +105,14 @@ test('every person-to-person template cleans the names it is handed', () => {
     pending_invite:      ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.inviterName)'],
     mention_email:       ['safeLabel(data.surfaceContext', 'safePerson(data.mentionerName)'],
     comment_reply_email: ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.replierName)'],
+    // An editor's day label, cluster name and note, mailed to the whole crew.
+    schedule_update:     ['safeLabel(data.title', 'safeLabel(data.body', 'safeLabel(data.productionName'],
   };
   for (const [name, needles] of Object.entries(expect)) {
     const block = caseBlock(name);
     for (const n of needles) assert.ok(block.includes(n), `${name} must use ${n}`);
     // A raw String(data.<name>) for any of these fields is the bug coming back.
-    assert.doesNotMatch(block, /String\(data\.(boardName|workspaceName|inviterName|sharerName|joinerName|mentionerName|replierName|surfaceContext)\b/,
+    assert.doesNotMatch(block, /String\(data\.(boardName|workspaceName|inviterName|sharerName|joinerName|mentionerName|replierName|surfaceContext|title|body|productionName)\b/,
       `${name} passes a typed name through raw`);
   }
 });
@@ -145,8 +166,65 @@ test('the invitation names the inviter by account email, not a typed name', () =
 
 test('the share panel stops at the first refusal and keeps what was not sent', () => {
   const modal = read('../components/ShareModal.jsx');
-  assert.match(modal, /if \(\/invite limit reached\/i\.test\(msg\)\) \{ limitMsg = msg; limitAt = email; break; \}/);
+  // By position, not indexOf: with a duplicate in the paste, indexOf found the
+  // copy that had already been sent and put sent addresses back in the box.
+  assert.match(modal, /if \(\/invite limit reached\/i\.test\(msg\)\) \{ limitMsg = msg; limitIdx = i; break; \}/);
+  assert.match(modal, /const unsent = emails\.slice\(limitIdx\);/);
   assert.match(modal, /setInviteEmail\(unsent\.join\(', '\)\)/);
+  // ...and a paste is de-duplicated before anything is sent.
+  assert.match(modal, /const k = s\.toLowerCase\(\);\s*if \(seen\.has\(k\)\) return false;/);
+});
+
+// ── 0360: what the review of 0358/0359 found ────────────────────────────────
+
+test('only a machine identity can become a service account or hold a service token', () => {
+  const helper = latestDefinition('_is_service_identity');
+  assert.ok(helper, '_is_service_identity must exist');
+  assert.match(helper.body, /u\.email like 'svc\+%@service\.soleilpictures\.com'/);
+  assert.match(helper.body, /raw_user_meta_data ->> 'service_account' = 'true'/);
+  // The Worker mints exactly that shape (apiAuth.js createServiceAuthUser).
+  const apiAuth = read('./apiAuth.js');
+  assert.match(apiAuth, /`svc\+\$\{crypto\.randomUUID\(\)\}@service\.soleilpictures\.com`/);
+  assert.match(apiAuth, /user_metadata: \{ service_account: true/);
+  const file = readFileSync(MIGRATIONS_DIR + helper.file, 'utf8');
+  assert.match(file, /revoke execute on function public\._is_service_identity\(uuid\) from public, anon, authenticated/);
+
+  for (const fn of ['service_account_register', 'api_token_mint_for']) {
+    const def = latestDefinition(fn);
+    assert.match(def.body, /if not public\._is_service_identity\(p_user_id\) then/, `${fn} must refuse a person`);
+    assert.match(def.body, /if not public\._actor_active\(\) then/, `${fn} must refuse a suspended owner`);
+  }
+  assert.match(latestDefinition('service_account_register').body, /belongs to another workspace/);
+});
+
+test('no client can add someone to a workspace, and a machine gets no invite email', () => {
+  const policy = 'wm insert by workspace creator';
+  const files = migrationFiles().filter((f) => readFileSync(MIGRATIONS_DIR + f, 'utf8').includes(`"${policy}"`));
+  const last = readFileSync(MIGRATIONS_DIR + files.at(-1), 'utf8');
+  assert.match(last, new RegExp(`drop policy if exists "${policy}"`), `"${policy}" is live again in ${files.at(-1)}`);
+  assert.match(last, /revoke insert on table public\.workspace_members from public, anon, authenticated/);
+  assert.match(latestDefinition('_tg_workspace_member_email').body, /if new\.role = 'service' then\s+return new;/);
+});
+
+test('a mention reaches people in the conversation, once each, and nobody else', () => {
+  const def = latestDefinition('messages_fire_mention_notifications').body;
+  assert.match(def, /select distinct t\.uid/);
+  assert.match(def, /from public\.conversation_participants cp[\s\S]*cp\.left_at is null/);
+  assert.match(def, /public\.can_message\(t\.uid\)/);
+  assert.match(def, /limit \d+/);
+  // Padding the participant list is the way round that, so it needs can_message too.
+  const policy = latestPolicy('participants insert');
+  assert.match(policy.body, /user_id = auth\.uid\(\) or can_message\(user_id\)/);
+});
+
+test('changing a collaborator\'s role sends nothing and spends nothing', () => {
+  const share = latestDefinition('share_board').body;
+  const branch = share.slice(share.indexOf('cannot share with yourself'));
+  const early = branch.indexOf('if FOUND then');
+  const ret = branch.indexOf("return 'granted';", early);
+  assert.ok(early > 0 && ret > early, 'an existing share must return from its own branch');
+  assert.ok(ret < branch.indexOf('_invite_budget_take'), 'and before the budget is spent');
+  assert.ok(ret < branch.indexOf('insert into share_notifications'), 'and before the email-sending row');
 });
 
 test('the sharing docs state the limits the server enforces', () => {
