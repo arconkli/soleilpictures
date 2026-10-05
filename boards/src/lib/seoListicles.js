@@ -56,6 +56,12 @@
 //     }],
 //     headToHead?:     { heading, intro?, matchups: [{ slug, heading, left, right, verdict, paras, rows? }] },
 //     platforms?:      { heading, intro?, columns, rows: [{ name, anchor?, cells }], notes? },
+//     router?:         { heading, routes: [{ need, pick, href, isUs?, compare?: { href, label } }] },
+//                      // "which one do you need?" right under the quick answer:
+//                      // 2–4 needs, each routed to ONE pick (href '#anchor' of an
+//                      // item, or a site path). Exactly one isUs route, which
+//                      // also carries the signup CTA. Rendered by React, the
+//                      // crawlable HTML and the .md twin from these strings.
 //     spotlights?:     [{ id, heading, intro?, paras: [], links?: [{ path, label }] }],
 //                      // one named <h2> per buyer question, INSIDE the page
 //                      // that already ranks (the 08-26 lesson: sections beat
@@ -82,6 +88,18 @@ const AUTHOR = {
 };
 
 const PAGES = [
+  // PRE-REGISTERED 2026-10-05 — the intent router under the quick answer, and
+  // the answer naming our URL. Readers of this page are comparing: they scroll
+  // the whole list and click into rival reviews about as often as our own CTA,
+  // and the page converts a fraction of what /vs/pureref and /tools/* convert
+  // from the same referrers. Predicate: new-account rate for sessions whose
+  // first lp_view is this page (account created in the same session within a
+  // day, internal excluded), all devices and desktop, read separately for
+  // search and AI referrers. Window: ship+3 days to ship+45 days, against the
+  // 45 days before ship. Floor: 200 post-ship sessions, else ungradable. One
+  // surface: no other copy on this page changes inside the window. Guardrail:
+  // page-level web impressions and position for "pureref alternative" queries
+  // must hold (title and meta are untouched; the router is body copy).
   {
     "path": "/best/pureref-alternatives",
     "kind": "listicle",
@@ -90,10 +108,18 @@ const PAGES = [
     "h1": "The 10 Best PureRef Alternatives in 2026",
     "subhead": "PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.",
     "answerHeading": "What is the best PureRef alternative in 2026?",
-    "answer": "For shared, team reference boards, Soleil Clusters is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.",
+    "answer": "For shared, team reference boards, Soleil Clusters (clusters.soleilpictures.com) is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.",
     "disclosure": "Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: reference boards a whole team works on together. For a private, offline wall on one machine, PureRef itself is still the better tool, and we say so plainly at the bottom of this page.",
+    "router": {
+      "heading": "Which one do you need?",
+      "routes": [
+        { "need": "Your reference wall in the browser, shared with a team or a client and open on any device", "pick": "Soleil Clusters", "href": "#soleil-clusters", "isUs": true, "compare": { "href": "/vs/pureref", "label": "How it compares to PureRef" } },
+        { "need": "A private wall that floats over your paint or 3D app on one machine", "pick": "PureRef itself, or BeeRef if it has to be free and open source", "href": "#beeref" },
+        { "need": "A searchable library for years of saved images", "pick": "Eagle", "href": "#eagle" }
+      ]
+    },
     "published": "2026-08-04",
-    "updated": "2026-10-02",
+    "updated": "2026-10-05",
     "thesis": {
       "heading": "The Reference Wall",
       "paras": [

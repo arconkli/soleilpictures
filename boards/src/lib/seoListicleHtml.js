@@ -59,6 +59,16 @@ export function buildListicleCrawlableHtml(spec) {
   parts.push(`<section id="answer"><h2 style="${H2}">${escapeHtml(spec.answerHeading)}</h2>`);
   parts.push(`<p><b>${escapeHtml(spec.answer)}</b></p>`);
   parts.push(`<p style="${MUTED}border-left:3px solid #FFA500;padding-left:.9em;font-size:.95rem;">${escapeHtml(spec.disclosure)}</p>`);
+  // Intent router (optional) — the same need → pick rows React renders.
+  if (spec.router) {
+    parts.push(`<h3 style="${H3}">${escapeHtml(spec.router.heading)}</h3><ul>`);
+    for (const r of spec.router.routes) {
+      parts.push(`<li>${escapeHtml(r.need)}: <a href="${escapeHtml(r.href)}" style="${GOLD}">${escapeHtml(r.pick)}</a>`
+        + (r.compare ? ` · <a href="${escapeHtml(r.compare.href)}" style="${GOLD}">${escapeHtml(r.compare.label)}</a>` : '')
+        + `</li>`);
+    }
+    parts.push(`</ul>`);
+  }
   // Ranked quick-list: every tool name links to its review (jump anchors).
   parts.push(`<ol>`);
   for (const it of spec.items) {

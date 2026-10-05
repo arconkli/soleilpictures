@@ -142,3 +142,21 @@ test('spotlights render in the crawlable HTML: section id, h2 = heading, every p
   // A page without the field is byte-identical to before.
   assert.equal(buildListicleCrawlableHtml({ ...base, spotlights: undefined }), buildListicleCrawlableHtml(base));
 });
+
+test('router renders in the crawlable HTML: heading, every need, pick and link', () => {
+  for (const spec of SEO_LISTICLE_PAGES) {
+    if (!spec.router) continue;
+    const html = buildListicleCrawlableHtml(spec);
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    assert.ok(html.includes(esc(spec.router.heading)), `${spec.path}: router heading`);
+    for (const r of spec.router.routes) {
+      assert.ok(html.includes(esc(r.need)), `${spec.path}: need "${r.need}"`);
+      assert.ok(html.includes(esc(r.pick)), `${spec.path}: pick "${r.pick}"`);
+      assert.ok(html.includes(`href="${r.href}"`), `${spec.path}: ${r.href}`);
+      if (r.compare) assert.ok(html.includes(`href="${r.compare.href}"`), `${spec.path}: ${r.compare.href}`);
+    }
+    // Inside the answer section, before the ranked quick-list.
+    const at = html.indexOf(esc(spec.router.heading));
+    assert.ok(at > html.indexOf('id="answer"') && at < html.indexOf('id="table"'), `${spec.path}: router sits under the answer`);
+  }
+});

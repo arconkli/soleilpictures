@@ -929,6 +929,16 @@ function listicleMarkdown(spec) {
   out.push(`_Source: ${SITE_ORIGIN}${spec.path} · Published ${spec.published} · Updated ${spec.updated}_`, '');
   if (spec.subhead) out.push(spec.subhead, '');
   if (spec.disclosure) out.push(`**Disclosure:** ${spec.disclosure}`, '');
+  // The intent router (optional): an assistant asked "which PureRef alternative
+  // should I use" needs the need → pick split, not only the ranked list.
+  if (spec.router) {
+    out.push(`## ${req(spec.router.heading, spec.path, 'router.heading')}`, '');
+    for (const r of spec.router.routes || []) {
+      const compare = r.compare ? ` (${req(r.compare.label, spec.path, 'router.compare.label')}: ${SITE_ORIGIN}${r.compare.href})` : '';
+      out.push(`- ${req(r.need, spec.path, 'router.need')}: **${req(r.pick, spec.path, 'router.pick')}**${compare}`);
+    }
+    out.push('');
+  }
   if (spec.thesis) {
     out.push(`## ${req(spec.thesis.heading, spec.path, 'thesis.heading')}`, '');
     for (const p of spec.thesis.paras || []) out.push(p, '');

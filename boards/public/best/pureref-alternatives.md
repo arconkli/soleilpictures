@@ -1,12 +1,18 @@
 # The 10 Best PureRef Alternatives in 2026
 
-> For shared, team reference boards, Soleil Clusters is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
+> For shared, team reference boards, Soleil Clusters (clusters.soleilpictures.com) is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
 
-_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-05_
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
 
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: reference boards a whole team works on together. For a private, offline wall on one machine, PureRef itself is still the better tool, and we say so plainly at the bottom of this page.
+
+## Which one do you need?
+
+- Your reference wall in the browser, shared with a team or a client and open on any device: **Soleil Clusters** (How it compares to PureRef: https://clusters.soleilpictures.com/vs/pureref)
+- A private wall that floats over your paint or 3D app on one machine: **PureRef itself, or BeeRef if it has to be free and open source**
+- A searchable library for years of saved images: **Eagle**
 
 ## The Reference Wall
 
