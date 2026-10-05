@@ -37,7 +37,8 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { supabase } from '../lib/supabase.js';
 import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
-import { PLAN_NAME } from '../lib/billingCopy.js';
+import { PLAN_NAME, CREATOR_TRIAL_DAYS, formatPeriodEnd } from '../lib/billingCopy.js';
+import { readCheckoutReturn, clearCheckoutReturn } from '../lib/checkoutReturn.js';
 import { trackPurchase } from '../lib/metaPixel.js';
 
 const VERIFY_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/verify-checkout-session';
@@ -68,7 +69,17 @@ function planLabel(plan) {
 
 export function PricingSuccess() {
   const { user, signOut } = useAuth();
-  const { tier, refetch } = useMyTier({ userId: user?.id });
+  const { tier, refetch, subscriptionStatus, currentPeriodEnd } = useMyTier({ userId: user?.id });
+  // Was this the TRIAL? verify-checkout-session cannot say — a trial and a
+  // purchase come back with the same body — so startCheckout noted it before
+  // the tab left (checkoutReturn.js). Once the tier lands, Stripe's own
+  // `trialing` status settles it either way. A trial must never be told
+  // "Payment received": nothing was charged, and saying otherwise is how a
+  // trial turns into a dispute.
+  const [checkoutReturn] = useState(() => readCheckoutReturn());
+  const isTrial = subscriptionStatus === 'trialing' || (subscriptionStatus == null && Boolean(checkoutReturn?.trial));
+  const firstCharge = isTrial ? formatPeriodEnd(currentPeriodEnd, { trial: true }) : null;
+  const waitingFolder = checkoutReturn?.importN || 0;
   // State (not a per-render URL read) so a 403 "not your session" — e.g. an
   // account switch in this tab that inherited someone else's session_id URL —
   // can clear it and fall through to the honest missing-session card instead
@@ -173,7 +184,10 @@ export function PricingSuccess() {
     if (celebrated.current) return;
     celebrated.current = true;
     setCelebrating(true);
-    logEventNow(EV.CHECKOUT_ACTIVATED_SEEN, { tier, plan });
+    logEventNow(EV.CHECKOUT_ACTIVATED_SEEN, { tier, plan, trial: isTrial });
+    // The note has done its job here — unless a folder is still waiting, in
+    // which case the app clears it after it has said so on the canvas.
+    if (!waitingFolder) clearCheckoutReturn();
     // The redirect is armed by the [celebrating] effect below, NOT here.
     // History of this split: with the timeout in THIS effect, any dep re-run
     // cleared it and the celebrated-guard skipped re-arming — a late `plan`
@@ -242,7 +256,7 @@ export function PricingSuccess() {
     }
   };
 
-  const supportHref = `mailto:hello@soleilpictures.com?subject=${encodeURIComponent('Clusters: payment received but not activated')}&body=${encodeURIComponent(`Session: ${sessionId || 'n/a'}\nUser: ${user?.email || user?.id || 'n/a'}`)}`;
+  const supportHref = `mailto:hello@soleilpictures.com?subject=${encodeURIComponent(isTrial ? 'Clusters: trial started but not activated' : 'Clusters: payment received but not activated')}&body=${encodeURIComponent(`Session: ${sessionId || 'n/a'}\nUser: ${user?.email || user?.id || 'n/a'}`)}`;
 
   // ── Success beat ──────────────────────────────────────────────────────────
   if (celebrating || tier === 'paid' || tier === 'admin') {
@@ -255,8 +269,20 @@ export function PricingSuccess() {
           </div>
           <SoleilWordmark size="display" />
           <div className="welcome-eyebrow t-eyebrow">
-            Welcome to {PLAN_NAME}{plan ? ` · ${planLabel(plan)}` : ''}
+            Welcome to {PLAN_NAME}{isTrial ? ` · ${CREATOR_TRIAL_DAYS} days free` : plan ? ` · ${planLabel(plan)}` : ''}
           </div>
+          {isTrial && (
+            <p className="welcome-copy t-body">
+              {firstCharge
+                ? `Your trial has started. Nothing is charged until ${firstCharge.value}.`
+                : `Your trial has started. Nothing is charged for ${CREATOR_TRIAL_DAYS} days.`}
+            </p>
+          )}
+          {waitingFolder > 0 && (
+            <p className="welcome-copy t-body">
+              Drop those files again — all {waitingFolder} will fit.
+            </p>
+          )}
           <p className="welcome-copy t-body">
             You're all set. Taking you into Clusters…
           </p>
@@ -314,7 +340,9 @@ export function PricingSuccess() {
               Welcome to {PLAN_NAME}{plan ? ` · ${planLabel(plan)}` : ''}
             </div>
             <p className="welcome-copy t-body">
-              Payment received. Activating your account…
+              {isTrial
+                ? 'Your trial is starting — nothing was charged today. Activating your account…'
+                : 'Payment received. Activating your account…'}
             </p>
             <div className="payment-spinner" aria-label="Activating" />
           </>
@@ -322,10 +350,12 @@ export function PricingSuccess() {
 
         {stalled && (
           <>
-            <div className="welcome-eyebrow t-eyebrow">PAYMENT RECEIVED</div>
+            <div className="welcome-eyebrow t-eyebrow">{isTrial ? 'TRIAL STARTED' : 'PAYMENT RECEIVED'}</div>
             <p className="welcome-copy t-body">
-              Stripe took the payment, but we haven't seen activation come through yet.
-              This is usually a temporary delay — give it one more try.
+              {isTrial
+                ? 'Stripe confirmed your trial — nothing was charged — but we haven\'t seen activation come through yet.'
+                : 'Stripe took the payment, but we haven\'t seen activation come through yet.'}
+              {' '}This is usually a temporary delay — give it one more try.
             </p>
             <div className="welcome-cta-row">
               <button

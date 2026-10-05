@@ -2,7 +2,7 @@
 
 > POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 
-_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-10-02_
 
 Reference rarely starts life in Clusters. It is in a shared drive folder, on a
 CDN, in somebody's export from another tool. `import` is how it gets here
@@ -75,6 +75,9 @@ answer here rather than a silent half-import.
   would still have told you the manifest was fine.
 - Each image is subject to the same **25 MB** ceiling as a direct
   upload, and the same storage allowance.
+- Redirects are followed, but every hop has to pass the same public-host rule.
+  A source that redirects to an internal address fails that item with
+  `source_refused`; the rest still import.
 - A source that does not answer within **15 seconds**
   fails that item; the rest still import.
 - The same URL twice in one manifest is refused: both entries would race for the

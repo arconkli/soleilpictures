@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { resolveSrc } from '../lib/r2.js';
+import { downloadCardAsset } from '../lib/cardDownload.js';
 import { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } from '../lib/pdfEngine.js';
 import { Spinner } from './Spinner.jsx';
 
@@ -199,21 +200,12 @@ export function PdfViewer({ src, name, onClose }) {
     if (downloading) return;
     setDownloading(true);
     try {
-      const url = await resolveSrc(src);
-      if (!url) return;
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objUrl; a.download = filename();
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-    } catch (_) {
-      const url = await resolveSrc(src).catch(() => null);
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-    } finally {
-      setDownloading(false);
-    }
+      // filename() already guarantees the .pdf suffix for the viewer's title;
+      // pass it as fileName so the shared helper treats it as authoritative.
+      await downloadCardAsset({ pdfSrc: src, fileName: filename(), mime: 'application/pdf' },
+                              'pdf', { surface: 'pdf_viewer' });
+    } catch (_) { /* helper already falls back to opening the signed URL */ }
+    finally { setDownloading(false); }
   }, [src, downloading, filename]);
 
   return (

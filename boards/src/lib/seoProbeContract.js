@@ -44,6 +44,8 @@ export const PROBE_ORIGIN = 'https://clusters.soleilpictures.com';
 //   { kind: 'changelog' }            CHANGELOG_HTML, injected into #seo-fallback
 //   { kind: 'listicle', path }       buildListicleCrawlableHtml(getListicleSpec(path))
 //   { kind: 'docs', path }           DOCS_HTML[path]
+//   { kind: 'pricing' }              buildPricingCrawlableHtml(), injected into
+//                                    #seo-fallback on /pricing (0350 rows, after promote)
 //   { kind: 'file',  path }          a committed file under boards/ served as-is
 //   { kind: 'route' }                a route path, not prose — asserted against
 //                                    the landing/listicle path registries

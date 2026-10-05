@@ -8,6 +8,7 @@
 // vibrance (exact) → clarity (exact, mid-tone-weighted) → sharpen.
 
 import { resolveSrc } from './r2.js';
+import { deliverFile } from './exportDelivery.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 
@@ -29,6 +30,8 @@ import {
   buildToneLUT, buildColorMatrix, buildSharpenKernel, clarityParams, LUMA,
 } from './imageAdjust.js';
 
+const IMAGE_EXT_RE = /\.(jpe?g|jfif|png|gif|webp|avif|heic|heif|bmp|svg|tiff?|jxl)$/i;
+
 // Safe download filename. `forceExt` overrides the extension (used when the
 // baked blob is a PNG regardless of the source format).
 export function filenameFor(s, t, forceExt) {
@@ -38,23 +41,27 @@ export function filenameFor(s, t, forceExt) {
     base = m ? decodeURIComponent(m[1]) : 'image';
   }
   base = base.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+  // Kept files arrive with their own extension (fileIngest keeps the real
+  // name), so the list covers what cameras and scanners write — a scan.tif
+  // must not come down as scan.tif.jpg.
   if (forceExt) {
-    base = base.replace(/\.(jpe?g|png|gif|webp|avif|heic|bmp|svg)$/i, '');
+    base = base.replace(IMAGE_EXT_RE, '');
     return `${base}.${forceExt}`;
   }
-  if (!/\.(jpe?g|png|gif|webp|avif|heic|bmp|svg)$/i.test(base)) base += '.jpg';
+  if (!IMAGE_EXT_RE.test(base)) base += '.jpg';
   return base;
 }
 
+// Hands the finished blob to the user. Routed through deliverFile rather than
+// a bare <a download> because <a download> does NOT save a file inside the
+// native iOS/Android WebView — it silently does nothing, which is what image
+// downloads did in the Capacitor app for as long as it has existed. deliverFile
+// writes to the cache directory and presents the OS share sheet there, and
+// falls back to exactly the old <a download> on the web.
 function triggerDownload(blob, name) {
-  const objUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = objUrl;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => { try { URL.revokeObjectURL(objUrl); } catch (_) {} }, 1000);
+  // Fire-and-forget: callers are click handlers and there is nothing useful to
+  // do with a rejection beyond the console.
+  deliverFile(blob, name).catch((err) => console.warn('[imageExport] delivery failed', err));
 }
 
 // 3×3 convolution with edge-clamping; alpha is copied through. Kernels sum to 1.

@@ -1,13 +1,15 @@
 # Grids
 
-> A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. Split and merge cells by dragging the dividers, start from a preset like storyboard or 2x2, or generate an empty matrix of any size. Grids have a defined reading order, so a storyboard reads in sequence.
+> A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-10-04_
 
 A grid is a card that is divided up. Every cell holds real content, and the
 divisions are yours to move.
 
-Press `G`, or use the tool rail.
+Press `G` or pick the grid tool on the rail, then click the canvas: you get a
+storyboard layout — one wide panel on top, two beneath — to cut into whatever
+shape you need.
 
 ## What a cell holds
 
@@ -30,20 +32,17 @@ is why an asymmetric storyboard layout is as easy as a regular one.
 
 Everything reflows around what you changed.
 
-## Presets
-
-Rather than starting from nothing:
-
-| Preset | Layout |
-|---|---|
-| `single` | One cell |
-| `2x2` | Four equal cells |
-| `3up` | Three across |
-| `storyboard-1-2` | One wide panel on top, two beneath |
-| `db-row-1-3` | One, then a row of three |
-
 **Generate matrix** builds an empty N×M grid at whatever size you name — the
 fast path to a contact sheet.
+
+## How grids count toward your card limit
+
+Every filled box counts as one card: a grid holding 25 photos counts as 25.
+An **empty grid counts as nothing**, however many boxes it has — and so does
+every empty copy that **Generate matrix** or a **+** handle stamps out, so a
+storyboard you have laid out but not drawn yet costs no cards at all. A box
+that holds only a sequence number such as `SHOT [#]` is still empty for this
+purpose; the number is part of the layout, not something you put in.
 
 ## Reading order
 
@@ -53,9 +52,10 @@ that sequence is what exports and what a reader follows.
 
 ## Grid families
 
-Grids created from the same template stay linked as a family. Change the layout
-in one and the change can carry to the others — the mechanism that keeps a
-twelve-page storyboard from drifting into twelve slightly different layouts.
+A family is a **live link** between grids on one board: change the layout in one
+and the change carries to the others — the mechanism that keeps a twelve-page
+storyboard from drifting into twelve slightly different layouts. Right-click a
+grid and choose **Share layout** to start one, **Unlink layout** to leave.
 
 ## Discovering grids
 

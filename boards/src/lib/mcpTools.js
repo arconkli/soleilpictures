@@ -500,14 +500,17 @@ export const TOOLS = [
         minItems: 1,
         maxItems: 1000,
         items: schema({
-          kind: str('Defaults to note', { enum: ['note', 'image', 'link', 'doc', 'video', 'file'] }),
+          // audio and pdf were missing while the REST API accepted both
+          // (worker-api CARD_KINDS), so an agent could not create the two
+          // kinds Scout creates from a text message.
+          kind: str('Defaults to note', { enum: ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'] }),
           title: str('A heading'),
           body: str('The text of the card, whatever kind it is'),
           html: str('Rich text, for kind=note or doc'),
           url: str('For kind=link'),
           image_key: str('From upload_image. For kind=image'),
-          file_key: str('For kind=video or file'),
-          file_name: str('For kind=file'),
+          file_key: str('From upload_file. For kind=video, audio, pdf or file'),
+          file_name: str('The file’s own name. For kind=image and video it is what list view shows and what Download names the file; for kind=file, its name'),
           mime: str('For kind=file'),
           alt: str('Alt text, for kind=image'),
           color: str('A colour for the card'),
@@ -532,8 +535,9 @@ export const TOOLS = [
     title: 'Upload an image',
     description: 'UPLOADS image bytes and returns an image_key to pass to add_cards. The image is '
       + "charged against the board owner's storage. Give the bytes base64-encoded. Maximum 25MB, "
-      + 'and the content type must be a real image type. For anything larger, or for video and '
-      + 'other files, use the REST API’s multipart upload.',
+      + 'and the content type must be a real image type. Pass file_name to keep the file’s own '
+      + 'name; it comes back as file_name, to send on the card too. For anything larger, or for '
+      + 'video and other files, use the REST API’s multipart upload.',
     annotations: WRITES,
     inputSchema: schema({
       board_id: uuid('The board this upload is charged to'),
@@ -541,8 +545,9 @@ export const TOOLS = [
       content_type: str('The image’s real type', {
         enum: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/avif'],
       }),
+      file_name: str('The file’s own name, e.g. diner_ext_dusk_04.jpg', { maxLength: 200 }),
     }, ['board_id', 'data', 'content_type']),
-    call: (a, { api }) => api(`/uploads?board=${a.board_id}`, {
+    call: (a, { api }) => api(`/uploads?board=${a.board_id}${a.file_name ? `&filename=${encodeURIComponent(a.file_name)}` : ''}`, {
       method: 'POST',
       rawBody: a.data,
       headers: { 'content-type': a.content_type },

@@ -130,7 +130,11 @@ test.describe('creator trial wiring', () => {
     expect(c).toMatch(/const trialOffer = trialDecision\.eligible;/);
     // The two offers are mutually exclusive by construction — an invitation
     // beside a request reads as a discount rather than a gift.
-    expect(c).toMatch(/const showPrice = \(showCount \|\| near\) && !trialOffer;/);
+    // And no price while the trial is merely WAITING on the server: the
+    // canvas already qualifies, card_index hasn't caught up, and $25 to
+    // somebody about to be invited is the stale-count bug this guards.
+    expect(c).toMatch(/const showPrice = \(showCount \|\| near\) && !trialOffer && !trialPending;/);
+    expect(c).toMatch(/const trialPending = trialAwaitingServer\(\{\s*tier, cards: demoCardCount, serverCards: serverCardCount,/);
     // …and the trial ignores the pressure ladder on purpose: eligibility starts
     // at thirteen cards, which is below the 50% line where `count` begins.
     expect(c).toMatch(/const showTrial = trialOffer;/);

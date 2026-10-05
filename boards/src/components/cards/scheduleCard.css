@@ -16,12 +16,17 @@
 }
 
 /* ── In-card header: ‹ title › · today · view pill ─────────────────────── */
+/* Every size here is multiplied by --chrome-k, the counter-scale factor the
+   component sets from the canvas zoom (1 at 100%, up to 2). Without it a 32px
+   control is 16px on screen at zoom 0.5 — a quarter of the 44pt touch floor,
+   on the surface a crew member is meant to check on an iPad on set. */
 .schedc-head {
-  flex: 0 0 32px; /* SCHED_TUNING.HEADER_H */
+  --chrome-k: 1;
+  flex: 0 0 44px; /* SCHED_TUNING.HEADER_H; overridden inline when zoomed out */
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 6px;
+  gap: calc(4px * var(--chrome-k));
+  padding: 0 calc(8px * var(--chrome-k));
   min-width: 0;
   border-bottom: 1px solid var(--line-1, #212126);
   background: var(--bg-1, #111114);
@@ -35,17 +40,25 @@
   gap: 3px;
   min-width: 0;
   overflow: hidden;
-  padding: 0 4px;
+  padding: 0 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius, 4px);
   background: transparent;
   white-space: nowrap;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--ink-1, #d0d0d4);
+  /* 20/700, up from 16/600. The month is the card's headline and used to be
+     outranked by the peek panel's own 12.5px chrome — a modal's furniture
+     louder than the calendar it belonged to. */
+  font-size: calc(20px * var(--chrome-k, 1));
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0, #f5f5f7);
 }
-button.schedc-title { cursor: pointer; height: 20px; transition: background var(--dur-fast, 120ms) var(--ease, ease); }
+button.schedc-title {
+  cursor: pointer;
+  height: calc(32px * var(--chrome-k, 1));
+  transition: background var(--dur-fast, 120ms) var(--ease, ease);
+}
 button.schedc-title:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
 button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-title-txt {
@@ -60,11 +73,11 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: calc(32px * var(--chrome-k, 1));
+  height: calc(32px * var(--chrome-k, 1));
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md, 8px);
   background: transparent;
   color: var(--ink-3, #5a5a60);
   cursor: pointer;
@@ -72,17 +85,17 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 }
 .schedc-nav:hover, .schedc-today:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
 .schedc-today-dot {
-  width: 6px;
-  height: 6px;
+  width: calc(8px * var(--chrome-k, 1));
+  height: calc(8px * var(--chrome-k, 1));
   border-radius: 50%;
   background: currentColor;
 }
 .schedc-pill {
   flex: 0 0 auto;
   display: inline-flex;
-  gap: 1px;
-  padding: 1px;
-  border-radius: 6px;
+  gap: calc(2px * var(--chrome-k, 1));
+  padding: calc(2px * var(--chrome-k, 1));
+  border-radius: var(--radius-md, 8px);
   background: var(--bg-3, #1c1c20);
   border: 1px solid var(--line-1, #212126);
 }
@@ -91,14 +104,14 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
+  min-width: calc(28px * var(--chrome-k, 1));
+  height: calc(28px * var(--chrome-k, 1));
+  padding: 0 calc(6px * var(--chrome-k, 1));
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius, 4px);
   background: transparent;
   color: var(--ink-3, #5a5a60);
-  font-size: 10px;
+  font-size: calc(11px * var(--chrome-k, 1));
   font-weight: 600;
   cursor: pointer;
   transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
@@ -109,9 +122,23 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-mbtn.is-active { background: var(--bg-act, #212126); color: var(--soleil, #ffa500); }
 
 /* ── Body / slots ───────────────────────────────────────────────────────── */
-/* The body IS the lattice: 1px slot gutters (SCHED_TUNING.GUTTER_PX) over a
-   line-colored background read as hairlines between opaque slots. */
-.schedc-body { position: relative; flex: 1 1 auto; min-height: 0; background: var(--line-1, #212126); }
+/* WHITESPACE, NOT RULES.
+   The body used to be painted --line-1 with 1px slot gutters showing through,
+   so the "lattice" was the substrate. Two things were wrong with that. The
+   substrate was LIGHTER than the tiles (1.13:1), so it read as inset tiles on
+   pale mortar — spreadsheet grammar, not calendar. And in light theme --bg-2
+   #ededf0 against --line-1 #ececef is 1.009:1, so the grid did not render at
+   all: the month collapsed into one flat slab.
+   Cells are now transparent and tile flush (GUTTER_PX 0). The only rule is a
+   border-top per slot, which lines up across a row into a continuous week
+   separator — horizontal only, no vertical rules, which is what a month view
+   actually wants. It also means raggedness at a month's start and end (the
+   strip omits out-of-month days) is simply empty space rather than a staircase
+   of visible tiles. */
+.schedc-body { position: relative; flex: 1 1 auto; min-height: 0; background: var(--bg-1, #111114); }
+/* The calendar pane. Positioned from splitSchedPanes so the slot engine's
+   (0,0)-based rects land inside it whether or not there is a rail beside it. */
+.schedc-cal { position: absolute; overflow: hidden; }
 .schedc-weekdays {
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -121,11 +148,16 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   background: var(--bg-1, #111114);
   pointer-events: none;
 }
+/* Left-aligned on the same 4px origin as .schedc-slot-label so each weekday
+   name sits directly over its own column of dates. Centred headers above
+   left-aligned numbers read as two unrelated rows. */
 .schedc-wd {
-  text-align: center;
-  font-size: 9px;
+  padding-left: 4px;
+  min-width: 18px;
+  text-align: left;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-3, #5a5a60);
 }
@@ -133,62 +165,101 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-slot {
   position: absolute;
   overflow: hidden;
-  background: var(--bg-2, #16161a);
+  background: transparent;
   transition: background var(--dur-fast, 120ms) var(--ease, ease);
 }
-.schedc-slot:hover { background: var(--bg-hov, #1a1a1e); }
-.schedc-slot.is-outside { opacity: 0.45; }
-/* Weekend columns sit a quiet half-step darker than weekdays. Light theme
-   inverts the bg-1/bg-2 relationship, so it mutes toward ink instead. */
-.schedc-slot.is-weekend { background: color-mix(in srgb, var(--bg-1, #111114) 60%, var(--bg-2, #16161a)); }
-[data-theme='light'] .schedc-slot.is-weekend { background: color-mix(in srgb, var(--ink-0, #0a0a0c) 3%, var(--bg-2, #ededf0)); }
-.schedc-slot.is-weekend:hover { background: var(--bg-hov, #1a1a1e); }
-.schedc-slot.is-band { background: var(--bg-3, #1c1c20); }
-/* An expanded day is a frame around its inline hour rows — quiet, no hover lift. */
-.schedc-slot.is-expanded { background: var(--bg-3, #1c1c20); }
-.schedc-slot.is-expanded:hover { background: var(--bg-3, #1c1c20); }
-/* Inline hour rows: alternate hours stripe a half-step so the breakdown reads
-   as intentional texture even at a few px tall… */
-.schedc-slot-hour.is-alt { background: color-mix(in srgb, var(--bg-2, #16161a) 65%, var(--bg-1, #111114)); }
-/* …and rows too small to label mute ALL chrome (labels/hover tools) — the
-   Day Peek is the way in, not squinting. */
+/* Hour and minute rows always span their container, so a per-slot border is a
+   full-width rule. Day cells do NOT (a month starts and ends mid-week, and the
+   strip omits out-of-month days) — theirs come from .schedc-wrule geometry. */
+.schedc-slot-hour, .schedc-slot-minute { border-top: 1px solid var(--line-1, #212126); }
+.schedc-wrule {
+  position: absolute;
+  height: 1px;
+  background: var(--line-1, #212126);
+  pointer-events: none;
+}
+/* Hover was a 1.04:1 change on a surface whose whole model is "the cell is the
+   button". It now actually reads, in both themes. */
+.schedc-slot:hover { background: color-mix(in srgb, var(--ink-0, #f5f5f7) 6%, transparent); }
+.schedc-slot:active { background: color-mix(in srgb, var(--ink-0, #f5f5f7) 10%, transparent); }
+/* RECEDE WITH INK, NEVER WITH OPACITY.
+   `opacity: .45` over a lighter substrate composited UP: out-of-month days
+   rendered ~45% BRIGHTER than in-month ones — the one place the design tried
+   to recede, it advanced. Dimming the text instead works in both themes,
+   because ink contrast is strong where fill contrast is not, and it cannot
+   invert. Same reasoning for weekends: a fill wash was 1.03:1 and invisible. */
+.schedc-slot.is-outside .schedc-slot-label { color: var(--ink-4, #3a3a40); font-weight: 400; }
+.schedc-slot.is-weekend .schedc-slot-label { color: var(--ink-3, #5a5a60); }
+.schedc-slot.is-band { background: color-mix(in srgb, var(--ink-0, #f5f5f7) 4%, transparent); }
+/* An expanded day frames its inline hour rows. Distinct from a band, which is
+   itself a drop surface — the two used to share one declaration. */
+.schedc-slot.is-expanded {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-1, #212126);
+}
+.schedc-slot.is-expanded:hover { background: transparent; }
+/* Inline hour rows: alternate hours stripe so the breakdown reads as texture. */
+.schedc-slot-hour.is-alt { background: color-mix(in srgb, var(--ink-0, #f5f5f7) 3%, transparent); }
+/* Rows too small to label mute ALL chrome — the Day Peek is the way in. */
 .schedc-slot.is-sliver .schedc-time-label { display: none; }
 .schedc-slot.is-sliver .schedc-slottools { display: none; }
-/* Today: the date number becomes a small gold pill; week view underlines the
-   whole column with a gold inset. Gold stays today/selection-only. */
+
+/* TODAY IS A CIRCLE.
+   It was min-width:15px / height:11px, so it rendered 15x11 for "5" and 20x11
+   for "28" — the aspect ratio changed with the date — and its top/line-height
+   put the glyph ~1px off every other number in the row. Fixed square box,
+   centred, tabular figures so one and two digits occupy the same width. */
 .schedc-slot.is-today .schedc-slot-label {
-  top: 2px; left: 3px;
-  min-width: 15px;
-  height: 11px;
-  padding: 0 4px;
-  border-radius: 999px;
+  top: 2px; left: 4px;
+  width: 18px; height: 18px;
+  padding: 0;
+  border-radius: 50%;
   background: var(--soleil, #ffa500);
-  color: var(--bg-0, #0b0b0d);
+  color: #0a0a0c;
   font-weight: 700;
-  line-height: 11px;
+  line-height: 18px;
   text-align: center;
 }
 .is-view-week .schedc-slot-day.is-today { box-shadow: inset 0 2px 0 0 var(--soleil, #ffa500); }
-/* Drop / paste-focus affordance — same grammar as grid cells. */
-.schedc-slot.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); background: var(--bg-hov, #1a1a1e); }
-.schedc-slot.is-focused { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--soleil, #ffa500) 70%, transparent); }
+
+/* Drop / paste-focus affordance. Specificity is deliberate: the week-view
+   today rule above is (0,3,0) and box-shadow does not stack across rules, so
+   at (0,2,0) these lost to it and the drop target was INVISIBLE on today. */
+.schedc-slot.is-drop,
+.is-view-week .schedc-slot-day.is-drop {
+  box-shadow: inset 0 0 0 2px var(--soleil, #ffa500);
+  background: var(--soleil-soft, rgba(255,165,0,.14));
+}
+/* A shoot day landing somewhere is a different act from a file landing in a
+   slot, and the two used to be byte-identical. This one fills. */
+.schedc-slot.is-tile-target,
+.is-view-week .schedc-slot-day.is-tile-target {
+  box-shadow: inset 0 0 0 2px var(--soleil, #ffa500);
+  background: color-mix(in srgb, var(--soleil, #ffa500) 22%, transparent);
+}
+.schedc-slot.is-focused { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--soleil, #ffa500) 55%, transparent); }
 .schedc-slot.is-focused.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
 
+/* The date number is the thing you skim, so it is the largest persistent text
+   on the card — it used to be 10px, the same as every event label beside it.
+   tabular-nums keeps the columns of digits aligned down the week. */
 .schedc-slot-label {
   position: absolute;
-  top: 1px; left: 4px;
-  font-size: 10px;
+  top: 2px; left: 4px;
+  min-width: 18px;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 13px; /* SCHED_TUNING.DAY_LABEL_H minus breathing room */
-  color: var(--ink-2, #a6a6ad);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1, #d0d0d4);
+  text-align: center;
   pointer-events: none;
 }
-.schedc-slot.is-outside .schedc-slot-label { color: var(--ink-4, #3a3a40); }
 /* Time labels: mono digits right-aligned in the gutter, hairline separator. */
 .schedc-time-label {
   position: absolute;
   top: 0; left: 0; bottom: 0;
-  width: 40px; /* SCHED_TUNING.HOUR_LABEL_W minus padding */
+  width: 40px; /* the time gutter; the 44px below is this plus its padding */
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -219,7 +290,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-peekcontent .schedc-slot-hour:not(.is-band) .schedc-chips,
 .schedc-peekcontent .schedc-slot-hour:not(.is-band) .schedc-item-full,
 .schedc-peekcontent .schedc-slot-minute .schedc-chips,
-.schedc-peekcontent .schedc-slot-minute .schedc-item-full { left: 44px; /* SCHED_TUNING.HOUR_LABEL_W */ }
+.schedc-peekcontent .schedc-slot-minute .schedc-item-full { left: 44px; /* clears the time gutter */ }
 /* Bands ("All day" / "9 AM") keep content clear of their inline label. */
 .schedc-slot.is-band .schedc-chips, .schedc-slot.is-band .schedc-item-full { left: 56px; }
 
@@ -241,7 +312,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 }
 .schedc-chip {
   pointer-events: auto;
-  flex: 0 0 18px; /* SCHED_TUNING.CHIP_H */
+  flex: 0 0 22px; /* SCHED_TUNING.CHIP_H */
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -287,9 +358,9 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-peekcontent .schedc-slot-minute .schedc-chip,
 .is-view-day .schedc-slot-hour:not(.is-band) .schedc-chip,
 .is-view-hour .schedc-slot-minute .schedc-chip {
-  flex: 0 0 22px; /* SCHED_TUNING.ROW_CHIP_H */
+  flex: 0 0 24px; /* SCHED_TUNING.ROW_CHIP_H — it said 24, this said 22 */
   font-size: 11.5px;
-  line-height: 20px;
+  line-height: 22px;
   padding: 0 8px;
   border-radius: 6px;
 }
@@ -334,14 +405,14 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   padding: 0;
   border: 0;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--bg-0, #0b0b0d) 65%, transparent);
-  color: var(--ink-2, #a6a6ad);
+  background: color-mix(in srgb, var(--bg-0, #0a0a0c) 65%, transparent);
+  color: var(--ink-2, #888890);
   cursor: pointer;
   opacity: 0;
   transition: opacity var(--dur-fast, 120ms) var(--ease, ease);
 }
 .schedc-slot:hover .schedc-item-x { opacity: 1; }
-.schedc-item-x:hover { color: var(--ink-0, #f5f5f7); background: color-mix(in srgb, var(--bg-0, #0b0b0d) 85%, transparent); }
+.schedc-item-x:hover { color: var(--ink-0, #f5f5f7); background: color-mix(in srgb, var(--bg-0, #0a0a0c) 85%, transparent); }
 /* Sliver slots that can't fit a chip: a tiny count pip, click = open the day. */
 .schedc-count {
   position: absolute;
@@ -375,7 +446,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 /* Text/dot sizes are inline (counter-scaled: target screen px ÷ canvas zoom);
    CSS carries layout + color only. */
 .schedc-head.is-lod { justify-content: center; padding: 0 4px; }
-.schedc-lod-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-0, #f5f5f7); font-weight: 650; }
+.schedc-lod-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-0, #f5f5f7); font-weight: 700; }
 .schedc-slot.is-lod {
   display: flex;
   flex-direction: column;
@@ -387,16 +458,16 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 /* Today keeps its gold pill at any size (em padding rides the font size). */
 .schedc-slot.is-today .schedc-lod-num {
   background: var(--soleil, #ffa500);
-  color: var(--bg-0, #0b0b0d);
+  color: var(--bg-0, #0a0a0c);
   font-weight: 700;
   border-radius: 999px;
   padding: 0.05em 0.32em;
 }
 .schedc-lod-dots { display: flex; gap: 2px; align-items: center; justify-content: center; flex-wrap: wrap; }
-.schedc-lod-dot { flex: 0 0 auto; border-radius: 50%; background: var(--ink-2, #a6a6ad); }
+.schedc-lod-dot { flex: 0 0 auto; border-radius: 50%; background: var(--ink-2, #888890); }
 /* The >4-items count is a quiet pill so it can't read as a date number. */
 .schedc-lod-count {
-  color: var(--ink-2, #a6a6ad);
+  color: var(--ink-2, #888890);
   background: color-mix(in srgb, var(--ink-0, #f5f5f7) 10%, transparent);
   border-radius: 999px;
   padding: 0.1em 0.45em;
@@ -514,11 +585,11 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   padding: 0;
   border: 0;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--bg-0, #0b0b0d) 65%, transparent);
-  color: var(--ink-2, #a6a6ad);
+  background: color-mix(in srgb, var(--bg-0, #0a0a0c) 65%, transparent);
+  color: var(--ink-2, #888890);
   cursor: pointer;
 }
-.schedc-peek-btn:hover { color: var(--ink-0, #f5f5f7); background: color-mix(in srgb, var(--bg-0, #0b0b0d) 85%, transparent); }
+.schedc-peek-btn:hover { color: var(--ink-0, #f5f5f7); background: color-mix(in srgb, var(--bg-0, #0a0a0c) 85%, transparent); }
 .schedc-slottools { gap: 2px; }
 
 /* The panel: a frosted body-portaled dialog beside the source slot. z-index
@@ -529,12 +600,12 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   z-index: 2147483590;
   display: flex;
   flex-direction: column;
-  background: rgba(16, 16, 20, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--msg-surface, rgba(18,18,22,.86));
+  border: 1px solid var(--msg-border, rgba(255,255,255,.06));
   border-radius: var(--radius-lg, 12px);
   box-shadow: var(--shadow-3, 0 12px 48px rgba(0, 0, 0, .45)), inset 0 1px 0 rgba(255, 255, 255, .05);
-  -webkit-backdrop-filter: blur(14px) saturate(1.05);
-  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: var(--msg-blur, blur(12px) saturate(1.05));
+  backdrop-filter: var(--msg-blur, blur(12px) saturate(1.05));
   overflow: hidden;
   font-family: var(--font-sans, sans-serif);
 }
@@ -581,7 +652,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   border: 1px solid var(--line-2, #2c2c32);
   border-radius: 6px;
   background: transparent;
-  color: var(--ink-2, #a6a6ad);
+  color: var(--ink-2, #888890);
   font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
@@ -619,8 +690,8 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   gap: 4px;
   width: 212px;
   padding: 8px;
-  background: rgba(16, 16, 20, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--msg-surface, rgba(18,18,22,.86));
+  border: 1px solid var(--msg-border, rgba(255,255,255,.06));
   border-radius: var(--radius-md, 8px);
   box-shadow: var(--shadow-3, 0 12px 48px rgba(0, 0, 0, .45)), inset 0 1px 0 rgba(255, 255, 255, .05);
   -webkit-backdrop-filter: blur(12px) saturate(1.05);
@@ -703,7 +774,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   border: 1px solid var(--line-2, #2c2c32);
   border-radius: 6px;
   background: transparent;
-  color: var(--ink-2, #a6a6ad);
+  color: var(--ink-2, #888890);
   font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
@@ -729,31 +800,49 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 }
 .schedc-daytile {
   pointer-events: auto;
-  flex: 0 0 19px; /* SCHED_TUNING.DAYTILE_H (20) less the 1px gap */
+  flex: 0 0 23px; /* SCHED_TUNING.DAYTILE_H (24) less the 1px gap */
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  padding: 0 5px;
+  padding: 0 6px;
   border: 1px solid color-mix(in srgb, var(--ink-0, #f5f5f7) 9%, transparent);
-  border-radius: 5px;
+  border-radius: var(--radius, 4px);
   background: color-mix(in srgb, var(--ink-0, #f5f5f7) 10%, transparent);
   color: var(--ink-1, #d0d0d4);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 17px;
+  line-height: 21px;
   text-align: left;
   cursor: default;
 }
 .schedc-daytile.is-draggable { cursor: grab; }
 .schedc-daytile.is-draggable:active { cursor: grabbing; }
 .schedc-daytile.is-dragging { opacity: 0.4; cursor: grabbing; }
-.schedc-daytile-dot {
-  flex: 0 0 auto;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--ink-3, #5a5a60);
+/* A tile too narrow to hold a word becomes a bar. Slimmer than a labelled
+   tile, because at this density the row of them IS the information. */
+.schedc-daytile.is-compact {
+  flex: 0 0 11px;
+  padding: 0;
+  border-radius: 2px;
+  background: var(--daytile-hue, var(--ink-2, #888890));
+  border-color: transparent;
+}
+.schedc-daytile.is-compact.is-draft {
+  background: color-mix(in srgb, var(--daytile-hue, var(--ink-2, #888890)) 45%, transparent);
+  border-color: color-mix(in srgb, var(--daytile-hue, var(--ink-2, #888890)) 70%, transparent);
+}
+.schedc-daytile.is-compact.is-cancelled { background: var(--ink-error, #e08b8b); }
+/* The overflow marker. A busy date used to lose its fourth day to the slot's
+   overflow:hidden with nothing at all to say it existed. */
+.schedc-daytile.is-more {
+  justify-content: center;
+  border-style: none;
+  background: transparent;
+  color: var(--ink-2, #888890);
+  font-size: 10px;
+  font-weight: 600;
 }
 .schedc-daytile-txt {
   flex: 1 1 auto;
@@ -762,33 +851,34 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.schedc-daytile-v {
-  flex: 0 0 auto;
-  font-size: 9px;
-  font-weight: 500;
+/* ── Colour means PHASE ──────────────────────────────────────────────────
+   Hue used to mean published/draft/cancelled. That is a workflow state, and a
+   workflow state is the wrong thing to spend a calendar's colour on: once a
+   shoot is running every day is published and the entire grid is one wall of
+   green, which answers a question nobody on set is asking.
+
+   Hue is now the day's TYPE (prep / production / travel / off / wrap /
+   milestone — see lib/dayTypes.js), which is what makes the shape of a
+   schedule legible at a glance. The hue arrives as --daytile-hue from the
+   production's own palette, so it is a real inline value and not a token;
+   the fallback below is what an untyped day gets.
+
+   Publish state moved to the rail row, where "v3" has room to be read. What
+   survives here is only what must be visible in the grid: a cancelled day,
+   struck through, because it STAYS on the calendar — removing it would leave
+   the crew with no record of a day they had planned around. */
+.schedc-daytile {
+  border-color: color-mix(in srgb, var(--daytile-hue, var(--ink-2, #888890)) 45%, transparent);
+  background: color-mix(in srgb, var(--daytile-hue, var(--ink-0, #f5f5f7)) 16%, transparent);
+}
+/* A draft still reads provisional — dashed, not a different hue. */
+.schedc-daytile.is-draft { border-style: dashed; }
+.schedc-daytile.is-cancelled {
+  background: color-mix(in srgb, var(--ink-error, #e08b8b) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ink-error, #e08b8b) 35%, transparent);
   color: var(--ink-3, #5a5a60);
 }
-/* Status carries in weight and solidity rather than colour: gold is reserved
-   for interaction, and the theme has no success token to borrow. A published
-   day reads solid, a draft reads provisional, and a cancelled day STAYS on the
-   calendar struck through — removing it would leave the crew with no record of
-   a day they had planned around. */
-.schedc-daytile.is-published {
-  color: var(--ink-0, #f5f5f7);
-  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 16%, transparent);
-  border-color: color-mix(in srgb, var(--ink-0, #f5f5f7) 14%, transparent);
-}
-.schedc-daytile.is-published .schedc-daytile-dot { background: var(--ink-0, #f5f5f7); }
-.schedc-daytile.is-draft { border-style: dashed; }
-.schedc-daytile.is-cancelled { opacity: 0.55; }
 .schedc-daytile.is-cancelled .schedc-daytile-txt { text-decoration: line-through; }
-.schedc-daytile.is-cancelled .schedc-daytile-dot { background: var(--ink-4, #3a3a40); }
-
-/* Where a dragged day would land — the same gold as every other drop target. */
-.schedc-slot.is-tile-target {
-  box-shadow: inset 0 0 0 2px var(--soleil, #ffa500);
-  background: var(--bg-hov, #1a1a1e);
-}
 
 /* ── Multi-month strip ──────────────────────────────────────────────────── */
 /* Each month block carries its own caption and weekday strip; the shared
@@ -799,18 +889,25 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   display: flex;
   align-items: center;
   padding: 0 4px;
-  background: var(--bg-1, #111114);
-  color: var(--ink-2, #8a8a92);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
+  background: transparent;
+  color: var(--ink-0, #f5f5f7);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
 }
 .schedc-weekdays.is-block { right: auto; }
-.schedc-months { margin-right: 4px; }
+.schedc-months { margin-right: 8px; }
+/* The month-span pill and the view pill are two different questions sitting
+   side by side in identical shells — a first read of "1 3 6 | M W D H" is
+   "seven buttons". The span pill loses its shell so only one reads as a
+   segmented control. */
+.schedc-months { background: transparent; border-color: transparent; padding: 0; gap: 0; }
+.schedc-months .schedc-mbtn { min-width: 24px; }
+.schedc-months .schedc-mbtn.is-active { background: var(--bg-3, #1c1c20); color: var(--ink-0, #f5f5f7); }
 /* .schedc-mbtn shares the view pill's LOOK (see the widened selectors above)
    but not its class. Anyone reading the DOM — a test, a future selector —
    reasonably treats .schedc-pill-btn.is-active as "the current view", and two
@@ -822,16 +919,18 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   z-index: 2147483601;
   width: 240px;
   padding: 10px;
-  border: 1px solid var(--line-2, #2a2a30);
+  border: 1px solid var(--msg-border, rgba(255,255,255,.06));
   border-radius: var(--radius-md, 8px);
-  background: var(--bg-1, #111114);
-  box-shadow: var(--shadow-3);
+  background: var(--msg-surface, rgba(18,18,22,.86));
+  -webkit-backdrop-filter: var(--msg-blur, blur(12px) saturate(1.05));
+  backdrop-filter: var(--msg-blur, blur(12px) saturate(1.05));
+  box-shadow: var(--shadow-3, 0 18px 50px rgba(0,0,0,.45));
   color: var(--ink-1, #d0d0d4);
   font-size: 11px;
-  animation: ctx-menu-in var(--dur-base, 160ms) var(--ease, ease);
+  animation: ctx-menu-in var(--dur-base, 200ms) var(--ease, ease);
 }
 .schedc-range-head { display: flex; align-items: center; margin-bottom: 8px; }
-.schedc-range-title { flex: 1 1 auto; font-size: 11px; font-weight: 650; color: var(--ink-0, #f5f5f7); }
+.schedc-range-title { flex: 1 1 auto; font-size: 11px; font-weight: 700; color: var(--ink-0, #f5f5f7); }
 .schedc-range-x {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
@@ -844,7 +943,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-range-row {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 6px;
-  color: var(--ink-2, #8a8a92);
+  color: var(--ink-2, #888890);
 }
 .schedc-range-row > span:first-child { flex: 0 0 62px; }
 .schedc-range-row strong { color: var(--ink-0, #f5f5f7); font-weight: 600; }
@@ -852,7 +951,7 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   flex: 1 1 auto;
   min-width: 0;
   padding: 3px 5px;
-  border: 1px solid var(--line-2, #2a2a30);
+  border: 1px solid var(--line-2, #2c2c32);
   border-radius: 4px;
   background: var(--bg-2, #16161a);
   color: var(--ink-0, #f5f5f7);
@@ -864,8 +963,8 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-range-count {
   margin: 8px 0 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--line-2, #2a2a30);
-  color: var(--ink-2, #8a8a92);
+  border-top: 1px solid var(--line-2, #2c2c32);
+  color: var(--ink-2, #888890);
   line-height: 1.45;
 }
 /* The cap is stated, never silent: a clamped range that just "worked" would
@@ -874,19 +973,961 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 .schedc-range-go {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid var(--line-2, #2a2a30);
-  border-radius: var(--radius-sm, 5px);
+  border: 1px solid var(--line-2, #2c2c32);
+  border-radius: var(--radius, 4px);
   background: var(--bg-act, #212126);
   color: var(--ink-0, #f5f5f7);
   font-size: 11px; font-weight: 600; font-family: inherit;
   cursor: pointer;
   transition: background var(--dur-fast, 120ms) var(--ease, ease);
 }
-.schedc-range-go:hover:not(:disabled) { background: var(--bg-hov, #1a1a1e); }
-.schedc-range-go:disabled { opacity: 0.45; cursor: default; }
+.schedc-range-go:hover:not(:disabled) { background: var(--bg-4, #26262a); border-color: var(--line-3, #3a3a40); }
+.schedc-range-go:disabled { opacity: var(--disabled-opacity, 0.4); cursor: default; }
 .schedc-range-hint {
   margin: 8px 0 0;
   color: var(--ink-3, #5a5a60);
   font-size: 10px;
   line-height: 1.5;
+}
+
+
+/* ── Keyboard focus ─────────────────────────────────────────────────────── */
+/* There was previously NO :focus-visible anywhere in this file, while
+   .schedc-daytile ships tabIndex={0} role="button". Keyboard users could reach
+   a shoot day and get no indication whatsoever. One ring, everywhere. */
+.schedc-nav:focus-visible,
+.schedc-today:focus-visible,
+.schedc-pill-btn:focus-visible,
+.schedc-mbtn:focus-visible,
+button.schedc-title:focus-visible,
+.schedc-daytile:focus-visible,
+.schedc-chip:focus-visible,
+.schedc-count:focus-visible,
+.schedc-mini:focus-visible,
+.schedc-peek-btn:focus-visible,
+.schedc-item-x:focus-visible,
+.schedc-chip-x:focus-visible,
+.schedc-peeknav:focus-visible,
+.schedc-peekday:focus-visible,
+.schedc-peekhours:focus-visible,
+.schedc-range-go:focus-visible,
+.schedc-range-x:focus-visible,
+.schedc-dp-day:focus-visible,
+.schedc-dp-nav:focus-visible,
+.schedc-dp-today:focus-visible {
+  outline: 2px solid var(--soleil, #ffa500);
+  outline-offset: 1px;
+}
+.schedc-slot:focus-visible { outline: 2px solid var(--soleil, #ffa500); outline-offset: -2px; }
+
+/* ── Press feedback ─────────────────────────────────────────────────────── */
+/* gridCard.css gives its controls an :active step; this file never adopted it,
+   so nothing here acknowledged a press. */
+.schedc-nav:active,
+.schedc-today:active,
+.schedc-pill-btn:active,
+.schedc-mbtn:active,
+button.schedc-title:active,
+.schedc-mini:active,
+.schedc-peek-btn:active,
+.schedc-peeknav:active,
+.schedc-peekday:active,
+.schedc-range-go:active:not(:disabled) { background: var(--bg-4, #26262a); }
+
+/* ══ The day rail ═════════════════════════════════════════════════════════
+   The half of the card where the work is. A month cell is ~90px wide, which
+   is a date and a dot; a start time, a location and a publish state need a
+   ROW. The grid keeps the shape of the schedule, the rail carries the detail,
+   and because it is a permanent pane rather than a popover you never lose
+   your place in the calendar to read a day.
+
+   Separated from the calendar by a single rule and a slightly recessed
+   ground, so it reads as a second column rather than a floating panel. */
+.schedc-rail {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-left: 1px solid var(--line-1, #212126);
+  background: var(--bg-0, #0a0a0c);
+}
+
+/* ── Today / Up next ─────────────────────────────────────────────────────
+   Pinned above the scroll. Every source on call sheets says the same thing:
+   the general call time is the single most important line and it must be
+   readable without hunting for it. So it is the largest type in the card. */
+.schedc-today-block {
+  flex: 0 0 auto;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--line-1, #212126);
+}
+.schedc-today-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3, #5a5a60);
+}
+.schedc-today-main {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.schedc-today-time {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 30px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0, #f5f5f7);
+}
+.schedc-today-time.is-none {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 30px;
+  color: var(--ink-3, #5a5a60);
+}
+.schedc-today-meta,
+.schedc-today-empty {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-2, #888890);
+}
+.schedc-today-empty { margin-top: 4px; }
+.schedc-today-main:hover .schedc-today-meta { color: var(--ink-1, #d0d0d4); }
+/* Today outside the visible range is not an error state — it is one tap away. */
+.schedc-today-jump {
+  display: block;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-size: 12px;
+  color: var(--ink-2, #888890);
+  cursor: pointer;
+}
+.schedc-today-jump:hover { color: var(--soleil, #ffa500); }
+.schedc-next {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line-1, #212126);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.schedc-next-k {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3, #5a5a60);
+}
+.schedc-next-v {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1, #d0d0d4);
+}
+.schedc-next:hover .schedc-next-v { color: var(--ink-0, #f5f5f7); }
+
+/* ── The scrolling list ──────────────────────────────────────────────────── */
+.schedc-rail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 0 8px;
+}
+.schedc-rail-empty {
+  margin: 16px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-3, #5a5a60);
+}
+/* Month headers only appear on a multi-month strip: on a single month they
+   would label the one thing the header already says. */
+.schedc-rail-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--bg-0, #0a0a0c);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3, #5a5a60);
+}
+
+/* One date: a fixed-width date mark, then the stack of what is on it. The
+   mark is a column so the rows align down the rail no matter how many days
+   share a date. */
+.schedc-rail-date {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 8px 3px 10px;
+}
+.schedc-rail-date.is-drop { background: color-mix(in srgb, var(--soleil, #ffa500) 14%, transparent); }
+.schedc-rail-datemark {
+  flex: 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 0 0;
+  border: 0;
+  border-radius: var(--radius, 4px);
+  background: transparent;
+  user-select: none;
+  cursor: pointer;
+}
+.schedc-rail-datemark:hover { background: var(--bg-2, #16161a); }
+.schedc-rail-datemark:hover .schedc-rail-dnum { color: var(--ink-0, #f5f5f7); }
+.schedc-rail-datemark:focus-visible {
+  outline: 2px solid var(--soleil, #ffa500);
+  outline-offset: 1px;
+}
+.schedc-rail-dow {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-3, #5a5a60);
+}
+.schedc-rail-dnum {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 19px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1, #d0d0d4);
+}
+/* Recede with INK, never with opacity — the same rule the grid follows. A
+   washed fill composites unpredictably against a light substrate; ink does
+   not, and it works in both themes without a second set of values. */
+.schedc-rail-date.is-weekend .schedc-rail-dow,
+.schedc-rail-date.is-weekend .schedc-rail-dnum { color: var(--ink-3, #5a5a60); }
+.schedc-rail-date.is-today .schedc-rail-dnum {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--soleil, #ffa500);
+  color: #0a0a0c;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+.schedc-rail-stack {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.schedc-rail-none {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 28px;
+  font-size: 11.5px;
+  color: var(--ink-3, #5a5a60);
+}
+.schedc-rail-add {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  padding: 0;
+  border: 1px solid var(--line-2, #2c2c32);
+  border-radius: var(--radius, 4px);
+  background: transparent;
+  color: var(--ink-2, #888890);
+  opacity: 0;
+  cursor: pointer;
+}
+.schedc-rail-date:hover .schedc-rail-add { opacity: 1; }
+.schedc-rail-add:hover { background: var(--bg-3, #1c1c20); color: var(--ink-0, #f5f5f7); }
+
+/* ── A day row ───────────────────────────────────────────────────────────
+   Two lines, always, so the rail scans as a column rather than a ragged list.
+   The phase colour is a 3px spine down the left edge: a full fill at this
+   density fights the text, and an edge reads as a spine when rows stack. */
+.schedc-dayrow {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 46px; /* 44pt floor with the 3px gap between rows */
+  padding: 5px 8px 5px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius, 4px);
+  background: var(--bg-2, #16161a);
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-dayrow-bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: var(--radius, 4px) 0 0 var(--radius, 4px);
+  background: var(--dayrow-hue, var(--ink-4, #3a3a40));
+}
+.schedc-dayrow-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.schedc-dayrow-l1,
+.schedc-dayrow-l2 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.schedc-dayrow-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-0, #f5f5f7);
+}
+.schedc-dayrow-name.is-quiet { font-weight: 500; color: var(--ink-2, #888890); }
+/* The call time. Tabular so a column of them lines up, and heavier than the
+   day's own name — it is the thing being looked for. */
+.schedc-dayrow-time {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0, #f5f5f7);
+}
+.schedc-dayrow-sub {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--ink-2, #888890);
+}
+/* Status is a MARK now, not a hue — colour is spent on phase. Quiet by
+   default and only loud when it means something is unfinished. */
+.schedc-dayrow-status {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--ink-3, #5a5a60);
+}
+.schedc-dayrow-status.is-published { color: var(--msg-ok, #2faf78); }
+.schedc-dayrow-status.is-draft { font-size: 12px; line-height: 1; color: var(--ink-4, #3a3a40); }
+.schedc-dayrow-status.is-cancelled { color: var(--ink-error, #e08b8b); }
+.schedc-dayrow.is-cancelled .schedc-dayrow-name { text-decoration: line-through; color: var(--ink-3, #5a5a60); }
+.schedc-dayrow.is-cancelled .schedc-dayrow-bar { background: var(--ink-error, #e08b8b); }
+.schedc-dayrow.is-loose { background: transparent; min-height: 34px; }
+.schedc-dayrow.is-loose .schedc-dayrow-bar { background: transparent; }
+
+.schedc-dayrow:hover { background: var(--bg-3, #1c1c20); }
+.schedc-dayrow:active { background: var(--bg-4, #26262a); }
+.schedc-dayrow.is-selected {
+  border-color: var(--soleil, #ffa500);
+  background: var(--soleil-soft, rgba(255,165,0,.14));
+}
+.schedc-dayrow.is-draggable { cursor: grab; }
+.schedc-dayrow.is-draggable:active { cursor: grabbing; }
+.schedc-dayrow.is-dragging { opacity: .4; cursor: grabbing; }
+.schedc-dayrow:focus-visible,
+.schedc-rail-add:focus-visible,
+.schedc-rail-foot:focus-visible,
+.schedc-today-main:focus-visible,
+.schedc-today-jump:focus-visible,
+.schedc-next:focus-visible {
+  outline: 2px solid var(--soleil, #ffa500);
+  outline-offset: 1px;
+}
+
+.schedc-rail-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 0;
+  border-top: 1px solid var(--line-1, #212126);
+  background: transparent;
+  color: var(--ink-2, #888890);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.schedc-rail-foot:hover { background: var(--bg-2, #16161a); color: var(--ink-0, #f5f5f7); }
+
+/* The calendar cell backing the rail's selection. Distinct from .is-drop (a
+   live drag target) and .is-today (a date), both of which also use gold —
+   this is a resting outline, not a fill. */
+.schedc-slot-day.is-selected { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
+.is-view-week .schedc-slot-day.is-selected { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
+
+/* ── Full screen ──────────────────────────────────────────────────────────
+   A production calendar is a wall chart. On a canvas among other cards it is
+   permanently negotiating for width with everything around it, and two panes
+   want more room than a card politely takes. Portaled to the body so it
+   renders at true screen pixels instead of inheriting the canvas zoom. */
+.schedc-fs-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483580;
+  background: color-mix(in srgb, var(--bg-0, #0a0a0c) 72%, transparent);
+  backdrop-filter: blur(2px);
+}
+.schedc-fs {
+  position: fixed;
+  inset: 24px;
+  z-index: 2147483581;
+  display: flex;
+}
+/* Below the peek (2147483590) and the slot menu (…600) on purpose: opening a
+   day's hours from a full-screen calendar has to put the panel ON TOP of it,
+   not behind. Same ladder the peek already respects. */
+.schedc-fs > .schedc {
+  position: relative;
+  inset: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .45);
+}
+.schedc.is-fullscreen { border-radius: var(--radius-lg, 12px); }
+.schedc-full { margin-left: 2px; }
+.schedc-full[aria-pressed='true'] { color: var(--soleil, #ffa500); }
+.schedc-full:focus-visible { outline: 2px solid var(--soleil, #ffa500); outline-offset: 1px; }
+
+/* ── The 44pt floor, where it actually applies ────────────────────────────
+   --chrome-k above stops canvas zoom from SHRINKING a control (32px at zoom
+   0.5 was 16px on screen). It cannot raise the resting size, and it shouldn't:
+   a 44px button in a 44px header is cramped with a mouse.
+   The floor is a touch requirement, so it lands on a touch pointer — which on
+   this app means an iPad on set, the case the whole feature exists for.
+   Combined with --chrome-k these hold ≥44 screen px down to zoom 0.5. */
+@media (pointer: coarse) {
+  /* JS mirrors this: ScheduleCard reads useBreakpoint().isTouch and reserves
+     the same 56 before splitting the body. Change one, change both. */
+  .schedc-head { flex-basis: 56px; }
+  .schedc-nav, .schedc-today {
+    width: calc(44px * var(--chrome-k, 1));
+    height: calc(44px * var(--chrome-k, 1));
+  }
+  button.schedc-title { height: calc(44px * var(--chrome-k, 1)); }
+  .schedc-pill-btn, .schedc-mbtn {
+    min-width: calc(40px * var(--chrome-k, 1));
+    height: calc(40px * var(--chrome-k, 1));
+    font-size: calc(13px * var(--chrome-k, 1));
+  }
+  /* The rail is the surface a crew member actually taps. */
+  .schedc-dayrow { min-height: 56px; }
+  .schedc-rail-datemark { min-height: 44px; justify-content: center; }
+  .schedc-rail-add { width: 32px; height: 32px; opacity: 1; }
+}
+
+/* ══ The rundown ══════════════════════════════════════════════════════════
+   The day view, rebuilt. Row height is proportional to duration, so the day
+   reads as a shape while it edits as a list — and because a rundown is
+   sequential by definition there is no overlap packing, which is the hardest
+   part of a calendar day view, deleted rather than solved. */
+.rd { position:absolute; inset:0; display:flex; flex-direction:column; min-height:0; }
+
+/* The headline. Every source on call sheets agrees the start time is the one
+   line people look for, so it is the largest type on the surface. */
+.rd-facts {
+  flex:0 0 auto;
+  display:flex; align-items:center; flex-wrap:wrap; gap:4px 16px;
+  padding:9px 12px;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:var(--bg-1, #111114);
+  font-variant-numeric:tabular-nums;
+}
+.rd-fact { display:flex; align-items:baseline; gap:6px; }
+.rd-fact-k {
+  font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.rd-fact-v { font-size:15px; font-weight:700; color:var(--ink-0, #f5f5f7); }
+.rd-fact.is-over  .rd-fact-v { color:var(--ink-error, #e08b8b); }
+.rd-fact.is-under .rd-fact-v { color:var(--msg-ok, #2faf78); }
+.rd-fact-note, .rd-fact-place { font-size:11px; color:var(--ink-3, #5a5a60); }
+.rd-nextday {
+  margin-left:3px; font-style:normal; font-size:9px; font-weight:700;
+  vertical-align:super; color:var(--ink-3, #5a5a60);
+}
+
+.rd-body {
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto; overscroll-behavior:contain;
+  background:var(--bg-1, #111114);
+}
+.rd-empty {
+  margin:18px 14px; font-size:12.5px; line-height:1.55; color:var(--ink-3, #5a5a60);
+}
+
+/* Content attached to the DAY rather than to a moment. The all-day band's job
+   without a slot — it never consumes the clock. */
+.rd-untimed {
+  display:flex; align-items:baseline; gap:9px;
+  padding:6px 12px;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:color-mix(in srgb, var(--ink-0, #f5f5f7) 4%, transparent);
+}
+.rd-untimed-k {
+  flex:0 0 auto;
+  font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.rd-untimed-list { display:flex; flex-wrap:wrap; gap:5px; min-width:0; }
+.rd-untimed-item {
+  padding:1px 7px; border-radius:var(--radius, 4px);
+  background:var(--bg-3, #1c1c20); font-size:11.5px; color:var(--ink-1, #d0d0d4);
+}
+
+/* ── a row ─────────────────────────────────────────────────────────────── */
+.rd-row {
+  position:relative;
+  display:flex; align-items:stretch; gap:8px;
+  padding:5px 8px 5px 6px;
+  border-bottom:1px solid var(--line-1, #212126);
+  transition:background var(--dur-fast, 120ms) var(--ease, ease);
+}
+.rd-row:hover { background:color-mix(in srgb, var(--ink-0, #f5f5f7) 4%, transparent); }
+.rd-row.is-draggable { cursor:grab; }
+.rd-row.is-draggable:active { cursor:grabbing; }
+.rd-row.is-dragging { opacity:.4; cursor:grabbing; }
+
+/* A pin is deliberately NOT gold. Gold is reserved for live state — the
+   now-line, selection — and a pinned lunch is a property of the plan, not a
+   thing happening now. */
+.rd-pin {
+  flex:0 0 auto; align-self:flex-start;
+  display:inline-flex; align-items:center; justify-content:center;
+  width:16px; height:18px; padding:0;
+  border:0; background:transparent; border-radius:var(--radius, 4px);
+  color:var(--ink-4, #3a3a40);
+  opacity:0; cursor:pointer;
+  transition:opacity var(--dur-fast, 120ms) var(--ease, ease),
+             color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.rd-row:hover .rd-pin { opacity:1; }
+.rd-pin.is-on { opacity:1; color:var(--ink-1, #d0d0d4); }
+.rd-pin:hover:not(:disabled) { color:var(--ink-0, #f5f5f7); background:var(--bg-3, #1c1c20); }
+.rd-pin:disabled { cursor:default; }
+
+.rd-t {
+  flex:0 0 46px; align-self:flex-start;
+  box-sizing:border-box; padding:0 2px;
+  font-size:13px; font-weight:600; line-height:18px;
+  font-variant-numeric:tabular-nums; color:var(--ink-1, #d0d0d4);
+}
+.rd-row.is-pinned .rd-t { color:var(--ink-0, #f5f5f7); }
+
+/* The phase colour, as an edge. A full fill fights the text at this density;
+   an edge reads as a spine when the rows stack. */
+.rd-spine {
+  flex:0 0 3px; align-self:stretch;
+  border-radius:2px;
+  background:var(--rd-hue, var(--ink-4, #3a3a40));
+}
+
+.rd-col { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.rd-title {
+  display:block; width:100%; min-width:0;
+  padding:0; border:0; background:transparent;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  text-align:left;
+  font-size:13px; font-weight:600; line-height:18px; color:var(--ink-0, #f5f5f7);
+  cursor:text;
+}
+.rd-title:disabled { cursor:default; }
+.rd-title.is-quiet { font-weight:500; color:var(--ink-2, #888890); }
+.rd-sub {
+  font-size:11.5px; color:var(--ink-2, #888890);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.rd-boardcell { position:relative; min-height:0; flex:1 1 auto; display:flex; }
+.rd-boardcell > .gc-board { flex:1 1 auto; min-width:0; }
+
+/* A meal break and a company move are not work — they read as the interruption
+   they are, in the industry's own vocabulary. */
+.rd-row.is-break, .rd-row.is-move {
+  background:color-mix(in srgb, var(--ink-0, #f5f5f7) 3%, transparent);
+}
+.rd-row.is-break .rd-title, .rd-row.is-move .rd-title {
+  font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-2, #888890);
+}
+
+/* A text input, not a spinner: 2h15 is two keystrokes to type. */
+.rd-dur {
+  flex:0 0 46px; align-self:flex-start;
+  text-align:right;
+  font-size:13px; line-height:18px;
+  font-variant-numeric:tabular-nums; color:var(--ink-2, #888890);
+}
+input.rd-dur-in {
+  box-sizing:border-box; width:46px; min-width:0;   /* same flex-basis trap */
+  padding:0 2px; border:1px solid transparent; border-radius:var(--radius, 4px);
+  background:transparent; font-family:inherit;
+}
+input.rd-dur-in:hover { border-color:var(--line-2, #2c2c32); }
+input.rd-dur-in:focus {
+  outline:none;
+  border-color:var(--soleil, #ffa500);
+  background:var(--bg-0, #0a0a0c);
+  color:var(--ink-0, #f5f5f7);
+}
+
+.rd-tools { flex:0 0 auto; align-self:flex-start; display:flex; gap:1px; opacity:0;
+  transition:opacity var(--dur-fast, 120ms) var(--ease, ease); }
+.rd-row:hover .rd-tools { opacity:1; }
+.rd-tool {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:20px; height:20px; padding:0;
+  border:0; border-radius:var(--radius, 4px); background:transparent;
+  color:var(--ink-3, #5a5a60); cursor:pointer;
+}
+.rd-tool:hover { background:var(--bg-3, #1c1c20); color:var(--ink-0, #f5f5f7); }
+
+/* ── the seam between two rows ─────────────────────────────────────────── */
+/* A gap or an overrun is a fact about the JOIN, not about either row, so it
+   renders between them — where the problem actually is. */
+.rd-warn {
+  display:flex; align-items:center; gap:7px;
+  padding:3px 12px;
+  font-size:10.5px; font-weight:600; letter-spacing:.02em;
+  color:var(--ink-error, #e08b8b);
+  background:color-mix(in srgb, var(--ink-error, #e08b8b) 11%, transparent);
+  border-top:1px solid color-mix(in srgb, var(--ink-error, #e08b8b) 40%, transparent);
+  border-bottom:1px solid color-mix(in srgb, var(--ink-error, #e08b8b) 40%, transparent);
+}
+.rd-warn::before { content:"▲"; font-size:8px; }
+.rd-warn.is-gap {
+  color:var(--ink-3, #5a5a60);
+  background:transparent;
+  border-top:1px dashed var(--line-3, #3a3a40);
+  border-bottom:1px dashed var(--line-3, #3a3a40);
+}
+.rd-warn.is-gap::before { content:"○"; font-size:8px; }
+
+.rd-dropline { height:2px; background:var(--soleil, #ffa500); margin:-1px 0; }
+
+.rd-wrap-row {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 8px 6px 6px;
+  padding-left:30px;                       /* clears the pin column */
+  background:var(--bg-2, #16161a);
+}
+
+.rd-add {
+  flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  min-height:36px;
+  border:0; border-top:1px solid var(--line-1, #212126);
+  background:transparent;
+  color:var(--ink-2, #888890);
+  font-size:12px; font-weight:500; cursor:pointer;
+}
+.rd-add:hover { background:var(--bg-2, #16161a); color:var(--ink-0, #f5f5f7); }
+
+.rd-row:focus-visible,
+.rd-pin:focus-visible,
+.rd-title:focus-visible,
+.rd-tool:focus-visible,
+.rd-add:focus-visible {
+  outline:2px solid var(--soleil, #ffa500);
+  outline-offset:-1px;
+}
+
+/* Touch: the 44pt floor lands here too — the rundown is what a crew member
+   actually reads on an iPad on set. */
+@media (pointer: coarse) {
+  .rd-pin  { width:32px; height:32px; opacity:1; }
+  .rd-tool { width:32px; height:32px; }
+  .rd-tools { opacity:1; }
+  .rd-t    { flex-basis:52px; font-size:14px; }
+  input.rd-dur-in { flex-basis:56px; font-size:14px; }
+  .rd-add  { min-height:48px; }
+}
+input.rd-title-in {
+  width:100%; min-width:0;
+  padding:0 3px; margin:0 -3px;
+  border:1px solid var(--soleil, #ffa500); border-radius:var(--radius, 4px);
+  background:var(--bg-0, #0a0a0c);
+  font-family:inherit; font-size:13px; font-weight:600; line-height:18px;
+  color:var(--ink-0, #f5f5f7);
+}
+input.rd-title-in:focus { outline:none; }
+.rd-title.is-untitled { color:var(--ink-3, #5a5a60); font-weight:500; }
+input.rd-t-in {
+  /* An input's intrinsic min-width is ~170px, and in a flex row `min-width:
+     auto` lets that win over flex-basis — which pushed the whole title column
+     right on every pinned row while unpinned rows stayed put. */
+  /* An input's intrinsic min-width is ~170px and `min-width: auto` lets that
+     beat flex-basis, which pushed the title column right on every pinned row
+     while unpinned rows stayed put. The 2px padding matches .rd-t's, so the
+     digits land on the same x whether the row is pinned or not. */
+  box-sizing:border-box; min-width:0;
+  padding:0 2px;
+  border:1px solid transparent; border-radius:var(--radius, 4px);
+  background:transparent; font-family:inherit;
+  font-size:13px; font-weight:600; line-height:18px;
+  font-variant-numeric:tabular-nums; color:var(--ink-0, #f5f5f7);
+}
+input.rd-t-in:hover { border-color:var(--line-2, #2c2c32); }
+input.rd-t-in:focus {
+  outline:none; border-color:var(--soleil, #ffa500); background:var(--bg-0, #0a0a0c);
+}
+
+/* ══ The wall chart ═══════════════════════════════════════════════════════
+   One row per month, one thin column per day. The only surface here that
+   answers "what is the shape of this shoot", and it does it in about a hundred
+   pixels — a month grid needs five hundred to say less. It navigates; it does
+   not detail. Columns deliberately do not line up between months (Aug 1 is a
+   Saturday, Sep 1 a Tuesday); the faded weekend cells carry the rhythm. */
+.schedw {
+  flex:0 0 auto;
+  padding:8px 10px;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:var(--bg-1, #111114);
+}
+.schedw-row { display:flex; align-items:center; gap:7px; margin-bottom:2px; }
+.schedw-row:last-child { margin-bottom:0; }
+.schedw-m {
+  flex:0 0 26px;
+  font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.schedw-days { flex:1 1 auto; display:flex; gap:2px; min-width:0; }
+.schedw-d {
+  flex:1 1 0; min-width:0;
+  height:16px; padding:0;
+  border:1px solid var(--line-1, #212126);
+  border-radius:2px;
+  background:var(--bg-3, #1c1c20);
+  cursor:pointer;
+  transition:transform var(--dur-quick, 80ms) var(--ease, ease);
+}
+/* A day with nothing on it recedes rather than disappearing — the gaps in a
+   schedule are information too. */
+.schedw-d.is-weekend { background:transparent; border-color:transparent; }
+.schedw-d.is-loose { background:var(--ink-4, #3a3a40); border-color:transparent; }
+.schedw-d.is-day {
+  background:var(--w-hue, var(--ink-2, #888890));
+  border-color:transparent;
+}
+.schedw-d.is-day.is-weekend { opacity:.62; }
+.schedw-d.is-cancelled { background:var(--ink-error, #e08b8b); }
+.schedw-d:hover { transform:scaleY(1.45); }
+.schedw-d.is-today { box-shadow:0 0 0 2px var(--soleil, #ffa500); z-index:1; }
+.schedw-d.is-selected { box-shadow:inset 0 0 0 2px var(--ink-0, #f5f5f7); }
+.schedw-d:focus-visible { outline:2px solid var(--soleil, #ffa500); outline-offset:1px; }
+
+/* ══ The contact sheet ════════════════════════════════════════════════════
+   Weeks as rows, each day a tile showing its board's own thumbnail. You
+   recognise a day by what is in it, which is something a text calendar cannot
+   do. Seven columns, not five: productions shoot Saturdays, so weekends get a
+   narrower track rather than being dropped. */
+.schedt {
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto; overscroll-behavior:contain;
+  padding:6px 10px 12px;
+  background:var(--bg-1, #111114);
+}
+.schedt-empty { margin:18px 4px; font-size:12.5px; color:var(--ink-3, #5a5a60); }
+.schedt-week { margin-bottom:10px; }
+.schedt-week:last-child { margin-bottom:0; }
+.schedt-wk {
+  display:flex; align-items:baseline; gap:9px;
+  padding:6px 2px 5px;
+}
+.schedt-wk b {
+  font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.schedt-wk span {
+  margin-left:auto; font-size:10.5px; color:var(--ink-4, #3a3a40);
+  font-variant-numeric:tabular-nums;
+}
+.schedt-grid { display:grid; gap:6px; align-items:stretch; }
+.schedt-pad { display:block; }
+
+.schedt-tile {
+  position:relative;
+  display:flex; flex-direction:column; min-width:0;
+  border:1px solid var(--line-1, #212126);
+  border-radius:var(--radius, 4px);
+  background:var(--bg-2, #16161a);
+  overflow:hidden;
+  cursor:pointer;
+  transition:border-color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedt-tile:hover { border-color:var(--line-3, #3a3a40); }
+.schedt-tile.is-draggable { cursor:grab; }
+.schedt-tile.is-draggable:active { cursor:grabbing; }
+.schedt-tile.is-dragging { opacity:.4; }
+.schedt-tile.is-today { box-shadow:0 0 0 2px var(--soleil, #ffa500); }
+.schedt-tile.is-selected { border-color:var(--soleil, #ffa500); background:var(--soleil-soft, rgba(255,165,0,.14)); }
+.schedt-tile:focus-visible { outline:2px solid var(--soleil, #ffa500); outline-offset:1px; }
+
+/* Phase colour as an edge, the same language the rundown row uses. */
+.schedt-spine {
+  position:absolute; left:0; top:0; bottom:0; width:3px; z-index:1;
+  background:var(--t-hue, transparent);
+}
+.schedt-tile.is-cancelled .schedt-spine { background:var(--ink-error, #e08b8b); }
+
+.schedt-thumb {
+  display:block; position:relative;
+  aspect-ratio:16 / 10; min-height:0;
+  border-bottom:1px solid var(--line-1, #212126);
+  background:var(--bg-0, #0a0a0c);
+  overflow:hidden;
+}
+/* The board cell fills the thumbnail box. Its own chrome (the CLUSTER badge and
+   name strip) is suppressed — the tile's caption already says which day this
+   is, and repeating it inside the picture wastes the picture. */
+.schedt-thumb .gc-board { position:absolute; inset:0; width:100%; height:100%; border:0; background:none; }
+.schedt-thumb .gc-board-meta { display:none; }
+.schedt-thumb .gc-board-thumb { width:100%; height:100%; object-fit:cover; }
+.schedt-thumb .gc-board-ph { position:absolute; inset:0; }
+
+/* A day nobody has set up yet. Dashed, because it is an invitation rather than
+   damage — most of a fresh production looks like this. */
+.schedt-tile.is-empty { background:var(--bg-1, #111114); border-style:dashed; border-color:var(--line-2, #2c2c32); }
+.schedt-ph {
+  display:flex; align-items:center; justify-content:center;
+  aspect-ratio:16 / 10; min-height:0;
+}
+.schedt-add {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:26px; height:26px; padding:0;
+  border:0; border-radius:var(--radius, 4px);
+  background:transparent; color:var(--ink-4, #3a3a40);
+  opacity:0; cursor:pointer;
+  transition:opacity var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedt-tile:hover .schedt-add,
+.schedt-add:focus-visible { opacity:1; }
+.schedt-add:hover { background:var(--bg-3, #1c1c20); color:var(--ink-0, #f5f5f7); }
+
+/* Standing in for a thumbnail that does not exist yet. Tinted with the day's
+   own phase colour so a wall of them still reads as the shape of the shoot. */
+.schedt-noimg {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:4px;
+  background:color-mix(in srgb, var(--t-hue, var(--ink-3, #5a5a60)) 12%, transparent);
+}
+.schedt-noimg-t {
+  font-size:12px; font-weight:700; letter-spacing:-.01em;
+  color:color-mix(in srgb, var(--t-hue, var(--ink-2, #888890)) 70%, var(--ink-2, #888890));
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.schedt-cap {
+  display:flex; align-items:baseline; gap:4px;
+  padding:4px 6px 5px; min-width:0;
+}
+.schedt-dow {
+  flex:0 0 auto;
+  font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3, #5a5a60);
+}
+.schedt-dnum {
+  flex:0 0 auto;
+  font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums;
+  color:var(--ink-1, #d0d0d4);
+}
+.schedt-tile.is-weekend .schedt-dow,
+.schedt-tile.is-weekend .schedt-dnum { color:var(--ink-3, #5a5a60); }
+.schedt-tile.is-today .schedt-dnum { color:var(--soleil, #ffa500); font-weight:700; }
+.schedt-name {
+  flex:1 1 auto; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:11px; font-weight:700; color:var(--ink-0, #f5f5f7);
+}
+.schedt-name.is-quiet { font-weight:500; color:var(--ink-3, #5a5a60); }
+.schedt-tile.is-cancelled .schedt-name { text-decoration:line-through; color:var(--ink-3, #5a5a60); }
+.schedt-time {
+  flex:0 0 auto; margin-left:auto;
+  font-size:10.5px; font-variant-numeric:tabular-nums; color:var(--ink-2, #888890);
+}
+.schedt-badge {
+  position:absolute; right:4px; top:4px; z-index:1;
+  padding:1px 5px; border-radius:9px;
+  background:color-mix(in srgb, var(--bg-0, #0a0a0c) 78%, transparent);
+  font-size:9px; font-weight:700; color:var(--msg-ok, #2faf78);
+}
+
+@media (pointer: coarse) {
+  .schedt-add { opacity:1; width:34px; height:34px; }
+  .schedw-d { height:22px; }
+}
+
+/* Tiles / List stack under the wall chart and fill the body. No pane split —
+   the chart does the navigator job the month grid was doing badly, in a fifth
+   of the space, which is exactly what frees the width the rail used to take. */
+.schedc-stack {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; min-height:0;
+}
+/* The rail as the List density rather than a second pane. */
+.schedc-rail.is-flow {
+  position:static;
+  flex:1 1 auto; min-height:0;
+  border-left:0;
+  background:var(--bg-1, #111114);
+}
+.schedc-dbtn {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:calc(26px * var(--chrome-k, 1));
+  height:calc(28px * var(--chrome-k, 1));
+  padding:0 calc(4px * var(--chrome-k, 1));
+  border:0; border-radius:var(--radius, 4px);
+  background:transparent; color:var(--ink-3, #5a5a60);
+  font-size:calc(12px * var(--chrome-k, 1)); line-height:1;
+  cursor:pointer;
+  transition:background var(--dur-fast, 120ms) var(--ease, ease),
+             color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.schedc-dbtn:hover { color:var(--ink-0, #f5f5f7); }
+.schedc-dbtn.is-active { background:var(--bg-act, #212126); color:var(--ink-0, #f5f5f7); }
+.schedc-dbtn:focus-visible { outline:2px solid var(--soleil, #ffa500); outline-offset:-1px; }
+.schedc-dens { margin-right:6px; }
+@media (pointer: coarse) {
+  .schedc-dbtn { min-width:calc(38px * var(--chrome-k, 1)); height:calc(40px * var(--chrome-k, 1)); }
 }

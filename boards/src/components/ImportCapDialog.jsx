@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Modal } from './Modal.jsx';
 import { rejectedNoun } from '../lib/demoCardCap.js';
+import { CTA, CREATOR_TRIAL_DAYS } from '../lib/billingCopy.js';
 import './importCapDialog.css';
 
 // The over-cap folder drop, asked BEFORE anything uploads.
@@ -26,7 +27,17 @@ import './importCapDialog.css';
 // planImport() (importPreflight.js), which is the same evaluateDemoCap
 // arithmetic the server trigger enforces.
 
-export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTakePartial, onUpgrade, onCancel }) {
+// `trialOffer`: this person is owed the Creator trial (decided by the caller on
+// the server's count, like every other trial surface). The dialog was the one
+// place an eligible person met the limit and was never told the first two
+// weeks are free — the only purchase intent the product has ever recorded was
+// a press of this button, and it read "Upgrade".
+// `folder` ({ files, clusters }): the drop was a folder. Then `n` and `take` are
+// counted in CARDS — every file is one, and so is every cluster it becomes —
+// so the copy names the folder's files and clusters rather than calling the
+// total "photos", and the partial button adds what fits rather than "the first
+// N", since a folder is cut down whole folders first (lib/folderPlan slicePlan).
+export function ImportCapDialog({ open, n, take, over, count, limit, kinds, folder = null, trialOffer = false, onTakePartial, onUpgrade, onCancel }) {
   const primaryRef = useRef(null);
   if (!open) return null;
 
@@ -48,13 +59,16 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTa
       <div className="impcap-head">
         <div className="impcap-kicker">Card limit</div>
         <div className="impcap-title" id="impcap-title">
-          You dropped {n} {noun}.
+          {folder
+            ? <>You dropped {folder.files} {folder.files === 1 ? 'file' : 'files'} in {folder.clusters} {folder.clusters === 1 ? 'folder' : 'folders'}.</>
+            : <>You dropped {n} {noun}.</>}
         </div>
       </div>
 
       <div className="impcap-body">
         <p className="impcap-lede">
           This free cluster holds <strong>{take}</strong> more — you&rsquo;re at {count} of {limit} cards.
+          {folder ? ' Each file is a card, and so is each folder, which becomes a cluster.' : ''}
         </p>
         {/* The meter is information, not pressure: it shows what the number
             already is rather than dramatising how little is left. Hidden at
@@ -66,7 +80,7 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTa
           </div>
         )}
         <p className="impcap-note">
-          Nothing has been uploaded yet. Creator removes the limit entirely.
+          Nothing has been uploaded yet. Creator removes the limit entirely{trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.
         </p>
       </div>
 
@@ -75,7 +89,7 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTa
           Cancel
         </button>
         <button type="button" className="impcap-btn" onClick={onTakePartial}>
-          Add the first {take} {takeNoun}
+          {folder ? 'Add what fits' : <>Add the first {take} {takeNoun}</>}
         </button>
         <button
           type="button"
@@ -83,7 +97,9 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, onTa
           className="impcap-btn impcap-btn-primary"
           onClick={onUpgrade}
         >
-          Upgrade — keep all {n}
+          {trialOffer
+            ? `${CTA.tryCreatorShort} — keep all ${folder ? folder.files : n}`
+            : `Upgrade — keep all ${folder ? folder.files : n}`}
         </button>
       </div>
     </Modal>

@@ -28,7 +28,11 @@ Publishing is reversible from the same place.
 | **Link previews** | Unfurls with its own name and a thumbnail of its contents |
 
 The board renders in a real canvas — visitors pan, zoom and open images at full
-size — with no account required.
+size — with no account required. A cluster you have set to
+**[list view](/docs/clusters/list-view)** opens as a list here too, which is
+what you want for anything that is a collection rather than an arrangement: a
+sample pack, a stills selects, a reference library. Visitors get the search,
+the sorting and the audition-through, and can download what is on it.
 
 ## The directory
 

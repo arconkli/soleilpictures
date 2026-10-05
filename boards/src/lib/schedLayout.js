@@ -6,7 +6,8 @@
 //   day slot      d:2026-07-15
 //   hour slot     d:2026-07-15/h:09
 //   minute slot   d:2026-07-15/h:09/m:15     (m ∈ 00/15/30/45 at MINUTE_STEP 15)
-//   item          <slotPath>/i:<uid>         (value = ONE standard grid cell record)
+//   loose item    <slotPath>/i:<uid>         (value = ONE standard grid cell record)
+//   rundown row   d:2026-07-15/r:<uid>       (same record + dur/pin/ord; lib/rundown.js)
 // Zero-padded segments make plain string sort chronological, so "every item
 // under this slot" (a collapsed day aggregating its hour items) is a sorted
 // prefix scan.
@@ -25,37 +26,142 @@
 import {
   pad2, parseISO, formatISO, todayISO, daysInMonth, firstWeekdayOfMonth,
   startOfWeek, addDays, addMonths, monthTitle, hourLabel, timeLabel, shortDate,
-  WEEKDAYS,
+  weekdayOf, WEEKDAYS,
 } from './schedDates.js';
+// One-way edge: rundown.js imports schedDates and fracIndex only, never this
+// file, so the summary read can run the cascade without a cycle.
+import { computeRundown, rundownFromCells } from './rundown.js';
 
 export const SCHED_TUNING = Object.freeze({
-  HEADER_H: 32,       // in-card header (nav/title/view pill) — component subtracts it before calling computeSchedSlots; CSS mirror: .schedc-head flex-basis
-  WEEKDAY_H: 16,      // Mon–Sun strip (month/week)
-  DAY_LABEL_H: 14,    // date-number strip inside a day cell (month/week); CSS mirror: .schedc-slot-label line-height
-  BAND_H: 22,         // the "All day" / whole-hour drop band (day/hour views)
-  HOUR_LABEL_W: 44,   // time gutter painted inside hour/minute rows (day/hour views); CSS mirror: the left:44px gutter rules
-  GUTTER_PX: 1,       // spacing between top-level slots — 1px so the body bg reads as a hairline lattice
-  INNER_GUTTER_PX: 1, // spacing between rows nested inside a day cell
-  CHIP_H: 18,         // CSS mirror: .schedc-chip flex-basis/line-height
-  CHIP_GAP: 2,
+  HEADER_H: 44,       // in-card header (nav/title/view pill) — component subtracts it before calling computeSchedSlots; CSS mirror: .schedc-head flex-basis
+  WEEKDAY_H: 22,      // Mon–Sun strip (month/week)
+  DAY_LABEL_H: 22,    // date-number strip inside a day cell (month/week); CSS mirror: .schedc-slot-label line-height
+  BAND_H: 28,         // the "All day" / whole-hour drop band (day/hour views)
+  // ZERO. The old lattice painted the body in --line-1 and let 1px of it show
+  // between opaque tiles — but --line-1 is LIGHTER than the tile fill, so the
+  // grid read as inset tiles on light mortar (spreadsheet grammar), and in
+  // light theme --bg-2 #ededf0 against --line-1 #ececef is 1.009:1, i.e. the
+  // grid did not render at all. Cells now tile flush and transparent, and the
+  // only rule is a border-top per slot — a continuous horizontal week
+  // separator with no vertical rules, which is the month-view convention.
+  GUTTER_PX: 0,
+  INNER_GUTTER_PX: 0, // nested hour rows separate the same way
+  CHIP_H: 22,         // CSS mirror: .schedc-chip flex-basis/line-height
+  CHIP_GAP: 3,
   DAY_HOUR_FROM: 8,   // default visible hour window [FROM, TO)
   DAY_HOUR_TO: 18,
   MINUTE_STEP: 15,
-  COMPACT_W: 90,      // below either → slot gets the pop-out menu trigger (local px,
-  COMPACT_H: 40,      // zoom-independent — same reasoning as GRID_TUNING.PILL_MIN_*)
-  PEEK_W: 380,        // Day/Hour Peek panel (SchedulePeek.jsx): width, per-row
-  PEEK_ROW_H: 48,     // heights (hour rows / minute rows) and max panel height —
-  PEEK_MINUTE_ROW_H: 60, // the panel feeds computeSchedSlots a GENEROUS height so
-  PEEK_MAX_H: 560,    // rows come out big; overflow scrolls natively.
-  ROW_CHIP_H: 22,     // taller, legible chips in day/hour rows + the peek (CSS mirror: the 22px chip rules); bands keep CHIP_H
+  // ── The day rail ───────────────────────────────────────────────────────────
+  // The card is two panes: a calendar that answers "what is the shape of this
+  // schedule" and a rail that answers "what is actually happening". A month
+  // grid is very good at the first question and structurally incapable of the
+  // second — a day cell is ~90px wide, which is a day number and a dot, not a
+  // call time and a location. Splitting them is what lets the grid go back to
+  // being a grid.
+  RAIL_W: 288,        // CSS mirror: .schedc-rail width
+  RAIL_MIN_W: 620,    // card narrower than this → no side rail
+  RAIL_MIN_H: 260,    // …or shorter than this (a week bar stays a week bar)
+  RAIL_ROW_H: 56,     // two lines at a 44pt-safe target; CSS mirror: .schedc-dayrow
+  RAIL_HEAD_H: 26,    // the sticky "September" / "Today" section label
+  PEEK_W: 400,        // Day/Hour Peek panel (SchedulePeek.jsx) OUTER width.
+  // What the slot engine is fed. The panel is border-box, so the usable row
+  // width is PEEK_W − 2 (border) − 12 (body padding). Feeding it PEEK_W laid
+  // every row out 14px wider than its container and `overflow:hidden` amputated
+  // the right edge and radius of all of them.
+  PEEK_CONTENT_W: 386,
+  // Row heights are bounded by a real constraint: the DEFAULT hour window is
+  // 8→18, so ten rows plus the head, the band and the body padding have to fit
+  // inside a panel capped at 80% of the viewport. 48 + 12 + 28 + 10*54 = 628,
+  // which clears PEEK_MAX_H below — so the panel no longer scrolls by a hair
+  // and permanently masks the bottom of the last row to hide the overflow.
+  PEEK_ROW_H: 54,
+  PEEK_MINUTE_ROW_H: 64,
+  PEEK_MAX_H: 640,
+  // 24, not 28: two chips must still fit one hour row (h >= 2*chip + 5), and
+  // 28px chips would have shown one item per hour with everything else behind
+  // a "+N more". Legibility of the row beats the size of a secondary target.
+  ROW_CHIP_H: 24,     // CSS mirror: .schedc-peekcontent/.is-view-day chip flex-basis
   LOD_NUM_PX: 13,     // LOD counter-scale TARGETS in *screen* px (layout px = target / canvasScale,
   LOD_DOT_PX: 4,      // clamped to the cell): MID date number, item dot, count badge,
   LOD_COUNT_PX: 10,   // and the FAR poster title. Tuned via the screenshot pass.
   LOD_TITLE_PX: 13,
-  MONTH_GAP_PX: 10,   // between month blocks in a multi-month strip
-  MONTH_CAPTION_H: 15, // per-block "August 2026" caption (CSS mirror: .schedc-mcap)
-  DAYTILE_H: 20,      // a dated child cluster's tile inside a day cell (CSS mirror: .schedc-daytile)
+  // Real negative space now that the body isn't painted in a line colour — it
+  // used to render as a 10px slab of --line-1 that read as damage.
+  MONTH_GAP_PX: 20,
+  MONTH_CAPTION_H: 24, // per-block "August 2026" caption (CSS mirror: .schedc-mcap)
+  DAYTILE_H: 24,      // a dated child cluster's tile inside a day cell (CSS mirror: .schedc-daytile)
+  // Below DAYTILE_COMPACT_W a tile has no room for a word and renders as a bar
+  // (CSS mirror: .schedc-daytile.is-compact) — 64px is where "Day 14" stops
+  // fitting and starts being "Day…".
+  DAYTILE_COMPACT_W: 64,
+  DAYTILE_COMPACT_H: 12,
 });
+
+// ---------------------------------------------------------------------------
+// Two panes
+//
+// Split the card body into the calendar box and the day rail. Pure, so the
+// component, the thumbnail and the tests all agree on where the seam is.
+//
+// The rail only earns its space when there is space: below RAIL_MIN_W the
+// calendar would be squeezed past legibility to make room for it, and a week
+// card (420x170 by design) has no vertical room for rows at all. In those cases
+// the card is calendar-only and the rail's job falls back to the peek — which
+// is exactly the pre-rework behaviour, so nothing is lost by being small.
+//
+// `view` matters: day and hour views are already a list of rows, so a rail
+// beside them would be two lists of the same thing.
+//
+// `months` matters more than it looks. A 3-month strip divides the CALENDAR
+// PANE three ways, so taking 288px for a rail costs each month 96 — enough to
+// push a perfectly readable strip below the LOD mid threshold and turn the
+// whole card into a density map. So the pane has to clear that threshold per
+// block, not in total, or the rail wins its space by making the calendar
+// useless. Three months plus a rail genuinely needs a wide card.
+export function splitSchedPanes({ view, w, h, months = 1, rail = true }) {
+  const full = { x: 0, y: 0, w: Math.max(0, w), h: Math.max(0, h) };
+  const railable = rail && (view === 'month' || view === 'week');
+  if (!railable
+      || full.w < SCHED_TUNING.RAIL_MIN_W
+      || full.h < SCHED_TUNING.RAIL_MIN_H) {
+    return { calRect: full, railRect: null };
+  }
+  const calW = full.w - SCHED_TUNING.RAIL_W;
+  if (view === 'month' && months > 1) {
+    const { cols } = monthGrid(months, calW, full.h);
+    if (calW / cols < SCHED_LOD.month.midW) return { calRect: full, railRect: null };
+  }
+  return {
+    calRect:  { x: 0, y: 0, w: calW, h: full.h },
+    railRect: { x: calW, y: 0, w: SCHED_TUNING.RAIL_W, h: full.h },
+  };
+}
+
+// The card size a month span actually needs, so that asking for three months
+// gives you three readable months rather than a density map.
+//
+// This exists because the two constraints multiply: a 3-month strip divides the
+// calendar pane three ways AND the pane is already 288px narrower than the
+// card. At the default 920 that leaves each month 210px against a 330 mid
+// threshold, so clicking "3" on a default card silently demoted the whole thing
+// to dots — on the one view a production calendar exists for.
+export function schedSizeForMonths(months, cur = {}) {
+  const n = Math.max(1, Math.min(12, Math.round(months) || 1));
+  const w0 = Math.max(0, cur.w || 0), h0 = Math.max(0, cur.h || 0);
+  if (n === 1) return { w: Math.max(w0, 920), h: Math.max(h0, 580) };
+  // Lay the blocks out in the pane we would get at a generous width, then
+  // demand midW per column and midH per row — the same numbers schedLodTier
+  // will judge it by, so the result is full-tier by construction.
+  const { cols, rows } = monthGrid(n, 1200, 560);
+  const calW = SCHED_LOD.month.midW * cols + SCHED_TUNING.MONTH_GAP_PX * (cols - 1);
+  const bodyH = SCHED_LOD.month.midH * rows
+    + (SCHED_TUNING.MONTH_CAPTION_H + SCHED_TUNING.WEEKDAY_H) * rows
+    + SCHED_TUNING.MONTH_GAP_PX * (rows - 1);
+  return {
+    w: Math.max(w0, Math.round(calW + SCHED_TUNING.RAIL_W)),
+    h: Math.max(h0, Math.round(bodyH + SCHED_TUNING.HEADER_H)),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Multi-month strip
@@ -76,7 +182,11 @@ export function monthGrid(months, w, h) {
   const chromeH = SCHED_TUNING.MONTH_CAPTION_H + SCHED_TUNING.WEEKDAY_H;
   let best = { cols: n, rows: 1, score: -Infinity };
   for (let cols = 1; cols <= n; cols++) {
-    const rows = Math.ceil(n / cols);
+    // Only EXACT arrangements. A ragged last row — three months in a 2x2 with
+    // an empty quadrant — reads as a broken layout however big it makes the
+    // cells, so 3 is a strip or a stack and never an L.
+    if (n % cols !== 0) continue;
+    const rows = n / cols;
     const blockW = (w - G * (cols - 1)) / cols;
     const blockH = (h - G * (rows - 1)) / rows;
     // Six week-rows is the worst case for any month.
@@ -143,10 +253,45 @@ export function dayKey(iso) { return `d:${iso}`; }
 export function hourKey(iso, h) { return `d:${iso}/h:${pad2(h)}`; }
 export function minuteKey(iso, h, m) { return `d:${iso}/h:${pad2(h)}/m:${pad2(m)}`; }
 
-const ITEM_RE = /\/i:[^/]+$/;
+// TWO ROLES LIVE UNDER A DAY, and both of them are items:
+//
+//   d:2026-09-08/i:<uid>   LOOSE — a note, an image, a file dropped on a date
+//                          (or on an hour row beneath it). Minted here.
+//   d:2026-09-08/r:<uid>   ROW — an ordered rundown item with a duration, from
+//                          which the day's running order cascades. Minted by
+//                          rundownKey() in lib/rundown.js.
+//
+// This regex used to be /\/i:[^/]+$/, and that one missing alternative was the
+// worst bug in the feature. Every read that gates on isItemKey — itemsForSlot,
+// schedDayCounts, schedItems, and therefore the month grid, the day tiles, the
+// "N items" caption, the rail's loose-row count, card thumbnails, the list
+// preview, the search index and the public /c page — skipped every rundown row.
+// A day with a twenty-row running order rendered as a COMPLETELY EMPTY date
+// everywhere except the Day view it was typed into. Meanwhile cellsWeight in
+// lib/gridCount.js reads the map directly and knows nothing about the grammar,
+// so the card cap charged for all twenty of them.
+//
+// The role is carried by the KEY, never by a field on the record. `untimed` and
+// `kind` already discriminate rundown rows; a third flag would be a fourth
+// source of truth for the same question.
+const ITEM_RE = /\/(i|r):([^/]+)$/;
 export function isItemKey(key) { return typeof key === 'string' && ITEM_RE.test(key); }
-// An item key → its slot path; a slot path passes through unchanged.
+// 'item' | 'row' | null.
+export function itemRole(key) {
+  const m = ITEM_RE.exec(typeof key === 'string' ? key : '');
+  return m ? (m[1] === 'r' ? 'row' : 'item') : null;
+}
+export function parseItemKey(key) {
+  const m = ITEM_RE.exec(typeof key === 'string' ? key : '');
+  if (!m) return null;
+  return { slotPath: key.slice(0, key.length - m[0].length), role: m[1] === 'r' ? 'row' : 'item', uid: m[2] };
+}
+// An item key of EITHER role → its slot path; a slot path passes through
+// unchanged.
 export function slotOfItem(key) { return isItemKey(key) ? key.replace(ITEM_RE, '') : key; }
+// Mints a LOOSE key. Rundown rows are minted by rundownKey() — the two roles
+// have different owners on purpose, because only rundown.js knows what makes a
+// valid row.
 export function mintItemKey(slotPath, uid) { return `${slotPath}/i:${uid}`; }
 export function newUid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -171,15 +316,30 @@ export function parseSlotKey(key) {
 // Item keys belonging to a slot, chronological. deep=false → direct items only
 // (`<slot>/i:*`); deep=true → every item anywhere under the slot (`<slot>/…`) —
 // what a COLLAPSED slot aggregates so collapsing is visibly non-destructive.
-export function itemsForSlot(slotPath, cellKeys, { deep = false } = {}) {
-  const direct = `${slotPath}/i:`;
+export function itemsForSlot(slotPath, cellKeys, { deep = false, cells = null } = {}) {
   const under = `${slotPath}/`;
   const out = [];
   for (const k of cellKeys || []) {
     if (!isItemKey(k)) continue;
-    if (deep ? k.startsWith(under) : k.startsWith(direct)) out.push(k);
+    if (!k.startsWith(under)) continue;
+    // Direct = one segment below the slot, whichever role it carries.
+    if (!deep && k.slice(under.length).includes('/')) continue;
+    out.push(k);
   }
-  out.sort();
+  // Lexicographic is chronological for loose keys (dates and hours are
+  // zero-padded) but meaningless for a rundown row, whose uid is random and
+  // whose real order is the fractional `ord` on the record. Pass `cells` and
+  // rows sort the way the day actually runs; without it they keep key order,
+  // which is what every existing caller already got.
+  out.sort((a, b) => {
+    const ra = itemRole(a) === 'row', rb = itemRole(b) === 'row';
+    if (cells && ra && rb) {
+      const oa = cells[a]?.ord || '', ob = cells[b]?.ord || '';
+      if (oa !== ob) return oa < ob ? -1 : 1;
+    }
+    if (ra !== rb) return ra ? 1 : -1;   // loose content first, then the day's order
+    return a < b ? -1 : 1;
+  });
   return out;
 }
 
@@ -238,12 +398,15 @@ function pushHourRows(slots, area, dateIso, win, expand, gutter) {
 // strip, a leading/trailing day would collide with the same date's real cell in
 // the neighbouring block, and two slots sharing a `d:` key would break
 // data-cell-id hit-testing and drop routing.
-function pushMonthBlock(slots, { monthIso, rect, nRows, expand, cellKeys, todayIso }) {
+function pushMonthBlock(slots, rules, { monthIso, rect, nRows, expand, cellKeys, todayIso }) {
   const G = SCHED_TUNING.GUTTER_PX;
   const t = parseISO(monthIso);
   const first = startOfWeek(formatISO(t.y, t.m, 1));
   const cw = (rect.w - G * 6) / 7;
   const ch = (rect.h - G * (nRows - 1)) / nRows;
+  for (let r = 0; r < nRows; r++) {
+    rules.push({ x: rect.x, y: rect.y + r * (ch + G), w: rect.w });
+  }
   for (let r = 0; r < nRows; r++) {
     for (let c = 0; c < 7; c++) {
       const date = addDays(first, r * 7 + c);
@@ -269,6 +432,78 @@ function pushMonthBlock(slots, { monthIso, rect, nRows, expand, cellKeys, todayI
   }
 }
 
+// ---------------------------------------------------------------------------
+// The day rail's contents
+//
+// What period the card is showing, as an inclusive [from, to] of real dates.
+// Month view means whole calendar months (not the padded week grid) — the rail
+// lists September when the header says September, and a trailing Oct 1 in the
+// bottom-right cell of the grid is grid padding, not part of the month.
+export function schedVisibleRange({ view, anchor, months = 1, todayIso = todayISO() }) {
+  const t = parseISO(anchor) || parseISO(todayIso);
+  if (view === 'week') {
+    const from = startOfWeek(formatISO(t.y, t.m, t.d));
+    return { from, to: addDays(from, 6) };
+  }
+  if (view === 'day' || view === 'hour') {
+    const d = formatISO(t.y, t.m, t.d);
+    return { from: d, to: d };
+  }
+  const n = Math.max(1, Math.min(12, Math.round(months) || 1));
+  const from = formatISO(t.y, t.m, 1);
+  const lastIso = parseISO(addMonths(from, n - 1));
+  return { from, to: formatISO(lastIso.y, lastIso.m, daysInMonth(lastIso.y, lastIso.m)) };
+}
+
+// One row per date that has anything on it — a dated cluster, loose Yjs items,
+// or today. Dates with nothing are omitted on purpose: a rail padded out with
+// sixty empty rows is a scrollbar, not a schedule, and the calendar pane beside
+// it already shows the empty days.
+//
+// Today always gets a row even when empty, because "nothing is scheduled today"
+// is an answer someone opened the card to get.
+export function schedDayRows({
+  from, to, shootDays = {}, dayCounts = {}, todayIso = todayISO(),
+}) {
+  if (!parseISO(from) || !parseISO(to) || to < from) return [];
+  const rows = [];
+  let d = from;
+  // The bound matches daysBetween's: twelve months is ~366 rows, and a
+  // mis-entered range must not spin.
+  for (let i = 0; i < 400 && d <= to; i++) {
+    const days = shootDays[d] || [];
+    const loose = dayCounts[d] || 0;
+    if (days.length || loose > 0 || d === todayIso) {
+      rows.push({
+        date: d,
+        days,                       // dated child clusters, already date-sorted
+        loose,                      // count of ad-hoc Yjs items on this date
+        isToday: d === todayIso,
+        weekend: weekdayOf(d) >= 5,
+      });
+    }
+    if (d === to) break;
+    d = addDays(d, 1);
+  }
+  return rows;
+}
+
+// The next dated cluster at or after `fromIso`, across the WHOLE production
+// rather than the visible range — "what's next" must not go blank because you
+// happen to be looking at last month. Cancelled days are skipped: they are kept
+// on the calendar as a record, but they are not what happens next.
+export function schedNextDay(shootDays, fromIso) {
+  let best = null;
+  for (const date in shootDays || {}) {
+    if (date < fromIso) continue;
+    for (const b of shootDays[date]) {
+      if (b?.sched_status === 'cancelled') continue;
+      if (!best || date < best.date) best = { date, board: b };
+    }
+  }
+  return best;
+}
+
 // Slot rects for the body box (0,0 → w,h). Flat list; nested rows are emitted
 // AFTER their containing day/hour slot so they paint (and hit-test) on top.
 export function computeSchedSlots({
@@ -276,6 +511,10 @@ export function computeSchedSlots({
   months = 1,
 }) {
   const slots = [];
+  // Full-width horizontal week separators. Emitted as geometry rather than a
+  // border on each slot so they don't go ragged where a month starts or ends
+  // mid-week (the strip omits out-of-month days).
+  const weekRules = [];
   const G = SCHED_TUNING.GUTTER_PX;
   const t = parseISO(anchor) || parseISO(todayIso);
   const safeAnchor = formatISO(t.y, t.m, t.d);
@@ -305,7 +544,7 @@ export function computeSchedSlots({
       const gridRect = {
         x: bx, y: by + chromeH, w: blockW, h: Math.max(0, blockH - chromeH),
       };
-      pushMonthBlock(slots, { monthIso: iso, rect: gridRect, nRows, expand, cellKeys, todayIso });
+      pushMonthBlock(slots, weekRules, { monthIso: iso, rect: gridRect, nRows, expand, cellKeys, todayIso });
       return {
         iso, label: monthTitle(iso),
         captionRect: { x: bx, y: by, w: blockW, h: SCHED_TUNING.MONTH_CAPTION_H },
@@ -314,7 +553,7 @@ export function computeSchedSlots({
       };
     });
 
-    return { slots, weekdayLabels: null, monthBlocks };
+    return { slots, weekRules, weekdayLabels: null, monthBlocks };
   }
 
   if (view === 'month' || view === 'week') {
@@ -329,6 +568,9 @@ export function computeSchedSlots({
     }
     const cw = (body.w - G * 6) / 7;
     const ch = (body.h - G * (nRows - 1)) / nRows;
+    for (let r = 0; r < nRows; r++) {
+      weekRules.push({ x: 0, y: body.y + r * (ch + G), w: body.w });
+    }
     for (let r = 0; r < nRows; r++) {
       for (let c = 0; c < 7; c++) {
         const date = addDays(first, r * 7 + c);
@@ -350,7 +592,7 @@ export function computeSchedSlots({
         }
       }
     }
-    return { slots, weekdayLabels: WEEKDAYS.slice(), monthBlocks: null };
+    return { slots, weekRules, weekdayLabels: WEEKDAYS.slice(), monthBlocks: null };
   }
 
   if (view === 'day') {
@@ -364,7 +606,7 @@ export function computeSchedSlots({
     });
     const area = { x: 0, y: SCHED_TUNING.BAND_H + G, w, h: Math.max(0, h - SCHED_TUNING.BAND_H - G) };
     pushHourRows(slots, area, safeAnchor, hourWindowForDay(safeAnchor, cellKeys, expand), expand, G);
-    return { slots, weekdayLabels: null, monthBlocks: null };
+    return { slots, weekRules, weekdayLabels: null, monthBlocks: null };
   }
 
   // view === 'hour' — whole-hour band + minute rows.
@@ -376,7 +618,7 @@ export function computeSchedSlots({
   });
   const area = { x: 0, y: SCHED_TUNING.BAND_H + G, w, h: Math.max(0, h - SCHED_TUNING.BAND_H - G) };
   pushMinuteRows(slots, area, safeAnchor, hh, G);
-  return { slots, weekdayLabels: null, monthBlocks: null };
+  return { slots, weekRules, weekdayLabels: null, monthBlocks: null };
 }
 
 // How many item chips fit in a slot rect (stacked vertically); the component
@@ -407,18 +649,63 @@ function itemTitle(rec) {
 // shared summary read behind thumbnails, list previews, search indexing, and
 // the public-page meta. Each: { key, date, hour?, minute?, type, title }.
 export function schedItems(cells, { max = Infinity } = {}) {
-  const out = [];
-  for (const k of Object.keys(cells || {}).sort()) {
+  const src = cells || {};
+  const picked = [];
+  const rowDates = new Set();
+  for (const k of Object.keys(src).sort()) {
     if (!isItemKey(k)) continue;
-    const rec = cells[k];
+    const rec = src[k];
     if (!rec || !rec.type || rec.type === 'empty') continue;
     if (rec.type === 'image' && !rec.src) continue;
     const slot = parseSlotKey(slotOfItem(k));
     if (!slot) continue;
-    out.push({ key: k, date: slot.date, hour: slot.hour ?? null, minute: slot.minute ?? null, type: rec.type, title: itemTitle(rec) });
-    if (out.length >= max) break;
+    const isRow = itemRole(k) === 'row';
+    if (isRow) rowDates.add(slot.date);
+    picked.push({
+      key: k, date: slot.date,
+      hour: slot.hour ?? null, minute: slot.minute ?? null,
+      type: rec.type, title: itemTitle(rec),
+      _row: isRow, _at: null,
+    });
   }
-  return out;
+
+  // A rundown row's position is NOT in its key — it comes out of the cascade in
+  // lib/rundown.js. Running it here is what makes a running order read as a
+  // running order in a thumbnail, a list preview and a search result rather
+  // than an arbitrary shuffle by random uid. Only dates carrying rows pay.
+  //
+  // The CLOCK is a different matter. computeRundown needs the day's start time,
+  // which lives on the dated cluster (boards.day_start) and is not reachable
+  // from a cells map — so an unpinned row's wall clock here would come off the
+  // 08:00 default and could disagree with what the card shows. A summary that
+  // states the wrong call time is worse than one that states none, so only a
+  // PINNED row — whose time is a fact on its own record — gets an hour.
+  if (rowDates.size) {
+    const at = new Map();
+    for (const date of rowDates) {
+      for (const r of computeRundown(rundownFromCells(src, date).items).rows) at.set(r.key, r);
+    }
+    for (const it of picked) {
+      const r = it._row ? at.get(it.key) : null;
+      if (!r) continue;
+      it._at = r.startMin;
+      if (r.pinned) {
+        const [h, m] = String(r.start).split(':');
+        it.hour = Number(h); it.minute = Number(m);
+      }
+    }
+  }
+
+  picked.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    // Untimed content sits above the clock, exactly as the day stacks it.
+    const ta = a._at ?? (a.hour == null ? -1 : a.hour * 60 + (a.minute || 0));
+    const tb = b._at ?? (b.hour == null ? -1 : b.hour * 60 + (b.minute || 0));
+    if (ta !== tb) return ta - tb;
+    return a.key < b.key ? -1 : 1;
+  });
+
+  return picked.slice(0, max).map(({ _row, _at, ...it }) => it);
 }
 
 // Items → the legacy schedule row shape {day, what, loc}, so every renderer
@@ -444,10 +731,15 @@ export function schedLegacyRows(items) {
 // slot prefix changes. Returns null when the move is a no-op or the input isn't
 // an item key, so callers can skip the transaction entirely.
 export function reslotItemKey(itemKey, dstSlotPath) {
-  if (!isItemKey(itemKey) || !dstSlotPath) return null;
+  const parsed = parseItemKey(itemKey);
+  if (!parsed || !dstSlotPath) return null;
   if (!parseSlotKey(dstSlotPath)) return null;
-  const uid = itemKey.slice(itemKey.lastIndexOf('/i:') + 3);
-  const next = mintItemKey(dstSlotPath, uid);
+  // The ROLE survives the move. This used to be lastIndexOf('/i:') + 3, which
+  // on a `/r:` key finds nothing, returns 2, and would have re-minted a rundown
+  // row as a loose item keyed on a slice of its own path.
+  const next = parsed.role === 'row'
+    ? `${dstSlotPath}/r:${parsed.uid}`
+    : mintItemKey(dstSlotPath, parsed.uid);
   return next === itemKey ? null : next;
 }
 

@@ -47,7 +47,9 @@ canvas a canvas rather than a list. Everything else about a card depends on
 what kind it is — see [Cards](/docs/canvas/cards).
 
 The free Demo plan allows **50 cards** in total across every
-cluster you create. Clusters themselves are unlimited, and so are collaborators.
+cluster you create. There is no separate limit on clusters, but each one sits on
+its parent's canvas as a card and counts toward that total. Collaborators are
+unlimited.
 
 ## Two views of the same cluster
 

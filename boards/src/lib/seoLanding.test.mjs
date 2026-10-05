@@ -17,7 +17,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEO_LANDING_PAGES, SEO_LANDING_PATHS, getLandingSpec } from './seoLanding.js';
+import { SEO_LANDING_PAGES, SEO_LANDING_PATHS, SEO_LANDING_LISTED, getLandingSpec } from './seoLanding.js';
+import { TEMPLATE_STORE_HELD, isTemplateStorePath } from './templatePaths.js';
 import { SEO_LISTICLE_PAGES } from './seoListicles.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -34,13 +35,36 @@ test('registry basics: unique paths, resolvable, correctly shaped', () => {
   const paths = SEO_LANDING_PAGES.map((p) => p.path);
   assert.equal(new Set(paths).size, paths.length, 'duplicate path in the registry');
   for (const p of SEO_LANDING_PAGES) {
-    assert.match(p.path, /^\/(tools|vs)\/[a-z0-9-]+$|^\/(use-cases|scout)$/, `${p.path}: bad path shape`);
+    // Two shapes: a namespaced page (/tools/*, /vs/*) or a single-segment hub.
+    // The hub list is explicit rather than a wildcard so a typo'd path can't
+    // quietly claim a top-level URL. The template STORE's items are not here —
+    // they live in their own generated registry (src/lib/templateIndex.js) and
+    // are gated by src/lib/templates.test.mjs.
+    assert.match(p.path, /^\/(tools|vs)\/[a-z0-9-]+$|^\/(use-cases|scout|templates)$/, `${p.path}: bad path shape`);
     assert.ok(['tool', 'compare', 'hub'].includes(p.kind), `${p.path}: unknown kind ${p.kind}`);
     // Resolution must survive the shapes the Worker actually receives.
     assert.equal(getLandingSpec(p.path), p, `${p.path}: does not resolve`);
     assert.equal(getLandingSpec(`${p.path}/`), p, `${p.path}: trailing slash does not resolve`);
   }
   assert.deepEqual([...SEO_LANDING_PATHS].sort(), paths.slice().sort(), 'PATHS out of step with PAGES');
+});
+
+// docsLinks exists instead of putting /docs/* into `related`, and the reason is
+// a cloaking bug rather than tidiness: the Worker's related renderer falls back
+// to the raw path as anchor text and would render a docs link, while React
+// filters related to its TITLE_BY_PATH map and would silently drop it. Two
+// renderers, two different documents. Keep them apart.
+test('docsLinks point at real docs paths and carry their own labels', () => {
+  for (const p of SEO_LANDING_PAGES) {
+    for (const d of p.docsLinks || []) {
+      assert.match(d.path, /^\/docs\/[a-z0-9/-]+$/, `${p.path}: docsLinks path ${d.path} is not a docs path`);
+      assert.ok(d.label && d.label.length > 2, `${p.path}: docsLinks ${d.path} has no label`);
+    }
+    for (const r of p.related || []) {
+      assert.ok(!r.startsWith('/docs/'),
+        `${p.path}: ${r} belongs in docsLinks — related is rendered differently by the two renderers`);
+    }
+  }
 });
 
 test('every page: meta within the limits the file documents', () => {
@@ -68,8 +92,40 @@ test('every page: an honest ISO date, not in the future', () => {
   }
 });
 
+// A STOREFRONT IS EXEMPT FROM THE PROSE FLOORS, AND ONLY A STOREFRONT.
+//
+// The >=3 sections / >=3 FAQ rules below exist to stop a thin doorway page
+// shipping — and that penalty lands site-wide, including on /vs/pureref, which
+// is the only page here earning real impressions. But a page whose content is
+// sixteen products with names, one-liners, layouts and box counts is not thin;
+// it is a shop, and prose stapled under the shelf was 44% of its height.
+//
+// Exempting by an explicit flag rather than by `kind` is deliberate: `kind:'hub'`
+// covers /use-cases too, and this must not become the loophole every future page
+// reaches for. `storefrontPages` also has to be NON-EMPTY, so deleting the flag
+// from the only page that has it fails here rather than quietly widening nothing.
+const storefronts = SEO_LANDING_PAGES.filter((p) => p.storefront);
+const prosePages = SEO_LANDING_PAGES.filter((p) => !p.storefront);
+
+test('a storefront replaces its prose with an actual catalogue', async () => {
+  assert.ok(storefronts.length >= 1, 'the storefront exemption exists but nothing uses it — delete the exemption');
+  const { TEMPLATE_CARDS } = await import('./templateCards.js');
+  for (const p of storefronts) {
+    // The trade, made mechanical: no prose floor, but there must be inventory,
+    // and every item must carry the line a shopper actually reads.
+    assert.ok(TEMPLATE_CARDS.length >= 8, `${p.path}: a storefront with ${TEMPLATE_CARDS.length} items is not a store`);
+    for (const t of TEMPLATE_CARDS) {
+      assert.ok(t.h1?.trim(), `${p.path}: an item with no name`);
+      assert.ok(t.blurb?.trim(), `${p.path}: ${t.slug} has no blurb — the one line under a tile`);
+    }
+    // And nothing may creep back above the goods.
+    assert.equal(p.sections, undefined, `${p.path}: a storefront sells, it does not explain — drop the sections`);
+    assert.equal(p.faq, undefined, `${p.path}: a storefront has no FAQ; the item pages answer for themselves`);
+  }
+});
+
 test('sections are whole: every one has a heading and a body', () => {
-  for (const p of SEO_LANDING_PAGES) {
+  for (const p of prosePages) {
     assert.ok(Array.isArray(p.sections) && p.sections.length >= 3,
       `${p.path}: wants at least 3 sections, has ${p.sections?.length}`);
     for (const [i, s] of p.sections.entries()) {
@@ -109,7 +165,7 @@ test('compare tables: every row is {feature, us, them} and nothing else', () => 
 });
 
 test('FAQ and steps are whole', () => {
-  for (const p of SEO_LANDING_PAGES) {
+  for (const p of prosePages) {
     assert.ok(Array.isArray(p.faq) && p.faq.length >= 3, `${p.path}: wants at least 3 FAQ entries`);
     for (const [i, f] of p.faq.entries()) {
       assert.ok(f.q && typeof f.q === 'string', `${p.path}: faq ${i} has no question`);
@@ -185,14 +241,18 @@ test('the homepage crawlable nav links every public marketing page', async () =>
   assert.ok(start > -1, 'index.html has no <main id="seo-fallback">');
   const nav = html.slice(start, html.indexOf('</main>', start));
   const hrefs = new Set([...nav.matchAll(/href="([^"]+)"/g)].map((m) => m[1]));
-  // /templates is a landing spec (kind 'hub'), so it arrives via
-  // SEO_LANDING_PATHS on any tree that has the template store — and is not
-  // demanded on one that does not. Only the four fixed spokes are literal.
+  // /templates is a landing spec (kind 'hub'), so it arrives through the
+  // registry on any tree that has the template store — LISTED, because while
+  // the store is held (lib/templatePaths.js) production 404s it and the nav must
+  // not link it. The day the hold lifts this asks for the link back. Only the
+  // four fixed spokes are literal.
   const required = [
-    ...SEO_LANDING_PATHS,
+    ...SEO_LANDING_LISTED.map((p) => p.path),
     ...SEO_LISTICLE_PAGES.map((p) => p.path),
     '/docs', '/changelog', '/explore', '/pricing',
   ];
   const missing = required.filter((p) => !hrefs.has(p));
   assert.deepEqual(missing, [], `index.html crawlable nav is missing: ${missing.join(', ')}`);
+  const held = [...hrefs].filter((h) => TEMPLATE_STORE_HELD && isTemplateStorePath(h));
+  assert.deepEqual(held, [], `index.html links pages held off production: ${held.join(', ')}`);
 });

@@ -39,6 +39,23 @@ export function isReturnQaMode() {
   return new URLSearchParams(window.location.search).get('returnqa') === '1';
 }
 
+// Dev-only harness for "What's holding you back?". Active ONLY in a DEV build
+// with ?upgradereasonqa=1 (same trust boundary as isReturnQaMode). The real ask
+// opens only when a free-plan owner closes an offer, which the local shell
+// never shows — so the harness fires that one event, once, and everything after
+// it (the chips, the follow-up, the writes, the markers) runs for real.
+// ?upgradereasonqa=listen mounts it WITHOUT firing, so a test can send its own
+// dismissals — including the ones that must not open it.
+export function isUpgradeReasonQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  const v = new URLSearchParams(window.location.search).get('upgradereasonqa');
+  return v === '1' || v === 'listen';
+}
+export function upgradeReasonQaAutoFire() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('upgradereasonqa') === '1';
+}
+
 // Dev-only collaborative-note QA harness. Active ONLY in a DEV build with
 // ?noteqa=1 (same trust boundary as isDocQaMode). Mounts the real NoteCard
 // against a fresh in-memory Y.Doc + note card Y.Map so Playwright can drive

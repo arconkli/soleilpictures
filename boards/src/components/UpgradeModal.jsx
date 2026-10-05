@@ -5,6 +5,13 @@
 //   'first-value' → warm "you're building something" copy (the first-value nudge)
 //   'storage'     → "Room for everything you make" copy (the file-upload paywall)
 //   'manual' / null → generic "Everything your work deserves" copy
+//   'pricing-intent' → its own header (billingCopy PRICING_INTENT_COPY), opened
+//                      because the person pressed "Get Creator" on the public
+//                      pricing page before signing up (useCreatorIntentResume);
+//                      the plan they chose comes too. Its own header also keeps
+//                      it off the invite-for-free-cards alternative, which only
+//                      the generic and first-value headers offer: they asked
+//                      to pay, and being offered free cards instead is noise.
 //
 // (The old 'shared-edit' reason died with migration 0188 — editing shared
 // clusters is no longer a paid gate — so it's no longer mapped here.)
@@ -15,20 +22,24 @@
 
 import { PricingModal } from './PricingModal.jsx';
 
-export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null }) {
+export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null, initialPlan = null }) {
   const header = reason === 'cap-hit' ? 'cap-hit'
+               : reason === 'near-cap' ? 'near-cap'
                : reason === 'first-value' ? 'first-value'
                : reason === 'storage' ? 'storage'
+               : reason === 'pricing-intent' ? 'pricing-intent'
                : null;
   const surface = reason === 'first-value' ? 'first_value' : 'modal';
   // `via` = the entry point, for the up_* exposure envelope (which trigger put
   // this pitch in front of the user).
   const via = reason === 'cap-hit' ? 'cap_hit'
+            : reason === 'near-cap' ? 'near_cap_toast'
             : reason === 'storage' ? 'storage_gate'
             : reason === 'first-value' ? 'first_value_banner'
+            : reason === 'pricing-intent' ? 'pricing_page'
             : null;
   // Only the cap-hit variant uses these (to name what the user has built, and
   // what the cap just cost them), but they are passed through unconditionally
   // so callers don't have to know which reasons consume them.
-  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} rejected={rejected} />;
+  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} rejected={rejected} initialPlan={initialPlan} />;
 }

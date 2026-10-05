@@ -2,15 +2,19 @@
 
 > Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-10-02_
 
 Images are the reason most boards exist. Getting them in is meant to be
-thoughtless: drag a folder's worth onto the canvas and they upload in parallel
-and lay themselves out rather than landing in a heap.
+thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its
+own, or select the files you want and drop them where you are — either way they
+upload in parallel and lay themselves out rather than landing in a heap. See
+[dropping a folder](/docs/clusters#dropping-a-folder).
 
 ## Adding images
 
 - **Drag from the desktop** — many at once is fine.
+- **Drag from another tab** — an image dragged off a web page is kept as a
+  copy in your workspace (see [below](#images-from-the-web)).
 - **Paste** from the clipboard.
 - **The image tool** in the rail, for a file picker.
 - **[Soleil Scout](/docs/scout)** — text them from your phone.
@@ -18,8 +22,33 @@ and lay themselves out rather than landing in a heap.
 Uploads go straight to storage from your browser. Large batches run a few at a
 time so one enormous file cannot block the rest.
 
+Each image keeps the name its file had — `diner_ext_dusk_04.jpg` stays that in
+[list view](/docs/clusters/list-view) and comes back out of Download under it.
+Give a card a caption and the caption is what list view shows; the download
+still uses the file's own name. A pasted image has no real name (browsers call
+every one `image.png`), so it is not given one.
+
 HEIC and HEIF from an iPhone are handled, including the awkward case where the
 browser reports no MIME type at all.
+
+## Images from the web
+
+Drag an image out of another tab and it shows up on the canvas straight away,
+loaded from the page it came from. A moment later Clusters keeps its own copy in
+your workspace and the card switches to it. A link to someone else's server
+breaks when that page moves, expires its link or goes behind a login, and the
+copy does not. It keeps the file's name when the address has one, like
+`ext_dusk_04.jpg`.
+
+The copy counts against storage like any upload. In a cluster someone else
+owns, that is the owner's storage. Web images that went onto a board before
+copies were kept get copied the same way. It happens a few at a time, whenever
+someone who can edit that cluster opens it.
+
+Sometimes no copy can be made: the image sits behind a login, is larger than
+25 MB, your storage is full, or it isn't a format every
+browser can show (SVG and HEIC from the web stay as links). The card then keeps showing the image from
+the page it came from, the way every web image did before.
 
 ## Progressive loading
 

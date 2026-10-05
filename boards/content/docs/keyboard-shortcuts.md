@@ -93,6 +93,23 @@ we picked for you.
 Pinching a trackpad zooms in either mode, and always will: a pinch reaches the
 browser as a `Ctrl`-scroll, so `Ctrl` means zoom whatever else is configured.
 
+## Audio
+
+| Key | Action |
+|---|---|
+| `Enter` | Play · pause the selected clip |
+| `L` | Loop the selected clip |
+| `Space` | Audition the highlighted row (list view) |
+| `↑` / `↓` | Move through rows (list view) |
+
+`Enter` rather than `Space` on the canvas, because `Space` is already the pan
+modifier there and arrows already move cards. In [list view](/docs/clusters/list-view)
+neither is taken, so auditioning a pack is `↓` and `Space` — and when a clip
+finishes, the next one starts on its own.
+
+Both canvas keys only fire when exactly one audio card is selected; otherwise
+they fall through to whatever else is listening.
+
 ## Notes
 
 | Key | Action |

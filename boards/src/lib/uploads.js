@@ -12,7 +12,10 @@
 // on demand. Cards never persist a leakable URL.
 
 import { supabase } from './supabase.js';
-import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS, FREE_AUDIO_CAP } from './fileIngest.js';
+import { analyzeAudioFile, analyzable } from './audioAnalysis.js';
+import { readEmbeddedCover } from './audioTags.js';
+import { lowMemoryDevice } from './device.js';
 import { setMetaLocal } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
@@ -459,7 +462,12 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
 //
 // `onProgress(p)` (0..1) fires during the PUT step so callers can
 // render a progress chip on the placeholder card.
-export async function uploadImage({ file, workspaceId, boardId, cardId = null, userId, onProgress = null }) {
+// `originalName` (every upload below): the name the person's own file had, for
+// images.original_name (0355). EXPLICIT, never read off `file.name` in here —
+// posters, covers, thumbnails and avatars come through these same functions as
+// Files we generated ("poster.jpg"), and a derived image must never carry a
+// name of its own. Drop paths pass fileIngest.meaningfulFileName(file).
+export async function uploadImage({ file, workspaceId, boardId, cardId = null, userId, onProgress = null, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
 
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
@@ -479,6 +487,7 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
       height: dims.h,
       size_bytes: file.size || null,
       uploaded_by: userId,
+      original_name: originalName || null,
     })
     .select('*')
     .single();
@@ -687,6 +696,26 @@ export function captureVideoPoster(source, { seekTo = 0.12, maxWidth = 1024, tim
   });
 }
 
+// Lift embedded cover art out of an audio File and store it as a normal image
+// object, so it renders through R2Image everywhere the manual cover does.
+//
+// Exactly captureAndUploadPoster's shape: derive from the local File, upload
+// through uploadImage so it gets its own `images` row plus the progressive
+// variants, and return null on any failure so the card simply has no cover.
+export async function extractAndUploadCover({ file, workspaceId, boardId, userId }) {
+  try {
+    const cover = await readEmbeddedCover(file);
+    if (!cover) return null;
+    const base = (file.name || 'cover').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'cover';
+    const coverFile = new File([cover.bytes], `${base}.${cover.ext}`, { type: cover.mime });
+    const up = await uploadImage({ file: coverFile, workspaceId, boardId, userId });
+    return up?.src || null;
+  } catch (err) {
+    console.warn('[uploads] embedded cover extraction failed (audio still plays)', err);
+    return null;
+  }
+}
+
 // Read duration from an audio File. Returns null if metadata fails.
 export function readAudioMeta(file) {
   return new Promise((res) => {
@@ -713,12 +742,28 @@ export function readAudioMeta(file) {
 // missing row means no signed read URL gets issued and `<audio>`
 // silently fails to load.
 export async function uploadAudio({ file, workspaceId, boardId, userId, onProgress = null,
-                                    maxBytes = 50 * 1024 * 1024 }) {
+                                    maxBytes = FREE_AUDIO_CAP, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`Audio too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
   }
   const meta = await readAudioMeta(file);
+
+  // Waveform analysis runs CONCURRENTLY with the upload, not before it.
+  // decodeAudioData on a 25 MB file is 1-3 seconds, and gating the PUT on it
+  // would mean the card sits pending while we draw a picture. Kicked off here,
+  // awaited after the bytes are safe.
+  //
+  // Deliberately not awaited inside a try: analyzeAudioFile already resolves
+  // null on every failure path, so the upload can never fail because a
+  // waveform didn't decode.
+  const analysisP = analyzeAudioFile(file, {
+    durationHint: meta.duration,
+    lowMemory: lowMemoryDevice(),
+  });
+  // Cover art too, from the same File. Head reads only — see audioTags.js.
+  const coverP = extractAndUploadCover({ file, workspaceId, boardId, userId });
+
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
   await putWithProgress(uploadUrl, file, { onProgress });
 
@@ -732,6 +777,7 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
       height: null,
       size_bytes: file.size || null,
       uploaded_by: userId,
+      original_name: originalName || null,
     });
   if (rowErr) {
     // Same as images: no row → sign-reads won't authorize → audio never plays.
@@ -739,12 +785,32 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
     throw new Error('Could not finish saving the audio — please try again.');
   }
 
+  const analysis = await analysisP;
+  const cover = await coverP;
   return {
+    cover,
     src: `r2:${key}`,
     storagePath: key,
     key,
-    duration: meta.duration,
+    // The decoded duration is exact; the <audio> metadata one is a rounded
+    // estimate and is wrong often enough to matter when the list sorts on it.
+    duration: analysis?.duration ?? meta.duration,
+    peaks: analysis?.peaks || null,
+    sampleRate: analysis?.sampleRate || null,
+    channels: analysis?.channels || null,
+    // Set only when a decode ATTEMPT completed — success, or a hard codec
+    // rejection. A file refused by the size/duration cap leaves this unset so
+    // the same card gets another go in a desktop session where it might fit.
+    analyzed: analysis ? 1 : (analyzableFile(file, meta.duration) ? 1 : 0),
   };
+}
+
+// Did we genuinely try? Mirrors the gate inside analyzeAudioFile so `analyzed`
+// distinguishes "decoded or failed decoding" from "never attempted".
+function analyzableFile(file, durationSec) {
+  return analyzable({
+    sizeBytes: file?.size || 0, durationSec, lowMemory: lowMemoryDevice(),
+  });
 }
 
 // Encode a canvas to a WebP Blob (used for the PDF page-1 thumbnail).
@@ -766,7 +832,7 @@ function canvasToWebpBlob(canvas, quality = 0.82) {
 // If page-1 rendering fails we still return the PDF (src null) so the card
 // exists and the viewer works — only the thumbnail is missing.
 export async function uploadPdf({ file, workspaceId, boardId, cardId = null, userId, onProgress = null,
-                                  maxBytes = 50 * 1024 * 1024 }) {
+                                  maxBytes = 50 * 1024 * 1024, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`PDF too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
@@ -786,6 +852,7 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
       height: null,
       size_bytes: file.size || null,
       uploaded_by: userId,
+      original_name: originalName || null,
     });
   if (rowErr) {
     // Same contract as images/audio/video: no row → sign-reads won't authorize
@@ -840,7 +907,7 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
 // switch on `kind` rather than the URL.
 export async function uploadVideo({ file, workspaceId, boardId, userId, onProgress = null,
                                     maxBytes = FREE_VIDEO_CAP,
-                                    maxDurationSec = FREE_VIDEO_SECONDS }) {
+                                    maxDurationSec = FREE_VIDEO_SECONDS, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`Video too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
@@ -852,7 +919,14 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     throw new Error('Could not read the video length — re-export and try again.');
   }
   if (meta.duration > maxDurationSec) {
-    throw new Error(`Video too long (${Math.round(meta.duration)}s; max ${maxDurationSec}s)`);
+    // Coded so the caller can record the refusal. This one never reached
+    // telemetry at all: it threw into a toast, so how many free accounts are
+    // turned away for a clip past the length cap could not be counted.
+    const e = new Error(`Video too long (${Math.round(meta.duration)}s; max ${maxDurationSec}s)`);
+    e.code = 'video_too_long';
+    e.durationSec = Math.round(meta.duration);
+    e.maxSec = maxDurationSec;
+    throw e;
   }
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
   await putWithProgress(uploadUrl, file, { onProgress });
@@ -869,6 +943,7 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
       height: meta.h,
       size_bytes: file.size || null,
       uploaded_by: userId,
+      original_name: originalName || null,
     });
   if (rowErr) {
     // Same as images: no row → sign-reads won't authorize → video never plays.
@@ -1020,7 +1095,7 @@ function clearMpuState(fp) { try { localStorage.removeItem(fp); } catch (_) {} }
 // already in R2, so retry hard — a missing row means a permanently unreadable
 // file (and, unlike a single-PUT orphan, a completed multipart object the sweep
 // can't see).
-async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes = null }) {
+async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes = null, originalName = null }) {
   let lastErr;
   for (let i = 0; i < 3; i++) {
     const { error } = await supabase.from('images').insert({
@@ -1032,6 +1107,7 @@ async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, use
       height: null,
       size_bytes: sizeBytes ?? file.size ?? null,
       uploaded_by: userId,
+      original_name: originalName || null,
     });
     if (!error) return;
     lastErr = error;
@@ -1045,7 +1121,7 @@ async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, use
 // { src:'r2:<key>', key, storagePath, sizeBytes, mime, ext, fileName }.
 // onProgress(p) fires 0..1. Pass an AbortSignal to support cancel.
 export async function uploadFile({ file, workspaceId, boardId, cardId = null, userId,
-                                   onProgress = null, signal = null }) {
+                                   onProgress = null, signal = null, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (!boardId) throw new Error('boardId required');
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
@@ -1120,7 +1196,7 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
     throw err;
   }
 
-  await insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes: serverBytes });
+  await insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes: serverBytes, originalName });
 
   return {
     src: `r2:${key}`,

@@ -59,6 +59,24 @@ export function rejectedNoun(kinds, n) {
   return plural ? 'cards' : 'card';
 }
 
+// Which of `items` fit in `remaining` room when each costs costOf(item) cards.
+// Order is kept; an item that costs nothing (an empty grid) always fits; a
+// costly one fits while the running total does. capHit when anything was left
+// out. evaluateDemoCap answers "how many of N identical cards"; this answers it
+// for a mixed batch, where a free grid must neither be cut nor count.
+export function fitByCost(items, costOf, remaining) {
+  const room = Math.max(0, Number(remaining) || 0);
+  const kept = [];
+  let used = 0;
+  let capHit = false;
+  for (const it of items || []) {
+    const c = Math.max(0, Number(costOf(it)) || 0);
+    if (c === 0 || used + c <= room) { kept.push(it); used += c; }
+    else capHit = true;
+  }
+  return { kept, cost: used, capHit };
+}
+
 export function evaluateDemoCap({ tier, demoCardCount, requested, limit = DEMO_CARD_LIMIT }) {
   const req = Math.max(0, requested | 0);
   if (tier !== 'demo') return { accepted: req, capHit: false, remaining: Infinity };

@@ -1,15 +1,15 @@
 ---
 title: Plans and Pricing — Soleil Clusters
-metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a {{fact:creatorStorage}} drive.
+metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards and free collaborators. Creator removes the card cap and adds any file type on a {{fact:creatorStorage}} drive.
 h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-08-08
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards, unlimited clusters and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+updated: 2026-10-02
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards — each cluster counts as one — and unlimited free collaborators. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
-    a: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio at {{fact:freeAudioCap}}, PDFs at {{fact:freePdfCap}}). Clusters, collaborators and editing are not limited.
+    a: Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio at {{fact:freeAudioCap}}, PDFs at {{fact:freePdfCap}}). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
   - q: Do collaborators need to pay?
     a: No, and they never did — editors are free on every plan. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
   - q: If someone on my team upgrades, does my workspace get the higher limits?
@@ -21,7 +21,9 @@ faq:
   - q: Where do I enter a discount code?
     a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
   - q: Is there a free trial of {{fact:planName}}?
-    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account.
+    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. One trial per account.
+  - q: What happens to my work if I cancel, or my trial ends?
+    a: Nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -29,12 +31,20 @@ related:
 ---
 
 Two plans. The difference between them is deliberately small and deliberately
-honest — three enforced limits, listed below, and nothing else.
+honest — three enforced limits, listed below, and nothing else. The
+[pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
+is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
+
+Pressing **Get {{fact:planName}}** there before you have an account signs you in
+first, then opens the {{fact:planName}} offer in the app with the plan you picked —
+monthly or annual — rather than leaving you to find it. The choice is kept on
+that device for {{fact:creatorIntentHours}} hours. Pressing **Start free** instead, there or on any other
+page, drops it.
 
 ## Demo — free
 
 - **{{fact:demoCardLimit}} cards** to build with
-- Unlimited clusters and boards
+- No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
 
 ## {{fact:planName}}
@@ -65,6 +75,10 @@ Exactly three things:
 
 Everything else is the same on both plans.
 
+A [grid](/docs/canvas/grids) counts the boxes you have filled, one card each,
+and an empty grid counts as nothing — so laying out a storyboard before you draw
+it costs no cards.
+
 ## One plan covers the workspace
 
 Those three limits are charged to **whoever owns the workspace**, never to the
@@ -82,10 +96,10 @@ work across several, the one that matters is the workspace the cluster lives in.
 > is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced.
 > [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
-> **Note:** Clusters are **not** capped. Neither are collaborators, editing,
-> sharing, [public links](/docs/collaborate/sharing), comments, documents,
-> [screenplay mode](/docs/documents/screenplay) or the
-> [API](/docs/api). Images have no size cap on any plan.
+> **Note:** There is no separate cap on clusters — each one is a card, and counts
+> as one. Collaborators, editing, sharing, [public links](/docs/collaborate/sharing),
+> comments, documents, [screenplay mode](/docs/documents/screenplay) and the
+> [API](/docs/api) are not capped at all. Images have no size cap on any plan.
 
 ## Whose allowance
 
@@ -108,11 +122,14 @@ grant bonus cards when someone you invited actually gets started.
 Once there is a real cluster on your account, Clusters offers you
 **{{fact:creatorTrialDays}} days of {{fact:planName}}** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
-on the prompts that show up as a cluster fills, and on the upgrade screen.
+on the prompts that show up as a cluster fills, when the files you drop will not
+fit, in **Settings → Plan & billing**, and on the upgrade screen.
 
 A card is required; nothing is charged until the trial ends, and cancelling
-before then costs nothing. It is one trial per account, and it is offered in
-the app rather than on this page — it is for people who have built something.
+before then costs nothing. About three days before the first charge, Clusters
+emails you the date and the amount, with a link to **Settings → Plan & billing**
+where you can cancel. It is one trial per account, and it is offered in the app
+rather than on this page — it is for people who have built something.
 
 ## Billing
 
@@ -135,6 +152,10 @@ The Demo plan is not a trial. It does not expire and it does not degrade. If
 {{fact:demoCardLimit}} cards is enough for what you do, that is a complete
 account. The {{fact:planName}} trial above is separate: it is a taste of the
 paid plan, and when it ends you are back on exactly this one.
+
+When a trial or a paid plan ends, nothing you made is deleted. Every cluster
+and card stays where it is, and you can keep opening and editing it. If you are
+over your card limit, new cards will not fit until you are back under it.
 
 ---
 

@@ -20,7 +20,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { latestDefinition, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
+import { latestDefinition, latestMatch, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -170,4 +170,39 @@ test('the migration proves its own grants and its own arithmetic', () => {
     'the migration must assert that no owner is charged for a deleted cluster');
   assert.match(sql, /_owner_card_count and _live_card_counts disagree/,
     'the scalar and the population scan must be proved equal at apply time');
+});
+
+test('an empty grid costs nothing — in the trigger, in the index row and at the client gate', async () => {
+  // Owner decision 2026-10-01. Generate matrix stamps a grid into N×M separate
+  // grid cards; each empty one used to cost a card, so a 5×5 storyboard spent
+  // half of a free account before a frame was drawn. All three places that put
+  // a price on a card have to agree, or the cap moves under the user again.
+  const trg = latestDefinition('enforce_demo_card_cap_trg');
+  assert.ok(trg, 'the cap trigger must exist in a migration');
+  assert.match(trg.body, /else greatest\(coalesce\(new\.weight, 1\), 0\) end/,
+    'an INSERT costs the row\'s own weight — a 0-weight grid takes the v_delta = 0 return');
+  assert.doesNotMatch(trg.body, /greatest\(coalesce\(new\.weight, 1\), 1\)/,
+    'the old minimum of one per insert is back');
+  // Zero is now a legitimate weight, so nothing may go BELOW it: a negative
+  // weight would subtract from the meter.
+  const check = latestMatch(/add constraint card_index_weight_nonnegative check \(weight >= 0\)/);
+  assert.ok(check, 'card_index needs CHECK (weight >= 0)');
+
+  const { cardWeight } = await import('./gridCount.js');
+  const { cardIndexWeight } = await import('./cardIndexRow.js');
+  assert.equal(cardWeight('grid', {}), 0);
+  assert.equal(cardIndexWeight('grid', () => undefined), 0);
+
+  const app = readSrc('App.jsx');
+  assert.match(app, /const countedWeight = \(get\) => \(isAbandonedUpload\(get\) \? 0 : cardIndexWeight\(get\('kind'\) \|\| 'note', get\)\);/,
+    'one cost function: what card_index will record');
+  assert.match(app, /const placementCost = \(card\) => countedWeight\(\(k\) => card\?\.\[k\]\);/);
+  // …except a seed (onboarding starter, a page's starter document), which
+  // card_index never records — so the gate charges it nothing either.
+  assert.match(app, /const cost = isSeedCard\(card\) \? 0 : placementCost\(card\);/, 'addCard charges it');
+  assert.match(app, /fitByCost\(cardsToAdd, placementCost, remaining\)/, 'addCards charges it');
+  assert.match(app, /fitByCost\(sources, dupCost, remaining\)/, 'duplicateCards charges it');
+  assert.match(app, /if \(cs\.capped && cost > 0\) \{/, 'a zero-cost card never meets the wall');
+  assert.match(app, /requested: cost, limit: cs\.limit/);
+  assert.match(app, /if \(cost > 0 && cs\.own\) myTier\.notePlaced\?\.\(cost\);/, 'and never moves the count');
 });

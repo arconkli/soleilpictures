@@ -31,7 +31,7 @@ const PUBLIC_PREFIXES = [
 ];
 
 export const SURFACES = Object.freeze([
-  'canvas', 'list', 'doc', 'universe', 'tag', 'settings', 'public',
+  'canvas', 'list', 'doc', 'projects', 'universe', 'tag', 'settings', 'public',
 ]);
 
 export function isPublicPath(pathname) {
@@ -54,12 +54,14 @@ export function isPublicPath(pathname) {
  * @param {boolean} s.settingsOpen   the settings modal is open
  */
 export function resolveSurface({
-  pathname, currentSurface, view, docOpen, settingsOpen,
+  pathname, currentSurface, view, docOpen, settingsOpen, homeExploring = false,
 } = {}) {
   if (isPublicPath(pathname)) return 'public';
   if (settingsOpen) return 'settings';
   if (docOpen) return 'doc';
-  if (currentSurface === 'home') return 'universe';
+  // Home is the projects panel over the graph; 'universe' is only the time
+  // someone spends exploring the graph with the panel put away (2026-10-01 on).
+  if (currentSurface === 'home') return homeExploring ? 'universe' : 'projects';
   if (currentSurface === 'tag') return 'tag';
   if (view === 'list') return 'list';
   return 'canvas';

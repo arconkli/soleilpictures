@@ -1,0 +1,90 @@
+/* The "place the template you just added" prompt (TemplateAddedPrompt.jsx).
+
+   Sits UNDER the toast stack, which is fixed at right:16px / top:54px in
+   styles.css. 104px clears one toast; a second toast stacking under the first
+   would overlap it for the few seconds both are up, which is rare enough to be
+   worth less than the complexity of measuring the stack.
+
+   z-index is 1090 — below the toast stack (1100) on purpose. If they ever do
+   collide, the transient message wins and this reappears when it clears. */
+
+.tpladd {
+  position: fixed;
+  top: 104px;
+  right: 16px;
+  z-index: 1090;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-2);
+  animation: tpladdIn var(--dur-base) var(--ease);
+}
+@keyframes tpladdIn { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .tpladd { animation: none; } }
+
+/* Gold is legitimate here: the armed state IS a live selection, which is exactly
+   what --soleil is reserved for. The idle state stays neutral ink. */
+.tpladd.is-armed { border-color: var(--soleil); }
+
+/* The proof it is the right template. Sized like a panel row's preview and, like
+   one, deliberately unlabelled — at 54px a label is a speck.
+
+   No background of its own: the cells are --bg-1 and this box sits on the
+   prompt's --bg-2, which is the same figure/ground the store tiles use. Giving
+   it --bg-1 painted the ground the same colour as the cells and left the layout
+   readable only by its hairlines. */
+.tpladd-shot {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 44px;
+  overflow: hidden;
+}
+.tpladd-shot .tplt-thumb { width: 100%; height: 100%; }
+
+.tpladd-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.tpladd-name {
+  font: 600 12.5px/1.25 var(--font-sans);
+  color: var(--ink-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tpladd-sub { font: 400 11.5px/1.3 var(--font-sans); color: var(--ink-2); }
+.tpladd.is-armed .tpladd-sub { color: var(--soleil); }
+
+.tpladd-go {
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--soleil);
+  color: var(--on-soleil, #1a1200);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.tpladd-go:hover { filter: brightness(1.06); }
+
+.tpladd-x {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border: 0; border-radius: var(--radius);
+  background: transparent; color: var(--ink-3);
+  font: 400 15px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tpladd-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+/* Phone: full width under the toast, and the rail sits at the bottom so there is
+   nothing to clear on the right. */
+@media (max-width: 640px) {
+  .tpladd { left: 12px; right: 12px; max-width: none; top: 96px; }
+}

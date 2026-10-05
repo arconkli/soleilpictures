@@ -2,7 +2,7 @@
 
 > For shared, team reference boards, Soleil Clusters is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
 
-_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-08-26_
+_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-02_
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
 
@@ -60,7 +60,7 @@ Eagle's capture workflow is the best we tested anywhere in this category. The br
 
 Its limits are structural rather than fixable. Eagle's own site offers Windows 10+ and macOS 10.15+ downloads and nothing else — no Linux, no phone, no tablet, no web app — checked on 26 August 2026. There is no built-in sync or collaboration either, so multi-machine use means parking the library in a cloud drive and hoping two people never edit at once. The licence covers two devices; each additional machine is $17.47, and the 30-day trial runs once per device.
 
-The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the major 5.0 release is confirmed free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good.
+The pricing shapes differ more than the sticker suggests. Eagle is $34.95 once, with lifetime updates, and the 5.0 it is rebuilding is announced free for existing owners. PureRef is pay-what-you-want for personal use with $15 suggested, and $49 one-time for small-business use up to three people. Running both, which is what a lot of people actually do, is under $85 for good.
 
 | | PureRef | Eagle |
 | --- | --- | --- |
@@ -149,16 +149,16 @@ The reference wall that follows the project — in the browser, shared with one 
 
 Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.
 
-The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Auto-tagging files dropped references to the right board, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.
+The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.
 
-A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, schedules, and vote cards — that last one settles 'which of these five frames' arguments without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.
+A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.
 
 It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, with a card cap on the free tier; Creator is a flat $25 a month — not per person — for unlimited cards, 100GB of storage, and any file type. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate
-- Auto-tagging files dropped references; relationship graph connects boards across a project
-- Boards hold images, video, audio, PDFs, links, notes, docs (with screenplay mode), palettes, grids, schedules, and vote cards
+- Tags on cards, groups and boards; a relationship graph connects boards across a project
+- Boards hold images, video, audio, PDFs, links, notes, docs (with screenplay mode), palettes, grids, and vote cards
 - Non-destructive photo adjustments; nested boards with live thumbnails
 - Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live
 
@@ -207,16 +207,16 @@ Eagle solves a different problem than PureRef. PureRef is a wall: today's refere
 
 The browser extension is the best capture workflow we tested: drag-to-save, batch collection of a whole page, full-page screenshots, and an Alt+Right-Click grab that works on sites that disable right-click. If your reference gathering happens mostly in a browser at midnight, Eagle removes almost all of the friction between seeing a thing and keeping it. Many artists keep Eagle even after adopting a board tool.
 
-It is actively developed — 4.0 builds shipped through 2026, and Eagle 5.0's AI search and automation features have been announced as a free upgrade for license holders, though as of August 2026 the shipping stable version is still 4.0. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once.
+It is actively developed — 4.0 builds shipped through 2026, and two official plugins arrived in March 2026: AI Search, which finds assets by an image or a description entirely offline, and AI Action, which turns your own organising rules into automated AI workflows. A rebuilt 5.0 is announced as a free upgrade but has no date. Pricing is refreshingly last-decade: US$34.95 once, two devices, lifetime free updates. The commonly cited $29.95 is stale; the price rose in late 2024. The limits are structural: no mobile app, no web app, and no real collaboration — multi-machine or team use means parking the library in a cloud drive and hoping two people never edit at once.
 
 - Local-first library on your own disk — fast, offline, no account required
 - Handles images, video, audio (MP3/WAV/AAC/FLAC/M4A), fonts, and bookmarks in one browser
 - Auto Tag folders and Smart Folders that organize by name, tag, color, or format
 - Search assets by dominant color
 - Browser extension: drag-to-save, batch collection, full-page screenshots, right-click-bypass grabs
-- Eagle 5.0 (AI search, batch auto-tagging, MCP) announced as a free upgrade for license owners
+- AI Search and AI Action plugins (March 2026): find assets by image or description offline, and organise by your own rules
 
-**Pros:** Genuine one-time purchase with lifetime updates — and the major 5.0 release is confirmed free for owners; Local-first speed and privacy at large library sizes; The strongest web-capture workflow in this roundup
+**Pros:** Genuine one-time purchase with lifetime updates — and the rebuilt 5.0 is announced free for owners; Local-first speed and privacy at large library sizes; The strongest web-capture workflow in this roundup
 
 **Cons:** Desktop-only: no phone, tablet, or web access at all; No built-in sync or collaboration — team use rides on third-party cloud drives, with conflict risk; License covers 2 devices; more machines cost $17.47 each, and the trial runs once per device
 
@@ -272,7 +272,7 @@ The caps are the catch, and for reference work they bite early. The free plan al
 
 **Pros:** Best film-specific template library in this roundup; Broadest first-party platform coverage, including real iPad and Android apps; Collaboration works on the free tier, with role-based sharing
 
-**Cons:** Free tier is tight for visual work: 100 cards total, 10 file uploads ever, 10MB image cap; No offline mode — the help center states an internet connection is required; Per-person pricing: a crew of five costs five subscriptions
+**Cons:** Free tier is tight for visual work: 100 cards total, 10 file uploads ever, 10MB image cap; No offline mode — the help center states an internet connection is required; Pro is per person; a crew moves to the $49/mo team plan (billed annually, up to ten)
 
 ### 6. Obsidian Canvas
 

@@ -5,8 +5,8 @@ h1: Coming from another tool
 navLabel: Coming from another tool
 section: start
 order: 4
-updated: 2026-08-25
-answer: There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually a single drag of a folder. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
+updated: 2026-10-02
+answer: There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 faq:
   - q: Is there an importer?
     a: No. Reference boards move by dragging the images in, which takes about as long as an importer would. Structured formats are the exception — screenplays import as Final Draft or Fountain files.
@@ -21,8 +21,8 @@ related:
 ---
 
 There is no import button. For a reference board that is less of a problem than
-it sounds — dragging a folder of images in takes about as long as an importer
-would, and they [auto-arrange](/docs/canvas/images) on arrival.
+it sounds — dropping a folder takes about as long as an importer would, its
+folders become nested clusters, and they [auto-arrange](/docs/canvas/images) on arrival.
 
 What is worth knowing is how the concepts map.
 
@@ -54,6 +54,16 @@ What is worth knowing is how the concepts map.
 collaboration, sharing and cloud storage; the tradeoff is that Clusters is a
 browser app rather than a native always-on-top window.
 
+**[Eagle](/vs/eagle)** — a different job, so it is usually not a move at all.
+Eagle stays the private library on your disk; bring the references one project
+needs onto a cluster, where the team builds the board together. Eagle keeps every
+original as a real file, so they drag in like any other files.
+
+**[Google Drive](/vs/google-drive)** — keep it for backup and sync. Download the
+folder a project needs (Drive hands you a zip), unzip it and drop it on a canvas:
+it becomes a cluster with its folders nested inside, every file under its own
+name.
+
 **[Milanote](/vs/milanote)** — very similar shape. Boards become clusters,
 nesting maps directly, and the card model is comparable.
 
@@ -70,8 +80,8 @@ tools](/best/storyboard-software)** — panels become
 [screenplay document](/docs/documents/screenplay) on the same board.
 
 **StudioBinder** — production management. Clusters covers the visual and
-document side and the [schedule](/docs/canvas/schedule); it is not a
-call-sheet-and-crew-management system. The
+document side; it is not a call-sheet-and-crew-management system, and its
+[schedule cards](/docs/canvas/schedule) are being rebuilt. The
 [storyboard software roundup](/best/storyboard-software) compares the two
 directly.
 
@@ -87,7 +97,8 @@ Roundups of what else is out there, with pricing checked at the date shown:
 ## Practical route in
 
 1. Pick **one** live project rather than migrating an archive.
-2. Drag its reference folder onto a new cluster; let it auto-arrange.
+2. Drop its reference folder onto a canvas — it becomes a cluster, with a nested
+   one for each folder inside it.
 3. Give things names — names are what [search](/docs/organize/search) works on.
 4. Nest sub-clusters where the old tool had folders.
 5. Invite the team. [Editors are free](/docs/collaborate), so there is no seat maths.

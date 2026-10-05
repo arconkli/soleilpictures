@@ -9,6 +9,7 @@ import { Spinner } from '../Spinner.jsx';
 import { EditableText } from '../EditableText.jsx';
 import { Icon } from '../Icon.jsx';
 import { resolveSrc } from '../../lib/r2.js';
+import { downloadCardAsset } from '../../lib/cardDownload.js';
 import {
   FileIcon, FileText, FilePdf, FileZip, FileDoc, Image as ImagePh,
   Headphones, Clapperboard, Database, CodeIcon, Download,
@@ -88,25 +89,16 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
     return () => { cancelled = true; };
   }, [isTextish, fileSrc]);
 
+  // Shared with every other download in the app (lib/cardDownload.js), which
+  // among other things routes through deliverFile — so this button now does
+  // something inside the native app, where <a download> never saved anything.
   const download = async (ev) => {
     ev?.stopPropagation?.();
     if (!fileSrc) return;
-    let url = null;
     try {
-      url = await resolveSrc(fileSrc);
-      if (!url) return;
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objUrl;
-      a.download = fileName || `file.${e || 'bin'}`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
-    } catch (_) {
-      // CORS/blob failure → open the signed URL in a new tab as a fallback.
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-    }
+      await downloadCardAsset({ fileSrc, fileName, mime, sizeBytes, ext: e, title }, 'file',
+                              { surface: 'file_card' });
+    } catch (_) { /* helper already falls back to opening the signed URL */ }
   };
 
   return (

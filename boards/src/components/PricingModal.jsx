@@ -5,6 +5,7 @@
 // Presentations by `header` (all in the confident "Studio" voice):
 //   • null          → generic ("Everything your work deserves")
 //   • "cap-hit"     → demo card cap reached
+//   • "near-cap"    → opened from the 80% warning toast (nothing refused yet)
 //   • "first-value" → first genuine card placed (warm nudge)
 //   • "storage"     → paid-only file/upload gate
 //
@@ -26,6 +27,7 @@ import { BenefitGrid, PlanToggle, CreatorPriceRow, TrialPriceRow } from './Prici
 import {
   CTA, PRICING, COPY_REV, PLAN_NAME, TRIAL_FROM_LABEL,
   creatorBenefits, ownWorkSummary, trialNote, currentPlanRow,
+  PRICING_INTENT_COPY,
 } from '../lib/billingCopy.js';
 import { OwnWorkStrip } from './OwnWorkStrip.jsx';
 import { readOwnWork } from '../lib/ownWork.js';
@@ -35,8 +37,9 @@ import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
+import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null, initialPlan = null }) {
   const { user } = useAuth();
   // `tierPreview` is the admin Surface Gallery's seam and nothing else's. Which
   // of the four headers you get is a prop, but whether the TRIAL is offered is
@@ -67,6 +70,19 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
   });
   const trialOffer = !trialRefused && trialDecision.eligible;
+  // Re-read the server's count the moment the offer opens. It used to be as
+  // old as the last page load or window focus, so a modal opened mid-build —
+  // from the banner at the thirteenth card, or from the wall after a bulk drop —
+  // decided the trial on a number from before the build and priced people the
+  // server would have invited. The summary latches `trial_flipped` if the
+  // answer changes while the modal is up, so a mid-exposure flip stays legible.
+  const refetchTier = live.refetch;
+  useEffect(() => {
+    if (tierPreview) return;
+    try { refetchTier?.(); } catch (_) { /* best-effort: the cached count still decides */ }
+    // Once per open. refetch is stable for the lifetime of the store.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Storage bytes cost an RPC, so only the two headers that are ABOUT capacity
   // pay for it. The ambient headers still name what the reader has built; they
   // just do it in cards and clusters, which are already in hand.
@@ -107,7 +123,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
       ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
       : 0,
   });
-  const [plan, setPlan]   = useState('monthly'); // monthly-first: annual-default drove pricing abandons (24/28 in 30d)
+  // monthly-first: annual-default drove pricing abandons (24/28 in 30d). The one
+  // exception is a plan the person already chose on /pricing before signing up.
+  const [plan, setPlan]   = useState(initialPlan === 'annual' ? 'annual' : 'monthly');
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
@@ -206,10 +224,25 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   const handleClose = (method = 'x') => {
     if (!redirectingRef.current) {
       up.outcome('dismiss', { method });
+      const timing = up.timing();
       logEvent(EV.PRICING_ABANDON, {
         header, plan, surface: 'modal', method,
-        exposure_n: up.envelope().exposure_n, ...up.timing(),
+        exposure_n: up.envelope().exposure_n, ...timing,
       });
+      // The one moment to ask why (UpgradeReasonAsk). Never from the admin
+      // gallery's preview, and only for someone the offer was actually for.
+      if (!tierPreview && tier === 'demo') {
+        try {
+          window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
+            detail: {
+              offer: header || 'generic', surface: 'pricing_modal', method, via,
+              trial: trialOffer, dwell_ms: timing?.dwell_ms ?? null,
+              cards: demoCardCount, server_cards: serverCardCount,
+              cap: effectiveCardLimit, tier,
+            },
+          }));
+        } catch (_) { /* the ask is optional; closing is not */ }
+      }
     }
     onClose?.();
   };
@@ -245,8 +278,10 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               its own. */}
           <h2 className="upgrade-title">
             {header === 'cap-hit'     ? 'Your work outgrew the demo.'
+             : header === 'near-cap'  ? "You're close to the free limit."
              : header === 'first-value' ? "You're building something."
              : header === 'storage'   ? 'Room for everything you make.'
+             : header === 'pricing-intent' ? PRICING_INTENT_COPY.title
              : 'Everything your work deserves.'}
           </h2>
 
@@ -287,6 +322,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
           )}
           {header === 'first-value' && (
             <p className="upgrade-sub t-body">Your first cluster is taking shape.</p>
+          )}
+          {header === 'pricing-intent' && (
+            <p className="upgrade-sub t-body">{PRICING_INTENT_COPY.sub}</p>
           )}
         </div>
 

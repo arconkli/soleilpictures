@@ -2,16 +2,16 @@
 
 > Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
 
-_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-02_
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
 ## Everything in one place, not fifteen tabs
 
-A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Drop a file and Clusters reads it, tags it, and files it to the right board automatically — so the board organizes itself as it grows.
+A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.
 
 - Drag in images, links, video, PDFs — and any file type on Creator
-- Auto-tagging files each reference to the right board
+- Tags gather references from every board into one view
 - Color palettes and notes sit right beside the imagery
 
 ## Build it together, in real time
@@ -25,8 +25,8 @@ Send a board to a client or collaborator with one link — they see a clean, int
 ## How to make a mood board
 
 1. **Start a board** — Open Clusters and create a blank board — an infinite canvas you can pan and zoom.
-2. **Drop in your references** — Drag images, screenshots, links, and files straight onto the canvas; Clusters tags and files each one for you.
-3. **Add color and notes** — Pull a color palette and add rich-text notes or a brief right beside the imagery.
+2. **Drop in your references** — Drag images, screenshots, links, and files straight onto the canvas — select everything in a folder and it all lands in one drop.
+3. **Add color and notes** — Add a color palette and rich-text notes or a brief right beside the imagery.
 4. **Arrange and connect** — Move cards freely, group related references, and draw arrows to show how ideas relate.
 5. **Share it** — Send one link for a clean, interactive preview — or invite your team to build the board live with you.
 
@@ -34,7 +34,7 @@ Send a board to a client or collaborator with one link — they see a clean, int
 
 ### Is the mood board maker free?
 
-Yes. The free Demo tier covers 50 cards across unlimited boards, with unlimited photo uploads and collaborators included. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.
+Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with collaborators included and uploads never metered. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.
 
 ### Can I make a mood board with my team?
 

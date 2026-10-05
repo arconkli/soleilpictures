@@ -8,8 +8,12 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
-import { hasLabelTag } from '../lib/gridSequence.js';
+import { scheduleCreationAllowed } from '../lib/appHost.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
+import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
+import { CURATED_TEMPLATES } from '../lib/gridTemplateIndex.js';
+import { layoutById } from '../lib/templateLayouts.js';
+import { stampCarry } from '../lib/gridSequence.js';
 import { readGridModel } from '../lib/gridState.js';
 import { todayISO } from '../lib/schedDates.js';
 import {
@@ -17,6 +21,8 @@ import {
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
 } from '../lib/schedLayout.js';
 import { getViewAnchor as getSchedViewAnchor } from '../lib/schedViewRegistry.js';
+import { shootDayDates } from '../lib/productionDayPlan.js';
+import { DEFAULT_DAY_TYPE as LOCAL_DEFAULT_DAY_TYPE } from '../lib/dayTypes.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { useCaptureMode } from '../hooks/useCaptureMode.js';
@@ -26,10 +32,15 @@ import { aspectSpec } from '../lib/captureAspect.js';
 import { guardCaptureMutators } from '../lib/captureMutatorGuard.js';
 import { CaptureHud } from '../components/capture/CaptureHud.jsx';
 import { ReturnReasonAsk } from '../components/ReturnReasonAsk.jsx';
-import { isReturnQaMode } from '../lib/localMode.js';
+import { isReturnQaMode, isUpgradeReasonQaMode, upgradeReasonQaAutoFire } from '../lib/localMode.js';
+import { UpgradeReasonAsk } from '../components/UpgradeReasonAsk.jsx';
+import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { AspectMask } from '../components/capture/AspectMask.jsx';
 import { Spotlight } from '../components/capture/Spotlight.jsx';
 import { HomeGraph } from '../components/HomeGraph.jsx';
+import { ProjectsHome } from '../components/ProjectsHome.jsx';
+import { isTopLevelProject, spotBesideContent } from '../lib/projectsHome.js';
+import { ancestorPath } from '../lib/boardTree.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
@@ -185,6 +196,18 @@ const MIX_QA_COUNT = typeof window !== 'undefined' && import.meta.env.DEV
 // &tour=project walks the desktop project_first intent-ask variant; a bare
 // &tour=1 keeps the legacy 6-step full tour for reference.
 // e.g. /?local=1&reset=1&blank=1&tour=project
+// ?tplqa=<slug> stages the "Grid template added → place it" prompt, which is
+// otherwise only reachable by signing up through a /templates page — an auth
+// round-trip Playwright cannot drive. Resolves a real shipped template out of the
+// bundle, so the prompt under test is the same row the live flow produces.
+//
+// DEV-only, and gated the way MIX_QA_COUNT documents above: the
+// `import.meta.env.DEV` literal is on the OUTSIDE so Vite folds the whole
+// expression to null and the branch is provably dead in production.
+const TPL_QA_SLUG = typeof window !== 'undefined' && import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('tplqa')
+  : null;
+
 const TOUR_PARAM = typeof window !== 'undefined' && import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('tour') : null;
 const TOUR_DEMO = TOUR_PARAM === '1' || TOUR_PARAM === 'mobile' || TOUR_PARAM === 'project';
@@ -205,6 +228,20 @@ const SHOWCASE_PREVIEW = typeof window !== 'undefined'
 // import.meta.env.DEV guard (and the synthetic-row labelling that rides with
 // it) applies here too.
 const readOnlyQa = isReadOnlyQaMode();
+
+// The row ?tplqa=<slug> stages, built the way App.jsx builds a real one: the
+// shipped template's layout, hints and card size, resolved out of the bundle.
+// null for an unknown slug, so a typo shows nothing rather than a broken prompt.
+const TPL_QA_ROW = (() => {
+  if (!TPL_QA_SLUG) return null;
+  const t = CURATED_TEMPLATES[TPL_QA_SLUG];
+  const layout = t && layoutById(t.preset);
+  if (!layout) return null;
+  return {
+    key: `qa:${TPL_QA_SLUG}`, id: TPL_QA_SLUG, name: t.name,
+    tree: layout.tree, hints: t.hints || null, size: t.size || layout.size,
+  };
+})();
 
 function createShowcasePreviewState() {
   // A clean Studio root; the snapshot loads into it asynchronously (effect below).
@@ -278,6 +315,9 @@ export function LocalBoardsApp({ user, signOut }) {
   ));
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
+  // ?tplqa=<slug> only. Stateful rather than the constant directly, so dismissing
+  // and placing behave exactly as they do in the signed-in shell.
+  const [qaTemplate, setQaTemplate] = useState(TPL_QA_ROW);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   // Shared Grid layout templates (global sync), keyed by boardId → { tplId: {id,name,layout} }.
   // Kept separate from boardState (whose updater only threads cards/arrows/strokes).
@@ -306,6 +346,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
   const [currentSurface, setCurrentSurface] = useState('board');
+  const [homeExploring, setHomeExploring] = useState(false);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
   const [onboardCoachOpen, setOnboardCoachOpen] = useState(ONBOARD_PREVIEW);
 
@@ -437,16 +478,20 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Same contract as App's mutators (no cap here): addCard returns the id it
+  // placed, addCards what it placed — a cross-pane move deletes from its
+  // source only what landed.
   const addCard = (card) => {
     updateBoardState(state => ({
       ...state,
       cards: [...state.cards, { z: getNextZ(state.cards), ...card }],
     }));
     if (card?.kind !== 'board') tourFireRef.current?.({ type: 'content_added', boardId: currentId, kind: card?.kind || 'card' });
+    return card?.id ?? null;
   };
 
   const addCards = (cardsToAdd) => {
-    if (!cardsToAdd?.length) return;
+    if (!cardsToAdd?.length) return { added: 0, requested: 0, capHit: false, placedIds: [] };
     updateBoardState(state => {
       let z = getNextZ(state.cards);
       return {
@@ -454,6 +499,7 @@ export function LocalBoardsApp({ user, signOut }) {
         cards: [...state.cards, ...cardsToAdd.map(card => ({ z: z++, ...card }))],
       };
     });
+    return { added: cardsToAdd.length, requested: cardsToAdd.length, capHit: false, placedIds: cardsToAdd.map((c) => c.id) };
   };
 
   const updateCard = (cardId, patch) => {
@@ -509,6 +555,30 @@ export function LocalBoardsApp({ user, signOut }) {
       }
 
       return { boards: nextBoards, boardState: nextBoardState };
+    });
+  };
+
+  // Source half of a move into another cluster, as App.jsx's: off the undo
+  // history on purpose — the copies live on another board, so an undo here
+  // could only bring back the source half and duplicate the cards. The move's
+  // undo belongs to the move. Never cascades: cluster cards nest, not move.
+  const deleteCardsForMove = (ids) => {
+    const idSet = new Set(ids || []);
+    if (!idSet.size) return;
+    setLocalState(prev => {
+      const cur = prev.boardState[currentId];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        boardState: {
+          ...prev.boardState,
+          [currentId]: {
+            ...cur,
+            cards: cur.cards.filter(card => !idSet.has(card.id)),
+            arrows: cur.arrows.filter(arrow => !idSet.has(arrow.from) && !idSet.has(arrow.to)),
+          },
+        },
+      };
     });
   };
 
@@ -623,6 +693,37 @@ export function LocalBoardsApp({ user, signOut }) {
     return id;
   };
 
+  // Mirror of App.jsx's addNewProject: the parent is the ROOT whatever board is
+  // open, the root's card goes beside its content (not on it), and the person
+  // lands inside the new project with the root in the breadcrumb.
+  const addNewProject = ({ name = null } = {}) => {
+    const id = createId('board');
+    const w = 280, h = 220;
+    setLocalState(prev => {
+      const rootState = prev.boardState?.[ROOT_ID] || { cards: [], arrows: [], strokes: [] };
+      const spot = spotBesideContent(rootState.cards);
+      return {
+        boards: {
+          ...prev.boards,
+          [id]: {
+            id, kind: 'board', name: name || 'Untitled cluster', view: 'canvas',
+            workspace_id: 'local-workspace', parent_board_id: ROOT_ID,
+            created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          },
+        },
+        boardState: {
+          ...prev.boardState,
+          [ROOT_ID]: { ...rootState, cards: [...(rootState.cards || []), { id, kind: 'board', x: spot.x, y: spot.y, w, h }] },
+          [id]: { cards: [], arrows: [], strokes: [] },
+        },
+      };
+    });
+    setCurrentSurface('board');
+    setStack([ROOT_ID, id]);
+    recents.push(id);
+    return id;
+  };
+
   const renameBoardById = (boardId, name) => {
     if (!name?.trim()) return;
     setLocalState(prev => ({
@@ -710,7 +811,10 @@ export function LocalBoardsApp({ user, signOut }) {
 
   // Keep in lockstep with App.jsx addSchedule (same shape/sizes). Local shell
   // stores the cell/meta twins as plain fields (cells / gridMeta) — no Yjs.
-  const SCHED_SIZES = { month: [420, 380], week: [420, 170], day: [300, 420], hour: [280, 300] };
+  // A month cell has to hold a date number AND two or three legible events;
+  // at the old 420x380 it was 59x55 and held two pills of four characters.
+  // Twin of App.jsx's SCHED_SIZES — see the note there.
+  const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [460, 560] };
   const addSchedule = (clickPos = null, view = 'month') => {
     const id = createId('sched');
     const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
@@ -801,6 +905,39 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Local QA — a real 2.000s WAV served statically, so the audio card can be
+  // exercised end to end with no backend: resolveSrc passes a plain URL
+  // through, decodeAudioData reads the fixture, and the filename carries a
+  // tempo and key for the loop-meta parser. The waveform it draws is four
+  // decaying hits, which is obvious at a glance when it is right.
+  // `overrides` lets a spec build a pack that looks like a pack — varied
+  // names, tempos and keys — instead of forty copies of one row. Everything
+  // still points at the one real fixture file, so the waveform and the
+  // transport behave exactly as they do for a genuine upload.
+  const addAudioAt = (clickPos = null, overrides = null) => {
+    const { w, h } = { w: 380, h: 130 };
+    const fileName = overrides?.fileName || 'sample-loop_120_Amin.wav';
+    addCard({
+      id: createId('aud'),
+      kind: 'audio',
+      src: '/sample-loop_120_Amin.wav',
+      title: fileName,
+      fileName,
+      mime: 'audio/wav',
+      ext: 'wav',
+      sizeBytes: 176444,
+      duration: 2,
+      bpm: 120,
+      musicalKey: 'Amin',
+      metaSource: 'name',
+      ...(overrides || {}),
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w,
+      h,
+    });
+  };
+
   const addLink = (targetBoard, clickPos = null) => {
     const w = 220, h = 160;
     addCard({
@@ -826,11 +963,21 @@ export function LocalBoardsApp({ user, signOut }) {
     const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
     const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
     const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    // opts.layout is a TEMPLATE tree from the Templates panel; its leaf ids are
+    // placeholders shared by every grid stamped from it, so instantiate. Mirrors
+    // App.addGrid.
+    const tpl = opts.layout ? sanitizeLayout(opts.layout) : null;
+    const layout = tpl ? instantiateLayout(tpl, mkCellId) : presetTree(preset, mkCellId);
+    // No Yjs here, so hints ride on the card exactly as `cells` does
+    // (readGridHints normalizes both paths).
+    const hintMap = hintsToCellMap(layout, opts.hints, { x: 0, y: 0, w, h });
     addCard({
       id: createId('grid'), kind: 'grid',
-      layout: presetTree(preset, mkCellId),
+      layout,
       cells: {}, templateId: null, seqId: null,
       x: Math.max(8, x), y: Math.max(8, y), w, h,
+      ...(opts.textStyle ? { textStyle: opts.textStyle } : {}),
+      ...(hintMap ? { hints: hintMap } : {}),
     });
   };
 
@@ -877,6 +1024,37 @@ export function LocalBoardsApp({ user, signOut }) {
     if (!removedIds.length) return;
     localGridLayoutEdit(gridId, () => tree);
     mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
+  };
+  // Re-cut a Grid to a saved template's shape — the local mirror of
+  // App.applyGridLayout. Same contract: instantiate (a template's leaf ids are
+  // placeholders), carry cell content across by reading order, re-cut the WHOLE
+  // linked family, and report what was dropped so the caller can offer an undo.
+  const applyGridLayout = (gridId, layout, hints = null) => {
+    const card = findLocalGrid(gridId); if (!card) return null;
+    const clean = sanitizeLayout(layout); if (!clean) return null;
+    const oldLayout = localGridLayout(card); if (!oldLayout) return null;
+    const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    const next = instantiateLayout(clean, mkCellId);
+    const all = boardState[currentId]?.cards || [];
+    const members = card.templateId
+      ? all.filter(c => c.kind === 'grid' && c.templateId === card.templateId)
+      : [card];
+    let dropped = 0;
+    const remap = {};
+    members.forEach((mem) => {
+      const box = { x: 0, y: 0, w: mem.w || 360, h: mem.h || 300 };
+      const { mapped, dropped: lost } = rehomeCells(oldLayout, next, mem.cells || {}, box);
+      dropped += lost;
+      remap[mem.id] = { cells: mapped, hints: hintsToCellMap(next, hints, box) };
+    });
+    localGridLayoutEdit(gridId, () => next);
+    updateBoardState(state => ({
+      ...state,
+      cards: state.cards.map(c => (remap[c.id]
+        ? { ...c, cells: remap[c.id].cells, hints: remap[c.id].hints || undefined }
+        : c)),
+    }));
+    return { dropped, affected: members.length };
   };
   const setGridCellContent = (gridId, cellId, patch) =>
     mapGridCard(gridId, c => {
@@ -956,6 +1134,100 @@ export function LocalBoardsApp({ user, signOut }) {
     });
     return true;
   };
+  // Twin of App.jsx applyRundownPlan — the convert-legacy-on-first-edit
+  // rewrite, as one state update rather than a write per row.
+  const applyRundownPlan = (cardId, plan) => {
+    const card = findLocalGrid(cardId);
+    const writes = Object.entries(plan?.writes || {});
+    const deletes = plan?.deletes || [];
+    if (!card || (!writes.length && !deletes.length)) return false;
+    mapGridCard(cardId, c => {
+      const cells = { ...(c.cells || {}) };
+      deletes.forEach((k) => { delete cells[k]; });
+      writes.forEach(([k, rec]) => { cells[k] = rec; });
+      return { ...c, cells };
+    });
+    return true;
+  };
+
+  // Highest "Day N" already under this parent, plus one. Mirrors
+  // productionDayPlan.nextDayNumber, against the local boards map.
+  const nextLocalDayNumber = (parentId) => {
+    let max = 0;
+    for (const id in boards) {
+      const b = boards[id];
+      if (!b || b.parent_board_id !== parentId) continue;
+      const m = /^Day\s+(\d+)$/.exec((b.day_label || b.name || '').trim());
+      if (m) max = Math.max(max, +m[1]);
+    }
+    return max + 1;
+  };
+
+  // ── Dated clusters, locally ────────────────────────────────────────────────
+  // In the real app a shoot day is a Postgres row and moving it is
+  // set_board_schedule(). The local shell has no Postgres, so these write the
+  // same COLUMN NAMES onto the in-memory boards map. That is enough for the
+  // schedule card, which only ever reads them off `boards`.
+  //
+  // Worth having rather than skipping: without it every day row, day tile, the
+  // Today block and the whole phase-colour system were invisible in ?local=1,
+  // which is the only harness the schedule tests run in.
+  const setLocalSchedule = (boardId, date, endDate = null) => {
+    setLocalState(prev => (prev.boards[boardId] ? {
+      ...prev,
+      boards: {
+        ...prev.boards,
+        [boardId]: {
+          ...prev.boards[boardId],
+          scheduled_date: date || null,
+          scheduled_end: endDate || null,
+          updated_at: new Date().toISOString(),
+        },
+      },
+    } : prev));
+    return { ok: true, date, moved: true, notified: 0 };
+  };
+  const addLocalShootDays = ({ from, to, skipWeekends = false, startNumber = null,
+                               parentBoardId = null } = {}) => {
+    const parent = parentBoardId || currentId;
+    // Continue the numbering rather than restarting at 1. Adding days one tile
+    // at a time — which is what the contact sheet's "+" does — otherwise made
+    // a production entirely of "Day 1".
+    const start = Number.isFinite(startNumber) && startNumber > 0
+      ? startNumber : nextLocalDayNumber(parent);
+    const dates = shootDayDates(from, to || from, { skipWeekends });
+    if (!dates.length) return [];
+    const made = [];
+    setLocalState(prev => {
+      const nextBoards = { ...prev.boards };
+      const nextState = { ...prev.boardState };
+      dates.forEach((date, i) => {
+        const id = createId('board');
+        made.push(id);
+        nextBoards[id] = {
+          id,
+          name: `Day ${start + i}`,
+          parent_board_id: parent,
+          view: 'canvas',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          scheduled_date: date,
+          scheduled_end: null,
+          day_label: `Day ${start + i}`,
+          sched_status: 'draft',
+          sched_version: 0,
+          // A default start time so the row has the one thing it exists to
+          // show; the real scaffold leaves it unset until someone types it.
+          day_start: '07:00:00',
+          day_type: LOCAL_DEFAULT_DAY_TYPE,
+        };
+        nextState[id] = { cards: [], arrows: [], strokes: [] };
+      });
+      return { boards: nextBoards, boardState: nextState };
+    });
+    return made;
+  };
+
   // Twin of App.jsx graftScheduleIntoSlot — same pure graftKeyMap, same refusal
   // rules (granularity mismatch / stray content → false → normal move).
   const graftScheduleIntoSlot = (hostId, slotPath, srcId) => {
@@ -1039,14 +1311,10 @@ export function LocalBoardsApp({ user, signOut }) {
     const layout = gridTplState[currentId]?.[card.templateId]?.layout || card.layout; if (!layout) return;
     mapGridCard(gridId, c => { const { templateId, ...rest } = c; return { ...rest, layout: clone(layout) }; });
   };
-  // Sequences + stamping (local parity). Carries label-tag text cells to copies.
-  const localLabelTagCells = (card) => {
-    const out = {};
-    for (const [k, cell] of Object.entries(card.cells || {})) {
-      if (cell?.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
-    }
-    return out;
-  };
+  // Sequences + stamping (local parity). What a copy inherits is decided by the
+  // SHARED gridSequence.stampCarry, not restated here — a local twin that
+  // restates the rule is a local twin that falls behind it, which is exactly
+  // what happened to cell hints.
   const ensureLocalTemplate = (card) => {
     if (card.templateId) return card.templateId;
     const tplId = createId('gtpl');
@@ -1069,8 +1337,12 @@ export function LocalBoardsApp({ user, signOut }) {
     else if (dir === 'bottom') ny = y + h + gap; else if (dir === 'top') ny = y - h - gap;
     const tplId = ensureLocalTemplate(card);
     const seqId = ensureLocalSequence(card);
-    const carry = localLabelTagCells(card);
-    addCard({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry, x: Math.max(8, nx), y: Math.max(8, ny), w, h });
+    const carry = stampCarry(card.cells, card.hints);
+    addCard({
+      id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry.cells,
+      ...(carry.hints ? { hints: carry.hints } : {}),
+      x: Math.max(8, nx), y: Math.max(8, ny), w, h,
+    });
   };
   const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
     const card = findLocalGrid(gridId); if (!card) return;
@@ -1079,11 +1351,15 @@ export function LocalBoardsApp({ user, signOut }) {
     const w = card.w || 360, h = card.h || 300, x0 = card.x, y0 = card.y, gx = opts.gapX ?? 0, gy = opts.gapY ?? 0;
     const tplId = ensureLocalTemplate(card);
     const seqId = ensureLocalSequence(card);
-    const carry = localLabelTagCells(card);
+    const carry = stampCarry(card.cells, card.hints);
     const newCards = [];
     for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
       if (r === 0 && c === 0) continue;
-      newCards.push({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry }, x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h });
+      newCards.push({
+        id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry.cells },
+        ...(carry.hints ? { hints: { ...carry.hints } } : {}),
+        x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h,
+      });
     }
     addCards(newCards);
   };
@@ -1144,6 +1420,7 @@ export function LocalBoardsApp({ user, signOut }) {
     updateCards,
     deleteCard: (id) => deleteCards([id]),
     deleteCards,
+    deleteCardsForMove,
     duplicateCard: (id) => duplicateCards([id]),
     duplicateCards,
     bringToFront,
@@ -1155,13 +1432,15 @@ export function LocalBoardsApp({ user, signOut }) {
     addTextLink,
     addImageAt,
     addPdfAt,
+    addAudioAt,
     addNewBoard,
     addPalette,
     addSchedule,
     addDocCard,
     addGrid,
-    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+    resizeGridDivider, splitGridCell, mergeGridCell, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
     setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
+    applyRundownPlan,
     setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,
@@ -1198,6 +1477,82 @@ export function LocalBoardsApp({ user, signOut }) {
   // it. Declared here so the capture specs exercise the real wrapper.
   const surfaceMutators = reframeOn ? guardCaptureMutators(mutators) : mutators;
 
+  // Dev-only bridge for the specs. The Templates panel is the only way to put
+  // HINTS on a grid, and in local mode it lists built-ins only — none of which
+  // carry any — so without this there is no way to reach the hinted-grid
+  // behaviour from a test at all, and "stamping carries hints" could only ever
+  // be asserted on the pure helper. Publishes the same addGrid the panel calls,
+  // taking the same reading-order hints array a saved template stores.
+  // import.meta.env.DEV so the bundler drops it from production, matching
+  // ?gridqa / ?alignqa / ?docqa.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    window.__soleilGridLive = {
+      addHintedGrid: (pos, hints, layout = null) => addGrid(pos, { hints, ...(layout ? { layout } : {}) }),
+    };
+    return () => { delete window.__soleilGridLive; };
+  }, [addGrid]);
+
+  // Dev-only bridge for the audio specs, same shape and same guard as
+  // __soleilGridLive above. There is no way to put an audio card on a local
+  // board otherwise — the only other route is a real upload, and local mode
+  // has no backend. import.meta.env.DEV so the bundler drops it from
+  // production, matching ?gridqa / ?alignqa / ?docqa.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    window.__soleilAudioLive = { addAudio: (pos, overrides) => addAudioAt(pos, overrides) };
+    return () => { delete window.__soleilAudioLive; };
+  }, []);
+
+  // Target half of a move into another cluster — App.jsx's
+  // 'soleil-card-into-board-drop' listener reduced to what this shell stores.
+  // The cards land on the target under fresh ids, offset to the same corner the
+  // real handler uses, with the arrows that joined two of them; only then is
+  // the source told it may delete. Without a listener the source waited
+  // forever, so dropping a card on a cluster card did nothing here at all.
+  useEffect(() => {
+    const onDrop = (e) => {
+      const { sourceBoardId, targetBoardId, cards: moved, onTargetSaved, onTargetFailed } = e.detail || {};
+      if (!sourceBoardId || !targetBoardId || !moved?.length || !boards[targetBoardId]) {
+        try { onTargetFailed?.(new Error('bad event')); } catch (_) {}
+        return;
+      }
+      if (sourceBoardId === targetBoardId) { try { onTargetSaved?.(); } catch (_) {} return; }
+      const idMap = {};
+      for (const c of moved) idMap[c.id] = createId(c.kind || 'card');
+      const minX = Math.min(...moved.map(c => c.x ?? 0));
+      const minY = Math.min(...moved.map(c => c.y ?? 0));
+      const dx = 60 - (Number.isFinite(minX) ? minX : 0);
+      const dy = 60 - (Number.isFinite(minY) ? minY : 0);
+      const endId = (end) => (typeof end === 'string' ? end : end?.cardId);
+      const remapEnd = (end) => (typeof end === 'string' ? idMap[end] : { ...end, cardId: idMap[end.cardId] });
+      setLocalState(prev => {
+        const target = prev.boardState[targetBoardId] || { cards: [], arrows: [], strokes: [] };
+        const sourceArrows = prev.boardState[sourceBoardId]?.arrows || [];
+        const cards = moved.map(c => ({
+          ...clone(c),
+          id: idMap[c.id],
+          x: Math.round((c.x ?? 0) + dx),
+          y: Math.round((c.y ?? 0) + dy),
+          groupId: null,
+        }));
+        const arrows = sourceArrows
+          .filter(a => idMap[endId(a.from)] && idMap[endId(a.to)])
+          .map(a => ({ ...a, from: remapEnd(a.from), to: remapEnd(a.to) }));
+        return {
+          ...prev,
+          boardState: {
+            ...prev.boardState,
+            [targetBoardId]: { ...target, cards: [...target.cards, ...cards], arrows: [...target.arrows, ...arrows] },
+          },
+        };
+      });
+      try { onTargetSaved?.(); } catch (_) {}
+    };
+    document.addEventListener('soleil-card-into-board-drop', onDrop);
+    return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
+  }, [boards]);
+
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   // App.jsx has its own; the local shell had no global keydown handler at all.
   useEffect(() => {
@@ -1217,8 +1572,8 @@ export function LocalBoardsApp({ user, signOut }) {
 
   // Reduced command set — the local QA shell has no Settings/Share/Trash modals.
   const localCommands = useMemo(() => [
-    { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
-      run: () => { setCurrentSurface('board'); addNewBoard(); } },
+    { id: 'new-board', label: 'New project', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board', 'project'],
+      run: () => { addNewProject(); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); addNote(); } },
@@ -1248,6 +1603,22 @@ export function LocalBoardsApp({ user, signOut }) {
           at all and stay that way. The literal import.meta.env.DEV drops this
           from production along with the component's own harness branch. */}
       {import.meta.env.DEV && isReturnQaMode() && <ReturnReasonAsk />}
+      {/* Dev-only, ?upgradereasonqa=1: the ask that follows a closed offer. The
+          local shell never shows an offer, so this fires the one event the real
+          one would — after mount, so the listener is there to hear it. */}
+      {import.meta.env.DEV && isUpgradeReasonQaMode() && (
+        <>
+          <UpgradeReasonAsk />
+          {upgradeReasonQaAutoFire() && <span hidden ref={(el) => {
+            if (!el || el.dataset.fired) return;
+            el.dataset.fired = '1';
+            setTimeout(() => window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
+              detail: { offer: 'cap-hit', surface: 'pricing_modal', method: 'maybe_later', via: 'qa',
+                        trial: true, dwell_ms: 4200, cards: 34, server_cards: 34, cap: 50, tier: 'demo' },
+            })), 50);
+          }} />}
+        </>
+      )}
       {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}
@@ -1388,14 +1759,28 @@ export function LocalBoardsApp({ user, signOut }) {
         </div>
 
         {currentSurface === 'home' ? (
-          <HomeGraph
+          <ProjectsHome
+            boards={boards}
+            rootId={ROOT_ID}
             workspaceId="local-workspace"
-            onNavigate={(target) => {
-              setCurrentSurface('board');
-              if (target?.kind === 'url') { window.open(target.href, '_blank', 'noopener,noreferrer'); return; }
-              if (target?.kind === 'board') setStack([target.id]);
-              if (target?.kind === 'card')  setStack([target.boardId]);
-            }}
+            recents={recents.recents}
+            canCreate
+            exploring={homeExploring}
+            onExplore={setHomeExploring}
+            onOpenBoard={(id) => { setStack(ancestorPath(boards, id)); recents.push(id); setCurrentSurface('board'); }}
+            onNewProject={(name) => addNewProject({ name })}
+            graph={(
+              <HomeGraph
+                workspaceId="local-workspace"
+                backdrop={!homeExploring}
+                onNavigate={(target) => {
+                  setCurrentSurface('board');
+                  if (target?.kind === 'url') { window.open(target.href, '_blank', 'noopener,noreferrer'); return; }
+                  if (target?.kind === 'board') setStack([target.id]);
+                  if (target?.kind === 'card')  setStack([target.boardId]);
+                }}
+              />
+            )}
           />
         ) : view === 'canvas' ? (
           <CanvasSurface
@@ -1409,6 +1794,10 @@ export function LocalBoardsApp({ user, signOut }) {
             boardReady={true}
             firstBoard={isFirstBoardQaMode()}
             firstBoardKind={qaFirstBoardKind()}
+            freshProject={isTopLevelProject(boards, currentBoard?.id, ROOT_ID)}
+            /* ?tplqa=<slug> — see TPL_QA_ROW. Dead code in production. */
+            justAddedTemplate={qaTemplate}
+            onDismissJustAdded={() => setQaTemplate(null)}
             board={currentBoard}
             boards={boards}
             cards={framedState.cards}
@@ -1417,6 +1806,10 @@ export function LocalBoardsApp({ user, signOut }) {
             gridTemplates={currentTemplates}
             gridSequences={currentSequences}
             onOpenBoard={openBoard}
+            onSetSchedule={setLocalSchedule}
+            /* Twin of App.jsx's gate — the local shell is DEV-only, so this is
+               always open in practice; kept in lockstep so the two shells can't drift. */
+            onAddShootDay={scheduleCreationAllowed() ? addLocalShootDays : null}
             tweak={tweak}
             depth={stack.length - 1}
             onOpenPicker={(pos) => openBoardLinkPicker(pos)}

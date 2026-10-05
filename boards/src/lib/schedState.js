@@ -8,7 +8,13 @@
 import { gridCardYMap } from './gridState.js';
 
 export function readSchedModel(card, ydoc) {
-  const view = card?.schedView || 'month';
+  // 'hour' was a real view once — one hour subdivided into four 15-minute
+  // buckets. Durations made it meaningless and it was removed, but cards
+  // stored with it exist in production data, and a card that renders blank
+  // because its view no longer exists is the worst possible outcome. It reads
+  // as the day it always belonged to.
+  const raw = card?.schedView || 'month';
+  const view = raw === 'hour' ? 'day' : raw;
   const anchor = card?.anchor || null;
   const anchorHour = Number.isFinite(card?.anchorHour) ? card.anchorHour : 9;
   let cells = {};

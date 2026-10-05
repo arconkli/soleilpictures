@@ -15,7 +15,7 @@ faq:
   - q: Why did my finger stop drawing?
     a: Because a stylus was used on this device, so the finger became a pan gesture — that is how palm rejection works. Turn "Draw with finger" back on under Brush in the draw options.
   - q: Is anything unavailable on mobile?
-    a: Nothing is removed, but dense surfaces like long documents and the 3D home graph are much better on a large screen. The graph falls back to 2D on tablets.
+    a: Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them.
 related:
   - /docs/canvas
   - /docs/scout
@@ -68,8 +68,9 @@ and **Layers** on the other — with the brushes, colours and sizes a tap behind
 the chip showing what you are drawing with, and the frame formats offered on the
 bar itself while the frame is still empty.
 
-The [Home graph](/docs/clusters/home-graph) renders its 2D fallback on most
-tablets, which has the same nodes and interactions.
+On a phone or a touch tablet, [Home](/docs/clusters/home-graph) is your projects
+on their own: the boards you were last in, every project, and **New project**.
+The 3D workspace graph is left for larger screens, and is never loaded here.
 
 ## Installing
 

@@ -18,6 +18,10 @@ test('landing pages and referrers map to a kind', () => {
   assert.equal(firstBoardKindFrom({ landingPath: '/tools/shot-list-maker' }), 'storyboard');
   assert.equal(firstBoardKindFrom({ landingPath: '/tools/mood-board-maker' }), 'moodboard');
   assert.equal(firstBoardKindFrom({ landingPath: '/tools/look-book-maker' }), 'moodboard');
+  assert.equal(firstBoardKindFrom({ landingPath: '/tools/cinematography-lookbook' }), 'moodboard');
+  assert.equal(firstBoardKindFrom({ landingPath: '/tools/directors-treatment' }), 'treatment');
+  assert.equal(firstBoardCopy('treatment').head, 'Start your treatment');
+  assert.match(firstBoardCopy('treatment').heroHint, /folder/i);
   assert.equal(firstBoardKindFrom({ referrerHost: 'chatgpt.com' }), 'references');
   assert.equal(firstBoardKindFrom({ utmSource: 'openai' }), 'references');
   assert.equal(firstBoardKindFrom({ referrerHost: 'www.reddit.com' }), 'moodboard');

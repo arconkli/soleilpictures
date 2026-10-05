@@ -26,6 +26,7 @@
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, BenefitGrid, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
 import { DEMO_FEATURES, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PLAN_NAME, CREATOR_BENEFITS } from '../lib/billingCopy.js';
+import { PRICING_ANSWER } from '../lib/pricingCrawlable.js';
 import '../pages/seoLanding.css';
 
 const NO_PROPS = () => ({});
@@ -159,8 +160,16 @@ export function PricingPageView({
 
           <div className="seo-trust pp-trust">
             <span>{PRICING_PAGE.startFreeSub}</span>
-            <span>Built by a film studio, for real productions.</span>
+            <span>{PRICING_PAGE.trustLine}</span>
           </div>
+
+          {/* The one-paragraph answer — both plans, both prices, the workspace
+              scope. It used to exist only in the crawlable body, which put
+              copy in front of crawlers that no visitor could see. It sits under
+              the plans, not in the hero: the plans stay first on a page whose
+              median visit is a few seconds. pricingCrawlable puts it in the
+              same place. */}
+          <p className="seo-answer pp-answer">{PRICING_ANSWER}</p>
 
           {/* The product, full width. A real published board in a browser
               frame — the same shot and the same frame the comparison pages
@@ -243,6 +252,10 @@ export function PricingPageView({
 
           <footer className="seo-footer">
             {footer}
+            <p className="seo-updated pp-machine">
+              <a href="/docs/account/plans">Plans, limits and billing in the docs</a>
+              {' · '}Machine-readable: <a href="/pricing.md">/pricing.md</a> · <a href="/llms.txt">/llms.txt</a>
+            </p>
             <div className="seo-footer-brand">
               <ClustersMark size={16} />
               <span>Soleil Clusters — a creative workspace &amp; moodboard for production teams.</span>

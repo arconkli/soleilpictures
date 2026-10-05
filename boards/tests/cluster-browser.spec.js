@@ -24,7 +24,7 @@ test('list view renders the cluster browser toolbar + a table without JS errors'
   // Toolbar present (search + Sort + Filter + view toggle).
   await expect(page.locator('.cbt')).toBeVisible();
   await expect(page.locator('.cbt-input')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sort' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sort', exact: true })).toBeVisible();
 
   // The demo seed has non-board cards → a table of rows renders (no "·" fallback).
   await expect(page.locator('.ct-table')).toBeVisible();
@@ -46,7 +46,7 @@ test('Table ⇄ Gallery toggle swaps the view', async ({ page }) => {
 
 test('Sort menu opens and picking a key re-sorts', async ({ page }) => {
   await goList(page);
-  await page.getByRole('button', { name: 'Sort' }).click();
+  await page.getByRole('button', { name: 'Sort', exact: true }).click();
   await expect(page.locator('.cbt-menu')).toBeVisible();
   await page.locator('.cbt-menu .ctx-item', { hasText: 'Name' }).click();
   // Menu closes after choosing; table still present + re-sorted.

@@ -1,7 +1,7 @@
 # Soleil Clusters
 
 > An infinite-canvas creative workspace for film, photo, design and brand teams.
-> Organize references, storyboards, shot lists, scripts and schedules on shared boards.
+> Organize references, storyboards, shot lists and scripts on shared boards.
 > Read and write it from your own code with the https://clusters.soleilpictures.com/api/v1 REST API or the MCP server.
 
 Terminology: the product calls a board a **cluster**. The API and database call the same object a `board`.
@@ -11,7 +11,11 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Changelog
 
-- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly. Most recent entry: 2026-08-26. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
+- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly. Most recent entry: 2026-10-04. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
+
+## Pricing
+
+- [Pricing](https://clusters.soleilpictures.com/pricing): Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: everyone invited builds at its limits, with no per-seat charges. Raw Markdown at https://clusters.soleilpictures.com/pricing.md; limits and billing in detail at https://clusters.soleilpictures.com/docs/account/plans.
 
 ## Getting started
 
@@ -25,13 +29,13 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [The canvas](https://clusters.soleilpictures.com/docs/canvas): The infinite canvas in Soleil Clusters — tools, panning, zooming, selection, right-click menus, drawing, backgrounds and exporting.
 - [Cards](https://clusters.soleilpictures.com/docs/canvas/cards): Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, schedules, votes and nested clusters.
-- [Images and photo editing](https://clusters.soleilpictures.com/docs/canvas/images): Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast, colour, crop. Lightbox, downloads with edits baked in.
+- [Images and photo editing](https://clusters.soleilpictures.com/docs/canvas/images): Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast and colour. Lightbox, downloads with edits baked in.
 - [Notes](https://clusters.soleilpictures.com/docs/canvas/notes): Rich-text notes on the Soleil Clusters canvas — formatting, checklists, @-mentions, auto-linking and real-time co-typing with other people.
 - [Shapes and drawing](https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing): Draw freehand on a Soleil Clusters canvas, add shapes with stroke and fill control, use the sketch pad overlay, or place a bounded art canvas card.
 - [Arrows](https://clusters.soleilpictures.com/docs/canvas/arrows): Connect cards with arrows in Soleil Clusters. Arrows anchor to cards, re-route as you move things, and carry labels, colours, thickness and head styles.
 - [Groups](https://clusters.soleilpictures.com/docs/canvas/groups): Group cards on a Soleil Clusters canvas. Named, outlined selections that move as one and can be commented on, tagged and coloured as a unit.
-- [Grids](https://clusters.soleilpictures.com/docs/canvas/grids): Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Presets and generated matrices.
-- [Schedules](https://clusters.soleilpictures.com/docs/canvas/schedule): Real-date calendar cards on the Soleil Clusters canvas. One to six months at once, shoot days you drag between dates, and a peek panel for editing.
+- [Grids](https://clusters.soleilpictures.com/docs/canvas/grids): Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Split, merge, or generate a matrix.
+- [Schedules](https://clusters.soleilpictures.com/docs/canvas/schedule): Real-date calendar cards on the Soleil Clusters canvas — day tiles, a list, a month grid, and days that run as a timed running order.
 - [Vote cards](https://clusters.soleilpictures.com/docs/canvas/vote-cards): Vote cards in Soleil Clusters are up/down polls you can anchor anywhere on a board, so a team can decide between options without a thread of comments.
 - [Colour palettes and the picker](https://clusters.soleilpictures.com/docs/canvas/palettes-and-color): Palette cards, the colour picker with eyedropper and hex input, recent colours, and how board colours stay readable in light and dark themes.
 - [Snapping and alignment](https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment): Alignment guides and snapping on the Soleil Clusters canvas. Cards snap to each other's edges and centres as you drag; hold Alt to bypass.
@@ -41,14 +45,14 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [Files and uploads](https://clusters.soleilpictures.com/docs/files): Upload any file type to Soleil Clusters. What is supported free, where the size caps are, how large uploads work, and where storage is counted.
 - [PDFs](https://clusters.soleilpictures.com/docs/files/pdf): PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download. Free accounts cap PDFs at 50 MB.
-- [Video and audio](https://clusters.soleilpictures.com/docs/files/video-and-audio): Video and audio cards in Soleil Clusters play inline on the canvas. Waveform audio players with cover art, one-at-a-time playback, and free-plan size caps.
+- [Video and audio](https://clusters.soleilpictures.com/docs/files/video-and-audio): Video and audio cards in Soleil Clusters play inline on the canvas. Audio draws a real waveform decoded from the file, with cover art and one-at-a-time play.
 
 ## Clusters
 
 - [Clusters](https://clusters.soleilpictures.com/docs/clusters): Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.
 - [List view](https://clusters.soleilpictures.com/docs/clusters/list-view): Every cluster in Soleil Clusters is also a drive. List view gives you table and gallery modes, search, sort, type filters and a detail panel with previews.
-- [Home graph](https://clusters.soleilpictures.com/docs/clusters/home-graph): The Home view in Soleil Clusters shows your whole workspace as a 3D relationship graph of clusters, documents, cards and links you can fly through.
-- [Production schedules](https://clusters.soleilpictures.com/docs/clusters/production-schedule): Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each shoot day its own cluster holding that day's material.
+- [Home](https://clusters.soleilpictures.com/docs/clusters/home-graph): Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.
+- [Production schedules](https://clusters.soleilpictures.com/docs/clusters/production-schedule): Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each day its own cluster holding that day's material.
 - [Trash and recovery](https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery): Restore deleted clusters from a 30-day trash, roll a board back through version history, or rewind an entire workspace to a point in time.
 
 ## Documents
@@ -84,7 +88,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 ## Account and plans
 
 - [Settings](https://clusters.soleilpictures.com/docs/account/settings): Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Billing, Invite and earn, General, Members, Card defaults and Documentation.
-- [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
+- [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.
 - [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.
 - [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters and earn bonus cards when they actually get started. Your referral link, share targets and stats live in Settings.
 - [Mobile and tablet](https://clusters.soleilpictures.com/docs/account/mobile): Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.
@@ -119,7 +123,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Comparisons and tool pages
 
-- [Text your scout photos. Get a board.](https://clusters.soleilpictures.com/scout): Text photos, links and notes from set. They land arranged on an infinite canvas, grouped by scene. No app to install, no login, no forms.
+- [Text your scout photos. Get a board.](https://clusters.soleilpictures.com/scout): Soleil Scout turns texted photos, links and notes into a board, grouped by scene. Invite-only for now: leave your number and we text you when you are in.
 - [Mood Board Maker](https://clusters.soleilpictures.com/tools/mood-board-maker): Make a mood board online, free. Drag images, notes, and palettes onto an infinite canvas, build it live with your team, and share it with one link.
 - [AI Mood Board Maker](https://clusters.soleilpictures.com/tools/ai-mood-board-maker): Connect Claude or any MCP client to Soleil Clusters and ask for a mood board. It gathers and arranges your own references — it does not invent pictures.
 - [Storyboard Maker](https://clusters.soleilpictures.com/tools/storyboard-maker): Make a storyboard online: drop frames in a grid, caption and re-order shots, keep the shot list beside the frames, and share one link with your crew.
@@ -127,8 +131,15 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Look Book Maker](https://clusters.soleilpictures.com/tools/look-book-maker): Make a look book online. Arrange looks in clean grid spreads, unify them with photo adjustments, and send clients one polished, interactive link.
 - [Free Online Mood Board Maker](https://clusters.soleilpictures.com/tools/free-mood-board-maker): A genuinely free mood board maker — no credit card, no download, no trial clock. Drop images, notes, and palettes on an infinite canvas; share a link.
 - [An Online Reference Board Maker for Working Artists](https://clusters.soleilpictures.com/tools/reference-board-maker): Make a reference board online: drag images onto an infinite canvas, check values in B&W, and open the same board on any device. Free, nothing to install.
-- [A Milanote Alternative Built for Production Teams](https://clusters.soleilpictures.com/vs/milanote): The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with auto-tagging, 100GB storage and sharing.
+- [Shared Reference Boards for Studio Art Teams](https://clusters.soleilpictures.com/tools/shared-reference-board): One reference board for a whole art team: artists add to it live, the art director comments on the image itself, and nobody installs anything.
+- [Director’s Treatment Template](https://clusters.soleilpictures.com/tools/directors-treatment): A director’s treatment structure you can use today: develop the look with your team on a live board, write it as a document with images, export a PDF.
+- [Production Design Mood Boards](https://clusters.soleilpictures.com/tools/production-design-mood-board): Mood boards for production designers: a cluster per set, with references, palettes and plans together, built live by set dec, props and the director.
+- [Costume Design Mood Boards](https://clusters.soleilpictures.com/tools/costume-design-mood-board): Mood boards for costume designers: a board per character, looks laid out scene by scene, swatches and fittings together, shared live with the director.
+- [Cinematography Lookbook](https://clusters.soleilpictures.com/tools/cinematography-lookbook): A lookbook for cinematographers: frames, lighting references and lens notes on a shared board, B&W value checks, and one link for the whole camera team.
+- [A Milanote Alternative Built for Production Teams](https://clusters.soleilpictures.com/vs/milanote): The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with screenplay mode, 100GB storage and link sharing.
 - [A Storyflow Alternative for Crews That Work Live](https://clusters.soleilpictures.com/vs/storyflow): A Storyflow alternative you can use free today: a live production canvas at a flat price, with no AI meter. Honest about where Storyflow still wins.
+- [An Eagle Alternative for Teams That Build Boards Together](https://clusters.soleilpictures.com/vs/eagle): An Eagle alternative for teams: a shared reference canvas in the browser, built live with your crew. Honest about where Eagle’s private library wins.
+- [A Google Drive Alternative for Creative Work](https://clusters.soleilpictures.com/vs/google-drive): Keep Drive for backup and sync. Clusters is where a creative team sees its files: drop a folder, get nested boards, every file kept under its own name.
 - [PureRef Online: The Closest Thing, in Your Browser](https://clusters.soleilpictures.com/vs/pureref): There is no PureRef web version. Clusters is the closest thing online: the same drop-and-arrange reference wall, in your browser, shared with one link.
 - [A Miro Alternative for Filmmakers and Creative Teams](https://clusters.soleilpictures.com/vs/miro): A Miro alternative for creative work, not diagramming: image-first boards, palettes, storyboards, and client-ready sharing. Free to start.
 - [What You Can Make with Clusters](https://clusters.soleilpictures.com/use-cases): Mood boards, look books, storyboards, shot lists — see what creative teams make with Soleil Clusters, browse example boards, and start yours free.

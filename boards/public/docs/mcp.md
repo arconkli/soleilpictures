@@ -2,7 +2,7 @@
 
 > Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
-_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-10-02_
 
 The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
@@ -187,7 +187,7 @@ quietly failing.
 | `create_board` | `name`, `workspace_id?`, `parent_board_id?`, `scheduled_date?`, `scheduled_end?`, `day_label?`, `identifiers?`, `props?` |
 | `create_boards` | `boards[]`, `on_conflict?` — build a structure in one call; each entry takes the same schedule fields |
 | `add_cards` | `board_id`, `cards[]` — up to 1000, `on_conflict?` |
-| `upload_image` | `board_id`, `data` (base64), `content_type` |
+| `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
@@ -210,6 +210,12 @@ quietly failing.
 
 Card `kind` is `audio`, `doc`, `file`, `image`, `link`, `note`, `pdf`, `video`, defaulting to `note`.
 
+`add_cards` accepted six of those eight for as long as the other two have
+existed — **audio** and **pdf** were missing from its schema while the REST API
+took both, so an agent could not create the two kinds Soleil Scout makes from a
+text message. Both work now, and a `file_key` from `upload_file` is what any of
+**video**, **audio**, **pdf** or **file** is built from.
+
 Every tool carries **annotations** — `readOnlyHint`, `destructiveHint`,
 `idempotentHint` — which is what a client reads when deciding whether a call
 needs confirming. They are structured, so unlike a warning in a description they
@@ -230,8 +236,9 @@ description:
 
 Two calls:
 
-1. `upload_image` with the base64 bytes and a `content_type` — returns an `image_key`
-2. `add_cards` with `{"kind": "image", "image_key": "…"}`
+1. `upload_image` with the base64 bytes and a `content_type`, plus `file_name` to keep the
+   file's own name — returns an `image_key` (and the `file_name` it kept)
+2. `add_cards` with `{"kind": "image", "image_key": "…", "file_name": "…"}`
 
 Images are limited to **25 MB** through the API and are charged
 to the board owner's storage. See [Images API](/docs/api/images).

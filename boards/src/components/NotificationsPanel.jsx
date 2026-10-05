@@ -82,7 +82,7 @@ export function NotificationsPanel({
           <div className="ntf-empty">Loading…</div>
         ) : items.length === 0 ? (
           <div className="ntf-empty">
-            Nothing yet. When a shoot day moves or a call sheet is published,
+            Nothing yet. When a day moves or a call sheet is published,
             it lands here.
           </div>
         ) : (
@@ -94,8 +94,8 @@ export function NotificationsPanel({
                   onClick={() => {
                     // The bell shipped with no instrumentation at all, so
                     // whether anyone acts on a notification has never been
-                    // answerable. `kind` is what separates one producer from
-                    // another once more than one fills this list.
+                    // answerable. `kind` is what separates "the schedule works"
+                    // from "share activity works" later.
                     try {
                       logEvent(EV.NOTIF_CLICK, {
                         kind: n.kind || null,

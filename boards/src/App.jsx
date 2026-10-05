@@ -16,7 +16,8 @@ import { useScrollEdges } from './hooks/useScrollEdges.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
-import { useMyTier } from './hooks/useMyTier.js';
+import { useMyTier, expectIndexChange } from './hooks/useMyTier.js';
+import { useCreatorIntentResume } from './hooks/useCreatorIntentResume.js';
 import { setCapture } from './lib/captureState.js';
 import { maskName, maskEmail } from './lib/captureIdentity.js';
 import { useCaptureState } from './hooks/useCaptureState.js';
@@ -44,9 +45,12 @@ import {
 } from './lib/powerReveals.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { ReturnReasonAsk } from './components/ReturnReasonAsk.jsx';
+import { UpgradeReasonAsk } from './components/UpgradeReasonAsk.jsx';
+import { OFFER_DISMISSED } from './lib/offerEvents.js';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
+import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout, getGridLayout, recordTemplateDownload } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -107,6 +111,7 @@ import { useYBoard } from './hooks/useYBoard.js';
 import { RENDER_VERSION as THUMB_VERSION } from './lib/renderThumbnail.js';
 import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
+import { useAudioPeaksBackfill } from './hooks/useAudioPeaksBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -125,40 +130,59 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
-import { forceBoardThumbnail, boardDoc } from './lib/yboard.js';
-import { planReparent } from './lib/boardTree.js';
+import { cardIndexWeight } from './lib/cardIndexRow.js';
+import { isAbandonedUpload } from './lib/abandonedUploads.js';
+import { forceBoardThumbnail, boardDoc, loadYBoard } from './lib/yboard.js';
+import { ancestorPath, boardDepth, planReparent } from './lib/boardTree.js';
+import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { evaluateDemoCap, fitByCost, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { planImport } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
-import { stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { CTA, nearCapSentence } from './lib/billingCopy.js';
-import { creatorTrialEligibility } from './lib/creatorTrial.js';
+import { readUpgradePrompts, stampUpgradePrompt } from './lib/upgradePrompts.js';
+import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL } from './lib/billingCopy.js';
+import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
+import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
+import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { publishOwnWork } from './lib/ownWork.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
 import { shouldAskToShare } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
-import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
-import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
-import { hasLabelTag } from './lib/gridSequence.js';
+import { initCardDocStore, cardScope, setDocMode, setTitlePage, writeScriptBody } from './lib/docState.js';
+import { STARTER_DOCS, isStarterKind, starterDocSpot, writeStarterDoc, starterDocsTouched, isPristineStarter } from './lib/starterDocs.js';
+import { openDocWhenMounted } from './lib/openDocCard.js';
+import { useStarterIntentResume } from './hooks/useStarterIntentResume.js';
+import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
+import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/gridLayoutLibrary.js';
+// Generated projection of the kind:'template' seoLanding specs — the preset id
+// and labels only, never the prose. See gen-docs.mjs step 4d.
+import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from './lib/gridLayout.js';
+import { layoutById } from './lib/templateLayouts.js';
+import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed } from './lib/appHost.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
 } from './lib/schedLayout.js';
 import { getViewAnchor as getSchedViewAnchor } from './lib/schedViewRegistry.js';
-import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
+import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta, readAudioMeta } from './lib/uploads.js';
+import { analyzeAudioFile, analyzable } from './lib/audioAnalysis.js';
+import { parseLoopMeta } from './lib/loopMeta.js';
+import { lowMemoryDevice } from './lib/device.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
-import { classifyDropFile, fitImageDims, sizeBucket } from './lib/fileIngest.js';
+import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor } from './lib/fileIngest.js';
+import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
+import { planFolderImport, slicePlan } from './lib/folderPlan.js';
+import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
@@ -172,6 +196,9 @@ import { lazyWithReload } from './lib/lazyWithReload.js';
 // renders on the Home view. Keeping it out of the eager App bundle means a board
 // canvas no longer downloads the 3D-graph libs.
 const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then(m => ({ default: m.HomeGraph })));
+// Home's projects panel is light (no three.js), so it is eager: the panel paints
+// at once while the graph behind it loads lazily.
+import { ProjectsHome } from './components/ProjectsHome.jsx';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -471,6 +498,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           sched_status: s.sched_status ?? 'draft',
           sched_version: s.sched_version ?? 0,
           sched_published_at: s.sched_published_at ?? null,
+          // 0247: without these a shared crew member's day rows would render
+          // with no call time and no colour — the two things the row exists for.
+          day_type: s.day_type ?? null,
+          day_start: s.day_start ?? null,
+          day_end: s.day_end ?? null,
+          day_place: s.day_place ?? null,
+          day_types: s.day_types ?? null,
           _shared: true,
           _sharedRoot: s.is_shared_root !== false,
         };
@@ -478,6 +512,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     return merged;
   }, [ownedBoards, sharedBoards]);
+  // The pane mutators are memoized on their Y.Doc, so a `boards` they close over
+  // is the map from the render their doc first painted — {} after a reload, and
+  // missing every cluster made since. Whose cap applies and whether a move stays
+  // in one workspace are read through this instead (like myTierRef).
+  const boardsRef = useRef(boards);
+  boardsRef.current = boards;
   // list_shared_boards now returns descendants too (0244) so a shared
   // production carries its shoot days into the boards map. The sidebar still
   // lists only what was actually shared WITH you — otherwise a 60-day shoot
@@ -582,6 +622,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
   const tourFireRef = useRef(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [browsePickerOpen, setBrowsePickerOpen] = useState(false);
   // Canvas-space point the "Linked cluster" picker was opened FROM (right-click
   // Add / rail), so the picked boardlink lands under the cursor. Ref, not state:
   // nothing re-renders on it. Rewritten on EVERY open (null for pos-less flows
@@ -1341,8 +1382,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the server_cap path keeps blaming, and which would also make the
     // preflight's refetch pointless, since the re-plan would read the same
     // frozen number it just paid a round trip to replace.
+    // What card_index counts for a card, read through its fields: its weight
+    // (an empty grid 0, a filled grid its filled boxes, else 1), and nothing for
+    // a photo whose upload died with its page — the index skips those
+    // (abandonedUploads.js). Every charge AND every refund goes through this,
+    // so a delete gives back exactly what the add took: refunding one per card
+    // handed back room an empty grid never cost, and room a stuck photo no
+    // longer held, and the next add was admitted and then taken back.
+    const countedWeight = (get) => (isAbandonedUpload(get) ? 0 : cardIndexWeight(get('kind') || 'note', get));
+    const placementCost = (card) => countedWeight((k) => card?.[k]);
+    // The refund for removing `ids` from this board: what the index counted for
+    // each, skipping onboarding seeds (never indexed) and ids not on the board.
+    const countedWeightOf = (m, ids) => {
+      let n = 0;
+      for (const id of ids) {
+        const ym = m.get(id);
+        if (!ym || isSeedCard({ id, seed: ym.get('seed') })) continue;
+        n += countedWeight((k) => ym.get(k));
+      }
+      return n;
+    };
     const capSource = () => {
-      const b = boards?.[boardId];
+      const b = boardsRef.current?.[boardId];
       const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
       if (own) {
         const mt = myTierRef.current || myTier;
@@ -1425,7 +1486,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     //      hundred-file folder drop leaves its user holding a fraction of it —
     //      a count BELOW their own cap, because the batch had not merely
     //      overflowed, it had failed whole.
-    const preflightImport = async ({ n, kinds = null, source = 'drop' } = {}) => {
+    // `folder` ({ files, clusters }) when the drop was a folder: n is then its
+    // whole cost in cards — a card per file AND per cluster (lib/folderPlan).
+    const preflightImport = async ({ n, kinds = null, source = 'drop', folder = null } = {}) => {
       const requested = Math.max(0, Number(n) | 0);
       if (requested <= 0) return { take: 0 };
 
@@ -1474,37 +1537,62 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         setImportAsk({
           n: requested, take: plan.take, over: plan.over,
           count: plan.count, limit: plan.limit,
-          kinds, source, boardId, own: cs.own, resolve,
+          kinds, source, boardId, own: cs.own, resolve, folder,
         });
       });
     };
 
+    // Returns the id it placed, or null when nothing was placed (the cap
+    // refused it, or the board isn't ready) — so a caller never reports a card
+    // that does not exist.
     const addCard = (card, { afterInsert = null } = {}) => {
-      const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
+      const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return null; }
       // Owner-pays cap: hard-block at the limit (cards total across the
       // OWNER's workspaces — 0187). The trigger on card_index enforces the
       // same subject server-side; this check reads the cached value.
+      //
+      // It charges what card_index will record for this card. An empty grid
+      // records 0 (gridCount.cardWeight), so placing one never meets the wall
+      // and never moves the count — its boxes are gated one at a time as they
+      // fill (guardWeightedAdd).
+      // A seed (an onboarding starter, a page's starter document) is never
+      // indexed, so the server never counts it — and the gate must not either,
+      // or a starter document is refused at a cap it would not have touched.
+      const cost = isSeedCard(card) ? 0 : placementCost(card);
+      let gated = false;
+      const cs = capSource();
       {
-        const cs = capSource();
-        if (cs.capped) {
-          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+        // An unresolved tier (get_my_tier in flight or failed) lets the card
+        // through ungated, which is exactly when the server is likeliest to
+        // refuse it. It is still this tab's own fresh placement, so it is noted:
+        // a refusal then takes it back and shows the wall, instead of leaving
+        // it on the canvas uncounted with nothing said.
+        if (!cs.resolved && cost > 0) gated = true;
+        if (cs.capped && cost > 0) {
+          gated = true;
+          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: cost, limit: cs.limit });
           if (capHit) {
             if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal/toast opens below
             surfaceCapHit(cs);
-            return;
+            return null;
           }
-          nearCapToast(cs, 1);
+          nearCapToast(cs, cost);
         }
       }
       breakUndo();
+      let placedId = null;
       ydoc.transact(() => {
         const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
+        placedId = c.id;
         // Run any per-card initialization (e.g. a doc card's Y store) INSIDE
         // this transaction so create+init is ONE undo step. Yjs transact is
         // reentrant, so a nested ydoc.transact inside afterInsert merges here.
         if (afterInsert) { try { afterInsert(m.get(c.id)); } catch (_) {} }
       }, 'local');
+      // The gate let this card in on a cached count. If the server disagrees,
+      // this is the one card the refusal may take back (capRefusal.js).
+      if (gated && placedId) notePlacedThroughCap([placedId]);
       // Live activity signal → admin Command Center placement ticker. Prompt
       // (beacon) delivery so it shows up ~live, not at the next 5s batch flush.
       // Seeds (onb-*) are not real placements — exclude so card_placed only ever
@@ -1512,8 +1600,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!isSeedCard(card)) {
         // Keep the cached cap count moving between fetches, so the NEXT add is
         // gated on a number that reflects this one. Seeds are never indexed, so
-        // they never count — same boundary card_placed uses.
-        myTier.notePlaced?.(1);
+        // they never count — same boundary card_placed uses. An empty grid
+        // costs nothing, so it moves nothing. Only the owner's own count moves:
+        // a card on someone else's cluster is on THEIR meter.
+        if (cost > 0 && cs.own) myTier.notePlaced?.(cost);
         logEventNow(EV.CARD_PLACED, {
           n: 1, kind: card?.kind || 'card', cards_after: genuineCountInDoc(),
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
@@ -1537,6 +1627,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           tourFireRef.current?.({ type: 'content_added', boardId, kind: card?.kind || 'card' });
         }
       }
+      return placedId;
     };
 
     // Gate for FILLING a grid cell with weighted content (image / link / file /
@@ -1558,34 +1649,60 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addCards = (cardsToAdd, opts = {}) => {
-      // Returns { added, requested, capHit } so callers (e.g. the remix seed) can
-      // tell whether the demo cap silently dropped cards and toast accordingly.
+      // Returns { added, requested, capHit, placedIds } so callers (e.g. the
+      // remix seed) can tell whether the demo cap silently dropped cards and
+      // toast accordingly — and a MOVE can delete from its source only what
+      // actually landed here.
       // opts.suppressPlaced: skip the card_placed beacon for batches that carry
       // their own event (the remix clone logs remix_clone with the same n —
       // card_placed must keep meaning "the user placed cards").
+      // opts.moveFrom: the board these cards are leaving (a cross-pane move).
+      // opts.restore: cards put back for things that already exist (the tile
+      // the reconcile effect places for a cluster with no card here).
       const requested = cardsToAdd?.length || 0;
       let capHit = false;
-      const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit }; }
+      const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit, placedIds: [] }; }
       const csBatch = capSource();
-      if (csBatch.capped) {
-        const evald = evaluateDemoCap({ tier: 'demo', demoCardCount: csBatch.count, requested: cardsToAdd.length, limit: csBatch.limit });
-        const accepted = evald.accepted; capHit = evald.capHit;
-        if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); surfaceCapHit(csBatch); return { added: 0, requested, capHit }; }
+      // A move between two clusters of one workspace takes nothing from the
+      // owner's room — a row leaves the source as one arrives here — so it is
+      // not gated, not charged, and not noted as a placement the cap may take
+      // back. Gating it is how a move at the limit lost the cards: this side
+      // refused them and the source deleted them anyway. If the server refuses
+      // the arrival before the source's row is released, the card is kept and
+      // retried, never withdrawn.
+      // A restored tile is the same: the cluster exists whether or not its card
+      // is on this canvas, so putting the card back is not an add — gated, it
+      // re-showed the wall on every edit for a cluster made at the limit.
+      const fromWs = opts.moveFrom ? boardsRef.current?.[opts.moveFrom]?.workspace_id : null;
+      const neutralMove = !!opts.restore || (!!fromWs && fromWs === boardsRef.current?.[boardId]?.workspace_id);
+      if (csBatch.capped && !neutralMove) {
+        // Charged by weight, like addCard: an empty grid in the batch costs
+        // nothing and is never the card that gets cut (fitByCost).
+        const { remaining } = evaluateDemoCap({ tier: 'demo', demoCardCount: csBatch.count, requested: 0, limit: csBatch.limit });
+        const fit = fitByCost(cardsToAdd, placementCost, remaining);
+        capHit = fit.capHit;
+        if (capHit && fit.kept.length === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); surfaceCapHit(csBatch); return { added: 0, requested, capHit, placedIds: [] }; }
         if (capHit) {
-          cardsToAdd = cardsToAdd.slice(0, accepted);
+          cardsToAdd = fit.kept;
           surfaceCapHit(csBatch);
-        } else {
-          nearCapToast(csBatch, cardsToAdd.length);
+        } else if (fit.cost > 0) {
+          nearCapToast(csBatch, fit.cost);
         }
       }
       breakUndo();
+      const placedIds = [];
       ydoc.transact(() => {
         let z = nextZ();
         for (const card of cardsToAdd) {
           const c = stampCreate({ z: z++, ...card });
           m.set(c.id, cardToYMap(c));
+          placedIds.push(c.id);
         }
       }, 'local');
+      // A card moved in is existing work even when the move was gated: its
+      // source deleted it the moment it landed here, so a refusal must keep it
+      // (uncounted, retried) — taking it back would leave it on neither board.
+      if ((csBatch.capped || !csBatch.resolved) && !neutralMove && !opts.moveFrom) notePlacedThroughCap(placedIds);
       // One ticker entry per bulk action (collapsed) — "placed N cards".
       // Count only genuine cards so the onboarding seed batch (all onb-*) never
       // emits a card_placed — the seed was being counted as activation.
@@ -1593,7 +1710,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Cap accounting tracks what was INDEXED, not what was reported — a remix
       // clone passes suppressPlaced to log its own event, but its cards still
       // occupy cap room, so this sits outside that branch.
-      if (genuine.length) myTier.notePlaced?.(genuine.length);
+      const genuineCost = genuine.reduce((n, c) => n + placementCost(c), 0);
+      if (genuineCost && csBatch.own && !neutralMove) myTier.notePlaced?.(genuineCost);
       const kinds = new Set(genuine.map((c) => c?.kind).filter(Boolean));
       if (genuine.length && !opts.suppressPlaced) {
         logEventNow(EV.CARD_PLACED, {
@@ -1617,7 +1735,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           kind: contentKinds.length === 1 ? contentKinds[0] : 'mixed',
         });
       }
-      return { added: cardsToAdd.length, requested, capHit };
+      return { added: cardsToAdd.length, requested, capHit, placedIds, neutral: neutralMove };
     };
 
     const updateCard = (cardId, patch) => {
@@ -1718,13 +1836,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         logEvent(EV.CARD_DELETED, { n: ids.length, kinds, board_id: boardId });
       } catch (_) {}
       // Give the cap room back locally too, or "delete some cards to make
-      // space" doesn't work until the next tier fetch. Seeds were never
-      // indexed, so they were never counted and must not be refunded.
-      // Read `seed` off the Y.Map rather than inferring from the id: the seeded
-      // Ideas board carries the flag but must keep its real DB uuid as its card
-      // id, so an id-only test would refund it.
+      // space" doesn't work until the next tier fetch — exactly the room the
+      // index counted for them (countedWeightOf), and only on the owner's own
+      // board. Seeds were never indexed and are never refunded; `seed` is read
+      // off the Y.Map rather than inferred from the id, because the seeded Ideas
+      // board carries the flag but keeps its real DB uuid as its card id.
       {
-        const freed = ids.filter(id => !isSeedCard({ id, seed: m.get(id)?.get('seed') })).length;
+        const freed = capSource().own ? countedWeightOf(m, ids) : 0;
         if (freed) myTier.notePlaced?.(-freed);
       }
       if (boundary) breakUndo();
@@ -1807,17 +1925,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // undoing would resurrect a card whose bytes never landed. Origin
     // 'upload' is untracked but still replicates + persists (matching
     // updateCardSilent).
-    const deleteCardsSilent = (ids) => {
+    const deleteCardsSilent = (ids, { refund = true } = {}) => {
       if (!ids?.length) return;
       const m = cardsMap(); if (!m) return;
       const idSet = new Set(ids);
       // Same refund as deleteCards. This path carries the failed-upload cleanup
       // AND the withdrawal of cards the server's cap trigger refused — in both
-      // cases addCard already counted them locally, so not refunding here would
-      // leave the user permanently short of the room they actually have.
-      const freed = ids.filter(id => m.has(id) && !isSeedCard({ id, seed: m.get(id)?.get('seed') })).length;
+      // cases the add already counted them locally, so not refunding here would
+      // leave the user permanently short of the room they actually have. The
+      // abandoned-upload sweep passes refund:false: those cards were placed in a
+      // page that no longer exists and were never counted in this one.
+      //
+      // Returns how many cards it actually removed, so a caller reports only
+      // what happened (a guarded no-op returns nothing).
+      const present = ids.filter((id) => m.has(id));
+      const freed = refund && capSource().own ? countedWeightOf(m, present) : 0;
       ydoc.transact(() => removeCardsFromDoc(idSet), 'upload');
       if (freed) myTier.notePlaced?.(-freed);
+      return present.length;
     };
 
     // Source-side delete for a cross-board MOVE (drag into a board card /
@@ -1829,10 +1954,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // undo affordance is the "Moved — Undo" toast, which reverses BOTH
     // sides. Same arrow cascade as deleteCards. Board cards never route
     // through this path (they reparent instead).
-    const deleteCardsForMove = (ids) => {
+    //
+    // `refund`: the move left the owner's room (another owner's cluster — the
+    // target charged nobody here), so the room these cards held comes back now,
+    // not at the next tier read. A move inside one workspace is neutral and
+    // refunds nothing: its target charged nothing either.
+    const deleteCardsForMove = (ids, { refund = false } = {}) => {
       if (!ids?.length) return;
       const m = cardsMap(); if (!m) return;
+      const freed = refund && capSource().own ? countedWeightOf(m, ids) : 0;
       ydoc.transact(() => removeCardsFromDoc(new Set(ids)), 'cross-board-move');
+      if (freed) myTier.notePlaced?.(-freed);
     };
 
     const duplicateCards = (ids) => {
@@ -1843,32 +1975,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Owner-pays cap: same gate as addCard/addCards — block at the limit,
       // slice an over-cap batch to what fits, warn when crossing the threshold.
       const csDup = capSource();
+      // A duplicate costs what its source weighs: an empty grid nothing, a
+      // filled one its filled boxes (cardIndexWeight reads the Y.Map's cells).
+      const dupCost = (ym) => countedWeight((k) => ym.get(k));
       if (csDup.capped) {
-        const { accepted, capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: csDup.count, requested: sources.length, limit: csDup.limit });
-        if (capHit && accepted === 0) { if (sources.length) noteBlocked('demo_cap'); surfaceCapHit(csDup); return []; }
-        if (capHit) {
-          sources = sources.slice(0, accepted);
+        const { remaining } = evaluateDemoCap({ tier: 'demo', demoCardCount: csDup.count, requested: 0, limit: csDup.limit });
+        const fit = fitByCost(sources, dupCost, remaining);
+        if (fit.capHit && fit.kept.length === 0) { if (sources.length) noteBlocked('demo_cap'); surfaceCapHit(csDup); return []; }
+        if (fit.capHit) {
+          sources = fit.kept;
           surfaceCapHit(csDup);
-        } else {
-          nearCapToast(csDup, sources.length);
+        } else if (fit.cost > 0) {
+          nearCapToast(csDup, fit.cost);
         }
       }
+      const dupTotal = sources.reduce((n, ym) => n + dupCost(ym), 0);
       const newIds = [];
       breakUndo();
       ydoc.transact(() => {
         let z = nextZ();
-        for (const ym of sources) {
+        const stamp = Date.now();
+        sources.forEach((ym, i) => {
           const obj = {};
           ym.forEach((v, k) => { obj[k] = v; });
-          obj.id = `${obj.kind || 'card'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+          // The index keeps ids unique within the batch: two random draws in
+          // one millisecond collided, and the second card overwrote the first.
+          obj.id = `${obj.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`;
+          // A copy of a starter card is the person's own card — indexed and
+          // counted, as it was charged — not another seed nobody can find.
+          delete obj.seed;
           obj.x = (obj.x || 0) + 24;
           obj.y = (obj.y || 0) + 24;
           obj.z = z++;
           m.set(obj.id, cardToYMap(obj));
           newIds.push(obj.id);
-        }
+        });
       }, 'local');
-      if (newIds.length) myTier.notePlaced?.(newIds.length);
+      if (csDup.capped || !csDup.resolved) notePlacedThroughCap(newIds);
+      if (dupTotal && csDup.own) myTier.notePlaced?.(dupTotal);
       return newIds;
     };
     const duplicateCard = (cardId) => duplicateCards([cardId]);
@@ -2116,7 +2260,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // so create+init is ONE undo step. LEGACY schedule cards (rows table, no
     // schedView) still render via the old table — this only creates new-model
     // cards. Keep in lockstep with the LocalBoardsApp twin.
-    const SCHED_SIZES = { month: [420, 380], week: [420, 170], day: [300, 420], hour: [280, 300] };
+    // A month cell has to hold a date number AND two or three legible events;
+    // at the old 420x380 it was 59x55 and held two pills of four characters.
+    // Month is wide enough for the day rail (SCHED_TUNING.RAIL_MIN_W 620 +
+    // RAIL_W 288 leaves the calendar ~590), because a schedule card that opens
+    // without its rail opens without the half that answers "what is happening".
+    // Week deliberately does not: a week bar is a bar. TWIN in LocalBoardsApp.
+    const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [460, 560] };
     const addSchedule = (clickPos = null, view = 'month') => {
       const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
       const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
@@ -2154,24 +2304,68 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // surfaces the app's screenwriting depth as a one-click starting point. The
     // mode lives in the per-card docMeta map, so we flip it in the same afterInsert
     // (right after the store exists) via setDocMode on the card's own scope.
-    const addScriptCard = (clickPos = null) => {
+    // `opts.title` and `opts.script` carry a script that arrived as a file
+    // (scriptImport.js): its title page and its first page with the whole body
+    // are written here (docState.writeScriptBody), inside the card's own
+    // creation transaction — so it is in the shared doc at once, everywhere,
+    // and one ⌘Z takes back the whole import. Returns the card's id, or null
+    // when the cap refused it.
+    const addScriptCard = (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.doc || {};
       const w = d.w || 320, h = d.h || 240;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
-      addCard({
-        id, kind: 'doc', title: 'Untitled script',
+      const script = opts?.script || null;
+      const title = (opts && typeof opts.title === 'string' && opts.title.trim()) || 'Untitled script';
+      const placed = addCard({
+        id, kind: 'doc', title,
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       }, {
         afterInsert: (cardYM) => {
           if (!cardYM) return;
           initCardDocStore(ydoc, cardYM);
-          try { setDocMode(ydoc, cardScope(cardYM), 'screenplay'); } catch (_) {}
+          const scope = cardScope(cardYM);
+          try { setDocMode(ydoc, scope, 'screenplay'); } catch (_) {}
+          if (script) {
+            try { if (script.titlePage) setTitlePage(ydoc, scope, { enabled: true, ...script.titlePage }); } catch (_) {}
+            try { if (script.body) writeScriptBody(ydoc, scope, script.body, { name: title }); } catch (_) {}
+          }
         },
       });
-      setAutoFocusId(id);
+      if (!placed) return null;
+      setAutoFocusId(placed);
+      return placed;
+    };
+
+    // A document a page promised (lib/starterDocs.js) — the director's
+    // treatment's cover and sections, a page each — written in the card's own
+    // creation transaction like a dropped script, so it is whole everywhere at
+    // once and one ⌘Z takes it back. Placed as a `seed`, like the onboarding
+    // starter cards, while it is still only our template: kept out of
+    // card_index, so it neither counts nor stamps 0120's first-card activation
+    // nor fires first-value. The first change to what it holds drops the flag
+    // (the starter-promotion effect below) and from then on it is the person's
+    // own document. Returns the card's id, or null when the board refused it.
+    const addStarterDoc = (kind, clickPos = null) => {
+      if (!isStarterKind(kind)) return null;
+      const d = defaultsRef.current?.doc || {};
+      const w = d.w || 320, h = d.h || 240;
+      const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
+      const id = `doc-${Date.now()}`;
+      const placed = addCard({
+        id, kind: 'doc', title: STARTER_DOCS[kind].title, seed: true, starter: kind,
+        ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      }, {
+        afterInsert: (cardYM) => { if (cardYM) writeStarterDoc(ydoc, cardYM, kind); },
+      });
+      // Not setAutoFocusId: for a doc that now means "focus the title with its
+      // text selected", so the next keystroke would rename the treatment. The
+      // caller opens it (lib/openDocCard).
+      return placed || null;
     };
 
     const setBoardBgColor = async (color) => {
@@ -2223,7 +2417,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setAutoFocusId(id);
     };
     const addTextLink = addNote; // identical for now
-    const dropImageBlob = ({ id, publicUrl, width, height, x, y }) => {
+    const dropImageBlob = ({ id, publicUrl, width, height, x, y, fileName = null }) => {
       // Preserve natural dimensions and aspect ratio. Same sizing
       // approach as optimisticDropImage in CanvasSurface: scale DOWN
       // proportionally above MAX, scale UP proportionally below MIN,
@@ -2249,6 +2443,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         x: Math.max(8, Math.round((x ?? 200) - w / 2)),
         y: Math.max(8, Math.round((y ?? 200) - h / 2)),
         w, h,
+        ...(fileName ? { fileName } : {}),
       });
     };
     const addImageAt = (clickPos) => {
@@ -2262,8 +2457,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // ↔ image link consistent end-to-end.
         const cardId = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         try {
-          const up = await uploadImage({ file: f, workspaceId: workspace.id, boardId: boardId, cardId, userId: user.id });
-          dropImageBlob({ ...up, id: cardId, x: clickPos?.x, y: clickPos?.y });
+          const up = await uploadImage({ file: f, workspaceId: workspace.id, boardId: boardId, cardId, userId: user.id, originalName: meaningfulFileName(f) });
+          dropImageBlob({ ...up, id: cardId, x: clickPos?.x, y: clickPos?.y, fileName: meaningfulFileName(f) });
         } catch (e) {
           console.error(e);
           feedback.toast({ type: 'error', message: 'Image upload failed: ' + (e.message || e) });
@@ -2291,7 +2486,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           y: Math.max(8, Math.round((clickPos?.y ?? 200) - h / 2)), w, h,
         });
         try {
-          const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id });
+          const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id, originalName: meaningfulFileName(f) });
           // Silent (origin 'upload'): the async src patch must not become its
           // own undo step, or Cmd+Z "peels" the PDF back to pending before
           // removing the card.
@@ -2331,13 +2526,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ? (myTier.tier === 'paid' || myTier.tier === 'admin')
         : !csFiles.capped;
 
-      // 1) Classify — split blocked (paid-only) from accepted.
+      // 1) Classify — split blocked (paid-only) from accepted, and set aside
+      //    what the drop handles on purpose (lib/dropOutcomes.js): unfinished
+      //    downloads and a free owner's PureRef scene are skipped with the
+      //    truth, never pitched; a screenplay becomes a script document.
       const blocked = [];
       let accepted = [];
+      const skipped = { partial: [], pureref: [] };
+      const scripts = [];
       for (const file of files) {
         const c = classifyDropFile(file, { canAttemptFiles });
+        if (c.route === 'partial') { skipped.partial.push(file); continue; }
+        if (c.route === 'pureref') { skipped.pureref.push(file); continue; }
+        if (c.route === 'screenplay') { scripts.push(file); continue; }
         if (c.route === 'blocked') { blocked.push(file); continue; }
         accepted.push({ file, ...c }); // { file, route, kind, w, h }
+      }
+      reportSkippedFiles(skipped, { surface: 'list', toast: feedback.toast });
+      if (scripts.length) {
+        await importDroppedScripts(scripts, {
+          addScriptCard,
+          pos: null, source: 'list_drop', toast: feedback.toast,
+        });
       }
 
       // What classification produced, captured BEFORE the cap can trim it.
@@ -2380,7 +2590,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'warning',
           message: csFiles.own
-            ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`
+            ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`
             : `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs the cluster's owner to be on a paid plan.`,
           ttl: 6000,
           // Only when the modal did NOT open — otherwise the toast offers a
@@ -2401,6 +2611,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           n_accepted: nClassified,
           n_blocked: blocked.length,
           n_over: over,
+          n_skipped: skipped.partial.length + skipped.pureref.length,
+          n_scripts: scripts.length,
           source: 'list_drop',
           kinds: classifiedKinds,
           board_id: currentId || null,
@@ -2452,8 +2664,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const prepared = positioned.map((it, i) => {
         const id = `${prefixFor(it.kind)}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`;
         const card = { id, kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, pending: true };
+        // Images and videos keep the file's own name too (fileIngest), the same
+        // as the canvas drop — so a folder's worth dropped in list view comes back
+        // out of Download under the names it went in with.
+        if (it.kind === 'image' || it.kind === 'video') Object.assign(card, fileMetaFor(it.file));
         if (it.kind === 'pdf') card.name = it.file.name || 'PDF';
-        else if (it.kind === 'audio') card.title = it.file.name || 'Audio';
+        else if (it.kind === 'audio') {
+          // `title` is the editable display name; fileName/ext/mime/sizeBytes
+          // are the download authority, so renaming the card can never strip
+          // the extension off the file someone downloads. Same contract as the
+          // canvas path (CanvasSurface.dropAudioFile).
+          card.title = it.file.name || 'Audio';
+          card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;
+          card.ext = (it.file.name?.split('.').pop() || '').toLowerCase();
+          // Packs are named by machine — parse the tempo and key out of the
+          // filename here, same as the canvas path. Editable on the card after.
+          Object.assign(card, parseLoopMeta(it.file.name));
+        }
         else if (it.kind === 'file') {
           card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;
           card.ext = (it.file.name?.split('.').pop() || '').toLowerCase();
@@ -2482,23 +2709,41 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await Promise.all(live.map(({ it, id }) => listUploadLimiter(async () => {
         try {
           if (it.route === 'image') {
-            const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
             updateCardSilent(id, { src: up.src, pending: false });
           } else if (it.route === 'pdf') {
-            const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
             updateCardSilent(id, { src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount, name: up.name, w: up.w, h: up.h, pending: false });
           } else if (it.route === 'video') {
             // canAttemptFiles mirrors CanvasSurface's allowLong semantics
             // (owner-pays: own board → own plan, shared board → owner's).
-            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file), ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
             updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
-            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id });
-            updateCardSilent(id, { src: up.src, duration: up.duration || null, pending: false });
+            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file) });
+            updateCardSilent(id, {
+              src: up.src, duration: up.duration || null, pending: false,
+              peaks: up.peaks || null, sampleRate: up.sampleRate || null,
+              channels: up.channels || null, analyzed: up.analyzed || null,
+              ...(up.cover ? { cover: up.cover } : {}),
+            });
           } else {
             // 'largeMedia' (over-cap video/audio) + 'file' → multipart upload.
-            const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
-            if (it.kind === 'video' || it.kind === 'audio') updateCardSilent(id, { src: up.src, pending: false });
+            const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
+            if (it.kind === 'audio') {
+              // The canvas path reads audio duration before uploading; this one
+              // patched only { src, pending } and silently dropped it, so an
+              // over-cap loop arrived with no runtime on the card or in the list.
+              const meta = await readAudioMeta(it.file).catch(() => ({ duration: null }));
+              updateCardSilent(id, { src: up.src, duration: meta?.duration || null, pending: false });
+              // Waveform from the local File, after the bytes are safe — same
+              // reason the canvas captures a video poster here rather than
+              // re-downloading a file this route exists to avoid moving twice.
+              const a = await analyzeAudioFile(it.file, { durationHint: meta?.duration, lowMemory: lowMemoryDevice() });
+              if (a) updateCardSilent(id, { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 });
+              else if (analyzable({ sizeBytes: it.file.size || 0, durationSec: meta?.duration, lowMemory: lowMemoryDevice() })) updateCardSilent(id, { analyzed: 1 });
+            }
+            else if (it.kind === 'video') updateCardSilent(id, { src: up.src, pending: false });
             else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
           }
         } catch (err) {
@@ -2545,6 +2790,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // opts.name = caller-supplied name (the project_first intent seed) — a
       // pre-named cluster also skips the rename autofocus below.
       const defaultName = opts.name || (view === 'list' ? 'Untitled list' : 'Untitled cluster');
+      // Ask the cap before the cluster exists, the way addNewProject does: its
+      // card on this canvas costs one. Asked only by addCard below, the refusal
+      // came after createBoard — a cluster with no card, logged as created,
+      // whose card the reconcile effect then kept trying to place.
+      if (!opts.seed) {
+        const cs = capSource();
+        if (cs.capped) {
+          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+          if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
+        }
+      }
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -2556,6 +2812,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
         addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) });
+        // Which door this came through. card_placed already says a cluster was
+        // made; nothing said whether it was the sidebar, cmd-K or the canvas.
+        if (!opts.seed) {
+          try {
+            logEvent(EV.CLUSTER_CREATE, {
+              via: opts.via || 'unknown', parent_depth: boardDepth(boards, boardId),
+              opened: !!opts.openAfter, board_id: b.id,
+            });
+          } catch (_) {}
+        }
         await refreshBoards();
         if (!opts.name) setAutoFocusId(b.id);
         tourFireRef.current?.({ type: 'cluster_created', boardId: b.id });
@@ -2568,6 +2834,65 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return b.id;
       } catch (e) {
         console.error('createBoard failed', e);
+        feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
+      }
+      return null;
+    };
+    // ── A new PROJECT: a cluster at the top level, opened, ready for material ──
+    // Every create path made the new cluster INSIDE whatever board was open, so
+    // someone sitting in their first project who clicked "+" got the second one
+    // nested inside it — unnamed, at a random spot, unopened. Most clusters made
+    // after a person's first day were never renamed, and many were deleted. The
+    // sidebar "+", cmd-K "Create cluster" and Home's "New project" come here
+    // instead: the parent is the ROOT, and the person lands inside it.
+    //
+    // The canvas tool and the add menu keep nesting on purpose — dropping a box
+    // on a canvas is "add a sub-cluster here", and that is what people mean.
+    const addNewProject = async ({ via = 'new_project', name = null } = {}) => {
+      if (!rootBoard?.id) return null;
+      // On the root itself the ordinary path is exactly right: the card lands on
+      // this canvas and addCard checks the cap. Only the opening is new.
+      if (boardId === rootBoard.id) {
+        // Beside the first project's references, not on top of them.
+        const d0 = defaultsRef.current?.board || {};
+        const w0 = d0.w || 280, h0 = d0.h || 220;
+        const spot = spotBesideContent(boardId === currentId ? ybCardsRef.current : []);
+        const id = await addNewBoard({ x: spot.x + w0 / 2, y: spot.y + h0 / 2 },
+          { via, openAfter: true, ...(name ? { name } : {}) });
+        if (id) projectCreatedRef.current?.(id, { via });
+        return id;
+      }
+      // Anywhere else the root's canvas is not loaded, so the root's card for
+      // this cluster arrives through the reconcile effect the next time the root
+      // opens. Ask the cap NOW, the way addCard would, so a project is never
+      // made whose own card would then be refused.
+      const cs = capSource();
+      if (cs.capped) {
+        const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+        if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
+      }
+      const d = defaultsRef.current?.board || {};
+      const view = d.view || 'canvas';
+      try {
+        const b = await createBoard({
+          workspaceId: workspace.id,
+          parentBoardId: rootBoard.id,
+          name: name || (view === 'list' ? 'Untitled list' : 'Untitled cluster'),
+          view, userId: user.id,
+          cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
+        });
+        try {
+          logEvent(EV.CLUSTER_CREATE, { via, parent_depth: 0, opened: true, board_id: b.id });
+        } catch (_) {}
+        // Its card on the root counts once the reconcile places it; move the
+        // cached count now so the next add gates on it.
+        if (cs.own) myTier.notePlaced?.(1);
+        await refreshBoards();
+        projectOpenRef.current?.(b.id);
+        projectCreatedRef.current?.(b.id, { via });
+        return b.id;
+      } catch (e) {
+        console.error('createBoard (project) failed', e);
         feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
       }
       return null;
@@ -2645,8 +2970,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         seqId: null,
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       };
-      if (!opts.linkTemplateId) card.layout = presetTree(preset, mkCellId);
-      addCard(card, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
+      // opts.layout is a TEMPLATE tree (from the Templates panel — a built-in
+      // preset or one loaded from the database); its leaf ids are placeholders
+      // shared by every grid stamped from it, so it must be instantiated. Falls
+      // back to the named preset, which is the same call one level down. A
+      // template that fails sanitizing is ignored rather than fatal — better a
+      // default storyboard than no card at all.
+      if (!opts.linkTemplateId) {
+        const tpl = opts.layout ? sanitizeLayout(opts.layout) : null;
+        card.layout = tpl ? instantiateLayout(tpl, mkCellId) : presetTree(preset, mkCellId);
+        if (opts.textStyle) card.textStyle = opts.textStyle;
+      }
+      // A template's cell labels are stored by reading-order INDEX; they can
+      // only be keyed to real cell ids once the tree above has been
+      // instantiated, which is why this resolves here and not at save time.
+      const hintMap = card.layout ? hintsToCellMap(card.layout, opts.hints, { x: 0, y: 0, w, h }) : null;
+      addCard(card, { afterInsert: (cardYM) => {
+        if (!cardYM) return;
+        initCardGridStore(ydoc, cardYM);
+        // Reentrant inside addCard's 'local' transact, so create+init+hints is
+        // ONE undo step — same reasoning as initCardGridStore's own comment.
+        if (hintMap) setGridHints(ydoc, cardYM, hintMap);
+      } });
       setAutoFocusId(id);
     };
 
@@ -2713,6 +3058,71 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (cm) removedIds.forEach((id) => cm.delete(id));
       }, 'local');
     };
+    // Re-cut a Grid to a saved template's shape (the Templates panel). The only
+    // grid operation that can destroy content, so it is also the only one that
+    // reports what it cost.
+    //
+    // Cell content is keyed by LEAF ID and a template's leaf ids are placeholders
+    // shared by every grid stamped from it, so the tree MUST be instantiated —
+    // which mints new ids and would orphan every filled cell. rehomeCells carries
+    // content across by reading order.
+    //
+    // A LINKED grid re-cuts its WHOLE FAMILY, because that is what linked means:
+    // the layout lives on the shared gridTemplates record and writeGridLayout
+    // already routes there. The cells do NOT — each member owns its own gridCells
+    // map — so every member has to be re-homed in the same transaction, or the
+    // family takes the new shape and drops its content on the floor.
+    //
+    // Returns { dropped, affected } for the caller's undo toast. No toast from
+    // here: the mutator layer has no `feedback`.
+    const applyGridLayout = (gridId, layout, hints = null) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return null;
+      const clean = sanitizeLayout(layout); if (!clean) return null;
+      const oldLayout = gridLayoutOf(cy); if (!oldLayout) return null;
+      const templateId = cy.get('templateId') || null;
+      // A dangling templateId makes setTemplateLayout a no-op (it needs an
+      // existing record to patch). Re-homing cells against a layout that then
+      // never lands would strand every cell under an id the tree doesn't have,
+      // so refuse the whole operation rather than half-apply it.
+      if (templateId && !ydoc.getMap('gridTemplates').get(templateId)) return null;
+
+      const members = [];
+      if (templateId) {
+        m.forEach((ym, id) => {
+          if (ym.get && ym.get('kind') === 'grid' && ym.get('templateId') === templateId) members.push(id);
+        });
+      }
+      if (!members.length) members.push(gridId);
+
+      const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+      let dropped = 0;
+      breakUndo(); // applying a template is its own ⌘Z step
+      ydoc.transact(() => {
+        // ONE instantiation for the whole family: linked members read their
+        // layout from the same record, so they must agree on leaf ids.
+        const next = instantiateLayout(clean, mkCellId);
+        members.forEach((id) => {
+          const mem = m.get(id); if (!mem) return;
+          const cm = mem.get('gridCells'); if (!cm) return;
+          const box = { x: 0, y: 0, w: mem.get('w') || 360, h: mem.get('h') || 300 };
+          const cells = {};
+          cm.forEach((v, k) => { cells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+          const { mapped, dropped: lost } = rehomeCells(oldLayout, next, cells, box);
+          dropped += lost;
+          // Collect keys before deleting — mutating a Y.Map inside its own
+          // forEach skips entries.
+          Object.keys(cells).forEach((k) => cm.delete(k));
+          Object.entries(mapped).forEach(([k, v]) => cm.set(k, v));
+          // Hints belong to the SHAPE, so applying a new one replaces them
+          // wholesale rather than merging: the old labels described boxes that
+          // no longer exist. A template with no labels clears them, which is
+          // the honest outcome — stale guidance is worse than none.
+          setGridHints(ydoc, mem, hintsToCellMap(next, hints, box));
+        });
+        writeGridLayout(cy, gridId, next);
+      }, 'local');
+      return { dropped, affected: members.length };
+    };
     const setGridCellContent = (gridId, cellId, patch) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       setGridCell(ydoc, cy, cellId, patch);
@@ -2778,6 +3188,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           Object.assign(next, r.expand);
           mm.set('expand', next);
         }
+      }, 'local');
+      return true;
+    };
+    // Rewrite a day's leftover hour-bucket items as real rundown rows, in ONE
+    // transaction. The rundown reads the old keys perfectly well (conversion
+    // happens on read, so nothing needed a migration), but a converted row's
+    // order key is synthesised from its clock time, so reordering one would not
+    // stick until it is real. This runs on the first edit to a converted day
+    // and then never again.
+    //
+    // One transaction, not a loop of writes: twelve rows appearing one ⌘Z at a
+    // time would be a nightmare to undo out of.
+    const applyRundownPlan = (cardId, plan) => {
+      const m = cardsMap(); const cy = m && m.get(cardId); if (!cy) return false;
+      const cm = cy.get('gridCells'); if (!cm || !cm.set) return false;
+      const writes = Object.entries(plan?.writes || {});
+      const deletes = plan?.deletes || [];
+      if (!writes.length && !deletes.length) return false;
+      breakUndo();
+      ydoc.transact(() => {
+        deletes.forEach((k) => cm.delete(k));
+        writes.forEach(([k, rec]) => cm.set(k, rec));
       }, 'local');
       return true;
     };
@@ -2981,17 +3413,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     // ── Sequences + stamping ────────────────────────────────────────────────
-    // Label-tag cells (a text cell whose html contains [#]/[A]/…) from a source
-    // Grid are CARRIED to its stamped/generated copies, so a "SHOT [#]" slate
-    // propagates while image/action cells stay blank to fill in.
-    const labelTagCellsOf = (cy) => {
-      const out = {};
+    // What a stamped copy inherits — label-tag cells and cell hints. The rule
+    // itself lives in gridSequence.stampCarry, shared with the local shell,
+    // because deciding it separately in each is how hints came to be dropped
+    // here in the first place. This only flattens the Y.Map for it.
+    const stampCarryOf = (cy) => {
+      const cells = {};
       const cm = cy.get('gridCells');
-      if (cm) cm.forEach((v, k) => {
-        const cell = (v && v.toJSON) ? v.toJSON() : v;
-        if (cell && cell.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
-      });
-      return out;
+      if (cm) cm.forEach((v, k) => { cells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      return stampCarry(cells, readGridHints(cy));
     };
     // Promote (if needed) so source + copies share ONE layout, and ensure the
     // source belongs to a sequence. Must run inside a transaction. Returns
@@ -3010,7 +3440,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ydoc.getMap('gridSequences').set(seqId, { id: seqId, name: 'Sequence', pattern: 'z', format: { startAt: 1 } });
         cy.set('seqId', seqId);
       }
-      return { tplId, seqId, carry: labelTagCellsOf(cy) };
+      return { tplId, seqId, carry: stampCarryOf(cy) };
     };
     const placeLinkedGrid = (m, tplId, seqId, carry, x, y, w, h) => {
       const id = `grid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -3019,7 +3449,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const nym = m.get(id);
       initCardGridStore(ydoc, nym);
       const ncm = nym.get('gridCells');
-      if (ncm) Object.entries(carry).forEach(([k, val]) => ncm.set(k, val));
+      if (ncm) Object.entries(carry.cells).forEach(([k, val]) => ncm.set(k, val));
+      // Hints go to gridMeta, never to gridCells — that separation is what makes
+      // a hint disappear when its cell is filled. Copied AFTER the cells so a
+      // carried label-tag cell already occupies its box: a hint on a filled cell
+      // is stored but never painted, and reappears if you clear the cell, which
+      // is the same behaviour the source grid has.
+      if (carry.hints) setGridHints(ydoc, nym, { ...carry.hints }, 'local');
       return id;
     };
     // Put a linked Grid family into ONE group so they move together (drag one →
@@ -3108,10 +3544,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
-      addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
-      addDocCard, addScriptCard, addGrid,
-      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+      addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addNewProject, addPalette,
+      addDocCard, addScriptCard, addStarterDoc, addGrid,
+      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
+      applyRundownPlan,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd, preflightImport,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
@@ -3221,17 +3658,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     );
     if (missing.length === 0) return;
     const w = 280, h = 200;
-    // Find a clean spot — append to the right of existing board cards.
-    const boardCards = yb.cards.filter(c => c.kind === 'board');
-    const maxRight = boardCards.reduce((m, c) => Math.max(m, c.x + c.w), 60);
-    const baseY = 60;
+    // A clean spot beside EVERYTHING on the canvas, top-aligned. It used to
+    // append beside other cluster cards only, so a project made from the sidebar
+    // landed on top of the root's images — and the root is where the first
+    // project's images are.
+    const spot = spotBesideContent(yb.cards, { gap: 40 });
     const newCards = missing.map((b, i) => ({
       id: b.id, kind: 'board',
-      x: maxRight + 20 + i * (w + 20),
-      y: baseY,
+      x: spot.x + i * (w + 20),
+      y: spot.y,
       w, h,
     }));
-    mainMutators.addCards?.(newCards);
+    // restore: these clusters already exist, so their cards are put back, not
+    // added — never gated, never charged (their creators charged). The count
+    // is re-read once the cards reach the index, so it can't stay one short.
+    mainMutators.addCards?.(newCards, { restore: true });
+    expectIndexChange();
   }, [currentYDoc, yb.cards, boards, currentId, boardsLoading, mainMutators]);
 
   // ── Reconcile drift the OTHER way: orphan board / boardlink cards on
@@ -3357,6 +3799,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         view: sourceBoard.view, cover: sourceBoard.cover, meta: sourceBoard.meta,
         userId: user.id,
       });
+      try {
+        logEvent(EV.CLUSTER_CREATE, { via: 'copy_to_personal', parent_depth: 0, opened: false, board_id: newBoard?.id || null });
+      } catch (_) {}
       // Clone the Y.Doc snapshot
       const snap = await loadBoardSnapshot(sourceBoardId);
       if (snap) {
@@ -3378,19 +3823,56 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // addNewBoard (which targets the currently-open board and seeds a canvas
   // card), this targets the passed parent and adds no card — the reconcile-
   // drift effect adds the kind:'board' mirror when that parent is opened.
+  // The cap a card placed on cluster `id` answers to — the question the pane
+  // mutators' capSource asks, for the paths that run outside a pane (the
+  // sidebar). Through refs: these handlers outlive the render that made them.
+  const capForBoard = (id) => {
+    const b = boardsRef.current?.[id];
+    const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
+    if (own) {
+      const mt = myTierRef.current || myTier;
+      return { own, resolved: mt.tier != null, capped: mt.tier === 'demo', count: mt.demoCardCount, limit: mt.effectiveCardLimit || DEMO_CARD_LIMIT };
+    }
+    const cap = boardCapacity.get(id);
+    return { own, resolved: Boolean(cap), capped: Boolean(cap?.isCapped), count: cap?.used || 0, limit: cap?.cap || DEMO_CARD_LIMIT };
+  };
+  // Whether `cost` more fits on cluster `id`; when it doesn't, the wall (or,
+  // on someone else's cluster, the owner-limit toast) and false.
+  const askCapFor = (id, cost) => {
+    const cs = capForBoard(id);
+    if (!cs.capped || !(cost > 0)) return { ok: true, cs };
+    const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: cost, limit: cs.limit });
+    if (!capHit) return { ok: true, cs };
+    try { logEvent(EV.CARD_CREATE_BLOCKED, { reason: 'demo_cap', board_id: id }); } catch (_) {}
+    if (cs.own) pitchCapWall(cs);
+    else feedback.toast({ type: 'warning', message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.` });
+    return { ok: false, cs };
+  };
+
   const createBoardInside = async (parentId) => {
     const parent = boards[parentId];
     if (!parent) return;
+    // The new cluster's card on its parent costs one, and arrives through the
+    // reconcile effect, which restores rather than adds — so the cap is asked
+    // here, before the cluster exists, and the count moved now.
+    const ask = askCapFor(parentId, 1);
+    if (!ask.ok) return;
     const d = defaultsRef.current?.board || {};
     const view = d.view || 'canvas';
     try {
-      await createBoard({
+      const b = await createBoard({
         workspaceId: parent.workspace_id,
         parentBoardId: parentId,
         name: view === 'list' ? 'Untitled list' : 'Untitled cluster',
         view, userId: user.id,
         cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
       });
+      try {
+        logEvent(EV.CLUSTER_CREATE, {
+          via: 'sidebar_inside', parent_depth: boardDepth(boards, parentId), opened: false, board_id: b?.id || null,
+        });
+      } catch (_) {}
+      if (ask.cs.own) myTier.notePlaced?.(1);
       await refreshBoards();
     } catch (e) {
       console.error('createBoardInside failed', e);
@@ -3543,6 +4025,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return;
     }
     try {
+      // What the copy will cost — its card on the target, plus every card it
+      // carries, by what the index counts — asked before anything is made. A
+      // paste at the limit used to make the cluster anyway, its contents and its
+      // card kept on the board uncounted.
+      const snap = await loadBoardSnapshot(clip.boardId);
+      let carried = 0;
+      if (snap) {
+        const peek = new Y.Doc();
+        try {
+          Y.applyUpdate(peek, b64ToBytes(snap));
+          peek.getMap('cards').forEach((v, id) => {
+            const get = (k) => (v?.get ? v.get(k) : v?.[k]);
+            const kind = get('kind') || 'note';
+            if (kind === 'board' || kind === 'boardlink') return;   // dropped from the copy below
+            if (isSeedCard({ id, seed: get('seed') }) || isAbandonedUpload(get)) return;
+            carried += cardIndexWeight(kind, get);
+          });
+        } finally { peek.destroy(); }
+      }
+      const ask = askCapFor(targetId, 1 + carried);
+      if (!ask.ok) return;
       const newBoard = await createBoard({
         workspaceId: target.workspace_id,
         parentBoardId: targetId,
@@ -3550,7 +4053,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         view: clip.view, cover: clip.cover, meta: clip.meta,
         userId: user.id,
       });
-      const snap = await loadBoardSnapshot(clip.boardId);
+      try {
+        logEvent(EV.CLUSTER_CREATE, {
+          via: 'paste_copy', parent_depth: boardDepth(boards, targetId), opened: false, board_id: newBoard?.id || null,
+        });
+      } catch (_) {}
       if (snap) {
         const tmp = boardDoc(clip.boardId);
         Y.applyUpdate(tmp, b64ToBytes(snap));
@@ -3567,6 +4074,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await saveBoardSnapshot(newBoard.id, tmp);
         tmp.destroy();
       }
+      if (ask.cs.own) myTier.notePlaced?.(1 + carried);
       await refreshBoards();
       feedback.toast({ type: 'success', message: 'Pasted cluster.' });
     } catch (e) {
@@ -3646,6 +4154,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     () => guardCaptureMutators(mainMutatorsFull), [mainMutatorsFull]);
 
   const [currentSurface, setCurrentSurface] = useState('board');
+  // Home's panel put away to explore the graph. Per device, like the sidebar's
+  // open state: someone who prefers the universe keeps it.
+  const HOME_EXPLORE_KEY = 'soleil.home.exploring';
+  const [homeExploring, setHomeExploringState] = useState(() => {
+    try { return localStorage.getItem(HOME_EXPLORE_KEY) === '1'; } catch (_) { return false; }
+  });
+  const setHomeExploring = (open) => {
+    setHomeExploringState(!!open);
+    try { localStorage.setItem(HOME_EXPLORE_KEY, open ? '1' : '0'); } catch (_) {}
+    try { logEvent(EV.HOME_EXPLORE, { open: !!open }); } catch (_) {}
+  };
+  // One row per arrival at Home, never per render: is Home a place people go
+  // to get back to their work, and how many projects does it show them.
+  useEffect(() => {
+    if (currentSurface !== 'home') return;
+    try {
+      logEvent(EV.HOME_VIEW, {
+        exploring: !!homeExploring,
+        projects_n: projectList(boards, rootBoard.id, { workspaceId: workspace.id }).length,
+      });
+    } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSurface]);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
@@ -4111,7 +4642,37 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
     },
   });
-  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | null ('shared-edit' died with 0188)
+  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'storage' | 'manual' | 'pricing-intent' | null ('shared-edit' died with 0188)
+  // A "Get Creator" pressed on the public pricing page before signing up
+  // reopens the offer here, with the plan that was picked there.
+  const [upgradePlan, setUpgradePlan] = useState(null);
+  // …but not over a first run still assembling itself. A brand-new account
+  // lands while the seed is still writing cards and the tour is about to start;
+  // the offer used to open 1.5s after the tier loaded, on top of both, with the
+  // generic header. "Settled" is any of: onboarding already seeded or done (a
+  // returning account), the seed finishing (PS_SEED_DONE), the seed deciding
+  // not to run for a reason that will not change (noteSeedSkip, below), or ten
+  // seconds — so a seed that never reports cannot hold the offer back forever.
+  const [firstRunSettled, setFirstRunSettled] = useState(false);
+  // Plain booleans and a stored deadline, not the onboarding object: useMyTier
+  // builds a new object on every refetch, which restarted the timer each time.
+  // And the ten seconds start when the BOARD is ready — the seed cannot start
+  // before that — so a board slow to load cannot use the safety net up first.
+  const onboardingSeeded = myTier.onboarding?.seeded === true || myTier.onboarding?.done === true;
+  const settleDeadlineRef = useRef(0);
+  useEffect(() => {
+    if (firstRunSettled) return undefined;
+    if (onboardingSeeded) { setFirstRunSettled(true); return undefined; }
+    if (myTier.loading || !yb.ready) return undefined;
+    if (!settleDeadlineRef.current) settleDeadlineRef.current = Date.now() + 10_000;
+    const t = setTimeout(() => setFirstRunSettled(true), Math.max(0, settleDeadlineRef.current - Date.now()));
+    return () => clearTimeout(t);
+  }, [firstRunSettled, onboardingSeeded, myTier.loading, yb.ready]);
+  useCreatorIntentResume({
+    tier: myTier.tier,
+    ready: !myTier.loading && !!myTier.tier && yb.ready && firstRunSettled,
+    onResume: (plan) => { setUpgradePlan(plan); setUpgradeReason('pricing-intent'); },
+  });
 
   // The pending over-cap import question, or null. Carries the `resolve` of the
   // promise preflightImport is awaiting, so the drop is genuinely SUSPENDED —
@@ -4143,7 +4704,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // dismissed by 'nav'. It is the only time anyone has ever pressed this
       // button. The ambient guard cannot help unless the wall takes the moment
       // it is owed, and this path set the reason without ever claiming it.
-      if (action === 'upgrade') openCapWall();
+      if (action === 'upgrade') {
+        // Remember the folder: checkout can't carry it, and the return should
+        // say so (checkoutReturn.js).
+        notePendingImport({ n: ask.n });
+        openCapWall();
+      } else if (ask.own && (action === 'cancel' || action === 'partial')) {
+        // Declining the room this drop needed is declining the offer: the one
+        // moment to ask why (UpgradeReasonAsk). Only on the person's own plan —
+        // a collaborator's upgrade could never have unblocked the cluster.
+        try {
+          window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
+            detail: {
+              offer: 'import', surface: 'import_dialog', method: action,
+              trial: Boolean(trialOfferRef.current), dwell_ms: null,
+              cards: ask.count, cap: ask.limit, tier: 'demo',
+            },
+          }));
+        } catch (_) {}
+      }
       try { ask.resolve?.({ take }); } catch (_) {}
       return null;
     });
@@ -4163,6 +4742,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // bookkeeping. The block itself is unchanged — every card over the line is
   // still refused, and still logged.
   const capPitchedAtRef = useRef(0);
+  // The trial decision as of THIS render, for callbacks memoized long before
+  // it (pitchCapWall closes over [feedback] only). Decided like every other
+  // trial surface: on the server's count.
+  const trialOfferRef = useRef(false);
+  trialOfferRef.current = creatorTrialEligibility({
+    tier: myTier.tier, cards: myTier.serverCardCount,
+    cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+  }).eligible;
   // Same idea, one beat earlier: the limit we last showed the approaching-cap
   // warning for. Keyed on the limit so raising the cap re-arms the warning.
   const nearCapWarnedAtRef = useRef(0);
@@ -4185,6 +4772,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       cardLimit: limit,
       trialStartedAt: myTier.creatorTrialStartedAt,
     }).eligible;
+    // A bulk drop crosses 80% while the server still counts the board as it
+    // was before the drop, so the toast went out PRICED to people the server
+    // was about to invite. Stand down WITHOUT latching: the arrival path below
+    // re-runs when the server's count lands and owes the warning then, with
+    // the trial on it.
+    if (trialAwaitingServer({
+      tier: myTier.tier, cards: count, serverCards: myTier.serverCardCount,
+      cardLimit: limit, trialStartedAt: myTier.creatorTrialStartedAt,
+    })) return;
     nearCapWarnedAtRef.current = limit;
     markNearCapWarned(user?.id, limit);
     // Keyed on the LIMIT, like the latch it reports. A cap that moves (referral
@@ -4207,7 +4803,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         label: trialOffer ? CTA.tryCreatorShort : 'See Creator',
         onClick: () => {
           logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at, trial_shown: trialOffer });
-          openCapWall();
+          openNearCapOffer();
         },
       },
     });
@@ -4225,15 +4821,43 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!limit) return;
     const warnedAt = (nearCapWarnedAtRef.current === limit || nearCapWarnedAt(user?.id) === limit) ? limit : 0;
     if (!shouldWarnNearCapNow({ count, limit, warnedAtLimit: warnedAt })) return;
+    // Waiting on the server's count after a bulk drop: the toast would go out
+    // priced to someone about to be invited. Checked BEFORE the slot claim so
+    // a wait never holds the shared slot for nothing; this effect re-runs when
+    // the count lands (serverCardCount is a dependency for exactly that).
+    if (trialAwaitingServer({
+      tier: myTier.tier, cards: count, serverCards: myTier.serverCardCount,
+      cardLimit: limit, trialStartedAt: myTier.creatorTrialStartedAt,
+    })) return;
     // This one fires on arrival, on the same beat as every other load-time
     // upsell, so it is ambient and must queue with them. The add-path toast is
     // a consequence of an action the user just took and keeps its own timing.
     if (!claimUpsellSlot('cap-toast')) return;
     showNearCapToastRef.current?.({ count, limit }, 'arrival');
     // showNearCapToastRef is rebound every render; the effect only needs to
-    // re-run when the reconciled numbers move.
+    // re-run when the reconciled numbers move — or when the server's count
+    // lands after a bulk drop without the optimistic total moving at all.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myTier.loading, myTier.tier, myTier.demoCardCount, myTier.effectiveCardLimit, user?.id]);
+  }, [myTier.loading, myTier.tier, myTier.demoCardCount, myTier.serverCardCount, myTier.effectiveCardLimit, user?.id]);
+
+  // Back from checkout with a folder still waiting. The over-cap import
+  // dialog's Upgrade cannot carry its files across the redirect, so the person
+  // lands on the canvas with the folder on disk and nothing new in front of
+  // them; the success page said so in passing, and this says it where the drop
+  // actually happens. Once, then the note is cleared (checkoutReturn.js).
+  useEffect(() => {
+    if (myTier.loading || (myTier.tier !== 'paid' && myTier.tier !== 'admin')) return;
+    const ret = readCheckoutReturn();
+    if (!ret?.importN) return;
+    clearCheckoutReturn();
+    feedback.toast({
+      type: 'success',
+      message: `${PLAN_NAME} is on. Drop those files again — all ${ret.importN} will fit.`,
+      ttl: 9000,
+    });
+    // feedback is the stable provider value; the tier is what we wait for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myTier.loading, myTier.tier]);
   // {n, noun} for the cards the server most recently refused, or null. Rendered
   // by the cap-hit modal. Kept BESIDE upgradeReason rather than folded into it:
   // that value is string-compared at five sites and widening it would touch all
@@ -4256,11 +4880,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const lost = rejected > 0
         ? `${rejected} more ${rejectedNoun(cs?.kinds, rejected)} didn't fit. `
         : '';
+      // The second and later refusals used to say "See Creator" even to
+      // someone the trial was waiting for; it was the one cap surface that
+      // never named it.
+      const trial = trialOfferRef.current;
       feedback.toast({
         type: 'warning',
-        message: `${lost}You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
+        message: trial
+          ? `${lost}You're at your ${limit}-card limit. Creator lifts it — free for ${CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones.`
+          : `${lost}You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
         action: {
-          label: 'See Creator',
+          label: trial ? CTA.tryCreatorShort : 'See Creator',
           onClick: () => {
             logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit', rejected });
             openCapWall();
@@ -4288,6 +4918,81 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     claimUpsellSlot('cap-hit');
     setUpgradeReason('cap-hit');
   }, []);
+
+  // The near-cap toast's button. It used to open the WALL ("Your work
+  // outgrew the demo.") for someone at 80% of the limit who had been refused
+  // nothing, and its exposures were logged as cap hits. Same claim as the
+  // wall — a press is a request and nothing ambient may replace the screen it
+  // asked for — but its own reason, headline and `via`.
+  const openNearCapOffer = useCallback(() => {
+    claimUpsellSlot('cap-hit');
+    setUpgradeReason('near-cap');
+  }, []);
+
+  // ── A new project: where it lands, and (once) the trial near the ceiling ──
+  // The mutators memo is built long before this line, so addNewProject reaches
+  // navigation and the offer through refs — the same reason showNearCapToastRef
+  // is a ref.
+  //
+  // Opening sets the WHOLE stack, [root, project]: the project is a sibling of
+  // the board the person was in, not a child of it, and openBoard() would have
+  // pushed it under project one in the breadcrumb.
+  const projectOpenRef = useRef(null);
+  projectOpenRef.current = (id) => {
+    setCurrentSurface('board');
+    setStack([rootBoard.id, id]);
+    recents.push(id);
+    try { logEvent(EV.BOARD_OPEN, { board_id: id, depth: 1, is_subboard: true }); } catch (_) {}
+  };
+  // The sidebar's "+" asks for the name right where it was clicked, through
+  // the tree's own inline rename. Never by focusing a field on the canvas: a
+  // focused text input swallows the image paste the empty project asks for.
+  const [projectRenameRequest, setProjectRenameRequest] = useState(null);
+  // Once per account (server stamp) and once per page (ref): starting another
+  // project at or past 60% of the cap is when "every project" meets the free
+  // plan. Trial-only — an account that cannot be offered the trial is not
+  // pitched a price here instead; it has the near-cap toast and the wall.
+  const projectOfferShownRef = useRef(false);
+  const offerTrialForProject = async () => {
+    try {
+      if (projectOfferShownRef.current) return;
+      if (myTier.tier !== 'demo' || workspace?.created_by !== user?.id) return;
+      const limit = Number(myTier.effectiveCardLimit) || 0;
+      const count = Number(myTier.demoCardCount) || 0;
+      if (!projectOfferDue({ count, limit })) return;
+      const trial = {
+        tier: myTier.tier, cards: myTier.serverCardCount, cardLimit: limit,
+        trialStartedAt: myTier.creatorTrialStartedAt,
+      };
+      if (!creatorTrialEligibility(trial).eligible) return;
+      if (trialAwaitingServer({ ...trial, cards: count, serverCards: myTier.serverCardCount })) return;
+      projectOfferShownRef.current = true;
+      const prompts = await readUpgradePrompts();
+      if (prompts?.project_offer_at) return;
+      if (!claimUpsellSlot('cap-toast')) { projectOfferShownRef.current = false; return; }
+      stampUpgradePrompt({ project_offer_at: new Date().toISOString() });
+      logEventOnce('up_cap_toast:new_project', EV.UP_CAP_TOAST_VIEW, {
+        count, limit, at: 'new_project', trial_shown: true,
+      });
+      feedback.toast({
+        type: 'info',
+        ttl: 12000,
+        message: newProjectSentence({ count, limit }),
+        action: {
+          label: CTA.tryCreatorShort,
+          onClick: () => {
+            logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at: 'new_project', trial_shown: true });
+            openNearCapOffer();
+          },
+        },
+      });
+    } catch (_) { /* an offer must never break creating a project */ }
+  };
+  const projectCreatedRef = useRef(null);
+  projectCreatedRef.current = (id, { via } = {}) => {
+    if (via === 'sidebar') setProjectRenameRequest({ boardId: id, at: Date.now() });
+    offerTrialForProject();
+  };
 
   // Has the storage / file-type gate already explained itself this session?
   //
@@ -4328,6 +5033,180 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return true;
   }, []);
 
+  // ── A dropped FOLDER becomes clusters (Drive basics, item 2) ─────────────────
+  // lib/folderWalk reads the folder, lib/folderPlan prices it in cards, the
+  // preflight asks ONCE for the whole thing, lib/folderImport does it. The pane
+  // the folder landed in hands over its own board, mutators and plan rules, so
+  // a drop into a split pane imports into THAT pane's cluster.
+  const [folderImport, setFolderImport] = useState(null); // { name, done, total, cancel }
+  // openBoard is rebuilt every render; read the live one when the import ends.
+  const openBoardRef = useRef(openBoard);
+  openBoardRef.current = openBoard;
+  const importFolder = useCallback(async ({
+    entries = null, pickedFiles = null, at = null, boardId: targetBoardId, mutators: muts,
+    canAttemptFiles = false, source = 'drop', boardWasEmpty = false,
+  } = {}) => {
+    if (!targetBoardId || !muts) return { loose: [] };
+    const started = Date.now();
+    const walked = entries ? await walkEntries(entries) : treeFromRelativePaths(pickedFiles || []);
+    const plan = planFolderImport(walked.root, { canAttemptFiles });
+    if (!plan.nodes.length) return { loose: plan.loose, walked, plan };
+
+    const { take } = await muts.preflightImport?.({
+      n: plan.cost, kinds: plan.kinds, source: 'folder',
+      folder: { files: plan.files, clusters: plan.clusters },
+    }) || { take: plan.cost };
+    const nodes = slicePlan(plan.nodes, Math.min(plan.cost, Number(take) || 0));
+    const total = countFiles(nodes);
+    try {
+      logEvent(EV.IMPORT_BATCH, {
+        n_files: walked.files, n_accepted: plan.files, n_over: plan.files - total,
+        n_blocked: plan.blocked.length,
+        n_skipped: plan.skipped.partial + plan.skipped.pureref + plan.skipped.scripts,
+        n_scripts: plan.skipped.scripts, source: 'folder', kinds: plan.kinds, board_id: targetBoardId,
+        n_clusters: plan.clusters,
+      });
+    } catch (_) {}
+    if (!nodes.length) return { loose: plan.loose, walked, plan };
+
+    const ctrl = new AbortController();
+    const label = nodes.length === 1 ? nodes[0].name : `${nodes.length} folders`;
+    setFolderImport({ name: label, done: 0, total, cancel: () => ctrl.abort() });
+    // Closing the tab mid-import loses whatever has not been written yet, and
+    // the browser asks before it lets that happen.
+    const guard = (ev) => { ev.preventDefault(); ev.returnValue = ''; return ''; };
+    window.addEventListener('beforeunload', guard);
+
+    const writeCluster = async (id, cards) => {
+      // Through the cluster's LIVE room, never around it. The top cluster's card
+      // is on the board from the first second, so someone can open it — or a
+      // subfolder from the sidebar — while the import runs and start adding to
+      // it. The move path's way (write board_state whole, then reset the room)
+      // would destroy that: the reset disconnects every client and makes each
+      // reload from board_state, and the room's own persistence can land
+      // between the write and the reset and drop the imported cards instead.
+      // A handle that has synced with the room MERGES, so neither side loses.
+      // No presence (user: null): an import is not a person in the room.
+      const handle = loadYBoard(id, { userId: user.id, user: null, workspaceId: workspace.id, hasThumb: true });
+      try {
+        await handle.ready;
+        await handle.whenRoomSynced(8000);
+        handle.ydoc.transact(() => {
+          const m = handle.ydoc.getMap('cards');
+          for (const c of cards) if (!m.has(c.id)) m.set(c.id, cardToYMap(c));
+        }, 'folder-import');
+        // The room persists what it holds; this is the backstop for a room this
+        // handle could not reach, and it runs the card_index sync (search, the
+        // card count) now rather than on the room's schedule.
+        await saveBoardSnapshot(id, handle.ydoc);
+      } finally {
+        handle.destroy();
+      }
+    };
+    const upload = (item, { boardId, cardId }) => {
+      const opts = { file: item.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(item.file) };
+      if (item.route === 'image') return uploadImage({ ...opts, cardId });
+      if (item.route === 'video') return uploadVideo({ ...opts, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+      if (item.route === 'audio') return uploadAudio(opts);
+      if (item.route === 'pdf') return uploadPdf({ ...opts, cardId });
+      return uploadFile({ ...opts, cardId });   // 'largeMedia' and 'file' — multipart
+    };
+    const deleteCluster = (id) => deleteBoard(id);
+    const removeTopCard = (id) => muts.deleteCardsSilent?.([id]);
+
+    let res;
+    try {
+      res = await runFolderImport(nodes, {
+        parentBoardId: targetBoardId, at,
+        createCluster: async ({ parentBoardId, name }) => {
+          const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'canvas', userId: user.id });
+          return b.id;
+        },
+        deleteCluster, removeTopCard,
+        // Refresh the boards list as the card lands: a cluster card whose board
+        // is not in the list yet renders as a missing cluster for the whole
+        // import otherwise.
+        placeTopCard: (card) => {
+          const placed = muts.addCard?.(card);   // null = refused by the cap
+          Promise.resolve(refreshBoards()).catch(() => {});
+          return placed ?? null;
+        },
+        upload, writeCluster,
+        signal: ctrl.signal,
+        onProgress: ({ done }) => setFolderImport((s) => (s ? { ...s, done } : s)),
+      });
+    } catch (err) {
+      res = null;
+      feedback.toast({ type: 'error', message: 'The folder could not be imported: ' + (err?.message || err), ttl: 8000 });
+    } finally {
+      window.removeEventListener('beforeunload', guard);
+      setFolderImport(null);
+    }
+    try { await refreshBoards(); } catch (_) {}
+    if (!res) return { loose: plan.loose, walked, plan };
+
+    try {
+      logEvent(EV.FOLDER_IMPORT, {
+        source, board_id: targetBoardId, n_files: total, n_clusters: res.created.length,
+        depth: plan.depth, placed: res.placed, failed: res.failed, write_failed: res.writeFailed,
+        cancelled: res.cancelled, stopped: res.stopped?.code ?? null,
+        truncated: walked.truncated, flattened: walked.flattened,
+        skipped_packages: walked.skipped.packages, skipped_icloud: walked.skipped.icloud,
+        ms: Date.now() - started,
+      });
+    } catch (_) {}
+
+    const nClusters = res.created.length;
+    if (res.placed > 0) {
+      const parts = [`${res.placed} ${res.placed === 1 ? 'file' : 'files'} in ${nClusters} ${nClusters === 1 ? 'cluster' : 'clusters'}`];
+      const notes = [];
+      if (res.cancelled) notes.push('stopped where you cancelled');
+      if (res.failed + res.writeFailed > 0) notes.push(`${res.failed + res.writeFailed} could not be added`);
+      if (walked.truncated) notes.push(`only the first ${walked.files} files were read`);
+      if (walked.skipped.packages) notes.push(`${walked.skipped.packages} app or project ${walked.skipped.packages === 1 ? 'bundle was' : 'bundles were'} left out`);
+      if (walked.skipped.icloud) notes.push(`${walked.skipped.icloud} not yet downloaded from iCloud`);
+      feedback.toast({
+        type: notes.length ? 'warning' : 'success',
+        message: `Imported ${parts[0]}${notes.length ? ` — ${notes.join('; ')}` : ''}.`,
+        ttl: 10000,
+        // Deleting shows an undo; so does making forty clusters at once.
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              await undoFolderImport(res, { deleteCluster, removeTopCard });
+              await refreshBoards();
+              logEvent(EV.FOLDER_IMPORT_UNDO, { board_id: targetBoardId, n_clusters: nClusters });
+            } catch (e) {
+              feedback.toast({ type: 'error', message: 'Undo failed — the clusters are still in the sidebar: ' + (e?.message || e) });
+            }
+          },
+        },
+      });
+      // Dropped onto an empty board: open what was made rather than leave a
+      // lone cluster card on a blank canvas.
+      if (boardWasEmpty && res.tops.length === 1 && targetBoardId === currentBoard?.id && !res.cancelled) openBoardRef.current(res.tops[0]);
+    } else if (!res.stopped) {
+      feedback.toast({ type: 'info', message: res.cancelled ? 'Folder import cancelled — nothing was added.' : 'Nothing in that folder could be added.' });
+    }
+    if (res.stopped && res.stopped.code !== 'cap') {
+      // Out of storage, or a file type the owner's plan does not take: the
+      // one pitch, after what landed is safe. A 'cap' stop already showed the
+      // card wall (addCard's own refusal) — a storage pitch on top would be a
+      // second, wrong one.
+      pitchStorageGate();
+    }
+    if (plan.blocked.length && !res.stopped) {
+      feedback.toast({
+        type: 'warning',
+        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file needs' : 'files need'} a paid plan and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`,
+        ttl: 7000,
+        action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
+      });
+    }
+    return { loose: plan.loose, walked, plan, res };
+  }, [workspace?.id, user?.id, currentBoard?.id, feedback, refreshBoards, pitchStorageGate]);
+
   // Should this demo user be pitched at all? Shared by every always-on upsell
   // surface so the chip, the first-value banner and the list-toolbar chip agree
   // rather than each inventing its own threshold. The cap-hit modal is
@@ -4355,6 +5234,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     view,
     docOpen: !!openDocCard,
     settingsOpen,
+    homeExploring,
   });
   useEffect(() => {
     setAnalyticsContext({
@@ -4414,13 +5294,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onCapped = (e) => {
       const rejectedBoardId = e?.detail?.boardId || null;
       const rejectedIds = e?.detail?.cardIds || [];
-      try {
-        logEvent(EV.CARD_CREATE_BLOCKED, {
-          reason: 'server_cap',
-          board_id: rejectedBoardId,
-          n: e?.detail?.rejected || 0,
-        });
-      } catch (_) {}
+      const nKept = Math.max(0, Number(e?.detail?.kept) || 0);
       // Owner-pays: the trigger counted the board OWNER's cards. Refresh the
       // number that was actually stale — the actor's own tier for their own
       // board, the owner's capacity for a shared one (the capacity cache is
@@ -4428,15 +5302,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // and re-admits the very next add).
       const rb = rejectedBoardId ? boards?.[rejectedBoardId] : null;
       const ownRejected = !rb || (rb.workspace_id === workspace?.id && workspace?.created_by === user?.id);
-      if (ownRejected) myTier.refetch?.();
-      else boardCapacity.refetch?.(rejectedBoardId);
+      const refreshCap = () => {
+        if (ownRejected) myTier.refetch?.();
+        else boardCapacity.refetch?.(rejectedBoardId);
+      };
 
-      // Withdraw the cards the server refused. They render from the Y.Doc but
-      // never reach card_index, so leaving them means a card the user can see
-      // and drag that is absent from search, tags and the graph — and that
-      // silently reappears as "rejected" on every subsequent sync. Origin
-      // 'upload' (deleteCardsSilent) keeps this off the undo stack on purpose:
-      // undoing would resurrect a card the server will refuse again.
+      // Refused but KEPT: existing work the cap would not index. A card placed
+      // while the account was paid whose sync never ran, one restored by undo
+      // or version history, one moved in from another cluster. It stays on the
+      // canvas, uncounted, and the next sync retries it. Nobody just tried to
+      // add it, so it is not a blocked create and it gets no wall. It was
+      // deleted here, with no undo, until 2026-10-01 (capRefusal.js).
+      if (nKept > 0) {
+        try {
+          logEvent(EV.CARD_INDEX_HELD, {
+            board_id: rejectedBoardId,
+            n: nKept,
+            kinds: e?.detail?.keptKinds || null,
+            own: ownRejected,
+          });
+        } catch (_) {}
+      }
+      if (!(Number(e?.detail?.rejected) > 0)) { refreshCap(); return; }
+
+      try {
+        logEvent(EV.CARD_CREATE_BLOCKED, {
+          reason: 'server_cap',
+          board_id: rejectedBoardId,
+          n: e?.detail?.rejected || 0,
+        });
+      } catch (_) {}
+
+      // Withdraw the cards the server refused that this tab had just placed
+      // through the cap gate (syncCardIndex sends only those as cardIds).
+      // They render from the Y.Doc but never reach card_index, so leaving them
+      // means a card the user can see and drag that is absent from search,
+      // tags and the graph. Origin 'upload' (deleteCardsSilent) keeps this off
+      // the undo stack on purpose: undoing would resurrect a card the server
+      // will refuse again.
       //
       // Only the visible board can be withdrawn — a background board's mutators
       // aren't bound here. Those cards stay pending and are re-offered by the
@@ -4444,6 +5347,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (rejectedIds.length && rejectedBoardId === currentId) {
         try { mainMutators.deleteCardsSilent?.(rejectedIds); } catch (_) {}
       }
+      // The refetch comes AFTER the withdrawal's refund, never before it. A
+      // refetch settles the delta it saw when it started; started first, it
+      // settled the refused cards' +N and the refund then took another N off,
+      // leaving the count N under the server's — room the user did not have.
+      refreshCap();
 
       // Same once-per-episode latch the client-side gate uses, so a refusal
       // that arrives from the server doesn't re-open a pitch the user has
@@ -4519,7 +5427,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // cleared one lands on the root. Read here, once, at mount.
     const landedId = (Array.isArray(stack) && stack.length ? stack[stack.length - 1] : null) || rootBoard.id;
     const restored = landedId !== rootBoard.id;
-    logEvent(EV.APP_OPEN, { tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root' });
+    // Was anybody there? Most late "visits" are loads nobody touched — a tab the
+    // browser restored at startup, or one opened in the background — and an
+    // app_open alone cannot tell those from a person arriving. These say which
+    // kind of load it was. landed_cards is null until the board list is in.
+    const view = (() => {
+      try {
+        const nav = performance.getEntriesByType?.('navigation')?.[0]?.type || null;
+        return {
+          visibility: document.visibilityState || null,
+          focused: typeof document.hasFocus === 'function' ? document.hasFocus() : null,
+          nav_type: nav,
+          display_mode: window.matchMedia?.('(display-mode: standalone)')?.matches ? 'standalone' : 'browser',
+        };
+      } catch (_) { return {}; }
+    })();
+    const landedCards = Number(boards?.[landedId]?.card_count);
+    logEvent(EV.APP_OPEN, {
+      tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root',
+      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null,
+    });
     // Post-signup journey: open it (idempotent — TierRouter also opens it for the
     // AdWelcome/waitlist branches) and mark that the App workspace actually
     // mounted. Only for genuinely-new users (onboarding not done). Child effects
@@ -4572,6 +5499,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // so an already-onboarded user's legitimate 'already_seeded' skip never emits.
   const seedSkipLoggedRef = useRef(new Set());
   const noteSeedSkip = (gate) => {
+    // A skip that will not change settles the first run for the resumed Creator
+    // offer (above). 'loading' and 'doc_not_ready' are waits, not answers.
+    if (gate !== 'loading' && gate !== 'doc_not_ready') setFirstRunSettled(true);
     if (seedSkipLoggedRef.current.has(gate)) return;
     seedSkipLoggedRef.current.add(gate);
     try { setJourneyState({ phase: JOURNEY_PHASE.SEED }); journey(EV.PS_SEED_SKIP, { gate }); } catch (_) {}
@@ -4671,7 +5601,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     onboarding: myTier.onboarding,
     persist: persistTour,
     emit: emitTourStep,
-    enabled: tourActive,
+    // Paused while the Creator offer they asked for on /pricing is open: a tour
+    // step anchored behind a modal is a step nobody can do. `enabled` only
+    // gates which step is surfaced, so progress is kept and it resumes on close.
+    enabled: tourActive && upgradeReason !== 'pricing-intent',
     variant: tourVariantRef.current,
   });
   // Only feed tour events while the tour is actually running — otherwise a
@@ -4760,11 +5693,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // EXCEPT somebody who already has cards and is back on a later day: they are
   // not a first-run user, and the tour re-appearing at the step they abandoned
   // was the greeting a slice of returners got on every visit.
+  //
+  // "Back" is a later day on THIS browser, or an account old enough that this
+  // cannot be its first sitting. The browser stamp alone missed every new
+  // device — and a same-day reload hours later — so people who had already
+  // built something were shown the tour again. The age floor is what keeps a
+  // first sitting (cards arriving mid-tour) from dismissing its own tour.
   useEffect(() => {
     const onb = myTier.onboarding;
     if (!(onb?.seeded === true && onb?.done !== true)) return;
     const back = takeReturn(user?.id);
-    if (Number(myTier.demoCardCount) > 0 && typeof back === 'number' && back >= 1) {
+    const ageHours = (Date.now() - Date.parse(user?.created_at || '')) / 3.6e6;
+    const notFirstSitting = (typeof back === 'number' && back >= 1)
+      || (Number.isFinite(ageHours) && ageHours >= 12);
+    if (Number(myTier.demoCardCount) > 0 && notFirstSitting) {
       dismissOnboarding('returned_with_cards');
       return;
     }
@@ -4921,6 +5863,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase });
       try { journey(EV.PS_SEED_DONE, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase }); } catch (_) {}
+      setFirstRunSettled(true);
       setOnboardingUiActive(true);
       // Make the new child board visible in the boards map so its card renders as
       // a real board (not an orphan tile). After addCards so reconcile sees it.
@@ -5004,6 +5947,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // doc and the clone gets overwritten (the board opened EMPTY). Seeding through
   // the live doc (the same path the onboarding seed uses) persists with no race.
   const remixConsumedRef = useRef(false);
+  // The template that just landed in the library, held so the canvas can offer to
+  // place it. Cleared when it is placed or dismissed; see TemplateAddedPrompt.
+  const [justAddedTemplate, setJustAddedTemplate] = useState(null);
   const pendingRemixRef = useRef(null);   // { boardId, cards, kind } awaiting the live seed below
   const [, setRemixPendingTick] = useState(0);
   useEffect(() => {
@@ -5013,6 +5959,70 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!src) return;
     remixConsumedRef.current = true;
     clearRemix();   // one-shot: never re-clone on reload
+    // A grid TEMPLATE claim rides the same stash (so it survives the OTP hop)
+    // but is a different verb: it copies one ~1KB row into the user's library
+    // rather than cloning a board. No board is created, so it short-circuits
+    // before all of the snapshot machinery below.
+    //
+    // Two sources, two RPCs, deliberately not merged: 'template' is a private
+    // share token from /t/<token>, 'gallery' is a public slug from the published
+    // gallery on /templates. Both end as one row in your library.
+    if (src.kind === 'template' || src.kind === 'gallery' || src.kind === 'curated') {
+      // Held with the template store (lib/templatePaths.js). No page on a held
+      // origin can stash one — they all 404 — so this is only ever a hand-built
+      // ?remix= link, and it is dropped: there is no Templates panel here to put
+      // the template in, and no prompt to place it from.
+      if (!templateStoreAllowed()) return;
+      (async () => {
+        try {
+          // The row that ends up in the library, whichever door it came through.
+          // Held onto because the flow does not end at "saved": the prompt below
+          // needs the geometry to draw a preview and to arm the placer, so the
+          // person who asked for a storyboard gets to put it down rather than
+          // being told to go and find it.
+          let saved = null;
+          if (src.kind === 'curated') {
+            // A template WE ship, arriving from its /templates/<slug> page. The
+            // shape is in the bundle, so this is an insert with no lookup — and
+            // unlike the other two it cannot 404, because nothing was published
+            // that could later be revoked or taken down.
+            const t = CURATED_TEMPLATES[src.value];
+            const layout = t && layoutById(t.preset);
+            if (!layout) throw new Error('unknown curated template');
+            saved = await saveGridLayout({
+              name: t.name,
+              // The size is stored with it so the copy in your library places at
+              // the proportions the layout means — a storyboard whose panels are
+              // 16:9 rather than square.
+              body: bodyFromGrid(instantiateLayout(layout.tree), null, t.hints || null, t.size || layout.size),
+              userId: user.id,
+            });
+            // The count behind "Most downloaded" (0300). Idempotent per (slug,
+            // user) in the RPC, so re-adding the same template never inflates
+            // it. Awaited but never fatal — recordTemplateDownload swallows,
+            // because a counter must not be able to fail the save it counts.
+            await recordTemplateDownload(src.value);
+          } else {
+            // Both RPCs return a bare uuid, not the row, so the geometry has to
+            // be read back before it can be previewed or placed.
+            const id = src.kind === 'gallery'
+              ? await usePublicGridLayout(src.value)   // a published gallery slug
+              : await claimGridLayoutLink(src.value);  // a private share token
+            saved = await getGridLayout(id);
+          }
+          feedback.toast({ message: 'Grid template added' });
+          // rowFromRecord is the same reader the panel uses, so the prompt gets a
+          // sanitized tree, reading-order hints and a clamped size by the one path
+          // that has always produced them. A row that fails to parse simply means
+          // no prompt — the template is still saved and the toast still fired.
+          const row = saved ? rowFromRecord(saved, SOURCES.DOWNLOADED) : null;
+          if (row) setJustAddedTemplate(row);
+        } catch (e) {
+          feedback.toast({ type: 'info', message: 'That template is no longer live.' });
+        }
+      })();
+      return;
+    }
     (async () => {
       try {
         const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Remix', view: 'canvas', userId: user.id });
@@ -5323,6 +6333,65 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+  // "Start a treatment" pressed on its page before signing in (lib/starterIntent):
+  // the document it promised lands on the first cluster this person can write,
+  // once a brand-new account's own first run has finished, beside whatever is
+  // already there, and opens. `synced`, not `ready`: ready comes with the
+  // instant cache paint, and the document is placed beside what the SERVER
+  // says is on the board.
+  // Only on a cluster in this person's OWN workspace: a collaborator whose '/'
+  // reopens a cluster shared with them must not have a treatment written into
+  // somebody else's board. The request keeps (a day) until they are home.
+  const onOwnBoard = !!currentBoard?.id && currentBoard.workspace_id === workspace?.id
+    && !!user?.id && workspace?.created_by === user.id;
+  useStarterIntentResume({
+    ready: !myTier.loading && yb.ready && yb.synced && yb.boardId === currentBoard?.id
+      && firstRunSettled && !!currentBoard?.id && canEditCurrent && onOwnBoard,
+    onResume: (intent) => {
+      const id = mainMutators.addStarterDoc?.(intent.kind, starterDocSpot(yb.cards));
+      if (id) openDocWhenMounted({ boardId: currentBoard.id, cardId: id });
+      try {
+        logEvent(EV.STARTER_DOC_ADDED, {
+          kind: intent.kind, from: intent.from, placed: !!id, board_id: currentBoard?.id || null,
+          age_s: Math.round(intent.ageMs / 1000),
+        });
+      } catch (_) {}
+    },
+  });
+  // A starter document stops being our template the moment someone changes
+  // what it holds (lib/starterDocs isPristineStarter): the seed flag goes, so
+  // the next save indexes it — searchable, counted as one card, and stamping
+  // the activation it now really is. Watched on BOTH panes' boards, because a
+  // docked document is edited through the split pane's doc. Checked after a
+  // pause rather than per keystroke, and by content, so a re-render that writes
+  // nothing new (or an edit typed and undone) leaves it a template.
+  useEffect(() => {
+    const targets = [
+      { ydoc: yb.ydoc, boardId: yb.boardId },
+      { ydoc: splitYb.ydoc, boardId: splitYb.boardId },
+    ].filter((t, i, all) => t.ydoc && all.findIndex((u) => u.ydoc === t.ydoc) === i);
+    const offs = targets.map(({ ydoc, boardId }) => {
+      const cards = ydoc.getMap('cards');
+      const pending = new Map();   // card id → timer
+      const onDeep = (events) => {
+        for (const id of starterDocsTouched(events, cards)) {
+          if (pending.has(id)) continue;
+          pending.set(id, setTimeout(() => {
+            pending.delete(id);
+            const ym = cards.get(id);
+            if (!ym || ym.get('seed') !== true || !ym.get('starter') || isPristineStarter(ym)) return;
+            // 'upload': not the person's undo step — undoing their typing must
+            // not turn their document back into an uncounted template.
+            ydoc.transact(() => { ym.delete('seed'); }, 'upload');
+            try { logEvent(EV.STARTER_DOC_WRITTEN, { kind: ym.get('starter'), board_id: boardId || null }); } catch (_) {}
+          }, 1500));
+        }
+      };
+      cards.observeDeep(onDeep);
+      return () => { cards.unobserveDeep(onDeep); for (const t of pending.values()) clearTimeout(t); };
+    });
+    return () => offs.forEach((off) => off());
+  }, [yb.ydoc, yb.boardId, splitYb.ydoc, splitYb.boardId]);
   // Same decision for the split pane. This used to be hardcoded `canEdit={true}`
   // — survivable while the pane could only ever show the one board you picked
   // from your own workspace, but not now that you can navigate inside it: a
@@ -5388,6 +6457,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       totalGenuine: genuine.length,
     }, revealSeen);
     if (!picked) return;
+    // Take the moment BEFORE the one-shot is spent: a deferral must not burn
+    // the reveal. On a return visit this toast used to be the first thing on
+    // screen with two more prompts stacked behind it. The claim sat BELOW the
+    // marks until 2026-10-01, so whenever another prompt held the slot the
+    // reveal was marked seen and never shown — the opposite of this comment.
+    if (!claimUpsellSlot('power-reveal')) return;
     // Mark BEFORE showing (momentumHint discipline) — a re-render mid-toast
     // must never double-fire.
     markRevealSeen(picked.key);
@@ -5395,10 +6470,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Quota-exhausted localStorage (writes throw, reads work) would otherwise
     // re-pitch the same reveal every session forever — verify the write took
     // and stay silent if it didn't.
-    // Take the moment BEFORE the one-shot below is spent: a deferral must not
-    // burn the reveal. On a return visit this toast used to be the first thing
-    // on screen with two more prompts stacked behind it.
-    if (!claimUpsellSlot('power-reveal')) return;
     if (!revealSeen(picked.key)) return;
     const firedBoardId = currentId;
     // Place created cards beside the user's content (they are looking at it),
@@ -5419,7 +6490,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const actions = {
       grids: engage(() => mainMutatorsRef.current?.addGrid?.(nearContent(), {})),
-      group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent())),
+      group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent(), { via: 'power_reveal' })),
       list_drive: engage(() => setView('list', 'power_reveal')),
       docs: engage(() => mainMutatorsRef.current?.addDocCard?.(nearContent())),
       palette: engage(() => setPaletteOpen(true)),
@@ -5808,7 +6879,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     const onDrop = async (e) => {
       const { sourceBoardId, targetBoardId, cards: movedCards,
-              onTargetSaved, onTargetFailed } = e.detail || {};
+              onTargetSaved, onTargetFailed, via } = e.detail || {};
       const ack    = () => { try { onTargetSaved?.(); } catch (_) {} };
       const reject = (err) => { try { onTargetFailed?.(err); } catch (_) {} };
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
@@ -5912,7 +6983,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
           feedback.toast({
             type: 'error',
-            message: 'Could not load the destination cluster’s state. Drag cancelled to prevent data loss. Try again in a moment.',
+            message: 'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.',
             ttl: 8000,
           });
           reject(new Error('target board_state empty'));
@@ -6002,7 +7073,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           tmp.destroy();
           feedback.toast({
             type: 'error',
-            message: 'Drag aborted — target cluster state looked unsafe to overwrite.',
+            message: 'Move cancelled — the destination cluster’s state looked unsafe to overwrite.',
             ttl: 8000,
           });
           reject(new Error('tmp card count below expected'));
@@ -6051,6 +7122,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try { window.__soleilEmitBoardReset?.(targetBoardId); } catch (_) {}
         // Target save complete + room reset — safe to delete the source.
         ack();
+        logEvent(EV.CARDS_MOVE, {
+          via: via === 'menu' ? 'menu' : 'drag',
+          n: movedCards.length,
+          board_id: sourceBoardId,
+          target_board_id: targetBoardId,
+        });
 
         // ── Repoint attached comments to the target board. ──
         try {
@@ -6508,9 +7585,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
   const appCommands = useMemo(() => [
-    { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
-      available: canEditCurrent,
-      run: () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } },
+    { id: 'new-board', label: 'New project', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board', 'project'],
+      available: canEditBoard(rootBoard.id),
+      run: () => { mainMutators.addNewProject?.({ via: 'palette' }); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: canEditCurrent && view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
@@ -6570,7 +7647,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => openInviteFriends('palette') },
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
-  ], [canEditCurrent, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+  ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
       captureAllowed, capture.on,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
 
@@ -6646,7 +7723,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
       if (scaffold) {
         for (const d of res.made) {
-          try { await scaffoldShootDay({ boardId: d.id, dayLabel: d.label, userId: user.id }); }
+          try { await scaffoldShootDay({ boardId: d.id, dayLabel: d.label, dateIso: d.date, userId: user.id }); }
           catch (e) { console.warn('scaffoldShootDay failed', d.id, e); }
         }
       }
@@ -6726,6 +7803,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     updateCardSilent: mainMutators.updateCardSilent,
   });
 
+  // Same idea for audio: every card from before the analysis pipeline is
+  // showing a waveform that was synthesized from its filename. This decodes
+  // the real one. Bounded harder (2/pass) because it moves whole audio files.
+  useAudioPeaksBackfill({
+    cards: currentCards, canEdit: canEditCurrent,
+    workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
+    updateCardSilent: mainMutators.updateCardSilent,
+  });
+
   // Surface renderer used for both the main pane and the split pane. Reads
   // cards/arrows/strokes off whichever board's `yb` was passed in, and — the
   // point of `isMain` — routes every OUTWARD action back to the pane it came
@@ -6739,6 +7825,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // never sees a scary "not found" message.
     if (!board) return <div className="surface-wrap" />;
     const ready = yh.ready && yh.boardId === board.id;
+    const synced = ready && !!yh.synced;
     const yd = ready ? yh.ydoc : null;
     // Hide orphan board / boardlink references — see the comment above
     // currentCards. We filter at the render layer for both panes (main +
@@ -6802,8 +7889,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                             first-board shape from the server card count: no cards anywhere
                             means this is the first board (lib/firstBoardCopy). */
                          boardReady={ready}
+                         boardSynced={synced}
                          firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
                          firstBoardKind={firstBoardKind}
+                         freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
                          gridTemplates={gridTemplates} gridSequences={gridSequences}
                          ydoc={yd}
                          getAwareness={yh.getAwareness}
@@ -6816,6 +7905,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          canEdit={paneCanEdit}
                          boardPermission={isMain ? currentBoardPerm : splitBoardPerm}
                          onRequestStorageUpgrade={pitchStorageGate}
+                         onImportFolder={importFolder}
                          isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
                          ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
@@ -6836,6 +7926,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          onDropFileImage={dropFileImageFor(muts)}
                          workspaceId={workspace.id} userId={user.id}
                          personalWorkspaceId={personalWorkspaceId}
+                         /* Main pane only: one prompt, on the canvas you are
+                            looking at. Placing or dismissing it clears the state
+                            here, so it cannot come back on the next render. */
+                         justAddedTemplate={isMain ? justAddedTemplate : null}
+                         onDismissJustAdded={() => setJustAddedTemplate(null)}
                          selectedTool={selectedTool} setSelectedTool={setSelectedTool}
                          mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
                          autotagSuggest={autotagSuggest}
@@ -7083,6 +8178,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
             )}
           </div>
+          {/* The bell only when it has something to show. Its one producer is the
+              schedule, so for nearly everyone it was an empty panel labelled
+              "Schedule" in every sidebar — and people opened it and found nothing. */}
+          {((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) && (
           <div className={`sb-row ${notifOpen ? 'active' : ''}`}
                onClick={() => {
                  // Only the open is worth a row; the close tells us nothing.
@@ -7101,6 +8200,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
             )}
           </div>
+          )}
           </div>{/* /.sb-top */}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
@@ -7117,11 +8217,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <SidebarBoardsSection
             boards={boards}
             workspaceId={workspace.id}
+            rootId={rootBoard.id}
             activeBoardId={currentSurface === 'board' ? activeBoardId : null}
-            onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+            onOpenBoard={(id) => { setStack(ancestorPath(boards, id)); setCurrentSurface('board'); }}
             onShareBoard={openShareForBoard}
             onRenameBoard={renameBoardById}
-            onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } : null}
+            onCreateBoard={canEditBoard(rootBoard.id) ? () => { mainMutators.addNewProject?.({ via: 'sidebar' }); } : null}
+            renameRequest={projectRenameRequest}
             onCreateBoardInside={createBoardInside}
             onSetBoardCover={mainMutators.setBoardCover}
             onSetBoardBgColor={setBoardBgColorById}
@@ -7131,7 +8233,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onPasteBoardInto={pasteBoardInto}
             onDeleteBoard={(id) => deleteBoardsById([id])}
             canEditBoard={canEditBoard}
-            onOpenPicker={() => openBoardLinkPicker()}
+            onOpenPicker={() => setBrowsePickerOpen(true)}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
@@ -7352,21 +8454,42 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         )}
 
         {currentSurface === 'home' ? (
-          <Suspense fallback={<div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}><SoleilMark size={28} color="var(--soleil)" glow /></div>}>
-            <HomeGraph
-              workspaceId={workspace.id}
-              onNavigate={(target) => {
-                setCurrentSurface('board');
-                if (target?.kind === 'url') {
-                  window.open(target.href, '_blank', 'noopener,noreferrer');
-                  return;
-                }
-                if (target?.kind === 'board') setStack([target.id]);
-                if (target?.kind === 'card')  setStack([target.boardId]);
-                if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
-              }}
-            />
-          </Suspense>
+          <ProjectsHome
+            boards={boards}
+            rootId={rootBoard.id}
+            workspaceId={workspace.id}
+            recents={recents.recents}
+            canCreate={canEditBoard(rootBoard.id)}
+            exploring={homeExploring && !mobileShell}
+            onExplore={setHomeExploring}
+            onOpenBoard={(id, via) => {
+              try { logEvent(EV.HOME_OPEN_BOARD, { via, board_id: id }); } catch (_) {}
+              setStack(ancestorPath(boards, id));
+              recents.push(id);
+              setCurrentSurface('board');
+            }}
+            onNewProject={(name) => { mainMutators.addNewProject?.({ via: 'home', name }); }}
+            /* Phones get the panel only: no graph to float over, and no reason
+               to load the 3D bundle for scenery. */
+            graph={mobileShell ? null : (
+              <Suspense fallback={<div className="home-graph-wrap" />}>
+                <HomeGraph
+                  workspaceId={workspace.id}
+                  backdrop={!homeExploring}
+                  onNavigate={(target) => {
+                    setCurrentSurface('board');
+                    if (target?.kind === 'url') {
+                      window.open(target.href, '_blank', 'noopener,noreferrer');
+                      return;
+                    }
+                    if (target?.kind === 'board') setStack(ancestorPath(boards, target.id));
+                    if (target?.kind === 'card')  setStack(ancestorPath(boards, target.boardId));
+                    if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
+                  }}
+                />
+              </Suspense>
+            )}
+          />
         ) : currentSurface === 'tag' && activeTag ? (
           <TagDetailView
             tag={activeTag}
@@ -7433,6 +8556,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onPickBoard={(b) => addLink(b, linkPickerPosRef.current)}
       />
 
+      {/* "All clusters" in the sidebar: pick one and OPEN it. This row used to
+          open the link picker, so choosing a cluster dropped a link card on the
+          current canvas — and a link card costs one of the free plan's cards. */}
+      <CommandPalette
+        mode="pick"
+        open={browsePickerOpen}
+        onClose={() => setBrowsePickerOpen(false)}
+        workspaceId={workspace.id}
+        boards={boards}
+        rootId={rootBoard.id}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder="Open a cluster…"
+        onPickBoard={(b) => {
+          setStack(ancestorPath(boards, b.id));
+          recents.push(b.id);
+          setCurrentSurface('board');
+        }}
+      />
+
       {/* Split-view board picker — same pick mode, opens the chosen board beside. */}
       <CommandPalette
         mode="pick"
@@ -7458,7 +8601,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         commands={appCommands}
         mobileShell={mobileShell}
         onOpenBoard={(id) => {
-          setStack([id]);
+          setStack(ancestorPath(boards, id));
           recents.push(id);
           setCurrentSurface('board');
         }}
@@ -7582,6 +8725,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
           and choosing the partial keeps the cards they're entitled to. Rendered
           ahead of UpgradeModal because "Upgrade" here opens that one. */}
+      {/* A folder import in progress (importFolder): what is happening, how far
+          along, and a way to stop it — what landed so far is kept. */}
+      {folderImport && (
+        <div className="folder-import-status" role="status" aria-live="polite">
+          <span className="folder-import-label">
+            Importing “{folderImport.name}” — {folderImport.done} of {folderImport.total} {folderImport.total === 1 ? 'file' : 'files'}
+          </span>
+          <span className="folder-import-track" aria-hidden="true">
+            <span className="folder-import-fill" style={{ width: `${Math.round((100 * folderImport.done) / Math.max(1, folderImport.total))}%` }} />
+          </span>
+          <button type="button" className="folder-import-cancel" onClick={folderImport.cancel}>Cancel</button>
+        </div>
+      )}
+
       {importAsk && (
         <ImportCapDialog
           open
@@ -7591,6 +8748,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           count={importAsk.count}
           limit={importAsk.limit}
           kinds={importAsk.kinds}
+          folder={importAsk.folder || null}
+          trialOffer={creatorTrialEligibility({
+            tier: myTier.tier, cards: myTier.serverCardCount,
+            cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+          }).eligible}
           onTakePartial={() => answerImportAsk('partial', importAsk.take)}
           onUpgrade={() => answerImportAsk('upgrade', 0)}
           onCancel={() => answerImportAsk('cancel', 0)}
@@ -7605,12 +8767,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // episode must not surface on the storage or generic pitch, where it
           // would describe something that didn't just happen.
           rejected={upgradeReason === 'cap-hit' ? capRejected : null}
-          onClose={() => { setUpgradeReason(null); setCapRejected(null); }}
+          initialPlan={upgradeReason === 'pricing-intent' ? upgradePlan : null}
+          onClose={() => { setUpgradeReason(null); setCapRejected(null); setUpgradePlan(null); }}
         />
       )}
 
       {/* Arm B gets the guided tour (below) instead of the static pill. */}
-      {showCoachmark && !onboardingArmB && (
+      {showCoachmark && !onboardingArmB && upgradeReason !== 'pricing-intent' && (
         <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('onboarding_v2')} />
       )}
 
@@ -7648,8 +8811,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />
       {/* Gates itself entirely on the soleil:returned signal above, so it is
           inert for every first session and costs a listener otherwise. */}
+      {/* Inert until an offer closes; once per account (UpgradeReasonAsk). */}
+      <UpgradeReasonAsk />
       <ReturnReasonAsk
+        userId={user?.id || null}
         askedOnServer={!!myTier.onboarding?.return_reason_asked_at}
+        contextInput={{
+          cards: myTier.demoCardCount, server_cards: myTier.serverCardCount,
+          cap: myTier.effectiveCardLimit, tier: myTier.tier,
+        }}
         onAsked={() => {
           // merge_profile_settings replaces the whole onboarding key, so spread
           // the current one; the flag makes "once per account" hold across devices.

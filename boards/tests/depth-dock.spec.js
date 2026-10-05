@@ -107,3 +107,40 @@ test('only the FIRST card triggers it — no walking a user down a chain', async
   await expect(page.locator('.crumb.here')).toHaveText(where);
   await expect(page.locator('.card')).toHaveCount(2);
 });
+
+// Fatigue (lib/dockFatigue.js). Real visits are app sessions, which rotate on
+// 30 minutes of idle — so these seed the per-board visit history directly, the
+// way a third visit would find it.
+test('a board whose dock has already been shown on two other visits is spared it', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('soleil.dock.visits.depth.root', JSON.stringify(['visit-a', 'visit-b']));
+  });
+  await page.goto('/?local=1&reset=1&blank=1');
+  const canvas = page.locator('.canvas-wrap');
+  await expect(canvas).toBeVisible();
+  await page.getByRole('button', RAIL('Add note tool')).click();
+  await canvas.click({ position: { x: 240, y: 200 } });
+  await expect(page.locator('.card')).toHaveCount(1);
+  await expect(page.locator('.cnv-depth-dock')).toHaveCount(0);
+});
+
+test('one earlier visit still leaves room for the second', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('soleil.dock.visits.depth.root', JSON.stringify(['visit-a']));
+  });
+  await page.goto('/?local=1&reset=1&blank=1');
+  const canvas = page.locator('.canvas-wrap');
+  await page.getByRole('button', RAIL('Add note tool')).click();
+  await canvas.click({ position: { x: 240, y: 200 } });
+  await expect(page.locator('.cnv-depth-dock')).toBeVisible();
+});
+
+test('a person who has waved the dock away twice is not asked again anywhere', async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('soleil.dock.dismissals.depth', '2'); });
+  await page.goto('/?local=1&reset=1&blank=1');
+  const canvas = page.locator('.canvas-wrap');
+  await page.getByRole('button', RAIL('Add note tool')).click();
+  await canvas.click({ position: { x: 240, y: 200 } });
+  await expect(page.locator('.card')).toHaveCount(1);
+  await expect(page.locator('.cnv-depth-dock')).toHaveCount(0);
+});

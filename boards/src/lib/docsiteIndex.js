@@ -65,10 +65,10 @@ export const DOCS_PAGES = [
     "title": "Soleil Clusters Documentation",
     "metaDescription": "Complete documentation for Soleil Clusters — the infinite canvas for film, photo and design teams. Features, guides, REST API and MCP reference.",
     "h1": "Soleil Clusters documentation",
-    "answer": "Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists, scripts and schedules onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.",
+    "answer": "Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.",
     "section": "start",
     "order": 0,
-    "updated": "2026-08-26",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
@@ -101,7 +101,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 50 cards, unlimited clusters, and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive."
+        "a": "Yes. The free Demo plan gives you 50 cards — every cluster counts as one — and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive."
       },
       {
         "q": "What is a cluster?",
@@ -125,7 +125,7 @@ export const DOCS_PAGES = [
     "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.",
     "section": "start",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Getting started",
     "headings": [
       {
@@ -133,8 +133,8 @@ export const DOCS_PAGES = [
         "text": "1. Sign in"
       },
       {
-        "id": "2-make-a-cluster",
-        "text": "2. Make a cluster"
+        "id": "2-start-a-project",
+        "text": "2. Start a project"
       },
       {
         "id": "3-get-things-onto-the-canvas",
@@ -253,6 +253,10 @@ export const DOCS_PAGES = [
         "text": "View"
       },
       {
+        "id": "audio",
+        "text": "Audio"
+      },
+      {
         "id": "notes",
         "text": "Notes"
       },
@@ -289,10 +293,10 @@ export const DOCS_PAGES = [
     "title": "Coming from Another Tool — Soleil Clusters",
     "metaDescription": "Moving to Soleil Clusters from PureRef, Milanote, Miro, Boords, StudioBinder or Storyboarder — what maps across, what does not, and how to bring work over.",
     "h1": "Coming from another tool",
-    "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually a single drag of a folder. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
+    "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
     "section": "start",
     "order": 4,
-    "updated": "2026-08-25",
+    "updated": "2026-10-02",
     "navLabel": "Coming from another tool",
     "headings": [
       {
@@ -348,7 +352,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster opens as an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
@@ -408,7 +412,7 @@ export const DOCS_PAGES = [
     "answer": "A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
     "section": "canvas",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Cards",
     "headings": [
       {
@@ -448,7 +452,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a limit on cards?",
-        "a": "The free Demo plan allows 50 cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped."
+        "a": "The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit."
       },
       {
         "q": "What happens if I delete a card by accident?",
@@ -459,17 +463,21 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/images",
     "title": "Images and Photo Editing — Soleil Clusters",
-    "metaDescription": "Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast, colour, crop. Lightbox, downloads with edits baked in.",
+    "metaDescription": "Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast and colour. Lightbox, downloads with edits baked in.",
     "h1": "Images and photo editing",
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Images",
     "headings": [
       {
         "id": "adding-images",
         "text": "Adding images"
+      },
+      {
+        "id": "images-from-the-web",
+        "text": "Images from the web"
       },
       {
         "id": "progressive-loading",
@@ -743,12 +751,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/grids",
     "title": "Grids — Soleil Clusters",
-    "metaDescription": "Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Presets and generated matrices.",
+    "metaDescription": "Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Split, merge, or generate a matrix.",
     "h1": "Grids",
-    "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. Split and merge cells by dragging the dividers, start from a preset like storyboard or 2x2, or generate an empty matrix of any size. Grids have a defined reading order, so a storyboard reads in sequence.",
+    "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.",
     "section": "canvas",
     "order": 7,
-    "updated": "2026-08-08",
+    "updated": "2026-10-04",
     "navLabel": "Grids",
     "headings": [
       {
@@ -760,8 +768,8 @@ export const DOCS_PAGES = [
         "text": "Building a layout"
       },
       {
-        "id": "presets",
-        "text": "Presets"
+        "id": "how-grids-count-toward-your-card-limit",
+        "text": "How grids count toward your card limit"
       },
       {
         "id": "reading-order",
@@ -796,36 +804,44 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can several grids share a layout?",
-        "a": "Yes. Grids created from the same template stay linked as a family, so a layout change can carry across them — useful for a storyboard where every page should match."
+        "a": "Yes. Right-click a grid and choose Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Unlink layout takes a grid back out."
       }
     ]
   },
   {
     "path": "/docs/canvas/schedule",
     "title": "Schedule Cards — Soleil Clusters",
-    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas. One to six months at once, shoot days you drag between dates, and a peek panel for editing.",
+    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas — day tiles, a list, a month grid, and days that run as a timed running order.",
     "h1": "Schedules",
-    "answer": "A schedule card is a real calendar living on your canvas. It shows one, three or six months at once, and each day can hold both loose content and whole clusters — a shoot day with its call sheet, shotlist and hour-by-hour inside. Dragging a day tile to another date moves that cluster. Loose content in the month grid stays read-only and is edited in the peek panel.",
+    "answer": "A schedule card is a real calendar on your canvas. It shows a month as day tiles, as a list, or as a grid, with a wall chart above it spanning the whole production. Each date can hold notes, images and files, and whole clusters that carry a date. A day opens as a running order — every item has a length, and the start times cascade.",
     "section": "canvas",
     "order": 8,
     "updated": "2026-09-01",
     "navLabel": "Schedules",
     "headings": [
       {
+        "id": "three-densities-one-control",
+        "text": "Three densities, one control"
+      },
+      {
         "id": "views",
         "text": "Views"
+      },
+      {
+        "id": "the-day-is-a-running-order",
+        "text": "The day is a running order"
       },
       {
         "id": "two-things-live-on-a-date",
         "text": "Two things live on a date"
       },
       {
-        "id": "moving-a-day",
-        "text": "Moving a day"
+        "id": "reading-it",
+        "text": "Reading it"
       },
       {
-        "id": "the-peek-panel",
-        "text": "The peek panel"
+        "id": "the-day-panel",
+        "text": "The day panel"
       },
       {
         "id": "what-a-schedule-is-for",
@@ -835,32 +851,36 @@ export const DOCS_PAGES = [
     "related": [
       "/docs/canvas/grids",
       "/docs/clusters",
-      "/docs/collaborate/notifications"
+      "/docs/clusters/production-schedule"
     ],
     "faq": [
-      {
-        "q": "Can I drop images and notes into a schedule?",
-        "a": "Yes. Any card can go into a time slot, not just text. A call sheet with the location photo attached to the right hour works exactly as you would expect."
-      },
       {
         "q": "Can I add a schedule card right now?",
         "a": "Not at the moment. Schedule cards are being rebuilt, so the Schedule entry is off the Add menu. Cards you already have keep working, and everything on this page still describes them."
       },
       {
-        "q": "How do I move a day to a different date?",
-        "a": "Drag its tile onto the new date. A multi-day block keeps its length."
+        "q": "Can I drop images and notes into a schedule?",
+        "a": "Yes. Any card can go into a date, not just text. A location photo attached to the day it is needed works exactly as you would expect."
+      },
+      {
+        "q": "If I change one item's length, what moves?",
+        "a": "Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds."
+      },
+      {
+        "q": "Why do the days show pictures?",
+        "a": "Because each one is a cluster, and every cluster already renders a thumbnail of its own canvas. In a production nearly every day is a board full of that day's material, so the calendar shows you the actual day rather than an icon standing in for one."
+      },
+      {
+        "q": "Can I still have a plain month grid?",
+        "a": "Yes — it is the third density in the header control. A month grid is built for a sparse calendar, which is exactly what a release plan or a prep calendar is, so it is kept rather than traded away."
       },
       {
         "q": "Why can I not type directly into the calendar grid?",
-        "a": "Loose content in the month and week grids is deliberately read-only — clicking a slot opens a peek panel and every edit happens there, because inline editing in a dense calendar produced constant mis-clicks. Day tiles are the exception: they are draggable, because moving a day is the thing a schedule exists for."
+        "a": "Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it; double-clicking a grid cell opens the day panel."
       },
       {
         "q": "Does paging to next month move it for everyone?",
         "a": "No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and \"Go to today\" are all local to you."
-      },
-      {
-        "q": "How do I get back to today?",
-        "a": "The \"Go to today\" control, or the mini-calendar in the header to jump to any date."
       }
     ]
   },
@@ -972,7 +992,7 @@ export const DOCS_PAGES = [
     "answer": "As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.",
     "section": "canvas",
     "order": 11,
-    "updated": "2026-08-10",
+    "updated": "2026-10-02",
     "navLabel": "Snapping and alignment",
     "headings": [
       {
@@ -1084,7 +1104,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a 100GB drive.",
     "section": "files",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-01",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1129,6 +1149,18 @@ export const DOCS_PAGES = [
       {
         "q": "Where do my files actually live?",
         "a": "In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL."
+      },
+      {
+        "q": "Can I bring in my PureRef boards?",
+        "a": "Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards, which have no size cap on any plan."
+      },
+      {
+        "q": "What happens if I drop a screenplay file?",
+        "a": "A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan."
+      },
+      {
+        "q": "What happens if the page closes while photos are still uploading?",
+        "a": "Photos upload from your device while the page is open. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas."
       }
     ]
   },
@@ -1187,12 +1219,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/files/video-and-audio",
     "title": "Video and Audio — Soleil Clusters",
-    "metaDescription": "Video and audio cards in Soleil Clusters play inline on the canvas. Waveform audio players with cover art, one-at-a-time playback, and free-plan size caps.",
+    "metaDescription": "Video and audio cards in Soleil Clusters play inline on the canvas. Audio draws a real waveform decoded from the file, with cover art and one-at-a-time play.",
     "h1": "Video and audio",
-    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform and show cover art, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
+    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
     "section": "files",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Video and audio",
     "headings": [
       {
@@ -1245,15 +1277,23 @@ export const DOCS_PAGES = [
     "title": "Clusters and Nesting — Soleil Clusters",
     "metaDescription": "Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.",
     "h1": "Clusters",
-    "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. Clusters are never capped on any plan. Each one gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
+    "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
-        "id": "creating-one",
-        "text": "Creating one"
+        "id": "starting-a-project",
+        "text": "Starting a project"
+      },
+      {
+        "id": "dropping-a-folder",
+        "text": "Dropping a folder"
+      },
+      {
+        "id": "adding-a-cluster-inside-one",
+        "text": "Adding a cluster inside one"
       },
       {
         "id": "nesting",
@@ -1288,7 +1328,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is there a limit on how many clusters I can make?",
-        "a": "No. Clusters are unlimited on every plan, including free. Only cards are capped, at 50 on the free Demo plan."
+        "a": "Not separately. Each cluster sits on the canvas that holds it as a card, and on the free Demo plan that card counts toward your 50 cards, like any other. Creator removes the card limit."
       },
       {
         "q": "How do I move a cluster somewhere else?",
@@ -1308,7 +1348,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "List view",
     "headings": [
       {
@@ -1316,8 +1356,20 @@ export const DOCS_PAGES = [
         "text": "Table and gallery"
       },
       {
+        "id": "when-a-cluster-is-mostly-audio",
+        "text": "When a cluster is mostly audio"
+      },
+      {
         "id": "sorting-and-filtering",
         "text": "Sorting and filtering"
+      },
+      {
+        "id": "auditioning-audio",
+        "text": "Auditioning audio"
+      },
+      {
+        "id": "downloading",
+        "text": "Downloading"
       },
       {
         "id": "previews",
@@ -1338,6 +1390,10 @@ export const DOCS_PAGES = [
       {
         "id": "every-cluster-is-a-drive",
         "text": "Every cluster is a drive"
+      },
+      {
+        "id": "can-i-use-clusters-like-google-drive",
+        "text": "Can I use Clusters like Google Drive?"
       }
     ],
     "related": [
@@ -1357,20 +1413,32 @@ export const DOCS_PAGES = [
       {
         "q": "Can I make list the default?",
         "a": "Yes, in Settings under Defaults. You can also set the view per cluster."
+      },
+      {
+        "q": "Can I use Clusters like Google Drive?",
+        "a": "For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that."
       }
     ]
   },
   {
     "path": "/docs/clusters/home-graph",
-    "title": "Home Graph — Soleil Clusters",
-    "metaDescription": "The Home view in Soleil Clusters shows your whole workspace as a 3D relationship graph of clusters, documents, cards and links you can fly through.",
-    "h1": "Home graph",
-    "answer": "Home shows your workspace as a relationship graph rather than a list — clusters, documents, cards and URLs as connected nodes you can orbit and fly through. Hover a node to preview it, right-click to open, and use the detail drawer for what connects to what. A 2D view is used automatically where 3D would not perform.",
+    "title": "Home — Your Projects and Workspace Graph — Soleil Clusters",
+    "metaDescription": "Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.",
+    "h1": "Home",
+    "answer": "Home shows your projects — the clusters you were last in, every project newest first, and New project — on a panel floating over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.",
     "section": "clusters",
     "order": 2,
-    "updated": "2026-08-08",
-    "navLabel": "Home graph",
+    "updated": "2026-10-01",
+    "navLabel": "Home",
     "headings": [
+      {
+        "id": "your-projects",
+        "text": "Your projects"
+      },
+      {
+        "id": "the-graph-behind-it",
+        "text": "The graph behind it"
+      },
       {
         "id": "why-a-graph",
         "text": "Why a graph"
@@ -1403,25 +1471,29 @@ export const DOCS_PAGES = [
     ],
     "faq": [
       {
-        "q": "What do the connections represent?",
+        "q": "What is a project here?",
+        "a": "A cluster at the top of your workspace, beside Studio. New project on Home, the + next to Clusters in the sidebar, and ⌘K → \"new project\" all create one at the top and open it."
+      },
+      {
+        "q": "How do I see the whole graph?",
+        "a": "Press Explore universe on the panel. The panel slides away and the graph is yours to orbit and fly through; Projects brings the panel back. Clusters remembers which one you left on, per device."
+      },
+      {
+        "q": "What do the connections in the graph represent?",
         "a": "Real relationships — nesting, links between documents, mentions, and shared URLs. The graph is derived from your content, not arranged by hand."
       },
       {
-        "q": "Is this just decorative?",
-        "a": "It is genuinely useful on a large workspace, where a tree hides the fact that two projects reference the same material. On a small workspace the sidebar is faster."
-      },
-      {
         "q": "What if 3D is slow on my machine?",
-        "a": "A 2D fallback renders automatically. The graph and its interactions are the same."
+        "a": "A 2D fallback renders automatically. The graph and its interactions are the same. On a phone, Home shows the projects panel on its own."
       }
     ]
   },
   {
     "path": "/docs/clusters/production-schedule",
     "title": "Production Schedules — Soleil Clusters",
-    "metaDescription": "Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each shoot day its own cluster holding that day's material.",
+    "metaDescription": "Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each day its own cluster holding that day's material.",
     "h1": "Production schedules",
-    "answer": "A production schedule is one cluster holding a multi-month calendar, with each shoot day as a child cluster carrying a date. Open a day and you get its script pages, call sheet, shotlist and hour-by-hour schedule. Drag the day to a new date and it moves on everyone's calendar, with an undo on the toast. Share the production once and every day inside it comes with it.",
+    "answer": "A production schedule is one cluster holding a multi-month calendar, with each day as a child cluster that carries a date. Open a day and you get its script pages, call sheet, shot list and running order — every item with a length, so the day re-times itself when one runs long. Share the production once and every day inside it comes with it.",
     "section": "clusters",
     "order": 3,
     "updated": "2026-09-01",
@@ -1436,12 +1508,8 @@ export const DOCS_PAGES = [
         "text": "Laying it out"
       },
       {
-        "id": "moving-a-day",
-        "text": "Moving a day"
-      },
-      {
-        "id": "what-the-crew-sees",
-        "text": "What the crew sees"
+        "id": "the-running-order",
+        "text": "The running order"
       },
       {
         "id": "driving-it-from-another-system",
@@ -1467,8 +1535,8 @@ export const DOCS_PAGES = [
         "a": "Editors you share with are free. Capacity is charged to whoever owns the boards, not per seat. See Sharing and roles."
       },
       {
-        "q": "What happens to the hour-by-hour schedule when a day moves?",
-        "a": "It follows. The schedule card inside a shoot day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync."
+        "q": "What happens to the running order when a day moves?",
+        "a": "It follows. The schedule card inside a day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync."
       },
       {
         "q": "Can another system push the schedule in?",
@@ -1544,9 +1612,13 @@ export const DOCS_PAGES = [
     "answer": "A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.",
     "section": "documents",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
+      {
+        "id": "starting-from-a-treatment",
+        "text": "Starting from a treatment"
+      },
       {
         "id": "opening",
         "text": "Opening"
@@ -1616,7 +1688,7 @@ export const DOCS_PAGES = [
     "answer": "Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.",
     "section": "documents",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-01",
     "navLabel": "Screenplays",
     "headings": [
       {
@@ -1672,7 +1744,7 @@ export const DOCS_PAGES = [
     "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.",
     "section": "documents",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Exporting documents",
     "headings": [
       {
@@ -1696,6 +1768,10 @@ export const DOCS_PAGES = [
         "text": "On a phone or tablet"
       },
       {
+        "id": "a-director-s-treatment-as-a-pdf",
+        "text": "A director’s treatment, as a PDF"
+      },
+      {
         "id": "exporting-the-board-instead",
         "text": "Exporting the board instead"
       }
@@ -1712,7 +1788,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does Markdown export keep my images?",
-        "a": "Image references are preserved. The images themselves stay in Clusters storage and are linked, not embedded."
+        "a": "Yes. Each image is embedded in the file itself as a data URI, so the export opens complete with no account and no link back to Clusters, at the cost of a bigger file. An image linked from a site that refuses the download stays a link."
       },
       {
         "q": "Why would I export Fountain instead of Final Draft?",
@@ -1781,10 +1857,10 @@ export const DOCS_PAGES = [
     "title": "Tags and Entities — Soleil Clusters",
     "metaDescription": "Tag anything in Soleil Clusters — cards, groups, boards and passages of text. Entity types, automatic tagging, AI suggestions and emergent themes.",
     "h1": "Tags and entities",
-    "answer": "A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing, and the app suggests tags automatically without ever applying one on its own.",
+    "answer": "A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.",
     "section": "organize",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Tags",
     "headings": [
       {
@@ -1831,8 +1907,8 @@ export const DOCS_PAGES = [
         "a": "No. A tag is not a location. The same card can carry several tags and stays exactly where it is."
       },
       {
-        "q": "Does the AI tagger tag things without asking?",
-        "a": "No. It only ever suggests. Nothing is tagged until you accept a suggestion."
+        "q": "Does Clusters tag things without asking?",
+        "a": "Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, press Manage and filter to Auto, then right-click any item to confirm or remove the tag — removing it also keeps that tag off that item for good. Looser matches are only suggested. It reads text, not what an image shows."
       },
       {
         "q": "What is an entity type?",
@@ -1901,10 +1977,10 @@ export const DOCS_PAGES = [
     "title": "Search and the Command Palette — Soleil Clusters",
     "metaDescription": "Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.",
     "h1": "Search and the command palette",
-    "answer": "Press Cmd-K or forward slash to open the command palette. It searches across cluster names, card contents, notes, documents and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
+    "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Search",
     "headings": [
       {
@@ -1932,7 +2008,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does search look inside my notes and documents?",
-        "a": "Yes. It searches full content, not just titles — cluster names, card contents, note text, document text and tags."
+        "a": "Yes. Documents are searched by the words on their pages, and a result opens the document at the page it came from. Cards and notes are searched by their title and the first 500 characters of their text. A document written before search learned to read it is picked up the next time it, or anything in its cluster, is edited."
       },
       {
         "q": "Can I run actions from it?",
@@ -1952,7 +2028,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-09-10",
+    "updated": "2026-10-02",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2008,7 +2084,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-08-28",
+    "updated": "2026-10-02",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2492,19 +2568,19 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where are API tokens?",
-        "a": "Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards."
+        "a": "Under Connections, alongside any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards."
       }
     ]
   },
   {
     "path": "/docs/account/plans",
     "title": "Plans and Pricing — Soleil Clusters",
-    "metaDescription": "Soleil Clusters is free with 50 cards, unlimited clusters and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
+    "metaDescription": "Soleil Clusters is free with 50 cards and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
+    "answer": "The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2556,7 +2632,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Clusters, collaborators and editing are not limited."
+        "a": "Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card."
       },
       {
         "q": "Do collaborators need to pay?",
@@ -2580,7 +2656,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a free trial of Creator?",
-        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; cancel before then and you pay nothing. One trial per account."
+        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. One trial per account."
+      },
+      {
+        "q": "What happens to my work if I cancel, or my trial ends?",
+        "a": "Nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it."
       }
     ]
   },
@@ -2736,7 +2816,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is anything unavailable on mobile?",
-        "a": "Nothing is removed, but dense surfaces like long documents and the 3D home graph are much better on a large screen. The graph falls back to 2D on tablets."
+        "a": "Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them."
       }
     ]
   },
@@ -2748,7 +2828,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-09-08",
+    "updated": "2026-10-02",
     "navLabel": "Data and privacy",
     "headings": [
       {
@@ -3261,7 +3341,7 @@ export const DOCS_PAGES = [
     "answer": "POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.",
     "section": "developers",
     "order": 5,
-    "updated": "2026-08-08",
+    "updated": "2026-10-02",
     "navLabel": "Images and uploads",
     "headings": [
       {
@@ -3333,7 +3413,7 @@ export const DOCS_PAGES = [
     "answer": "POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.",
     "section": "developers",
     "order": 6,
-    "updated": "2026-08-10",
+    "updated": "2026-10-02",
     "navLabel": "Import",
     "headings": [
       {
@@ -3585,7 +3665,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-08-10",
+    "updated": "2026-10-02",
     "navLabel": "MCP",
     "headings": [
       {
@@ -3722,7 +3802,7 @@ export const DOCS_PAGES = [
     "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
     "section": "developers",
     "order": 12,
-    "updated": "2026-08-09",
+    "updated": "2026-10-02",
     "navLabel": "Webhooks",
     "headings": [
       {

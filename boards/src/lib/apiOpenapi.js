@@ -18,7 +18,10 @@ const card = {
   type: 'object',
   properties: {
     id: { type: 'string' },
-    kind: { type: 'string', enum: ['note', 'image', 'link', 'doc'] },
+    // Mirrors CARD_KINDS in worker-api.js. It listed four of the eight for as
+    // long as the other four have existed, and nothing enforces the match — so
+    // a client generated from this schema refused kinds the API accepts.
+    kind: { type: 'string', enum: ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'] },
     x: { type: 'number' }, y: { type: 'number' },
     w: { type: 'number' }, h: { type: 'number' }, z: { type: 'number' },
     title: { type: ['string', 'null'] },
@@ -476,10 +479,15 @@ export function openapiDocument(origin) {
           description:
             'The raw bytes go in the body, with Content-Type set to the image type. Returns a key '
             + 'to pass as `image_key` when creating a card. Charged against the board owner\'s '
-            + 'storage, so ?board= is required. 25MB maximum.',
+            + 'storage, so ?board= is required. 25MB maximum. Pass ?filename= to keep the file\'s '
+            + 'own name: it comes back as `file_name`, to send on the card too.',
           operationId: 'uploadImage',
           parameters: [{
             name: 'board', in: 'query', required: true, schema: { type: 'string', format: 'uuid' },
+          }, {
+            name: 'filename', in: 'query', schema: { type: 'string', maxLength: 200 },
+            description: 'The file\'s own name. Paths are cut to the basename; a name a browser invents '
+              + 'for a paste ("image.png") is not kept.',
           }],
           requestBody: {
             required: true,
@@ -501,6 +509,7 @@ export function openapiDocument(origin) {
                 height: { type: ['integer', 'null'] },
                 bytes: { type: 'integer' },
                 content_type: { type: 'string' },
+                file_name: { type: ['string', 'null'], description: 'The name kept from ?filename=, if any.' },
               },
             }),
             402: err('That would go past the storage included with this account'),
@@ -532,7 +541,7 @@ export function openapiDocument(origin) {
                   properties: {
                     bytes: { type: 'integer', description: 'Total size of the whole file.' },
                     content_type: { type: 'string' },
-                    filename: { type: 'string', description: 'Only used to recover a file extension.' },
+                    filename: { type: 'string', description: 'Used here to recover a file extension. Send it again on complete to keep the name.' },
                   },
                 },
               },
@@ -609,6 +618,7 @@ export function openapiDocument(origin) {
                     board_id: { type: 'string', format: 'uuid' },
                     key: { type: 'string' },
                     upload_id: { type: 'string' },
+                    filename: { type: 'string', maxLength: 200, description: 'The file\'s own name, kept on the stored file.' },
                     parts: {
                       type: 'array',
                       items: {
@@ -633,6 +643,7 @@ export function openapiDocument(origin) {
                 bytes: { type: ['integer', 'null'] },
                 width: { type: ['integer', 'null'] },
                 height: { type: ['integer', 'null'] },
+                file_name: { type: ['string', 'null'] },
               },
             }),
             403: err('Not a writer on that board'),
@@ -702,6 +713,7 @@ export function openapiDocument(origin) {
                       board_id: { type: ['string', 'null'], format: 'uuid' },
                       workspace_id: { type: 'string', format: 'uuid' },
                       created_at: { type: 'string', format: 'date-time' },
+                      file_name: { type: ['string', 'null'], description: 'The uploaded file\'s own name, where it was kept.' },
                     },
                   },
                 },

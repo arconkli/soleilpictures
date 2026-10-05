@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { solveFit, easeInOutCubic, sampleTween } from './captureCamera.js';
+import { solveFit, easeInOutCubic, sampleTween, fitMargin, selectionMargin } from './captureCamera.js';
 
 const VP = { x: 0, y: 0, w: 1200, h: 800 };
 
@@ -132,4 +132,57 @@ test('a zero or negative zoom cannot produce NaN', () => {
 test('missing pans are treated as the origin rather than throwing', () => {
   const s = sampleTween({ zoom: 1 }, { zoom: 2 }, 0.5);
   assert.ok(Number.isFinite(s.pan.x) && Number.isFinite(s.pan.y));
+});
+
+// ── Margins ────────────────────────────────────────────────────────────────
+//
+// The bug these pin: a flat 120px selection margin left 150px of usable width
+// on a 390pt phone, so "push in" solved a LOWER zoom than the "fit" it came
+// from — the flagship move of punch and establish, running backwards.
+
+const vp = (width, height = 800) => ({ width, height });
+
+test('a selection always leaves more air than a whole-board fit', () => {
+  for (const w of [320, 390, 428, 640, 641, 834, 1024, 1440, 1920]) {
+    const r = vp(w);
+    assert.ok(selectionMargin(r) > fitMargin(r),
+      `at ${w}px wide: selection ${selectionMargin(r)} is not more than fit ${fitMargin(r)}`);
+  }
+});
+
+test('desktop margins are unchanged — a phone fix must not move a desktop pixel', () => {
+  for (const w of [641, 1024, 1440, 1920]) {
+    assert.equal(fitMargin(vp(w)), 80);
+    assert.equal(selectionMargin(vp(w)), 120);
+  }
+});
+
+test('neither margin can eat the phone viewport it is framing inside', () => {
+  for (const w of [320, 390, 428, 640]) {
+    // Both sides together, against the width they are carved out of. Above a
+    // third and the content being framed is the minority of the frame.
+    assert.ok(selectionMargin(vp(w)) * 2 < w / 3,
+      `at ${w}px wide the selection margins take ${selectionMargin(vp(w)) * 2}px`);
+  }
+});
+
+test('a push-in on a phone actually pushes in', () => {
+  // A selection that is 60% of the board — the range where the flat 120 went
+  // backwards. Solve the fit, then solve the selection against the same
+  // viewport, and the selection must be the closer of the two.
+  const r = vp(390, 800);
+  const board = { x: 0, y: 0, w: 2000, h: 1600 };
+  const sel = { x: 200, y: 200, w: 1200, h: 960 };
+  const fit = solveFit(board, { w: r.width, h: r.height }, { margin: fitMargin(r) });
+  const push = solveFit(sel, { w: r.width, h: r.height }, { margin: selectionMargin(r) });
+  assert.ok(push.zoom > fit.zoom,
+    `push-in solved ${push.zoom} against a fit of ${fit.zoom} — that is a pull-back`);
+});
+
+test('the margin clamp inside solveFit still protects a tiny viewport', () => {
+  // selectionMargin is a fraction of width, but solveFit is handed a height
+  // too — a very short viewport must not solve to a negative zoom.
+  const s = solveFit({ x: 0, y: 0, w: 500, h: 500 }, { w: 390, h: 40 },
+                     { margin: selectionMargin(vp(390)) });
+  assert.ok(Number.isFinite(s.zoom) && s.zoom > 0, `got ${s.zoom}`);
 });

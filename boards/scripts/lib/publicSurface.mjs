@@ -236,6 +236,14 @@ export function publicRoutes() {
     .matchAll(/path:\s*'(\/best\/[^']+)'/g)].map((m) => m[1]);
   expect(listicle, 2, 'listicle paths', 'boards/src/lib/seoListicleIndex.js');
 
+  // The template store's items. These left seoLanding.js when the store got its
+  // own generated registry, and without this extractor they would vanish from
+  // the surface snapshot entirely — which is the gate whose whole job is
+  // noticing that a public URL appeared or moved.
+  const templates = [...read('boards/src/lib/templateCards.js')
+    .matchAll(/"path":\s*"(\/templates\/[^"]+)"/g)].map((m) => m[1]);
+  expect(templates, 3, 'template store items', 'boards/src/lib/templateCards.js');
+
   // Router branches in main.jsx that render BEFORE AuthGate. The whole
   // right-hand side is captured verbatim: WIDENING a match is as much a public
   // surface change as adding a route, and only the literal text catches that.
@@ -244,7 +252,10 @@ export function publicRoutes() {
     .map((m) => `${m[1]} = ${m[2].replace(/window\.location\.pathname/g, 'PATH')}`);
   expect(router, 5, 'router branches', 'boards/src/main.jsx');
 
-  return { routeMeta: meta.sort(), landing: landing.sort(), listicle: listicle.sort(), router: router.sort() };
+  return {
+    routeMeta: meta.sort(), landing: landing.sort(), listicle: listicle.sort(),
+    templates: templates.sort(), router: router.sort(),
+  };
 }
 
 // ── Token scopes ────────────────────────────────────────────────────────────

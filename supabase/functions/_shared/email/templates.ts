@@ -25,7 +25,8 @@ export type TemplateName =
   | "board_waiting"
   | "nudge_dormant_early"
   | "whats_new"
-  | "schedule_update";
+  | "schedule_update"
+  | "share_activity";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -44,6 +45,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "nudge_dormant_early",
   "whats_new",
   "schedule_update",
+  "share_activity",
 ];
 
 export interface RenderedEmail {
@@ -98,8 +100,14 @@ function plain(lines: string[]): string {
 // ── Lifecycle "simple note" helpers ─────────────────────────────────────────
 const UNSUB_BASE = "https://clusters.soleilpictures.com/api/unsubscribe";
 
-function unsubUrl(token: string): string {
-  return `${UNSUB_BASE}?u=${encodeURIComponent(token)}&k=email_lifecycle`;
+// The preference key is a PARAMETER, not a constant. send-transactional-email
+// learned this the hard way for the List-Unsubscribe header — its
+// UNSUB_KEY_BY_TEMPLATE comment records that a hardcoded email_lifecycle would
+// "silently mute the wrong thing" the moment a second unsubscribable template
+// existed. The in-body link had the identical bug and kept it, because until
+// now every template that rendered one was lifecycle. share_activity is not.
+function unsubUrl(token: string, key = "email_lifecycle"): string {
+  return `${UNSUB_BASE}?u=${encodeURIComponent(token)}&k=${encodeURIComponent(key)}`;
 }
 
 // `lc` rides alongside the UTMs so the APP can record the landing itself.
@@ -1259,6 +1267,79 @@ Unsubscribe: ${unsub}`,
   };
 }
 
+// ── share_activity (migration 0259) ─────────────────────────────────────────
+// Someone opened a cluster you shared. Not a nudge and not a campaign: it
+// reports a thing that happened, which is the one kind of mail this account has
+// ever seen clicked at a decent rate — the invite and share notifications do,
+// the win-backs do not.
+//
+// The subject IS the notification title, passed straight through from
+// notify_share_activity. The bell and the inbox must not word the same event
+// two different ways, and keeping the copy in the SQL means there is one place
+// to change it.
+//
+// The interface noun is "cluster". Older lifecycle templates in this file still
+// say "board" — that is drift from before the rename, not a house style to copy.
+interface ShareActivityData {
+  title: string;         // pre-sanitized in renderTemplate
+  boardName?: string;    // pre-sanitized in renderTemplate
+  viewers: number;
+  workspaceId?: string;
+  boardId?: string;
+  unsubscribeToken: string;
+  // Single-use /resume token (migration 0235), minted by the notifications
+  // trigger. Optional: minting is best-effort, and without it the CTA degrades
+  // to the plain app URL plus the signed-out caveat noteBtn adds for itself.
+  resumeToken?: string;
+}
+
+function shareActivity(d: ShareActivityData): RenderedEmail {
+  // Not utm(): that helper hardcodes utm_medium "lifecycle", and the entire
+  // point of this email is that it is not lifecycle marketing — grouping it
+  // with the win-backs in reporting would bury whichever one is working.
+  //
+  // `lc` is kept deliberately though. ResumePage reads it and fires
+  // lifecycle_land{email_type}, so this gets first-party landing measurement
+  // for free and stays separable by that field.
+  const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, {
+    utm_source:   "email",
+    utm_medium:   "notification",
+    utm_campaign: "share_activity",
+    lc:           "share_activity",
+  });
+  const unsub = unsubUrl(d.unsubscribeToken, "email_share_activity");
+  const many = d.viewers > 1;
+  const name = d.boardName || null;
+  const ctaLabel = name ? `Open "${name}"` : "Open my clusters";
+
+  const opened = many
+    ? `${d.viewers} people opened ${name ? `"${name}"` : "one of your clusters"} through your share link.`
+    : `Someone opened ${name ? `"${name}"` : "one of your clusters"} through your share link.`;
+
+  return {
+    subject: d.title,
+    html: renderPlainNote({
+      preheader: opened,
+      bodyHtml:
+        noteP(opened) +
+        noteP("They did not sign in, so we cannot tell you who they were — only that your link is being used.") +
+        noteP(many ? "Worth a look before the next person does:" : "Worth a look:") +
+        noteBtn(ctaLabel, url),
+      unsubscribeUrl: unsub,
+    }),
+    text:
+`${opened}
+
+They did not sign in, so we cannot tell you who they were — only that your link is being used.
+
+${many ? "Worth a look before the next person does:" : "Worth a look:"}
+
+${ctaLabel}: ${url}
+
+Unsubscribe: ${unsub}`,
+  };
+}
+
 export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
   switch (name) {
     case "waitlist_submitted":
@@ -1410,6 +1491,23 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "share_activity": {
+      // Same sanitising the other types get: this arrives as untrusted jsonb
+      // from a trigger and is about to become a subject header, where a stray
+      // newline is a header-injection primitive.
+      const clean = (v: unknown, max: number) =>
+        String(v ?? "").replace(/[\r\n]/g, "").slice(0, max).trim();
+      const viewers = Number(data.viewers);
+      return shareActivity({
+        title:            clean(data.title, 120) || "Someone opened one of your clusters",
+        boardName:        clean(data.boardName, 60) || undefined,
+        viewers:          Number.isFinite(viewers) && viewers > 0 ? Math.floor(viewers) : 1,
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken:      resumeTokenOf(data.resumeToken),
       });
     }
   }

@@ -5,7 +5,7 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed } from '../lib/appHost.js';
 
 // Live expand map for a schedule card — Yjs gridMeta when present, else the
 // local shell's plain card.gridMeta.
@@ -47,18 +47,37 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder,
   Calendar as CalendarPh, X,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
+import { sanitizeLayout } from '../lib/gridLayout.js';
+import { GridTemplatePanel } from './GridTemplatePanel.jsx';
+import { SaveTemplateDialog } from './SaveTemplateDialog.jsx';
+import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
+import { layoutById } from '../lib/templateLayouts.js';
+import { TemplateAddedPrompt } from './TemplateAddedPrompt.jsx';
+// The shipped store catalogue, so the panel sells the same fifteen templates
+// /templates does. A light index — names, preset ids and labels, never prose.
+import { TEMPLATE_CARDS } from '../lib/templateCards.js';
+import { useGridLayouts } from '../hooks/useGridLayouts.js';
+import {
+  saveGridLayout, renameGridLayout, setGridLayoutScope,
+  deleteGridLayout, restoreGridLayout, createGridLayoutLink,
+  publishGridLayout, unpublishGridLayout,
+} from '../lib/gridLayoutsApi.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
+import { analyzeAudioFile, analyzable } from '../lib/audioAnalysis.js';
+import { downloadCardAsset, DOWNLOADABLE } from '../lib/cardDownload.js';
+import * as audioBus from '../lib/audioBus.js';
+import { parseLoopMeta, canonicalKey } from '../lib/loopMeta.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
@@ -71,7 +90,6 @@ import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill, drainVariantQueue } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
-import { downloadImage } from '../lib/imageExport.js';
 import { ImageAdjustFilters } from './ImageAdjustFilters.jsx';
 import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
@@ -88,6 +106,12 @@ import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
 import { shouldPromptMix } from '../lib/mixPrompt.js';
 import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
+import { getAppSessionId } from '../lib/appSession.js';
+import {
+  dockVisitsKey, dockDismissCountKey, parseVisits, dockVisitAllowed, noteDockVisit,
+  dockRetired, rootHoldsClusters,
+} from '../lib/dockFatigue.js';
+import { cardMoveTargets } from '../lib/projectsHome.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
 import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
@@ -119,6 +143,7 @@ import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
+import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading } from '../lib/abandonedUploads.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals, uprightLabelAngle,
@@ -128,12 +153,16 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
-import { solveFit, sampleTween, easingFor, CAMERA_MS } from '../lib/captureCamera.js';
+import { solveFit, sampleTween, easingFor, fitMargin, selectionMargin, CAMERA_MS } from '../lib/captureCamera.js';
 import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
-import { classifyDropFile, sizeBucket, fitImageDims } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor } from '../lib/fileIngest.js';
+import { saveWebImageCopy } from '../lib/webImageClient.js';
+import { pickHotlinks, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
+import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
+import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
@@ -155,6 +184,39 @@ const EMPTY_TILES = [
   { id: 'doc',    label: 'Doc',      icon: FileText },
   { id: 'file',   label: 'Any file', icon: Upload },
 ];
+// The name of a project that was just started, in the empty panel's headline
+// slot. Deliberately NOT autofocused: the panel's whole ask is "paste or drag
+// images in", and a focused text input would swallow that paste. Untitled
+// shows as an empty field with the ask as its placeholder.
+const UNTITLED_RE = /^Untitled (cluster|list)$/i;
+function ProjectNameField({ board, onRename }) {
+  const named = board?.name && !UNTITLED_RE.test(board.name) ? board.name : '';
+  const [draft, setDraft] = useState(named);
+  useEffect(() => { setDraft(named); /* a different board, or a rename from elsewhere */ }, [board?.id, named]);
+  const commit = () => {
+    const t = draft.trim();
+    if (!t || t === board?.name) return;
+    onRename?.(t);
+  };
+  return (
+    <input className="cnv-empty-project-name"
+           type="text"
+           value={draft}
+           maxLength={120}
+           placeholder="Name this project"
+           aria-label="Project name"
+           spellCheck={false}
+           onChange={(e) => setDraft(e.target.value)}
+           onKeyDown={(e) => {
+             e.stopPropagation();
+             if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+             if (e.key === 'Escape') { e.preventDefault(); setDraft(named); e.currentTarget.blur(); }
+           }}
+           onBlur={commit}
+           onPointerDown={(e) => e.stopPropagation()} />
+  );
+}
+
 function RotatingWord({ words = BREADTH_WORDS, intervalMs = 2000 }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -202,14 +264,14 @@ function markLiftHintSeen() {
 // the layerization.
 const CANVAS_PROMOTE_OFF_BELOW = 0.30;
 const CANVAS_PROMOTE_ON_ABOVE = 0.42;
-// Viewport-px margin used when fitting content into the viewport. Full 80 on
-// >640px screens; smaller on phones so a desktop-sized margin (160px of a ~390px
-// screen) doesn't shrink the content to a tiny zoom. Keeps desktop/tablet framing
-// unchanged.
-const fitMargin = (r) => (r.width > 640 ? 80 : Math.max(16, Math.round(r.width * 0.05)));
-// Framing a SELECTION leaves more air than fitting the whole board: the point
-// is to single something out, and a selection pressed to the viewport edges
-// reads as "the board is this" rather than "look at this".
+// fitMargin and selectionMargin live in lib/captureCamera.js, next to the
+// solveFit they are arguments to — see the note there on why the selection one
+// is 8% and not 5%.
+//
+// SELECTION_FIT_MARGIN is the flat value the two NON-camera framing paths below
+// (zoomToSelection, frameCards) still use. They have the same phone bug, but
+// frameCards runs on every card creation and has no mobile coverage, so moving
+// them is its own change with its own test rather than a rider on this one.
 const SELECTION_FIT_MARGIN = 120;
 // Below this canvas width a fit-everything open is a phone, not a desktop.
 const NARROW_FIT_MAX_W = 640;
@@ -385,6 +447,11 @@ export function CanvasSurface({
   // `onDock` prop: the workspace hosts the docked doc so it survives
   // navigating to another cluster.
   onDockDoc = null, dockedDocCardId = null,
+  // A template that just landed in the library (from /templates, a share link or
+  // the public gallery) plus the way to let it go. The canvas owns the prompt
+  // because placing is a canvas verb and pickTemplate already does exactly the
+  // right thing with a row.
+  justAddedTemplate = null, onDismissJustAdded = null,
   // Shoot days are dated CLUSTERS, so these write Postgres (set_board_schedule)
   // rather than the Y.Doc — they can't ride gridActions with the cell mutators.
   onSetSchedule = null, onAddShootDay = null,
@@ -392,6 +459,9 @@ export function CanvasSurface({
   workspaceId, userId, personalWorkspaceId,
   selectedTool = 'select', setSelectedTool = () => {},
   mutators = {},
+  // A dropped FOLDER (App.jsx importFolder): called with this pane's board,
+  // mutators and plan rules, so the folder lands in the cluster it was dropped on.
+  onImportFolder = null,
   autoFocusId, clearAutoFocus,
   useLocalImages = false,
   peersHereByBoard,        // Map<boardId, Peer[]>  — workspace presence
@@ -424,6 +494,7 @@ export function CanvasSurface({
                            // tiles even on a SEEDED (non-empty) root until the user
                            // places their own genuine card (the guided first-card flow).
   boardReady = true,       // the Y.Doc has hydrated. Until it has, cards is []
+  boardSynced = false,     // the SERVER's snapshot is in, not just the instant cache paint
                            // on a board that may hold dozens — the empty panel
                            // must not paint (or log) over a populated board.
   firstBoard = false,      // this person has no cards anywhere yet: the panel is
@@ -431,6 +502,11 @@ export function CanvasSurface({
                            // writing tiles, never a container (lib/firstBoardCopy).
   firstBoardKind = null,   // 'references' | 'moodboard' | 'storyboard' | null —
                            // shapes the first board's headline and hero verb.
+  freshProject = false,    // an empty TOP-LEVEL cluster (a project): it gets the
+                           // first board's treatment — material from elsewhere,
+                           // writing tiles, no empty containers as peers — and a
+                           // name field in place of the rotating headline. A
+                           // next project starts the way a first one does.
   paneId = 'main',         // which pane this surface is ('main' | 'split') —
                            // arbitrates the window-level keyboard/paste
                            // listeners so a split view doesn't double-fire
@@ -558,17 +634,51 @@ export function CanvasSurface({
   // ~line 853 which already resets per-board state).
   const _zoomCountRef = useRef(0);
 
+  // The canvas transform IS the viewport — it is not decoration.
+  //
+  // styles.css carries a global `@media (prefers-reduced-motion: reduce) { *,
+  // *::before, *::after { transform: none !important } }`. An author !important
+  // outranks a normal inline style, so with Reduce Motion on this element's
+  // transform was written sixty times a second and thrown away: the canvas
+  // could not pan or zoom AT ALL, and a capture take played to a frame that
+  // never moved. An inline !important is the one thing that outranks it, and it
+  // is the narrow fix — nothing in CSS sets .canvas's transform (only
+  // transform-origin and a transition), so there is nothing here to override.
+  //
+  // The global rule is right about what it is for. This is a transform that
+  // encodes WHERE YOU ARE LOOKING rather than a movement, which is the
+  // distinction the blanket selector cannot draw.
+  const setTransform = (el, value) => el.style.setProperty('transform', value, 'important');
+
   const canvasRef = useRef(null);
   // Whether the canvas layer is currently GPU-promoted. Hysteresis-gated by
   // zoom (see CANVAS_PROMOTE_* above) so it doesn't flap at the boundary.
   const canvasPromotedRef = useRef(true);
+  // While a scripted camera move is running, the decision above is made ONCE,
+  // for the whole move, and held here. Non-null means "do not re-evaluate".
+  //
+  // Not a different decision — the same one, taken at a better moment. A tween
+  // crosses a threshold somewhere in the middle of its travel, so a take
+  // containing a `fit` tore the compositing layer down around frame 40 of 66:
+  // a layerization change, and everything it evicts, landing mid-shot in a
+  // recording. Deciding at the top of each move puts that work where the camera
+  // is momentarily still — after a hold, or at the cut a take opens with —
+  // which is the one place in a take where a hitch does not show.
+  const cameraPromoteRef = useRef(null);
+  // The hysteresis on its own, so the camera can ask what a given zoom would
+  // decide without also committing to it.
+  const promotionFor = (z, from) => {
+    if (from && z <= CANVAS_PROMOTE_OFF_BELOW) return false;
+    if (!from && z >= CANVAS_PROMOTE_ON_ABOVE) return true;
+    return from;
+  };
   const applyCanvasTransform = () => {
     const el = canvasRef.current;
     if (!el) return;
     const z = zoomRef.current;
-    let promoted = canvasPromotedRef.current;
-    if (promoted && z <= CANVAS_PROMOTE_OFF_BELOW) promoted = false;
-    else if (!promoted && z >= CANVAS_PROMOTE_ON_ABOVE) promoted = true;
+    const promoted = cameraPromoteRef.current !== null
+      ? cameraPromoteRef.current
+      : promotionFor(z, canvasPromotedRef.current);
     canvasPromotedRef.current = promoted;
     if (promoted) {
       // GPU-promoted: translateZ(0) keeps the layer promoted across transform
@@ -576,7 +686,7 @@ export function CanvasSurface({
       // layer would exceed the max raster size; this imperative hint survives).
       // will-change is also set here because this assignment overwrites the
       // CSS-side declaration.
-      el.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${z})`;
+      setTransform(el, `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${z})`);
       if (el.style.willChange !== 'transform') el.style.willChange = 'transform';
     } else {
       // De-promoted at fit-all: a plain 2D transform with NO will-change so the
@@ -584,7 +694,7 @@ export function CanvasSurface({
       // overlap-composited → the 100000² SVG + dozens of card layers collapse
       // into the root layer, rastered at the small displayed scale. Pan
       // re-paints on the CPU, but at ~0.1 scale that region is cheap.
-      el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`;
+      setTransform(el, `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`);
       if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
     }
   };
@@ -888,6 +998,9 @@ export function CanvasSurface({
   // returning true on a write that no-ops would swallow the drag (snap-back).
   const routeCardIntoCell = useCallback((card, gridId, cellId) => {
     if (!card || !gridId || !cellId) return false;
+    // A photo still uploading has no src to put in the cell, and pouring it in
+    // deletes the card its upload is about to land in. It stays a card.
+    if (isStillUploading(card)) return false;
     const k = card.kind;
     // cardById is the stable in-place singleton (declared below; initialized by
     // the time any drop fires) — intentionally NOT in deps.
@@ -1007,6 +1120,14 @@ export function CanvasSurface({
   // lives here and is passed to ImageCard as a fallback src until the
   // upload finishes and the real R2 url lands in the doc.
   const [localImagePreview, setLocalImagePreview] = useState({});
+  // Read by the abandoned-upload sweep: a card with a live preview here is an
+  // upload this tab is still running, however old it is.
+  const localImagePreviewRef = useRef(localImagePreview);
+  localImagePreviewRef.current = localImagePreview;
+  // The sweep debounces on card changes; reading these through refs keeps a
+  // re-render that hands it a new object from resetting its timer for ever.
+  const sweepMutatorsRef = useRef(mutators);
+  sweepMutatorsRef.current = mutators;
 
   // Listen for the EntityLink hover broadcast and translate the refs into
   // a set of card/board ids on this board, so we can ring-highlight them.
@@ -1279,7 +1400,7 @@ export function CanvasSurface({
   // all three reach the same lightbox.
   const openImageLightbox = useCallback((c) => {
     if (!c?.src) return;
-    setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust, cardId: c.id });
+    setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust, cardId: c.id, downloadName: c.fileName || null });
   }, []);
   // Photo editing: compact popover { cardId, anchorRect } and the full-screen
   // editor { cardId }. Both read the live card from `cards` each render so
@@ -1334,6 +1455,14 @@ export function CanvasSurface({
     useWorkspacePalettes(workspaceId);
   useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  // Templates panel (the grid tool's flyout) + the shape it armed. A pending
+  // layout rides along with the 'grid' place-tool: the panel picks the shape,
+  // the next canvas click decides where. Cleared whenever the tool disarms, so a
+  // later bare G never silently reuses the last template someone chose.
+  const [tplPanelOpen, setTplPanelOpen] = useState(false);
+  // The rail's grid button, so the portaled panel can measure where to open.
+  const tplAnchorRef = useRef(null);
+  const [pendingGridLayout, setPendingGridLayout] = useState(null);
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
   const [mobileAdd, setMobileAdd] = useState(null);
@@ -1396,7 +1525,8 @@ export function CanvasSurface({
   // every visit — and logged empty_board_shown on boards holding dozens of cards.
   const emptyPanelVisible = canEdit && !isPublic && boardReady
     && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length)));
-  const panelTiles = firstBoard ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
+  const firstLike = firstBoard || freshProject;
+  const panelTiles = firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
   const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
   useEffect(() => {
     if (!emptyPanelVisible || !board?.id) return;
@@ -1406,12 +1536,12 @@ export function CanvasSurface({
     logEventOnce(`empty_board_shown:${board.id}`, EV.EMPTY_BOARD_SHOWN, {
       board_id: board.id,
       tiles_n: panelTiles.length + 1,        // rendered tiles plus the hero
-      variant: firstBoard ? 'first' : 'full',
+      variant: firstBoard ? 'first' : freshProject ? 'project' : 'full',
       kind: firstBoard ? (firstBoardKind || null) : null,
       is_prompt: !!firstCardPrompt,          // shown over a seeded board, not a bare one
       escalated: !!frictionStuck,            // they'd already tripped the stuck signal
     });
-  }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck, firstBoard, firstBoardKind, panelTiles.length]);
+  }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck, firstBoard, freshProject, firstBoardKind, panelTiles.length]);
 
   // ── Depth dock ──
   // The panel above is the only place the product says "pick several at once",
@@ -1461,7 +1591,45 @@ export function CanvasSurface({
   // actually load-bearing for return — they are different questions asked at
   // different times, and sharing a key would let the cheap one silence the
   // valuable one before it was ever eligible.
-  const mixPromptEligible = shouldPromptMix({
+  // Fatigue (lib/dockFatigue.js): each dock asks on at most two visits to a
+  // board, never on a root that has become a home for projects, and never again
+  // anywhere once this person has waved it away twice. People who come back
+  // mostly come back to look; asking them to add more on every visit was the
+  // most repeated prompt in the product.
+  const [dockVisits, setDockVisits] = useState({ mix: [], depth: [] });
+  const [dockRetiredKinds, setDockRetiredKinds] = useState({ mix: false, depth: false });
+  useEffect(() => {
+    const read = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+    setDockVisits(board?.id ? {
+      mix: parseVisits(read(dockVisitsKey('mix', board.id))),
+      depth: parseVisits(read(dockVisitsKey('depth', board.id))),
+    } : { mix: [], depth: [] });
+    setDockRetiredKinds({
+      mix: dockRetired(read(dockDismissCountKey('mix'))),
+      depth: dockRetired(read(dockDismissCountKey('depth'))),
+    });
+  }, [board?.id]);
+  const dockSession = (() => { try { return getAppSessionId() || null; } catch (_) { return null; } })();
+  const dockHomeRoot = rootHoldsClusters(board, depthGenuine);
+  const dockAllowed = (kind) => !dockHomeRoot && !dockRetiredKinds[kind]
+    && dockVisitAllowed({ visits: dockVisits[kind], session: dockSession });
+  const recordDockVisit = (kind) => {
+    if (!board?.id || !dockSession) return;
+    const next = noteDockVisit(dockVisits[kind], dockSession);
+    if (next === dockVisits[kind]) return;
+    try { localStorage.setItem(dockVisitsKey(kind, board.id), JSON.stringify(next)); } catch (_) {}
+    setDockVisits((prev) => ({ ...prev, [kind]: next }));
+  };
+  const noteDockDismissed = (kind) => {
+    try {
+      const k = dockDismissCountKey(kind);
+      const n = (Number(localStorage.getItem(k)) || 0) + 1;
+      localStorage.setItem(k, String(n));
+      if (dockRetired(n)) setDockRetiredKinds((prev) => ({ ...prev, [kind]: true }));
+    } catch (_) {}
+  };
+
+  const mixPromptEligible = dockAllowed('mix') && shouldPromptMix({
     images: mixImageCount,
     text: mixTextCount,
     dismissed: mixPromptDismissed,
@@ -1509,7 +1677,7 @@ export function CanvasSurface({
   // Mix wins the dock outright where the two bands overlap: at 3-5 images with
   // no writing both are true, and "add more of the thing that doesn't predict
   // return" is the offer being corrected.
-  const depthDockVisible = !mixPromptVisible && shouldShowDepthDock({
+  const depthDockVisible = !mixPromptVisible && dockAllowed('depth') && shouldShowDepthDock({
     genuine: depthGenuineCount,
     dismissed: depthDockDismissed,
     canEdit,
@@ -1517,24 +1685,29 @@ export function CanvasSurface({
   });
   useEffect(() => {
     if (!depthDockVisible || !board?.id) return;
+    recordDockVisit('depth');
     logEventOnce(`depth_dock_shown:${board.id}`, EV.DEPTH_DOCK_SHOWN, {
       board_id: board.id,
       cards: depthGenuineCount,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depthDockVisible, board?.id, depthGenuineCount]);
 
   useEffect(() => {
     if (!mixPromptVisible || !board?.id) return;
+    recordDockVisit('mix');
     logEventOnce(`mix_prompt_shown:${board.id}`, EV.MIX_PROMPT_SHOWN, {
       board_id: board.id,
       images: mixImageCount,
       text: mixTextCount,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mixPromptVisible, board?.id, mixImageCount, mixTextCount]);
 
   const dismissDepthDock = () => {
     setDepthDockDismissed(true);
     try { if (depthDockKey) localStorage.setItem(depthDockKey, '1'); } catch (_) {}
+    noteDockDismissed('depth');
     try {
       logEvent(EV.DEPTH_DOCK_DISMISSED, { board_id: board?.id || null, cards: depthGenuineCount });
     } catch (_) {}
@@ -1543,6 +1716,7 @@ export function CanvasSurface({
   const dismissMixPrompt = () => {
     setMixPromptDismissed(true);
     try { if (mixPromptKey) localStorage.setItem(mixPromptKey, '1'); } catch (_) {}
+    noteDockDismissed('mix');
     try {
       logEvent(EV.MIX_PROMPT_DISMISSED, { board_id: board?.id || null, images: mixImageCount });
     } catch (_) {}
@@ -1591,7 +1765,7 @@ export function CanvasSurface({
     // refresh, the local harness sets React state — and a caller that opened it
     // itself would silently no-op against a stale map. Asking for it by option
     // lets each host do the part it actually knows about.
-    const newId = await mutators.addNewBoard?.(pos, { openAfter: wasFirst });
+    const newId = await mutators.addNewBoard?.(pos, { openAfter: wasFirst, via: method });
     if (!wasFirst || !newId || !onOpenBoard) return;
     const parentId = board?.id || null;
     try { logEvent(EV.CLUSTER_AUTO_OPEN, { board_id: parentId, new_board_id: newId, method }); } catch (_) {}
@@ -1621,7 +1795,26 @@ export function CanvasSurface({
     noteCreateIntent('tool_place', selectedTool);
     switch (selectedTool) {
       case 'board':   addClusterCard(pos, 'tool_place'); break;
-      case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
+      // A layout armed by the Templates panel wins; a bare G (or the right-click
+      // Add ▸ Grid, which never opens the panel) still gets the default shape.
+      // The size rides along because a layout is proportions, and a set of
+      // proportions is only the shape it means at one aspect ratio — the
+      // six-panel storyboard placed at the default 360×300 has square panels.
+      // Spread so a template without one keeps addGrid's own default.
+      case 'grid':    mutators.addGrid?.(pos, pendingGridLayout
+                        ? {
+                          layout: pendingGridLayout.tree,
+                          hints: pendingGridLayout.hints,
+                          textStyle: pendingGridLayout.textStyle,
+                          ...(pendingGridLayout.size || {}),
+                        }
+                        : { preset: 'storyboard-1-2' });
+                      // The grid is down, so the "you just added this" prompt has
+                      // done its job. Cleared on ANY grid placement rather than
+                      // only the armed one: once there is a grid on the canvas,
+                      // an offer to place one is noise.
+                      onDismissJustAdded?.();
+                      break;
       // Multi-select, like every other image entry point — see the 'image'
       // add-action for why singular was costing day-one depth.
       case 'image':   pickPhotosAtRef.current?.(pos, 'tool_place'); break;
@@ -1856,12 +2049,29 @@ export function CanvasSurface({
     const fn = easingFor(ease);
     const from = { zoom: zoomRef.current, pan: { ...panRef.current } };
     // A zero-duration move is a CUT, not a tween — used to set a starting pose
-    // before a take begins. Commit it and get out.
+    // before a take begins.
+    //
+    // It has to write the REFS, not just React state. applyCamera is setZoom +
+    // setPan; the refs are updated by the layout effect that runs after the
+    // commit, and runMoves resumes on a microtask while React's commit is a
+    // macrotask — so the next move's solveMove() and `from` both read the
+    // pre-cut pose. Deterministically, not intermittently: a macrotask cannot
+    // interleave into a microtask chain. Both takes that chain a cut straight
+    // into a move with no hold — sweep and drift — were silently throwing away
+    // their opening fit.
     if (!(ms > 0)) {
+      zoomRef.current = cam.zoom;
+      panRef.current = { ...cam.pan };
+      applyCanvasTransform();
       applyCamera(cam);
       scheduleVisibleRecompute?.();
+      emitCanvasSettle();
       return Promise.resolve();
     }
+    // Decide the layerization for this move against where it is GOING, and hold
+    // it. See cameraPromoteRef.
+    cameraPromoteRef.current = promotionFor(cam.zoom, canvasPromotedRef.current);
+    applyCanvasTransform();
     const t0 = performance.now();
     return new Promise((resolve) => {
       const step = (now) => {
@@ -1870,12 +2080,24 @@ export function CanvasSurface({
         const s = sampleTween(from, cam, t, fn);
         zoomRef.current = s.zoom;
         panRef.current = s.pan;
+        // The same two lines every live pan runs (see startPan's onMove). A
+        // camera move is a gesture that happens to have no finger on it, and
+        // the machinery that keeps a pan smooth — ADD-only culling, and the
+        // image-tier scheduler holding its drains — keys off exactly this.
+        // Without it the mount set was frozen at the pose the take STARTED
+        // from for the whole travel, so a pull-back revealed board area whose
+        // cards would not appear until the move had already finished.
+        gestureUntilRef.current = performance.now() + 200;
+        markGestureActiveUntil(gestureUntilRef.current);
         applyCanvasTransform();
+        scheduleVisibleRecompute?.();
         if (t < 1) {
           cameraRafRef.current = requestAnimationFrame(step);
         } else {
           // One state commit at the end, so culling and image tiers re-evaluate
-          // against the settled pose rather than against every frame.
+          // against the settled pose rather than against every frame. The
+          // settle itself is emitted once per SEQUENCE, in runMoves — a settle
+          // per move would fire texture swaps inside the next move's tween.
           applyCamera(cam);
           scheduleVisibleRecompute?.();
           resolve();
@@ -1910,11 +2132,11 @@ export function CanvasSurface({
       case 'selection': {
         const ids = [...selectedRef.current];
         const sel = ids.length ? all.filter(c => ids.includes(c.id)) : all;
-        return framed(sel, ids.length ? SELECTION_FIT_MARGIN : fitMargin(r));
+        return framed(sel, ids.length ? selectionMargin(r) : fitMargin(r));
       }
       case 'card': {
         const one = all.filter(c => c.id === move.id);
-        return one.length ? framed(one, SELECTION_FIT_MARGIN) : null;
+        return one.length ? framed(one, selectionMargin(r)) : null;
       }
       case 'zoom': {
         // Around the viewport centre, mirroring zoomAroundCenter's math so a
@@ -1944,21 +2166,58 @@ export function CanvasSurface({
 
   // Play a sequence. Sequential by construction — each move resolves before the
   // next is solved.
-  const runMoves = useCallback(async (moves) => {
+  //
+  // The whole sequence counts as ONE gesture. Holding the flag across the holds
+  // as well as the tweens is deliberate: the image-tier scheduler bails while a
+  // gesture is live, so the take gets exactly one promote drain — at the end,
+  // against the pose actually filmed — instead of texture swaps landing inside
+  // the next move. `take` is carried through only so the finished event can say
+  // which sequence ended.
+  const runMoves = useCallback(async (moves, take = null) => {
     const list = normalizeMoves(moves);
     if (!list.length) return;
     const run = ++cameraRunRef.current;
-    for (const move of list) {
-      if (cameraRunRef.current !== run) return;      // superseded
-      if (move.type === 'hold') {
-        await new Promise(res => setTimeout(res, move.ms));
-        continue;
+    try {
+      for (const move of list) {
+        if (cameraRunRef.current !== run) return;      // superseded
+        // Cover this move plus a beat, so a hold longer than the tween's own
+        // 200ms window does not drop the sequence out of gesture mode and let a
+        // strict prune run mid-take.
+        gestureUntilRef.current = performance.now() + (move.ms || 0) + 250;
+        markGestureActiveUntil(gestureUntilRef.current);
+        if (move.type === 'hold') {
+          await new Promise(res => setTimeout(res, move.ms));
+          continue;
+        }
+        const cam = solveMove(move);
+        if (!cam) continue;
+        await tweenCameraTo(cam, move.ms, move.ease, run);
       }
-      const cam = solveMove(move);
-      if (!cam) continue;
-      await tweenCameraTo(cam, move.ms, move.ease, run);
+    } finally {
+      // Hand layerization back to the ordinary hysteresis — but only if we
+      // still own the run. A superseding sequence has already pinned its own,
+      // and clearing it here would drop that on the floor.
+      if (cameraRunRef.current === run) {
+        cameraPromoteRef.current = null;
+        applyCanvasTransform();
+      }
     }
-  }, [solveMove, tweenCameraTo]);
+    if (cameraRunRef.current !== run) return;        // superseded on the last move
+    // The sequence is over: drop the gesture flag, prune strictly against the
+    // pose we landed on, and let the tier scheduler do its one pass.
+    gestureUntilRef.current = 0;
+    markGestureActiveUntil(0);
+    scheduleVisibleRecompute();
+    emitCanvasSettle();
+    // Say so out loud. takeDuration() is arithmetic over the move list, but a
+    // hold is a setTimeout and a tween is rAF, so the real wall clock drifts a
+    // little per move — and every caller that wants to know when a take is
+    // finished (the HUD's auto-stop, the shot CLI) was guessing that number and
+    // adding a fudge. This is the answer.
+    document.dispatchEvent(new CustomEvent('soleil-capture-camera-done', {
+      detail: { take },
+    }));
+  }, [solveMove, tweenCameraTo, scheduleVisibleRecompute]);
 
   // Fit the entire board content into the viewport. Wired to a
   // double-tap on the zoom % control (replaces what used to happen
@@ -2038,7 +2297,7 @@ export function CanvasSurface({
       // Three shapes, one event: a named take, an explicit list of moves (what
       // the shot list sends), or a single target (what the HUD's two buttons
       // send). All of them end up in the same player.
-      if (d.take) return void runMoves(resolveTake(d.take));
+      if (d.take) return void runMoves(resolveTake(d.take), d.take);
       if (Array.isArray(d.moves)) return void runMoves(d.moves);
       runMoves([{
         type: d.target === 'selection' ? 'selection' : 'fit',
@@ -2153,6 +2412,332 @@ export function CanvasSurface({
     for (const c of (cards || [])) { m[c.id] = c; seen.add(c.id); }
     for (const k of Object.keys(m)) { if (!seen.has(k)) delete m[k]; }
   }
+
+  // ── Templates panel ────────────────────────────────────────────────────────
+  // Built-ins are a module constant, so the panel always has something to show:
+  // offline, signed out, and under ?local=1 (which has no supabase client at
+  // all). Saved rows are fetched lazily the first time the panel opens — see
+  // useGridLayouts for why this is not a realtime subscription.
+  //
+  // ?local=1 passes the literal 'local-workspace' rather than a uuid, so the
+  // truthiness check alone is not enough to keep the harness off the network.
+  //
+  // The whole panel is part of the template store, which is held off production
+  // (lib/templatePaths.js). Held, the grid tool is a plain tool again — exactly
+  // what production had before the store — and nothing here reads or writes a
+  // saved template.
+  const templateStoreOpen = templateStoreAllowed();
+  const templatesEnabled = templateStoreOpen && !!userId && !!workspaceId && workspaceId !== 'local-workspace';
+  const { rows: savedLayouts, community: publishedLayouts,
+    ensureLoaded: ensureGridLayouts, reload: reloadGridLayouts } =
+    useGridLayouts(templatesEnabled ? userId : null);
+  useEffect(() => { if (tplPanelOpen) ensureGridLayouts(); }, [tplPanelOpen, ensureGridLayouts]);
+
+  // One RLS query returns everything the caller may see, so the split into
+  // sections happens here rather than as two round-trips. "Workspace" shows only
+  // the ACTIVE workspace — a member of three workspaces shouldn't see all three
+  // libraries stacked in one panel.
+  const templateSections = useMemo(() => {
+    const personal = savedLayouts.filter((r) => r.created_by === userId && r.scope !== 'workspace');
+    // origin (0270) is what separates a template you built from a copy you took
+    // off a share link or the gallery — both are scope:'user' rows you own, so
+    // without it they pile into one indistinguishable list.
+    const mine = rowsFromRecords(personal.filter((r) => (r.origin || 'own') === 'own'), SOURCES.USER);
+    // WHERE YOU GOT IT IS THE SECTION IT LIVES IN.
+    //
+    // 'link' and 'gallery' both used to land in Downloaded, so a template you
+    // took from the community store turned up in a section that said nothing
+    // about the community. Downloaded now means what it says — a copy off a
+    // private share link — and a gallery copy joins the Community section it
+    // came from, listed above the public rows because it is yours: renameable,
+    // deletable, and still there if the original is ever taken down.
+    const downloaded = rowsFromRecords(personal.filter((r) => (r.origin || 'own') === 'link'), SOURCES.DOWNLOADED);
+    const takenFromGallery = rowsFromRecords(
+      personal.filter((r) => (r.origin || 'own') === 'gallery'), SOURCES.COMMUNITY,
+    );
+    const workspace = rowsFromRecords(
+      savedLayouts.filter((r) => r.scope === 'workspace' && r.workspace_id === workspaceId),
+      SOURCES.WORKSPACE,
+    );
+    // The STORE, in the panel. Shopping the catalogue used to mean leaving the
+    // app for /templates, adding to your library, coming back and finding it
+    // under Yours — four steps to place a grid. Here it is one click, and
+    // pickTemplate already does the right thing with it.
+    const store = TEMPLATE_CARDS.map((t) => {
+      const layout = layoutById(t.preset);
+      return layout && {
+        key: `store:${t.slug}`, id: t.slug, name: t.h1,
+        tree: layout.tree, source: SOURCES.STORE, hints: t.hints || null,
+        // The proportions the layout means: a storyboard's panels are only 16:9
+        // at the size it was drawn for.
+        size: t.size || null,
+      };
+    }).filter(Boolean);
+    // Published by other people. Sanitized on the way out as well as in — these
+    // trees were authored by strangers and computeCellRects recurses without a
+    // depth guard.
+    // Everything of yours that is already a copy of a community template, so the
+    // public list below can skip it. Two keys because there are two ways to
+    // already have one:
+    //   publishedSlug — exact. A template YOU published is in the public list;
+    //                   without this it showed under both Yours and Community.
+    //   name          — best effort, for a gallery copy. The copy keeps the
+    //                   source's name and publishing defaults the title to it,
+    //                   so this matches in practice; an exact key would need the
+    //                   source slug recorded on the copy, which is a migration.
+    const ownedSlugs = new Set([...mine, ...workspace].map((r) => r.publishedSlug).filter(Boolean));
+    const ownedNames = new Set(takenFromGallery.map((r) => (r.name || '').trim().toLowerCase()));
+    const published = (publishedLayouts || []).map((r) => {
+      const tree = sanitizeLayout(r.body?.layout);
+      if (!tree) return null;
+      if (ownedSlugs.has(r.slug)) return null;
+      if (ownedNames.has(String(r.title || '').trim().toLowerCase())) return null;
+      return {
+        key: `community:${r.slug}`, id: r.slug, name: r.title,
+        tree, source: SOURCES.COMMUNITY, hints: sanitizeHints(r.body?.hints),
+        textStyle: r.body?.textStyle || null,
+        size: sanitizeSize(r.body?.size),
+      };
+    }).filter(Boolean);
+    const community = [...takenFromGallery, ...published];
+    return mergeSections({ mine, workspace, downloaded, store, community });
+  }, [savedLayouts, publishedLayouts, userId, workspaceId]);
+
+  // The grid a template would re-cut: exactly one card selected and it IS a grid.
+  // Anything else — nothing selected, a multi-select, a note — means "place a new
+  // one", which is what the panel's header hint says. Deliberately not memoized:
+  // cardById is a mutable ref object, so a memo keyed on it would never notice a
+  // card changing kind underneath it.
+  const templateTargetId = (() => {
+    if (selected.size !== 1) return null;
+    const id = [...selected][0];
+    return cardById[id]?.kind === 'grid' ? id : null;
+  })();
+  // Mirrored into a ref so pickTemplate keeps stable deps — it is handed to a
+  // child and would otherwise re-identify on every selection change.
+  const templateTargetIdRef = useRef(null);
+  templateTargetIdRef.current = templateTargetId;
+
+  const pickTemplate = useCallback((row) => {
+    if (!row?.tree) return;
+    if (!templateTargetIdRef.current) {
+      // Nothing to re-cut → arm the placer and let the next canvas click say where.
+      setPendingGridLayout({
+        tree: row.tree, hints: row.hints || null, textStyle: row.textStyle || null,
+        size: row.size || null,
+      });
+      setSelectedTool('grid');
+      return;
+    }
+    const res = mutators.applyGridLayout?.(templateTargetIdRef.current, row.tree, row.hints || null);
+    if (!res) {
+      feedback.toast({ type: 'error', message: 'Could not apply that template.' });
+      return;
+    }
+    const um = mutators.undoManager;
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    // Only speak up when the apply cost something or reached past the one grid
+    // they had selected. A clean re-cut of a single grid needs no announcement —
+    // they can see what happened.
+    const parts = [];
+    if (res.affected > 1) parts.push(`Re-cut ${res.affected} linked grids`);
+    if (res.dropped) parts.push(`${res.dropped} filled ${res.dropped === 1 ? 'cell' : 'cells'} removed`);
+    if (parts.length) {
+      undoToast(feedback, {
+        message: parts.join(' · '),
+        undoManager: um,
+        stackItem: item,
+        onUndo: () => mutators.undo?.(),
+      });
+    }
+  }, [mutators, feedback, setSelectedTool]);
+
+  // Disarming the tool — Escape, picking another tool, or placing the card —
+  // drops the armed shape, so a later bare G never silently reuses whatever
+  // template was chosen minutes ago.
+  useEffect(() => { if (selectedTool !== 'grid') setPendingGridLayout(null); }, [selectedTool]);
+
+  // Save the selected grid's SHAPE. Link-aware: a grid in a linked family reads
+  // its layout from the shared record, so reaching for card.layout would save
+  // null for exactly the grids most worth saving. Same resolution the text-style
+  // path uses further down.
+  // Opening the dialog needs the shape; saving needs the shape AND the labels,
+  // so the grid's layout is captured when the dialog opens rather than read
+  // again on submit — the selection can change while a modal is up.
+  const [saveTplLayout, setSaveTplLayout] = useState(null);
+  const openSaveTemplate = useCallback((gridId = null) => {
+    // An explicit id for the card context menu, which knows exactly which grid
+    // was right-clicked. The panel footer passes nothing and falls back to the
+    // selection — reading the ref there is correct because it was already
+    // rendered from it.
+    const id = gridId || templateTargetIdRef.current;
+    const card = id ? cardById[id] : null;
+    if (!card) return;
+    const layout = card.templateId ? gridTemplates?.[card.templateId]?.layout : card.layout;
+    const textStyle = card.templateId ? gridTemplates?.[card.templateId]?.textStyle : card.textStyle;
+    const clean = sanitizeLayout(layout);
+    if (!clean) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
+    // The card's own proportions ride along, so a grid you built as a storyboard
+    // comes back as one. Read here rather than at submit for the same reason the
+    // layout is: the selection can change while the dialog is up.
+    setSaveTplLayout({ layout: clean, textStyle: textStyle || null, size: { w: card.w, h: card.h } });
+  }, [cardById, gridTemplates, feedback]);
+
+  const commitSaveTemplate = async ({ name, hints, publish, description }) => {
+    const pending = saveTplLayout;
+    setSaveTplLayout(null);
+    if (!pending || !userId) return;
+    const body = bodyFromGrid(pending.layout, pending.textStyle, hints, pending.size);
+    if (!body) { feedback.toast({ type: 'error', message: 'Could not read that grid.' }); return; }
+    try {
+      const row = await saveGridLayout({ name: name.slice(0, 80), body, scope: 'user', userId });
+      const labelled = (hints || []).filter((h) => h.trim()).length;
+      // Publishing is a SECOND step that can fail on its own — most usefully on
+      // the two-cell store gate. Saving already succeeded by then, so the
+      // failure toast has to say that rather than implying the whole thing was
+      // lost. The raw Postgres message is surfaced because it is the one that
+      // explains the gate.
+      if (publish && row?.id) {
+        try {
+          await publishGridLayout(row.id, name.slice(0, 80), description || null);
+          await reloadGridLayouts();
+          feedback.toast({
+            message: 'Saved and shared in the store.',
+            actionLabel: 'View',
+            onAction: () => window.open('/templates', '_blank', 'noopener'),
+          });
+          return;
+        } catch (e) {
+          await reloadGridLayouts();
+          feedback.toast({ type: 'info', message: `Saved, but not shared — ${e?.message || 'try again from its ··· menu.'}` });
+          return;
+        }
+      }
+      await reloadGridLayouts();
+      feedback.toast({
+        message: labelled
+          ? `Saved “${name}” with ${labelled} ${labelled === 1 ? 'label' : 'labels'}.`
+          : `Saved “${name}” to your templates.`,
+      });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not save that template.' });
+    }
+  };
+
+  const templateRowActions = useCallback((row) => {
+    const isMine = row.ownerId === userId;
+    const acts = [];
+    acts.push({
+      id: 'rename',
+      label: 'Rename…',
+      run: async () => {
+        const next = await feedback.prompt({
+          title: 'Rename template', label: 'Name', defaultValue: row.name, confirmLabel: 'Rename',
+        });
+        if (!next || !next.trim() || next.trim() === row.name) return;
+        try { await renameGridLayout(row.id, next.trim().slice(0, 80)); await reloadGridLayouts(); }
+        catch (e) { feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) }); }
+      },
+    });
+    if (isMine) {
+      const toWorkspace = row.source !== SOURCES.WORKSPACE;
+      acts.push({
+        id: 'scope',
+        label: toWorkspace ? 'Share with workspace' : 'Make private',
+        run: async () => {
+          try {
+            await setGridLayoutScope(row.id, toWorkspace ? 'workspace' : 'user', workspaceId);
+            await reloadGridLayouts();
+            feedback.toast({ message: toWorkspace ? 'Shared with your workspace.' : 'Now private to you.' });
+          } catch (e) { feedback.toast({ type: 'error', message: 'Could not change sharing: ' + (e.message || e) }); }
+        },
+      });
+      acts.push({
+        id: 'link',
+        label: 'Copy share link',
+        run: async () => {
+          try {
+            const token = await createGridLayoutLink(row.id);
+            const url = `${window.location.origin}/t/${token}`;
+            // Clipboard can be denied; showing the URL is a worse-but-real
+            // fallback rather than a silent failure.
+            try { await navigator.clipboard.writeText(url); feedback.toast({ message: 'Share link copied.' }); }
+            catch (_) { feedback.toast({ message: url, ttl: 12000 }); }
+          } catch (e) { feedback.toast({ type: 'error', message: 'Could not create a link: ' + (e.message || e) }); }
+        },
+      });
+    }
+    if (isMine) {
+      // Publishing is immediate — there is no review queue — so the copy says
+      // "everyone", not "submit". Offering only the action that applies keeps
+      // the row from asking the user to guess its own state.
+      acts.push(row.publishedSlug ? {
+        id: 'unpublish',
+        label: 'Remove from the store',
+        run: async () => {
+          try {
+            await unpublishGridLayout(row.id);
+            await reloadGridLayouts();
+            feedback.toast({ message: 'Removed from the store.' });
+          } catch (e) { feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) }); }
+        },
+      } : {
+        id: 'publish',
+        label: 'Share in the store…',
+        run: async () => {
+          // A prompt rather than a confirm, because the description IS the tile
+          // line in the store. Publishing used to pass null here, so every
+          // community template arrived with no line under its name — the one
+          // field a shopper actually reads.
+          const desc = await feedback.prompt({
+            title: 'Share in the template store?',
+            message: `“${row.name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time.`,
+            label: 'One line about it (optional)',
+            placeholder: 'Three locations, three frames each — wide, detail, light.',
+            confirmLabel: 'Share it',
+          });
+          // prompt resolves '' for an empty field and null only on cancel, so
+          // this distinguishes "no description" from "changed my mind".
+          if (desc === null || desc === undefined) return;
+          try {
+            const res = await publishGridLayout(row.id, row.name, String(desc).trim() || null);
+            await reloadGridLayouts();
+            feedback.toast({
+              message: 'Shared in the store.',
+              action: res?.slug ? { label: 'View', onClick: () => window.open('/templates', '_blank', 'noopener') } : undefined,
+            });
+          } catch (e) {
+            // The 2-cell quality gate raises 22023 with a human-readable
+            // message; surfacing it verbatim beats inventing a vaguer one.
+            feedback.toast({ type: 'error', message: e.message || 'Could not publish.' });
+          }
+        },
+      });
+    }
+    acts.push({
+      id: 'delete',
+      label: 'Delete',
+      danger: true,
+      run: async () => {
+        try {
+          await deleteGridLayout(row.id);
+          await reloadGridLayouts();
+          // Soft delete, so Undo is a closure that clears deleted_at — no
+          // UndoManager stack item is involved, which is the shape undoToast
+          // documents for server-side operations.
+          undoToast(feedback, {
+            message: `“${row.name}” deleted`,
+            onUndo: async () => {
+              try { await restoreGridLayout(row.id); await reloadGridLayouts(); }
+              catch (e) { feedback.toast({ type: 'error', message: 'Could not restore: ' + (e.message || e) }); }
+            },
+          });
+        } catch (e) { feedback.toast({ type: 'error', message: 'Could not delete: ' + (e.message || e) }); }
+      },
+    });
+    return acts;
+  }, [userId, workspaceId, feedback, reloadGridLayouts]);
 
   // Refs that always mirror the latest cards / selection — used by
   // pointer-event closures (which capture state at pointer-down) so
@@ -2555,8 +3140,8 @@ export function CanvasSurface({
     }
     // Used by the "replace image" path on existing cards — keeps the
     // synchronous-await contract since there's no card to add.
-    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId });
-    return { publicUrl: up.src, width: up.width, height: up.height, x, y };
+    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId, originalName: meaningfulFileName(file) });
+    return { publicUrl: up.src, width: up.width, height: up.height, x, y, fileName: meaningfulFileName(file) };
   }, [useLocalImages, workspaceId, board?.id, userId]);
 
   // Optimistic image drop/paste. Adds the card immediately with a local
@@ -2715,15 +3300,19 @@ export function CanvasSurface({
       x: placed.x, y: placed.y,
       w, h,
       pending: true,
+      // The file's own name, when it has a real one (not a paste's "image.png").
+      ...fileMetaFor(file),
     });
     try {
       const onProgress = (frac) => {
         setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       };
-      const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       // If the user navigated to a different board mid-upload, the active
       // mutators no longer target the board this card lives on — skip the
-      // patch (the abandoned-pending sweep cleans the card on next open).
+      // patch. The upload has landed with the card id on its images row, so
+      // the abandoned-upload sweep below recovers the src on the board's next
+      // open (lib/abandonedUploads.js).
       if (boardIdRef.current === dropBoardId) {
         // Silent (origin 'upload'): the async src patch must not be its own
         // undo step, or Cmd+Z first "peels" the image back to pending
@@ -2745,6 +3334,126 @@ export function CanvasSurface({
       if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage, handleUploadReject]);
+
+  // Abandoned uploads (lib/abandonedUploads.js): photo cards saved without
+  // their file by a page that went away mid-upload. Writers only, a few seconds
+  // after the board settles — and only once the SERVER's snapshot is in: the
+  // instant cache paint can be a day old, showing a card unfinished that
+  // another device has since completed. Recover each one whose original reached
+  // the images table (only the src patch was lost); remove the ones past a day
+  // — never sooner, since another tab or device could still be uploading — and
+  // say so once. This is a cleanup of placeholders that never held anything,
+  // not a delete of someone's work, so it carries a plain notice rather than an
+  // undo — undoing would restore cards that can never load.
+  //
+  // A card looked up and left (not found, under a day old) is not looked up
+  // again on every render — the cards array changes on every edit — but once
+  // SWEEP_RECHECK_MS has passed.
+  // Scoped to the board: this surface isn't remounted between clusters, and a
+  // map carried across would skip the next open's look on a card seen minutes
+  // ago on the last visit.
+  const sweepCheckedRef = useRef({ boardId: null, at: new Map() });   // card id → when last looked up
+  useEffect(() => {
+    if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
+    const now = Date.now();
+    if (sweepCheckedRef.current.boardId !== board.id) sweepCheckedRef.current = { boardId: board.id, at: new Map() };
+    const checked = sweepCheckedRef.current.at;
+    const stale = cards.filter((c) => isAbandonedUpload((k) => c[k], now)
+      && !localImagePreviewRef.current?.[c.id]
+      && !(now - (checked.get(c.id) || 0) < SWEEP_RECHECK_MS));
+    if (!stale.length) return undefined;
+    const sweepBoardId = board.id;
+    const t = setTimeout(async () => {
+      const ids = stale.map((c) => c.id);
+      const found = new Map();
+      try {
+        const { data, error } = await supabase.from('images')
+          .select('card_id, storage_path')
+          .eq('board_id', sweepBoardId)
+          .in('card_id', ids)
+          .is('deleted_at', null);
+        // Never remove on a read that failed: "we could not look" is not "the
+        // file is not there".
+        if (error) return;
+        for (const r of data || []) if (r.card_id && r.storage_path) found.set(r.card_id, r.storage_path);
+      } catch (_) { return; }
+      if (boardIdRef.current !== sweepBoardId) return;
+      const at = Date.now();
+      for (const id of ids) checked.set(id, at);
+      // Judge each card as it is NOW, not as it was when the timer was set (or
+      // before the query's await): one finished meanwhile is left alone.
+      const live = new Map((cardsRef.current || []).map((c) => [c.id, c]));
+      const swept = ids
+        .map((id) => live.get(id))
+        .filter((c) => c && isAbandonedUpload((k) => c[k], at) && !localImagePreviewRef.current?.[c.id])
+        .map((c) => ({ id: c.id, age: uploadAge((k) => c[k], at) }));
+      const plan = planAbandonedSweep(swept, found);
+      const m = sweepMutatorsRef.current;
+      for (const r of plan.recover) m?.updateCardSilent?.(r.id, { src: r.src, pending: false });
+      // Say only what actually happened: a delete that did nothing (a guarded
+      // mutator) is not "removed".
+      const removed = plan.remove.length ? (Number(m?.deleteCardsSilent?.(plan.remove, { refund: false })) || 0) : 0;
+      if (removed) feedbackRef.current?.toast?.({ type: 'info', message: abandonedNotice(removed), ttl: 9000 });
+      // Logged when something was done, not every time a card was looked at
+      // and left for later.
+      if (plan.recover.length || removed) {
+        try {
+          logEvent(EV.UPLOAD_ABANDONED, {
+            board_id: sweepBoardId, n: swept.length, recovered: plan.recover.length, removed,
+          });
+        } catch (_) {}
+      }
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);
+
+  // Web images placed before copies were kept (lib/hotlinkBackfill.js): a
+  // writer's open of the board copies a few, one at a time, once the board has
+  // settled and the SERVER's snapshot is in — the sweep's gate, above. Silent:
+  // a card that cannot be copied stays the link it was.
+  const hotlinkPassRef = useRef({ boardId: null, n: 0, attempted: new Set() });
+  useEffect(() => {
+    if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
+    if (hotlinkPassRef.current.boardId !== board.id) hotlinkPassRef.current = { boardId: board.id, n: 0, attempted: new Set() };
+    const pass = hotlinkPassRef.current;
+    const store = (() => { try { return window.localStorage; } catch (_) { return null; } })();
+    const picks = pickHotlinks(cards, {
+      attempted: pass.attempted, tried: loadTried(store), limit: HOTLINK_PER_OPEN - pass.n,
+    });
+    if (!picks.length) return undefined;
+    const passBoardId = board.id;
+    const t = setTimeout(async () => {
+      for (const c of picks) {
+        const tag = `${c.id}|${c.src}`;
+        if (pass.attempted.has(tag) || pass.n >= HOTLINK_PER_OPEN || boardIdRef.current !== passBoardId) return;
+        pass.attempted.add(tag);
+        pass.n += 1;
+        const res = await saveWebImageCopy({
+          url: c.src, boardId: passBoardId, cardId: c.id,
+          getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
+        });
+        const code = res?.ok ? 'saved' : (res?.code || 'unknown');
+        try {
+          logEvent(EV.WEB_IMAGE_SAVE, {
+            board_id: passBoardId, source: 'backfill', ok: !!res?.ok, code, bytes: res?.ok ? (res.bytes ?? null) : null,
+          });
+        } catch (_) {}
+        if (!res?.ok) {
+          if (stopsThePass(code)) return;
+          saveTried(store, noteTried(loadTried(store), c.src, code));
+          continue;
+        }
+        if (boardIdRef.current !== passBoardId) return;
+        // Judged as the card is NOW: one edited or re-pointed meanwhile is left alone.
+        const live = (cardsRef.current || []).find((x) => x.id === c.id);
+        if (!live || live.src !== c.src) continue;
+        sweepMutatorsRef.current?.updateCardSilent?.(c.id, {
+          src: res.src, sourceUrl: c.src, ...(res.fileName && !live.fileName ? { fileName: res.fileName } : {}),
+        });
+      }
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);
 
   // Drop a PDF: add a pending card immediately, then upload + render the
   // page-1 thumbnail in the background (same optimistic pattern as images).
@@ -2771,7 +3480,7 @@ export function CanvasSurface({
                          x: placed.x, y: placed.y, w, h, pending: true });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
         mutators.updateCardSilent?.(id, {
           src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
@@ -2813,7 +3522,7 @@ export function CanvasSurface({
                          sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h, pending: true });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
         mutators.updateCardSilent?.(id, {
           fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
@@ -2838,16 +3547,25 @@ export function CanvasSurface({
       w = Math.max(240, Math.min(560, meta.w || 360));
       const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
       h = Math.max(160, Math.round(w * aspect));
+      extra = { ...fileMetaFor(file) };
     } else {
       const meta = await readAudioMeta(file);
-      w = 380; h = 130; extra = { title: file.name || 'Audio', duration: meta.duration || null };
+      ({ w, h } = FALLBACK_DIMS.audio);
+      // Same fileName/ext/mime/sizeBytes contract as dropAudioFile — `title` is
+      // the editable display name, `fileName` is what downloads are named from.
+      extra = {
+        title: file.name || 'Audio', duration: meta.duration || null,
+        fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null,
+        ext: (file.name?.split('.').pop() || '').toLowerCase(),
+        ...parseLoopMeta(file.name),
+      };
     }
     const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const placed = placeDropRect(cx, cy, w, h, rect);
     mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { src: up.src, pending: false });
       // Poster from the local File, not from a re-download. Without this the
       // card is posterless until useVideoPosterBackfill rescues it by fetching
@@ -2856,6 +3574,17 @@ export function CanvasSurface({
       if (kind === 'video') {
         const poster = await captureAndUploadPoster({ file, workspaceId, boardId: dropBoardId, userId });
         if (poster && boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { poster });
+      } else if (kind === 'audio') {
+        // Same reason as the poster above: the File is already in hand, and
+        // this route exists for the files you'd least want to re-download.
+        // Most land over AUDIO_ANALYZE_MAX_BYTES and come back null — that is
+        // the flat strip, which is honest.
+        const a = await analyzeAudioFile(file, { lowMemory: lowMemoryDevice() });
+        if (boardIdRef.current === dropBoardId) {
+          mutators.updateCardSilent?.(id, a
+            ? { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 }
+            : { analyzed: analyzable({ sizeBytes: file.size || 0, lowMemory: lowMemoryDevice() }) ? 1 : null });
+        }
       }
     } catch (err) {
       console.error('large media upload failed', err);
@@ -2873,8 +3602,25 @@ export function CanvasSurface({
     // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
     // moot here (this path only handles ≤ the free byte cap — larger goes
     // through dropLargeMedia/multipart).
-    const up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId,
-                                   ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+    let up;
+    try {
+      up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId, originalName: meaningfulFileName(file),
+                               ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+    } catch (e) {
+      // The free-tier length cap is a paid limit like the others, and the only
+      // one that never wrote a row: record it beside the rest of upload_blocked.
+      if (e?.code === 'video_too_long') {
+        try {
+          logEvent(EV.UPLOAD_BLOCKED, {
+            reason: 'video_too_long', surface: 'canvas', n: 1,
+            ext: (String(file?.name || '').split('.').pop() || '').toLowerCase().slice(0, 12) || null,
+            size_bucket: sizeBucket(file?.size || 0),
+            duration_s: e.durationSec ?? null, max_s: e.maxSec ?? null,
+          });
+        } catch (_) {}
+      }
+      throw e;
+    }
     const w = Math.max(240, Math.min(560, up.width || 360));
     const aspect = up.height && up.width ? (up.height / up.width) : 9 / 16;
     const h = Math.max(160, Math.round(w * aspect));
@@ -2883,30 +3629,90 @@ export function CanvasSurface({
       kind: 'video',
       src: up.src,
       ...(up.poster ? { poster: up.poster } : {}),
+      ...fileMetaFor(file),
       x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
       y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
 
-  // Audio file → audio card centered on (cx, cy). Default size matches
-  // a compact waveform; the card carries the duration for instant later
-  // renders. 50 MB cap enforced inside uploadAudio.
+  // Audio file → audio card centered on (cx, cy). Default size matches a
+  // compact waveform; the card carries the duration for instant later renders.
+  // FREE_AUDIO_CAP enforced inside uploadAudio.
+  //
+  // Optimistic, like image/pdf/file — it used to await the upload before adding
+  // anything, so dropping a folder of fifty loops showed an empty canvas until
+  // each one finished. Mirrors optimisticDropPdf's add → patch → roll back.
+  //
+  // fileName/ext/mime/sizeBytes are stamped alongside `title` because `title`
+  // is user-EDITABLE: it seeds from the filename, but the moment someone
+  // renames the card to "Kick 1" the original extension is gone, and every
+  // download path downstream produces an extensionless file. `title` is the
+  // display name; `fileName` is the download authority.
   const dropAudioFile = useCallback(async (file, cx, cy, rect = null) => {
     if (!workspaceId) throw new Error('workspaceId required');
-    const up = await uploadAudio({ file, workspaceId, boardId: board?.id, userId });
-    const w = 380, h = 130;
+    const dropBoardId = board?.id;
+    const id = `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const { w, h } = FALLBACK_DIMS.audio;
+    const placed = placeDropRect(cx, cy, w, h, rect);
+    const ext = (file.name?.split('.').pop() || '').toLowerCase();
+
     mutators.addCard?.({
-      id: `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
-      kind: 'audio',
-      src: up.src,
-      title: file.name || 'Audio',
-      duration: up.duration || null,
-      x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
-      y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
-      w, h,
+      id, kind: 'audio', title: file.name || 'Audio',
+      fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null, ext,
+      // Packs are named by machine — SFL_120_Gmin_Loop.wav — so the tempo and
+      // key are usually already written down. Parsed here, editable after.
+      ...parseLoopMeta(file.name),
+      x: placed.x, y: placed.y, w, h, pending: true,
     });
-  }, [workspaceId, board?.id, userId, mutators]);
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, userId, onProgress, originalName: meaningfulFileName(file) });
+      if (boardIdRef.current === dropBoardId) {
+        mutators.updateCardSilent?.(id, {
+          src: up.src, duration: up.duration || null, pending: false,
+          peaks: up.peaks || null, sampleRate: up.sampleRate || null,
+          channels: up.channels || null, analyzed: up.analyzed || null,
+          // Only when the file carried one. Never overwrites a cover the user
+          // chose by hand — an audio card added here has none yet, but the
+          // same rule holds for the backfill path.
+          ...(up.cover ? { cover: up.cover } : {}),
+        });
+      }
+    } catch (err) {
+      console.error('audio upload failed', err);
+      handleUploadReject(err, id, dropBoardId);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject]);
+
+  // Send ONE classified file down its route. Extracted from ingestFiles so the
+  // PASTE handler can reach the same dispatch: paste used to send everything
+  // that wasn't an image or a PDF to optimisticDropFile, so a pasted mp3 became
+  // a generic file card — paid-gated for a free owner — while the identical
+  // file dropped two inches away became a free audio card. Drop, the picker and
+  // paste now all agree because they all end up here.
+  const dispatchIngestOne = useCallback(async ({ file, route, kind }, cx, cy, rect = null) => {
+    if (route === 'image') {
+      // Optimistic — adds the card and uploads in the background so
+      // multi-file drops aren't blocked one at a time.
+      optimisticDropImage(file, cx, cy, rect);
+    } else if (route === 'video') {
+      await dropVideoFile(file, cx, cy, canAttemptFiles, rect);
+    } else if (route === 'audio') {
+      dropAudioFile(file, cx, cy, rect);
+    } else if (route === 'pdf') {
+      optimisticDropPdf(file, cx, cy, rect);
+    } else if (route === 'largeMedia') {
+      // Over-cap clip — still an inline media card, uploaded via multipart.
+      dropLargeMedia(file, kind, cx, cy, rect);
+    } else {
+      // PDFs over the inline cap + every other type → downloadable file card.
+      optimisticDropFile(file, cx, cy, rect);
+    }
+  }, [canAttemptFiles, optimisticDropImage, dropVideoFile, dropAudioFile,
+      optimisticDropPdf, dropLargeMedia, optimisticDropFile]);
 
   // Route a FileList onto the canvas, centered at (cx, cy). Shared by drag-drop,
   // the right-click "Add → File" entry, and the toolbar "+" menu so all three
@@ -2929,9 +3735,16 @@ export function CanvasSurface({
     // pile on top of itself. The list-view drop has always used a real packer;
     // the canvas simply never did.
     const accepted = [];
+    // Files the drop sets aside on purpose — never uploaded, never pitched
+    // (lib/dropOutcomes.js). A screenplay becomes a script document instead.
+    const skipped = { partial: [], pureref: [] };
+    const scripts = [];
     for (const f of files) {
       // Shared routing/caps (lib/fileIngest.js) so canvas + list agree.
       const c = classifyDropFile(f, { canAttemptFiles });
+      if (c.route === 'partial') { skipped.partial.push(f); continue; }
+      if (c.route === 'pureref') { skipped.pureref.push(f); continue; }
+      if (c.route === 'screenplay') { scripts.push(f); continue; }
       if (c.route === 'blocked') { blockedForUpgrade.push(f); continue; }
       accepted.push({ file: f, ...c });
     }
@@ -2983,6 +3796,8 @@ export function CanvasSurface({
         n_accepted: classified,
         n_over: over,
         n_blocked: blockedForUpgrade.length,
+        n_skipped: skipped.partial.length + skipped.pureref.length,
+        n_scripts: scripts.length,
         source,
         kinds,
         board_id: board?.id || null,
@@ -3018,28 +3833,9 @@ export function CanvasSurface({
       });
 
       for (let i = 0; i < accepted.length; i++) {
-        const { file: f, route, kind } = accepted[i];
         const rect = rects[i];
-        const rcx = rect.x + rect.w / 2;
-        const rcy = rect.y + rect.h / 2;
         try {
-          if (route === 'image') {
-            // Optimistic — adds the card and uploads in the background so
-            // multi-file drops aren't blocked one at a time.
-            optimisticDropImage(f, rcx, rcy, rect);
-          } else if (route === 'video') {
-            await dropVideoFile(f, rcx, rcy, canAttemptFiles, rect);
-          } else if (route === 'audio') {
-            await dropAudioFile(f, rcx, rcy, rect);
-          } else if (route === 'pdf') {
-            optimisticDropPdf(f, rcx, rcy, rect);
-          } else if (route === 'largeMedia') {
-            // Over-cap clip — still an inline media card, uploaded via multipart.
-            dropLargeMedia(f, kind, rcx, rcy, rect);
-          } else {
-            // PDFs over the inline cap + every other type → downloadable file card.
-            optimisticDropFile(f, rcx, rcy, rect);
-          }
+          await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, rect);
         } catch (err) {
           console.error(err);
           feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
@@ -3067,8 +3863,15 @@ export function CanvasSurface({
         ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });
     }
-  }, [ownsWorkspace, isPaidPlan, canAttemptFiles, optimisticDropImage, dropVideoFile, dropAudioFile,
-      optimisticDropPdf, dropLargeMedia, optimisticDropFile, onRequestStorageUpgrade,
+
+    // After the media, so the script card lands on top of them.
+    if (scripts.length) {
+      await importDroppedScripts(scripts, {
+        addScriptCard: mutators.addScriptCard, pos: { x: cx, y: cy }, source, toast: feedback.toast,
+      });
+    }
+    reportSkippedFiles(skipped, { surface: 'canvas', toast: feedback.toast });
+  }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators]);
 
   // Unified "Add → File" picker: opens a native file chooser with NO accept
@@ -3076,6 +3879,31 @@ export function CanvasSurface({
   // same dispatch as drag-drop, so a picked PDF still becomes a PDF card, an
   // image an image card, a clip a media card, anything else a generic file
   // card. `pos` is a canvas coordinate (from the click point / viewport center).
+  // "Add → Folder…": the picker side of a folder drop. A desktop browser hands
+  // back every file in the chosen folder with its webkitRelativePath, which
+  // lib/folderWalk turns into the same tree a drop gives. Not offered where the
+  // browser cannot pick a folder (iOS Safari ignores webkitdirectory and would
+  // open an ordinary file picker under a "Folder" label), or in the mobile shell.
+  const canPickFolder = useMemo(() => {
+    if (mobileShell || !onImportFolder) return false;
+    try { return 'webkitdirectory' in document.createElement('input'); } catch (_) { return false; }
+  }, [mobileShell, onImportFolder]);
+  const openFolderPicker = useCallback((pos) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.webkitdirectory = true;
+    input.onchange = async () => {
+      if (!input.files || !input.files.length) return;
+      await onImportFolder?.({
+        pickedFiles: Array.from(input.files), at: { x: pos?.x ?? 200, y: pos?.y ?? 200 },
+        boardId: board?.id, mutators, canAttemptFiles, source: 'picker',
+        boardWasEmpty: !(cards || []).length,
+      });
+    };
+    input.click();
+  }, [onImportFolder, board?.id, mutators, canAttemptFiles, cards]);
+
   const openFilePicker = useCallback((pos) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -3149,6 +3977,18 @@ export function CanvasSurface({
     }
   }, [workspaceId, board?.id, userId, mutators, cards, feedback]);
 
+  // Every download on this surface — the hover buttons and every context-menu
+  // item — goes through here so there is ONE filename rule, one delivery path
+  // (which works inside the native app, where <a download> silently does
+  // nothing), and one error message.
+  const runDownload = useCallback(async (card, kind) => {
+    try {
+      await downloadCardAsset(card, kind, { surface: isPublic ? 'public_canvas' : 'canvas' });
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+    }
+  }, [feedback, isPublic]);
+
   useEffect(() => {
     const onMove = (e) => {
       if (!wrapRef.current) return;
@@ -3218,7 +4058,7 @@ export function CanvasSurface({
       }, 140);
     };
     const onWheel = (e) => {
-      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob')) return;
+      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
       // Public pages are pinned to pan semantics whatever the reader's own
       // preference says. They are scrollable documents — a canvas hero with an
       // article under it — so a plain wheel has to scroll the PAGE, and a
@@ -3591,11 +4431,14 @@ export function CanvasSurface({
   }, [selected, cardById, board.id]);
 
   const doCut = useCallback(async () => {
-    const items = [...selected].map(id => cardById[id]).filter(Boolean);
+    // A card still uploading is not cut: the paste re-ids it, and its upload,
+    // landing by the old id, would never reach the copy (see moveCardsIntoBoard).
+    const all = [...selected].map(id => cardById[id]).filter(Boolean);
+    const items = keepUploadsInPlace(all) ? all.filter((c) => !isStillUploading(c)) : all;
     if (items.length === 0) return;
     setClipboard(items, board.id, { cut: true });
     mutators.breakUndo?.();
-    await doDeleteIds([...selected]);
+    await doDeleteIds(items.map((c) => c.id));
   }, [selected, cardById, board.id, doDeleteIds, mutators]);
 
   const doPaste = useCallback(async (atCanvas) => {
@@ -3868,50 +4711,58 @@ export function CanvasSurface({
 
       if (isEditorTarget(e)) return;
 
-      // 1) Image in OS clipboard wins outright.
+      // 1) A file in the OS clipboard wins outright, routed through the SAME
+      // classifier drag-drop and the picker use (lib/fileIngest.js). This used
+      // to be three hand-rolled branches — pdf, image, then "anything else →
+      // file card" — which meant a pasted mp3 became a generic file card and
+      // was refused outright on a free plan, while the identical file DROPPED
+      // on the canvas became a free audio card. One dispatch, one answer.
       const items = e.clipboardData?.items;
       if (items) {
         for (const item of items) {
-          if (item.type === 'application/pdf') {
-            e.preventDefault();
-            const file = item.getAsFile();
-            if (file) {
-              const { pos, clamped } = resolvePastePos();
-              notePasteCreate(clamped);
-              optimisticDropPdf(file, pos.x, pos.y);
-            }
+          if (item.kind !== 'file') continue;
+          const file = item.getAsFile();
+          if (!file) continue;
+          e.preventDefault();
+          const c = classifyDropFile(file, { canAttemptFiles });
+          if (c.route === 'partial' || c.route === 'pureref') {
+            reportSkippedFiles({ [c.route]: [file] }, { surface: 'canvas', toast: feedback.toast });
             return;
           }
-          if (item.type.startsWith('image/')) {
-            e.preventDefault();
-            const file = item.getAsFile();
-            if (file) {
-              const { pos, clamped } = resolvePastePos();
-              notePasteCreate(clamped);
-              optimisticDropImage(file, pos.x, pos.y);
-            }
+          if (c.route === 'screenplay') {
+            const { pos } = resolvePastePos();
+            importDroppedScripts([file], {
+              addScriptCard: mutators.addScriptCard, pos, source: 'paste', toast: feedback.toast,
+            }).catch((err) => console.error(err));
             return;
           }
-          // Any other file type pasted from the OS clipboard (zip, etc.) → file card.
-          if (item.kind === 'file') {
-            const file = item.getAsFile();
-            if (file) {
-              e.preventDefault();
-              if (ownsWorkspace && !isPaidPlan) {
-                const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
-                feedback.toast({
-                  type: 'warning',
-                  message: 'Uploading files needs a paid plan — upgrade to add any file type.',
-                  ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
-                });
-              } else {
-                const { pos, clamped } = resolvePastePos();
-                notePasteCreate(clamped);
-                optimisticDropFile(file, pos.x, pos.y);
-              }
-              return;
-            }
+          if (c.route === 'blocked') {
+            const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
+            try {
+              logEvent(EV.UPLOAD_BLOCKED, {
+                reason: 'owner_not_paid', surface: 'canvas', n: 1,
+                ext: (file.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
+                size_bucket: sizeBucket(file.size || 0),
+              });
+            } catch (_) {}
+            feedback.toast({
+              type: 'warning',
+              message: 'Uploading files needs a paid plan — upgrade to add any file type.',
+              ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
+            });
+            return;
           }
+          const { pos, clamped } = resolvePastePos();
+          notePasteCreate(clamped);
+          // Caught here rather than awaited: this is a window event handler, so
+          // a rejection would be unhandled. The drop path already surfaces the
+          // same failure through ingestFiles' try/catch.
+          dispatchIngestOne({ file, route: c.route, kind: c.kind }, pos.x, pos.y)
+            .catch((err) => {
+              console.error(err);
+              feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+            });
+          return;
         }
       }
 
@@ -3958,7 +4809,7 @@ export function CanvasSurface({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, optimisticDropImage, optimisticDropPdf, optimisticDropFile, doPaste, mutators,
+  }, [feedback, dispatchIngestOne, canAttemptFiles, doPaste, mutators,
       ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
@@ -4026,6 +4877,33 @@ export function CanvasSurface({
         if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setSelectedTool('arrow'); return; }
         if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
         if (e.key === ']') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('forward'); return; }
+
+        // Audition the selected audio card.
+        //
+        // NOT Space — Space is the pan modifier on this surface (and is
+        // documented as such in the shortcuts overlay), and arrows move cards.
+        // Enter is free here, and L matches video's existing `loop` field.
+        // Both fall through when the selection is anything other than exactly
+        // one audio card, so they never shadow a future binding.
+        if (e.key === 'Enter' || (e.key === 'l' || e.key === 'L')) {
+          // Read through the refs: this effect's dep array intentionally
+          // watches selected.SIZE rather than the Set, so the closure's copy
+          // is stale whenever the selection changed without changing length.
+          const sel = selectedRef.current;
+          const one = sel.size === 1
+            ? (cardsRef.current || []).find(c => c.id === [...sel][0])
+            : null;
+          if (one && one.kind === 'audio') {
+            e.preventDefault();
+            if (e.key === 'Enter') {
+              audioBus.controls(one.id)?.toggle();
+            } else {
+              if (!canEdit) { showEditBlockedToast(); return; }
+              mutators.updateCard?.(one.id, { loop: one.loop ? null : true });
+            }
+            return;
+          }
+        }
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -4051,6 +4929,7 @@ export function CanvasSurface({
         e.preventDefault();
         if (ctx.open || bgCtx.open) { setCtx(c => ({ ...c, open: false })); setBgCtx(c => ({ ...c, open: false })); return; }
         if (addMenuOpen) { setAddMenuOpen(false); return; }
+        if (tplPanelOpen) { setTplPanelOpen(false); return; }
         if (annotPlacing) { setAnnotPlacing(null); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
@@ -4064,7 +4943,7 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
+      ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
       hasSplit, paneId]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
@@ -4316,6 +5195,206 @@ export function CanvasSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [eyedropFor]);
+
+  // Cards that are still uploading never travel to another cluster (see
+  // moveCardsIntoBoard). Says so once; returns how many were held back.
+  const keepUploadsInPlace = (list) => {
+    const n = (list || []).filter(isStillUploading).length;
+    if (n) {
+      feedback.toast({
+        type: 'info',
+        message: n === 1
+          ? 'A card that is still uploading stayed where it was — move it once it has finished.'
+          : `${n} cards that are still uploading stayed where they were — move them once they have finished.`,
+        ttl: 7000,
+      });
+    }
+    return n;
+  };
+
+  // Move cards from THIS canvas into another cluster. Dropping cards on a
+  // cluster card and "Move to cluster…" in the card menu both land here, so the
+  // menu inherits everything the drag earned: the pre-move snapshot, the
+  // handshake that deletes the source only after the target saved, the per-id
+  // invariant and its automatic rollback. App.jsx's 'soleil-card-into-board-drop'
+  // listener owns the target half, and the one toast whose undo reverses both
+  // sides. Run as an async transaction so we can capture before/after state
+  // around the source delete and roll back via bulletproofRestore if the
+  // invariant fails. Cluster cards never come through here — they nest.
+  const moveCardsIntoBoard = async (dragIds, targetBoardId, movedCards, { via = 'drag' } = {}) => {
+    // A card still uploading stays where it is: its upload writes the file into
+    // THIS card, by id, when it lands. A moved copy has a new id on another
+    // cluster and would never be told — it would spin, and in a day be swept
+    // away as unfinished though its file had arrived.
+    const held = keepUploadsInPlace(movedCards);
+    if (held) {
+      movedCards = movedCards.filter((c) => !isStillUploading(c));
+      const keep = new Set(movedCards.map((c) => c.id));
+      dragIds = dragIds.filter((id) => keep.has(id));
+      if (!movedCards.length) return;
+    }
+    const cardsMap = ydoc?.getMap?.('cards');
+    const beforeKeys = cardsMap ? [...cardsMap.keys()] : [];
+    const beforeCount = beforeKeys.length;
+    const expectedDelta = dragIds.length;
+    console.log('[drag-into-board] start', {
+      via,
+      sourceBoardId: board.id,
+      targetBoardId,
+      dragIds,
+      movedCardKinds: movedCards.map(c => c.kind),
+      beforeCount,
+      expectedDelta,
+    });
+
+    // Pre-drop snapshot — awaited so we have the snapshot id BEFORE
+    // the delete fires. If anything goes wrong we can roll back
+    // from this exact snapshot via bulletproofRestore.
+    let preDropSnapshotId = null;
+    if (ydoc && board?.id) {
+      try {
+        preDropSnapshotId = await saveBoardVersion(board.id, ydoc, {
+          triggerKind: 'pre-drop',
+          sessionId,
+          userId,
+          label: 'pre-drop-into-board',
+          opSummary: {
+            action: 'drop-into-board',
+            via,
+            target_board: targetBoardId,
+            card_count: movedCards.length,
+            drag_ids: dragIds,
+            moved_card_kinds: movedCards.map(c => c.kind),
+          },
+        });
+      } catch (e) {
+        console.warn('[drag-into-board] pre-drop snapshot failed', e);
+      }
+    }
+
+    // Clear local comment bubbles before the realtime push
+    // catches up (the cards are leaving this canvas).
+    const movedGroupIds = [...new Set(movedCards.map(c => c.groupId).filter(Boolean))];
+
+    // Hand the cards off to the target via App.jsx onDrop.
+    // App.jsx writes the target board_state then resolves
+    // `onTargetSaved`. We only delete the source cards once
+    // that resolves successfully — otherwise the cards live in
+    // limbo (or worse, get deleted with no destination).
+    let resolveTargetSaved, rejectTargetSaved;
+    const targetSaved = new Promise((res, rej) => {
+      resolveTargetSaved = res;
+      rejectTargetSaved = rej;
+    });
+    document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
+      detail: {
+        sourceBoardId: board.id,
+        targetBoardId,
+        cards: movedCards,
+        onTargetSaved: resolveTargetSaved,
+        onTargetFailed: rejectTargetSaved,
+        via,
+      },
+    }));
+    try {
+      await targetSaved;
+    } catch (err) {
+      console.error('[drag-into-board] target save failed; NOT deleting source', err);
+      feedback.toast({
+        type: 'error',
+        message: 'Move failed — your cards are safe on this cluster. ' + (err?.message || err),
+        ttl: 8000,
+      });
+      return;
+    }
+    // Now safe to clear local comments + delete source.
+    removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
+
+    // Source-side delete — the MOVE variant (untracked origin), so a
+    // later Cmd+Z can't restore the source half while the copies
+    // stay on the target (silent duplication). The move's undo is
+    // the toast App shows, which reverses both sides.
+    mutators.deleteCardsForMove?.(dragIds);
+
+    const afterKeys = cardsMap ? [...cardsMap.keys()] : [];
+    const afterCount = afterKeys.length;
+    const actualDelta = beforeCount - afterCount;
+    const afterKeySet = new Set(afterKeys);
+    const dragIdSet = new Set(dragIds);
+    // Per-id invariant (robust to concurrent edits): every dragged
+    // card must be gone, and NOTHING else may have been removed. We
+    // intentionally ignore keys that were ADDED during the async
+    // window — a peer creating a card mid-drop is harmless and must
+    // not trip a false rollback (the old beforeCount-afterCount delta
+    // check rolled back on any concurrent add or unrelated delete).
+    const dragIdsStillPresent = dragIds.filter(k => afterKeySet.has(k));
+    const unexpectedlyRemoved = beforeKeys.filter(k => !dragIdSet.has(k) && !afterKeySet.has(k));
+    const invariantOk = dragIdsStillPresent.length === 0 && unexpectedlyRemoved.length === 0;
+    console.log('[drag-into-board] post-delete', {
+      afterCount,
+      actualDelta,
+      expectedDelta,
+      dragIdsStillPresent,
+      unexpectedlyRemoved,
+      keysAdded: afterKeys.filter(k => !beforeKeys.includes(k)),
+    });
+
+    // CRITICAL INVARIANT: source must lose exactly the dragged cards —
+    // no more, no fewer. If a dragged card survived or an unrelated
+    // card vanished, something is silently mutating the cards map and
+    // we roll back hard.
+    if (!invariantOk) {
+      console.error('[drag-into-board] INVARIANT VIOLATED — auto-rolling back', {
+        beforeCount, afterCount, expectedDelta, actualDelta,
+        dragIds, beforeKeys, afterKeys,
+        dragIdsStillPresent,
+        unexpectedlyRemoved,
+      });
+      try {
+        if (preDropSnapshotId) {
+          const b64 = await loadBoardVersionDoc(preDropSnapshotId);
+          if (b64) {
+            await bulletproofRestore(board.id, b64);
+            feedback.toast({
+              type: 'error',
+              message: `Move aborted — this cluster lost ${actualDelta} cards instead of ${expectedDelta}. Restored automatically.`,
+              ttl: 12000,
+            });
+          } else {
+            // (The removed time-travel tool used to be named here; a
+            // pre-drag board_versions snapshot exists server-side.)
+            feedback.toast({ type: 'error', message: 'The move caused unexpected state loss. A safety snapshot was saved — contact support to restore it.' });
+          }
+        } else {
+          feedback.toast({ type: 'error', message: 'The move caused unexpected state loss; manual recovery needed.' });
+        }
+      } catch (rbErr) {
+        console.error('[drag-into-board] rollback failed', rbErr);
+        feedback.toast({ type: 'error', message: 'Rollback failed: ' + (rbErr.message || rbErr) });
+      }
+      return;
+    }
+
+    // Post-drop snapshot so every cross-board drag has a paired
+    // before/after for diffing. Fire-and-forget.
+    if (ydoc && board?.id) {
+      saveBoardVersion(board.id, ydoc, {
+        triggerKind: 'post-drop',
+        sessionId,
+        userId,
+        label: 'post-drop-source',
+        opSummary: {
+          action: 'drop-into-board-completed',
+          via,
+          target_board: targetBoardId,
+          card_count_before: beforeCount,
+          card_count_after: afterCount,
+          expected_delta: expectedDelta,
+          actual_delta: actualDelta,
+        },
+      });
+    }
+  };
 
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
@@ -4768,7 +5847,10 @@ export function CanvasSurface({
       // independently (onUp), so drop accuracy is unchanged. On throttled-out
       // frames the current highlight is left as-is (no flicker).
       const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
-      const wantHitTest = (dropCandidateIds.length > 0 || CELL_DROP_KINDS.has(soloKind))
+      // A card still uploading can't go into a cell (routeCardIntoCell), so it
+      // never lights one up either.
+      const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
+      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable)
         && (Math.abs(dx) + Math.abs(dy) > 4);
       if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
         lastHitTestT = nowT;
@@ -4820,7 +5902,7 @@ export function CanvasSurface({
         // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
         // a multi-select drag never shows a misleading affordance.
         let nextCell = null;
-        if (!nextDropTarget && CELL_DROP_KINDS.has(soloKind)) {
+        if (!nextDropTarget && soloCellable) {
           for (const el of stack) {
             const cellEl = el?.closest?.('[data-cell-id]');
             if (!cellEl) continue;
@@ -4943,168 +6025,7 @@ export function CanvasSurface({
           return;
         }
         if (movedCards.length) {
-          // Run the drop as an async transaction so we can capture
-          // before/after state around mutators.deleteCards and roll
-          // back via bulletproofRestore if the invariant fails.
-          (async () => {
-            const cardsMap = ydoc?.getMap?.('cards');
-            const beforeKeys = cardsMap ? [...cardsMap.keys()] : [];
-            const beforeCount = beforeKeys.length;
-            const expectedDelta = dragIds.length;
-            console.log('[drag-into-board] start', {
-              sourceBoardId: board.id,
-              targetBoardId,
-              dragIds,
-              movedCardKinds: movedCards.map(c => c.kind),
-              beforeCount,
-              expectedDelta,
-            });
-
-            // Pre-drop snapshot — awaited so we have the snapshot id BEFORE
-            // the delete fires. If anything goes wrong we can roll back
-            // from this exact snapshot via bulletproofRestore.
-            let preDropSnapshotId = null;
-            if (ydoc && board?.id) {
-              try {
-                preDropSnapshotId = await saveBoardVersion(board.id, ydoc, {
-                  triggerKind: 'pre-drop',
-                  sessionId,
-                  userId,
-                  label: 'pre-drop-into-board',
-                  opSummary: {
-                    action: 'drop-into-board',
-                    target_board: targetBoardId,
-                    card_count: movedCards.length,
-                    drag_ids: dragIds,
-                    moved_card_kinds: movedCards.map(c => c.kind),
-                  },
-                });
-              } catch (e) {
-                console.warn('[drag-into-board] pre-drop snapshot failed', e);
-              }
-            }
-
-            // Clear local comment bubbles before the realtime push
-            // catches up (the cards are leaving this canvas).
-            const movedGroupIds = [...new Set(movedCards.map(c => c.groupId).filter(Boolean))];
-
-            // Hand the cards off to the target via App.jsx onDrop.
-            // App.jsx writes the target board_state then resolves
-            // `onTargetSaved`. We only delete the source cards once
-            // that resolves successfully — otherwise the cards live in
-            // limbo (or worse, get deleted with no destination).
-            let resolveTargetSaved, rejectTargetSaved;
-            const targetSaved = new Promise((res, rej) => {
-              resolveTargetSaved = res;
-              rejectTargetSaved = rej;
-            });
-            document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
-              detail: {
-                sourceBoardId: board.id,
-                targetBoardId,
-                cards: movedCards,
-                onTargetSaved: resolveTargetSaved,
-                onTargetFailed: rejectTargetSaved,
-              },
-            }));
-            try {
-              await targetSaved;
-            } catch (err) {
-              console.error('[drag-into-board] target save failed; NOT deleting source', err);
-              feedback.toast({
-                type: 'error',
-                message: 'Drop failed — source cards preserved. ' + (err?.message || err),
-                ttl: 8000,
-              });
-              return;
-            }
-            // Now safe to clear local comments + delete source.
-            removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
-
-            // Source-side delete — the MOVE variant (untracked origin), so a
-            // later Cmd+Z can't restore the source half while the copies
-            // stay on the target (silent duplication). The move's undo is
-            // the toast App shows, which reverses both sides.
-            mutators.deleteCardsForMove?.(dragIds);
-
-            const afterKeys = cardsMap ? [...cardsMap.keys()] : [];
-            const afterCount = afterKeys.length;
-            const actualDelta = beforeCount - afterCount;
-            const afterKeySet = new Set(afterKeys);
-            const dragIdSet = new Set(dragIds);
-            // Per-id invariant (robust to concurrent edits): every dragged
-            // card must be gone, and NOTHING else may have been removed. We
-            // intentionally ignore keys that were ADDED during the async
-            // window — a peer creating a card mid-drop is harmless and must
-            // not trip a false rollback (the old beforeCount-afterCount delta
-            // check rolled back on any concurrent add or unrelated delete).
-            const dragIdsStillPresent = dragIds.filter(k => afterKeySet.has(k));
-            const unexpectedlyRemoved = beforeKeys.filter(k => !dragIdSet.has(k) && !afterKeySet.has(k));
-            const invariantOk = dragIdsStillPresent.length === 0 && unexpectedlyRemoved.length === 0;
-            console.log('[drag-into-board] post-delete', {
-              afterCount,
-              actualDelta,
-              expectedDelta,
-              dragIdsStillPresent,
-              unexpectedlyRemoved,
-              keysAdded: afterKeys.filter(k => !beforeKeys.includes(k)),
-            });
-
-            // CRITICAL INVARIANT: source must lose exactly the dragged cards —
-            // no more, no fewer. If a dragged card survived or an unrelated
-            // card vanished, something is silently mutating the cards map and
-            // we roll back hard.
-            if (!invariantOk) {
-              console.error('[drag-into-board] INVARIANT VIOLATED — auto-rolling back', {
-                beforeCount, afterCount, expectedDelta, actualDelta,
-                dragIds, beforeKeys, afterKeys,
-                dragIdsStillPresent,
-                unexpectedlyRemoved,
-              });
-              try {
-                if (preDropSnapshotId) {
-                  const b64 = await loadBoardVersionDoc(preDropSnapshotId);
-                  if (b64) {
-                    await bulletproofRestore(board.id, b64);
-                    feedback.toast({
-                      type: 'error',
-                      message: `Drag aborted — source cluster lost ${actualDelta} cards instead of ${expectedDelta}. Restored automatically.`,
-                      ttl: 12000,
-                    });
-                  } else {
-                    // (The removed time-travel tool used to be named here; a
-                    // pre-drag board_versions snapshot exists server-side.)
-                    feedback.toast({ type: 'error', message: 'Drag caused unexpected state loss. A safety snapshot was saved — contact support to restore it.' });
-                  }
-                } else {
-                  feedback.toast({ type: 'error', message: 'Drag caused unexpected state loss; manual recovery needed.' });
-                }
-              } catch (rbErr) {
-                console.error('[drag-into-board] rollback failed', rbErr);
-                feedback.toast({ type: 'error', message: 'Rollback failed: ' + (rbErr.message || rbErr) });
-              }
-              return;
-            }
-
-            // Post-drop snapshot so every cross-board drag has a paired
-            // before/after for diffing. Fire-and-forget.
-            if (ydoc && board?.id) {
-              saveBoardVersion(board.id, ydoc, {
-                triggerKind: 'post-drop',
-                sessionId,
-                userId,
-                label: 'post-drop-source',
-                opSummary: {
-                  action: 'drop-into-board-completed',
-                  target_board: targetBoardId,
-                  card_count_before: beforeCount,
-                  card_count_after: afterCount,
-                  expected_delta: expectedDelta,
-                  actual_delta: actualDelta,
-                },
-              });
-            }
-          })();
+          moveCardsIntoBoard(dragIds, targetBoardId, movedCards);
           setDrag(null);
           return;
         }
@@ -5734,6 +6655,32 @@ export function CanvasSurface({
           submenu,
         });
       }
+      // The same entry for everything that is NOT a cluster: the menu half of
+      // dropping cards on a cluster card, for when that cluster isn't on this
+      // canvas — a first project gathered on the root, filed into its own
+      // cluster later. A selection that mixes clusters with other cards offers
+      // neither, because nesting a cluster and moving a card are different
+      // operations.
+      // A group travels whole, the way it does when dragged.
+      const moving = [...expandWithGroupmates(actingCards.map(cc => cc.id))]
+        .map(id => cardById[id])
+        .filter(Boolean);
+      const anyClusterRef = moving.some(cc => cc.kind === 'board' || cc.kind === 'boardlink');
+      if (moving.length > 0 && !anyClusterRef) {
+        const targets = cardMoveTargets(boards, { workspaceId, fromId: board.id });
+        if (targets.length) {
+          const ids = moving.map(cc => cc.id);
+          arrangeItems.push({
+            id: 'move-cards-to-board',
+            label: ids.length > 1 ? `Move ${ids.length} cards to…` : 'Move to cluster…',
+            submenu: targets.map(t => ({
+              id: 'mcb-' + t.id,
+              label: t.label,
+              run: () => moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' }),
+            })),
+          });
+        }
+      }
     }
 
     if (!multi) {
@@ -5759,8 +6706,12 @@ export function CanvasSurface({
               const f = input.files?.[0]; if (!f) return;
               try {
                 const payload = await imageFileToPayload(f, c.x + c.w / 2, c.y + c.h / 2);
-                // Clear any prior adjustments — they belonged to the old image.
-                mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null });
+                // Clear any prior adjustments — they belonged to the old image —
+                // and `pending`: a stuck "Uploading…" card fixed this way has its
+                // file now, and must not spin, or be held back from moves, for good.
+                // The name goes with the file it named: a replacement either
+                // brings its own or clears the old one (null drops the key).
+                mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null, pending: false, fileName: payload.fileName || null });
               } catch (err) {
                 feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
               }
@@ -5774,53 +6725,18 @@ export function CanvasSurface({
         }
         if (c.src) {
           items.push({ id: 'image-download', label: 'Download',
-            run: () => downloadImage({ src: c.src, title: c.title || c.label || '', adjust: c.adjust }) });
+            run: () => runDownload(c, 'image') });
         }
       } else if (c.kind === 'pdf') {
         openItems.push({ id: 'pdf-open', label: 'Open',
           run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
         items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
           run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'pdf-download', label: 'Download', run: async () => {
-          if (!c.pdfSrc) return;
-          try {
-            const url = await resolveSrc(c.pdfSrc);
-            if (!url) return;
-            const res = await fetch(url);
-            const blob = await res.blob();
-            const objUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            let fn = (c.name || c.title || 'document').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
-            if (!/\.pdf$/i.test(fn)) fn += '.pdf';
-            a.href = objUrl; a.download = fn;
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-          } catch (_) {
-            const url = await resolveSrc(c.pdfSrc).catch(() => null);
-            if (url) window.open(url, '_blank', 'noopener,noreferrer');
-          }
-        }});
+        items.push({ id: 'pdf-download', label: 'Download', run: () => runDownload(c, 'pdf') });
       } else if (c.kind === 'file') {
         items.push({ id: 'file-title', label: c.title ? 'Edit title' : 'Add title',
           run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'file-download', label: 'Download', run: async () => {
-          if (!c.fileSrc) return;
-          let url = null;
-          try {
-            url = await resolveSrc(c.fileSrc);
-            if (!url) return;
-            const res = await fetch(url);
-            const blob = await res.blob();
-            const objUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = objUrl;
-            a.download = c.fileName || (c.title || 'file').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
-          } catch (_) {
-            if (url) window.open(url, '_blank', 'noopener,noreferrer');
-          }
-        }});
+        items.push({ id: 'file-download', label: 'Download', run: () => runDownload(c, 'file') });
       } else if (c.kind === 'shape') {
         items.push({ id: 'shape-kind', label: 'Shape', submenu: [
           { id: 'sk-rect', label: 'Rectangle', run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
@@ -5855,8 +6771,27 @@ export function CanvasSurface({
         ]});
       } else if (c.kind === 'grid') {
         const linked = !!c.templateId;
+        // Opens the Templates panel with this grid as the target. Selecting it
+        // first is what makes the panel apply rather than place — the same rule
+        // the panel's header states, reached from the card instead of the rail.
+        if (templatesEnabled) {
+          items.push({
+            id: 'grid-save-template',
+            label: 'Save as template…',
+            run: () => openSaveTemplate(c.id),
+          });
+        }
+        if (templateStoreOpen) {
+          items.push({
+            id: 'grid-apply-template',
+            label: 'Apply template…',
+            run: () => { setSelected(new Set([c.id])); setTplPanelOpen(true); },
+          });
+        }
         items.push({
           id: 'grid-link',
+          // "Share layout" is the LINKED-FAMILY feature (edit one, all reflow),
+          // not the Templates library above it. Different things, adjacent menu.
           label: linked ? 'Unlink layout' : 'Share layout',
           run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
         });
@@ -5881,26 +6816,15 @@ export function CanvasSurface({
         items.push({ id: 'sched-view', label: 'View', submenu: [
           { id: 'sv-month', label: `Month${c.schedView === 'month' ? ' ✓' : ''}`, run: () => setView('month') },
           { id: 'sv-week', label: `Week${c.schedView === 'week' ? ' ✓' : ''}`, run: () => setView('week') },
-          { id: 'sv-day', label: `Day${c.schedView === 'day' ? ' ✓' : ''}`, run: () => setView('day') },
-          { id: 'sv-hour', label: `Hour${c.schedView === 'hour' ? ' ✓' : ''}`, run: () => setView('hour') },
+          // 'hour' rows exist in stored data and readSchedModel folds them into
+          // 'day', so the Day entry ticks for both — a card that came from the
+          // removed view must not show every option unchecked.
+          { id: 'sv-day', label: `Day${c.schedView === 'day' || c.schedView === 'hour' ? ' ✓' : ''}`, run: () => setView('day') },
         ]});
         items.push({ id: 'sched-today', label: 'Go to today', run: () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() }) });
-        // Breakdown / collapse for the focused slot (click a slot first).
-        const fc = focusedCell;
-        if (fc?.gridId === c.id && fc.cellId) {
-          const slotPath = schedSlotOfItem(fc.cellId);
-          const slot = schedParseSlotKey(slotPath);
-          const expanded = schedExpandOf(c, ydoc)[slotPath];
-          if (slot?.kind === 'day') {
-            items.push(expanded === 'hours'
-              ? { id: 'sched-collapse', label: 'Collapse day', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
-              : { id: 'sched-break', label: 'Break day into hours', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'hours') });
-          } else if (slot?.kind === 'hour') {
-            items.push(expanded === 'minutes'
-              ? { id: 'sched-collapse', label: 'Collapse hour', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, null) }
-              : { id: 'sched-break', label: 'Break hour into minutes', run: () => mutators.setSchedSlotExpand?.(c.id, slotPath, 'minutes') });
-          }
-        }
+        // "Break into hours/minutes" is gone with the hour buckets it made. A
+        // day's resolution is its running order now, and that lives in Day
+        // view rather than as a mode a month cell can be put into.
       } else if (c.kind === 'board') {
         openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
@@ -5990,6 +6914,14 @@ export function CanvasSurface({
           items.push({ id: 'audio-cover-set', label: 'Set cover image…',
                        run: () => triggerInlineEdit(c.id, 'audioCover') });
         }
+        // Looping a bar of audio is how you decide whether it fits, so it is
+        // the one transport option worth a menu entry. Label states the action,
+        // matching the video branch below — these menus have no checkmarks.
+        items.push({ id: 'audio-loop', label: c.loop ? 'Turn off looping' : 'Loop',
+                     run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
+        if (c.src) {
+          items.push({ id: 'audio-download', label: 'Download', run: () => runDownload(c, 'audio') });
+        }
       } else if (c.kind === 'video') {
         items.push({ id: 'video-title', label: c.title ? 'Edit title' : 'Add title',
                      run: () => triggerInlineEdit(c.id, 'title') });
@@ -6001,6 +6933,9 @@ export function CanvasSurface({
                      run: () => mutators.updateCard?.(c.id, { autoplay: c.autoplay ? null : true }) });
         items.push({ id: 'video-loop', label: c.loop ? 'Turn off looping' : 'Loop',
                      run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
+        if (c.src) {
+          items.push({ id: 'video-download', label: 'Download', run: () => runDownload(c, 'video') });
+        }
       } else if (c.kind === 'schedule') {
         items.push({ id: 'schedule-title', label: c.title ? 'Edit title' : 'Add title',
                      run: () => triggerInlineEdit(c.id, 'title') });
@@ -6262,7 +7197,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -6292,10 +7227,11 @@ export function CanvasSurface({
   const onBackgroundPointerDown = (e) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
-    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
+    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
 
     if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
+    setTplPanelOpen(false);
     closeCardMenu();
     setBgCtx(b => ({ ...b, open: false }));
 
@@ -6901,6 +7837,7 @@ export function CanvasSurface({
     // (50-73% at 6+, ~13% at zero). Selecting one file behaves exactly as before.
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
+    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: 'Folder', icon: Folder, run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
     { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
@@ -7741,7 +8678,7 @@ export function CanvasSurface({
     setCellUploads((p) => ({ ...p, [key]: 0 }));   // show the spinner the moment upload starts
     try {
       if (mime.startsWith('image/')) {
-        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
+        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
       } else if (mime.startsWith('video/')) {
         // canAttemptFiles, exactly as the canvas and list drop paths do it.
@@ -7749,11 +8686,11 @@ export function CanvasSurface({
         // owners too — the one upload route that never learned about the
         // plan — so a Creator account was refused a long clip by the ceiling
         // its own offer says it removed.
-        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress,
+        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress, originalName: meaningfulFileName(f),
                                        ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY, maxBytes: Number.POSITIVE_INFINITY } : {}) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
       } else {
-        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
+        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
       }
     } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
@@ -7820,6 +8757,8 @@ export function CanvasSurface({
     // re-keys rather than field writes (lib/schedLayout.js).
     moveItem: (cardId, fromKey, toSlotPath) => mutators.moveSchedItem?.(cardId, fromKey, toSlotPath),
     moveSlot: (cardId, fromSlot, toSlot) => mutators.moveSchedSlot?.(cardId, fromSlot, toSlot),
+    // One transaction for the rundown's convert-legacy-on-first-edit rewrite.
+    applyRundownPlan: (cardId, plan) => mutators.applyRundownPlan?.(cardId, plan),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
     promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
     stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),
@@ -8007,7 +8946,7 @@ export function CanvasSurface({
                                                      uploadProgress={uploadProgressById[c.id] ?? null}
                                                      onExpand={() => openImageLightbox(c)}
                                                      onEdit={onUpdate && c.src ? (rect) => setImageEdit({ cardId: c.id, anchorRect: rect }) : null}
-                                                     onDownload={c.src ? () => downloadImage({ src: c.src, title: c.title || c.label || '', adjust: c.adjust }) : null}
+                                                     onDownload={c.src ? () => runDownload(c, 'image') : null}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
@@ -8027,12 +8966,17 @@ export function CanvasSurface({
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
-                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover}
+                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
+                                                        onDownload={c.src ? () => runDownload(c, 'video') : null} />;
+    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
+                                                        bpm={c.bpm} musicalKey={c.musicalKey} ext={c.ext} mime={c.mime}
                                                         onUpdate={onUpdate} autoFocus={af}
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
-                                                        onPickCover={(file) => pickAudioCover(c.id, file)} />;
+                                                        onPickCover={(file) => pickAudioCover(c.id, file)}
+                                                        loop={!!c.loop}
+                                                        cardId={c.id}
+                                                        onDownload={c.src ? () => runDownload(c, 'audio') : null} />;
     else if (c.kind === 'pdf')       inner = <PdfCard src={c.src || null} pdfSrc={c.pdfSrc} name={c.name} pageCount={c.pageCount}
                                                       title={c.title} w={Math.round(c.w)} h={Math.round(c.h)}
                                                       onUpdate={onUpdate} autoFocus={af}
@@ -8078,7 +9022,7 @@ export function CanvasSurface({
       const schedUploads = {};
       for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) schedUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
       inner = <ScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
-                            isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
+                            canEdit={canEdit} onUpdate={onUpdate}
                             focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
                             dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
                             cellUploads={schedUploads}
@@ -8261,6 +9205,9 @@ export function CanvasSurface({
     }
     const types = e.dataTransfer.types;
     const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
+    // A FOLDER has to be read off the drop before this handler's first await:
+    // Chrome empties dataTransfer.items the moment it yields (lib/folderWalk).
+    const dropEntries = types && types.includes && types.includes('Files') ? captureDropEntries(e.dataTransfer) : [];
 
     // Universal entity-ref drop: any EntityLink chip / picker row /
     // canvas card dragged here materializes as a 'link' chip card
@@ -8363,14 +9310,18 @@ export function CanvasSurface({
       // generic link tile. Same defensive idea as the inbox case above
       // but for cross-tab drags from outside the app.
       const isImage = /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i.test(url);
-      // Two outcomes, decided below: an image card with the remote src (same
-      // hotlink semantics as before), or the link tile with an OG preview.
+      // Two outcomes, decided below: an image card, or the link tile with an OG
+      // preview. The image card paints from the remote src at once, and moves
+      // onto a copy in the workspace's own storage when one lands.
       const placeRemoteImage = () => {
           // Optimistic 320x240 placeholder; patch to natural dims once the
           // browser has loaded the image (cap at 1200 along longer axis).
           const id = `image-${Date.now()}`;
           const fallbackW = 320, fallbackH = 240;
-          mutators.addCard?.({
+          // The id, or null when the board refused the card (the cap) — and a
+          // refused card is never copied: the bytes would be stored and billed
+          // for a card that does not exist.
+          const placed = mutators.addCard?.({
             id,
             kind: 'image', src: url,
             x: Math.max(8, Math.round(cx - fallbackW / 2)),
@@ -8402,6 +9353,35 @@ export function CanvasSurface({
             };
             probe.src = url;
           } catch (_) {}
+          // The hotlink is only the first paint. A hotlink breaks the day the
+          // page it came from moves, expires a signed link or goes behind a
+          // login, so ask for a copy (worker-media.js) and move the card onto
+          // it when it lands. Silent either way: a failure leaves the card the
+          // hotlink it always was. A board left mid-save keeps the hotlink —
+          // these mutators would write to the wrong board.
+          const dropBoardId = board?.id;
+          if (placed && dropBoardId && !useLocalImages) {
+            saveWebImageCopy({
+              url, boardId: dropBoardId, cardId: id,
+              getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
+            }).then((res) => {
+              try {
+                logEvent(EV.WEB_IMAGE_SAVE, {
+                  board_id: dropBoardId, source: 'drop', ok: !!res?.ok,
+                  code: res?.ok ? 'saved' : (res?.code || 'unknown'),
+                  bytes: res?.ok ? (res.bytes ?? null) : null,
+                });
+              } catch (_) {}
+              if (!res?.ok || boardIdRef.current !== dropBoardId) return;
+              // Judged as the card is NOW: one re-pointed meanwhile ("Replace
+              // image…", an undo and redo) keeps what it was re-pointed to.
+              const live = (cardsRef.current || []).find((c) => c.id === id);
+              if (!live || live.src !== url) return;
+              mutators.updateCardSilent?.(id, {
+                src: res.src, sourceUrl: url, ...(res.fileName ? { fileName: res.fileName } : {}),
+              });
+            });
+          }
       };
       const placeLinkCard = () => {
         const embed = detectEmbed(url);
@@ -8500,18 +9480,20 @@ export function CanvasSurface({
       // Don't try to "move" board-kind cards across boards — they reference
       // a single postgres board which can't have two parents on one canvas.
       // Just create a boardlink instead.
+      let placed;
       if (c.kind === 'board' && payload.sourceBoardId !== board.id) {
-        mutators.addCard?.({
+        placed = mutators.addCard?.({
           id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
           kind: 'boardlink', target: c.id,
           x: c.x, y: c.y, w: c.w || 220, h: c.h || 160,
         });
       } else {
-        mutators.addCard?.(c);
+        placed = mutators.addCard?.(c);
       }
       // For move: dispatch a custom event the source canvas listens for to
-      // delete itself. Key by the original id + sourceBoardId.
-      if (!isCopy) {
+      // delete itself. Key by the original id + sourceBoardId. Only once the
+      // card has actually landed here — a card the cap refused stays put.
+      if (!isCopy && placed) {
         document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
           detail: { sourceBoardId: payload.sourceBoardId, cardId: payload.card.id },
         }));
@@ -8559,6 +9541,19 @@ export function CanvasSurface({
       return;
     }
 
+    // A folder: it becomes a cluster here, its folders nested clusters inside
+    // it. Files dropped BESIDE it go the ordinary way, onto this board.
+    if (hasDirectory(dropEntries) && onImportFolder) {
+      e.preventDefault();
+      const boardWasEmpty = !(cards || []).length;
+      const out = await onImportFolder({
+        entries: dropEntries, at: { x: cx, y: cy }, boardId: board?.id, mutators,
+        canAttemptFiles, source: 'drop', boardWasEmpty,
+      });
+      if (out?.loose?.length) await ingestFiles(out.loose, cx, cy);
+      return;
+    }
+
     // Files (images / videos / audio / anything dragged from Finder). Shares
     // the same routing as the "Add → File" menu picker.
     const files = e.dataTransfer.files;
@@ -8578,7 +9573,7 @@ export function CanvasSurface({
   // the source after a successful cross-pane move.
   useEffect(() => {
     const onTransferred = (e) => {
-      const { sourceBoardId, cardIds, cardId } = e.detail || {};
+      const { sourceBoardId, cardIds, cardId, neutral } = e.detail || {};
       if (sourceBoardId !== board.id) return;
       const idList = Array.isArray(cardIds)
         ? cardIds
@@ -8609,8 +9604,9 @@ export function CanvasSurface({
         });
       }
       // MOVE variant (untracked origin): Cmd+Z on this pane must not
-      // resurrect cards that now live on the other pane's board.
-      mutators.deleteCardsForMove?.(idList);
+      // resurrect cards that now live on the other pane's board. A move into
+      // another owner's cluster gives this owner back the room the cards held.
+      mutators.deleteCardsForMove?.(idList, { refund: neutral === false });
     };
     document.addEventListener('soleil-card-transferred', onTransferred);
     return () => document.removeEventListener('soleil-card-transferred', onTransferred);
@@ -8708,7 +9704,8 @@ export function CanvasSurface({
   // emits this event after detecting pointerup over a different .canvas-wrap).
   useEffect(() => {
     const onDrop = (e) => {
-      const { sourceBoardId, isCopy, cards: payload, clientX, clientY } = e.detail || {};
+      const { sourceBoardId, isCopy, clientX, clientY } = e.detail || {};
+      let payload = e.detail?.cards;
       if (!payload?.length || sourceBoardId === board.id) return;
       const wrap = wrapRef.current;
       if (!wrap) return;
@@ -8732,34 +9729,52 @@ export function CanvasSurface({
         });
       }
       const { x: cx, y: cy } = clientToCanvas(clientX, clientY);
+      // A card still uploading stays in its own pane, moved or copied: its
+      // upload lands in it by id, so a re-id'd card here would never get its file.
+      keepUploadsInPlace(payload);
+      payload = payload.filter((c) => !isStillUploading(c));
+      if (!payload.length) return;
       // Maintain relative positions between the dragged group's items.
       let minX = Infinity, minY = Infinity;
       payload.forEach(c => { if (c.x < minX) minX = c.x; if (c.y < minY) minY = c.y; });
-      const newCards = payload.map(c => {
+      const stamp = Date.now();
+      const newCards = payload.map((c, i) => {
         const isBoard = c.kind === 'board';
         const baseX = (c.x - minX) + (cx - 60);
         const baseY = (c.y - minY) + (cy - 40);
         // Cross-board 'board' cards become 'boardlink' cards instead.
         if (isBoard && !isCopy) {
           return {
-            id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            id: `xlink-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`,
             kind: 'boardlink', target: c.id,
             x: Math.max(8, Math.round(baseX)), y: Math.max(8, Math.round(baseY)),
             w: c.w || 220, h: c.h || 160,
           };
         }
+        // The index keeps ids unique in the batch: two random draws in one
+        // millisecond collided, one card overwrote the other here, and the
+        // source deleted both.
         return {
           ...c,
-          id: `${c.kind || 'card'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+          id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`,
           x: Math.max(8, Math.round(baseX)), y: Math.max(8, Math.round(baseY)),
         };
       });
-      mutators.addCards?.(newCards);
+      const res = mutators.addCards?.(newCards, isCopy ? {} : { moveFrom: sourceBoardId });
       if (!isCopy) {
-        // Tell the source canvas to delete the originals.
-        document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
-          detail: { sourceBoardId, cardIds: payload.map(c => c.id) },
-        }));
+        // Tell the source canvas to delete the originals — only the ones that
+        // landed here. This used to send every id whatever the cap kept off
+        // this board, so a move at the limit deleted cards from the source
+        // that had arrived nowhere. newCards[i] is payload[i] re-id'd.
+        const placed = new Set(res?.placedIds || []);
+        const moved = payload.filter((_, i) => placed.has(newCards[i].id)).map((c) => c.id);
+        if (moved.length) {
+          document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
+            // neutral: the move stayed in one workspace, so the source's room is
+            // unchanged; otherwise the source gives its owner the room back.
+            detail: { sourceBoardId, cardIds: moved, neutral: !!res?.neutral },
+          }));
+        }
       }
     };
     document.addEventListener('soleil-cross-pane-drop', onDrop);
@@ -8804,6 +9819,7 @@ export function CanvasSurface({
     ]},
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
+      ...(canPickFolder ? [{ id: 'folder', label: 'Folder', icon: Folder, tip: 'Upload a folder — its folders become clusters', action: () => addFromRegistry('folder') }] : []),
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
       ...(scheduleCreationAllowed() ? [
         { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
@@ -10119,25 +11135,66 @@ export function CanvasSurface({
           )}
         </div>
         <div className="cnv-tool-sep" />
-        {tools.map(t => (
-          <div key={t.id}
-               className={`cnv-tool ${selectedTool === t.id ? 'active' : ''}`}
-               data-tip={t.title}
-               data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
-               role="button"
-               tabIndex={0}
-               aria-label={t.label}
-               aria-pressed={selectedTool === t.id}
-               onKeyDown={(e) => {
-                 if (e.key === 'Enter' || e.key === ' ') {
-                   e.preventDefault();
-                   setSelectedTool(t.id);
-                 }
-               }}
-               onPointerDown={(e) => { e.stopPropagation(); setSelectedTool(t.id); }}>
-            <Icon as={t.icon} size={20} />
-          </div>
-        ))}
+        {tools.map(t => {
+          // The grid tool opens the Templates panel rather than arming the
+          // placer straight away: choosing a shape IS the act of making a grid,
+          // so the picker is the tool. This keeps the rail at eight buttons —
+          // it already overflows on landscape phones and scrolls by a pointer
+          // gesture. G still places the default instantly for anyone who knows
+          // it, and the right-click Add ▸ Grid is untouched.
+          const isTpl = templateStoreOpen && t.id === 'grid';
+          const active = isTpl ? (tplPanelOpen || selectedTool === 'grid') : selectedTool === t.id;
+          // The grid tool ARMS the placer and opens the picker at the same
+          // time. Opening a panel used to swallow the click that follows it,
+          // which broke the oldest muscle memory in the app: pick the tool, tap
+          // the canvas, get a grid. The panel is a refinement — choose a shape
+          // before you click and that shape is what lands — not a gate.
+          const activate = isTpl
+            ? () => { const next = !tplPanelOpen; setTplPanelOpen(next); setSelectedTool(next ? 'grid' : 'select'); }
+            : () => setSelectedTool(t.id);
+          const btn = (
+            <div className={`cnv-tool ${active ? 'active' : ''}`}
+                 data-tip={t.title}
+                 data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
+                 role="button"
+                 tabIndex={0}
+                 aria-label={t.label}
+                 aria-pressed={active}
+                 aria-expanded={isTpl ? tplPanelOpen : undefined}
+                 onKeyDown={(e) => {
+                   // Escape is deliberately NOT handled here. The window-level
+                   // ladder owns it, and a local handler double-steps: keydown
+                   // is a discrete event, so React flushes this setState
+                   // synchronously, the ladder's effect re-registers with the
+                   // new state, and the same press then falls through to the
+                   // next rung — closing the panel AND disarming the tool.
+                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+                 }}
+                 onPointerDown={(e) => { e.stopPropagation(); activate(); }}>
+              <Icon as={t.icon} size={20} />
+            </div>
+          );
+          if (!isTpl) return <Fragment key={t.id}>{btn}</Fragment>;
+          return (
+            <div className="cnv-tpl-wrap" key={t.id} ref={tplAnchorRef}>
+              {btn}
+              <GridTemplatePanel
+                open={tplPanelOpen}
+                onClose={() => setTplPanelOpen(false)}
+                sections={templateSections}
+                onPick={pickTemplate}
+                applyTargetId={templateTargetId}
+                mobileShell={mobileShell}
+                anchorRef={tplAnchorRef}
+                // Saving and row actions need a backend. Under ?local=1 (and
+                // signed out) they are simply absent rather than present and
+                // broken — the panel keeps working as the built-in picker.
+                rowActions={templatesEnabled ? templateRowActions : null}
+                onSaveCurrent={templatesEnabled ? openSaveTemplate : null}
+              />
+            </div>
+          );
+        })}
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
              data-tip="Keyboard shortcuts (?)"
@@ -10157,6 +11214,39 @@ export function CanvasSurface({
           <Icon as={Question} size={20} />
         </div>
       </div>
+
+      <SaveTemplateDialog
+        open={!!saveTplLayout}
+        canPublish={templatesEnabled}
+        layout={saveTplLayout?.layout || null}
+        size={saveTplLayout?.size || null}
+        onCancel={() => setSaveTplLayout(null)}
+        onSave={commitSaveTemplate}
+      />
+
+      {/* "Grid template added" → put it down. pickTemplate is reused verbatim, so
+          this button behaves exactly like picking the same row out of the panel:
+          with a grid selected it re-cuts that grid (done — clear the prompt), and
+          with nothing selected it arms the placer and the prompt switches to
+          "click anywhere". One code path, so the shortcut can never drift from
+          the long way round. */}
+      {templateStoreOpen && justAddedTemplate && (
+        <TemplateAddedPrompt
+          template={justAddedTemplate}
+          armed={selectedTool === 'grid' && !!pendingGridLayout}
+          onPlace={() => {
+            const reCut = !!templateTargetIdRef.current;
+            pickTemplate(justAddedTemplate);
+            if (reCut) onDismissJustAdded?.();
+          }}
+          onDismiss={() => {
+            // Disarm too, or dismissing the prompt leaves the canvas silently
+            // holding a template the next click would place.
+            if (selectedTool === 'grid') setSelectedTool('select');
+            onDismissJustAdded?.();
+          }}
+        />
+      )}
 
       {selectedTool === 'arrow' && (
         <div className="cnv-hint">
@@ -10210,12 +11300,16 @@ export function CanvasSurface({
         // what it is (lib/firstBoardCopy.js).
         const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
         return (
-        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}${firstBoard ? ' is-first' : ''}`}
+        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}${firstBoard ? ' is-first' : ''}${freshProject && !firstBoard ? ' is-project' : ''}`}
              aria-label="Add your first images"
              role={frictionStuck ? 'status' : 'group'}>
-          <div className="cnv-empty-tiles-head">
-            {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstBoard ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}
-          </div>
+          {freshProject && !firstBoard ? (
+            <ProjectNameField board={board} onRename={(name) => mutators.renameBoardById?.(board.id, name)} />
+          ) : (
+            <div className="cnv-empty-tiles-head">
+              {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstLike ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}
+            </div>
+          )}
           <div className="cnv-empty-tiles-breadth">Moodboards, scripts, shot lists — every asset, one canvas.</div>
           <button type="button" className="cnv-empty-tile cnv-empty-tile-hero"
                   onPointerDown={(e) => e.stopPropagation()}
@@ -10698,6 +11792,7 @@ export function CanvasSurface({
       )}
       {lightbox && (
         <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
+                       downloadName={lightbox.downloadName || null}
                        onClose={() => setLightbox(null)} />
       )}
       {/* Per-card photo-adjustment SVG filter defs, referenced by id. Keyed off
@@ -10726,7 +11821,7 @@ export function CanvasSurface({
             src={card.src} title={card.title || card.label || ''} adjust={card.adjust} cardId={card.id}
             onChange={(next) => mutators.updateCard?.(card.id, { adjust: next })}
             onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
-            onDownload={() => downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust })}
+            onDownload={() => runDownload(card, 'image')}
             onClose={() => setImageEditFull(null)} />
         );
       })()}

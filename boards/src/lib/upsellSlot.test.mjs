@@ -141,5 +141,110 @@ assertEq(claimUpsellSlot('cap-hit', T + 1000), true, 'and the wall still overrid
 // caller that passes the upgradeReason string straight through fails closed.
 assertEq(claimUpsellSlot('storage', T), false, "'storage' is not a slot kind — 'storage-gate' is");
 
+// "What's holding you back?" is asked as an offer CLOSES, inside the window the
+// offer itself claimed. As an ordinary ambient kind it would be refused by the
+// very surface it follows, every time — so it may follow an OFFER, and nothing
+// else.
+for (const offer of ['cap-hit', 'first-value', 'cap-toast', 'storage-gate', 'pricing-intent']) {
+  __resetUpsellSlot();
+  assertEq(claimUpsellSlot(offer, T), true, `${offer} shows`);
+  assertEq(claimUpsellSlot('upgrade-reason', T + 5000), true, `the reason ask may follow ${offer}`);
+  assertEq(claimUpsellSlot('share-ask', T + 6000), false, `and then holds the moment against ambient kinds (after ${offer})`);
+}
+for (const other of ['share-ask', 'mix-prompt', 'return-reason', 'invite-nudge', 'power-reveal']) {
+  __resetUpsellSlot();
+  assertEq(claimUpsellSlot(other, T), true, `${other} shows`);
+  assertEq(claimUpsellSlot('upgrade-reason', T + 5000), false, `the reason ask waits behind ${other}, which is not an offer`);
+}
+// 'pricing-intent' is the Creator offer someone asked for on /pricing before
+// signing up. It is an offer (the reason ask may follow it, above), it is not
+// an ask (it spends no visit), and it does not stack on another offer.
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('pricing-intent', T, 'v9'), true, 'the resumed offer takes a free slot');
+assertEq(claimUpsellSlot('share-ask', T + 1000, 'v9'), false, 'ambient asks stand down behind it');
+assertEq(claimUpsellSlot('share-ask', T + UPSELL_STACK_WINDOW_MS + 1, 'v9'), true,
+  'and it spent no visit: the same visit still gets its one ask once the window passes');
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('cap-hit', T), true, 'the wall holds the minute');
+assertEq(claimUpsellSlot('pricing-intent', T + 2000), false, 'the resumed offer waits rather than stacking on it');
+assertEq(claimUpsellSlot('pricing-intent', T + UPSELL_STACK_WINDOW_MS + 1), true, 'and shows once the window passes');
+
+__resetUpsellSlot();
+assertEq(claimUpsellSlot('upgrade-reason', T), true, 'a free slot takes it');
+assertEq(claimUpsellSlot('cap-hit', T + 1000), true, 'and the wall still overrides it');
+
+// --- one ambient ask per visit ---------------------------------------------
+// The window stops two surfaces in one minute; it never stopped a visit from
+// collecting three a minute apart. The ambient kinds now get one turn per app
+// session between them. W = a time safely past the window.
+const W = T + UPSELL_STACK_WINDOW_MS + 1;
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, 'v1'), 'the first ambient ask of the visit shows');
+assertEq(claimUpsellSlot('power-reveal', W, 'v1'), false,
+  'a different ambient kind waits for the next visit, even after the window');
+assertEq(claimUpsellSlot('invite-nudge', W + 60_000, 'v1'), false, 'and so does every other one');
+assert(claimUpsellSlot('power-reveal', W + 120_000, 'v2'), 'the next visit gets its own ask');
+assertEq(claimUpsellSlot('share-ask', W + 240_000, 'v2'), false, 'which is then that visit\'s only one');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('mix-prompt', T, 'v1'), 'the mix prompt owns the visit');
+assert(claimUpsellSlot('mix-prompt', W, 'v1'),
+  'and may show again (it follows its person from board to board — one ask)');
+
+// Money surfaces are neither refused by the budget nor spend it.
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, 'v1'), 'an ambient ask owns the visit');
+assert(claimUpsellSlot('first-value', W, 'v1'), 'the first-value offer still shows');
+assert(claimUpsellSlot('cap-toast', W + 120_000, 'v1'), 'so does the near-cap toast');
+assert(claimUpsellSlot('storage-gate', W + 240_000, 'v1'), 'and a refused file');
+assert(claimUpsellSlot('cap-hit', W + 360_000, 'v1'), 'and the wall');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('first-value', T, 'v1'), 'an offer shows first');
+assert(claimUpsellSlot('share-ask', W, 'v1'), 'and did not spend the visit\'s ambient ask');
+
+// "What's holding you back?" may follow an offer inside the window, but it is
+// still an ambient ask: behind one this visit already had, it waits.
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, 'v1'), 'the share ask owned this visit');
+assert(claimUpsellSlot('cap-toast', W, 'v1'), 'an offer shows later in it');
+assertEq(claimUpsellSlot('upgrade-reason', W + 5_000, 'v1'), false,
+  'so the reason ask waits, though FOLLOWS would let it follow the offer');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('cap-toast', T, 'v1'), 'an offer in a visit with no ask yet');
+assert(claimUpsellSlot('upgrade-reason', T + 5_000, 'v1'), 'the reason ask follows it');
+assertEq(claimUpsellSlot('share-ask', W + 5_000, 'v1'), false, 'and is that visit\'s one ask');
+
+// The return question is asked once per account, ever, and its answers are the
+// read on why people come back — it is let through the budget (owner, 10-01),
+// and it does not spend it. The window still keeps it off another surface.
+__resetUpsellSlot();
+assert(claimUpsellSlot('mix-prompt', T, 'v1'), 'a dock owns the visit');
+assert(claimUpsellSlot('return-reason', W, 'v1'), 'the return question is still asked on it');
+assert(claimUpsellSlot('mix-prompt', W + 120_000, 'v1'), 'and the dock still owns the visit after it');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('return-reason', T, 'v1'), 'the return question shows first');
+assert(claimUpsellSlot('share-ask', W, 'v1'), 'and did not spend the visit\'s one ambient ask');
+assertEq(claimUpsellSlot('power-reveal', W + 120_000, 'v1'), false, 'which the share ask now owns');
+
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, 'v1'), 'a share ask takes the moment');
+assertEq(claimUpsellSlot('return-reason', T + 5_000, 'v1'), false,
+  'and the window still keeps the return question off it');
+
+// No visit id never refuses: suppressing a surface is the expensive mistake.
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, null), 'no visit id: shows');
+assert(claimUpsellSlot('power-reveal', W, null), 'and nothing is spent against a missing id');
+assert(claimUpsellSlot('share-ask', T + 3 * UPSELL_STACK_WINDOW_MS, ''), 'an empty id reads as missing too');
+
+// Callers pass no visit: the module reads the live app session itself.
+__resetUpsellSlot();
+assert(claimUpsellSlot('invite-nudge', T), 'a default-visit claim shows');
+assertEq(claimUpsellSlot('share-ask', W), false, 'and the default visit is one visit');
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

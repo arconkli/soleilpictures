@@ -11,6 +11,7 @@
 // starts and `legacy_i` giving image cards their frozen /api/public-img index.
 
 import { matchToolPath } from './seoLanding.js';
+import { formatKey } from './loopMeta.js';
 
 const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -118,6 +119,30 @@ function itemHtml(item, slug) {
         .map((l) => `<p>${esc(l)}</p>`).join('')}</div>`;
     case 'video':
       return `<p class="pa-video">▶ ${t ? `<b>${t}</b>` : 'Video'}${item.body ? ` — ${esc(item.body)}` : ''} (plays on the board above)</p>`;
+    case 'audio': {
+      // Audio had no case here at all, so a published sample pack fell through
+      // to the note default and — having no body — emitted an empty string. To
+      // a crawler or an AI agent the pack was a page of nothing.
+      //
+      // The metadata line is the part worth indexing: "0:02 · 128 BPM · A min ·
+      // WAV" is what someone is actually searching for. `item.body` carries a
+      // Scout voice-memo transcript where there is one.
+      const a = item.audio || {};
+      const bits = [];
+      const d = Number(a.duration);
+      if (Number.isFinite(d) && d > 0) {
+        bits.push(`${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, '0')}`);
+      }
+      if (Number.isFinite(Number(a.bpm))) bits.push(`${Number(a.bpm)} BPM`);
+      // Display form, so the page says what the card and the list column say.
+      // The projection stores the canonical 'Amin'; formatKey turns that into
+      // 'A min' (and 'F#min' into 'F♯ min').
+      if (a.key) bits.push(formatKey(a.key) || String(a.key));
+      if (a.format) bits.push(String(a.format));
+      const meta = bits.length ? ` — ${esc(bits.join(' · '))}` : '';
+      const body = item.body ? `<span class="pa-audio-body">${esc(item.body)}</span>` : '';
+      return `<p class="pa-audio">♪ ${t ? `<b>${t}</b>` : 'Audio'}${meta} (plays on the board above)${body ? ` ${body}` : ''}</p>`;
+    }
     case 'shape':
       return item.label ? `<p class="pa-shape">${esc(item.label)}</p>` : '';
     case 'board':

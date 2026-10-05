@@ -1,0 +1,80 @@
+/* /t/<token> — the grid-template share landing.
+
+   Its own file, imported by the page, so it code-splits with the route rather
+   than adding bytes to the signed-out entry chunk. The topbar classes
+   (.public-topbar / .public-brand / .public-cta / .public-signin-quiet) are
+   global in styles.css and are reused verbatim so this page reads as the same
+   product as /share and /c. */
+
+.tshare-root {
+  min-height: 100dvh;
+  background: var(--bg-0);
+  color: var(--ink-0);
+}
+
+.tshare-main {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 56px 24px 80px;
+  text-align: center;
+}
+
+.tshare-h1 {
+  font: 600 30px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  margin: 0 0 10px;
+}
+
+.tshare-sub {
+  font: 400 15px/1.6 var(--font-sans);
+  color: var(--ink-2);
+  margin: 0 auto 28px;
+  max-width: 44ch;
+}
+
+/* The preview scales the tiny picker thumbnail up to poster size. The SVG has a
+   viewBox, so this is resolution-independent — the same geometry the card will
+   render, just larger. */
+.tshare-preview {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  margin: 0 0 28px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-1);
+}
+.tshare-preview .tplt-thumb {
+  width: min(420px, 100%);
+  height: auto;
+  aspect-ratio: 56 / 44;
+  background: transparent;
+}
+.tshare-preview .tplt-thumb rect {
+  fill: var(--bg-2);
+  stroke: var(--line-3);
+  stroke-width: .5;
+}
+
+.tshare-cta { display: inline-block; }
+
+.tshare-fine {
+  font: 400 13px/1.6 var(--font-sans);
+  color: var(--ink-3);
+  margin: 18px auto 0;
+  max-width: 46ch;
+}
+
+.tshare-msg {
+  font: 400 15px/1.6 var(--font-sans);
+  color: var(--ink-2);
+  padding: 40px 0;
+}
+.tshare-msg .tshare-h1 { margin-bottom: 8px; }
+.tshare-msg .public-cta { display: inline-block; margin-top: 20px; }
+
+@media (max-width: 640px) {
+  .tshare-main { padding: 32px 18px 60px; }
+  .tshare-h1 { font-size: 24px; }
+  .tshare-preview { padding: 18px; }
+}

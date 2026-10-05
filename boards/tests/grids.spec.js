@@ -239,6 +239,41 @@ test.describe('grids — label variables', () => {
     expect(r.hasnot).toBe(false);
   });
 
+  // Stamping with the directional "+" (and the bulk generator) hands the copy
+  // whatever describes how the grid is meant to be FILLED IN, and nothing that
+  // is filled in. Hints were missing from this for the life of the feature,
+  // because the rule was written out once for the Yjs path and once for the
+  // local shell and only one of them learned about hints.
+  test('stampCarry carries the slate and the hints, not the content', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      const cells = {
+        c1: { type: 'text', html: 'SHOT [#]' },      // a slate — carries
+        c2: { type: 'text', html: 'he walks in' },   // written content — does not
+        c3: { type: 'image', src: 'blob:x' },        // content — does not
+      };
+      const hints = { c1: 'WIDE SHOT', c2: 'ACTION', c3: 'INSERT' };
+      return {
+        carried: T.stampCarry(cells, hints),
+        noHints: T.stampCarry(cells, null),
+        emptyHints: T.stampCarry(cells, { c1: '', c2: '   ' }),
+        nothing: T.stampCarry(null, null),
+      };
+    });
+
+    expect(Object.keys(r.carried.cells)).toEqual(['c1']);
+    expect(r.carried.cells.c1.html).toBe('SHOT [#]');
+    // Every hint travels, including one whose cell carries a slate — a hint on a
+    // filled cell is stored but never painted, and returns if you clear the cell.
+    expect(r.carried.hints).toEqual({ c1: 'WIDE SHOT', c2: 'ACTION', c3: 'INSERT' });
+
+    // Null, not {}, so the caller can omit the key and an unhinted grid stays
+    // unhinted rather than growing an empty map on every stamp.
+    expect(r.noHints.hints).toBeNull();
+    expect(r.emptyHints.hints, 'blank labels are not hints').toBeNull();
+    expect(r.nothing).toEqual({ cells: {}, hints: null });
+  });
+
   // Guard that the shipped GRID_TUNING keeps a usable min cell + divider.
   test('shipped GRID_TUNING is sane', async ({ page }) => {
     const t = await page.evaluate(() => window.__soleilGridTest.GRID_TUNING);

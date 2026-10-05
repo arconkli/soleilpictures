@@ -1,8 +1,10 @@
 // AdminFeedbackTab — everything anyone has told us, in one list.
 //
-// Two sources land here: the in-app feedback widget (bug/idea/praise/other, via
-// the send-feedback edge function) and the return question (return_reason, via
-// submit_return_reason). The second could not reach this table at all until
+// Four sources land here (one data model since 0348): Send feedback (bug/idea/
+// praise/other, now with a one-tap topic as `choice`, via the send-feedback edge
+// function), the return question (return_reason) and its role step (role), and
+// "What's holding you back?" (upgrade_reason) — each with the context record
+// the person was shown before sending, and their consent to be written to. The second could not reach this table at all until
 // 0310 — it stamped a kind the table's CHECK forbade, so every answer raised
 // 23514 and was discarded silently.
 //
@@ -28,11 +30,12 @@ import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { FeedbackKindPill, FeedbackChoicePill } from './AdminPills.jsx';
 import { MessageSquare, Image as ImageIcon } from '../../lib/icons.js';
+import { describeFeedbackContext } from '../../lib/feedbackContext.js';
 
 // Asserted against the table's CHECK by src/lib/feedbackContract.test.mjs — a
 // kind the database can store and this array cannot ask for is a row written
 // and then hidden behind a filter.
-const KINDS = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted'];
+const KINDS = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted', 'upgrade_reason', 'role'];
 const PAGE_SIZE = 50;
 // Long enough that most messages are shown whole — the reading column is
 // capped, so this is about how many LINES a row costs, not characters on one.
@@ -91,9 +94,10 @@ export function AdminFeedbackTab() {
     if (r.has_image && !shots[id]) loadShot(id);
   };
 
-  // Counts by answer for the return question. Computed off the page in hand and
-  // labelled as such — this is a read of what is on screen, not a total.
-  const tally = kind === 'return_reason'
+  // Counts by answer for any kind that carries one. Computed off the page in
+  // hand and labelled as such — a read of what is on screen, not a total (the
+  // breakdown panel above is the total).
+  const tally = kind && rows.some((r) => r.choice)
     ? rows.reduce((acc, r) => {
         const k = r.choice || 'unknown';
         acc[k] = (acc[k] || 0) + 1;
@@ -138,6 +142,8 @@ export function AdminFeedbackTab() {
             {kind ? ` · ${kind}` : ''}{debounced ? ` · “${debounced}”` : ''}
           </span>
         </header>
+        <FeedbackBreakdown />
+
         {tally && Object.keys(tally).length > 0 && (
           <div className="fbk-tally">
             {Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([k, n]) => (
@@ -199,6 +205,10 @@ export function AdminFeedbackTab() {
                       ? <CopyableText value={r.email} className="fbk-who" />
                       : <span className="fbk-who fbk-anon">anonymous</span>}
                     <span title={fmtDateTime(r.created_at)}>{relativeTime(r.created_at)}</span>
+                    {r.contact_ok && <span className="fbk-consent">may email</span>}
+                    {r.context && describeFeedbackContext(r.context) && (
+                      <span className="fbk-ctx" title={JSON.stringify(r.context)}>{describeFeedbackContext(r.context)}</span>
+                    )}
                     {r.url && (
                       <a className="fbk-path" href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                         {(() => { try { return new URL(r.url).pathname; } catch { return r.url; } })()}
@@ -228,6 +238,111 @@ export function AdminFeedbackTab() {
           <span className="admin-muted">Page {page + 1}</span>
           <button className="admin-action" disabled={!hasNext || refreshing} onClick={() => setPage((p) => p + 1)}>Next →</button>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── The breakdown ────────────────────────────────────────────────────────────
+// admin_feedback_breakdown (0348): every answer counted by what was asked, what
+// was said, the author's role and how deep they were when they said it. This is
+// where the pre-registered reads are taken — the "What's holding you back?"
+// shares by depth, and the role mix of the people who build. An answer from a
+// paying (or admin) author is its own band since 0349: Creator has no cap, so
+// measuring it against the free one filed buyers among the walled.
+const DEPTHS = ['0', '1-12', '13+', '80%+ of cap', 'paid', 'anonymous', 'unknown'];
+const GROUPS = [
+  { id: 'upgrade_reason', label: "What's holding you back?", kinds: ['upgrade_reason'] },
+  { id: 'return_reason',  label: 'What brings you back',     kinds: ['return_reason'] },
+  { id: 'role',           label: 'What best describes you',  kinds: ['role'] },
+  { id: 'topics',         label: 'Send feedback topics',     kinds: ['bug', 'idea', 'praise', 'other'] },
+];
+
+function FeedbackBreakdown() {
+  const [group, setGroup] = useState('upgrade_reason');
+  const fetchBreakdown = useCallback(async () => {
+    const { data, error } = await supabase.rpc('admin_feedback_breakdown', { p_since: null, p_exclude_internal: true });
+    if (error) throw error;
+    return data || [];
+  }, []);
+  const { data, loading, error } = useAdminData(fetchBreakdown, []);
+
+  const g = GROUPS.find((x) => x.id === group) || GROUPS[0];
+  const rows = (data || []).filter((r) => g.kinds.includes(r.kind));
+  const byChoice = new Map();
+  const byRole = new Map();
+  for (const r of rows) {
+    const c = r.choice || '(words only)';
+    const n = Number(r.answers) || 0;
+    const e = byChoice.get(c) || { choice: c, total: 0, notes: 0, contact: 0, depth: {} };
+    e.total += n;
+    e.notes += Number(r.with_note) || 0;
+    e.contact += Number(r.contact_ok) || 0;
+    e.depth[r.depth] = (e.depth[r.depth] || 0) + n;
+    byChoice.set(c, e);
+    const rr = byRole.get(c) || {};
+    const role = r.role || '—';
+    rr[role] = (rr[role] || 0) + n;
+    byRole.set(c, rr);
+  }
+  const list = [...byChoice.values()].sort((a, b) => b.total - a.total);
+  const total = list.reduce((n, e) => n + e.total, 0);
+  const depths = DEPTHS.filter((d) => list.some((e) => e.depth[d]));
+  const roles = [...new Set(rows.map((r) => r.role || '—'))].sort();
+  const pct = (n) => (total ? `${Math.round((100 * n) / total)}%` : '—');
+
+  return (
+    <div className="fbk-breakdown">
+      <div className="fbk-breakdown-head">
+        <span className="fbk-breakdown-title">All answers, external accounts</span>
+        <select className="auth-input admin-filter-select" value={group} onChange={(e) => setGroup(e.target.value)} aria-label="Which question">
+          {GROUPS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+        </select>
+        <span className="t-meta">{loading ? 'Loading…' : error ? 'Could not load the breakdown.' : `${formatCount(total)} answers`}</span>
+      </div>
+      {!loading && !error && list.length > 0 && (
+        <>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Answer</th>
+                <th className="num">Share</th>
+                {depths.map((d) => <th key={d} className="num">{d}</th>)}
+                <th className="num">Wrote</th>
+                <th className="num">May email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((e) => (
+                <tr key={e.choice}>
+                  <td>{e.choice}</td>
+                  <td className="num">{formatCount(e.total)} · {pct(e.total)}</td>
+                  {depths.map((d) => <td key={d} className="num">{e.depth[d] ? formatCount(e.depth[d]) : ''}</td>)}
+                  <td className="num">{e.notes ? formatCount(e.notes) : ''}</td>
+                  <td className="num">{e.contact ? formatCount(e.contact) : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {group !== 'role' && roles.some((r) => r !== '—') && (
+            <table className="admin-table" style={{ marginTop: 10 }}>
+              <thead>
+                <tr>
+                  <th>Answer, by role</th>
+                  {roles.map((r) => <th key={r} className="num">{r}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((e) => (
+                  <tr key={e.choice}>
+                    <td>{e.choice}</td>
+                    {roles.map((r) => <td key={r} className="num">{byRole.get(e.choice)?.[r] ? formatCount(byRole.get(e.choice)[r]) : ''}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       )}
     </div>
   );

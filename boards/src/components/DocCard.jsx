@@ -13,7 +13,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { cardScope, readDocSummary, initCardDocStore } from '../lib/docState.js';
+import { cardScope, readDocSummary, initCardDocStore, followTitle } from '../lib/docState.js';
 import { readDocOpenMode, writeDocOpenMode } from '../lib/docOpenMode.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
@@ -296,7 +296,21 @@ export function RichDocCard({
             placeholder="Untitled doc"
             autoFocus={autoFocus}
             selectAllOnFocus={autoFocus}
-            onChange={(v) => onUpdate?.({ title: v || null })}
+            onChange={(v) => {
+              if (!onUpdate) return;
+              const next = v || null;
+              // The first page follows the title while it tracks it — the open
+              // doc does this, and a card renamed before its first open (a
+              // dropped script) must too. One canvas step for both.
+              if (ydoc && scope && next) {
+                ydoc.transact(() => {
+                  try { followTitle(ydoc, scope, card.title || '', next); } catch (_) {}
+                  onUpdate({ title: next });
+                }, 'local');
+              } else {
+                onUpdate({ title: next });
+              }
+            }}
           />
         )}
         <div className="doc-card-page" key={previewKey}>

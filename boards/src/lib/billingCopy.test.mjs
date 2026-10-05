@@ -31,6 +31,7 @@ import {
   TRIAL_FROM_LABEL,
   firstValueSentence,
   nearCapSentence,
+  newProjectSentence,
 } from './billingCopy.js';
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from './demoCardCap.js';
 
@@ -312,6 +313,17 @@ assert(
     !== nearCapSentence({ count: 1, limit: 2, trialOffer: false }),
   'toast variants differ',
 );
+
+// The new-project invitation is trial-only, built from the fact, and names the
+// person's own position — it is about the ceiling every project shares.
+{
+  const t = newProjectSentence({ count: 31, limit: 50 });
+  assert(!t.includes('$'), 'new-project offer: names no price');
+  assert(t.toLowerCase().includes('free'), 'new-project offer: says free');
+  assert(t.includes(String(CREATOR_TRIAL_DAYS)), 'new-project offer: the day count is the fact, not a typed number');
+  assert(t.includes('31') && t.includes('50'), 'new-project offer: names the live count and the limit');
+  assert(/every project/i.test(t), 'new-project offer: says the cards are shared by every project');
+}
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

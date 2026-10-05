@@ -19,6 +19,7 @@ import sharp from 'sharp';
 import { SEO_LANDING_PAGES, landingOgPath } from '../src/lib/seoLanding.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 import { DOCS_SECTIONS } from '../src/lib/docsiteIndex.js';
+import { TEMPLATE_CATEGORIES } from '../src/lib/templateCards.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -68,6 +69,16 @@ const cards = [
     file: `docs-${s.id}.png`,
     h1: `${s.label} — documentation`,
     subhead: s.blurb,
+  })),
+  // The template store: ONE card per CATEGORY, not per template. Same call
+  // injectDocs makes for docs sections, and for the same reason — fifteen
+  // near-identical cards would be churn in public/og/ for a difference nobody
+  // can see in a link preview. worker.js injectTemplate derives the filename
+  // from item.category; keep the two in step.
+  ...TEMPLATE_CATEGORIES.map((c) => ({
+    file: `template-${c.id}.png`,
+    h1: `${c.label} templates`,
+    subhead: c.blurb,
   })),
   // The changelog gets ONE card, not one per entry. worker.js injectChangelog
   // busts it with ?v=<newest entry date>, so the preview refreshes on a reshare

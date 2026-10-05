@@ -28,6 +28,7 @@ import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
+import { readCreatorIntent } from '../lib/creatorIntent.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail } from '../lib/emailTypo.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
@@ -564,12 +565,16 @@ function SignIn() {
   // offered a one-tap fix. Never blocks the send; logged once per domain.
   const [typo, setTypo] = useState(null);
   const typoLoggedRef = useRef(new Set());
-  const noteTypo = (value) => {
+  // The offer follows every keystroke, but the EVENT is only logged once the
+  // person has stopped typing (blur) or sent it (submit). Logged per keystroke,
+  // "gmail" on the way to "gmail.com" and ".co" on the way to ".com" counted as
+  // typos, and the counter mostly measured people mid-word.
+  const noteTypo = (value) => { setTypo(suggestEmail(value)); };
+  const logTypoSeen = (value, at) => {
     const t = suggestEmail(value);
-    setTypo(t);
     if (t && !typoLoggedRef.current.has(t.toDomain)) {
       typoLoggedRef.current.add(t.toDomain);
-      try { logEvent(EV.EMAIL_TYPO_SUGGESTED, { from_domain: t.fromDomain, to_domain: t.toDomain }); } catch (_) {}
+      try { logEvent(EV.EMAIL_TYPO_SUGGESTED, { from_domain: t.fromDomain, to_domain: t.toDomain, at }); } catch (_) {}
     }
   };
   const [stage, setStage]       = useState('email'); // 'email' | 'code'
@@ -584,6 +589,9 @@ function SignIn() {
   // no email to pre-fill (the link is multi-use, not addressed to anyone), so
   // the payoff is purely context: name the cluster they were invited to.
   const [joinHint, setJoinHint] = useState(null);
+  // Non-null when "Get Creator" on /pricing sent them here (creatorIntent.js).
+  // Read once: an expired entry is removed on read and simply shows nothing.
+  const [creatorHint] = useState(() => { try { return readCreatorIntent(); } catch (_) { return null; } });
   const codeRef = useRef(null);
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
   const codeEngagedRef  = useRef(false);
@@ -789,9 +797,21 @@ function SignIn() {
         </div>
       )}
 
+      {/* "Get Creator" on /pricing sends a signed-out visitor here. Without a
+          line saying so, the sign-in screen looked like the free signup they
+          had just declined, and nothing said the offer was still coming. The
+          labels were written in by /pricing (creatorIntent.js). */}
+      {!inviteHint && !joinHint && creatorHint && (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          Sign in to finish getting <b>{creatorHint.planName || 'the paid plan'}</b>
+          {creatorHint.priceLabel ? <> at <b>{creatorHint.priceLabel}</b></> : null}
+          {' '}— the offer opens as soon as you are in.
+        </div>
+      )}
+
       <div className="sb-frost">
         {stage === 'email' ? (
-          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) sendCode(false); }}>
+          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) { logTypoSeen(email, 'submit'); sendCode(false); } }}>
             <input
               className="auth-input"
               type="email"
@@ -811,6 +831,7 @@ function SignIn() {
                 setEmail(e.target.value);
                 noteTypo(e.target.value);
               }}
+              onBlur={(e) => logTypoSeen(e.target.value, 'blur')}
               disabled={busy}
             />
             {typoOffer('email')}

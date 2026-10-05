@@ -36,11 +36,11 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   const handleRef = useRef(null);
   const [resetEpoch, setResetEpoch] = useState(0);
   const emptySnapshot = (nextBoardId = null) => ({
-    ready: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: nextBoardId,
+    ready: false, synced: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: nextBoardId,
     undoManager: null, canUndo: false, canRedo: false, sessionId: null,
   });
   const [snapshot, setSnapshot] = useState({
-    ready: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: null,
+    ready: false, synced: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: null,
     undoManager: null, canUndo: false, canRedo: false, sessionId: null,
   });
 
@@ -193,6 +193,9 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
       }
       setSnapshot({
         ready: true,
+        // ready comes with the instant cache paint; synced only once the
+        // server's own snapshot is in (yboard serverApplied).
+        synced: !!handle.serverApplied?.(),
         cards: nextCards,
         arrows: readArrows(handle.ydoc),
         strokes: readStrokes(handle.ydoc),

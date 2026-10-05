@@ -49,6 +49,14 @@ test.describe('power reveal wiring', () => {
     expect(revealBlock()).toMatch(/!yb\.ready \|\| yb\.boardId !== currentId/);
   });
 
+  test('the slot is claimed BEFORE the one-shot is spent, so a busy slot defers a reveal instead of burning it', () => {
+    const block = revealBlock();
+    const claim = block.indexOf("claimUpsellSlot('power-reveal')");
+    const marks = block.indexOf('markRevealSeen(picked.key)');
+    expect(claim).toBeGreaterThan(-1);
+    expect(marks).toBeGreaterThan(claim);
+  });
+
   test('seen + session guards are marked BEFORE the toast, with a write-verify bail', () => {
     const block = revealBlock();
     const marks = block.indexOf('markRevealSeen(picked.key)');

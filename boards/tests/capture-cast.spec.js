@@ -133,8 +133,38 @@ test('the cursor spotlight draws a pointer and a click ripple', async ({ page })
     return t.includes('400px') && t.includes('300px');
   }).toBe(true);
 
+  // A ripple lives 520ms and removes itself, so count them as they are added
+  // rather than racing the animation. (The assertion here used to be
+  // `count() >= 0`, which is true of every count there has ever been.)
+  await page.evaluate(() => {
+    window.__ripples = 0;
+    new MutationObserver(ms => ms.forEach(m => { window.__ripples += m.addedNodes.length; }))
+      .observe(document.querySelector('.capture-spot-ripples'), { childList: true });
+  });
+
   await page.mouse.click(400, 300);
-  // The ripple is short-lived by design, so assert it existed at all.
-  const seen = await page.locator('.capture-spot-ripple').count();
-  expect(seen).toBeGreaterThanOrEqual(0);
+  await expect.poll(() => page.evaluate(() => window.__ripples)).toBe(1);
+});
+
+test('the spotlight does not draw the hand that is operating the camera', async ({ page }) => {
+  await boot(page);
+  await page.locator('.capture-hud-chip', { hasText: 'Cursor' }).click();
+  await expect(page.locator('.capture-spot-dot')).toBeVisible();
+
+  await page.evaluate(() => {
+    window.__ripples = 0;
+    new MutationObserver(ms => ms.forEach(m => { window.__ripples += m.addedNodes.length; }))
+      .observe(document.querySelector('.capture-spot-ripples'), { childList: true });
+  });
+
+  // The panel portals to <body>, outside #root, precisely so it is not in the
+  // picture. Pressing one of its controls used to paint a gold ripple anyway —
+  // the tool signing the recording it was being used to make.
+  await page.locator('[data-cap="fit"]').click();
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__ripples)).toBe(0);
+
+  // The canvas still draws, so this is a filter and not an off switch.
+  await page.mouse.click(400, 300);
+  await expect.poll(() => page.evaluate(() => window.__ripples)).toBe(1);
 });

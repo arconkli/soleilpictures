@@ -38,10 +38,10 @@ export function StatusPill({ kind }) {
 // is why boards/src/lib/feedbackContract.test.mjs asserts this list against the
 // table's CHECK: a kind added to the database and not here would show up in the
 // colour reserved for 'other' and read as something it is not.
-const KIND_LABEL = { return_reason: 'return', account_deleted: 'left' };
+const KIND_LABEL = { return_reason: 'return', account_deleted: 'left', upgrade_reason: 'holding back', role: 'role' };
 
 export function FeedbackKindPill({ kind }) {
-  const k = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted'].includes(kind) ? kind : 'other';
+  const k = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted', 'upgrade_reason', 'role'].includes(kind) ? kind : 'other';
   return (
     <span className={`fbk-kind fbk-kind-${k}`}>
       <span className="fbk-dot" aria-hidden="true" />
@@ -50,8 +50,9 @@ export function FeedbackKindPill({ kind }) {
   );
 }
 
-// Which answer was tapped on the return question. Plain text in the meta line:
-// it qualifies the kind rather than standing beside it as a second label.
+// Which answer was tapped — the return question, "What's holding you back?",
+// the role, or a Send feedback topic. Plain text in the meta line: it qualifies
+// the kind rather than standing beside it as a second label.
 export function FeedbackChoicePill({ choice }) {
   if (!choice) return null;
   return <span className="fbk-choice">{choice}</span>;

@@ -2,7 +2,7 @@
 
 > Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.
 
-_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-09-19_
+_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-10-02_
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
@@ -12,7 +12,7 @@ Ranked by a working film studio, tested on real productions — with the dead ap
 
 Anyone can make a collage. Drag thirty images onto a canvas, nudge them around, export a JPEG — every app here can do that, and so can a corkboard. A working mood board is something else: a decision document. It exists to get a director, a client, a department head, and a budget to agree on what something should look like before money is spent making it look that way.
 
-So the real test of a mood board app is everything that happens after the board looks good. Can two people argue over it live, moving images while they talk, instead of trading screenshots? Can the client open it from one link, on a phone, without creating an account? And when the look is approved, does the board carry into the look book, the shot list, the schedule — or die as a pretty export while the production starts over elsewhere?
+So the real test of a mood board app is everything that happens after the board looks good. Can two people argue over it live, moving images while they talk, instead of trading screenshots? Can the client open it from one link, on a phone, without creating an account? And when the look is approved, does the board carry into the look book, the storyboard, the shot list — or die as a pretty export while the production starts over elsewhere?
 
 Most mood board apps fail this test in one of three ways. They cap the free tier so low the board hits a wall mid-project. They treat sharing as an export — a static file, stale the moment the conversation continues. Or they simply stop existing: since late 2023, SampleBoard, GoMoodboard, InVision, and Kosmik have all shut down, and most competing roundups still recommend at least one of them.
 
@@ -24,16 +24,16 @@ We are a working film studio, and these are tools we have used, evaluated, or be
 
 - **Survives an argument** — A board only one person can edit is a presentation, not a decision. We tested live co-editing and comments with a real crew disagreeing in real time.
 - **One-link approval** — Clients do not make accounts. If sign-off cannot happen from a single link, the tool adds friction exactly where it is most expensive.
-- **What the board becomes** — An approved board should flow into look books, shot lists, and schedules. We scored how far each tool carries the work before you start over elsewhere.
+- **What the board becomes** — An approved board should flow into look books, storyboards, and shot lists. We scored how far each tool carries the work before you start over elsewhere.
 - **The free tier tells the truth** — A free plan that dies at 20 uploads or 100 items is a trial with better marketing. We measured whether each survives one real project.
 - **Handles real media** — Production reference is not just JPEGs. Video, PDFs, palettes, and big files either belong on the board or the board is incomplete.
 - **Alive in August 2026** — Four well-known mood board tools have shut down since December 2023. Every app here has verifiable 2026 activity, checked against its own changelog or store listing.
 
 ## Best mood board app for film production teams
 
-For a film production team the best mood board app is Soleil Clusters, for one specific reason: the board does not end when the look is approved. It is a nested board inside the same project as the storyboard, the shot list and the schedule, so the reference the director signed off on is the reference the DP and the AD are still looking at on the day. Milanote is the better standalone board, Miro is the right call when the crew already lives in it, and Storyflow is the pick if you want an AI to draft the first pass.
+For a film production team the best mood board app is Soleil Clusters, for one specific reason: the board does not end when the look is approved. It is a nested board inside the same project as the storyboard, the shot list and the script, so the reference the director signed off on is the reference the DP and the AD are still looking at on the day. Milanote is the better standalone board, Miro is the right call when the crew already lives in it, and Storyflow is the pick if you want an AI to draft the first pass.
 
-What a crew needs from a mood board is different from what a designer needs. A crew needs the board to be argued over live by people in three departments, opened from one link by a producer or a client who will never create an account, and then carried forward: into the look book, the shot list, the schedule. Every app on this list can hold thirty images. Very few can hold the decision.
+What a crew needs from a mood board is different from what a designer needs. A crew needs the board to be argued over live by people in three departments, opened from one link by a producer or a client who will never create an account, and then carried forward: into the look book, the storyboard, the shot list. Every app on this list can hold thirty images. Very few can hold the decision.
 
 Clusters is built by a working film studio for exactly that hand-off, and it is free to start with no credit card. The honest limits: it does not generate imagery or draft boards for you, and its template library is younger than Milanote’s. If a single writer-director wants a first pass staged from a prompt, Storyflow does that — during paid early access, with its Free plan announced for later in 2026. If the whole production runs in Miro already, stay there and use Clusters for the reference-heavy boards it handles better.
 
@@ -56,21 +56,21 @@ Where to start: open the storyboard and shot list pages for how the mood board c
 
 The only app on this list where the mood board is argued over live, approved in one link, and then becomes the look book and the shot list.
 
-Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Drop a folder of references and auto-tagging files each one as it lands, so the board organizes itself while you argue about the layout.
+Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Select everything in a reference folder and drag it in, and it lands in one go, so the time goes into arguing about the layout, not uploading.
 
 The arguing is the point. Boards are real-time multiplayer — live cursors, presence, comments pinned to the image they are about — so the director and the production designer move frames while they talk instead of trading screenshots. When the look settles, you send one link; the client opens the current board in any browser, on a laptop or a phone — no account, no install — not last Tuesday's export.
 
-Then the board keeps working. Boards nest with live thumbnails and connect through a relationship graph, so the approved mood board sits beside the look book, the shot list, and the schedule as one project instead of four files in three apps. That is the after-the-board-looks-good test the rest of this list keeps failing, and the one job we rank ourselves first for.
+Then the board keeps working. Boards nest with live thumbnails and connect through a relationship graph, so the approved mood board sits beside the look book, the storyboard, and the shot list as one project instead of four files in three apps. That is the after-the-board-looks-good test the rest of this list keeps failing, and the one job we rank ourselves first for.
 
 The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat $25 a month — not per person — for unlimited cards, 100GB, and any file type.
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate
-- Auto-tagging files dropped references; a relationship graph connects the project
-- Boards hold images, video, audio, PDFs, notes, palettes, grids, schedules, and docs with screenplay mode
+- Tags on cards, groups and boards; a relationship graph connects the project
+- Boards hold images, video, audio, PDFs, notes, palettes, grids, and docs with screenplay mode
 - Nested boards with live thumbnails; non-destructive photo adjustments; runs in any browser, including iPad
 
-**Pros:** Flat $25/mo — the price does not multiply with every collaborator; Clients review from one link with no account; the board is always current; The approved board carries into look books, shot lists, and schedules
+**Pros:** Flat $25/mo — the price does not multiply with every collaborator; Clients review from one link with no account; the board is always current; The approved board carries into look books, storyboards, and shot lists
 
 **Cons:** Browser-only — no offline desktop app or always-on-top overlay; Template library smaller than Milanote's or Canva's; A young product from a small studio, with no integrations marketplace
 
@@ -88,7 +88,7 @@ Milanote is the polished incumbent, and it earns the reputation. Boards mix note
 
 Its sharing model is smarter than most, too. Boards share with edit, comment, or view roles, and content shared to a free collaborator does not count against that person's card cap — a genuinely gracious detail. For a solo writer, designer, or director assembling ideas before the crew shows up, Milanote is a fine answer, and we recommend it for exactly that.
 
-The decision-document test is where it thins out. The free plan caps you at 100 total cards and 10 file uploads ever — a ceiling a real reference board hits in an afternoon. Paid is per person at $9.99 a month billed annually, so cost scales with headcount. And there is no offline mode; Milanote's own help center says an internet connection is required to view and edit boards. A lovely place to think. A harder place to run a production.
+The decision-document test is where it thins out. The free plan caps you at 100 total cards and 10 file uploads ever — a ceiling a real reference board hits in an afternoon. Paid is $9.99 a month per person billed annually, or $49 a month for a team of up to ten, so cost scales with headcount. And there is no offline mode; Milanote's own help center says an internet connection is required to view and edit boards. A lovely place to think. A harder place to run a production.
 
 - Freeform boards mixing notes, images, video, links, sketches, and files
 - 40+ template categories, including storyboards, shot lists, and mood boards for film
@@ -98,7 +98,7 @@ The decision-document test is where it thins out. The free plan caps you at 100 
 
 **Pros:** Best structured solo boarding experience here, with a deep template library; Broadest first-party platform coverage in the category; Flexible sharing roles; shared content is free for the recipient
 
-**Cons:** Free plan caps at 100 total cards and 10 file uploads — tight for a visual tool; No offline mode — the help center states an internet connection is required; Per-person pricing; mobile apps lack table editing and trash access
+**Cons:** Free plan caps at 100 total cards and 10 file uploads — tight for a visual tool; No offline mode — the help center states an internet connection is required; Per-person Pro pricing (team plans from $49/mo); mobile apps lack table editing and trash access
 
 ### 3. Canva
 
@@ -310,7 +310,7 @@ Not where the mood board lives — where the ten thousand images behind it live.
 
 Eagle is the librarian of this list: a local-first desktop app that swallows entire reference collections — images, video, audio, fonts, bookmarks — into one fast library on your own disk, browsable offline with no account. The organizational tools are the draw: auto-tagging folders, smart folders that sort by name, tag, color, or format, and search by dominant color — one of the most production-useful features here when you need every frame in a certain teal.
 
-Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and the teased Eagle 5.0, with AI search and batch tagging, is confirmed free for existing license holders, though as of August 2026 the shipping version is still 4.0.
+Capture is best-in-class: the browser extension does drag-to-save, batch collection, and an Alt+Right-Click grab that works on right-click-disabled sites. Pricing is a plain one-time $34.95 covering two devices with lifetime free updates — and AI Search and AI Action arrived as official plugins in March 2026, with a rebuilt 5.0 announced free for owners but not yet dated.
 
 The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app or web viewer, and no built-in sync or collaboration — team use means parking the library in a cloud drive, which official docs endorse but which risks conflicts with simultaneous editors. Eagle does not replace a board tool. It makes whichever one you pick faster, because the right reference is always findable.
 
@@ -320,7 +320,7 @@ The trade-off mirrors PureRef's: desktop-only (Windows and macOS), no mobile app
 - Search assets by dominant color
 - Browser extension with batch capture, even from right-click-disabled sites
 
-**Pros:** Genuine one-time pricing, with the 5.0 AI release confirmed free for owners; Color search and smart folders make huge reference libraries instantly navigable; Best web-capture workflow of anything on this list
+**Pros:** Genuine one-time pricing, with AI search and organising plugins shipped in March 2026; Color search and smart folders make huge reference libraries instantly navigable; Best web-capture workflow of anything on this list
 
 **Cons:** Desktop-only — no mobile app or web viewer for on-set access; No built-in sync or collaboration; team use relies on third-party cloud drives; No free tier — a once-per-device 30-day trial, then the license
 

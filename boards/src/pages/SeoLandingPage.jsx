@@ -7,15 +7,27 @@
 // Code-split (loaded only on a landing path) and dependency-light — it imports
 // just the brand mark and the shared registry, staying out of the editor chunk.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
+import { publicTemplateSlug, isTemplateStorePath } from '../lib/templatePaths.js';
+import { templateStoreAllowed } from '../lib/appHost.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { hasPlanBlock, planBlockModel } from '../lib/planBlock.js';
 import './seoLanding.css';
+
+// The template store branches off this component rather than getting its own
+// `const …Match` in main.jsx. seoLandingMatch already matches /templates and
+// /templates/<anything>, and adding a router const would be a public-surface
+// change requiring docs:accept for no behavioural gain. Both children are lazy
+// so the store's registries never land in the landing chunk.
+const TemplatesStorePage = lazy(() => import('./TemplatesStorePage.jsx').then((m) => ({ default: m.TemplatesStorePage })));
+const TemplateItemPage = lazy(() => import('./TemplateItemPage.jsx').then((m) => ({ default: m.TemplateItemPage })));
+const PublicTemplatePage = lazy(() => import('./PublicTemplatePage.jsx').then((m) => ({ default: m.PublicTemplatePage })));
 
 // path → short link label, for related-page spokes in the footer. Includes the
 // /best/* listicles via the light index (never the full listicle registry —
@@ -50,6 +62,41 @@ function SectionWithMidCta({ index, cta, midCtaProps, children }) {
   );
 }
 
+// billingCopy marks bold spans with **…** (PricingBits renders them the same
+// way); a tiny local renderer keeps PricingBits out of this chunk.
+const withBold = (s) => String(s).split(/\*\*(.+?)\*\*/g)
+  .map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
+
+// "What it costs" (lib/planBlock.js — read its header for why it is here and
+// the read it is pre-registered against). The Worker renders the same model in
+// the same position, so crawlers and readers get one document.
+function PlanBlock({ lp, signupHref, idx }) {
+  const m = planBlockModel();
+  return (
+    <section className="seo-section seo-plans" id={m.id} ref={lp.sectionRef('plans', idx)}>
+      <h2 className="seo-h2">{m.heading}</h2>
+      <p className="seo-body">{m.lead}</p>
+      <div className="seo-plans-grid">
+        <div className="seo-plan">
+          <div className="seo-plan-name">{m.free.name}</div>
+          <div className="seo-plan-price">{m.free.price} <span className="seo-plan-unit">{m.free.unit}</span></div>
+          <ul className="seo-plan-lines">{m.free.lines.map((l, i) => <li key={i}>{withBold(l)}</li>)}</ul>
+        </div>
+        <div className="seo-plan">
+          <div className="seo-plan-name">{m.creator.name}</div>
+          <div className="seo-plan-price">{m.creator.price} <span className="seo-plan-unit">{m.creator.annual}</span></div>
+          <ul className="seo-plan-lines">{m.creator.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
+        </div>
+      </div>
+      <p className="seo-body seo-plans-note">{m.note}</p>
+      <div className="seo-plans-actions">
+        <a className="seo-cta-primary seo-cta-small" href={signupHref} {...lp.ctaProps('plan_block', signupHref)}>Start free</a>
+        <a className="seo-cta-secondary" href={m.compareHref} {...lp.ctaProps('plan_block_pricing', m.compareHref, { intent: 'nav' })}>{m.compareLabel} →</a>
+      </div>
+    </section>
+  );
+}
+
 // "Yes" / "Yes (Creator)" cells in the compare table get a gold check so the
 // Clusters column scans as a column of wins.
 const yesCheck = (text) => (/^yes\b/i.test(String(text || '').trim())
@@ -62,7 +109,20 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // the Worker has already served this document with a real HTTP 404, so
   // falling back to page content here would be a soft-404 (content at a URL
   // whose status says "gone").
-  const spec = specProp || getLandingSpec(path) || null;
+  //
+  // The template store is held off this origin (lib/templatePaths.js): the
+  // Worker has answered every store URL with a 404 here, so the page is the
+  // not-found one rather than the store front or an item.
+  const storeHeld = !specProp && isTemplateStorePath(path) && !templateStoreAllowed();
+  const spec = storeHeld ? null : (specProp || getLandingSpec(path) || null);
+  // A store item: /templates/<slug> matches seoLandingMatch but is not a landing
+  // spec. Resolved here rather than in main.jsx so the router keeps its shape.
+  const isTemplateItem = !spec && !storeHeld && /^\/templates\/[a-z0-9-]+\/?$/i.test(path || '');
+  // A published community template. Checked through the SAME matcher the Worker
+  // uses (generated into templateIndex.js) rather than a second regex here —
+  // this route 404'd in the browser for exactly as long as the two halves had
+  // separate ideas about what the path looked like.
+  const publicSlug = !spec && !storeHeld ? publicTemplateSlug(path) : null;
 
   useEffect(() => {
     if (!spec) return;
@@ -74,7 +134,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // The page scrolls the .seo-scroll overflow container, not the window.
   const scrollRef = useRef(null);
   const lp = useLandingEngagement({
-    page: spec?.path, pageKind: spec?.kind,
+    page: spec?.path, pageKind: spec?.kind, starter: spec?.starter || null,
     getScrollEl: () => scrollRef.current,
   });
 
@@ -103,10 +163,20 @@ export function SeoLandingPage({ spec: specProp, path }) {
     });
   }, [spec, pubBoards]);
 
+  if (isTemplateItem) {
+    return <Suspense fallback={null}><TemplateItemPage path={path} /></Suspense>;
+  }
+  if (publicSlug) {
+    return <Suspense fallback={null}><PublicTemplatePage slug={publicSlug} /></Suspense>;
+  }
   if (!spec) return <NotFoundPage />;
 
   const cta = spec.cta || {};
   const related = (spec.related || []).filter((p) => TITLE_BY_PATH.has(p));
+  // Carries its own label, so unlike `related` it needs no lookup map and can
+  // never be silently filtered out here while the Worker renders it. See the
+  // note on docsLinks in worker.js's related nav.
+  const docsLinks = spec.docsLinks || [];
   const hero = examples[0] || null;
   const nSec = (spec.sections || []).length;   // lp_section idx base for the tail sections
 
@@ -130,25 +200,48 @@ export function SeoLandingPage({ spec: specProp, path }) {
           {/* Hero — the answer block is the 40–60-word direct answer AI answer
               engines can lift verbatim; keep it above the CTA. Directly below,
               a LIVE example board in a browser frame (visual proof → /c/<slug>). */}
-          <header className="seo-hero" ref={lp.sectionRef('hero', 0)}>
-            {spec.eyebrow && <p className="seo-eyebrow">{spec.eyebrow}</p>}
+          {/* A STOREFRONT hero is a shop sign, not a pitch: the name, one line,
+              and then the goods. No eyebrow, no answer card, no CTA band, no
+              trust line — a shop does not interrupt browsing to sell, and the
+              answer block still reaches crawlers through the Worker's body and
+              the .md mirror. Everything else keeps the full hero. */}
+          <header className={`seo-hero${spec.storefront ? ' is-storefront' : ''}`} ref={lp.sectionRef('hero', 0)}>
+            {!spec.storefront && spec.eyebrow && <p className="seo-eyebrow">{spec.eyebrow}</p>}
             <h1 className="seo-h1">{spec.h1}</h1>
             <p className="seo-subhead">{spec.subhead}</p>
-            {spec.answer && <p className="seo-answer">{spec.answer}</p>}
-            <div className="seo-hero-cta">
-              <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>
-              {hero && <a className="seo-cta-secondary" href="#live-example" {...lp.ctaProps('hero_secondary', '#live-example', { intent: 'nav' })}>See a real board ↓</a>}
-            </div>
-            <div className="seo-trust">
-              {cta.sub && <span>{cta.sub}</span>}
-              <span>Built by a film studio, for real productions.</span>
-            </div>
-            {spec.updated && (
+            {!spec.storefront && spec.answer && <p className="seo-answer">{spec.answer}</p>}
+            {!spec.storefront && (
+              <>
+                <div className="seo-hero-cta">
+                  <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>
+                  {hero && <a className="seo-cta-secondary" href="#live-example" {...lp.ctaProps('hero_secondary', '#live-example', { intent: 'nav' })}>See a real board ↓</a>}
+                  {/* The in-page answer to "what does it cost". The topbar link
+                      is hidden on phones, so this is the phone's only path. */}
+                  {hasPlanBlock(spec) && <a className="seo-cta-secondary" href="#what-it-costs" {...lp.ctaProps('hero_pricing', '#what-it-costs', { intent: 'nav' })}>What it costs ↓</a>}
+                </div>
+                <div className="seo-trust">
+                  {cta.sub && <span>{cta.sub}</span>}
+                  <span>Built by a film studio, for real productions.</span>
+                </div>
+              </>
+            )}
+            {/* Not on a storefront. "Updated August 28, 2026" under the sign is
+                landing-page furniture — a shop is dated by its stock. The field
+                still drives the sitemap lastmod, the JSON-LD dateModified and
+                the .md mirror, so nothing downstream loses it. */}
+            {spec.updated && !spec.storefront && (
               <div className="seo-updated">
                 Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
               </div>
             )}
           </header>
+
+          {/* THE GOODS, immediately. This is the whole reordering: the store was
+              shipping five prose sections above the catalogue, which made a shop
+              read as a landing page. */}
+          {spec.storefront && (
+            <Suspense fallback={null}><TemplatesStorePage /></Suspense>
+          )}
 
           {/* The product, full width: a real published board inside a minimal
               browser frame. The static shot ships with the app (public/landing/)
@@ -172,7 +265,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
           {/* Feature / value sections, with one quiet CTA strip mid-read */}
           {(spec.sections || []).map((s, i) => (
-            <SectionWithMidCta key={i} index={i} cta={cta} midCtaProps={lp.ctaProps('mid', cta.href || '/')}>
+            <SectionWithMidCta key={i} index={spec.storefront ? -1 : i} cta={cta} midCtaProps={lp.ctaProps('mid', cta.href || '/')}>
               <section className="seo-section" ref={lp.sectionRef(sectionId(i, s.heading), 2 + i)}>
                 <h2 className="seo-h2">{s.heading}</h2>
                 <p className="seo-body">{s.body}</p>
@@ -228,6 +321,8 @@ export function SeoLandingPage({ spec: specProp, path }) {
             </section>
           )}
 
+          {hasPlanBlock(spec) && <PlanBlock lp={lp} signupHref={cta.href || '/'} idx={3 + nSec} />}
+
           {/* Cross-link to the /best/* listicle sibling: the plural-intent
               "compare them all" page (mirrored in the worker's crawlable HTML). */}
           {spec.siblingListicle && (
@@ -276,26 +371,36 @@ export function SeoLandingPage({ spec: specProp, path }) {
             </section>
           )}
 
-          {/* Closing CTA */}
-          <section className="seo-cta-band" ref={lp.sectionRef('closing', 6 + nSec)}>
-            <h2 className="seo-cta-headline">
-              {spec.kind === 'compare' ? 'See it for yourself' : 'Your next board is 30 seconds away'}
-            </h2>
-            <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>
-            {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
-          </section>
+          {/* Closing CTA — not on a storefront. "Your next board is 30 seconds
+              away" under the last shelf is the landing-page tell, and it closes
+              a page that should end by inviting you to keep shopping. The ask is
+              already in three better places here: the topbar button, an "Add to
+              my templates" on every item page, and the line under the grid
+              asking you to stock the store yourself. */}
+          {!spec.storefront && (
+            <section className="seo-cta-band" ref={lp.sectionRef('closing', 6 + nSec)}>
+              <h2 className="seo-cta-headline">
+                {spec.kind === 'compare' ? 'See it for yourself' : 'Your next board is 30 seconds away'}
+              </h2>
+              <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>
+              {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
+            </section>
+          )}
 
           {/* Internal-linking footer */}
           <footer className="seo-footer">
-            {related.length > 0 && (
+            {(related.length > 0 || docsLinks.length > 0) && (
               <nav className="seo-related" aria-label="Related pages">
                 <div className="seo-related-label">Keep exploring</div>
                 <ul>
                   {related.map((p) => (
                     <li key={p}><a href={p}>{TITLE_BY_PATH.get(p)}</a></li>
                   ))}
+                  {docsLinks.map((d) => (
+                    <li key={d.path}><a href={d.path}>{d.label}</a></li>
+                  ))}
                   <li><a href="/explore">Explore example boards</a></li>
-                  <li><a href="/pricing">Pricing</a></li>
+                  <li><a href="/pricing" {...lp.ctaProps('footer_pricing', '/pricing', { intent: 'nav' })}>Pricing</a></li>
                   {/* Kept in lockstep with the Worker's fallback nav in
                       worker.js — /docs was an island with no inbound link. */}
                   <li><a href="/docs">Docs</a></li>

@@ -2,7 +2,7 @@
 
 > Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a 100GB drive.
 
-_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-01_
 
 Drag a file onto the canvas. The type is detected and the right kind of card is
 created — you never pick "upload as image" from a menu.
@@ -15,6 +15,9 @@ created — you never pick "upload as image" from a menu.
 | Video | An inline [player](/docs/files/video-and-audio) |
 | Audio | A [waveform player](/docs/files/video-and-audio) with cover art |
 | PDF | A [page-one thumbnail](/docs/files/pdf) opening into a full viewer |
+| Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
+| PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
+| An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
 | Anything else | A file card — type icon, name, size, download |
 
 Small text files get an inline preview on the card rather than only a download.

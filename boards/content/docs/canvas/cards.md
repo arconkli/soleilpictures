@@ -5,13 +5,13 @@ h1: Cards
 navLabel: Cards
 section: canvas
 order: 1
-updated: 2026-08-08
+updated: 2026-10-02
 answer: A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 faq:
   - q: How do I change what kind a card is?
     a: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
   - q: Is there a limit on cards?
-    a: The free Demo plan allows {{fact:demoCardLimit}} cards across every cluster you create. Creator removes the limit. Clusters themselves are never capped.
+    a: The free Demo plan allows {{fact:demoCardLimit}} cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit.
   - q: What happens if I delete a card by accident?
     a: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster is a soft delete that stays in the trash for 30 days.
 related:
@@ -71,8 +71,12 @@ menu.
 
 **Cut and paste** — `⌘X` / `⌘V`, including across clusters. Cut-paste keeps
 standard clipboard behavior: the cut is undoable on the board it happened on,
-the paste on the board it landed on. (Dragging cards onto a cluster card
-instead performs a true move, whose toast undoes both sides at once.)
+the paste on the board it landed on.
+
+**Move to another cluster** — drag cards onto a cluster card, or right-click →
+**Move to cluster…** to send them to any cluster in the workspace, including one
+that isn't on this canvas. A move is one action: its toast undoes both sides at
+once. Moving cards doesn't change how many you have.
 
 **Group** — select several and press `⌘G`. See [Groups](/docs/canvas/groups).
 
@@ -105,9 +109,10 @@ yours.
 
 ### Dropping more files than you have room for
 
-If you drag in a folder with more files than your remaining allowance, Clusters
+If you drag in more files than your remaining allowance — or a folder, which
+counts a card for each file and one for each cluster it becomes — Clusters
 asks before it uploads anything. You can add the ones that fit, upgrade to keep
-the whole folder, or cancel — and until you answer, nothing is uploaded and
+them all, or cancel — and until you answer, nothing is uploaded and
 nothing on the canvas changes. Choosing to add the ones that fit always gives
 you every card you still have room for; the rest stay on your disk.
 

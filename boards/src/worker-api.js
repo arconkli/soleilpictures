@@ -49,6 +49,8 @@ import {
 import { arrangeExisting } from './lib/scoutCards.js';
 import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
+import { meaningfulFileName } from './lib/fileIngest.js';
+import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from './lib/safeUrl.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
@@ -88,8 +90,15 @@ const MAX_BOARDS_PER_CALL = 500;
 const EXTRA_TYPES = {
   'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/x-matroska': 'mkv',
   'video/webm': 'webm', 'video/mpeg': 'mpg',
-  'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
-  'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/mp4': 'm4a', 'audio/aac': 'aac',
+  'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+  'audio/vnd.wave': 'wav', 'audio/wave': 'wav',
+  'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a',
+  'audio/aac': 'aac', 'audio/x-aac': 'aac',
+  // Sample and loop libraries are full of these, and without a mapping they
+  // land in R2 as `.bin` — the file downloads with no extension and no DAW
+  // will open it.
+  'audio/flac': 'flac', 'audio/x-flac': 'flac',
+  'audio/ogg': 'ogg', 'audio/opus': 'opus', 'audio/webm': 'weba',
   'application/pdf': 'pdf', 'application/zip': 'zip',
   'image/tiff': 'tif', 'image/x-adobe-dng': 'dng', 'image/x-exr': 'exr',
   'application/mxf': 'mxf', 'application/x-dpx': 'dpx',
@@ -189,6 +198,17 @@ const textFieldFor = (kind) => (kind === 'image' ? 'caption' : 'body');
 const textOf = (c) => (c.kind === 'image'
   ? (c.caption ?? c.body ?? null)
   : (c.body ?? c.caption ?? null));
+
+// Content-Disposition for a file served under its own name (RFC 6266 / 5987):
+// a quoted ASCII fallback for old clients, and filename* with the exact UTF-8.
+export function contentDisposition(name) {
+  const clean = String(name).replace(/[\r\n"\\]/g, '').slice(0, 200);
+  const ascii = clean.replace(/[^\x20-\x7e]/g, '_');
+  // encodeURIComponent leaves ' ( ) * ! alone; RFC 5987 does not allow them,
+  // and an apostrophe would end the charset''value prefix early.
+  const ext = encodeURIComponent(clean).replace(/['()*!]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `inline; filename="${ascii}"; filename*=UTF-8''${ext}`;
+}
 
 export function publicCard(c) {
   const kind = c.kind || 'note';
@@ -1571,6 +1591,10 @@ async function dispatch(url, request, env, ctx) {
       }
     }
 
+    // The file's own name, if the caller says it again here: begin only uses
+    // its `filename` for the extension, and nothing carries it between calls.
+    // Same rule as a drop in the app (fileIngest.meaningfulFileName).
+    const fileName = meaningfulFileName({ name: typeof body.filename === 'string' ? body.filename : '' });
     await userInsert(env, token, 'images', [{
       workspace_id: board.workspace_id,
       board_id: boardId,
@@ -1579,6 +1603,7 @@ async function dispatch(url, request, env, ctx) {
       height: dims?.height ?? null,
       size_bytes: size || null,
       uploaded_by: auth.userId,
+      original_name: fileName,
     }], { returning: 'minimal' });
 
     return json({
@@ -1586,7 +1611,8 @@ async function dispatch(url, request, env, ctx) {
       bytes: size || null,
       width: dims?.width ?? null,
       height: dims?.height ?? null,
-      next: `POST /api/v1/boards/${boardId}/cards with {"kind":"image","image_key":"${key}"}`,
+      file_name: fileName,
+      next: `POST /api/v1/boards/${boardId}/cards with ${JSON.stringify({ kind: 'image', image_key: key, ...(fileName ? { file_name: fileName } : {}) })}`,
     }, 201);
   }
 
@@ -1638,6 +1664,10 @@ async function dispatch(url, request, env, ctx) {
     await env.IMAGES.put(key, bytes, { httpMetadata: { contentType } });
 
     const dims = imageDimensions(bytes);
+    // ?filename= — the file's own name, kept the way a drop in the app keeps it
+    // (fileIngest.meaningfulFileName: a basename, no control characters, and
+    // not a name a browser invents for a paste).
+    const fileName = meaningfulFileName({ name: url.searchParams.get('filename') || '' });
     try {
       // The images row is LOAD-BEARING, not bookkeeping: it is what authorizes
       // reads, and what keeps the R2 orphan sweep from reclaiming the object.
@@ -1650,6 +1680,7 @@ async function dispatch(url, request, env, ctx) {
         height: dims?.height ?? null,
         size_bytes: bytes.length,
         uploaded_by: auth.userId,
+        original_name: fileName,
       }], { returning: 'minimal' });
     } catch (e) {
       // Without the row the object can never be read and nothing tracks it, so
@@ -1665,8 +1696,10 @@ async function dispatch(url, request, env, ctx) {
       height: dims?.height ?? null,
       bytes: bytes.length,
       content_type: contentType,
+      file_name: fileName,
       // Spelled out because the next step is not guessable from the key alone.
-      next: `POST /api/v1/boards/${boardId}/cards with {"kind":"image","image_key":"${key}"}`,
+      // The name rides along so the card keeps it too (list view, downloads).
+      next: `POST /api/v1/boards/${boardId}/cards with ${JSON.stringify({ kind: 'image', image_key: key, ...(fileName ? { file_name: fileName } : {}) })}`,
     }, 201);
   }
 
@@ -1691,7 +1724,7 @@ async function dispatch(url, request, env, ctx) {
     if (boardFilter && !isUuid(boardFilter)) throw fail(400, 'bad_request', 'board must be a uuid');
 
     let q = 'deleted_at=is.null'
-      + '&select=id,storage_path,size_bytes,width,height,board_id,workspace_id,created_at'
+      + '&select=id,storage_path,size_bytes,width,height,board_id,workspace_id,created_at,original_name'
       + `&order=created_at.asc,id.asc&limit=${limit + 1}`;
     if (ws) q += `&workspace_id=eq.${ws}`;
     if (boardFilter) q += `&board_id=eq.${boardFilter}`;
@@ -1721,6 +1754,9 @@ async function dispatch(url, request, env, ctx) {
         width: r.width, height: r.height,
         board_id: r.board_id, workspace_id: r.workspace_id,
         created_at: r.created_at,
+        // The uploaded file's own name (0355), null for anything uploaded
+        // before names were kept and for derived images.
+        file_name: r.original_name ?? null,
       })),
       limit,
       has_more: page.has_more,
@@ -1745,7 +1781,7 @@ async function dispatch(url, request, env, ctx) {
     // may read the original may read its own downscaled copy.
     const rows = await userSelect(env, token, 'images',
       `storage_path=eq.${encodeURIComponent(key)}&deleted_at=is.null`
-      + '&select=storage_path,preview_path&limit=1');
+      + '&select=storage_path,preview_path,original_name&limit=1');
     if (!rows?.length) throw fail(404, 'not_found', 'image not found');
     const row = rows[0];
 
@@ -1782,6 +1818,11 @@ async function dispatch(url, request, env, ctx) {
         // private: this is someone's own picture behind their own credential,
         // and it must not land in a shared cache.
         'cache-control': 'private, max-age=300',
+        // The file's own name, for the original only — a preview is a derived
+        // image and has none. RFC 6266: an ASCII fallback plus the exact UTF-8.
+        ...(variant === 'original' && row.original_name
+          ? { 'content-disposition': contentDisposition(row.original_name) }
+          : {}),
       },
     });
   }
@@ -2364,13 +2405,17 @@ async function dispatch(url, request, env, ctx) {
     // Worker runs out of subrequests halfway through somebody's migration.
     const fetched = await mapWithConcurrency(items, IMPORT_CONCURRENCY, async (item) => {
       try {
-        const res = await fetch(item.url, {
-          redirect: 'follow',
+        // Redirects are followed BY HAND, every hop re-checked against the same
+        // rule normalizeImportItems ran on the submitted URL. With
+        // redirect:'follow' (until 2026-10-02) that check guarded only the first
+        // hop, so any allowed public URL could 302 the importer to an address
+        // the manifest itself would have refused.
+        const { res } = await fetchFollowingSafely(item.url, {
           signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
           // No credentials of ours ever ride along, and a generic agent because
           // some CDNs refuse an empty one outright.
           headers: { accept: 'image/*,*/*;q=0.8', 'user-agent': 'SoleilClusters-Import/1.0' },
-        });
+        }, { check: (u) => publicHttpsUrlProblem(u.href) });
         if (!res.ok) {
           return { item, ok: false, error: `the source answered ${res.status}`, code: 'source_unavailable' };
         }
@@ -2442,6 +2487,9 @@ async function dispatch(url, request, env, ctx) {
           stored: { imageKey: key, width: dims?.width, height: dims?.height },
         };
       } catch (e) {
+        if (e instanceof UnsafeFetchError) {
+          return { item, ok: false, code: 'source_refused', error: `that source ${e.message}` };
+        }
         const timedOut = e?.name === 'TimeoutError' || /timed? ?out/i.test(e?.message || '');
         return {
           item, ok: false, code: timedOut ? 'source_timeout' : 'source_unavailable',

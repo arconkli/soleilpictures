@@ -5,11 +5,11 @@ h1: Search and the command palette
 navLabel: Search
 section: organize
 order: 2
-updated: 2026-08-08
-answer: Press Cmd-K or forward slash to open the command palette. It searches across cluster names, card contents, notes, documents and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+updated: 2026-10-02
+answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 faq:
   - q: Does search look inside my notes and documents?
-    a: Yes. It searches full content, not just titles — cluster names, card contents, note text, document text and tags.
+    a: Yes. Documents are searched by the words on their pages, and a result opens the document at the page it came from. Cards and notes are searched by their title and the first {{fact:searchBodyChars}} characters of their text. A document written before search learned to read it is picked up the next time it, or anything in its cluster, is edited.
   - q: Can I run actions from it?
     a: Yes. Type what you want to do rather than what you want to find. "share", "invite", "trash", "theme", "billing" all work.
   - q: Is there a shortcut other than Cmd-K?
@@ -24,16 +24,22 @@ related:
 
 ## What it searches
 
-Full content, not just names:
-
 - **Recents** — what you have had open
 - **Clusters** — by name
-- **Cards and notes** — by content
+- **Cards and notes** — by title, and by the first {{fact:searchBodyChars}} characters of their text
+- **Files** — by the name the file was uploaded with, so a photo nobody captioned
+  is found as `diner_ext_dusk_04.jpg` (photos and videos uploaded since names
+  were kept; audio, PDFs and attachments always had theirs)
 - **Tags**
-- **Docs** — by content
+- **Docs** — by title, and by the words on every page: a match shows the line
+  it came from, under **Inside docs**, and opens the document at that page
 
-Results are grouped by kind, so a query matching a board and a passage inside a
-document shows you both, labelled.
+A document written before search learned to read it is indexed the next time it,
+or anything else in its cluster, is edited. Inside one long document, `⌘F` finds
+every occurrence on the page you are on.
+
+Results are grouped by kind, so a query matching a board and a note shows you
+both, labelled.
 
 ## What it does
 
@@ -41,9 +47,9 @@ The palette also runs commands. Type the verb rather than the noun:
 
 | Command | Effect |
 |---|---|
-| Create cluster | A new board |
+| New project | A new cluster at the top of your workspace, opened |
 | New note | A note on the current board |
-| Go to Home | The [relationship graph](/docs/clusters/home-graph) |
+| Go to Home | [Your projects](/docs/clusters/home-graph), over the relationship graph |
 | Link a cluster onto canvas | Place a reference to another board |
 | Open split view | [Two boards side by side](/docs/clusters#side-by-side) |
 | Share this cluster | The [share dialog](/docs/collaborate/sharing) |

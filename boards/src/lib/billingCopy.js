@@ -103,8 +103,9 @@ export function planBilling(plan) {
 // CanvasSurface's canAttemptFiles = !(ownsWorkspace && !isPaidPlan) lets a
 // collaborator in someone else's workspace attempt optimistically and let the
 // server decide. So one subscription raises the ceiling for everyone working in
-// that workspace. Every individual competitor in this category charges per
-// seat; we do not, and never said so.
+// that workspace. That is true and worth saying, but it is not unique —
+// Milanote sells a flat team plan and Air charges no seats at all — so the copy
+// states what we do and never claims nobody else does.
 //
 // Say it as SCOPE, never as access or seats. "Full edit access, everywhere
 // you're invited" was the line 0188 made free and this file had to delete, and
@@ -112,7 +113,9 @@ export function planBilling(plan) {
 // so the claim is that your LIMITS carry to the people you invite, not that
 // inviting them is free. Both are true; only one of them is Creator's.
 //
-// NOTE: clusters/boards are NOT a paid difference — they were never capped.
+// NOTE: clusters/boards are NOT a paid difference — there is no separate cap on
+// them. Each cluster does sit on its parent's canvas as a card (weight 1), so on
+// the free tier it counts toward the card limit like any other card.
 //
 // The storage figure mirrors the enforced default quota: app_config
 // 'storage_quota_bytes' = 107374182400 (100 GiB), seeded in migration 0154 and
@@ -224,11 +227,15 @@ export const CREATOR_FEATURE_KEYS = CREATOR_BENEFITS.map((b) => b.key);
 export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events'];
 
 // What the free tier genuinely is. It is NOT view-only: since migration 0188 a
-// free user can edit any cluster they are invited to as an editor, and
-// clusters/boards themselves were never capped. The only real limit is cards.
+// free user can edit any cluster they are invited to as an editor, and there is
+// no separate cap on clusters/boards. The only real limit is cards — and a
+// cluster's own card counts toward it, which is why this list stopped saying
+// "Unlimited clusters & boards" (owner, 2026-10-01): on a capped plan that
+// reads as free room, and every cluster spends one of the cards. Same words as
+// content/docs/account/plans.md's list.
 export const DEMO_FEATURES = [
   `**${DEMO_CARD_LIMIT} cards** to build with`,
-  'Unlimited clusters & boards',
+  'No separate limit on clusters — each one counts as one of your cards',
   'Free collaboration — invite editors to any cluster',
 ];
 
@@ -297,6 +304,16 @@ export function nearCapSentence({ count, limit, trialOffer } = {}) {
     : `${head} Creator lifts the cap, ${PRICE_FROM_LABEL} — or invite friends to earn more free ones.`;
 }
 
+// Starting another project near the ceiling. The free plan's cards are shared
+// by every project, so this is the exact moment "Clusters for every project"
+// meets the free tier — and people who started a second project close to
+// their limit were refused right then and stopped. Trial-only by design: the
+// caller shows this only when the invitation applies (creatorTrial.js decides
+// who), so it never carries a price.
+export function newProjectSentence({ count, limit } = {}) {
+  return `New project started. Your free plan's ${limit} cards are shared by every project, and you've used ${count}. Creator holds them all — free for ${CREATOR_TRIAL_DAYS} days.`;
+}
+
 // ── The /pricing page ───────────────────────────────────────────────────────
 //
 // The page was built on .pricing-screen — `position: fixed; inset: 0;
@@ -324,6 +341,27 @@ export function nearCapSentence({ count, limit, trialOffer } = {}) {
 // The trial is NOT on this page, unchanged from the standing decision above —
 // and it is moot here besides: eligibility needs a real body of work, which a
 // signed-out visitor does not have.
+// What a "Get Creator" pressed on /pricing carries through sign-in
+// (creatorIntent.js): the plan's name and the price the visitor picked, so the
+// sign-in screen can say what is waiting without importing this module.
+export function creatorIntentLabels(plan) {
+  return {
+    planName: PLAN_NAME,
+    priceLabel: plan === 'annual'
+      ? `${PRICING.annual.perMonthLabel}/mo billed annually`
+      : PRICING.monthly.billedLabel,
+  };
+}
+
+// The Creator offer reopened after sign-in for someone who pressed "Get
+// Creator" on /pricing first (useCreatorIntentResume). It names that moment:
+// the generic "Everything your work deserves." arrived on a brand-new account's
+// first screen reading like a pitch nobody asked for, when they had asked.
+export const PRICING_INTENT_COPY = {
+  title: `Here’s ${PLAN_NAME}, as you picked it.`,
+  sub: 'You chose it on the pricing page before you signed in.',
+};
+
 export const PRICING_PAGE = {
   h1: 'Start free. Pay when you outgrow it.',
   // Every number in this sentence is injected, none typed.
@@ -336,6 +374,9 @@ export const PRICING_PAGE = {
     `The free plan is a real plan, not a countdown. ${PLAN_NAME} lifts its three limits for ${PRICING.monthly.billedLabel}.`,
   startFree: 'Start free',
   startFreeSub: 'No credit card. Nothing to install.',
+  // The second half of the trust line under the plans. Here rather than typed
+  // into the JSX so the crawlable /pricing body can say it too (parity).
+  trustLine: 'Built by a film studio, for real productions.',
   // The frame beneath the hero.
   //
   // It shows OUR board: the Clusters brand book — approved marks, the palette
@@ -379,9 +420,11 @@ export const PRICING_PAGE = {
   // the table are the two places that have to change with it.
   // The fourth CREATOR_FEATURES line. It is NOT a limit, so it has no row in
   // the table above — but it is the one genuinely competitive thing on the
-  // list (migration 0187 keyed every gate to the workspace OWNER, and every
-  // individual plan in this category charges per seat), so it gets said out
-  // loud rather than left to the FAQ. Keyed 'workspace' to match.
+  // list (migration 0187 keyed every gate to the workspace OWNER), so it gets
+  // said out loud rather than left to the FAQ. Keyed 'workspace' to match.
+  // Competitive, NOT unique: Milanote's team plan is flat ($49/mo for up to
+  // ten) and Air charges no seats on any plan. Say what we do; never say
+  // nobody else does.
   workspaceNote: `One ${PLAN_NAME} plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.`,
   // The free plan as a card, so the page can put the two side by side and let
   // someone compare them in one look. `price` is not a number from PRICING —
@@ -437,7 +480,8 @@ export const PRICING_FAQ = [
     q: 'What is actually limited on the free plan?',
     a: 'Three things and only three — how many cards you can have, which file types you can upload, ' +
        `and how big or long a single file can be (video stops at ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, ` +
-       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs at ${mb(FREE_PDF_CAP)}). Clusters, collaborators and editing are not limited.`,
+       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs at ${mb(FREE_PDF_CAP)}). Collaborators and editing are not limited, and there is ` +
+       'no separate limit on clusters — each one simply counts as a card.',
   },
   {
     q: 'Do the people I invite need to pay?',
@@ -615,9 +659,23 @@ export function grantCopy({ grantActive, grantExpiresAt } = {}) {
 // the banned-claims list — the previous hand-typed version sold a retired
 // feature ("Edit Mode") and a never-capped one ("unlimited boards") for
 // months with no test able to notice.
+//
+// PRE-REGISTERED 2026-10-01 — "unlimited clusters" removed. A truth fix, not
+// an optimisation (owner's call: every cluster spends one of the Demo's cards,
+// so a capped plan must not read as unlimited clusters). This surface is alone
+// in its commit.
+//   Target queries: seo_page_daily, path = '/pricing', search_type = 'web',
+//     query <> '' and query ILIKE ANY ('%pricing%','%price%','%cost%','%free%');
+//     page truth from the query = '' rows. Never sum the two row types.
+//   Window: ±7 and ±14 days around the PRODUCTION deploy that carries it,
+//     impression-weighted position; nothing read inside 3 days of the ship.
+//   Floor: ≥200 post-change web impressions on /pricing, or the read is
+//     "ungradable" and says so instead of quoting a CTR.
+//   Expectation: no material change — the phrase is not a query term. A CTR
+//     drop well outside noise would mean it was doing selling work.
 export const PRICING_META_DESCRIPTION =
   `Soleil Clusters pricing — start free with the Demo (${DEMO_CARD_LIMIT} cards, ` +
-  `unlimited clusters, free collaborators), or go ${PLAN_NAME} ` +
+  `free collaborators), or go ${PLAN_NAME} ` +
   `(${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually) ` +
   `for unlimited cards, any file type, and no size limits on a ${CREATOR_STORAGE_LABEL} drive.`;
 

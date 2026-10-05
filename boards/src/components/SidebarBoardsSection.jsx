@@ -25,6 +25,8 @@ function saveOpen(workspaceId, open) {
 export function SidebarBoardsSection({
   boards,
   workspaceId,
+  rootId = null,            // the workspace's root — the tree opens it and sorts its children by recency
+  renameRequest = null,     // { boardId, at } — a project just made from "+" asks for its name in its row
   activeBoardId,
   onOpenBoard,
   onShareBoard,             // (boardId) => void — context-menu "Share…"
@@ -61,7 +63,7 @@ export function SidebarBoardsSection({
         {count > 0 && <span className="sb-boards-count">{count}</span>}
         {onCreateBoard && (
           <button className="sb-boards-add"
-                  title="New cluster"
+                  title="New project"
                   onClick={(e) => { e.stopPropagation(); onCreateBoard(); }}>
             <Icon as={Plus} size={11} />
           </button>
@@ -73,6 +75,8 @@ export function SidebarBoardsSection({
           <SidebarBoardTree
             boards={boards}
             workspaceId={workspaceId}
+            rootId={rootId}
+            renameRequest={renameRequest}
             activeBoardId={activeBoardId}
             onOpenBoard={onOpenBoard}
             onShareBoard={onShareBoard}

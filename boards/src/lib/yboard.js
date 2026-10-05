@@ -416,6 +416,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   };
   ydoc.on('update', onUpdate);
 
+  // Whether the SERVER's snapshot has been applied — not just the instant
+  // cache/draft paint, which can be a day stale. A cleanup that deletes what
+  // it judges unfinished must not judge from that paint (useYBoard `synced`).
+  let serverApplied = false;
   const ready = (async () => {
     try {
       const localDraft = readLocalDraft(boardId);
@@ -470,6 +474,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
         const bytes = b64ToBytes(b64);
         const _t0 = perf.isEnabled() ? performance.now() : 0;
         Y.applyUpdate(ydoc, bytes, 'snapshot');
+        serverApplied = true;
         if (_t0) {
           const ms = performance.now() - _t0;
           perf.mark('yboard.applySnapshot.ms', ms);
@@ -605,6 +610,15 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     flushNow,
     sessionId,
     getAwareness: () => realtime?.awareness || null,
+    // After `ready` (the cold load) the realtime attach runs; this waits for it
+    // to finish syncing with the room. true = synced, false = timed out.
+    whenRoomSynced: async (timeoutMs = 8000) => {
+      await ready;
+      await Promise.resolve();   // the attach is a then() on `ready`
+      if (destroyed || typeof realtime?.whenSynced !== 'function') return false;
+      return realtime.whenSynced(timeoutMs);
+    },
+    serverApplied: () => serverApplied,
     // Mark this handle's doc corrupt so its teardown skips all persistence.
     // Called by useYBoard right before it purges caches + remounts.
     poison: () => { poisoned = true; },

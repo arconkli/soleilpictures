@@ -1,0 +1,22 @@
+[
+  {
+    "id": "film",
+    "label": "Film and video",
+    "blurb": "Storyboards, shot lists and the boards a crew reads on the day."
+  },
+  {
+    "id": "photography",
+    "label": "Photography",
+    "blurb": "Comparing frames — proof sheets, before-and-afters, product lineups."
+  },
+  {
+    "id": "design",
+    "label": "Design and brand",
+    "blurb": "Mood boards, look books and the boards that hold a visual direction."
+  },
+  {
+    "id": "planning",
+    "label": "Planning and comparison",
+    "blurb": "Weighing options side by side, and laying a thing out before you make it."
+  }
+]

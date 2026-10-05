@@ -83,8 +83,15 @@ test.describe('nothing moves until the question is answered (CanvasSurface path)
     // The measure step reads every file off disk; the placement loop uploads.
     // Both must be downstream of the question, or the bytes are spent before
     // anyone checks the balance — which is precisely the old bug.
-    expect(preflight).toBeLessThan(s.indexOf('const d = await readImageDims(it.file)'));
-    expect(preflight).toBeLessThan(s.indexOf('optimisticDropImage(f, rcx, rcy, rect)'));
+    // Each anchor is asserted to EXIST first: this guard used to compare
+    // against a placement call a refactor renamed away, so indexOf returned -1
+    // and the check could only ever fail for the wrong reason.
+    const measure = s.indexOf('const d = await readImageDims(it.file)');
+    const place = s.indexOf('await dispatchIngestOne(accepted[i]');
+    expect(measure).toBeGreaterThan(-1);
+    expect(place).toBeGreaterThan(-1);
+    expect(preflight).toBeLessThan(measure);
+    expect(preflight).toBeLessThan(place);
   });
 
   test('the answer is honoured — the batch is actually truncated', () => {
@@ -156,7 +163,8 @@ test.describe('a refused batch keeps the cards that fit (boardsApi path)', () =>
     // withdrawn — including the ones the user still had room for. That is why
     // both big importers finished BELOW their own cap.
     expect(s).toMatch(/async function landUpToCap/);
-    expect(s).toMatch(/const rejected = await landUpToCap\(\{ boardId, rows: overflow, sigFor, cache \}\)/);
+    // The overflow, the cards this tab just placed first (see cardIndexSync.test.mjs).
+    expect(s).toMatch(/const rejected = \(idsChanged && !cleaned\) \? \[\] : await landUpToCap\(\{ boardId, rows: ordered, sigFor, cache \}\)/);
   });
 
   test('the room comes from the server, not from a client guess', () => {
@@ -167,12 +175,17 @@ test.describe('a refused batch keeps the cards that fit (boardsApi path)', () =>
 
   test('a lost race degrades to probing rather than to data loss', () => {
     const s = boardsApi();
-    // The trigger's test is monotonic, so the first refusal ends the walk and
-    // everything before it is already persisted.
-    expect(s).toMatch(/if \(res\.error\) return rows\.slice\(i\)/);
+    // Room is weight, so a refused heavy card says nothing about a lighter one:
+    // the walk refuses untried only what is at least as heavy as a card already
+    // refused, and still tries the lighter ones. (cardIndexSync.test.mjs runs
+    // this for real.)
+    expect(s).toMatch(/if \(w >= lightestRefused\) \{ refused\.push\(r\); continue; \}/);
+    // A write that fails for any reason but the cap ends the walk and refuses
+    // nothing more: those rows retry next sync rather than being taken back.
+    expect(s).toMatch(/if \(!_isCapRefusal\(res\.error\)\) \{ console\.warn\('syncCardIndex probe', res\.error\); return refused; \}/);
     // Only rows that actually landed may cache a signature; the rest keep a
     // stale one on purpose so a later sync retries them.
-    expect(s).toMatch(/cache\.sigs\.set\(rows\[i\]\.card_id, sigFor\(rows\[i\]\)\)/);
+    expect(s).toMatch(/if \(!res\.error\) \{ cache\.sigs\.set\(r\.card_id, sigFor\(r\)\); continue; \}/);
   });
 });
 

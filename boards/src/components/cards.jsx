@@ -1,6 +1,6 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
@@ -9,6 +9,8 @@ import { resolveSrc } from '../lib/r2.js';
 import { buildImgStyle } from '../lib/imageAdjust.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
+import { peaksFromBase64, peaksToPath, peaksPathWidth, PEAK_COUNT } from '../lib/audioAnalysis.js';
+import { formatKey, canonicalKey, formatLabel } from '../lib/loopMeta.js';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import './noteChecklist.css';
@@ -49,7 +51,7 @@ import { EntityLink } from './EntityLink.jsx';
 import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh, FilePdf, Paperclip,
+  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { PdfCard } from './cards/PdfCard.jsx';
@@ -101,21 +103,28 @@ function htmlToText(html, max = 80) {
   const txt = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
-// Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile.
-export function KindIcon({ kind }) {
+// Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile by
+// default; the cluster browser passes its own size.
+//
+// audio/video used to be missing here, so a list-board row drew a generic
+// circle for a loop while the cluster browser drew headphones for the same
+// card — one kind, two glyphs, depending which list you were looking at.
+export function KindIcon({ kind, size = 22 }) {
   if (kind === 'board' || kind === 'list' || kind === 'boardlink') {
-    return <Icon as={FolderIcon} size={22} />;
+    return <Icon as={FolderIcon} size={size} />;
   }
-  if (kind === 'image')    return <Icon as={ImagePh} size={22} />;
-  if (kind === 'note')     return <Icon as={StickyNote} size={22} />;
-  if (kind === 'link')     return <Icon as={LinkPh} size={22} />;
-  if (kind === 'palette')  return <Icon as={PalettePh} size={22} />;
-  if (kind === 'doc')      return <Icon as={FileText} size={22} />;
-  if (kind === 'schedule') return <Icon as={CalendarPh} size={22} />;
-  if (kind === 'shape')    return <Icon as={SquarePh} size={22} />;
-  if (kind === 'pdf')      return <Icon as={FilePdf} size={22} />;
-  if (kind === 'file')     return <Icon as={Paperclip} size={22} />;
-  return <Icon as={CirclePh} size={22} />;
+  if (kind === 'image')    return <Icon as={ImagePh} size={size} />;
+  if (kind === 'note')     return <Icon as={StickyNote} size={size} />;
+  if (kind === 'link')     return <Icon as={LinkPh} size={size} />;
+  if (kind === 'palette')  return <Icon as={PalettePh} size={size} />;
+  if (kind === 'doc')      return <Icon as={FileText} size={size} />;
+  if (kind === 'schedule') return <Icon as={CalendarPh} size={size} />;
+  if (kind === 'shape')    return <Icon as={SquarePh} size={size} />;
+  if (kind === 'pdf')      return <Icon as={FilePdf} size={size} />;
+  if (kind === 'audio')    return <Icon as={Headphones} size={size} />;
+  if (kind === 'video')    return <Icon as={Clapperboard} size={size} />;
+  if (kind === 'file')     return <Icon as={Paperclip} size={size} />;
+  return <Icon as={CirclePh} size={size} />;
 }
 
 // One row inside a list-board card. Sub-board rows use useBoardPreview to
@@ -229,8 +238,10 @@ function describeListItem(card, boards = {}) {
              meta: 'link', color: COVER_TINTS[target?.cover || 'neutral'] || dot };
   }
   if (card.kind === 'image') {
+    // A caption someone typed first, then the file's own name (fileIngest) —
+    // before 2026-10 every photo in list view was a row called "image".
     return { ...base, src: card.src || null,
-             name: card.title || card.label || 'image', meta: 'image' };
+             name: card.title || card.label || card.fileName || 'image', meta: 'image' };
   }
   if (card.kind === 'note') {
     const text = htmlToText(card.html, 80) || (card.body || '').toString().slice(0, 80);
@@ -254,7 +265,7 @@ function describeListItem(card, boards = {}) {
     return { ...base, name: card.title || 'Audio', meta: 'audio' };
   }
   if (card.kind === 'video') {
-    return { ...base, name: card.title || 'Video', meta: 'video' };
+    return { ...base, name: card.title || card.fileName || 'Video', meta: 'video' };
   }
   if (card.kind === 'pdf') {
     return { ...base, src: card.src || null,
@@ -737,7 +748,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // playback uses a <video> element with a presigned read URL fetched
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
-function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. Double-click to edit instead.
@@ -803,6 +814,18 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
     <div className="vc">
+      {/* Video had no download affordance ANYWHERE — not on the card, not in
+          the context menu — so the only way to get a clip back out was to find
+          it in the cluster browser's detail panel. On a public board, where the
+          context menu is disabled entirely, there was no way at all. */}
+      {onDownload && (
+        <button type="button" className="vc-download"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onDownload(); }}
+                aria-label="Download video" title="Download">
+          <Icon as={Download} size={14} />
+        </button>
+      )}
       <div className="vc-vidwrap" onDoubleClick={onDbl}>
         {resolvedUrl
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
@@ -1655,35 +1678,28 @@ function formatTime(t) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-// Deterministic-but-musical-looking peaks seeded from a string so each
-// track gets a stable, unique-ish waveform without needing the audio
-// bytes (R2 signed URLs aren't CORS-readable, so real decoding is out).
-function generatePeaks(seed, count = 56) {
-  const s = String(seed || 'audio');
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  const peaks = [];
-  for (let i = 0; i < count; i++) {
-    h = (h * 1664525 + 1013904223) | 0;
-    const r = ((h >>> 0) / 4294967296);
-    // Mix random + sinusoid so it reads as music, not noise.
-    const sine = Math.sin(i * 0.42 + (h >>> 24) * 0.01) * 0.5 + 0.5;
-    const env = Math.sin((i / (count - 1)) * Math.PI) * 0.4 + 0.6; // soft envelope
-    const p = (0.35 + 0.65 * (0.55 * r + 0.45 * sine)) * env;
-    peaks.push(p);
-  }
-  return peaks;
-}
+// A card with no stored waveform draws an even, low strip rather than a
+// fabricated one. It still fills to the playhead and still seeks, so it is a
+// working transport that simply doesn't claim to know the shape of the audio.
+//
+// This replaced generatePeaks(), which hashed the FILENAME into a
+// musical-looking waveform that had nothing to do with the file — while the
+// public docs promised "a real waveform, drawn from the file". Real peaks are
+// decoded from the local File at upload time (lib/audioAnalysis.js) and
+// backfilled for older cards by useAudioPeaksBackfill.
+const FLAT_PEAKS = new Uint8Array(PEAK_COUNT).fill(26);
 
 // Audio card — native <audio> for playback (no crossOrigin so it works
 // regardless of R2 CORS), decorative waveform rendered as SVG bars that
 // fill as playback progresses. Right-click → "Set cover image" puts
 // the card into drop-zone mode so the user can drag an image onto it
 // or click to file-pick.
-function AudioCard({ src, title, duration, cover,
+function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
+                            bpm = null, musicalKey = null, ext = null, mime = null,
+                            loop = false, cardId = null, audioSource = 'canvas',
                             onUpdate, autoFocus = false,
                             coverPickAt = 0, editTitleAt = 0,
-                            onPickCover = null }) {
+                            onPickCover = null, onDownload = null }) {
   const audioElRef = useRef(null);
   const rootRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1695,8 +1711,13 @@ function AudioCard({ src, title, duration, cover,
   const [coverDragOver, setCoverDragOver] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const stopFnRef = useRef(null);
+  // clipPath ids are document-global; two audio cards sharing one would make
+  // the second card's progress follow the first's.
+  const clipId = useId().replace(/:/g, '');
 
-  const peaks = useMemo(() => generatePeaks(src || title || 'audio'), [src, title]);
+  const peaks = useMemo(() => peaksFromBase64(peaksB64) || FLAT_PEAKS, [peaksB64]);
+  const wavePath = useMemo(() => peaksToPath(peaks, { height: 40 }), [peaks]);
+  const waveWidth = useMemo(() => peaksPathWidth(peaks.length), [peaks.length]);
 
   // Right-click signal from canvas → open cover drop-zone.
   useEffect(() => {
@@ -1755,14 +1776,26 @@ function AudioCard({ src, title, duration, cover,
   }, [cover]);
 
   // Wire the native audio element to React state.
+  //
+  // `audioSource` records WHERE the audition started ('canvas' or 'list'), which
+  // is what keeps auto-advance honest: a card started by clicking it on the
+  // canvas must not make the list jump to its next row.
   useEffect(() => {
     const audio = audioElRef.current;
     if (!audio) return;
     const stop = () => { try { audio.pause(); } catch (_) {} };
     stopFnRef.current = stop;
-    const onPlay = () => { setIsPlaying(true); audioBus.claim(stop); };
+    const onPlay = () => { setIsPlaying(true); audioBus.claim(stop, { cardId, source: audioSource }); };
     const onPause = () => { setIsPlaying(false); audioBus.release(stop); };
-    const onEnded = () => { setIsPlaying(false); setPosition(0); audioBus.release(stop); };
+    const onEnded = () => {
+      setIsPlaying(false);
+      setPosition(0);
+      // A zero-length or unreadable file fires `ended` immediately; letting
+      // that drive auto-advance would run through a whole pack in a blink.
+      const played = audio.currentTime || audio.duration || 0;
+      audioBus.release(stop);
+      if (played >= 0.05) audioBus.notifyEnded(cardId, audioSource);
+    };
     const onTime = () => setPosition(audio.currentTime || 0);
     const onMeta = () => setDecodedDuration(audio.duration || decodedDuration || 0);
     audio.addEventListener('play', onPlay);
@@ -1778,7 +1811,27 @@ function AudioCard({ src, title, duration, cover,
       audio.removeEventListener('timeupdate', onTime);
       audio.removeEventListener('loadedmetadata', onMeta);
     };
-  }, []);
+  }, [cardId, audioSource]);
+
+  // Publish this card's transport so it can be driven from outside — the
+  // canvas keyboard shortcut, a list row's play button, and auto-advance.
+  useEffect(() => {
+    if (!cardId) return undefined;
+    audioBus.register(cardId, {
+      toggle: () => {
+        const a = audioElRef.current;
+        if (!a) return;
+        if (a.paused) a.play()?.catch?.(() => {}); else a.pause();
+      },
+      play: () => { audioElRef.current?.play?.()?.catch?.(() => {}); },
+      pause: () => { try { audioElRef.current?.pause?.(); } catch (_) {} },
+      seek: (frac) => seekByFraction(frac),
+      isPlaying: () => !!audioElRef.current && !audioElRef.current.paused,
+    });
+    return () => audioBus.unregister(cardId);
+    // seekByFraction closes over decodedDuration, which changes on load; the
+    // registry entry is replaced when it does.
+  }, [cardId, decodedDuration]);
 
   const togglePlay = (e) => {
     e.stopPropagation();
@@ -1866,6 +1919,41 @@ function AudioCard({ src, title, duration, cover,
     <span className="ac-time">{formatTime(position)} <span className="ac-time-sep">/</span> {formatTime(dur)}</span>
   );
 
+  // Tempo · key · format. Seeded from the filename at upload (loopMeta.js) and
+  // editable in place, because a pack whose names carry nothing still has to
+  // be sortable — and because a parser that guessed would be worse than a
+  // blank a producer can fill in. Writing either by hand stamps
+  // metaSource:'manual', which is what stops any later pass overwriting it.
+  const fmt = formatLabel({ ext, mime, src });
+  const keyText = formatKey(musicalKey);
+  const commitBpm = (v) => {
+    const n = parseInt(String(v).replace(/[^\d]/g, ''), 10);
+    onUpdate?.({ bpm: Number.isFinite(n) && n > 0 ? n : null, metaSource: 'manual' });
+  };
+  const commitKey = (v) => onUpdate?.({ musicalKey: canonicalKey(v), metaSource: 'manual' });
+  const metaRow = (onUpdate || bpm != null || keyText || fmt) ? (
+    <div className="ac-meta" onPointerDown={(e) => e.stopPropagation()}>
+      {onUpdate ? (
+        <EditableText className="ac-meta-field" value={bpm != null ? String(bpm) : ''}
+                      placeholder="BPM" onChange={commitBpm} singleClickEdit />
+      ) : (bpm != null && <span className="ac-meta-field">{bpm}</span>)}
+      {onUpdate ? (
+        <EditableText className="ac-meta-field" value={keyText}
+                      placeholder="Key" onChange={commitKey} singleClickEdit />
+      ) : (keyText && <span className="ac-meta-field">{keyText}</span>)}
+      {fmt && <span className="ac-meta-fmt">{fmt}</span>}
+    </div>
+  ) : null;
+
+  const downloadButton = onDownload ? (
+    <button type="button" className="ac-download"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onDownload(); }}
+            aria-label="Download audio" title="Download">
+      <Icon as={Download} size={14} />
+    </button>
+  ) : null;
+
   const titleEl = onUpdate ? (
     <EditableText
       className="ac-title editable"
@@ -1885,27 +1973,27 @@ function AudioCard({ src, title, duration, cover,
     <audio ref={audioElRef}
            src={resolvedUrl || undefined}
            preload="metadata"
+           {...(loop ? { loop: true } : {})}
            style={{ display: 'none' }} />
   );
 
-  // SVG bar waveform. Bars left of the playhead fill with the accent
-  // color; bars to the right stay muted. Click anywhere on the strip
-  // to seek to that point.
-  const barCount = peaks.length;
-  const filledIdx = Math.round(fillPct / 100 * barCount);
+  // SVG bar waveform. Bars left of the playhead fill with the accent color;
+  // bars to the right stay muted. Click anywhere on the strip to seek.
+  //
+  // ONE <path> per layer, clipped, rather than one <rect> per bar: at 96 bars
+  // that was 96 nodes per card and 96 className flips per timeupdate. The clip
+  // rect makes progress a single attribute change, which is what lets the list
+  // view render a mini-wave on every row.
   const waveBox = (
     <div className="ac-wave-wrap" onPointerDown={(e) => e.stopPropagation()} onClick={onWaveClick}>
-      <svg className="ac-wave" viewBox={`0 0 ${barCount * 4} 40`} preserveAspectRatio="none">
-        {peaks.map((p, i) => {
-          const h = Math.max(2, p * 36);
-          const x = i * 4 + 0.5;
-          const y = (40 - h) / 2;
-          const isFilled = i < filledIdx;
-          return (
-            <rect key={i} x={x} y={y} width={3} height={h} rx={1.2}
-                  className={isFilled ? 'ac-bar ac-bar-on' : 'ac-bar ac-bar-off'} />
-          );
-        })}
+      <svg className="ac-wave" viewBox={`0 0 ${waveWidth} 40`} preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <clipPath id={`acclip-${clipId}`}>
+            <rect x="0" y="0" width={(waveWidth * fillPct) / 100} height="40" />
+          </clipPath>
+        </defs>
+        <path className="ac-bar ac-bar-off" d={wavePath} />
+        <path className="ac-bar ac-bar-on" d={wavePath} clipPath={`url(#acclip-${clipId})`} />
       </svg>
     </div>
   );
@@ -1941,6 +2029,8 @@ function AudioCard({ src, title, duration, cover,
           <div className="ac-controls">
             {playButton}
             {timeDisplay}
+            {metaRow}
+            {downloadButton}
           </div>
         </div>
       </div>
@@ -1958,6 +2048,8 @@ function AudioCard({ src, title, duration, cover,
       <div className="ac-controls">
         {playButton}
         {timeDisplay}
+        {metaRow}
+        {downloadButton}
       </div>
     </div>
   );

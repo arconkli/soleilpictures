@@ -115,13 +115,15 @@ test('pricing page states the price high, leads with the free action, and shows 
   await expect(page.locator('.pp-plan-free')).toContainText('Your current plan');
 
   // The free plan: the card cap is the only real limit. It is NOT view-only —
-  // 0188 made editor collaboration free for every tier — and clusters/boards
-  // were never capped, so the free tier says so plainly. This describes the
+  // 0188 made editor collaboration free for every tier — and there is no
+  // separate cap on clusters, but each one IS a card, so the list says that
+  // rather than "Unlimited clusters" (owner, 2026-10-01). This describes the
   // plan a NEW account gets, so it is DEMO_CARD_LIMIT and not whatever cap the
   // viewer's own account carries.
   const free = page.locator('.pp-free-list');
   await expect(free).toContainText(`${DEMO_CARD_LIMIT} cards`);
-  await expect(free).toContainText('Unlimited clusters');
+  await expect(free).toContainText('No separate limit on clusters');
+  await expect(free).not.toContainText('Unlimited clusters');
   await expect(free).toContainText('Free collaboration');
   await expect(free).not.toContainText('View Mode only');
   // Audio appears in the comparison as a free SIZE cap, which is honest; it

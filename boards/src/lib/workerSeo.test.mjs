@@ -12,12 +12,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveIndexNowUrls } from '../worker-seo.js';
-import { SEO_LANDING_PATHS } from './seoLanding.js';
+import { SEO_LANDING_LISTED } from './seoLanding.js';
 
 const ORIGIN = 'https://clusters.soleilpictures.com';
-// /templates is a landing spec only on trees that carry the template store;
-// production does not yet. Demand it where the registry has it, never literally.
-const TEMPLATES = SEO_LANDING_PATHS.includes('/templates') ? ['/templates'] : [];
+// /templates is a landing spec only on trees that carry the template store, and
+// a LISTED one only once the store is no longer held (lib/templatePaths.js) —
+// production 404s it until then, so IndexNow must not be told about it. Demand
+// it where the registry lists it, never literally.
+const TEMPLATES = SEO_LANDING_LISTED.some((p) => p.path === '/templates') ? ['/templates'] : [];
 
 test('a published board slug resolves to its /c/ URL', () => {
   assert.deepEqual(resolveIndexNowUrls({ slug: 'film-noir-look-book' }), [`${ORIGIN}/c/film-noir-look-book`]);
@@ -35,6 +37,15 @@ test('marketing paths resolve only when the registries know them', () => {
     `${ORIGIN}/vs/pureref`, `${ORIGIN}/best/pureref-alternatives`, `${ORIGIN}/docs/api`,
     `${ORIGIN}/changelog`, ...TEMPLATES.map((p) => `${ORIGIN}${p}`), `${ORIGIN}/explore`, `${ORIGIN}/pricing`,
   ]);
+});
+
+test('a page held off production is never submitted', () => {
+  // The template store is a 404 on production while it is held. Telling a
+  // search engine to index it would hand Bing a dead URL with our name on it.
+  if (TEMPLATES.length) return;
+  assert.deepEqual(resolveIndexNowUrls({ paths: ['/templates', '/templates/storyboard-template'] }), []);
+  assert.ok(!resolveIndexNowUrls({ all: true }).some((u) => u.includes('/templates')),
+    '{ all: true } submits the held template store');
 });
 
 test('unknown, tokened, or duplicate paths are dropped, never submitted', () => {

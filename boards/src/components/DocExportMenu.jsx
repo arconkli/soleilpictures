@@ -14,10 +14,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
 import {
-  jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON, docJSONToBlocks,
-  parseFountainTitlePage, fdxToTitlePage,
+  jsonToFountain, jsonToFdx, blocksToDocJSON, docJSONToBlocks,
 } from '../lib/screenplayIO.js';
 import { buildScreenplayPdfBlob } from '../lib/screenplayPdf.js';
+import { parseScriptText } from '../lib/scriptImport.js';
 import { deliverFile } from '../lib/exportDelivery.js';
 import { docPrintCSS } from '../lib/docTypography.js';
 import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
@@ -215,16 +215,10 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
       const f = input.files?.[0]; if (!f) return;
       let blocks, titlePage = null;
       try {
-        const text = await f.text();
-        const isFdx = /\.fdx$/i.test(f.name) || /<FinalDraft/i.test(text);
-        if (isFdx) {
-          blocks = fdxToBlocks(text);
-          titlePage = fdxToTitlePage(text);
-        } else {
-          const parsed = parseFountainTitlePage(text);
-          titlePage = parsed.titlePage;
-          blocks = fountainToBlocks(parsed.body);
-        }
+        // One parse path for every way a script arrives (lib/scriptImport.js):
+        // a script dropped on the canvas must come out identical to one
+        // imported here.
+        ({ blocks, titlePage } = parseScriptText(await f.text(), f.name));
       } catch (err) {
         // A silent no-op here is indistinguishable from "the file was empty" —
         // the user picked a file and NOTHING happened. Say so.

@@ -35,6 +35,10 @@ import * as SURFACE_MODULE from '../../scripts/lib/publicSurface.mjs';
 import { publicSurface, surfaceJson } from '../../scripts/lib/publicSurface.mjs';
 import { blocksToText, blockLinks } from '../../scripts/lib/markdown.mjs';
 
+import { SEO_LANDING_PAGES, landingOgPath } from './seoLanding.js';
+import { SEO_LISTICLE_PAGES } from './seoListicles.js';
+import { TEMPLATE_CATEGORIES } from './templateCards.js';
+import { TEMPLATE_STORE_HELD, isTemplateStorePath } from './templatePaths.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { PRICING } from './billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
@@ -42,6 +46,14 @@ import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '../..');
 const surface = publicSurface();
+
+// A page held off production — the template store, lib/templatePaths.js — is a
+// 404 there, so none of the "every page is linked / mirrored / indexed" tests
+// below ask for it. Each of them asserts the opposite instead: that nothing
+// advertises it while it is held.
+const held = (p) => TEMPLATE_STORE_HELD && isTemplateStorePath(p);
+const LISTED_LANDING = surface.publicRoutes.landing.filter((p) => !held(p));
+const HELD_ROUTES = [...surface.publicRoutes.landing, ...surface.publicRoutes.templates].filter(held);
 
 // One lowercase blob of every word in the docs. Coverage assertions ask "is
 // this surface mentioned anywhere at all", which is a low bar deliberately: the
@@ -296,9 +308,12 @@ test('COVERAGE: every public marketing route is linked from the docs', () => {
   // Docs and the SEO landing pages should point at each other; an orphaned
   // marketing page gets no internal link equity and no reader path.
   const all = JSON.stringify(DOCS_PAGES) + JSON.stringify(DOCS_CONTENT);
-  const orphans = [...surface.publicRoutes.landing, ...surface.publicRoutes.listicle]
+  const orphans = [...LISTED_LANDING, ...surface.publicRoutes.listicle]
     .filter((p) => !all.includes(p));
   assert.deepEqual(orphans, [], `marketing routes never linked from docs: ${orphans.join(', ')}`);
+  // …and a held page is linked from none of them: on production it is a 404.
+  const deadLinks = HELD_ROUTES.filter((p) => all.includes(`${p}"`) || all.includes(`${p}/`) || all.includes(`${p})`));
+  assert.deepEqual(deadLinks, [], `the docs link pages held off production: ${deadLinks.join(', ')}`);
 });
 
 // ── Facts ───────────────────────────────────────────────────────────────────
@@ -373,6 +388,9 @@ test('LINKS: every internal link resolves', () => {
     ...surface.publicRoutes.routeMeta,
     ...surface.publicRoutes.landing,
     ...surface.publicRoutes.listicle,
+    // The template store's items. They are a public, indexable family that
+    // simply lives in its own registry rather than in seoLanding.js.
+    ...surface.publicRoutes.templates,
     ...DOCS_PATHS,
   ]);
   const broken = [];
@@ -393,6 +411,9 @@ test('LINKS: every internal link resolves', () => {
           // (public/changelog.md), and it advertises that twin the same way
           // every docs page advertises its own.
           || stem === '/changelog'
+          // /pricing.md, the fifth: gen-docs builds it from billingCopy through
+          // pricingCrawlable.js, the same module the Worker renders /pricing with.
+          || stem === '/pricing'
           || surface.publicRoutes.listicle.includes(stem);
         if (!mirrored) broken.push(`${p.path} -> ${href}`);
         continue;
@@ -446,7 +467,7 @@ test('WEIGHT: worker-imported docs artifacts stay within budget', () => {
 // on a missing field; this asserts the output actually landed.
 
 test('MARKETING MD: every landing and listicle page has a mirror with real content', () => {
-  const paths = [...surface.publicRoutes.landing, ...surface.publicRoutes.listicle];
+  const paths = [...LISTED_LANDING, ...surface.publicRoutes.listicle];
   // Floor was 18 (15 landing + 3 listicle) until 2026-08-25, when /vs/storyboarder,
   // /vs/boords and /vs/studiobinder were 301'd into /best/storyboard-software —
   // net −2. The floor guards against a registry that failed to load at all, so it
@@ -466,6 +487,13 @@ test('MARKETING MD: every landing and listicle page has a mirror with real conte
     }
   }
   assert.deepEqual(problems, [], `marketing markdown problems:\n  ${problems.join('\n  ')}`);
+
+  // A held page has NO mirror. dist/ serves these files from the asset layer,
+  // ahead of the Worker that 404s the page, so a mirror would publish it anyway.
+  const leaked = HELD_ROUTES
+    .map((p) => `public/${p.replace(/^\//, '')}.md`)
+    .filter((f) => existsSync(resolve(BOARDS, f)));
+  assert.deepEqual(leaked, [], `mirrors of pages held off production (npm run docs:build removes them):\n  ${leaked.join('\n  ')}`);
 });
 
 test('MARKETING MD: compare tables render their rows, not blanks', () => {
@@ -488,10 +516,52 @@ test('MARKETING MD: compare tables render their rows, not blanks', () => {
   assert.deepEqual(problems, [], `blank compare rows:\n  ${problems.join('\n  ')}`);
 });
 
+// ── OG cards ────────────────────────────────────────────────────────────────
+//
+// Every og:image the Worker can emit must be a file that exists.
+//
+// This is here because it already went wrong once, silently: /templates shipped
+// on 2026-08-27 and injectLanding advertised /og/templates.png from the moment
+// the spec landed, but scripts/generate-og.mjs is hand-run and nobody ran it.
+// The og:image and the JSON-LD primaryImageOfPage both pointed at a 404, so
+// every share of that page was a broken card — and nothing anywhere noticed,
+// because the .md mirror check one test up looks at markdown, not images.
+//
+// The card set is derived exactly as generate-og.mjs derives it: landingOgPath
+// for both registries, one card per docs SECTION (not per page, matching
+// injectDocs), plus the changelog and the default. Deriving it the same way is
+// the point — a new page type that forgets its card fails here rather than in
+// somebody's Slack preview.
+//
+// Fix when this goes red: `npm run og:build`, then commit the PNG.
+test('OG: every page that advertises an og:image has one on disk', () => {
+  const cards = [
+    ...SEO_LANDING_PAGES.map((s) => ({ what: s.path, file: landingOgPath(s) })),
+    ...SEO_LISTICLE_PAGES.map((s) => ({ what: s.path, file: landingOgPath(s) })),
+    ...DOCS_SECTIONS.map((s) => ({ what: `docs section "${s.id}"`, file: `/og/docs-${s.id}.png` })),
+    // One per template CATEGORY, matching what injectTemplate advertises.
+    ...TEMPLATE_CATEGORIES.map((c) => ({ what: `template category "${c.id}"`, file: `/og/template-${c.id}.png` })),
+    { what: '/changelog', file: '/og/changelog.png' },
+    { what: 'the default card', file: '/og/default.png' },
+  ];
+  // Same anti-no-op floor as the surface extractors: a registry that failed to
+  // load would make this test vacuously green.
+  assert.ok(cards.length >= 25, `expected the full card set, got ${cards.length}`);
+
+  const missing = cards
+    .filter((c) => !existsSync(resolve(BOARDS, 'public', c.file.replace(/^\//, ''))))
+    .map((c) => `${c.what} → ${c.file}`);
+  assert.deepEqual(missing, [], `og:image files that do not exist:\n  ${missing.join('\n  ')}`);
+});
+
 test('MARKETING MD: llms.txt indexes the comparison pages, not just the docs', () => {
   const ORIGIN = 'https://clusters.soleilpictures.com';
   const llms = readFileSync(resolve(BOARDS, 'public/llms.txt'), 'utf8');
-  const missing = [...surface.publicRoutes.landing, ...surface.publicRoutes.listicle]
+  const missing = [...LISTED_LANDING, ...surface.publicRoutes.listicle]
     .filter((p) => !llms.includes(`${ORIGIN}${p})`));
   assert.deepEqual(missing, [], `llms.txt is missing: ${missing.join(', ')}`);
+  // Neither file offers an assistant a page production 404s.
+  const full = readFileSync(resolve(BOARDS, 'public/llms-full.txt'), 'utf8');
+  const offered = HELD_ROUTES.filter((p) => [llms, full].some((t) => t.includes(`${ORIGIN}${p})`) || t.includes(`URL: ${ORIGIN}${p}\n`)));
+  assert.deepEqual(offered, [], `llms files offer pages held off production: ${offered.join(', ')}`);
 });

@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { AdminToolbar } from './AdminStates.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
-import { AnalyticsFiltersProvider, useAnalyticsFilters } from './analytics/AnalyticsFiltersContext.jsx';
+import { AnalyticsFiltersProvider, useAnalyticsFilters, POLL_MS } from './analytics/AnalyticsFiltersContext.jsx';
 import { SegmentSelect } from './analytics/widgets/SegmentSelect.jsx';
 import { TodayView } from './analytics/views/TodayView.jsx';
 import { FunnelView } from './analytics/views/FunnelView.jsx';
@@ -91,6 +91,45 @@ function VerifiedToggle() {
       <span className="admin-toggle-dot" aria-hidden="true" />
       {f.verifiedOnly ? 'Verified only' : 'All users'}
     </button>
+  );
+}
+
+/**
+ * The deck's operating conditions, on one line.
+ *
+ * Not decoration — this is the Command Center rule ("every panel states its
+ * population and window") paid once for the whole screen instead of a line per
+ * panel. Which window, which people are counted, and how often the page
+ * re-reads itself are the three things that change what every number below
+ * means, and none of them were stated anywhere: they lived as the state of
+ * three toolbar controls you had to look up and interpret.
+ *
+ * The refresh cadence in particular was invisible. A number that silently
+ * updates itself is worse than a stale one if you cannot tell which it is.
+ */
+function DeckStatus({ view }) {
+  const f = useAnalyticsFilters();
+  const cadence = POLL_MS[view] ?? POLL_MS.shell;
+
+  const items = [
+    ['MODE', view.toUpperCase()],
+    // Today is a fixed seven-day window by definition; the others follow the
+    // range control, which is why the range control is hidden on Today.
+    ['WINDOW', view === 'today' ? '7d · fixed' : `${f.days}d`],
+    ['POP', f.verifiedOnly ? 'verified' : 'all signups'],
+    ['INTERNAL', f.excludeInternal ? 'excluded' : 'counted'],
+    ['SYNC', `${Math.round(cadence / 1000)}s`],
+  ];
+
+  return (
+    <div className="adm-status" role="note" aria-label="Current measurement conditions">
+      {items.map(([k, v]) => (
+        <span className="adm-status-item" key={k}>
+          <span className="adm-status-k">{k}</span>
+          <span className="adm-status-v">{v}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -174,6 +213,7 @@ export function AdminAnalyticsTab() {
         </div>
 
         <AnalyticsToolbar view={view} />
+        <DeckStatus view={view} />
 
         {/* Remount by key so each view owns a clean useAdminData lifecycle and
             only the mounted view runs its RPCs. */}

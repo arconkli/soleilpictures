@@ -5,7 +5,7 @@ h1: Snapping and alignment
 navLabel: Snapping and alignment
 section: canvas
 order: 11
-updated: 2026-08-10
+updated: 2026-10-02
 answer: As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.
 faq:
   - q: How do I place something deliberately off-grid?
@@ -80,7 +80,7 @@ assistant can tidy a board too.
 
 ## Dropping a lot of files at once
 
-Drop a folder of images onto the canvas and they arrive as a block centred on
+Drop a big selection of images onto the canvas and they arrive as a block centred on
 where you dropped, laid out as justified rows, rather than in a line running off
 the side of the screen.
 

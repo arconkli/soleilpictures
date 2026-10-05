@@ -5,7 +5,7 @@ import {
   Search, X, LayoutGrid, FileText, StickyNote, Image as ImageIcon,
   Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon, ChevronRight,
 } from '../lib/icons.js';
-import { searchEntities } from '../lib/entitySearch.js';
+import { searchEntities, searchDocPages } from '../lib/entitySearch.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
 import { logEvent } from '../lib/analytics.js';
@@ -37,7 +37,7 @@ const KIND_ICON = {
 };
 
 // Section caps keep the DOM small even on big workspaces.
-const CAP = { localBoards: 8, asyncBoards: 8, cards: 8, tags: 6, docs: 6, recent: 5 };
+const CAP = { localBoards: 8, asyncBoards: 8, cards: 8, tags: 6, docs: 6, docPages: 6, recent: 5 };
 
 // Map an entity_search row to a navigation ref the app's navigate() understands.
 // Copied from EntityPicker.jsx so the two stay in lockstep.
@@ -95,6 +95,8 @@ export function CommandPalette({
   const isPick = mode === 'pick';
   const [query, setQuery] = useState('');
   const [asyncRows, setAsyncRows] = useState([]);
+  // Pages whose WORDS match — searchDocPages over doc_page_index.
+  const [pageHits, setPageHits] = useState([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
   const searchedRef = useRef(false);
@@ -104,6 +106,7 @@ export function CommandPalette({
     if (!open) return;
     setQuery('');
     setAsyncRows([]);
+    setPageHits([]);
     setLoading(false);
     searchedRef.current = false;
     const id = setTimeout(() => inputRef.current?.focus(), 0);
@@ -117,13 +120,17 @@ export function CommandPalette({
   // query wins via the cancelled flag. No-op without a workspace (local shell).
   useEffect(() => {
     if (!open) return;
-    if (!workspaceId || !q) { setAsyncRows([]); setLoading(false); return; }
+    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     const id = setTimeout(async () => {
-      const rows = await searchEntities({ workspaceId, query: q, limit: 30, kinds: isPick ? ['board'] : undefined });
+      const [rows, pages] = await Promise.all([
+        searchEntities({ workspaceId, query: q, limit: 30, kinds: isPick ? ['board'] : undefined }),
+        isPick ? Promise.resolve([]) : searchDocPages({ workspaceId, query: q, limit: CAP.docPages }).catch(() => []),
+      ]);
       if (cancelled) return;
       setAsyncRows(rows || []);
+      setPageHits(pages || []);
       setLoading(false);
       // Intent signal: one "ran a search" event per open once results settle.
       //
@@ -134,7 +141,7 @@ export function CommandPalette({
       // deliberately not collected.
       if (!searchedRef.current) {
         searchedRef.current = true;
-        const n = (rows || []).length;
+        const n = (rows || []).length + (pages || []).length;
         try {
           logEvent(EV.SEARCH_RUN, {
             has_results: n > 0,
@@ -283,7 +290,8 @@ export function CommandPalette({
       id: 'cards', label: 'Cards & notes',
       items: asyncGroups.cards.map(r => ({
         key: r.id, kind: r.kind, icon: KIND_ICON[r.kind] || FileText,
-        title: r.title || 'Untitled', sub: r.body || null,
+        // A photo usually has no title; its file's own name is the one people type.
+        title: r.title || r.meta?.fileName || 'Untitled', sub: r.body || null,
         activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
       })),
     });
@@ -306,8 +314,20 @@ export function CommandPalette({
       })),
     });
 
+    // The words inside documents: a page whose text matches, opened AT that
+    // page (navigate's doc target takes a pageId).
+    if (pageHits.length) out.push({
+      id: 'doc-pages', label: 'Inside docs',
+      items: pageHits.map(h => ({
+        key: `${h.docCardId}:${h.pageId}`, kind: 'doc', icon: FileText,
+        title: h.pageTitle ? `${h.docTitle} — ${h.pageTitle}` : h.docTitle,
+        sub: h.snippet || null,
+        activate: () => { close(); onNavigateRef?.({ kind: 'doc', docCardId: h.docCardId, pageId: h.pageId }); },
+      })),
+    });
+
     return out;
-  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, q, onClose, onOpenBoard, onNavigateRef]);
+  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, pageHits, q, onClose, onOpenBoard, onNavigateRef]);
 
   const flat = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const flatIndexByKey = useMemo(() => {

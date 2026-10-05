@@ -40,18 +40,42 @@ import {
   layoutAlgorithms as layoutAlgorithmList,
 } from './lib/publicSurface.mjs';
 
-import { SEO_LANDING_PAGES } from '../src/lib/seoLanding.js';
+import { SEO_LANDING_PAGES, SEO_LANDING_LISTED } from '../src/lib/seoLanding.js';
+// The template store hold: while it is on, nothing here publishes the store —
+// no .md mirror, no llms.txt section — and any copy already on disk is removed.
+// The JS registries are still generated, because the preview deploy renders the
+// store from them.
+import { TEMPLATE_STORE_HELD } from '../src/lib/templatePaths.js';
+// The layout engine, so a template page's cell count and label order are read
+// off the geometry rather than typed beside it.
+import { computeCellRects, readingOrder } from '../src/lib/gridLayout.js';
+// layoutById resolves BOTH the purpose-built template layouts and the ten bare
+// shapes, and templateCellOrder reads a layout at its own aspect ratio — which
+// matters, because reading order bands cells by centre and a storyboard's
+// panel/caption bands are only bands at the proportions it is placed at.
+import { layoutById, layoutSize, templateCellOrder } from '../src/lib/templateLayouts.js';
+import { HINT_LIMITS } from '../src/lib/gridLayoutLibrary.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
+import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js';
+import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from '../src/lib/fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS,
+         AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
+import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
+import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
+import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
+import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
+import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
 const CONTENT = resolve(BOARDS, 'content/docs');
 const CHANGELOG = resolve(BOARDS, 'content/changelog');
+const TEMPLATES = resolve(BOARDS, 'content/templates');
+const TEMPLATE_CATEGORIES_FILE = resolve(TEMPLATES, '_categories.json');
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
 
 const CHECK = process.argv.includes('--check');
@@ -107,6 +131,21 @@ export const FACTS = {
   priceAnnualPerMonth: PRICING.annual.perMonthLabel,
   annualSavings: PRICING.annual.savings,
   creatorStorage: CREATOR_STORAGE_LABEL,
+  // How long a signed-out "Get Creator" on /pricing is remembered through
+  // sign-in (creatorIntent.js reads it back and expires it).
+  creatorIntentHours: String(CREATOR_INTENT_MAX_AGE_MS / (60 * 60 * 1000)),
+  // How much of a card's or note's text ⌘K can see: card_index.body is cut at
+  // BODY_MAX, and the palette searches that column.
+  searchBodyChars: String(CARD_INDEX_BODY_MAX),
+  // A dropped folder (lib/folderWalk FOLDER_LIMITS): how many files one drop
+  // reads, how deep folders nest before merging upward, and how many clusters
+  // one drop makes.
+  folderMaxFiles: String(FOLDER_LIMITS.maxFiles),
+  folderMaxDepth: String(FOLDER_LIMITS.maxDepth),
+  folderMaxClusters: String(FOLDER_LIMITS.maxClusters),
+  // The largest web image the canvas keeps a copy of (lib/webImageSave
+  // WEB_IMAGE, enforced by worker-media.js). Past it the card stays linked.
+  webImageMaxSize: `${WEB_IMAGE.maxBytes / MB} MB`,
   // The Creator trial length. Sourced from billingCopy, which trialCore.test.mjs
   // pins to the number the edge function puts on the Stripe session.
   creatorTrialDays: String(CREATOR_TRIAL_DAYS),
@@ -117,6 +156,17 @@ export const FACTS = {
   // the docs said nothing about while the same docs named 30 MB as the wall.
   freeVideoSec: `${FREE_VIDEO_SECONDS} seconds`,
   freeAudioCap: `${FREE_AUDIO_CAP / MB} MB`,
+  // Ceilings on WAVEFORM ANALYSIS, not on upload — over these an audio file
+  // still uploads and still plays, it just arrives without a drawn waveform.
+  // Stated publicly because "why does this one have no waveform" is otherwise
+  // a silent, unexplainable difference between two cards on the same board.
+  audioWaveformCap: `${AUDIO_ANALYZE_MAX_BYTES / MB} MB`,
+  audioWaveformMinutes: `${AUDIO_ANALYZE_MAX_SECONDS / 60} minutes`,
+  // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
+  // archive is assembled in the tab, and past these the tab is the thing that
+  // fails. Stated so "why did my 600-file selection refuse" has an answer.
+  zipMaxSize: `${ZIP_MAX_BYTES / MB} MB`,
+  zipMaxFiles: String(ZIP_MAX_ENTRIES),
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
@@ -295,6 +345,130 @@ function loadPages() {
     (rank.get(a.section) - rank.get(b.section)) || (a.order - b.order) || a.title.localeCompare(b.title));
 
   return { pages, sections };
+}
+
+// ── Load: the template store ────────────────────────────────────────────────
+//
+// content/templates/<slug>.md → /templates/<slug>, one file per item in the
+// store. Same loader shape as the docs above; the differences are all about
+// what a template page IS.
+//
+// A page per template WE authored, never one per template somebody publishes.
+// That distinction is the whole design: these are hand-made, each one a shape
+// with a use-case and labels nobody else in the store claims, and a similarity
+// gate (src/lib/templates.test.mjs) makes a near-duplicate impossible to ship.
+// Auto-generating a page per community template would be the thin-doorway
+// pattern seoLanding.js's header forbids, and that risk lands site-wide — on
+// /vs/pureref, which is the only page here actually earning impressions.
+// Community templates stay noindex; worker.js's /t/<token> branch made the same
+// call already.
+//
+// DELIBERATELY NO MINIMUM LENGTH. An item page is a diagram, its labels, what it
+// is for, and a button. Padding it to hit a word count produces exactly the
+// invented prose that makes a store feel fake. What is enforced instead is that
+// no two pages are near-duplicates — length is free, sameness is not.
+//
+// `preset` names an id in gridLayout's PRESETS rather than inlining a fraction
+// tree, so the diagram on the page, the label table in the .md mirror and the
+// grid the button places are one geometry by construction.
+function loadTemplates() {
+  if (!existsSync(TEMPLATES)) return { items: [], categories: [] };
+  const categories = JSON.parse(readFileSync(TEMPLATE_CATEGORIES_FILE, 'utf8'));
+  const categoryIds = new Set(categories.map((c) => c.id));
+  const problems = [];
+
+  const items = walk(TEMPLATES).sort().map((file) => {
+    const label = relative(BOARDS, file);
+    const raw = resolveFacts(readFileSync(file, 'utf8'), label);
+    const { fm, body } = parseFrontmatter(raw, label);
+    const bad = (msg) => problems.push(`${label}: ${msg}`);
+
+    for (const req of ['title', 'metaDescription', 'h1', 'blurb', 'answer',
+      'category', 'preset', 'useCase', 'targetQuery', 'updated']) {
+      if (!fm[req]) bad(`frontmatter '${req}' is required`);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fm.updated || '')) bad('updated must be YYYY-MM-DD');
+    if (!categoryIds.has(fm.category)) bad(`category '${fm.category}' not in content/templates/_categories.json`);
+    if ((fm.title || '').length > 65) bad(`title ${fm.title.length} chars (max 65)`);
+    if ((fm.metaDescription || '').length > 160) bad(`metaDescription ${fm.metaDescription.length} chars (max 160)`);
+
+    // The geometry has to exist, and the labels have to fit it. Both fail
+    // silently otherwise: presetTree falls back to a single cell for an unknown
+    // id, and sanitizeHints drops a surplus label. Neither throws — you would
+    // just ship the wrong template.
+    const preset = layoutById(fm.preset);
+    if (fm.preset && !preset) bad(`unknown layout '${fm.preset}'`);
+    const cells = preset ? templateCellOrder(preset).length : 0;
+
+    // Labels come from ONE place. A purpose-built layout carries its own, keyed
+    // by leaf id and ordered by asking readingOrder — because on a panel-and-
+    // caption sheet the storage order interleaves (panel, panel, caption,
+    // caption, panel…) and hand-typing that is a coin flip. A template on one of
+    // the bare shapes authors its labels here, where there is nothing to derive
+    // them from. Declaring both is the ambiguous case, so it is an error rather
+    // than a silent precedence rule.
+    if (fm.hints && preset?.hints) {
+      bad(`declares hints, but layout '${fm.preset}' already derives them from its cell ids`);
+    }
+    const hints = fm.hints || preset?.hints || null;
+    if (hints) {
+      if (hints.length > cells) bad(`${hints.length} labels for ${cells} boxes — the surplus is dropped`);
+      for (const h of hints) {
+        // The same ceiling migration 0269's CHECK enforces, so a page can never
+        // advertise a label the app would refuse to store.
+        if (h.length > HINT_LIMITS.MAX_LEN) bad(`label "${h}" is ${h.length} chars (max ${HINT_LIMITS.MAX_LEN})`);
+      }
+    }
+
+    // An item page is a product page: preview, name, one line, specs, button.
+    // There is nowhere for a body to render, so a body is an ERROR rather than
+    // something silently dropped — the failure mode this rule exists to prevent
+    // is prose that someone wrote and nobody ever sees.
+    if (body.trim()) bad('has body prose, but a template page renders frontmatter only');
+    const slug = file.replace(/^.*[/\\]/, '').replace(/\.md$/, '');
+    return {
+      slug,
+      path: `/templates/${slug}`,
+      file: label,
+      title: fm.title,
+      metaDescription: fm.metaDescription,
+      h1: fm.h1,
+      blurb: fm.blurb,
+      answer: fm.answer,
+      category: fm.category,
+      preset: fm.preset,
+      useCase: fm.useCase,
+      targetQuery: fm.targetQuery,
+      updated: fm.updated,
+      hints,
+      cells,
+      presetLabel: preset ? preset.label : '',
+      // The card size the layout is meant to be placed at. A set of proportions
+      // only produces 16:9 panels at one aspect ratio, so this rides along to
+      // both the preview and addGrid rather than being re-derived at each.
+      size: layoutSize(preset),
+      related: fm.related || [],
+    };
+  });
+
+  const seen = new Set();
+  for (const it of items) {
+    if (seen.has(it.path)) problems.push(`duplicate template path ${it.path}`);
+    seen.add(it.path);
+  }
+  for (const c of categories) {
+    if (!items.some((it) => it.category === c.id)) problems.push(`category '${c.id}' has no templates`);
+  }
+  if (problems.length) {
+    throw new Error(`gen-docs: ${problems.length} template problem(s):\n  - ${problems.join('\n  - ')}`);
+  }
+
+  // Store order: category order from _categories.json, then title.
+  const rank = new Map(categories.map((c, i) => [c.id, i]));
+  items.sort((a, b) =>
+    (rank.get(a.category) - rank.get(b.category)) || a.h1.localeCompare(b.h1));
+
+  return { items, categories };
 }
 
 // ── Load: the changelog ─────────────────────────────────────────────────────
@@ -575,12 +749,119 @@ function req(value, path, field) {
   return value;
 }
 
+// ── Template store serializers ──────────────────────────────────────────────
+//
+// The layout block is the SUBJECT of an item page, not decoration, so all three
+// renderers (this HTML, the .md mirror below, and the React page) derive it from
+// the same `preset` id. A page cannot describe one shape and hand over another.
+//
+// Labels are listed in READING ORDER, which is not always left-to-right:
+// readingOrder bands cells by their CENTRE, so on db-row-1-3 the top-right box
+// sorts ahead of the full-height frame on its left. The numbered diagram is
+// drawn from the same call, so a reader sees one consistent thing regardless.
+function templateLayoutLines(item) {
+  const n = item.cells;
+  const out = [`${item.presetLabel} — ${n} ${n === 1 ? 'box' : 'boxes'}.`];
+  return { lead: out[0], hints: item.hints || [] };
+}
+
+function templateCrawlableHtml(item) {
+  const { lead, hints } = templateLayoutLines(item);
+  const out = [];
+  out.push(`<h1 style="font-size:1.9rem;font-weight:650;margin:0 0 .4em;">${escapeHtml(item.h1)}</h1>`);
+  out.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(item.answer)}</p>`);
+  out.push(`<p style="color:#8a8a92;font-size:.85rem;">${escapeHtml(lead)} · <time datetime="${escapeHtml(item.updated)}">Updated ${escapeHtml(prettyDate(item.updated))}</time></p>`);
+
+  // Blank entries are HOLES, not gaps to close — a contact sheet's frames and a
+  // palette strip's swatches are deliberately unlabelled, and the label array is
+  // positional. So an unlabelled box is skipped while `value` keeps every listed
+  // box on its real number; renumbering would tell a reader that box 3 is the
+  // imagery when box 3 is a swatch.
+  if (hints.some((h) => h)) {
+    out.push(`<section><h2 style="${H2}">What each box is for</h2><ol>`);
+    hints.forEach((h, i) => { if (h) out.push(`<li value="${i + 1}">${escapeHtml(h)}</li>`); });
+    out.push('</ol><p>Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.</p></section>');
+  }
+
+  // Back to the shelf first. An item that does not link to the store is a leaf,
+  // and the store is the page carrying the topical weight.
+  out.push('<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">More templates</h2><ul>');
+  out.push('<li><a href="/templates" style="color:#FFA500;">All grid templates</a></li>');
+  for (const r of item.related) out.push(`<li><a href="${escapeHtml(r)}" style="color:#FFA500;">${escapeHtml(r)}</a></li>`);
+  out.push('<li><a href="/docs/canvas/grids" style="color:#FFA500;">Grids documentation</a></li>');
+  out.push('</ul></nav>');
+  out.push(`<p style="color:#8a8a92;font-size:.85rem;margin-top:2em;">Machine-readable: <a href="${escapeHtml(item.path)}.md" style="color:#FFA500;">${escapeHtml(item.path)}.md</a> · <a href="/llms.txt" style="color:#FFA500;">/llms.txt</a></p>`);
+
+  return `<div style="max-width:820px;margin:0 auto;padding:14vh 24px 24px;"><article>${out.join('')}</article></div>`;
+}
+
+// The .md twin. Same content, same order — an assistant that fetches this
+// instead of the HTML gets the same document.
+function templateMarkdown(item) {
+  const { lead, hints } = templateLayoutLines(item);
+  const out = [`# ${req(item.h1, item.path, 'h1')}`, ''];
+  out.push(`> ${req(item.answer, item.path, 'answer')}`, '');
+  out.push(`_Source: ${SITE_ORIGIN}${item.path} · For ${item.useCase} · Updated ${item.updated}_`, '');
+  out.push(lead, '');
+  if (hints.some((h) => h)) {
+    out.push('| Box | Label |', '| --- | --- |');
+    // Box numbers stay absolute; an unlabelled box simply has no row.
+    hints.forEach((h, i) => { if (h) out.push(`| ${i + 1} | ${h} |`); });
+    out.push('', 'Each label shows only while its box is empty, and is never written into the box. Boxes not listed are deliberately unlabelled.', '');
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
+}
+
 // A landing spec ('/tools/*', '/vs/*', '/use-cases', '/scout') → Markdown.
-function landingMarkdown(spec) {
+// `catalogue` is { items, categories } and is only read for a storefront spec —
+// passed in rather than reached for, because this function sits at module scope
+// and the template registry is loaded inside emit().
+function landingMarkdown(spec, catalogue = null) {
   const out = [`# ${spec.h1}`, ''];
   if (spec.answer) out.push(`> ${spec.answer}`, '');
   out.push(`_Source: ${SITE_ORIGIN}${spec.path} · Updated ${spec.updated}_`, '');
   if (spec.subhead) out.push(spec.subhead, '');
+  // The shape a curated template page is about, as a table an assistant can
+  // quote. Cell count and label order are DERIVED from the preset — the same
+  // call the page and the Worker make — so the mirror cannot describe a
+  // different grid from the one the page hands you.
+  if (spec.template?.preset) {
+    const preset = req(layoutById(spec.template.preset), spec.path, `a real layout (${spec.template.preset})`);
+    const cells = templateCellOrder(preset);
+    out.push('## The layout', '', `${preset.label} — ${cells.length} boxes.`, '');
+    const hints = spec.template.hints || [];
+    if (hints.length) {
+      out.push('| # | Label |', '| --- | --- |');
+      hints.forEach((h, i) => out.push(`| ${i + 1} | ${h} |`));
+      out.push('', 'Each label shows only while its box is empty, and is never written into the box.', '');
+    }
+  }
+  // A STOREFRONT'S MIRROR IS ITS CATALOGUE.
+  //
+  // This replaces the three prose sections /templates used to carry, and it is a
+  // straight upgrade for the thing the prose was justified by. An assistant
+  // asked for a storyboard template needs the inventory — the name, what it is
+  // for, the layout and the box count, one row each, with a URL to send someone
+  // to. Three paragraphs explaining what a template is answered a question
+  // nobody asks. It is also what keeps the mirror over the 1000-byte floor
+  // docsite.test.mjs enforces, without a word of it being written by hand.
+  if (spec.storefront && catalogue) {
+    out.push('## Every template', '');
+    for (const c of catalogue.categories) {
+      const items = catalogue.items.filter((t) => t.category === c.id);
+      if (!items.length) continue;
+      out.push(`### ${c.label}`, '', c.blurb, '');
+      out.push('| Template | For | Layout | Boxes |', '| --- | --- | --- | --- |');
+      for (const t of items) {
+        const cell = (s) => String(s ?? '').replace(/\|/g, '\\|');
+        out.push(`| [${cell(t.h1)}](${SITE_ORIGIN}${t.path}) | ${cell(t.useCase)} | ${cell(t.presetLabel)} | ${t.cells} |`);
+      }
+      out.push('');
+    }
+    out.push('Every template is free. Adding one places the layout on a board with '
+      + 'each box labelled until you fill it; the labels are guidance and never '
+      + 'become content.', '');
+  }
   for (const s of spec.sections || []) {
     out.push(`## ${s.heading}`, '');
     if (s.body) out.push(s.body, '');
@@ -610,6 +891,8 @@ function landingMarkdown(spec) {
     }
     out.push('');
   }
+  // "What it costs", in the same position the page and the Worker put it.
+  if (hasPlanBlock(spec)) out.push(...planBlockMarkdown());
   if (spec.faq?.length) {
     out.push('## Frequently asked questions', '');
     for (const f of spec.faq) out.push(`### ${f.q}`, '', f.a, '');
@@ -752,7 +1035,16 @@ function write(absPath, content) {
   }
 }
 
-function emit({ pages, sections, changelog }) {
+// The other half of write(): an artifact that must NOT exist, such as a held
+// page's mirror. Counted as a change, so `docs:check` fails while a stale copy
+// is still committed, the same as it fails on a stale write.
+function unwrite(absPath) {
+  if (!existsSync(absPath)) return;
+  changed.push(relative(BOARDS, absPath));
+  if (!CHECK) rmSync(absPath, { force: true });
+}
+
+function emit({ pages, sections, changelog, templates, templateCategories }) {
   // 1. Light index — imported by the Worker (meta, sitemap, 404 decisions), the
   //    React nav, and the tests. Deliberately excludes prose so importing it
   //    never drags the corpus into a chunk. Same firewall as seoListicleIndex.js.
@@ -810,11 +1102,129 @@ export function isDocsPath(pathname) {
   //     the /docs mirrors above; see landingMarkdown/listicleMarkdown for why
   //     these exist (AI assistants cite the comparison pages, not the docs).
   const marketing = [
-    ...SEO_LANDING_PAGES.map((s) => ({ spec: s, md: landingMarkdown(s) })),
+    ...SEO_LANDING_LISTED.map((s) => ({
+      spec: s,
+      md: landingMarkdown(s, { items: templates, categories: templateCategories }),
+    })),
     ...SEO_LISTICLE_PAGES.map((s) => ({ spec: s, md: listicleMarkdown(s) })),
   ];
   for (const { spec, md } of marketing) {
     write(resolve(BOARDS, 'public', `${marketingMdRel(spec.path)}.md`), md);
+  }
+  // A held page (the template store) has no mirror: dist/ serves these files
+  // straight from the asset layer, past the Worker that 404s the page itself.
+  for (const s of SEO_LANDING_PAGES) {
+    if (!SEO_LANDING_LISTED.includes(s)) unwrite(resolve(BOARDS, 'public', `${marketingMdRel(s.path)}.md`));
+  }
+
+  // 4c. /pricing.md — the raw twin of /pricing, built from billingCopy by the
+  //     same module the Worker renders the crawlable body with. Until
+  //     2026-10-01 there was no machine-readable price anywhere on the site
+  //     except a meta description; an assistant asked "what does Soleil
+  //     Clusters cost, is it per seat" had nothing to quote.
+  write(resolve(BOARDS, 'public/pricing.md'), pricingMarkdown());
+
+  // 4d. The curated grid templates, as a LIGHT index.
+  //
+  //     App.jsx has to turn ?remix=k_<slug> into an actual saved template after
+  //     signup, which means it needs the preset id and the labels — but it must
+  //     never import seoLanding.js to get them, because that would pull several
+  //     thousand words of marketing prose into the app chunk. Same split, same
+  //     reason, as seoListicleIndex.js and docsiteIndex.js.
+  //
+  //     Generated rather than hand-written so the template a page describes and
+  //     the template its button places cannot drift apart: there is one spec,
+  //     and this is a projection of it.
+  write(resolve(BOARDS, 'src/lib/gridTemplateIndex.js'),
+    BANNER('content/templates/*.md') + `
+export const CURATED_TEMPLATES = ${JSON.stringify(Object.fromEntries(templates.map((it) => [it.slug, {
+      path: it.path,
+      name: req(it.h1, it.path, 'h1'),
+      preset: req(it.preset, it.path, 'preset'),
+      size: it.size,
+      ...(it.hints ? { hints: it.hints } : {}),
+    }])), null, 1)};
+`);
+
+  // 4e. The template STORE — a four-way split, one more than the docs.
+  //
+  //     The docs have no browse UI, so they need no card projection. Here the
+  //     storefront renders every item client-side; if it imported templateIndex
+  //     it would drag every metaDescription and FAQ into the /templates chunk
+  //     for a grid that shows a name and one line. Cards is a separate FILE
+  //     rather than a second export for the reason seoListicleIndex.js states —
+  //     a chunk boundary is not something to bet on tree-shaking.
+  //
+  //       templateCards      slug/h1/blurb/category/preset/hints  storefront + Worker hub list
+  //       templateIndex      + meta, answer, faq, related          Worker item pages, sitemap, OG
+  //       templateCrawlable  pre-rendered HTML                     Worker only
+  //       templateContent    block AST, body-only                  React item page only
+  write(resolve(BOARDS, 'src/lib/templateCards.js'),
+    BANNER('content/templates/*.md') + `
+export const TEMPLATE_CATEGORIES = ${JSON.stringify(templateCategories, null, 1)};
+
+export const TEMPLATE_CARDS = ${JSON.stringify(templates.map((it) => ({
+      slug: it.slug, path: it.path, h1: it.h1, blurb: it.blurb,
+      category: it.category, preset: it.preset, hints: it.hints, cells: it.cells,
+      size: it.size,
+    })), null, 1)};
+`);
+
+  write(resolve(BOARDS, 'src/lib/templateIndex.js'),
+    BANNER('content/templates/*.md') + `
+export const TEMPLATE_ITEMS = ${JSON.stringify(templates.map((it) => ({
+      slug: it.slug, path: it.path, title: it.title, metaDescription: it.metaDescription,
+      h1: it.h1, blurb: it.blurb, answer: it.answer, category: it.category,
+      preset: it.preset, hints: it.hints, cells: it.cells, presetLabel: it.presetLabel,
+      size: it.size,
+      useCase: it.useCase, targetQuery: it.targetQuery, updated: it.updated,
+      related: it.related,
+    })), null, 1)};
+
+const BY_PATH = new Map(TEMPLATE_ITEMS.map((t) => [t.path, t]));
+
+// Matches the Worker's normalizePath: lowercase, strip a trailing slash.
+export function getTemplateSpec(pathname) {
+  if (!pathname) return null;
+  let p = String(pathname).toLowerCase();
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  return BY_PATH.get(p) || null;
+}
+
+// Shape-match, so an unknown /templates/<slug> can be a real 404 rather than
+// page content at a URL whose status says gone. ONE segment only — a two-segment
+// path is the community shape below, and conflating them is what made every
+// published template 404 in the browser while the Worker served it a real page.
+export function isTemplatePath(pathname) {
+  return /^\\/templates\\/[a-z0-9-]+\\/?$/i.test(String(pathname || ''));
+}
+// The community shape (/templates/g/<slug>) lives in lib/templatePaths.js, NOT
+// here: this module carries the whole prose registry, and the React router needs
+// the matcher without dragging every metaDescription into the landing chunk.
+`);
+
+  write(resolve(BOARDS, 'src/lib/templateCrawlable.js'),
+    BANNER('content/templates/*.md') + `
+const HTML = ${JSON.stringify(Object.fromEntries(templates.map((it) => [it.path, templateCrawlableHtml(it)])), null, 1)};
+
+// ONE accessor, so swapping this for an env.ASSETS fetch when the store outgrows
+// the Worker's byte budget is a single function body rather than a call-site sweep.
+export function templateHtml(path) { return HTML[path] || ''; }
+`);
+
+  // The items' mirrors, unless the store is held — see the import above. Every
+  // file in the folder goes, not only the current slugs, so a template renamed
+  // while held cannot leave an orphan behind.
+  const pubTemplates = resolve(BOARDS, 'public/templates');
+  if (TEMPLATE_STORE_HELD) {
+    if (existsSync(pubTemplates)) {
+      for (const f of readdirSync(pubTemplates)) unwrite(resolve(pubTemplates, f));
+      if (!CHECK) rmSync(pubTemplates, { recursive: true, force: true });
+    }
+  } else {
+    for (const it of templates) {
+      write(resolve(BOARDS, 'public', `templates/${it.slug}.md`), templateMarkdown(it));
+    }
   }
 
   // 4c. The changelog — the same light-index / AST / pre-rendered-HTML split the
@@ -870,7 +1280,7 @@ export function isChangelogPath(pathname) {
     '# Soleil Clusters',
     '',
     '> An infinite-canvas creative workspace for film, photo, design and brand teams.',
-    '> Organize references, storyboards, shot lists, scripts and schedules on shared boards.',
+    '> Organize references, storyboards, shot lists and scripts on shared boards.',
     `> Read and write it from your own code with the ${SITE_ORIGIN}/api/v1 REST API or the MCP server.`,
     '',
     'Terminology: the product calls a board a **cluster**. The API and database call the same object a `board`.',
@@ -884,6 +1294,14 @@ export function isChangelogPath(pathname) {
     '## Changelog',
     '',
     `- [Changelog](${SITE_ORIGIN}/changelog): ${CHANGELOG_DESCRIPTION} Most recent entry: ${changelog[0].date}. Raw Markdown at ${SITE_ORIGIN}/changelog.md, RSS at ${SITE_ORIGIN}/changelog.xml.`,
+    '',
+    // The price, stated, because "how much is it / is it per seat" is the most
+    // money-relevant question an assistant is asked about us — and before this
+    // line llms.txt contained no '$' at all. PRICING_ANSWER is built from
+    // billingCopy, so this cannot drift from what Stripe charges.
+    '## Pricing',
+    '',
+    `- [Pricing](${SITE_ORIGIN}/pricing): ${PRICING_ANSWER} Raw Markdown at ${SITE_ORIGIN}/pricing.md; limits and billing in detail at ${SITE_ORIGIN}/docs/account/plans.`,
     '',
   ];
   for (const s of sections) {
@@ -901,8 +1319,22 @@ export function isChangelogPath(pathname) {
     llms.push(`- [${s.h1}](${SITE_ORIGIN}${s.path}): ${s.metaDescription}`);
   }
   llms.push('', '## Comparisons and tool pages', '');
-  for (const s of SEO_LANDING_PAGES) {
+  for (const s of SEO_LANDING_LISTED) {
     llms.push(`- [${s.h1}](${SITE_ORIGIN}${s.path}): ${s.metaDescription}`);
+  }
+  // The template store. Grouped by category rather than dumped flat, because
+  // "which template do I want" is a browsing question and the categories are the
+  // answer to it — an assistant reading this should be able to narrow before
+  // fetching, exactly as a person uses the chips on /templates.
+  if (templates.length && !TEMPLATE_STORE_HELD) {
+    llms.push('', '## Grid templates', '');
+    for (const c of templateCategories) {
+      const inCat = templates.filter((it) => it.category === c.id);
+      if (!inCat.length) continue;
+      llms.push(`### ${c.label}`, '');
+      for (const it of inCat) llms.push(`- [${it.h1}](${SITE_ORIGIN}${it.path}): ${it.blurb}`);
+      llms.push('');
+    }
   }
   llms.push('');
   write(resolve(BOARDS, 'public/llms.txt'), llms.join('\n'));
@@ -928,6 +1360,7 @@ export function isChangelogPath(pathname) {
   for (const { spec, md } of marketing) {
     full.push('', '='.repeat(72), `URL: ${SITE_ORIGIN}${spec.path}`, `Updated: ${spec.updated}`, '', md);
   }
+  full.push('', '='.repeat(72), `URL: ${SITE_ORIGIN}/pricing`, '', pricingMarkdown());
   // The changelog goes LAST in the corpus but is the first thing worth checking:
   // everything above describes the product as documented, this says when each
   // part of it arrived.
@@ -943,7 +1376,8 @@ export function isChangelogPath(pathname) {
 // ── Run ─────────────────────────────────────────────────────────────────────
 const loaded = loadPages();
 const changelog = loadChangelog();
-emit({ ...loaded, changelog });
+const store = loadTemplates();
+emit({ ...loaded, changelog, templates: store.items, templateCategories: store.categories });
 
 if (CHECK && changed.length) {
   console.error(`✗ docs artifacts are stale (${changed.length} file(s) would change):`);

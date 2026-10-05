@@ -15,7 +15,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
-import { readGridModel, effectiveCellStyle } from '../../lib/gridState.js';
+import { readGridModel, effectiveCellStyle, readGridHints } from '../../lib/gridState.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { Spinner } from '../Spinner.jsx';
@@ -60,7 +60,9 @@ const SplitButtons = ({ gridActions, cardId, cellId }) => (
 );
 
 export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null, dropCellId = null, cellUploads = null, boards = null, onOpenBoard = null }) {
-  useCardCellsVersion(cardYMap);
+  // gridMeta as well as gridCells: cell hints live there, so a template applied
+  // to this grid must repaint it.
+  useCardCellsVersion(cardYMap, ['gridCells', 'gridMeta']);
   const [preview, setPreview] = useState(null);        // { layout } during a divider drag
   const [dragId, setDragId] = useState(null);          // id of the divider being dragged
   const [editingCellId, setEditingCellId] = useState(null);
@@ -74,6 +76,11 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [compareCellId, setCompareCellId] = useState(null); // cell showing its unadjusted source (hold-to-compare)
 
   const model = readGridModel(card, ydoc, templates);
+  // Cell labels carried in from the template this grid was made from. They are
+  // NOT content: they live in gridMeta, never in gridCells, and render only
+  // while a cell is empty — which is why they vanish exactly when the cell has
+  // something in it and come back if it is cleared again.
+  const hints = readGridHints(cardYMap, card);
   const layout = preview?.layout || model.layout;
   if (!layout) return <div className="gridc gridc-empty" aria-hidden="true" />;
 
@@ -307,6 +314,14 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               </div>
             )}
 
+            {/* The ghost label. Sits under the chooser rather than replacing
+                it: an empty cell still offers Text/Image/Link on hover, and the
+                label only says what the box is FOR. aria-hidden because it is
+                guidance about an empty region, not content a screen reader
+                should announce as present. */}
+            {empty && hints && hints[r.id] && !isEditingText && (
+              <div className="gridc-hint" aria-hidden="true">{hints[r.id]}</div>
+            )}
             {editable && !isEditingText && !empty && !compact && (
               // Corner Clear only on normal cells; on compact cells Clear lives
               // in the pop-out menu (avoids a cramped/overlapping corner button).

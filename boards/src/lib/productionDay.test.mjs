@@ -10,7 +10,9 @@ import assert from 'node:assert/strict';
 import {
   shootDayDates, nextDayNumber, shootDayCards, defaultShootRange,
   MAX_SHOOT_DAYS_PER_ADD,
+  shootDayRundown,
 } from './productionDayPlan.js';
+import { computeRundown, isRundownKey } from './rundown.js';
 
 test('a range covers every day inclusive of both ends', () => {
   assert.deepEqual(shootDayDates('2026-08-17', '2026-08-21'),
@@ -99,6 +101,37 @@ test('the hour-by-hour reads its date from the cluster, not a copy of it', () =>
   assert.equal(s.anchorMode, 'board');
   assert.equal(s.schedView, 'day');
   assert.ok(!('anchor' in s), 'a pinned anchor would go stale the moment the day moved');
+});
+
+test('a scaffolded day opens with a skeleton, not a blank page', () => {
+  // An empty rundown is a blank page and a blank page is what people close.
+  // Three rows: it starts, it breaks, and the break is PINNED — so the day
+  // already demonstrates the behaviour the whole model exists for.
+  const s = shootDayCards('Day 1', '2026-09-08').find((c) => c.kind === 'schedule');
+  const rows = Object.entries(s.cells);
+  assert.equal(rows.length, 3);
+  assert.ok(rows.every(([k]) => isRundownKey(k)), 'seeded at rundown keys');
+  assert.ok(rows.every(([k]) => k.startsWith('d:2026-09-08/')), 'on the right date');
+
+  const r = computeRundown(rows.map(([key, v]) => ({ ...v, key })));
+  assert.deepEqual(r.rows.map((x) => x.title), ['Crew call', 'First setup', 'Lunch']);
+  assert.equal(r.rows[0].start, '07:00');
+  assert.equal(r.rows[0].pinned, true, 'call time is a hard start');
+  assert.equal(r.rows[2].start, '13:00', 'meal six hours after call');
+  assert.equal(r.rows[2].pinned, true, 'so is the meal break');
+});
+
+test('an undated cluster scaffolds without a seed rather than at a wrong date', () => {
+  // Rundown keys carry the date. With no date there is nowhere correct to put
+  // the rows, and inventing one would bury three items on a day nobody picked.
+  const s = shootDayCards('Day 1').find((c) => c.kind === 'schedule');
+  assert.deepEqual(s.cells, {});
+});
+
+test('the seeded meal break wraps past midnight for a night call', () => {
+  const rows = shootDayRundown('2026-09-08', '20:00');
+  assert.equal(rows[0].pin, '20:00');
+  assert.equal(rows[2].pin, '02:00', 'six hours after a 20:00 call is 02:00');
 });
 
 test('the scaffold never seeds a nested cluster card', () => {

@@ -20,8 +20,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   computeSchedSlots, monthGrid, schedLodTier, reslotItemKey, moveSlotSubtree,
-  SCHED_TUNING, isItemKey, parseSlotKey, slotOfItem,
+  SCHED_TUNING, isItemKey, parseSlotKey, slotOfItem, itemRole, parseItemKey,
+  itemsForSlot, schedDayCounts, schedItems, schedLegacyRows,
+  splitSchedPanes, schedVisibleRange, schedDayRows, schedNextDay, schedSizeForMonths,
 } from './schedLayout.js';
+import { rundownKey } from './rundown.js';
 
 const TODAY = '2026-08-15';
 
@@ -177,8 +180,21 @@ test('a month card at its default size is unaffected by the months parameter', (
 
 test('a 3-month strip squeezed into one month\'s footprint demotes', () => {
   // Read against the whole card this would report 'full' while every cell was
-  // ~20px — the exact unreadable render the block-relative measure prevents.
-  assert.equal(schedLodTier({ view: 'month', w: 420, h: 380, scale: 1, months: 3 }), 'mid');
+  // ~18px — the exact unreadable render the block-relative measure prevents.
+  // It lands on 'far' rather than 'mid' because ragged arrangements are no
+  // longer allowed: 3 months can only be a strip or a stack, and the strip that
+  // wins here is 3-across at 140px per block, below the 150px far threshold.
+  assert.equal(schedLodTier({ view: 'month', w: 420, h: 380, scale: 1, months: 3 }), 'far');
+});
+
+test('a month count never produces a ragged grid', () => {
+  // Three months in a 2x2 with an empty quadrant reads as broken however big
+  // it makes the cells.
+  for (const [months, w, h] of [[3, 640, 516], [3, 900, 900], [6, 900, 700], [2, 500, 500]]) {
+    const g = monthGrid(months, w, h);
+    assert.equal(g.cols * g.rows, months,
+      `${months} months in ${w}x${h} gave ${g.cols}x${g.rows} — a hole`);
+  }
 });
 
 test('a strip given room for three real months stays full', () => {
@@ -294,4 +310,246 @@ test('the tuning constants the CSS mirrors are present', () => {
   for (const k of ['MONTH_GAP_PX', 'MONTH_CAPTION_H', 'DAYTILE_H']) {
     assert.equal(typeof SCHED_TUNING[k], 'number', `${k} missing`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Two panes
+//
+// The rail is only worth its 288px when the calendar beside it is still
+// readable. Getting that wrong is not a cosmetic bug: a pane pushed under the
+// LOD mid threshold turns the whole card into a density map, so the rail would
+// win its space by destroying the thing it sits next to.
+
+test('a card with room gets a rail, and the calendar keeps the rest', () => {
+  const { calRect, railRect } = splitSchedPanes({ view: 'month', w: 920, h: 536 });
+  assert.equal(railRect.w, SCHED_TUNING.RAIL_W);
+  assert.equal(calRect.w + railRect.w, 920);
+  assert.equal(railRect.x, calRect.w);
+  assert.equal(calRect.x, 0);
+});
+
+test('a narrow or short card has no rail — the peek is still the way in', () => {
+  for (const box of [{ w: 619, h: 536 }, { w: 920, h: 259 }]) {
+    const r = splitSchedPanes({ view: 'month', ...box });
+    assert.equal(r.railRect, null);
+    assert.equal(r.calRect.w, box.w, 'the calendar takes the whole card');
+  }
+});
+
+test('day and hour views never get a rail — they are already a list of rows', () => {
+  for (const view of ['day', 'hour']) {
+    assert.equal(splitSchedPanes({ view, w: 1200, h: 700 }).railRect, null);
+  }
+});
+
+test('rail:false suppresses the rail without changing the calendar box', () => {
+  const on = splitSchedPanes({ view: 'month', w: 920, h: 536, rail: true });
+  const off = splitSchedPanes({ view: 'month', w: 920, h: 536, rail: false });
+  assert.ok(on.railRect);
+  assert.equal(off.railRect, null);
+  assert.equal(off.calRect.w, 920);
+});
+
+test('a 3-month strip refuses a rail that would shrink each month below legibility', () => {
+  // 920 - 288 = 632 for three months = 210 each, under the 330 mid threshold.
+  assert.equal(splitSchedPanes({ view: 'month', w: 920, h: 536, months: 3 }).railRect, null);
+  // Wide enough and it comes back.
+  assert.ok(splitSchedPanes({ view: 'month', w: 1400, h: 536, months: 3 }).railRect);
+});
+
+test('every month span sizes to a card that is full tier WITH its rail', () => {
+  for (const n of [1, 3, 6]) {
+    const size = schedSizeForMonths(n, { w: 920, h: 580 });
+    const body = { w: size.w, h: size.h - SCHED_TUNING.HEADER_H };
+    const { railRect, calRect } = splitSchedPanes({ view: 'month', ...body, months: n });
+    assert.ok(railRect, `${n} months should keep its rail`);
+    assert.equal(schedLodTier({ view: 'month', ...body, scale: 1, months: n }), 'full', `${n} months`);
+    const { cols } = monthGrid(n, calRect.w, body.h);
+    assert.ok(calRect.w / cols >= 330, `${n} months: each block must clear midW`);
+  }
+});
+
+test('sizing for a span never shrinks a card someone has already sized', () => {
+  const big = schedSizeForMonths(1, { w: 1600, h: 1000 });
+  assert.deepEqual(big, { w: 1600, h: 1000 });
+});
+
+// ---------------------------------------------------------------------------
+// What the rail lists
+
+test('the visible range is whole calendar months, not the padded week grid', () => {
+  assert.deepEqual(schedVisibleRange({ view: 'month', anchor: '2026-09-15' }),
+    { from: '2026-09-01', to: '2026-09-30' });
+  // A 3-month strip runs to the end of the third month, including a leap Feb.
+  assert.deepEqual(schedVisibleRange({ view: 'month', anchor: '2024-01-10', months: 3 }),
+    { from: '2024-01-01', to: '2024-03-31' });
+  assert.deepEqual(schedVisibleRange({ view: 'week', anchor: '2026-08-19' }),
+    { from: '2026-08-17', to: '2026-08-23' });   // Monday-first
+  assert.deepEqual(schedVisibleRange({ view: 'day', anchor: '2026-08-19' }),
+    { from: '2026-08-19', to: '2026-08-19' });
+});
+
+const DAY = (id, date, extra = {}) => ({ id, scheduled_date: date, ...extra });
+
+test('a row appears for any date with a day, loose content, or today — and no others', () => {
+  const rows = schedDayRows({
+    from: '2026-08-01', to: '2026-08-31',
+    shootDays: { '2026-08-04': [DAY('a', '2026-08-04')] },
+    dayCounts: { '2026-08-06': 2 },
+    todayIso: '2026-08-15',
+  });
+  assert.deepEqual(rows.map((r) => r.date), ['2026-08-04', '2026-08-06', '2026-08-15']);
+  assert.equal(rows[0].days.length, 1);
+  assert.equal(rows[1].loose, 2);
+  // Today earns a row even with nothing on it: "nothing is scheduled today" is
+  // an answer someone opened the card to get.
+  assert.equal(rows[2].isToday, true);
+  assert.equal(rows[2].days.length, 0);
+  assert.equal(rows[2].loose, 0);
+});
+
+test('rows come out in date order and flag weekends', () => {
+  const rows = schedDayRows({
+    from: '2026-08-01', to: '2026-08-10',
+    shootDays: {
+      '2026-08-09': [DAY('c', '2026-08-09')],   // Sunday
+      '2026-08-03': [DAY('a', '2026-08-03')],   // Monday
+      '2026-08-08': [DAY('b', '2026-08-08')],   // Saturday
+    },
+    todayIso: '2026-12-01',                      // out of range: no today row
+  });
+  assert.deepEqual(rows.map((r) => r.date), ['2026-08-03', '2026-08-08', '2026-08-09']);
+  assert.deepEqual(rows.map((r) => r.weekend), [false, true, true]);
+});
+
+test('a backwards or unparseable range yields nothing rather than spinning', () => {
+  assert.deepEqual(schedDayRows({ from: '2026-08-10', to: '2026-08-01' }), []);
+  assert.deepEqual(schedDayRows({ from: 'nope', to: '2026-08-01' }), []);
+});
+
+test('"next" looks across the WHOLE production, and skips cancelled days', () => {
+  const shootDays = {
+    '2026-08-10': [DAY('past', '2026-08-10')],
+    '2026-08-20': [DAY('x', '2026-08-20', { sched_status: 'cancelled' })],
+    '2026-08-22': [DAY('real', '2026-08-22')],
+    '2026-09-01': [DAY('later', '2026-09-01')],
+  };
+  const n = schedNextDay(shootDays, '2026-08-15');
+  assert.equal(n.date, '2026-08-22');
+  assert.equal(n.board.id, 'real');
+  // Nothing ahead → null, not a throw.
+  assert.equal(schedNextDay(shootDays, '2027-01-01'), null);
+  assert.equal(schedNextDay(null, '2026-08-15'), null);
+});
+
+test('the rail tuning constants the CSS mirrors are present', () => {
+  for (const k of ['RAIL_W', 'RAIL_MIN_W', 'RAIL_MIN_H', 'DAYTILE_COMPACT_W', 'DAYTILE_COMPACT_H']) {
+    assert.equal(typeof SCHED_TUNING[k], 'number', `${k} missing`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Two item roles, one grammar
+//
+// `d:<date>/r:<uid>` is a rundown row and `d:<date>/i:<uid>` is loose content,
+// and BOTH are items. isItemKey used to match only the second, so every read
+// that gates on it — the day counts, the "N items" caption, the month chips,
+// thumbnails, the search index, the public page — silently skipped a day's
+// entire running order. These tests exist so that cannot come back.
+
+const ROW = rundownKey('2026-08-18', 'r1');
+const LOOSE = 'd:2026-08-18/i:l1';
+const HOURED = 'd:2026-08-18/h:09/i:h1';
+
+test('a rundown row is an item, and knows it is a row', () => {
+  assert.equal(isItemKey(ROW), true);
+  assert.equal(isItemKey(LOOSE), true);
+  assert.equal(itemRole(ROW), 'row');
+  assert.equal(itemRole(LOOSE), 'item');
+  assert.equal(itemRole(HOURED), 'item');
+  assert.equal(itemRole('d:2026-08-18'), null, 'a slot path is not an item');
+  assert.equal(isItemKey('d:2026-08-18'), false);
+});
+
+test('both roles resolve to the same day slot', () => {
+  assert.equal(slotOfItem(ROW), 'd:2026-08-18');
+  assert.equal(slotOfItem(LOOSE), 'd:2026-08-18');
+  assert.equal(slotOfItem(HOURED), 'd:2026-08-18/h:09');
+  assert.deepEqual(parseItemKey(ROW), { slotPath: 'd:2026-08-18', role: 'row', uid: 'r1' });
+  assert.equal(parseSlotKey(slotOfItem(ROW)).date, '2026-08-18');
+});
+
+test('moving a row to another date KEEPS it a row', () => {
+  // lastIndexOf('/i:') returns -1 on a `/r:` key, so the old arithmetic sliced
+  // from index 2 and would have re-minted the row as loose content whose uid
+  // was a chunk of its own path.
+  assert.equal(reslotItemKey(ROW, 'd:2026-08-19'), 'd:2026-08-19/r:r1');
+  assert.equal(reslotItemKey(LOOSE, 'd:2026-08-19'), 'd:2026-08-19/i:l1');
+  assert.equal(reslotItemKey(ROW, 'd:2026-08-18'), null, 'a move to home is a no-op');
+});
+
+test('a day with only a running order is not an empty day', () => {
+  const cells = {
+    [rundownKey('2026-08-18', 'a')]: { type: 'text', html: 'Crew call', dur: 30, pin: '07:00', ord: 'a0' },
+    [rundownKey('2026-08-18', 'b')]: { type: 'text', html: 'Shoot 14A', dur: 135, ord: 'a1' },
+  };
+  assert.deepEqual(schedDayCounts(cells), { '2026-08-18': 2 },
+    'the month grid and the LOD map count rundown rows');
+  assert.equal(itemsForSlot('d:2026-08-18', Object.keys(cells)).length, 2);
+  assert.equal(schedItems(cells).length, 2);
+});
+
+test('the summary reads a running order in the order it runs', () => {
+  // Deliberately inserted with the LATER row first and a uid that sorts before
+  // it, so plain key order would get this backwards.
+  const cells = {
+    [rundownKey('2026-08-18', 'aaa')]: { type: 'text', html: 'Shoot 14A', dur: 135, ord: 'a2' },
+    [rundownKey('2026-08-18', 'zzz')]: { type: 'text', html: 'Crew call', dur: 30, pin: '07:00', ord: 'a1' },
+  };
+  const items = schedItems(cells);
+  assert.deepEqual(items.map((i) => i.title), ['Crew call', 'Shoot 14A'],
+    'ordered by the cascade, not by uid');
+
+  // A PINNED row states its own time, so the summary may repeat it.
+  assert.equal(items[0].hour, 7);
+  assert.equal(items[0].minute, 0);
+  // An unpinned row does NOT: its wall clock depends on boards.day_start, which
+  // a cells map cannot see. Saying 09:15 when the card says 08:15 would be
+  // worse than saying nothing.
+  assert.equal(items[1].hour, null);
+  assert.deepEqual(schedLegacyRows(items).map((r) => r.loc), ['7 AM', '']);
+});
+
+test('loose content sits above the clock, and mixes with rows on one date', () => {
+  const cells = {
+    'd:2026-08-18/i:note': { type: 'text', html: 'Bring the long lens' },
+    [rundownKey('2026-08-18', 'a')]: { type: 'text', html: 'Crew call', dur: 30, pin: '07:00', ord: 'a0' },
+    'd:2026-08-19/i:x': { type: 'image', src: 'r2:1' },
+  };
+  const items = schedItems(cells);
+  assert.deepEqual(items.map((i) => i.date), ['2026-08-18', '2026-08-18', '2026-08-19']);
+  assert.equal(items[0].title, 'Bring the long lens', 'untimed first, as the day view stacks it');
+  assert.deepEqual(schedDayCounts(cells), { '2026-08-18': 2, '2026-08-19': 1 });
+});
+
+test('itemsForSlot orders rows by ord when it is given the records', () => {
+  const cells = {
+    [rundownKey('2026-08-18', 'zz')]: { type: 'text', html: 'second', ord: 'a2' },
+    [rundownKey('2026-08-18', 'aa')]: { type: 'text', html: 'first', ord: 'a1' },
+    'd:2026-08-18/i:l': { type: 'text', html: 'loose' },
+  };
+  const keys = Object.keys(cells);
+  const ordered = itemsForSlot('d:2026-08-18', keys, { cells });
+  assert.deepEqual(ordered, ['d:2026-08-18/i:l', rundownKey('2026-08-18', 'aa'), rundownKey('2026-08-18', 'zz')],
+    'loose content, then the day in the order it runs');
+  // Without the records it degrades to key order rather than throwing — every
+  // pre-existing caller passes two arguments.
+  assert.equal(itemsForSlot('d:2026-08-18', keys).length, 3);
+});
+
+test('direct vs deep still distinguishes an hour row from the day above it', () => {
+  const keys = [ROW, LOOSE, HOURED];
+  assert.deepEqual(itemsForSlot('d:2026-08-18', keys).sort(), [LOOSE, ROW].sort());
+  assert.equal(itemsForSlot('d:2026-08-18', keys, { deep: true }).length, 3);
+  assert.deepEqual(itemsForSlot('d:2026-08-18/h:09', keys), [HOURED]);
 });

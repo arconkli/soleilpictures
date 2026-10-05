@@ -1,23 +1,29 @@
 # Search and the command palette
 
-> Press Cmd-K or forward slash to open the command palette. It searches across cluster names, card contents, notes, documents and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+> Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
-_Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 2026-10-02_
 
 `⌘K`, or `/` when you are not typing into something.
 
 ## What it searches
 
-Full content, not just names:
-
 - **Recents** — what you have had open
 - **Clusters** — by name
-- **Cards and notes** — by content
+- **Cards and notes** — by title, and by the first 500 characters of their text
+- **Files** — by the name the file was uploaded with, so a photo nobody captioned
+  is found as `diner_ext_dusk_04.jpg` (photos and videos uploaded since names
+  were kept; audio, PDFs and attachments always had theirs)
 - **Tags**
-- **Docs** — by content
+- **Docs** — by title, and by the words on every page: a match shows the line
+  it came from, under **Inside docs**, and opens the document at that page
 
-Results are grouped by kind, so a query matching a board and a passage inside a
-document shows you both, labelled.
+A document written before search learned to read it is indexed the next time it,
+or anything else in its cluster, is edited. Inside one long document, `⌘F` finds
+every occurrence on the page you are on.
+
+Results are grouped by kind, so a query matching a board and a note shows you
+both, labelled.
 
 ## What it does
 
@@ -25,9 +31,9 @@ The palette also runs commands. Type the verb rather than the noun:
 
 | Command | Effect |
 |---|---|
-| Create cluster | A new board |
+| New project | A new cluster at the top of your workspace, opened |
 | New note | A note on the current board |
-| Go to Home | The [relationship graph](/docs/clusters/home-graph) |
+| Go to Home | [Your projects](/docs/clusters/home-graph), over the relationship graph |
 | Link a cluster onto canvas | Place a reference to another board |
 | Open split view | [Two boards side by side](/docs/clusters#side-by-side) |
 | Share this cluster | The [share dialog](/docs/collaborate/sharing) |

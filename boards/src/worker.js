@@ -18,20 +18,38 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
+import { handleMediaRoute } from './worker-media.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
-import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME } from './lib/billingCopy.js';
+import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
+import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
+import { hasPlanBlock, planBlockHtml } from './lib/planBlock.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
 } from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
-import { classifyCrawler, isCrawlablePath } from './lib/crawlerUa.js';
+import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './lib/crawlerUa.js';
+import { ogTargetProblem } from './lib/safeUrl.js';
 import { runAeoRetrievalProbe } from './worker-aeo.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
-import { getLandingSpec, SEO_LANDING_PAGES, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
+import { getLandingSpec, SEO_LANDING_LISTED, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
+// Named imports only, so esbuild tree-shakes the rest of the layout engine out
+// of the Worker: a curated template page states its cell count, and that number
+// is DERIVED from the preset rather than typed into the spec beside it.
+import { leafIds } from './lib/gridLayout.js';
+import { layoutById } from './lib/templateLayouts.js';
+// The template store. Three artifacts, all generated from content/templates/*.md:
+// the cards drive the store front's crawlable list, the index drives item meta
+// and the sitemap, and templateHtml is the ONE accessor for pre-rendered item
+// bodies — so swapping it for an env.ASSETS fetch when the store outgrows the
+// Worker's byte budget is a single function body, not a call-site sweep.
+import { TEMPLATE_CARDS, TEMPLATE_CATEGORIES } from './lib/templateCards.js';
+import { TEMPLATE_ITEMS, getTemplateSpec, isTemplatePath } from './lib/templateIndex.js';
+import { publicTemplateSlug, TEMPLATE_STORE_HELD, isTemplateStorePath, templateStoreOpenOn } from './lib/templatePaths.js';
+import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
 // Public documentation (/docs/*). Two GENERATED modules, both built from
@@ -330,6 +348,20 @@ const UUID_RE = /^[0-9a-f-]{36}$/i;
 // of the DB CHECK (which forbids consecutive/edge hyphens) — the DB is the real
 // gate; the route only needs to catch every valid slug. A non-matching-but-
 // routed slug just resolves to no published board → default meta, no noindex.
+// /t/<uuid> — a shared grid template (migration 0265). Kept in lockstep with
+// templateShareMatch in main.jsx: widening one without the other means the
+// Worker and React disagree about what is a real route.
+const TEMPLATE_SHARE_PATH_RE = /^\/t\/([0-9a-f-]{36})\/?$/i;
+
+// /templates/g/<slug> — a PUBLISHED community template's page. The /g/ segment
+// keeps it out of the flat namespace our own items occupy, so a published slug
+// can never collide with a curated one; slugs are minted once and never
+// re-checked (0266:126), which would make a collision silent and permanent.
+//
+// The matcher moved to lib/templatePaths.js and is now imported by the React
+// router too. It used to live only here, which is precisely why every published
+// template rendered a full page for a crawler and "Page not found" for a person:
+// the client had no idea this shape existed.
 const PUBLIC_BOARD_PATH_RE = /^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/;
 const EXPLORE_PATH_RE = /^\/explore\/?$/;
 
@@ -475,7 +507,7 @@ const worker = {
         && !url.pathname.includes('.')) {
       let p = url.pathname;
       if (p.length > 1 && p.endsWith('/')) p = p.replace(/\/+$/, '') || '/';
-      if (/^\/(tools|vs|best|use-cases|pricing|legal|explore|c|scout|docs)(\/|$)/i.test(p)) p = p.toLowerCase();
+      if (/^\/(tools|vs|best|use-cases|templates|pricing|legal|explore|c|scout|docs)(\/|$)/i.test(p)) p = p.toLowerCase();
       // Bare section prefixes have no page of their own — send them to the hub.
       if (p === '/tools' || p === '/vs' || p === '/best') p = '/use-cases';
       if (p !== url.pathname) {
@@ -507,7 +539,7 @@ const worker = {
       if (seen) {
         ctx.waitUntil(
           rpc(env, 'record_crawler_hit', {
-            p_bot: seen.bot, p_kind: seen.kind, p_path: url.pathname.slice(0, 300),
+            p_bot: seen.bot, p_kind: seen.kind, p_path: crawlerHitPath(url.pathname),
           }, 5_000).catch(() => {}),
         );
       }
@@ -548,6 +580,8 @@ const worker = {
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
+      // A web image dragged onto a canvas, kept as a copy (worker-media.js).
+      if (url.pathname.startsWith('/api/media/')) return await handleMediaRoute(url, request, env);
       // The public API. Authenticated by a personal access token, which is
       // exchanged for the user's OWN Supabase session — so everything below
       // runs under ordinary RLS. See lib/apiAuth.js.
@@ -612,6 +646,20 @@ const worker = {
     const pubContentPromise = pubMatch ? fetchPublicBoardContent(env, pubMatch[1]).catch(() => null) : null;
     const pubPagePromise = pubMatch ? fetchPublicBoardPage(env, pubMatch[1]).catch(() => null) : null;
     const pubRelatedPromise = pubMatch ? fetchRelatedPublicBoards(env, pubMatch[1]).catch(() => null) : null;
+    // The template store's community half. Fetched for the store front (so the
+    // server-rendered catalogue matches the one React renders) and for a single
+    // published item's page. .catch AT CREATION, not at await — an unawaited
+    // rejection would be unhandled on any request that never reaches the branch.
+    // Neither is fetched where the store is held: that request ends in a 404.
+    const storeOpen = templateStoreOpenOn(url.hostname);
+    const tplStoreMatch = isPageReq && storeOpen && /^\/templates\/?$/i.test(url.pathname);
+    const tplStorePromise = tplStoreMatch
+      ? anonRpc(env, 'list_public_grid_layouts', { p_limit: 120 }, 1500).catch(() => null)
+      : null;
+    const tplPubMatch = isPageReq && storeOpen ? publicTemplateSlug(url.pathname) : null;
+    const tplPubPromise = tplPubMatch
+      ? anonRpc(env, 'get_public_grid_layout', { p_slug: tplPubMatch }, 1500).catch(() => null)
+      : null;
     const exploreMatch = isPageReq ? url.pathname.match(EXPLORE_PATH_RE) : null;
     const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(() => null) : null;
 
@@ -643,6 +691,17 @@ const worker = {
         status: 404,
         headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
       });
+    }
+
+    // The template store is held (lib/templatePaths.js). On every host but the
+    // preview deploy its pages are a definitive miss — a real 404 with noindex,
+    // the same answer an unknown /templates/<slug> gets — so nothing indexes a
+    // page production does not offer, and a /t/ link opened there says so
+    // instead of offering a template the app cannot place. Ahead of every
+    // branch that would otherwise render one: the landing spec, the item and
+    // community lookups, and the /t/ share meta.
+    if (isPageReq && contentType.includes('text/html') && !storeOpen && isTemplateStorePath(url.pathname)) {
+      return notFoundResponse(res);
     }
 
     // /resume carries a single-use session credential in its query string and
@@ -691,6 +750,14 @@ const worker = {
       return notFoundResponse(res, 'Page not found — Soleil Clusters changelog');
     }
 
+    // /pricing gets a real crawlable body, not just head meta. MUST run before
+    // the ROUTE_META block below for the same reason the changelog does: that
+    // block returns after rewriting <head> only, which for months left /pricing
+    // serving the homepage's fallback body to every reader without JavaScript.
+    if (isPageReq && contentType.includes('text/html') && normalizePath(url.pathname) === '/pricing') {
+      return withRevalidate(injectPricing(res));
+    }
+
     // Inject per-route SEO metadata for HTML document navigations to a known
     // public route. The asset served is index.html (SPA fallback), but the
     // Worker still sees the real pathname, so we can give each URL its own meta.
@@ -703,7 +770,8 @@ const worker = {
       }
     }
 
-    // Self-authored SEO landing pages (/tools/*, /vs/*, /use-cases): inject the
+    // Self-authored SEO landing pages (/tools/*, /vs/*, /use-cases, /templates*):
+    // inject the
     // spec's meta + crawlable content + JSON-LD (SoftwareApplication + FAQPage +
     // BreadcrumbList). Pure static data, no RPC — resolve the exact spec here.
     // A landing-SHAPED path that's not in the registry is a definitive miss →
@@ -711,8 +779,24 @@ const worker = {
     // /tools/<anything>, an unbounded soft-404/doorway surface).
     if (isPageReq && contentType.includes('text/html')) {
       const landingSpec = getLandingSpec(url.pathname) || getListicleSpec(url.pathname);
-      if (landingSpec) return withRevalidate(injectLanding(res, landingSpec));
-      if (/^\/(?:tools|vs|best)\//i.test(url.pathname) || /^\/use-cases\//i.test(url.pathname)) {
+      if (landingSpec) {
+        const extra = tplStorePromise ? { community: await tplStorePromise } : null;
+        return withRevalidate(injectLanding(res, landingSpec, extra));
+      }
+      // A published community template. Resolved before the item lookup so a
+      // /g/ slug can never be mistaken for one of ours.
+      if (tplPubMatch) {
+        const pub = await tplPubPromise;
+        if (pub?.slug) return withRevalidate(injectPublicTemplate(res, pub));
+        return notFoundResponse(res);
+      }
+      // A template store item. Resolved BEFORE the 404 guard below, which would
+      // otherwise swallow the entire catalogue — ordering is load-bearing here.
+      if (isTemplatePath(url.pathname)) {
+        const item = getTemplateSpec(url.pathname);
+        if (item) return withRevalidate(injectTemplate(res, item));
+      }
+      if (/^\/(?:tools|vs|best|templates)\//i.test(url.pathname) || /^\/use-cases\//i.test(url.pathname)) {
         return notFoundResponse(res);
       }
     }
@@ -762,6 +846,27 @@ const worker = {
       if (!meta?.public_slug && !meta?.allow_indexing) {
         out.headers.set('x-robots-tag', 'noindex');
       }
+      return out;
+    }
+
+    // Shared grid templates: /t/<token>. Unlike /share this needs no lookup —
+    // the meta is the same for every template, because the page is noindex and
+    // the unfurl only has to say what kind of thing the link is. Fetching the
+    // template's name would buy a slightly nicer preview at the cost of an RPC
+    // on every hit and a new failure mode on a page whose whole point is being
+    // cheap.
+    //
+    // noindex, and canonical pointing at /templates: a per-token URL is a
+    // duplicate of the gallery, and hundreds of them competing with it is how a
+    // share feature quietly becomes an SEO problem. The x-robots-tag HEADER is
+    // the directive rather than a meta tag because it is equally authoritative
+    // and also reaches fetchers that never parse HTML.
+    if (isPageReq && TEMPLATE_SHARE_PATH_RE.test(url.pathname) && contentType.includes('text/html')) {
+      const out = withRevalidate(injectRouteMeta(res, {
+        title: 'Grid template — Soleil Clusters',
+        description: 'Someone shared a grid layout with you. Open it to add the template to your own Clusters workspace.',
+      }, `${SITE_ORIGIN}/templates`));
+      out.headers.set('x-robots-tag', 'noindex');
       return out;
     }
 
@@ -1009,7 +1114,7 @@ function unsubConfirmPage(action) {
 
 // Preference keys a one-click unsubscribe link may turn off. Mirrors the
 // allowlist inside the email_unsubscribe() RPC.
-const UNSUB_KEYS = new Set(['email_lifecycle', 'email_schedule']);
+const UNSUB_KEYS = new Set(['email_lifecycle', 'email_schedule', 'email_share_activity']);
 
 function unsubResultPage(message) {
   return unsubShell(`<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">${message}</p>`);
@@ -1363,7 +1468,7 @@ function injectExplore(res, boards) {
   // link every landing page (keyword anchors) or they sit as near-orphans.
   const toolsNav = `<nav aria-label="Make it with Clusters" style="margin:0 0 1.6em;">
     <h2 style="font-size:1.1rem;font-weight:600;margin:0 0 .4em;">Make it with Clusters</h2>
-    <p style="margin:0;line-height:1.9;">${SEO_LANDING_PAGES.map((s) =>
+    <p style="margin:0;line-height:1.9;">${SEO_LANDING_LISTED.map((s) =>
       `<a href="${escapeHtml(s.path)}" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">${escapeHtml(s.h1)}</a>`
     ).join('')}${SEO_LISTICLE_PAGES.map((s) =>
       `<a href="${escapeHtml(s.path)}" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">${escapeHtml(s.h1)}</a>`
@@ -1405,7 +1510,7 @@ function injectExplore(res, boards) {
 // static (lib/seoLanding.js) but every interpolation is still escapeHtml'd /
 // jsonLdSafe'd for defense in depth. Server-rendered text mirrors what
 // SeoLandingPage.jsx renders from the same spec (anti-cloaking parity).
-function injectLanding(res, spec) {
+function injectLanding(res, spec, extra = null) {
   const canonical = `${SITE_ORIGIN}${spec.path}`;
   // ?v= busts scraper/CDN caches of the immutable OG asset when a page's copy
   // (and thus its card) is refreshed. Keep the query OUT of landingOgPath —
@@ -1431,7 +1536,7 @@ function injectLanding(res, spec) {
   // but carry their own body + JSON-LD builders (Article + ItemList).
   const listicle = spec.kind === 'listicle';
   rw.on('main#seo-fallback', new SetInnerHtml(
-    listicle ? buildListicleCrawlableHtml(spec) : buildLandingCrawlableHtml(spec)
+    listicle ? buildListicleCrawlableHtml(spec) : buildLandingCrawlableHtml(spec, extra)
   ));
   rw.on('head', new AppendHead(
     '<script type="application/ld+json">' + jsonLdSafe(
@@ -1446,6 +1551,129 @@ function injectLanding(res, spec) {
     + `<link rel="alternate" type="text/markdown" href="${escapeHtml(spec.path)}.md">`
   ));
   return rw.transform(res);
+}
+
+// ── The template store's item pages (/templates/<slug>) ─────────────────────
+//
+// A store item, not a landing page: the body is a diagram, its labels, one
+// paragraph saying what it is for, and a button. Deliberately no minimum length
+// — padding an item page to hit a word count is what makes a catalogue read as
+// filler. What keeps these from being doorway clones is enforced instead by
+// src/lib/templates.test.mjs, which measures how DIFFERENT they are from each
+// other rather than how long each one is.
+//
+// The OG card is per CATEGORY, not per item — same reasoning injectDocs applies
+// to docs sections: fifteen near-identical gold cards would be churn in
+// public/og/ for a difference nobody can see in a link preview.
+function injectTemplate(res, item) {
+  const canonical = `${SITE_ORIGIN}${item.path}`;
+  const og = `${SITE_ORIGIN}/og/template-${item.category}.png?v=${item.updated}`;
+  const rw = new HTMLRewriter()
+    .on('title',                            new SetText(item.title))
+    .on('meta[name="description"]',         new SetContent(item.metaDescription))
+    .on('meta[property="og:title"]',        new SetContent(item.title))
+    .on('meta[property="og:description"]',  new SetContent(item.metaDescription))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[property="og:image"]',        new SetContent(og))
+    .on('meta[property="og:image:width"]',  new SetContent('1200'))
+    .on('meta[property="og:image:height"]', new SetContent('630'))
+    .on('meta[property="og:image:type"]',   new SetContent('image/png'))
+    .on('meta[property="og:image:alt"]',    new SetContent(item.h1))
+    .on('meta[name="twitter:title"]',       new SetContent(item.title))
+    .on('meta[name="twitter:description"]', new SetContent(item.metaDescription))
+    .on('meta[name="twitter:image"]',       new SetContent(og))
+    .on('meta[name="twitter:image:alt"]',   new SetContent(item.h1))
+    .on('link[rel="canonical"]',            new SetHref(canonical));
+  rw.on('main#seo-fallback', new SetInnerHtml(templateHtml(item.path)));
+  rw.on('head', new AppendHead(
+    '<script type="application/ld+json">' + jsonLdSafe(buildTemplateJsonLd(item, canonical, og)) + '</script>'
+    + `<link rel="alternate" type="text/markdown" href="${escapeHtml(item.path)}.md">`
+  ));
+  return rw.transform(res);
+}
+
+// What a template item page can honestly claim.
+//
+// NOT Product/Offer — the cargo cult an "Amazon for templates" framing invites.
+// Google's product markup wants price, availability and reviews; this page sells
+// nothing, and rating markup is banned repo-wide (see gen-docs.mjs's note on
+// ratings staying visible copy). NOT SoftwareApplication either: a template is
+// an artifact, not an application, and the site-wide node already covers the app.
+//
+// `about` is the one line that earns its place — it is where the entity graph
+// learns this page is about CASTING rather than about a 3×3 grid.
+export function buildTemplateJsonLd(item, url, og) {
+  const graph = [
+    {
+      '@type': 'WebPage',
+      '@id': `${url}#webpage`,
+      url,
+      name: item.title,
+      description: item.metaDescription,
+      dateModified: item.updated,
+      primaryImageOfPage: og,
+      about: { '@type': 'Thing', name: item.useCase },
+      isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+        { '@type': 'ListItem', position: 2, name: 'Grid templates', item: `${SITE_ORIGIN}/templates` },
+        { '@type': 'ListItem', position: 3, name: item.h1, item: url },
+      ],
+    },
+  ];
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
+// A PUBLISHED community template (/templates/g/<slug>).
+//
+// Same product-page shape as one of ours, but NOINDEX with canonical → /templates,
+// which is the call already made for /t/<token>: a published template's unique
+// content is a title, an optional description and some box labels — well under
+// the depth an indexable page needs, and hundreds of them competing with the
+// store is how a publishing feature quietly becomes an SEO problem.
+//
+// It exists anyway because a tile in the store has to go somewhere, and sending
+// a shopper to a signup screen instead of the thing they clicked is the dead CTA
+// this whole surface was built to fix.
+function injectPublicTemplate(res, pub) {
+  const canonical = `${SITE_ORIGIN}/templates`;
+  const title = `${pub.title} — a grid template on Soleil Clusters`;
+  const desc = pub.description
+    || 'A grid layout published to the Soleil Clusters template store. Add it to a board in one click.';
+  const layout = pub.body?.layout;
+  const hints = Array.isArray(pub.body?.hints) ? pub.body.hints : [];
+  const cells = layout ? leafIds(layout).length : 0;
+
+  const parts = [];
+  parts.push(`<h1 style="font-size:1.9rem;font-weight:650;margin:0 0 .4em;">${escapeHtml(pub.title)}</h1>`);
+  parts.push(`<p style="color:#d0d0d4;font-size:1.1rem;margin:0 0 1.2em;">${escapeHtml(desc)}</p>`);
+  parts.push(`<p style="color:#8a8a92;font-size:.85rem;">${cells} ${cells === 1 ? 'box' : 'boxes'} · Published to the community store</p>`);
+  if (hints.length) {
+    parts.push('<h2 style="font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;">What each box is for</h2><ol>');
+    for (const h of hints) parts.push(`<li>${escapeHtml(String(h))}</li>`);
+    parts.push('</ol>');
+  }
+  parts.push('<p><a href="/templates" style="color:#FFA500;">← All grid templates</a></p>');
+
+  const out = withRevalidate(new HTMLRewriter()
+    .on('title', new SetText(title))
+    .on('meta[name="description"]', new SetContent(desc))
+    .on('meta[property="og:title"]', new SetContent(title))
+    .on('meta[property="og:description"]', new SetContent(desc))
+    .on('meta[property="og:url"]', new SetContent(canonical))
+    .on('meta[name="twitter:title"]', new SetContent(title))
+    .on('meta[name="twitter:description"]', new SetContent(desc))
+    .on('link[rel="canonical"]', new SetHref(canonical))
+    .on('main#seo-fallback', new SetInnerHtml(
+      `<div style="max-width:820px;margin:0 auto;padding:14vh 24px 24px;"><article>${parts.join('')}</article></div>`))
+    .transform(res));
+  // The HEADER, not a meta tag: equally authoritative and it also reaches
+  // fetchers that never parse HTML.
+  out.headers.set('x-robots-tag', 'noindex');
+  return out;
 }
 
 // ── Public documentation (/docs/*) ──────────────────────────────────────────
@@ -1526,6 +1754,31 @@ function buildDocsJsonLd(page, url) {
 // The changelog. Structurally a docs page — one crawlable body, one JSON-LD
 // block — but its OG card is static (there is no per-section artwork to pick)
 // and it advertises a feed as well as a markdown twin.
+// /pricing, server-rendered from billingCopy through pricingCrawlable.js — the
+// same objects PricingPageView draws, so the body a crawler reads and the page a
+// person sees are one document. Built once per isolate: it is pure static data.
+const PRICING_HTML = buildPricingCrawlableHtml();
+const PRICING_JSON_LD = jsonLdSafe(buildPricingJsonLd());
+function injectPricing(res) {
+  const meta = ROUTE_META['/pricing'];
+  const canonical = `${SITE_ORIGIN}/pricing`;
+  return new HTMLRewriter()
+    .on('title',                            new SetText(meta.title))
+    .on('meta[name="description"]',         new SetContent(meta.description))
+    .on('meta[property="og:title"]',        new SetContent(meta.title))
+    .on('meta[property="og:description"]',  new SetContent(meta.description))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[name="twitter:title"]',       new SetContent(meta.title))
+    .on('meta[name="twitter:description"]', new SetContent(meta.description))
+    .on('link[rel="canonical"]',            new SetHref(canonical))
+    .on('main#seo-fallback',                new SetInnerHtml(PRICING_HTML))
+    .on('head', new AppendHead(
+      '<script type="application/ld+json">' + PRICING_JSON_LD + '</script>'
+      + '<link rel="alternate" type="text/markdown" href="/pricing.md">'
+    ))
+    .transform(res);
+}
+
 function injectChangelog(res) {
   const canonical = `${SITE_ORIGIN}/changelog`;
   // ?v= the newest entry so a re-share picks up a fresh card without the file
@@ -1612,7 +1865,10 @@ export function buildChangelogJsonLd(url) {
   };
 }
 
-function buildLandingCrawlableHtml(spec) {
+// `extra` carries the store's community half. Kept as a second argument rather
+// than making this async: every other call site stays byte-identical, and the
+// function stays a pure sync thing a node test can call.
+export function buildLandingCrawlableHtml(spec, extra = null) {
   const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
   const parts = [];
   if (spec.eyebrow) parts.push(`<p style="color:#FFA500;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin:0 0 .8em;">${escapeHtml(spec.eyebrow)}</p>`);
@@ -1647,6 +1903,57 @@ function buildLandingCrawlableHtml(spec) {
     }
     parts.push(`</tbody></table></section>`);
   }
+  // "What it costs" — same model, same position as SeoLandingPage (lib/planBlock).
+  if (hasPlanBlock(spec)) parts.push(planBlockHtml(spec.cta?.href || '/'));
+  // The layout a curated template page is about. React draws the same thing as
+  // a numbered SVG diagram; here it is the same list as text, which is what a
+  // crawler can actually read. Both derive from spec.template.preset, so the
+  // page cannot describe a shape different from the one its CTA places.
+  if (spec.template?.preset) {
+    const preset = layoutById(spec.template.preset);
+    if (preset) {
+      const n = leafIds(preset.tree).length;
+      parts.push(`<section><h2 style="${H2}">The layout</h2><p>${escapeHtml(preset.label)} — ${n} ${n === 1 ? 'box' : 'boxes'}.</p>`);
+      const hints = spec.template.hints || [];
+      if (hints.some((h) => h)) {
+        parts.push('<ol>');
+        // `value` keeps a listed box on its real number; an unlabelled box (a
+        // contact-sheet frame, a palette swatch) is skipped, not renumbered.
+        hints.forEach((h, i) => { if (h) parts.push(`<li value="${i + 1}">${escapeHtml(h)}</li>`); });
+        parts.push('</ol><p>Each label shows only while its box is empty, and is never written into the box.</p>');
+      }
+      parts.push('</section>');
+    }
+  }
+  // THE STORE FRONT'S CATALOGUE. Every item, uncapped, as real links.
+  //
+  // The search box, the sort buttons and the category chips are the JavaScript
+  // enhancement; a crawler never needed the filter, it needs the hrefs — and
+  // they are all here. Same shape injectExplore already uses for public boards,
+  // and it is what keeps the two renderings one document: React lists these same
+  // rows from the same templateCards.js.
+  if (spec.storefront && TEMPLATE_CARDS.length) {
+    parts.push(`<section><h2 style="${H2}">Browse by use</h2><p>`);
+    for (const c of TEMPLATE_CATEGORIES) {
+      const n = TEMPLATE_CARDS.filter((t) => t.category === c.id).length;
+      if (!n) continue;
+      parts.push(`<a href="/templates?category=${escapeHtml(c.id)}" style="color:#FFA500;margin-right:1.2em;">${escapeHtml(c.label)} (${n})</a>`);
+    }
+    parts.push('</p></section>');
+    parts.push(`<section><h2 style="${H2}">Every template</h2><ul>`);
+    for (const t of TEMPLATE_CARDS) {
+      parts.push(`<li style="margin:0 0 .8em;"><a href="${escapeHtml(t.path)}" style="color:#FFA500;font-size:1.1rem;font-weight:600;text-decoration:none;">${escapeHtml(t.h1)}</a> — ${escapeHtml(t.blurb)}</li>`);
+    }
+    // Published templates, same list, same shape. React renders these rows too,
+    // so omitting them here would be a cloaking gap the day somebody publishes.
+    // They link to noindex pages, which is fine — a link is not an index request.
+    for (const t of (extra?.community || [])) {
+      if (!t?.slug || !t?.title) continue;
+      const blurb = t.description ? ` — ${escapeHtml(t.description)}` : '';
+      parts.push(`<li style="margin:0 0 .8em;"><a href="/templates/g/${escapeHtml(t.slug)}" style="color:#FFA500;font-size:1.1rem;font-weight:600;text-decoration:none;">${escapeHtml(t.title)}</a>${blurb} <span style="color:#8a8a92;font-size:.85rem;">Community</span></li>`);
+    }
+    parts.push('</ul></section>');
+  }
   // Cross-link to the /best/* listicle sibling (mirrors the React callout).
   if (spec.siblingListicle) {
     parts.push(`<p><b>Comparing more than two?</b> <a href="${escapeHtml(spec.siblingListicle.path)}" style="color:#FFA500;">${escapeHtml(spec.siblingListicle.label)}</a></p>`);
@@ -1667,11 +1974,22 @@ function buildLandingCrawlableHtml(spec) {
     parts.push(`</section>`);
   }
   const related = spec.related || [];
-  if (related.length) {
+  // docsLinks carry their OWN label rather than living in `related`, and that is
+  // not tidiness. `related` resolves its anchor text through the landing and
+  // listicle registries, and falls back to the raw path here — while React
+  // filters related through TITLE_BY_PATH and silently DROPS anything missing
+  // from it. Put a /docs/* path in `related` and this renderer emits a link
+  // React does not: two renderers, two different documents, which is the one
+  // thing the shared-registry design exists to prevent.
+  const docsLinks = spec.docsLinks || [];
+  if (related.length || docsLinks.length) {
     parts.push(`<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">Keep exploring</h2><ul>`);
     for (const p of related) {
       const label = getLandingSpec(p)?.h1 || getListicleSpec(p)?.h1 || p;
       parts.push(`<li><a href="${escapeHtml(p)}" style="color:#FFA500;">${escapeHtml(label)}</a></li>`);
+    }
+    for (const d of docsLinks) {
+      parts.push(`<li><a href="${escapeHtml(d.path)}" style="color:#FFA500;">${escapeHtml(d.label)}</a></li>`);
     }
     parts.push(`<li><a href="/explore" style="color:#FFA500;">Explore example boards</a></li>`);
     parts.push(`<li><a href="/pricing" style="color:#FFA500;">Pricing</a></li>`);
@@ -1690,8 +2008,9 @@ function buildLandingCrawlableHtml(spec) {
 
 // SoftwareApplication + BreadcrumbList + (if present) FAQPage — the FAQ is
 // visible on-page (the accordion), which is what FAQ rich results require.
-function buildLandingJsonLd(spec, url) {
+export function buildLandingJsonLd(spec, url) {
   const og = `${SITE_ORIGIN}${landingOgPath(spec)}${spec.updated ? `?v=${spec.updated}` : ''}`;
+  const parentSpec = spec.parent ? getLandingSpec(spec.parent) : null;
   const graph = [
     {
       '@type': 'WebPage',
@@ -1709,7 +2028,7 @@ function buildLandingJsonLd(spec, url) {
       name: 'Soleil Clusters',
       applicationCategory: 'BusinessApplication',
       applicationSubCategory: spec.h1,
-      operatingSystem: 'Web, iOS, Android',
+      operatingSystem: 'Web',
       url,
       description: spec.metaDescription,
       screenshot: og,
@@ -1726,9 +2045,12 @@ function buildLandingJsonLd(spec, url) {
         highPrice: String(PRICING.monthly.perMonth),
         offerCount: 2,
         // Named rather than bare numbers so the free tier is not mistaken for a
-        // trial and the paid one not mistaken for a one-off purchase.
+        // trial and the paid one not mistaken for a one-off purchase. The free
+        // plan's name comes from the /pricing card it is shown as ("Free"):
+        // this said "Demo" while /pricing and its own JSON-LD said "Free", so a
+        // machine reading both saw three plans.
         offers: [
-          { '@type': 'Offer', name: 'Demo', price: '0', priceCurrency: 'USD' },
+          { '@type': 'Offer', name: PRICING_PAGE.freeCardName, price: '0', priceCurrency: 'USD' },
           {
             '@type': 'Offer',
             name: PLAN_NAME,
@@ -1749,12 +2071,35 @@ function buildLandingJsonLd(spec, url) {
     },
     {
       '@type': 'BreadcrumbList',
+      // Home → [parent] → this. The parent rung only appears for a nested path;
+      // asserting a two-level trail on /templates/storyboard-template would be
+      // a plainly false statement about the site's shape, and the breadcrumb
+      // trail is one of the few pieces of this graph a SERP still renders.
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
-        { '@type': 'ListItem', position: 2, name: spec.h1, item: url },
+        ...(parentSpec
+          ? [{ '@type': 'ListItem', position: 2, name: parentSpec.h1, item: `${SITE_ORIGIN}${parentSpec.path}` }]
+          : []),
+        { '@type': 'ListItem', position: parentSpec ? 3 : 2, name: spec.h1, item: url },
       ],
     },
   ];
+  // The store front declares its shelf. Every item is a real, indexable page, so
+  // listing them is a true statement. The COMMUNITY strip deliberately gets no
+  // ItemList: those tiles resolve to the signup flow, and an ItemList of URLs
+  // that are not the items would be markup asserting something the page does not
+  // contain.
+  if (spec.storefront && TEMPLATE_ITEMS.length) {
+    graph.push({
+      '@type': 'ItemList',
+      '@id': `${url}#templates`,
+      name: spec.h1,
+      numberOfItems: TEMPLATE_ITEMS.length,
+      itemListElement: TEMPLATE_ITEMS.map((t, i) => ({
+        '@type': 'ListItem', position: i + 1, name: t.h1, url: `${SITE_ORIGIN}${t.path}`,
+      })),
+    });
+  }
   if (Array.isArray(spec.faq) && spec.faq.length) {
     graph.push({
       '@type': 'FAQPage',
@@ -1777,7 +2122,7 @@ async function handleSitemap(env, request) {
   // Google to ignore the field). Landings carry their spec's `updated`; the
   // homepage the date its copy last changed; /explore the newest board;
   // /c/<slug> the board's updated_at; everything else omits lastmod.
-  const HOME_LASTMOD = '2026-07-07'; // homepage head/OG + crawlable copy last edited
+  const HOME_LASTMOD = '2026-10-02'; // homepage head/OG + crawlable copy last edited
   let boards = null;
   try { boards = await fetchPublicBoards(env, 4000); } catch (_) { boards = null; }
   const boardList = Array.isArray(boards) ? boards.filter((b) => b?.slug) : [];
@@ -1791,8 +2136,15 @@ async function handleSitemap(env, request) {
     { loc: `${SITE_ORIGIN}/explore`, lastmod: newestBoard,  changefreq: 'daily',   priority: '0.8' },
     // Self-authored SEO landing pages (lib/seoLanding.js): tool / "alternative
     // to" / hub. These rank independent of user-uploaded boards.
-    ...SEO_LANDING_PAGES.map((s) => ({
+    ...SEO_LANDING_LISTED.map((s) => ({
       loc: `${SITE_ORIGIN}${s.path}`, lastmod: s.updated || null, changefreq: 'monthly', priority: '0.8',
+    })),
+    // The template store (content/templates/*.md). Priority below the marketing
+    // set: an item page is a real destination but the store front is the page
+    // carrying the topical weight, and the sitemap should say so. None of it
+    // while the store is held (lib/templatePaths.js): production 404s it.
+    ...(TEMPLATE_STORE_HELD ? [] : TEMPLATE_ITEMS).map((t) => ({
+      loc: `${SITE_ORIGIN}${t.path}`, lastmod: t.updated || null, changefreq: 'monthly', priority: '0.6',
     })),
     // /best/* listicles (lib/seoListicles.js) — same honest-lastmod policy.
     ...SEO_LISTICLE_PAGES.map((s) => ({
@@ -2273,48 +2625,11 @@ async function handleBoardReset(boardId, request) {
 // Workers can't do a DNS lookup before fetching — so a hostname that resolves to
 // a private address still gets through. That's the residual, and it's why the
 // port and scheme limits matter: they bound what an attacker can do with it.
-const OG_BLOCKED_HOSTS = new Set([
-  'localhost', 'localhost.localdomain', '127.0.0.1', '0.0.0.0', '[::1]', '::1',
-  'metadata.google.internal', 'metadata.goog',
-]);
-
+// The rule itself lives in lib/safeUrl.js since 2026-10-02 — it is shared with
+// the importer and webhooks, whose copy had drifted permissive (it let the
+// v4-mapped IPv6 form of the metadata address through). One rule, every caller.
 function ogTargetIsAllowed(u) {
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') return 'scheme not allowed';
-  // Only the default ports. Anything else is someone probing infrastructure.
-  if (u.port && u.port !== '80' && u.port !== '443') return 'port not allowed';
-
-  const host = u.hostname.toLowerCase();
-  if (OG_BLOCKED_HOSTS.has(host)) return 'host not allowed';
-  // Internal-only suffixes.
-  if (/(^|\.)(local|localdomain|internal|intranet|lan|home\.arpa)$/.test(host)) return 'host not allowed';
-
-  // IPv4 literals: block loopback, private, link-local (incl. cloud metadata at
-  // 169.254.169.254), CGNAT and broadcast.
-  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    const [a, b] = v4.slice(1).map(Number);
-    if (a === 10 || a === 127 || a === 0 || a >= 224) return 'host not allowed';
-    if (a === 169 && b === 254) return 'host not allowed';
-    if (a === 172 && b >= 16 && b <= 31) return 'host not allowed';
-    if (a === 192 && b === 168) return 'host not allowed';
-    if (a === 100 && b >= 64 && b <= 127) return 'host not allowed';
-  }
-  // IPv6 literals: loopback, link-local (fe80::/10), unique-local (fc00::/7),
-  // and the whole `::`-prefixed low block.
-  //
-  // That last rule is what stops the v4-mapped bypass, and it is NOT the
-  // obvious check. `new URL()` canonicalises IPv6, so
-  // `[::ffff:169.254.169.254]` arrives here as `[::ffff:a9fe:a9fe]` — the
-  // dotted form is gone by the time we see it, and a `.includes('.')` test
-  // (the first thing I wrote) never fires. Matching on the `::` prefix catches
-  // ::1, ::, ::ffff:* (v4-mapped) and ::a.b.c.d (v4-compatible) alike, and
-  // costs nothing: no publicly routable address lives in that block.
-  if (host.startsWith('[')) {
-    const v6 = host.slice(1, -1).toLowerCase();
-    if (v6.startsWith('::')) return 'host not allowed';
-    if (/^(fe[89ab]|f[cd])/.test(v6)) return 'host not allowed';
-  }
-  return null;  // allowed
+  return ogTargetProblem(u);
 }
 
 async function handleOg(url, request) {

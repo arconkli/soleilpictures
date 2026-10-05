@@ -6,6 +6,10 @@ import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
 import { buildCardIndexRow } from './cardIndexRow.js';
+import { createPlacementLedger } from './capRefusal.js';
+import { isAbandonedUpload } from './abandonedUploads.js';
+import { fitByCost } from './demoCardCap.js';
+import { docPagesText, docSignature } from './docText.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -501,6 +505,27 @@ export async function adminSetPublicBoard({
 
 export async function adminUnpublishBoard(boardId) {
   const { error } = await supabase.rpc('admin_unpublish_board', { p_board_id: boardId });
+  if (error) throw error;
+}
+
+// ── Public grid-template gallery moderation (migration 0266) ─────────────────
+// A takedown surface rather than a review queue: templates publish immediately,
+// because a template is layout geometry with no images and no cell content.
+export async function adminListGridLayouts(status = 'published') {
+  const { data, error } = await supabase.rpc('admin_list_grid_layouts', { p_status: status });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function adminTakeDownGridLayout(layoutId, reason) {
+  const { error } = await supabase.rpc('admin_take_down_grid_layout', {
+    p_layout_id: layoutId, p_reason: reason || null,
+  });
+  if (error) throw error;
+}
+
+export async function adminRestoreGridLayout(layoutId) {
+  const { error } = await supabase.rpc('admin_restore_grid_layout', { p_layout_id: layoutId });
   if (error) throw error;
 }
 
@@ -1124,9 +1149,22 @@ const _cardIndexCache = new Map();   // boardId → { sigs: Map<card_id, sig>, i
 // exactly what the analytics showed: card_create_blocked → pricing_abandon at a
 // flat 10-second cadence for twenty minutes, ~80 cycles, no user input involved.
 const _capAnnounced = new Map();   // boardId → Set<card_id>
+// Cards this tab just placed through the cap gate — the only refused cards the
+// app may take back. Every other refused card is existing work and stays on
+// the canvas, uncounted, until there is room (see capRefusal.js).
+const _placements = createPlacementLedger();
+export function notePlacedThroughCap(ids) { _placements.note(ids); }
+
+// The owner-pays card cap trigger (enforce_demo_card_cap_trg) refusing a write.
+// Anything else — a dropped connection, a 5xx, a timeout — is not a refusal:
+// it says nothing about room, and the rows keep stale signatures so the next
+// sync simply tries them again.
+function _isCapRefusal(err) {
+  return err?.code === '42501' && /limited to \d+ cards/i.test(err.message || '');
+}
 
 // Land as many of `rows` as the cap will ACTUALLY take, and return only the
-// ones that genuinely did not fit.
+// ones it genuinely refused.
 //
 // PostgREST fails a batch upsert whole, so the cap-refusal path used to treat
 // every genuinely-new row in the batch as rejected and withdraw all of them.
@@ -1135,12 +1173,32 @@ const _capAnnounced = new Map();   // boardId → Set<card_id>
 // user sitting BELOW their own cap — the limit had not even been reached, the
 // batch had merely failed.
 //
-// Normal path: one RPC for the true remaining room, one sized batch. The probe
-// loop below only runs when the RPC is unavailable or another device consumed
-// the room mid-flight; the trigger's test is monotonic (count >= cap), so the
-// first refusal ends it and later rows cannot fit either.
+// Room is counted in WEIGHT, as the trigger counts it: a filled grid costs its
+// filled boxes. Normal path: one RPC for the true remaining room, then the
+// rows that fit it by weight (fitByCost — the same rule the client gate uses,
+// so a heavy grid that doesn't fit never takes two notes down with it). The
+// probe loop below only runs when the RPC is unavailable or another device
+// consumed the room mid-flight.
 async function landUpToCap({ boardId, rows, sigFor, cache }) {
+  // A row that weighs nothing — an empty grid — costs no room, so the cap
+  // cannot refuse it. Land those first whatever the room: otherwise one refused
+  // card in the same sync held them out of the index, and at zero room they
+  // were reported refused untried (and a free grid this tab had just placed
+  // could be withdrawn). A failed write here is never a refusal; the rows keep
+  // stale signatures and the next sync retries them.
+  const free = rows.filter((r) => Number(r.weight ?? 1) === 0);
+  const costly = free.length ? rows.filter((r) => Number(r.weight ?? 1) !== 0) : rows;
+  if (free.length) {
+    const res = await supabase.from('card_index').upsert(free, { onConflict: 'board_id,card_id' });
+    if (res.error) console.warn('syncCardIndex free rows', res.error);
+    else for (const r of free) cache.sigs.set(r.card_id, sigFor(r));
+  }
+  return landCostlyUpToCap({ boardId, rows: costly, sigFor, cache });
+}
+
+async function landCostlyUpToCap({ boardId, rows, sigFor, cache }) {
   if (!rows.length) return rows;
+  const weightOf = (r) => Math.max(0, Number(r.weight ?? 1));
 
   let room = null;
   try {
@@ -1149,29 +1207,41 @@ async function landUpToCap({ boardId, rows, sigFor, cache }) {
       const r = Array.isArray(data) ? data[0] : data;
       // Not capped after all — the refusal belonged to a workspace this board
       // has since moved out of, or to a cap that has just been raised.
-      if (r) room = r.is_capped ? Math.max(0, Number(r.cap ?? 0) - Number(r.used ?? 0)) : rows.length;
+      if (r) room = r.is_capped ? Math.max(0, Number(r.cap ?? 0) - Number(r.used ?? 0)) : Infinity;
     }
   } catch (_) { /* room stays null → probe */ }
 
   if (room === 0) return rows;
 
   if (room !== null) {
-    const head = rows.slice(0, room);
+    const head = fitByCost(rows, weightOf, room).kept;
+    if (!head.length) return rows;
     const res = await supabase.from('card_index').upsert(head, { onConflict: 'board_id,card_id' });
     if (!res.error) {
       for (const r of head) cache.sigs.set(r.card_id, sigFor(r));
-      return rows.slice(head.length);
+      const landed = new Set(head);
+      return rows.filter((r) => !landed.has(r));
     }
+    if (!_isCapRefusal(res.error)) { console.warn('syncCardIndex land', res.error); return []; }
     // Raced: somebody else took the room between the RPC and the write. Nothing
     // landed (the batch is atomic), so the probe below starts from zero.
   }
 
-  for (let i = 0; i < rows.length; i++) {
-    const res = await supabase.from('card_index').upsert([rows[i]], { onConflict: 'board_id,card_id' });
-    if (res.error) return rows.slice(i);
-    cache.sigs.set(rows[i].card_id, sigFor(rows[i]));
+  // One row at a time. Once a row of weight w is refused, every row at least as
+  // heavy would be too (the count only grows), so those are refused untried;
+  // a lighter one may still fit, so it is still tried.
+  const refused = [];
+  let lightestRefused = Infinity;
+  for (const r of rows) {
+    const w = weightOf(r);
+    if (w >= lightestRefused) { refused.push(r); continue; }
+    const res = await supabase.from('card_index').upsert([r], { onConflict: 'board_id,card_id' });
+    if (!res.error) { cache.sigs.set(r.card_id, sigFor(r)); continue; }
+    if (!_isCapRefusal(res.error)) { console.warn('syncCardIndex probe', res.error); return refused; }
+    refused.push(r);
+    lightestRefused = w;
   }
-  return [];
+  return refused;
 }
 
 // Forget what we announced, so a genuine second cap episode still surfaces.
@@ -1201,6 +1271,7 @@ try {
     _syncState.clear();
     _cardIndexCache.clear();
     _capAnnounced.clear();
+    _placements.clear();
     _boardWsCache.clear();
     _groupSyncState.clear();
     _groupSigCache.clear();
@@ -1223,6 +1294,25 @@ export async function syncCardIndex({ boardId, ydoc }) {
   }, wait);
 }
 
+
+// Tell the tier store that card_index just moved. get_my_tier counts
+// card_index, so this is the earliest moment the server's card count can
+// agree with the canvas; without it the count was re-read only on mount and
+// window focus, and every surface that decides the trial on it showed the
+// price in the meantime. useMyTier decides whether a refetch is actually owed.
+function _announceIndexSynced(boardId) {
+  try { window.dispatchEvent(new CustomEvent('soleil:card-index-synced', { detail: { boardId } })); } catch (_) {}
+}
+
+// { kind: n } for a set of refused rows — what the cap wall names.
+function _kindTally(rows) {
+  const kinds = {};
+  for (const r of rows) {
+    const k = r.kind || 'card';
+    kinds[k] = (kinds[k] || 0) + 1;
+  }
+  return kinds;
+}
 
 async function _doSyncCardIndex(boardId, ydoc) {
   if (!supabase || !boardId || !ydoc) return;
@@ -1256,9 +1346,15 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // We patch their meta.src from the `images` table after the walk.
   const imageCardsNeedingSrc = [];
   const _t0 = perf.isEnabled() ? performance.now() : 0;
+  const nowMs = Date.now();
   cardsMap.forEach((v, id) => {
     if (!v) return;
     const get = (k) => v?.get?.(k) ?? v?.[k];
+    // A photo saved without its file, long after its upload could still be
+    // running, is not a card yet (abandonedUploads.js). Skipped before it joins
+    // liveIds, so a row it got while young is released by the orphan cleanup
+    // below and it never costs a card; the board sweep recovers or removes it.
+    if (isAbandonedUpload(get, nowMs)) return;
     // ONE projection, shared with the server writer — see cardIndexRow.js.
     // These used to be two hand-kept copies and they had drifted in four
     // places, so the same card got a different row depending on who wrote it.
@@ -1314,11 +1410,41 @@ async function _doSyncCardIndex(boardId, ydoc) {
   const sigFor = (r) => `${r.kind}\x00${r.title}\x00${r.body}\x00${r.weight ?? 1}\x00${JSON.stringify(r.meta ?? null)}`;
   const changed = rows.filter(r => cache.sigs.get(r.card_id) !== sigFor(r));
 
+  // Clean up rows for cards that no longer exist on the board — but only
+  // when the set of live cards actually changed (add/remove). When nothing
+  // was added or removed there can be no orphans, so we skip the extra
+  // round-trip entirely.
+  //
+  // BEFORE the upsert, so room a deletion freed counts in the same sync: at the
+  // limit, delete one card and add (or undo back) another, and the insert used
+  // to be refused because the deleted card's row was still on the meter. A
+  // failed read or delete skips the cleanup for this round and lets the upsert
+  // run — and leaves the id set uncommitted (below), so the next sync still sees
+  // the change and tries the cleanup again. Committing it anyway is how one
+  // network blip left deleted cards counting until a reload.
+  const idsChanged = liveIds.size !== cache.ids.size || [...liveIds].some(id => !cache.ids.has(id));
+  let removed = false;
+  let cleaned = !idsChanged;
+  if (idsChanged) {
+    const existing = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
+    if (!existing.error) {
+      const orphanIds = (existing.data || []).map(r => r.card_id).filter(id => !liveIds.has(id));
+      if (orphanIds.length > 0) {
+        const del = await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
+        removed = !del?.error;
+        cleaned = removed;
+      } else {
+        cleaned = true;
+      }
+    }
+    for (const id of [...cache.sigs.keys()]) if (!liveIds.has(id)) cache.sigs.delete(id);
+  }
+
   if (changed.length > 0) {
     // UPSERT on (board_id, card_id). Idempotent — no race if two windows
     // run this concurrently.
     const ups = await supabase.from('card_index').upsert(changed, { onConflict: 'board_id,card_id' });
-    if (ups.error?.code === '42501' && /limited to \d+ cards/i.test(ups.error.message || '')) {
+    if (_isCapRefusal(ups.error)) {
       // The owner-pays card cap trigger (enforce_demo_card_cap_trg, 0187)
       // refused this batch. This used to be swallowed as a generic warning,
       // which was the worst possible outcome: the card renders on canvas from
@@ -1330,73 +1456,130 @@ async function _doSyncCardIndex(boardId, ydoc) {
       // (board_id, card_id) pairs that already exist. So only genuinely NEW
       // cards were rejected: re-upsert the rest, or one over-cap card freezes
       // card_index for the entire board.
-      const known = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
-      const knownIds = new Set((known.data || []).map(r => r.card_id));
-      const retryable = changed.filter(r => knownIds.has(r.card_id));
-      const overflow  = changed.filter(r => !knownIds.has(r.card_id));
-      if (retryable.length > 0) {
-        const retry = await supabase.from('card_index').upsert(retryable, { onConflict: 'board_id,card_id' });
-        // Only cache signatures we actually persisted; rejected cards keep a
-        // stale signature on purpose so the next sync retries them (the user
-        // may have upgraded or freed space in the meantime).
-        if (!retry.error) for (const r of retryable) cache.sigs.set(r.card_id, sigFor(r));
-        else console.warn('syncCardIndex cap-retry', retry.error);
-      }
-      // "New" is not the same as "over the cap". Land the ones that still fit
-      // and reject only the true overflow — see landUpToCap.
-      const rejected = await landUpToCap({ boardId, rows: overflow, sigFor, cache });
-      // Announce only cards we haven't already reported for this board. The
-      // retry above is unconditional on purpose; the notification is not.
-      let announced = _capAnnounced.get(boardId);
-      if (!announced) { announced = new Set(); _capAnnounced.set(boardId, announced); }
-      const fresh = rejected.filter(r => !announced.has(r.card_id));
-      for (const r of fresh) announced.add(r.card_id);
-      if (fresh.length > 0) {
-        // Per-kind tally so the wall can name what was actually lost. A user
-        // who just dropped a folder of photos and got back "cards couldn't be
-        // added" has to translate; naming the count AND the kind is both truer
-        // and the only concrete thing on that screen. Mirrors import_batch.kinds.
-        const kinds = {};
-        for (const r of fresh) {
-          const k = r.kind || 'card';
-          kinds[k] = (kinds[k] || 0) + 1;
+      const known = await supabase.from('card_index').select('card_id, weight').eq('board_id', boardId);
+      if (known.error) {
+        // Without the known set, new and existing rows can't be told apart.
+        // Hold the batch this round; stale signatures retry it next sync.
+        console.warn('syncCardIndex cap-known', known.error);
+      } else {
+        const indexedWeight = new Map((known.data || []).map(r => [r.card_id, Math.max(0, Number(r.weight ?? 1))]));
+        const retryable = changed.filter(r => indexedWeight.has(r.card_id));
+        const overflow  = changed.filter(r => !indexedWeight.has(r.card_id));
+        if (retryable.length > 0) {
+          let retry = await supabase.from('card_index').upsert(retryable, { onConflict: 'board_id,card_id' });
+          // Only cache signatures we actually persisted; rejected cards keep a
+          // stale signature on purpose so the next sync retries them (the user
+          // may have upgraded or freed space in the meantime).
+          let raised = new Set();
+          if (_isCapRefusal(retry.error)) {
+            // An existing row whose weight ROSE (an empty grid's first words, a
+            // slate edited into writing) is checked like an add, and one refusal
+            // fails the whole batch — which froze every title, body and position
+            // change on this board out of the index for as long as it sat at
+            // the limit. Land them all, the raised rows at the weight already
+            // counted; their stale signatures retry the raise when there's room.
+            raised = new Set(retryable
+              .filter(r => Math.max(0, Number(r.weight ?? 1)) > indexedWeight.get(r.card_id))
+              .map(r => r.card_id));
+            if (raised.size > 0) {
+              const held = retryable.map(r => (raised.has(r.card_id) ? { ...r, weight: indexedWeight.get(r.card_id) } : r));
+              retry = await supabase.from('card_index').upsert(held, { onConflict: 'board_id,card_id' });
+            }
+          }
+          if (!retry.error) {
+            for (const r of retryable) if (!raised.has(r.card_id)) cache.sigs.set(r.card_id, sigFor(r));
+          } else console.warn('syncCardIndex cap-retry', retry.error);
         }
-        try {
-          window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
-            detail: {
-              boardId,
-              rejected: fresh.length,
-              kinds,
-              // Ids let the app withdraw the cards it optimistically rendered.
-              // Without them a refused card stays on canvas but is absent from
-              // search, tags and the graph — present and inert.
-              cardIds: fresh.map(r => r.card_id),
-            },
-          }));
-        } catch (_) {}
+        // "New" is not the same as "over the cap". Land the ones that still fit
+        // and reject only the true overflow — see landUpToCap.
+        //
+        // Two conditions on that. While a deletion's row is still on the meter
+        // (this round's cleanup failed) the room is understated, so nothing is
+        // refused yet: stale signatures retry once the cleanup has run. And the
+        // cards this tab just placed go first — they are the only ones a refusal
+        // deletes — so freed room never goes to a card that was kept from before
+        // (a restored tile, a move still waiting for its source) at the cost of
+        // the one the person just added. The sort is stable for everything else.
+        const ordered = [...overflow].sort((a, b) => Number(_placements.has(b.card_id)) - Number(_placements.has(a.card_id)));
+        const rejected = (idsChanged && !cleaned) ? [] : await landUpToCap({ boardId, rows: ordered, sigFor, cache });
+        // Announce only cards we haven't already reported for this board. The
+        // retry above is unconditional on purpose; the notification is not.
+        let announced = _capAnnounced.get(boardId);
+        if (!announced) { announced = new Set(); _capAnnounced.set(boardId, announced); }
+        const fresh = rejected.filter(r => !announced.has(r.card_id));
+        for (const r of fresh) announced.add(r.card_id);
+        // Only a card this tab just placed through the cap gate may be taken
+        // back. The rest is existing work, kept on the canvas uncounted: a card
+        // placed while paid whose sync never ran, one restored by undo or
+        // version history, one moved in from another cluster. Withdrawing those
+        // is how a paid period ending deleted work with no undo.
+        const { withdraw, keep } = _placements.split(fresh, r => r.card_id);
+        if (fresh.length > 0) {
+          // Per-kind tally so the wall can name what was actually lost. A user
+          // who just dropped a folder of photos and got back "cards couldn't be
+          // added" has to translate; naming the count AND the kind is both truer
+          // and the only concrete thing on that screen. Mirrors import_batch.kinds.
+          const kinds = _kindTally(withdraw);
+          try {
+            window.dispatchEvent(new CustomEvent('soleil:card-index-capped', {
+              detail: {
+                boardId,
+                // What the user just tried to add and didn't get.
+                rejected: withdraw.length,
+                kinds,
+                // Ids let the app withdraw the cards it optimistically rendered.
+                // Without them a refused card stays on canvas but is absent from
+                // search, tags and the graph — present and inert.
+                cardIds: withdraw.map(r => r.card_id),
+                // Refused but kept: on the canvas, not counted, retried by the
+                // next sync. Not an add the user just made, so no wall.
+                kept: keep.length,
+                keptKinds: _kindTally(keep),
+              },
+            }));
+          } catch (_) {}
+        }
       }
+      // No early return. Some of the batch may have landed (the retry, and
+      // landUpToCap's fit), and the cache must still be kept: a board holding a
+      // refused card used to return here every sync, so its cache was rebuilt
+      // (every card re-sent) each time. The orphan cleanup now runs first.
+    } else if (ups.error) {
+      console.warn('syncCardIndex upsert', ups.error);
       return;
+    } else {
+      for (const r of changed) cache.sigs.set(r.card_id, sigFor(r));
     }
-    if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }
-    for (const r of changed) cache.sigs.set(r.card_id, sigFor(r));
   }
 
-  // Clean up rows for cards that no longer exist on the board — but only
-  // when the set of live cards actually changed (add/remove). When nothing
-  // was added or removed there can be no orphans, so we skip the extra
-  // round-trip entirely.
-  const idsChanged = liveIds.size !== cache.ids.size || [...liveIds].some(id => !cache.ids.has(id));
-  if (idsChanged) {
-    const existing = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
-    if (existing.error) return;
-    const orphanIds = (existing.data || []).map(r => r.card_id).filter(id => !liveIds.has(id));
-    if (orphanIds.length > 0) {
-      await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
-    }
-    for (const id of [...cache.sigs.keys()]) if (!liveIds.has(id)) cache.sigs.delete(id);
-  }
-  cache.ids = liveIds;
+  if (cleaned) cache.ids = liveIds;
   _cardIndexCache.set(boardId, cache);
+  // A card the index now holds can no longer be refused at insert, so it is no
+  // longer this tab's to take back: a later refusal of the same id (an undo
+  // that restores it at the limit) must keep it, not withdraw it.
+  _placements.forgetWhere((id) => cache.sigs.has(id));
+  if (changed.length > 0 || removed) _announceIndexSynced(boardId);
+  // Search inside documents: every doc on this board, not only the ones open in
+  // the editor (until 2026-10 the editor was the index's only writer, so a doc
+  // nobody reopened was invisible to search however much it held).
+  _syncDocIndexForBoard(workspaceId, ydoc).catch((e) => console.warn('doc_page_index board sync failed', e));
+}
+
+// doc card id → signature of what doc_page_index last got for it, so a board
+// save that did not touch a doc does not rewrite its rows.
+const _docIndexSigs = new Map();
+async function _syncDocIndexForBoard(workspaceId, ydoc) {
+  const cards = ydoc?.getMap?.('cards');
+  if (!workspaceId || !cards) return;
+  for (const [cardId, cym] of cards.entries()) {
+    if (!cym || typeof cym.get !== 'function' || cym.get('kind') !== 'doc') continue;
+    const pages = docPagesText(cym);
+    if (!pages.length) continue;
+    const sig = docSignature(pages);
+    if (_docIndexSigs.get(cardId) === sig) continue;
+    const res = await syncDocPageIndex({ workspaceId, docCardId: cardId, pages });
+    if (res?.ok) _docIndexSigs.set(cardId, sig);
+  }
 }
 
 // Per-kind preview data baked into card_index.meta. Kept compact —
@@ -1993,6 +2176,45 @@ export async function setBoardSchedule(boardId, date, endDate = null, dayLabel =
   });
   if (error) throw error;
   return data || { ok: false, error: 'no_response' };
+}
+
+// When the day starts, where it is, and what kind of day it is (0247).
+//
+// Separate from setBoardSchedule because the two answer different questions and
+// because merging them would have meant a second PostgREST overload sharing an
+// argument prefix — which resolves by NAME and errors as ambiguous at call time.
+//
+// `clear` is how you say "there is no start time any more". A null field means
+// "leave it alone", so that a caller changing only the location doesn't have to
+// resend the call time and risk clobbering someone else's edit; without an
+// explicit clear list there would be no way to express removal at all.
+export async function setBoardDayDetails(boardId, {
+  dayType, dayStart, dayEnd, dayPlace, dayLabel, clear = null, notify = true,
+} = {}) {
+  const { data, error } = await supabase.rpc('set_board_day_details', {
+    p_board_id: boardId,
+    p_day_type: dayType ?? null,
+    p_day_start: dayStart || null,
+    p_day_end: dayEnd || null,
+    p_day_place: dayPlace ?? null,
+    p_day_label: dayLabel ?? null,
+    p_clear: clear && clear.length ? clear : null,
+    p_notify: notify !== false,
+  });
+  if (error) throw error;
+  return data || { ok: false, error: 'no_response' };
+}
+
+// The day-type palette, set on the PARENT cluster. This one IS a plain PATCH:
+// 0247 keeps day_types in the client-writable grant list because a list of
+// names and colours gates no notification and decides nothing, unlike the
+// sched_* columns above. Pass null to fall back to the app defaults.
+export async function setBoardDayTypes(boardId, dayTypes) {
+  const { error } = await supabase.from('boards')
+    .update({ day_types: dayTypes && dayTypes.length ? dayTypes : null })
+    .eq('id', boardId);
+  if (error) throw error;
+  return true;
 }
 
 // Bumps the version and notifies everyone who can read the board. This is the

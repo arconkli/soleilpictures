@@ -11,10 +11,10 @@ import { X, Download, Trash2 as TrashIcon, Maximize2, Link as LinkIcon } from '.
 import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { getMeta } from '../../lib/imageMeta.js';
-import { resolveSrc } from '../../lib/r2.js';
-import { downloadImage } from '../../lib/imageExport.js';
+import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
+import { formatDuration, formatKey } from '../../lib/loopMeta.js';
 
-const DOWNLOADABLE = new Set(['image', 'pdf', 'video', 'audio', 'file']);
+
 
 function MetaRow({ label, value }) {
   if (!value) return null;
@@ -26,22 +26,6 @@ function MetaRow({ label, value }) {
   );
 }
 
-async function downloadCard(card, kind, name) {
-  try {
-    if (kind === 'image' && card.src) { await downloadImage({ src: card.src, title: name, adjust: card.adjust }); return; }
-    const src = card.fileSrc || card.src || card.pdfSrc || card.poster;
-    if (!src) return;
-    const url = await resolveSrc(src);
-    if (!url) return;
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objUrl; a.download = name || 'download';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
-  } catch (_) { /* best-effort */ }
-}
 
 export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onReveal, onDelete }) {
   const feedback = useFeedback();
@@ -100,6 +84,18 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
   const meta = key ? getMeta(key) : null;
   const dims = meta && meta.w && meta.h ? `${meta.w} × ${meta.h}` : null;
   const downloadable = DOWNLOADABLE.has(item.kind);
+  // The filename is resolved inside the helper from fileName → ext → mime →
+  // the R2 key's own suffix. This panel used to build it from
+  // `card.fileName || card.name || item.name`, which for an audio card meant
+  // the user-editable TITLE — so renaming a loop to "Kick 1" downloaded a file
+  // called "Kick 1", with no extension and no application willing to open it.
+  const doDownload = async () => {
+    try {
+      await downloadCardAsset(card, item.kind, { surface: 'cluster_browser' });
+    } catch (err) {
+      feedback?.toast?.({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+    }
+  };
   const location = boards[item.boardId]?.name || null;
 
   return (
@@ -111,6 +107,13 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
       <div className="cbd-body">
         <div className="cbd-preview"><CardPreview item={item} size="tile" /></div>
         <MetaRow label="Type" value={item.typeLabel} />
+        {/* For a loop these four ARE the metadata. Without them the panel a
+            producer taps on a published pack reported type, size and two
+            dates, and not one of the things they opened it to find out. */}
+        {item.kind === 'audio' && <MetaRow label="Length" value={formatDuration(item.durationSec) || null} />}
+        {item.kind === 'audio' && <MetaRow label="Tempo" value={item.bpm != null ? `${item.bpm} BPM` : null} />}
+        {item.kind === 'audio' && <MetaRow label="Key" value={formatKey(item.musicalKey) || null} />}
+        {item.kind === 'audio' && <MetaRow label="Format" value={item.format || null} />}
         <MetaRow label="Size" value={item.sizeBytes != null ? humanSize(item.sizeBytes) : null} />
         <MetaRow label="Dimensions" value={dims} />
         {item.kind === 'pdf' && <MetaRow label="Pages" value={item.sub} />}
@@ -119,17 +122,26 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
         <MetaRow label="Location" value={location} />
       </div>
       <div className="cbd-actions">
-        <button className="cbd-act" onClick={() => onReveal?.(item.id)}>
-          <Icon as={Maximize2} size={15} /><span>Open on canvas</span>
-        </button>
+        {/* Both of these used to render unconditionally, and both are dead on a
+            published pack: the public viewer passes no reveal handler, and the
+            ?board=&card= link copyLink builds is only read by the signed-in
+            app. The first action a visitor tried was the one that did
+            nothing. */}
+        {onReveal && (
+          <button className="cbd-act" onClick={() => onReveal(item.id)}>
+            <Icon as={Maximize2} size={15} /><span>Open on canvas</span>
+          </button>
+        )}
         {downloadable && (
-          <button className="cbd-act" onClick={() => downloadCard(card, item.kind, card.fileName || card.name || item.name)}>
+          <button className="cbd-act" onClick={() => doDownload()}>
             <Icon as={Download} size={15} /><span>Download</span>
           </button>
         )}
-        <button className="cbd-act" onClick={() => copyLink(item.id, item.boardId)}>
-          <Icon as={LinkIcon} size={15} /><span>Copy link</span>
-        </button>
+        {!isPublicSurface() && (
+          <button className="cbd-act" onClick={() => copyLink(item.id, item.boardId)}>
+            <Icon as={LinkIcon} size={15} /><span>Copy link</span>
+          </button>
+        )}
         {canEdit && (
           <button className="cbd-act cbd-act-danger" onClick={() => onDelete?.([item.id])}>
             <Icon as={TrashIcon} size={15} /><span>Delete</span>

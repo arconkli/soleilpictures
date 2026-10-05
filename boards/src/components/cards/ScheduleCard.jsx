@@ -17,11 +17,25 @@
 // reach this component (CanvasSurface renders the old table for them).
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { readSchedModel } from '../../lib/schedState.js';
 import {
   SCHED_TUNING, computeSchedSlots, itemsForSlot, chipCapacity, mintItemKey, newUid, parseSlotKey,
-  hourWindowForDay, dayKey, hourKey, schedLodTier, schedDayCounts, slotOfItem, reslotItemKey,
+  hourWindowForDay, dayKey, hourKey, schedLodTier, schedDayCounts,
+  schedVisibleRange, schedDayRows, schedNextDay, schedSizeForMonths,
 } from '../../lib/schedLayout.js';
+import { dayTypesFor, dayTypeColor } from '../../lib/dayTypes.js';
+import { ScheduleRail } from './ScheduleRail.jsx';
+import { ScheduleRundown } from './ScheduleRundown.jsx';
+import { ScheduleWall } from './ScheduleWall.jsx';
+import { ScheduleTiles } from './ScheduleTiles.jsx';
+import {
+  normalizeDensity, CAL_DENSITIES, productionSpan, calWeeks,
+} from '../../lib/schedCalendar.js';
+import {
+  rundownFromCells, rundownKey, materializeLegacy, computeRundown,
+  ordForIndex, ordForMove, RUNDOWN_TUNING,
+} from '../../lib/rundown.js';
 import { setViewAnchor, clearViewAnchor } from '../../lib/schedViewRegistry.js';
 import { nextDayNumber as nextShootDayNumber } from '../../lib/productionDayPlan.js';
 import {
@@ -30,6 +44,7 @@ import {
 } from '../../lib/schedDates.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { useCanvasSettleTick } from '../../hooks/useCanvasSettleTick.js';
+import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { effectiveCellStyle } from '../../lib/gridState.js';
 import { hasFilterStages } from '../../lib/imageAdjust.js';
 import { PerCardFilter } from '../ImageAdjustFilters.jsx';
@@ -38,7 +53,7 @@ import { Spinner } from '../Spinner.jsx';
 import { Icon } from '../Icon.jsx';
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, MoreHorizontal, X, Maximize2,
-  Image as ImageIcon, Link as LinkIcon, FileText, Clapperboard,
+  Image as ImageIcon, Link as LinkIcon, FileText, Clapperboard, Minimize2,
 } from '../../lib/icons.js';
 import { GridCellMenu } from './GridCellMenu.jsx';
 import { SchedulePeek } from './SchedulePeek.jsx';
@@ -57,13 +72,26 @@ const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagati
 // How many months a month-view card can tile at once. 3 is a block of
 // principal photography, which is the case this exists for.
 const MONTH_SPANS = [1, 3, 6];
+
+// Three densities of the same calendar, one control. Grid is kept rather than
+// traded away: a release plan or a prep calendar IS sparse, and sparse is the
+// one thing a month grid is genuinely good at. Tiles is the production default
+// because in a production nearly every day is a board, and a tile can show it.
+const DENSITIES = [
+  { id: 'tiles', label: '▦', tip: 'Day tiles' },
+  { id: 'list',  label: '☰', tip: 'List' },
+  { id: 'grid',  label: '▤', tip: 'Month grid' },
+];
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Hour view is gone. Its whole job was subdividing one hour into four
+// 15-minute buckets, which is meaningless once an item can be 2h15 — it only
+// ever existed as a workaround for not having durations. A stored
+// schedView:'hour' coerces to 'day' in readSchedModel so old cards still open.
 const VIEWS = [
   { id: 'month', label: 'M', tip: 'Month' },
   { id: 'week', label: 'W', tip: 'Week' },
   { id: 'day', label: 'D', tip: 'Day' },
-  { id: 'hour', label: 'H', tip: 'Hour' },
 ];
 
 function viewTitle(view, anchor, anchorHour, months = 1) {
@@ -125,8 +153,13 @@ function ChipX({ onRemove }) {
 // whole day is the one thing a production schedule exists to do, and making
 // people open a panel to change a date would miss the entire point. The tile is
 // a distinct element, so the rule for CONTENT is untouched.
-function DayTile({ board, draggable, dragging, onPointerDown, onOpen }) {
-  const label = board.day_label || board.name || 'Shoot day';
+// Colour is PHASE now, not publish state (lib/dayTypes.js). Hue on a calendar
+// should answer "what is the shape of this schedule" — three weeks of prep,
+// eight of production, a hiatus — and publish state cannot: once a shoot is
+// running every day is published and the whole grid is one wall of green. The
+// version badge moved to the rail row, where there is room to read it.
+function DayTile({ board, hue, compact = false, draggable, dragging, onPointerDown, onOpen }) {
+  const label = board.day_label || board.name || 'Day';
   const status = board.sched_status || 'draft';
   const published = status === 'published' && board.sched_version > 0;
   const title = status === 'cancelled'
@@ -136,9 +169,10 @@ function DayTile({ board, draggable, dragging, onPointerDown, onOpen }) {
   return (
     <span
       className={[
-        'schedc-daytile', `is-${status}`,
+        'schedc-daytile', `is-${status}`, compact ? 'is-compact' : '',
         dragging ? 'is-dragging' : '', draggable ? 'is-draggable' : '',
       ].filter(Boolean).join(' ')}
+      style={hue ? { '--daytile-hue': hue } : undefined}
       title={title} role="button" tabIndex={0} aria-label={title}
       // When draggable, the OPEN happens on pointerup-without-movement inside
       // startTileDrag — preventDefault there can swallow the click event.
@@ -148,9 +182,12 @@ function DayTile({ board, draggable, dragging, onPointerDown, onOpen }) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault(); e.stopPropagation(); onOpen?.();
       }}>
-      <span className="schedc-daytile-dot" aria-hidden="true" />
-      <span className="schedc-daytile-txt">{label}</span>
-      {published && <span className="schedc-daytile-v">v{board.sched_version}</span>}
+      {/* Below ~64px a label is not a label, it is "Day…". A 3-month strip
+          gives a tile about 46px, which is where the old design ellipsised the
+          product's core noun into three characters and a full stop. The bar
+          still says a day is here and which phase it is; the rail beside it
+          says which day, at a size you can read. */}
+      {!compact && <span className="schedc-daytile-txt">{label}</span>}
     </span>
   );
 }
@@ -245,7 +282,12 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive
   return null;
 }
 
-export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, canEdit = false,
+// Full-screen is refcounted on the body the same way DocCard's overlay is, so
+// the (body-portaled) notifications panel can lift above it while it's up and
+// drop back below ordinary modals when it isn't.
+let openSchedOverlays = 0;
+
+export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
                                gridActions = null, getAwareness = null, boardId = null,
                                focusedCellId = null, dropCellId = null, cellUploads = null,
                                boards = null, onOpenBoard = null, onUpdate = null,
@@ -269,6 +311,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   // drag guard (there is NO global click suppression after card drags; a >4px
   // drag that started on a cell still emits a native click on it).
   const downRef = useRef(null);                      // { key, x, y }
+  const rootRef = useRef(null);
 
   const editable = canEdit && !!gridActions;
   const model = readSchedModel(card, ydoc);
@@ -288,6 +331,20 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   const [viewHour, setViewHour] = useState(null);
   // A dated day cluster mid-drag: { boardId, overDate } — see startTileDrag.
   const [tileDrag, setTileDrag] = useState(null);
+  // Which date the rail is showing as selected. Local for the same reason the
+  // anchor is: a schedule shared with fifty people must not scroll under
+  // everyone else because one person clicked a cell.
+  const [selDate, setSelDate] = useState(null);
+  // Full screen. A production calendar is a wall chart; on a canvas among other
+  // cards it is always negotiating for width with everything around it, and the
+  // two-pane layout wants more room than a card politely takes. Local state:
+  // nothing about it is written to the card, so it never moves for a
+  // collaborator (same rule as the anchor and the selection).
+  const [full, setFull] = useState(false);
+  const [vp, setVp] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    h: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }));
 
   // A schedule card inside a shoot day derives its date from the cluster it
   // lives on, so moving the day re-anchors its hour-by-hour with no cascade and
@@ -298,6 +355,10 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   const anchorHour = viewHour ?? model.anchorHour;
   const months = model.view === 'month'
     ? Math.max(1, Math.min(12, Math.round(card?.months) || 1)) : 1;
+  // Which of the three calendar surfaces the month/week body renders as. Only
+  // meaningful at full detail — mid is a density map and far is a poster, and
+  // neither has room for a thumbnail.
+  const density = normalizeDensity(card?.calDensity);
 
   const goTo = (nextAnchor, nextHour) => {
     if (boardDate) return;                       // the cluster's date owns this card
@@ -312,6 +373,32 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     setViewAnchor(card.id, { anchor, anchorHour });
     return () => clearViewAnchor(card.id);
   }, [card.id, anchor, anchorHour]);
+
+  // Full-screen lifecycle: track the viewport, flag the body (so the
+  // notifications panel can stack above), and take Escape on CAPTURE — the
+  // canvas clears its selection on a bubbled Escape, and closing the overlay
+  // must not also deselect whatever is underneath it. Yields to the peek and
+  // to any open menu so one press closes one layer.
+  useEffect(() => {
+    if (!full) return undefined;
+    const onResize = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (document.querySelector('.gridc-cell-menu, .schedc-peekpanel, .schedc-range')) return;
+      e.stopPropagation();
+      setFull(false);
+    };
+    openSchedOverlays += 1;
+    document.body.setAttribute('data-doc-overlay', '1');
+    window.addEventListener('resize', onResize);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKey, true);
+      openSchedOverlays = Math.max(0, openSchedOverlays - 1);
+      if (openSchedOverlays === 0) document.body.removeAttribute('data-doc-overlay');
+    };
+  }, [full]);
 
   // The shoot days. These are real clusters with a date column, not Y.Doc
   // items — so they survive outside this card, every crew member sees the same
@@ -361,6 +448,11 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     window.addEventListener('pointerup', up);
   };
 
+  // Dragging a day OUT OF THE RAIL and onto a calendar date. Same gesture and
+  // the same drop resolution as a tile drag — the rail is a second grip on the
+  // same object, not a second way of moving it.
+  const startRowDrag = (e, b) => startTileDrag(e, b);
+
   // Live now-line (Day view + day peek, today only). A 60s tick re-renders so
   // the line tracks the clock; the interval only runs while a line is visible.
   const [, setNowTick] = useState(0);
@@ -385,23 +477,154 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     );
   };
 
-  const headerH = SCHED_TUNING.HEADER_H;
-  const bodyW = Math.max(0, w);
-  const bodyH = Math.max(0, h - headerH);
-  const { slots, weekdayLabels, monthBlocks } = computeSchedSlots({
-    view: model.view, anchor, anchorHour, months,
-    w: bodyW, h: bodyH, expand: model.expand, cellKeys,
-  });
-
   // LOD: how much detail this card can honestly show at its ON-SCREEN size
   // (layout px × settled canvas zoom). full = normal render · mid = density
   // map (counter-scaled date numbers + item dots) · far = poster. The peek
   // panel is screen-space and always renders full. Zoom reactivity comes from
   // an explicit settle subscription — never from parent re-renders.
+  //
+  // Measured against the CARD, not the calendar pane. The tier answers "how big
+  // is this card on screen", and a card that grew a rail did not get less
+  // legible — pushing the pane width in here would demote a perfectly readable
+  // calendar the moment the rail appeared.
   useCanvasSettleTick();
-  const scale = getCanvasScale() || 1;
-  const lod = schedLodTier({ view: model.view, w, h, scale, months });
-  const dayCounts = lod !== 'full' ? schedDayCounts(model.cells) : null;
+  // Full screen is SCREEN space: the portal escapes the canvas transform, so
+  // the zoom is 1 no matter where the canvas is, and the box is the viewport
+  // less the 24px frame.
+  const scale = full ? 1 : (getCanvasScale() || 1);
+  const effW = full ? Math.max(320, vp.w - 48) : w;
+  const effH = full ? Math.max(240, vp.h - 48) : h;
+  const lod = schedLodTier({ view: model.view, w: effW, h: effH, scale, months });
+
+  // HEADER CHROME COUNTER-SCALES WITH CANVAS ZOOM.
+  //
+  // A 32px control at canvas zoom 0.5 is 16px on screen, against Apple's 44pt
+  // floor — on a card whose whole point is a crew member checking a call sheet
+  // on an iPad on set. The LOD text already solves this with lodPx(); the
+  // controls simply never adopted it.
+  //
+  // Capped at 2×, not unbounded: below zoom 0.5 an honest 44pt header would eat
+  // a fifth of the card, and the card is on its way to the mid tier (which
+  // replaces the whole header with a title) anyway.
+  //
+  // --chrome-k can only stop zoom from shrinking a control; it cannot raise the
+  // resting size, and it shouldn't — a 44px button in a 44px header is cramped
+  // with a mouse. The floor itself is a TOUCH requirement, so the base grows
+  // only on a coarse pointer. The two multiply: 44 x 2 at zoom 0.5 is 44 on
+  // screen. useBreakpoint is the house source of truth for this (never a bare
+  // innerWidth read), and it must agree with the (pointer: coarse) block in
+  // scheduleCard.css or the body overflows the box JS reserved for it.
+  const { isTouch } = useBreakpoint();
+  const chromeK = Math.min(2, Math.max(1, 1 / scale));
+  const headerH = Math.round((isTouch ? 56 : SCHED_TUNING.HEADER_H) * chromeK);
+  const bodyW = Math.max(0, effW);
+  const bodyH = Math.max(0, effH - headerH);
+  // Tiles and List are their own scrolling surfaces and want the whole body;
+  // Grid goes through the slot engine. Mid and far always take the slot path —
+  // a density map and a poster are what a card renders when it is too small for
+  // any of this, and neither has room for a thumbnail.
+  const showCal = lod === 'full' && model.view !== 'day' && density !== 'grid';
+  const calRect = { x: 0, y: 0, w: bodyW, h: bodyH };
+  const { slots, weekRules, weekdayLabels, monthBlocks } = computeSchedSlots({
+    view: model.view, anchor, anchorHour, months,
+    w: calRect.w, h: calRect.h, expand: model.expand, cellKeys,
+  });
+
+  // The rail needs counts on every date; the LOD density map only needs them
+  // when it is the thing being drawn.
+  const allDayCounts = schedDayCounts(model.cells);
+  // Zoomed out, a date's dots must count its DATED CLUSTERS as well as its
+  // loose Yjs items. schedDayCounts only knows about the Y.Doc, so a production
+  // calendar — where every date's content IS a day cluster — used to go
+  // completely blank the moment it demoted to the density map: twelve weeks of
+  // work rendering as an empty lattice of numbers.
+  const dayCounts = lod === 'full' ? null : (() => {
+    const out = { ...allDayCounts };
+    for (const d in shootDays) out[d] = (out[d] || 0) + shootDays[d].length;
+    return out;
+  })();
+
+  // What the rail lists. Only computed when there IS a rail — schedDayRows
+  // walks the whole visible range, which is 366 iterations for a 12-month card.
+  const range = schedVisibleRange({ view: model.view, anchor, months, todayIso });
+  const railRows = showCal
+    ? schedDayRows({ ...range, shootDays, dayCounts: allDayCounts, todayIso }) : [];
+  const railNext = showCal ? schedNextDay(shootDays, todayIso) : null;
+  // The chart spans the whole PRODUCTION, not the month in view — its only job
+  // is the shape of this shoot, and clipping it to what you happen to be
+  // looking at would answer a question nobody asked.
+  const wallSpan = showCal && model.view === 'month'
+    ? productionSpan(shootDays, range) : null;
+  // The palette belongs to the production — the cluster the dated days hang
+  // off, which is the one holding this card.
+  const dayTypes = dayTypesFor(boards?.[boardId]);
+  // "Add days…" opened from the rail has no slot to anchor to, so it places
+  // against the card itself.
+  const railAnchorRect = () => rootRef.current?.getBoundingClientRect()
+    || { left: 0, top: 0, width: 0, height: 0 };
+
+  // ── The rundown ────────────────────────────────────────────────────────────
+  // Which dated cluster this day belongs to, if any — it carries the day's
+  // start time, planned wrap and place (0247), which is what turns a bare list
+  // of durations into a schedule with a call time on it.
+  const dayBoard = (shootDays[anchor] || []).find((b) => b.sched_status !== 'cancelled')
+    || (card?.anchorMode === 'board' ? boards?.[boardId] : null)
+    || null;
+  const rundown = rundownFromCells(model.cells, anchor);
+
+  // Every edit goes through here so the legacy rewrite can happen exactly once,
+  // on the first touch, ahead of whatever the edit was.
+  const rd = (() => {
+    const flush = () => {
+      if (!rundown.hasLegacy || !gridActions?.applyRundownPlan) return false;
+      gridActions.applyRundownPlan(card.id, materializeLegacy(model.cells, anchor, newUid));
+      return true;
+    };
+    // After a rewrite the old key is gone, so an edit aimed at it has nothing to
+    // land on. Re-read and match the row by position instead.
+    const keyAfterFlush = (key) => {
+      if (!rundown.hasLegacy) return key;
+      const before = computeRundown(rundown.items).rows.findIndex((r) => r.key === key);
+      if (before < 0) return key;
+      const after = computeRundown(rundownFromCells(readSchedModel(card, ydoc).cells, anchor).items).rows;
+      return after[before]?.key || key;
+    };
+    const patch = (key, fields) => {
+      const migrated = flush();
+      const k = migrated ? keyAfterFlush(key) : key;
+      gridActions?.setCellContent?.(card.id, k, fields);
+    };
+    return {
+      patch,
+      remove: (key) => {
+        const migrated = flush();
+        gridActions?.removeCellRecord?.(card.id, migrated ? keyAfterFlush(key) : key);
+      },
+      add: (index) => {
+        flush();
+        const rows = computeRundown(
+          rundownFromCells(readSchedModel(card, ydoc).cells, anchor).items).rows;
+        const key = rundownKey(anchor, newUid());
+        gridActions?.setCellContent?.(card.id, key, {
+          type: 'text', html: '', kind: 'item',
+          dur: RUNDOWN_TUNING.DEFAULT_DUR, ord: ordForIndex(rows, index),
+        });
+        setEditing({ itemKey: key, surface: 'rundown' });
+      },
+      move: (from, to) => {
+        flush();
+        const rows = computeRundown(
+          rundownFromCells(readSchedModel(card, ydoc).cells, anchor).items).rows;
+        const ord = ordForMove(rows, from, to);
+        if (!ord) return;                       // dropped where it already was
+        gridActions?.setCellContent?.(card.id, rows[from].key, { ord });
+      },
+      editTitle: (key) => {
+        const migrated = flush();
+        setEditing({ itemKey: migrated ? keyAfterFlush(key) : key, surface: 'rundown' });
+      },
+    };
+  })();
   // Counter-scaled sizes: layout px = target screen px / zoom, clamped so a
   // number can never overflow its cell.
   const lodPx = (targetPx, max) => Math.min(targetPx / scale, max);
@@ -434,13 +657,30 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
 
   // A minted-once add: every component-owned affordance writes ITEM keys, so
   // the generic grid mutators need no append semantics.
+  //
+  // YOU CANNOT MINT AN ITEM UNDER AN ITEM. The rundown row menu passes the ROW's
+  // key here (`d:<date>/r:<uid>`), and minting under it produced
+  // `d:<date>/r:<uid>/i:<uid>` — a key whose slot path parses as nothing, so
+  // schedItems and schedDayCounts skip it and the row it was typed into never
+  // shows it, while cellsWeight still charges a card for it. Typing produced
+  // nothing; an upload vanished. Refusing is not the finished answer — the row
+  // menu should be calling the rundown's own add — but a mint that cannot be
+  // read is never the right write.
+  const mintUnder = (slotKey) => (parseSlotKey(slotKey) ? mintItemKey(slotKey, newUid()) : null);
   const addText = (slotKey, surface = 'card') => {
-    const itemKey = mintItemKey(slotKey, newUid());
+    const itemKey = mintUnder(slotKey);
+    if (!itemKey) return;
     gridActions.setCellContent(card.id, itemKey, { type: 'text', html: '' });
     enterTextEdit(itemKey, surface);
   };
-  const addImage = (slotKey) => gridActions.pickImageForCell(card.id, mintItemKey(slotKey, newUid()));
-  const addLink = (slotKey) => gridActions.addLinkToCell(card.id, mintItemKey(slotKey, newUid()));
+  const addImage = (slotKey) => {
+    const k = mintUnder(slotKey);
+    if (k) gridActions.pickImageForCell(card.id, k);
+  };
+  const addLink = (slotKey) => {
+    const k = mintUnder(slotKey);
+    if (k) gridActions.addLinkToCell(card.id, k);
+  };
 
   // Open (or re-target) the peek from a slot's trigger/overflow affordance.
   // From the card, the panel anchors beside the source slot; from inside the
@@ -487,7 +727,14 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     // Shoot days sit above the ad-hoc content and take their space out of the
     // chip budget, so a busy day degrades to "+N more" instead of overflowing.
     const tiles = s.kind === 'day' && !s.band && lod === 'full' ? (shootDays[s.date] || []) : [];
-    const tilesH = tiles.length * SCHED_TUNING.DAYTILE_H;
+    // How many tiles honestly fit under the date strip. The old code laid out
+    // ALL of them and let overflow:hidden eat the remainder, so a fourth day on
+    // a busy date simply vanished.
+    const tileCompact = s.rect.w < SCHED_TUNING.DAYTILE_COMPACT_W;
+    const tileH = tileCompact ? SCHED_TUNING.DAYTILE_COMPACT_H : SCHED_TUNING.DAYTILE_H;
+    const tileRoom = Math.max(0, Math.floor((s.rect.h - labelH - 2) / tileH));
+    const tileCap = Math.max(1, tiles.length > tileRoom ? tileRoom - 1 : tileRoom);
+    const tilesH = Math.min(tiles.length, tileCap + (tiles.length > tileCap ? 1 : 0)) * tileH;
     const isTileTarget = tileDrag && tileDrag.overDate === s.date;
     // One item in a comfortable slot renders full-bleed like a grid
     // cell (image cover, board thumb + open); otherwise compact chips.
@@ -531,6 +778,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           s.expanded ? 'is-expanded' : '',
           lodCell ? 'is-lod' : '',
           isTileTarget ? 'is-tile-target' : '',
+          s.kind === 'day' && !s.band && selDate === s.date ? 'is-selected' : '',
           isDrop ? 'is-drop' : '', isFocused ? 'is-focused' : '',
         ].filter(Boolean).join(' ')}
         data-cell-id={s.key}
@@ -559,11 +807,23 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
           if (!d || d.key !== s.key) return;
           if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
           e.stopPropagation();
-          // Nested inline hour/minute rows open their DAY — grid granularity
-          // is glanceable only; the peek is where hours are worked.
-          openPeek({ kind: 'day', date: s.date }, e.currentTarget);
+          // Clicking a cell SELECTS its day. In Grid density the peek is still
+          // the detail surface, so a double-click opens it; in Tiles and List
+          // the detail is already on screen and a popover over it would be
+          // worse than useless.
+          //
+          // Nested inline hour/minute rows resolve to their DAY either way:
+          // grid granularity is glanceable only.
+          setSelDate(s.date);
         } : undefined}
-        onDoubleClick={editable && !passive ? (e) => {
+        onDoubleClick={passive && s.date ? (e) => {
+          // Single click selects the day; double click goes INTO it. The peek
+          // is a zoom to hour resolution — still the only way to work an hour
+          // of loose content, so it needs a door, just not the first one a
+          // click reaches for.
+          e.stopPropagation();
+          openPeek({ kind: 'day', date: s.date }, e.currentTarget);
+        } : editable && !passive ? (e) => {
           e.stopPropagation();
           // Double-tap an empty region of a slot → a fresh text item in
           // edit mode (mirrors the grid's empty-cell double-tap). Item
@@ -613,13 +873,23 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
         )}
         {tiles.length > 0 && (
           <div className="schedc-daytiles" style={{ top: labelH }}>
-            {tiles.map((b) => (
-              <DayTile key={b.id} board={b}
+            {tiles.slice(0, tileCap).map((b) => (
+              <DayTile key={b.id} board={b} hue={dayTypeColor(b, dayTypes)}
+                compact={tileCompact}
                 draggable={canMoveDays}
                 dragging={tileDrag?.boardId === b.id}
                 onPointerDown={(e) => startTileDrag(e, b)}
                 onOpen={() => onOpenBoard?.(b.id)} />
             ))}
+            {tiles.length > tileCap && (
+              // Previously the overflow was simply clipped by the slot's
+              // overflow:hidden, so a fourth day on a busy date vanished with
+              // nothing to say it existed.
+              <span className="schedc-daytile is-more"
+                title={`${tiles.length - tileCap} more on this date`}>
+                <span className="schedc-daytile-txt">+{tiles.length - tileCap}</span>
+              </span>
+            )}
           </div>
         )}
         {(s.band || timeLabel) && (
@@ -733,8 +1003,12 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
     const rowH = isHourPeek ? SCHED_TUNING.PEEK_MINUTE_ROW_H : SCHED_TUNING.PEEK_ROW_H;
     peekContentH = SCHED_TUNING.BAND_H + G + rows * rowH + G * (rows - 1);
     peekSlots = computeSchedSlots({
+      // PEEK_CONTENT_W, not PEEK_W. The panel is border-box and its body is
+      // padded, so laying rows out at the OUTER width made every one of them
+      // 14px wider than its container and `overflow:hidden` amputated the
+      // right edge and the 6px radius of all of them.
       view: isHourPeek ? 'hour' : 'day', anchor: peek.date, anchorHour: peek.hour ?? 9,
-      w: SCHED_TUNING.PEEK_W, h: peekContentH, expand: model.expand, cellKeys,
+      w: SCHED_TUNING.PEEK_CONTENT_W, h: peekContentH, expand: model.expand, cellKeys,
     }).slots;
     peekTitle = isHourPeek ? hourTitle(peek.date, peek.hour) : dayTitle(peek.date);
   }
@@ -822,9 +1096,30 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
   const bodySlots = lod === 'mid' && (model.view === 'month' || model.view === 'week')
     ? slots.filter((s) => s.kind === 'day') : slots;
 
+  // Full screen portals the card out of the canvas transform onto the body, so
+  // it renders at true screen pixels instead of inheriting whatever zoom the
+  // canvas is at. The scrim underneath is not decoration: without it the 24px
+  // frame is a live canvas hit-zone and a press there starts a pan behind the
+  // "fullscreen" calendar — the bug DocCard's backdrop exists to prevent.
+  const shell = (node) => (full
+    ? createPortal(
+      <>
+        <div className="schedc-fs-backdrop"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setFull(false)} />
+        <div className="schedc-fs">{node}</div>
+      </>,
+      document.body,
+    )
+    : node);
+
   return (
     <>
-      <div className={`schedc is-view-${model.view}${lod !== 'full' ? ` is-lod-${lod}` : ''}`} data-grid-id={card.id}>
+      {shell(
+      <div ref={rootRef}
+        className={`schedc is-view-${model.view}${lod !== 'full' ? ` is-lod-${lod}` : ''}${showCal ? ' has-cal' : ''}${full ? ' is-fullscreen' : ''}`}
+        data-grid-id={card.id}
+        onPointerDown={full ? stop : undefined}>
         {lod === 'far' ? renderPoster() : (<>
         {lod === 'mid' ? (
           <div className="schedc-head is-lod">
@@ -834,7 +1129,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
             </span>
           </div>
         ) : (
-        <div className="schedc-head">
+        <div className="schedc-head" style={{ flexBasis: headerH, '--chrome-k': chromeK }}>
           {editable && (
             <button type="button" className="schedc-nav" title="Previous" aria-label="Previous"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(-1); }}>
@@ -879,8 +1174,36 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
                   title={n === 1 ? 'One month' : `${n} months at once`}
                   aria-label={n === 1 ? 'Show one month' : `Show ${n} months`}
                   onPointerDown={stop}
-                  onClick={(e) => { e.stopPropagation(); if (months !== n) onUpdate?.({ months: n }); }}>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (months === n) return;
+                    // Grow the card to fit the span. Never shrink: a card
+                    // someone has sized by hand is their decision, and coming
+                    // back down from 6 months shouldn't undo it.
+                    onUpdate?.({ months: n, ...schedSizeForMonths(n, { w, h }) });
+                  }}>
                   {n}
+                </button>
+              ))}
+            </span>
+          )}
+          <button type="button" className="schedc-nav schedc-full"
+            title={full ? 'Exit full screen (Esc)' : 'Full screen'}
+            aria-label={full ? 'Exit full screen' : 'Full screen'}
+            aria-pressed={full}
+            onPointerDown={stop}
+            onClick={(e) => { e.stopPropagation(); setFull((v) => !v); }}>
+            <Icon as={full ? Minimize2 : Maximize2} size={14} />
+          </button>
+          {editable && model.view !== 'day' && lod === 'full' && (
+            <span className="schedc-pill schedc-dens" role="group" aria-label="Calendar density">
+              {DENSITIES.map((d) => (
+                <button key={d.id} type="button"
+                  className={`schedc-dbtn${density === d.id ? ' is-active' : ''}`}
+                  title={d.tip} aria-label={d.tip} aria-pressed={density === d.id}
+                  onPointerDown={stop}
+                  onClick={(e) => { e.stopPropagation(); if (density !== d.id) onUpdate?.({ calDensity: d.id }); }}>
+                  {d.label}
                 </button>
               ))}
             </span>
@@ -901,6 +1224,84 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
         </div>
         )}
         <div className="schedc-body" style={{ height: bodyH }}>
+        {model.view === 'day' ? (
+          <ScheduleRundown
+            cardId={card.id} date={anchor} cells={rundown.items}
+            dayStart={dayBoard?.day_start || null}
+            plannedWrap={dayBoard?.day_end || null}
+            place={dayBoard?.day_place || null}
+            boards={boards} onOpenBoard={onOpenBoard}
+            editable={editable}
+            hueFor={() => dayTypeColor(dayBoard, dayTypes)}
+            editingKey={editing?.surface === 'rundown' ? editing.itemKey : null}
+            onCommitTitle={(key, text) => {
+              gridActions?.setCellContent?.(card.id, key, { title: text });
+              setEditing(null);
+            }}
+            onCancelTitle={() => setEditing(null)}
+            onSetDur={(key, dur) => rd.patch(key, { dur })}
+            onTogglePin={(key, clock) => rd.patch(key, { pin: clock })}
+            onRemove={(key) => rd.remove(key)}
+            onAdd={(index) => rd.add(index)}
+            onMove={(from, to) => rd.move(from, to)}
+            onEditTitle={(key) => rd.editTitle(key)}
+            onOpenMenu={(key, e) => setMenu({
+              slotKey: key, anchorRect: e.currentTarget.getBoundingClientRect(),
+              surface: 'rundown',
+            })}
+          />
+        ) : showCal ? (
+          // Tiles / List: a scrolling surface, with the wall chart pinned above
+          // it. No pane split — the chart does the navigator job the month grid
+          // was doing badly, in a fifth of the space, which is what frees the
+          // width the rail used to take.
+          <div className="schedc-stack">
+            {wallSpan && (
+              <ScheduleWall
+                {...wallSpan} todayIso={todayIso}
+                shootDays={shootDays} dayCounts={allDayCounts} types={dayTypes}
+                selectedDate={selDate}
+                onPickDate={(date) => { setSelDate(date); goTo(date); }}
+              />
+            )}
+            {density === 'tiles' ? (
+              <ScheduleTiles
+                from={range.from} to={range.to} todayIso={todayIso}
+                shootDays={shootDays} dayCounts={allDayCounts} types={dayTypes}
+                boards={boards} onOpenBoard={onOpenBoard}
+                editable={editable}
+                selectedDate={selDate} onSelectDate={setSelDate}
+                onAddDay={editable && onAddShootDay
+                  ? (date) => onAddShootDay({ from: date, to: date, scaffold: true, parentBoardId: boardId })
+                  : null}
+                tileDrag={tileDrag}
+                onTilePointerDown={canMoveDays ? startTileDrag : null}
+              />
+            ) : (
+              <ScheduleRail
+                rows={railRows} todayIso={todayIso}
+                next={railNext} types={dayTypes} parentBoard={boards?.[boardId]}
+                selectedDate={selDate} onSelectDate={setSelDate}
+                onPeekDate={(date) => openPeek({ kind: 'day', date }, null, railAnchorRect())}
+                onOpenBoard={onOpenBoard}
+                onGoToDate={(date, opts) => {
+                  setSelDate(date);
+                  goTo(date);
+                  if (opts?.view && onUpdate) onUpdate({ schedView: opts.view });
+                }}
+                editable={editable}
+                rowDrag={tileDrag}
+                onRowPointerDown={canMoveDays ? startRowDrag : null}
+                onAddDay={editable && onAddShootDay
+                  ? (date) => setRangePop({ anchorRect: railAnchorRect(), date })
+                  : null}
+              />
+            )}
+          </div>
+        ) : (
+        <div className="schedc-cal" style={{
+          left: calRect.x, top: calRect.y, width: calRect.w, height: calRect.h,
+        }}>
           {weekdayLabels && (
             <div className="schedc-weekdays" style={{ height: SCHED_TUNING.WEEKDAY_H }}>
               {weekdayLabels.map((d) => <span key={d} className="schedc-wd">{d}</span>)}
@@ -922,11 +1323,17 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
               )}
             </div>
           ))}
+          {lod === 'full' && weekRules?.map((r, i) => (
+            <div key={`wr-${i}`} className="schedc-wrule" aria-hidden="true"
+              style={{ left: r.x, top: r.y, width: r.w }} />
+          ))}
           {renderSlotLayer(bodySlots, 'card')}
-          {model.view === 'day' && anchor === todayIso && renderNowLine(slots)}
+        </div>
+        )}
         </div>
         </>)}
-      </div>
+      </div>,
+      )}
       {editable && menu && (
         <GridCellMenu
           anchorRect={menu.anchorRect}
@@ -946,9 +1353,9 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, isSelected = false, c
               // A shoot day is a dated CLUSTER, not a slot item — it outlives
               // this card and every crew member sees the same one.
               if (onAddShootDay) {
-                items.push({ id: 'shoot-day', label: 'Add shoot day', icon: Clapperboard,
+                items.push({ id: 'shoot-day', label: 'Add a day', icon: Clapperboard,
                   onClick: () => onAddShootDay({ from: slot.date, to: slot.date, scaffold: true, parentBoardId: boardId }) });
-                items.push({ id: 'shoot-days', label: 'Add shoot days…', icon: Clapperboard,
+                items.push({ id: 'shoot-days', label: 'Add days…', icon: Clapperboard,
                   onClick: () => setRangePop({ anchorRect: menu.anchorRect, date: slot.date }) });
               }
               if (gridActions.setSlotExpand) items.push({ id: 'break-hours', label: 'Break into hours', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'hours') });

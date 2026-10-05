@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-04",
+    "anchor": "2026-10-04",
+    "title": "Folders become clusters, files keep their names, and search reads documents",
+    "summary": "A dropped folder arrives as nested clusters, images keep their file names, web images are kept as copies, search reads inside documents, and Home lists your projects.",
+    "headings": []
+  },
+  {
     "date": "2026-08-26",
     "anchor": "2026-08-26",
     "title": "Settings you can find, and a tab that says which cluster",

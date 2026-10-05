@@ -2,13 +2,28 @@
 
 > A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.
 
-_Source: https://clusters.soleilpictures.com/docs/documents · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/documents · Updated 2026-10-02_
 
 A document is where the writing goes. It lives as a card on a canvas, so a
 treatment sits beside the references it came from rather than in a different
 application.
 
 Add one with the **doc** tool in the rail.
+
+## Starting from a treatment
+
+The [director's treatment](/tools/directors-treatment) page hands you a
+document to start from. Press its button, and once you are signed in a
+treatment document is added to a cluster in your own workspace and opens. It
+holds a cover, then a page for each section: concept, tone and references,
+look and light, casting, wardrobe and art direction, locations, and edit,
+music and pace. Each page has a line saying what goes on it. Replace the lines
+with your own, bring the chosen images in, and
+[export](/docs/documents/export) a PDF.
+
+Until you change something in it, the treatment is a template: it does not
+count toward your cards and search does not list it. Your first change makes
+it your document like any other.
 
 ## Opening
 

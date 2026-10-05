@@ -19,6 +19,9 @@ test.describe('return landing wiring', () => {
 
   test('a returning person with cards is not re-toured', () => {
     expect(app()).toMatch(/dismissOnboarding\('returned_with_cards'\)/);
+    // A new device has no earlier-day stamp on this browser: account age must
+    // also count as "back", or the tour re-arms for people who built something.
+    expect(app()).toMatch(/const notFirstSitting = \(typeof back === 'number' && back >= 1\)\s*\|\| \(Number\.isFinite\(ageHours\) && ageHours >= 12\)/);
   });
 
   test('an empty stack on a new device falls back to the most recent populated cluster', () => {

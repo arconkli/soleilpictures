@@ -15,7 +15,7 @@ faq:
   - q: Where do I find my storage usage?
     a: Under Plan and billing, as a meter showing used against your quota.
   - q: Where are API tokens?
-    a: Under Connections, alongside Soleil Scout and any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
+    a: Under Connections, alongside any apps you have approved. Tokens are shown once at creation and cannot be recovered afterwards.
 related:
   - /docs/account/plans
   - /docs/account/theme-and-defaults

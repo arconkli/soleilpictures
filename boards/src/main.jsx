@@ -43,6 +43,7 @@ const DocsPage        = lazyWithReload(() => import('./pages/DocsPage.jsx').then
 const ChangelogPage   = lazyWithReload(() => import('./pages/ChangelogPage.jsx').then(m => ({ default: m.ChangelogPage })));
 const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.jsx').then(m => ({ default: m.OAuthConsentPage })));
 const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').then(m => ({ default: m.ResumePage })));
+const TemplateSharePage = lazyWithReload(() => import('./pages/TemplateSharePage.jsx').then(m => ({ default: m.TemplateSharePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -154,6 +155,14 @@ if (typeof window !== 'undefined' &&
 // other path falls through to the normal app + auth gate.
 const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i);
 
+// /t/<uuid> = a shared GRID TEMPLATE (migration 0265). Same trust model as
+// /share — the token in the path is the whole authorization — but a far lighter
+// page: a template is layout geometry, so the viewer is an SVG diagram and a
+// name, and it must never pull in the editor chunk the way the board viewer
+// does. The uuid shape is matched here so a malformed token never reaches the
+// RPC, which takes a uuid argument and would 400 on anything else.
+const templateShareMatch = window.location.pathname.match(/^\/t\/([0-9a-f-]{36})\/?$/i);
+
 // /c/<slug> = admin-curated public marketing board (migration 0136); /explore =
 // the public board index. Both bypass auth and render the public viewer chunk,
 // just like /share. The Worker has already injected per-page SEO meta +
@@ -169,7 +178,13 @@ const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
 // EVERYTHING the Worker 404s under these prefixes (any depth/charset), or a
 // 404 document would boot into AuthGate instead of the not-found page. Bare
 // /tools and /vs never reach the client — the Worker 301s them to /use-cases.
-const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$))/i.test(window.location.pathname);
+// /templates rides this matcher rather than getting a branch of its own: it IS
+// a landing page (a spec in seoLanding.js) that happens to render a live strip
+// of published templates, so the Worker's meta injection, the sitemap and the
+// .md mirror all pick it up from the registry with no further wiring. Note the
+// shape cannot collide with templateShareMatch above — that one requires /t/
+// followed by a slash, and "templates" has no slash after the t.
+const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$)|templates(?:\/|$))/i.test(window.location.pathname);
 
 // /scout is in the SAME registry but has its OWN renderer (pages/ScoutPage.jsx)
 // — the page is shaped like a text thread rather than an article, because that
@@ -436,6 +451,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <PublicBoardView slug={publicBoardMatch[1]} />
             ) : shareMatch ? (
               <PublicBoardView token={shareMatch[1]} />
+            ) : templateShareMatch ? (
+              <TemplateSharePage token={templateShareMatch[1]} />
             ) : oauthConsentMatch ? (
               <AuthGate>
                 <OAuthConsentPage />

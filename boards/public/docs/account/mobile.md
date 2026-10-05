@@ -50,8 +50,9 @@ and **Layers** on the other — with the brushes, colours and sizes a tap behind
 the chip showing what you are drawing with, and the frame formats offered on the
 bar itself while the frame is still empty.
 
-The [Home graph](/docs/clusters/home-graph) renders its 2D fallback on most
-tablets, which has the same nodes and interactions.
+On a phone or a touch tablet, [Home](/docs/clusters/home-graph) is your projects
+on their own: the boards you were last in, every project, and **New project**.
+The 3D workspace graph is left for larger screens, and is never loaded here.
 
 ## Installing
 

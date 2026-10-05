@@ -2,7 +2,7 @@
 
 > Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-09-10_
+_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-10-02_
 
 Collaboration is deliberately not a paid feature. Inviting people is how boards
 become useful, and charging per seat would make the product worse at the thing
@@ -59,6 +59,10 @@ by whose workspace they came from.
 Everything is real time. Two people can move cards on the same canvas, type in
 the same [note](/docs/canvas/notes), or write in the same
 [document](/docs/documents) at once, and edits merge rather than overwriting.
+
+One common shape of this is a studio art team working from a single live
+reference board — the [shared reference boards guide](/tools/shared-reference-board)
+covers setting one up.
 
 ## Undoing someone else's change
 

@@ -20,6 +20,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { supabase } from '../lib/supabase.js';
 import { describeTarget, isJourneyOpen } from '../lib/journey.js';
+import { clearCreatorIntent, isFreeStartCta } from '../lib/creatorIntent.js';
+import { stashStarterIntent, clearStarterIntent } from '../lib/starterIntent.js';
 import {
   setLandingSink, createLandingTracker, isInteractiveTarget,
   lpCtaClick, TRACE_FLUSH_MS, HOVER_HESITATION_MS,
@@ -31,7 +33,7 @@ setLandingSink({ logEvent, logEventNow });
 // import from here — this module is what guarantees the sink is wired.
 export { lpCtaClick };
 
-export function useLandingEngagement({ page, pageKind, scroll = 'container', getScrollEl, legacy } = {}) {
+export function useLandingEngagement({ page, pageKind, starter = null, scroll = 'container', getScrollEl, legacy } = {}) {
   const getScrollElRef = useRef(getScrollEl);
   getScrollElRef.current = getScrollEl;
 
@@ -48,7 +50,25 @@ export function useLandingEngagement({ page, pageKind, scroll = 'container', get
       get tracker() { return state.tracker; },
       __renew() { state.tracker = createLandingTracker({ page, pageKind, legacy }); },
       ctaProps(pos, href, extra) {
-        return { 'data-lp-cta': pos, onClick: () => state.tracker.ctaClick(pos, href, extra) };
+        return {
+          'data-lp-cta': pos,
+          onClick: () => {
+            // A free start pressed after a "Get Creator" on /pricing means the
+            // visitor chose free, so the stored intent goes — otherwise the
+            // offer would open over the first screen of someone who just
+            // picked the free plan. isFreeStartCta says which CTAs are free
+            // starts; the sign-in form goes through lpCtaClick, never here.
+            if (isFreeStartCta(pageKind, pos, extra)) {
+              clearCreatorIntent();
+              // A page that promises a starting document (spec.starter) asks
+              // for it on the way in; any other free start means the visitor
+              // moved on, so an older request goes.
+              if (starter) stashStarterIntent({ kind: starter, from: page });
+              else clearStarterIntent();
+            }
+            state.tracker.ctaClick(pos, href, extra);
+          },
+        };
       },
       exampleClick(slug, pos) { state.tracker.exampleClick(slug, pos); },
       faqOpen(idx, q) { state.tracker.faqOpen(idx, q); },
@@ -66,7 +86,7 @@ export function useLandingEngagement({ page, pageKind, scroll = 'container', get
       __sections: sections,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageKind]);
+  }, [page, pageKind, starter]);
 
   useEffect(() => {
     if (!page || typeof window === 'undefined') return undefined;

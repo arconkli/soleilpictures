@@ -354,6 +354,63 @@
 }
 
 /* ── Comparison table ─────────────────────────────────────────────────── */
+/* ── "What it costs" (lib/planBlock.js) ─────────────────────────────────
+   Two plans side by side, in the compare table's material (bg-1 + line-2)
+   so it reads as part of the comparison it follows. Neutral ink throughout:
+   gold is reserved for the action, and here that is only the Start free
+   button. One column on a phone, where the topbar Pricing link is hidden
+   and this block is the only place the price lives. */
+.seo-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 1.1em 0 1em;
+}
+.seo-plan {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-1);
+  padding: 18px 20px;
+}
+.seo-plan-name {
+  font: 700 0.78rem/1 var(--font-sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.seo-plan-price {
+  margin: 10px 0 12px;
+  font: 700 1.6rem/1.15 var(--font-sans);
+  color: var(--ink-0);
+}
+.seo-plan-unit {
+  display: block;
+  margin-top: 4px;
+  font: 500 0.85rem/1.3 var(--font-sans);
+  color: var(--ink-2);
+}
+.seo-plan-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 400 0.95rem/1.5 var(--font-sans);
+  color: var(--ink-1);
+}
+.seo-plan-lines li { padding: 5px 0; border-top: 1px solid var(--line-1); }
+.seo-plan-lines li:first-child { border-top: 0; }
+.seo-plan-lines b { color: var(--ink-0); font-weight: 600; }
+.seo-plans-note { margin-top: 0.4em; }
+.seo-plans-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px 20px;
+  flex-wrap: wrap;
+  margin-top: 0.6em;
+}
+@media (max-width: 640px) {
+  .seo-plans-grid { grid-template-columns: 1fr; }
+}
+
 .seo-compare-wrap {
   overflow-x: auto;
   border: 1px solid var(--line-2);
@@ -523,6 +580,83 @@
   transition: color var(--dur-fast, 120ms) var(--ease);
 }
 .seo-examples-more:hover { color: var(--soleil); text-decoration: underline; }
+
+/* "The layout" block on a curated template page (kind:'template'). The diagram
+   sits beside its own numbered legend, so the number on a box and the number in
+   the list are read together rather than counted. Stacks on narrow screens —
+   at phone width a 56px diagram beside a list is two things too small to read
+   instead of one thing you can. */
+.seo-tpl-layout-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-top: 14px;
+}
+/* The thumb is a fixed 56×44 viewBox; scale it up here, where it is the subject
+   of the section rather than a tile in a grid. */
+.seo-tpl-layout-row .tplt-thumb {
+  flex: none;
+  width: 168px;
+  height: 132px;
+  border-radius: 6px;
+}
+.seo-tpl-hints {
+  margin: 10px 0 12px;
+  padding-left: 1.3em;
+  color: var(--ink-1);
+  font: 400 15px/1.7 var(--font-sans);
+}
+.seo-tpl-hints li { letter-spacing: .04em; }
+@media (max-width: 640px) {
+  .seo-tpl-layout-row { flex-direction: column; gap: 14px; }
+  .seo-tpl-layout-row .tplt-thumb { width: 100%; height: auto; aspect-ratio: 56 / 44; }
+}
+
+/* Community templates strip (/templates). Denser than .pubgrid because a tile
+   here is a diagram rather than a photograph — it stays legible small, and a
+   gallery of shapes wants to be scanned rather than looked at one at a time. */
+.seo-templates .tplgrid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 18px 0 0;
+  padding: 0;
+}
+.seo-templates .tplcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--bg-1);
+  text-decoration: none;
+  transition: border-color var(--dur-fast, 120ms) var(--ease), background var(--dur-fast, 120ms) var(--ease);
+}
+.seo-templates .tplcard:hover { border-color: var(--line-3); background: var(--bg-2); }
+.seo-templates .tplcard .tplt-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 56 / 44;
+  background: transparent;
+}
+.seo-templates .tplcard .tplt-thumb rect {
+  fill: var(--bg-2);
+  stroke: var(--line-3);
+  stroke-width: .6;
+}
+.seo-templates .tplcard:hover .tplt-thumb rect { fill: var(--bg-1); stroke: var(--ink-3); }
+.seo-templates .tplcard-title {
+  font: 500 0.82rem/1.3 var(--font-sans);
+  color: var(--ink-1);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
 
 /* ── /explore hub ─────────────────────────────────────────────────────── */
 .exp-main {
@@ -794,8 +928,236 @@
   .exp-search { flex-basis: 100%; }
 }
 
+/* ── The template store (/templates and /templates/<slug>) ─────────────────
+   Reuses the /explore toolbar wholesale (.exp-toolbar, .exp-sorts, .exp-chip,
+   .exp-count, .exp-noresults) — browsing is a solved problem here and a second
+   dialect of it would be a worse one. Only the tile is different, because a
+   tile here is a diagram rather than a photograph. */
+.exp-store { margin-top: 28px; }
+.exp-chip-n { opacity: .55; font-variant-numeric: tabular-nums; }
+
+.tplstore-grid {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 18px;
+  /* Tiles are their own height. The default `stretch` makes every tile in a row
+     as tall as the tallest, which once a row contains a double-width tile means
+     300px of nothing inside its neighbours — and growing the preview to fill it
+     instead just made the tiles enormous (the shelf went from 3990px to 4760px
+     for the same sixteen products). A shop wants MORE product per screen, so the
+     row is allowed to be ragged at the bottom and every stage stays its own
+     size. */
+  align-items: start;
+}
+
+/* THE BIG SHELF. A dense layout — a 36-frame contact sheet, a 20-cell shot list,
+   an 18-cell casting board — cannot be read in a 250px tile at any stage height:
+   the labels land at four or five pixels and the whole thing reads as grey mush.
+   So the dense ones take two columns and a taller stage, which is roughly double
+   the linear scale and takes those labels back over 8px.
+
+   It also makes the grid worth scrolling. A shop where every product is in an
+   identical box is a spreadsheet; one where the big items get big frames has a
+   rhythm, and the eye keeps going.
+
+   `dense` backfills the holes a mixed span would otherwise leave — which is why
+   this is scoped to the FEATURED sort only (see .is-featured in the JSX). Under
+   A–Z or Fewest boxes the order is a promise, and dense packing would visibly
+   break it. Above 640px only: at one column a span of 2 overflows the track. */
+@media (min-width: 640px) {
+  .tplstore-grid.is-featured { grid-auto-flow: dense; }
+  .tplstore-grid.is-featured > li.is-big { grid-column: span 2; }
+  /* 360, not 320: the wide ones (shot list, contact sheet) are limited by the
+     doubled WIDTH and barely notice, but the portrait casting board is limited
+     by height — extra columns do nothing for it and every 40px here is directly
+     bigger type on the one template that needs it most. */
+  .tplstore-grid.is-featured > li.is-big .tplstore-stage { height: 360px; }
+}
+.tplstore-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  height: 100%;
+  padding: 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--bg-1);
+  color: var(--ink-1);
+  text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.tplstore-card:hover { border-color: var(--ink-3); background: var(--bg-2); }
+
+/* THE SHELF.
+   A fixed-height stage every tile shares, with the preview centred inside it at
+   its OWN proportions. That combination is the whole look: the row stays level
+   like a shelf, and a 3:4 posting grid, a 3:2 contact sheet and a 2:3 look book
+   are visibly three different products rather than three identical rectangles.
+   Sizing the SVG to the box and letting its preserveAspectRatio letterbox is what
+   contains it — object-fit does nothing to an inline <svg>.
+
+   The stage is --bg-2, the recessed field a real grid card sits in, so a preview
+   looks like the thing it is a preview of. */
+.tplstore-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 200px;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .03);
+  overflow: hidden;
+  transition: background var(--dur-fast) var(--ease);
+}
+.tplstore-card:hover .tplstore-stage { background: var(--bg-3, var(--bg-2)); }
+.tplstore-card .tplt-thumb { width: 100%; height: 100%; }
+.tplstore-title { font: 600 15px/1.3 var(--font-sans); color: var(--ink-0); }
+.tplstore-blurb { font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); flex: none; }
+.tplstore-meta {
+  /* Pinned to the bottom so box counts line up across a row even when one blurb
+     runs to two lines and its neighbour runs to one. Full width and flex so the
+     download count can take the right-hand end of it. */
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* An item page. Narrower than a landing page — there is deliberately less on it. */
+.tplitem-crumbs {
+  font: 400 13px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  margin-bottom: 14px;
+}
+.tplitem-crumbs a { color: var(--ink-1); }
+.tplitem-crumbs span { margin: 0 6px; opacity: .5; }
+.tplitem-layout { margin-top: 8px; }
+.tplitem-add { display: inline-block; margin: 14px 0 6px; }
+
+/* ── A store item page ─────────────────────────────────────────────────────
+   Two columns: the shape on the left, everything you need to decide on the
+   right. No section headings in the hero — there is exactly one thing here, and
+   a heading over a single object is furniture. */
+.tplitem-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+  gap: clamp(24px, 5vw, 56px);
+  align-items: start;
+  margin: 8px 0 clamp(40px, 7vh, 72px);
+}
+/* A dense layout takes the wider half. The detail column is a name, a sentence
+   and a button — it does not need the room, and a 36-frame contact sheet does. */
+.tplitem-hero.is-big { grid-template-columns: minmax(0, 6fr) minmax(0, 4fr); }
+/* The product shot. Unlike a store tile there is only ONE on the page, so
+   nothing has to line up with anything and the stage can hug the drawing at its
+   true aspect instead of letterboxing it inside a fixed window. That is what
+   makes a tall casting board and a wide contact sheet look like different
+   objects at full size rather than two drawings adrift in the same box. */
+.tplitem-shot {
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--bg-2);
+}
+.tplitem-shot .tplt-thumb { width: 100%; height: auto; }
+.tplitem-h1 {
+  font: 700 clamp(2rem, 4vw, 2.8rem)/1.1 var(--font-display, var(--font-sans));
+  color: var(--ink-0);
+  margin: 0 0 .4em;
+}
+.tplitem-lead { font: 400 1.05rem/1.6 var(--font-sans); color: var(--ink-1); margin: 0 0 1em; }
+.tplitem-specs {
+  font: 500 .8rem/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 1.4em;
+}
+.tplitem-add { display: inline-flex; margin-bottom: 8px; }
+/* The reassurance under the button, not beside it. .seo-cta-sub2 is only a block
+   inside .seo-cta-band, so here it ran up alongside the CTA and wrapped around
+   it — the one place on the page that read as broken. */
+.tplitem-detail .seo-cta-sub2 {
+  display: block;
+  max-width: 42ch;
+  margin-top: 10px;
+  font: 500 .85rem/1.5 var(--font-sans);
+  color: var(--ink-2);
+}
+@media (max-width: 720px) {
+  .tplitem-hero { grid-template-columns: 1fr; }
+}
+
+/* A community tile's source badge. There is deliberately no author identity in
+   this system ("a template is a shape, not a person", migration 0266), so the
+   badge names where it came from rather than who made it. */
+.tplstore-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  margin-right: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font: 600 10px/1.4 var(--font-sans);
+  letter-spacing: .08em;
+  color: var(--ink-2);
+}
+/* The download count: last thing in the meta row, pushed to the bottom-right
+   corner of the card, in the SAME grey as the box count beside it.
+
+   It has been three things. Inline mid-row it fought the box count for the same
+   rhythm; as a bordered pill over the preview it was a badge shouting at a
+   thumbnail. It is neither — it is a quiet fact, so it inherits the row's colour,
+   size and tracking and simply sits at the far end. */
+.tplstore-meta-left { min-width: 0; }
+.tplstore-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;   /* the corner */
+  padding-left: 10px;  /* never collides with a long left-hand side */
+  font-variant-numeric: tabular-nums;
+}
+/* Optically matched to 11px uppercase rather than set to the same number: a
+   glyph at the text's own size reads as oversized next to tracked capitals. */
+.tplstore-dl-i { flex: none; width: 10px; height: 10px; opacity: .85; }
+
+/* On an item page the count is one fact in a spec line, not an overlay — there
+   is no thumbnail for it to sit on. Just ink-1 against the ink-3 around it. */
+.tplitem-dl { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+/* The community item page always needs a round-trip, so it gets a skeleton. A
+   blank frame here reads as the 404 this route used to be. */
+.tplitem-shot.is-loading {
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(90deg, var(--bg-2) 25%, var(--bg-3, var(--bg-hov)) 37%, var(--bg-2) 63%);
+  background-size: 400% 100%;
+  animation: tplitemShimmer 1.4s ease infinite;
+}
+@keyframes tplitemShimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .tplitem-shot.is-loading { animation: none; } }
+
+.tplstore-contribute {
+  margin: 28px 0 0;
+  font: 400 14px/1.6 var(--font-sans);
+  color: var(--ink-2);
+}
+.tplstore-contribute a { color: var(--soleil); }
+/* A storefront hero is a shop sign: name, one line, then the goods.
+
+   The 12vh of air above a marketing headline is doing a job there — it is the
+   pause before a pitch. Above a shelf it is just distance between someone and
+   the product, so the storefront takes a third of it and the first row of tiles
+   comes up ~140px sooner. */
 /* ── /pricing's hero ──────────────────────────────────────────────────────
-   The comparison pages' hero is ceremonial on purpose: a large display line
+   The comparison pages' hero is ceremonial on purpose: a 77px display line
    over a wide subhead, with the gold aura and dot grid behind it, because
    those pages are someone's FIRST screen and have to make an impression
    before they make an argument.
@@ -823,11 +1185,17 @@
    instead, and these two were actively making it worse.
 
    The aura is 760x520 at top:-160px, sized and placed for the ceremonial
-   headline. Shrinking it for this hero left the offset alone, so most of it
-   sat ABOVE the hero box and behind the topbar: what survived was the
-   gradient's dim bottom edge, which reads as a brown smudge under the bar
-   rather than as light. The dot grid, at 0.55 opacity of
-   rgba(255,255,255,.13), is invisible at this scale and contributes noise
-   and nothing else. */
+   headline. Shrinking it to 520x300 for this hero left the offset alone, so
+   most of it sat ABOVE the hero box and behind the topbar: what survived was
+   the gradient's dim bottom edge, which reads as a brown smudge under the bar
+   rather than as light. The dot grid, at 0.55 opacity of rgba(255,255,255,.13),
+   is invisible at this scale and contributes noise and nothing else. */
 .seo-hero.is-pricing::before,
 .seo-hero.is-pricing::after { display: none; }
+
+.seo-hero.is-storefront { margin-bottom: clamp(20px, 3vh, 32px); text-align: left; }
+.seo-hero.is-storefront .seo-h1 { margin-left: 0; max-width: none; font-size: clamp(2.1rem, 4.4vw, 3rem); }
+.seo-main:has(.seo-hero.is-storefront) { padding-top: clamp(32px, 4vh, 52px); }
+.seo-hero.is-storefront .seo-subhead { margin-left: 0; }
+.seo-hero.is-storefront::before,
+.seo-hero.is-storefront::after { display: none; }

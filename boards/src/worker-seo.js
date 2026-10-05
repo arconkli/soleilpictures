@@ -21,7 +21,7 @@
 //     others, but it needs neither Workers AI nor the service-role key and its
 //     body is not a board_id — see handleSeoRoute for why that mattered.
 
-import { SEO_LANDING_PATHS } from './lib/seoLanding.js';
+import { SEO_LANDING_LISTED } from './lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from './lib/seoListicleIndex.js';
 import { DOCS_PATHS } from './lib/docsiteIndex.js';
 
@@ -184,11 +184,12 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,79}$/;
 // Every public URL IndexNow may be told about, derived from the registries so
 // a new landing/listicle/docs page is submittable the moment it exists and
 // nothing tokened or private ever is — the allow-list IS the set of pages a
-// crawler is meant to index.
+// crawler is meant to index. LISTED, not every spec: a held page (the template
+// store, lib/templatePaths.js) is a 404 on production and is never submitted.
 function indexNowAllowedPaths() {
   return [
     '/', '/pricing', '/explore', '/changelog',
-    ...SEO_LANDING_PATHS,
+    ...SEO_LANDING_LISTED.map((p) => p.path),
     ...SEO_LISTICLE_INDEX.map((p) => p.path),
     ...DOCS_PATHS,
   ];

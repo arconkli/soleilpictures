@@ -74,6 +74,20 @@ export function classifyCrawler(userAgent) {
 // page-level signal the table exists to carry. Dotted paths are allowed through
 // only for the .md/.xml/.txt mirrors, which are exactly the surfaces built for
 // machine readers.
+// The path as it may be STORED. A share link (/share/<uuid>) or a template
+// share (/t/<uuid>) is a capability: anyone holding the URL can open the board.
+// Assistants do fetch them — a ChatGPT-User row carried one — so a raw path in
+// crawler_hits put a live capability token in an analytics table. They collapse
+// to their prefix, exactly as gsc-sync's normPath does for Search Console
+// ("never store share tokens"); the page-level signal survives, the token does
+// not. Everything else is stored as requested, truncated to the column budget.
+export function crawlerHitPath(pathname) {
+  const p = String(pathname || '');
+  if (/^\/share\//i.test(p)) return '/share';
+  if (/^\/t\//i.test(p)) return '/t';
+  return p.slice(0, 300);
+}
+
 export function isCrawlablePath(pathname) {
   const p = String(pathname || '');
   if (!p.startsWith('/')) return false;

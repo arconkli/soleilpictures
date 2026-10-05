@@ -1,21 +1,65 @@
 # Clusters
 
-> A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. Clusters are never capped on any plan. Each one gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
+> A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-10-02_
 
 A cluster is the unit of work: a project, a scene, a pitch, a moodboard. The
 code and the [API](/docs/api/boards) call the same object a **board**.
 
-## Creating one
+## Starting a project
 
-- **New cluster** in the sidebar
-- `⌘K` → "create cluster"
-- The **Add cluster** tool on any canvas, which creates it nested inside the current one
-- Right-click a canvas → Add → Cluster
+A project is a cluster at the top of your workspace, beside **Studio** (the
+cluster everything starts in). Three ways to start one, and all three put it at
+the top and open it for you:
 
-Clusters are **unlimited on every plan**, including free. Only
-[cards](/docs/canvas/cards) are capped.
+- **New project** on [Home](/docs/clusters/home-graph) — type a name, press Enter
+- The **+** next to **Clusters** in the sidebar — name it right in the sidebar
+- `⌘K` → "new project"
+
+A new project opens on the same panel a first board does: paste or drag images
+in from any tab, or drop a whole folder.
+
+## Dropping a folder
+
+Drag a folder from your desktop onto a canvas and it becomes a cluster there,
+named after the folder. Each folder inside it becomes a cluster nested inside
+that one, the same shape your folders had, and every file becomes a card in
+the cluster it was in — photos laid out in rows, everything else in a grid,
+each keeping its file name. **Add → Folder…** does the same from a picker, on a
+desktop browser.
+
+While it runs, a bar at the bottom of the screen counts the files and has a
+**Cancel**: what has landed is kept, and nothing empty is left behind. When it
+finishes, the message offers **Undo**, which takes every cluster it made back
+to [Trash](/docs/clusters/trash-and-recovery).
+
+- One drop reads up to **500 files** and makes up to
+  **60 clusters**. Past either, the import is partial
+  and says so.
+- Folders nested more than **6 levels** deep are merged
+  into the deepest cluster rather than left out.
+- The things a computer keeps in folders that are not yours to look at —
+  `.DS_Store`, hidden files, app and project bundles such as a `.logicx`
+  session or a Photos library — are left out, and so are files iCloud has not
+  downloaded yet. The message counts them.
+- On the free plan the folder is counted before anything uploads: one
+  [card](/docs/canvas/cards) for each file and one for each cluster it becomes.
+  If it will not all fit, you are asked first, and **Add what fits** takes
+  whole folders in order rather than a scatter of half-filled ones.
+
+Dropping a folder works on the canvas, on a desktop browser. A phone cannot
+drag a folder, and list view takes files rather than folders.
+
+## Adding a cluster inside one
+
+- The **Add cluster** tool on any canvas creates a cluster nested inside the one
+  you are in
+- Right-click a canvas → Add → Cluster does the same, under your cursor
+
+There is no separate limit on how many clusters you make. Each one sits on its
+parent's canvas as a card, though, so on the free Demo plan every cluster counts
+as one of your 50 [cards](/docs/canvas/cards).
 
 ## Nesting
 
@@ -26,9 +70,11 @@ This is how structure emerges without anybody designing it: a film becomes
 scenes, a scene becomes setups, a setup becomes a reference wall — each a real
 board you can open, share and work on independently.
 
-**Moving** a cluster: drag it in the sidebar tree, or drag it onto another
-cluster's card on a canvas. Moves are cycle-safe — dragging a cluster into one
-of its own descendants is refused rather than creating a loop.
+**Moving** a cluster: drag it in the sidebar tree, drag it onto another
+cluster's card on a canvas, or right-click it → **Move to cluster…**. Moves are
+cycle-safe — dragging a cluster into one of its own descendants is refused
+rather than creating a loop. Cards move the same way — see
+[Cards](/docs/canvas/cards).
 
 **Linked clusters** are different: a reference to a cluster that lives elsewhere,
 placed on this canvas. The board itself does not move. Use it when something
@@ -90,10 +136,13 @@ clusters open in.
 
 ## Finding clusters
 
-- **The sidebar tree** expands lazily, so a deep hierarchy stays fast
+- **[Home](/docs/clusters/home-graph)** lists your projects, newest work first,
+  with the clusters you were last in under **Jump back in**
+- **The sidebar tree** opens on your projects, most recently worked on first,
+  and expands lazily, so a deep hierarchy stays fast
+- **All clusters** at the bottom of the sidebar's list searches every cluster
+  and opens the one you pick
 - **[`⌘K`](/docs/organize/search)** searches cluster names alongside everything else
-- **Recents** surfaces what you have had open
-- **[Home](/docs/clusters/home-graph)** shows the whole workspace as a relationship graph
 - **Shared with me** groups clusters other people have invited you to, by whose workspace they came from
 
 ## Deleting

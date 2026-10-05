@@ -1,0 +1,304 @@
+/* Templates panel — the grid tool's flyout (GridTemplatePanel.jsx).
+
+   Lives in its own file rather than styles.css, following cards/gridCard.css:
+   the panel is one self-contained component and nothing else styles it.
+
+   Geometry deliberately mirrors .cnv-add-menu (left:38px, top:0, z-index:70) so
+   both rail flyouts open in the same place with the same weight. The z-index is
+   load-bearing: .cnv-tool[data-tip]::after sits at 60, and without this the panel
+   opens UNDER the rail's own tooltips.
+
+   Gold (--soleil) does not appear here. It is reserved for active/selection/focus
+   and arrives on its own through the global :focus-visible ring in styles.css. */
+
+/* A FIXED HEAD over a SCROLLING BODY, not one scrolling box. The search field
+   and the "what will this do" hint are exactly what you need while scrolling a
+   long list, so they must not scroll away with it.
+
+   The panel itself never scrolls — .tplt-scroll does. That split is also what
+   touchScroll.js hooks: without its own container entry, a finger drag here
+   climbs to .cnv-tools and scrolls the RAIL instead. And CanvasSurface's wheel
+   handler early-returns over .cnv-tpl-panel so the browser performs a native
+   overflow scroll rather than the canvas eating the wheel as zoom. */
+.cnv-tpl-panel {
+  /* Portaled to <body>: left/top/max-height all arrive as inline style from
+     GridTemplatePanel's measure-and-clamp, because the rail is vertically
+     centred and the anchor therefore moves with every window size. Fixed, not
+     absolute — the viewport is what it must stay inside. */
+  position: fixed;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-2);
+  /* Above the rail (20) and its tooltips (60); it is body-level now. */
+  z-index: 200;
+}
+
+.tplt-head { flex: 0 0 auto; }
+.tplt-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Keep momentum scrolling on trackpads/touch surfaces that support it. */
+  overscroll-behavior: contain;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+/* While the panel is open, don't also float the grid tool's own tooltip over it. */
+.cnv-tpl-wrap { position: relative; }
+.cnv-tpl-wrap .cnv-tool.active[data-tip]::after { display: none; }
+
+/* The depth dock shares this corner. Portaling to <body> already settles the
+   stacking argument — the panel is no longer trapped in the rail's context —
+   but two panels overlapping in one corner still reads badly, and the dock is
+   an ambient suggestion where this is a deliberate, transient overlay. Note the
+   selector is on `body`, not `.canvas-wrap`: the panel is no longer inside it.
+   (.cnv-add-menu is still absolutely positioned in the rail and inherits the
+   old trap; it is simply never tall enough to reach the dock.) */
+body:has(.cnv-tpl-panel) .cnv-depth-dock { display: none; }
+
+.tplt-hint {
+  font: 400 11px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  padding: 2px 4px 8px;
+  user-select: none;
+}
+
+.tplt-search {
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  background: var(--bg-2);
+  color: var(--ink-0);
+  font: 400 12px/1 var(--font-sans);
+}
+.tplt-search::placeholder { color: var(--ink-3); }
+
+/* Matches .cnv-add-group-head so the two rail flyouts read as one family, and
+   sticky so you always know which section you are inside once the list is long
+   enough to scroll. The background is opaque because rows pass underneath. */
+.tplt-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--bg-1);
+  padding: 8px 4px 5px;
+  user-select: none;
+  cursor: pointer;
+  text-align: left;
+}
+.tplt-section-head:hover { color: var(--ink-0); }
+.tplt-caret {
+  flex: 0 0 auto;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--ink-3);
+  transition: color var(--dur-fast) var(--ease);
+}
+.tplt-section-head:hover .tplt-caret { color: var(--ink-1); }
+.tplt-section-title { flex: 1 1 auto; min-width: 0; }
+/* The count is what makes a folded section still informative — "Defaults 10"
+   tells you what is behind it without opening it. */
+.tplt-section-count {
+  flex: 0 0 auto;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+/* A folded section is just its header, so drop the gap it would leave behind. */
+.tplt-section.is-folded { margin-bottom: 2px; }
+.tplt-section:first-child .tplt-section-head { padding-top: 0; }
+
+/* Two columns: a layout is picked by LOOKING at it, so the tile has to be big
+   enough to tell 3-across from 4-across at a glance. */
+.tplt-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+/* THE guard, and it is on the child selector on purpose.
+   `1fr` is `minmax(auto, 1fr)`, and that `auto` minimum is the item's min-content
+   width — so one long template name widens its track, the sibling track shrinks
+   to match, and .tplt-scroll grows a horizontal overflow it can be scrolled
+   along. (Measured: a 54-character name took a 290px list to 457px.) Anything
+   inside then clipped by `overflow-x: hidden` is still reachable by
+   scrollIntoView, so merely hovering the next tile slid the whole list sideways.
+   Written as `> *` rather than on .tplt-row-wrap because that is exactly how it
+   broke: a wrapper <div> was added for keyboard navigation, became the grid item,
+   and left the min-width behind on its child. */
+.tplt-rows > * { min-width: 0; }
+
+/* The row is a WRAPPER, not the button. A saved template's "···" trigger is a
+   SIBLING of the pick-button, because a <button> may not contain a <button> —
+   nesting them is invalid HTML and Chromium resolves the click to whichever it
+   feels like. */
+.tplt-row-wrap { position: relative; min-width: 0; }
+
+.tplt-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  width: 100%;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.tplt-row:hover,
+.tplt-row-wrap.is-active .tplt-row { background: var(--bg-hov); border-color: var(--line-2); }
+.tplt-row:active { background: var(--bg-act); }
+
+/* Wraps to two lines, then ellipsis. A tile is ~140px wide at 11px, so a single
+   ellipsized line shows about two words — "Feature film stor…" names nothing,
+   and every long template would truncate to the same prefix. Two lines is where
+   a real name ("Feature film storyboard — master") becomes identifiable again.
+
+   `overflow-wrap: anywhere` rather than `break-word` because only `anywhere`
+   also reduces the min-content width, and min-content width is precisely what
+   sizes the `1fr` track above. Without it a single unbroken 60-character token
+   still widens its column. */
+.tplt-name {
+  font: 400 11px/1.3 var(--font-sans);
+  color: var(--ink-2);
+  text-align: center;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.tplt-row:hover .tplt-name,
+.tplt-row-wrap.is-active .tplt-name { color: var(--ink-0); }
+
+/* Base look lives with the component (gridLayoutThumb.css) so it travels to
+   every surface that renders one. Only the panel's own sizing and hover are here.
+
+   A FIXED HEIGHT, not a fixed aspect: a store template carries its real
+   proportions now, and rows of different heights would make the two-column grid
+   ragged. The SVG's preserveAspectRatio centres each layout inside that band, so
+   a tall casting board simply draws narrower than a wide contact sheet — which is
+   the useful signal, and the one a forced landscape box destroyed. */
+.tplt-row .tplt-thumb { width: 100%; height: 46px; }
+.tplt-row:hover .tplt-thumb rect,
+.tplt-row-wrap.is-active .tplt-thumb rect { stroke: var(--line-3); }
+
+/* Hidden until the tile is hovered or the trigger itself has focus, so a wall of
+   built-ins stays clean and only your own templates grow an affordance. Keyboard
+   users reach it through :focus-visible, which is why focus-within is here. */
+.tplt-row-more {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tplt-row-wrap:hover .tplt-row-more,
+.tplt-row-wrap.is-active .tplt-row-more,
+.tplt-row-wrap:focus-within .tplt-row-more { opacity: 1; }
+.tplt-row-more:hover { color: var(--ink-0); background: var(--bg-act); }
+/* Touch has no hover, so the affordance would never appear. */
+@media (hover: none) and (pointer: coarse) { .tplt-row-more { opacity: 1; } }
+
+.tplt-row-menu {
+  position: absolute;
+  top: 22px;
+  right: 2px;
+  z-index: 2;
+  min-width: 148px;
+  padding: 4px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-1);
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.tplt-row-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-1);
+  font: 400 12px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+.tplt-row-menu button:hover { background: var(--bg-hov); color: var(--ink-0); }
+.tplt-row-menu button.is-danger { color: var(--danger, #e5484d); }
+
+.tplt-save {
+  flex: 0 0 auto;
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 500 12px/1.2 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tplt-save:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+.tplt-empty {
+  font: 400 12px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  padding: 10px 4px 6px;
+  text-align: center;
+}
+
+/* Phone: the panel is a bottom Sheet, so drop the flyout geometry and let the
+   grid breathe to three columns across the wider surface. */
+.sheet-panel .tplt-rows { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sheet-panel .tplt-row { padding: 12px 6px 10px; }
+.sheet-panel .tplt-hint { padding-bottom: 10px; }
+/* The Sheet's own .sheet-body already scrolls, so the inner container must not
+   become a second nested scroll area — two scrollbars fighting over one finger
+   is worse than either alone. */
+.sheet-panel .tplt-scroll { overflow: visible; max-height: none; }

@@ -15,13 +15,15 @@
 // card-index refusal — deferred to nothing and was deferred to by nobody.
 // This module is that guard, made symmetric and shared.
 //
-// Pure and (but for the gallery flag, itself a zero-import leaf with no DOM)
-// dependency-free, mirroring upsellEligibility.js and depthDock.js, so it stays
-// unit-testable under node with no React/DOM — see the sibling .test.mjs.
+// Pure and (but for the gallery flag and the app session id — both zero-import
+// leaves with no DOM) dependency-free, mirroring upsellEligibility.js and
+// depthDock.js, so it stays unit-testable under node with no React/DOM — see
+// the sibling .test.mjs.
 // A DOM query cannot answer "did something just show" for a surface that has
 // not painted yet, which is why the old guard needed a timestamp beside it.
 
 import { isGalleryActive } from './galleryState.js';
+import { getAppSessionId } from './appSession.js';
 
 // How long one upsell surface owns the moment. Matches the 60s stacking guard
 // this replaces in ReferralNudge — deliberately NOT that component's
@@ -58,7 +60,58 @@ const ALWAYS_WINS = 'cap-hit';
 // it, because a refused CARD is a bigger fact than a refused FILE and the two
 // arrive together on an over-cap folder drop. It is here mainly because it
 // arrives once per refused FILE: a folder of six opened six modals in a row.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate']);
+// 'upgrade-reason' is "What's holding you back?", asked as a person CLOSES an
+// offer. It is the tail of the moment that offer already owns rather than a new
+// one, so it may follow an offer still holding the slot (FOLLOWS). Behind
+// anything else it waits like every other ambient kind — and its asker treats a
+// refusal as "not this time", never as an answer.
+// 'pricing-intent' is the Creator offer reopened for someone who pressed "Get
+// Creator" on the public pricing page before they had an account. It is a
+// request they made, not an ask, so it is not AMBIENT and spends no visit; it
+// claims so the ambient kinds stand down around it, and it waits (rather than
+// stacking) if the wall or another offer holds the minute.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent']);
+
+// The surfaces that put an offer on screen. Only these may be followed. (The
+// wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then
+// storage-gate" nearby as a promotion of the storage gate, which this is not.)
+const FOLLOWS = Object.freeze({
+  'upgrade-reason': new Set(['first-value', 'cap-toast', 'storage-gate', 'pricing-intent', ALWAYS_WINS]),
+});
+
+// THE VISIT. The window stops two surfaces landing in the same minute; it never
+// stopped one visit collecting three of them a minute apart, and that is what
+// return visits got. People who come back mostly come back to re-read a board,
+// and they were often asked for something — a reveal, then a share ask, then a
+// question — and sometimes for two of them in the same visit.
+//
+// So the AMBIENT kinds, the asks nobody came for, get one turn per visit between
+// them. The first to show in an app session (lib/appSession: 30 minutes idle, a
+// sign-in or a new UTC day starts the next) owns that session; any other
+// ambient kind waits for the next visit. The owner may show again — the mix
+// prompt follows its person from board to board, and that is one ask.
+//
+// A money surface — the wall, the first-value banner, the near-cap toast, a
+// refused file — is neither refused by this nor spends it: each is a
+// consequence or an offer, and its pacing lives beside it. "What's holding you
+// back?" IS ambient: FOLLOWS lets it follow an offer inside the window, but it
+// is still one more question, so it waits behind an ask this visit already had.
+//
+// The return question ("What brought you back?") is NOT in the budget, by the
+// owner's call (2026-10-01): it is asked once per account, ever, and its answers
+// are the read on why people come back. Made to wait behind a dock, it would
+// lose exactly the visits it exists for — the second, the uncertain one — and
+// its answers would drift toward the stickiest people. It neither waits on the
+// budget nor spends it; the window above still keeps it off any other surface.
+const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'power-reveal', 'upgrade-reason']);
+
+let visitAsk = { visit: null, kind: null };
+
+// The live app session id, or null. A missing id never refuses anything: as
+// with a bad clock, suppressing a surface is the more expensive mistake.
+function currentVisit() {
+  try { return getAppSessionId() || null; } catch (_) { return null; }
+}
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
 // is wired for it on purpose: the claim self-expires in a minute, so the worst
@@ -97,7 +150,10 @@ export function upsellSlotBusy(now = Date.now()) {
 // re-dispatches the first-value signal on every card change, so a surface that
 // stands down here simply arrives at the next card. Burning the one-shot on a
 // deferral would retire the surface for that account forever.
-export function claimUpsellSlot(kind, now = Date.now()) {
+//
+// `visit` is the app session the claim belongs to (THE VISIT, above); callers
+// leave it to default. Tests pass their own.
+export function claimUpsellSlot(kind, now = Date.now(), visit = currentVisit()) {
   if (!KINDS.has(kind)) return false;            // fail closed on a typo'd kind
 
   // The admin Surface Gallery bypasses the mutex entirely, and records nothing.
@@ -117,8 +173,16 @@ export function claimUpsellSlot(kind, now = Date.now()) {
     return true;
   }
 
-  if (upsellSlotBusy(t)) return false;
+  // One ambient ask per visit, and it belongs to whichever showed first.
+  const ambient = AMBIENT.has(kind);
+  if (ambient && visit && visitAsk.visit === visit && visitAsk.kind !== kind) return false;
+
+  if (upsellSlotBusy(t)) {
+    const may = FOLLOWS[kind];
+    if (!may || !may.has(lastClaim.kind)) return false;
+  }
   lastClaim = { kind, at: t };
+  if (ambient && visit) visitAsk = { visit, kind };
   return true;
 }
 
@@ -126,4 +190,5 @@ export function claimUpsellSlot(kind, now = Date.now()) {
 // letting a test reach in and mutate the binding.
 export function __resetUpsellSlot() {
   lastClaim = { kind: null, at: 0 };
+  visitAsk = { visit: null, kind: null };
 }

@@ -7,6 +7,8 @@
 // predicates are the whole of what other code actually needs; stagingRedirect
 // re-exports them so its existing callers (StagingBanner) are unchanged.
 
+import { templateStoreOpenOn } from './templatePaths.js';
+
 // The one place the production hostname is written down.
 export const PROD_HOST = 'clusters.soleilpictures.com';
 
@@ -43,4 +45,35 @@ export function onPreviewHost() {
 // the rebuild reviewable on the preview deploy, which is a production build.
 export function scheduleCreationAllowed() {
   return import.meta.env.DEV || onPreviewHost();
+}
+
+// ---------------------------------------------------------------------------
+// The Scout hold
+//
+// Settings → Connections offers a connect code to text to Soleil Scout — and
+// Scout's bot has never run, so on production that code would send people to
+// text a line nothing answers. Production used to hold the section out with a
+// production-only commit, which meant production could never simply BE main:
+// every promote had to remember to re-apply it, and a promote that didn't would
+// have shipped the dead code. The hold lives here instead, in the same
+// allowlist shape as the schedule hold and for the same reasons — local dev and
+// the preview deploy keep the section reviewable, every other origin (the
+// native shells included) is closed until someone opens it on purpose.
+export function scoutConnectAllowed() {
+  return import.meta.env.DEV || onPreviewHost();
+}
+
+// ---------------------------------------------------------------------------
+// The template store hold
+//
+// The rule itself, and what "the store" covers, is in lib/templatePaths.js,
+// because the Worker has to obey it too. This is the client half: the dev
+// server (and the Playwright suite on it) always has the store, and otherwise
+// it is open only where templateStoreOpenOn says so — the preview deploy.
+// templateStoreOpenOn is handed window.location.hostname rather than a
+// localhost exception: the native shells load from capacitor://localhost, and
+// "localhost" would open the hold inside the shipped app.
+export function templateStoreAllowed() {
+  return import.meta.env.DEV
+    || (typeof window !== 'undefined' && templateStoreOpenOn(window.location.hostname));
 }

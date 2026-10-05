@@ -8,6 +8,7 @@ import { CardPreview } from './CardPreview.jsx';
 export function ClusterGallery({
   items, selectedCards, peerMap, onRowClick, onRowDoubleClick, recentlyAddedIds,
   expandedGroups, selectedGroupId, onGroupClick,
+  onDownload = null, onAudition = null, playingId = null,
 }) {
   return (
     <div className="ct-gallery">
@@ -19,6 +20,7 @@ export function ClusterGallery({
           onGroupClick={onGroupClick}
           selectedCards={selectedCards} peerMap={peerMap} recentlyAddedIds={recentlyAddedIds}
           onRowClick={onRowClick} onRowDoubleClick={onRowDoubleClick}
+          onDownload={onDownload} onAudition={onAudition} playingId={playingId}
         />
       ) : (
         <ClusterTile
@@ -27,6 +29,7 @@ export function ClusterGallery({
           selected={selectedCards.has(it.id)}
           isNew={recentlyAddedIds?.has?.(it.id)}
           peers={peerMap?.get(it.id)}
+          onDownload={onDownload} onAudition={onAudition} playing={playingId === it.id}
           onClick={(e) => onRowClick(e, it.id)}
           onDoubleClick={(e) => onRowDoubleClick(e, it.id)}
         />
@@ -38,6 +41,7 @@ export function ClusterGallery({
 function GroupTiles({
   group, expanded, selected, onGroupClick,
   selectedCards, peerMap, recentlyAddedIds, onRowClick, onRowDoubleClick,
+  onDownload = null, onAudition = null, playingId = null,
 }) {
   return (
     <>
@@ -58,6 +62,7 @@ function GroupTiles({
           selected={selectedCards.has(m.id)}
           isNew={recentlyAddedIds?.has?.(m.id)}
           peers={peerMap?.get(m.id)}
+          onDownload={onDownload} onAudition={onAudition} playing={playingId === m.id}
           onClick={(e) => onRowClick(e, m.id)}
           onDoubleClick={(e) => onRowDoubleClick(e, m.id)}
         />

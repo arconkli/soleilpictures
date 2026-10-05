@@ -66,7 +66,9 @@ test('labels are elapsed time, not calendar — we do not know their timezone', 
   assert.equal(label(25 * HOUR), 'yesterday');
   assert.equal(label(3 * 24 * HOUR), '3 days ago');
   // Past a week the exact day stops mattering and a short date reads better.
-  assert.match(label(30 * 24 * HOUR), /^\d+ \w{3}$/);
+  // en-GB abbreviates September as "Sept" in current ICU, so a three-letter
+  // month is not a fact about the format — the test went red every September.
+  assert.match(label(30 * 24 * HOUR), /^\d+ \w{3,4}$/);
   assert.equal(runLabel({ endedAt: null }), 'earlier');
 });
 

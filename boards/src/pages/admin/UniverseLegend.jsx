@@ -22,7 +22,7 @@
 
 import { KIND_LEGEND, KIND_COLORS } from './UniverseGraph.jsx';
 
-export function UniverseLegend({ graph, hiddenKinds, onToggleKind, onShowAll }) {
+export function UniverseLegend({ graph, hiddenKinds, onToggleKind, onShowAll, onHoverKind }) {
   const byKind = graph?.byKind || {};
   const rows = KIND_LEGEND
     .map((k) => ({ ...k, n: Number(byKind[k.key]) || 0 }))
@@ -50,8 +50,18 @@ export function UniverseLegend({ graph, hiddenKinds, onToggleKind, onShowAll }) 
             <span className="universe-legend-n">{r.n.toLocaleString()}</span>
           </>
         );
+        // Pointing at a row lifts that kind back to its TRUE hue in the
+        // scene. The galaxy renders starlight at rest, so this is how
+        // kind identity stays reachable without the resting view going
+        // back to being a categorical scatter plot.
+        const hoverProps = onHoverKind ? {
+          onPointerEnter: () => onHoverKind(r.key),
+          onPointerLeave: () => onHoverKind(null),
+          onFocus: () => onHoverKind(r.key),
+          onBlur: () => onHoverKind(null),
+        } : null;
         if (!interactive) {
-          return <div className={rowClass} key={r.key} title={title}>{body}</div>;
+          return <div className={rowClass} key={r.key} title={title} {...hoverProps}>{body}</div>;
         }
         return (
           <button
@@ -61,6 +71,7 @@ export function UniverseLegend({ graph, hiddenKinds, onToggleKind, onShowAll }) 
             aria-pressed={!off}
             title={`${title} — click to ${off ? 'show' : 'hide'}`}
             onClick={() => onToggleKind(r.key)}
+            {...hoverProps}
           >
             {body}
           </button>

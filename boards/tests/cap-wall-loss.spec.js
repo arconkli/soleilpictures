@@ -62,7 +62,10 @@ test.describe('the refused count reaches the wall (App.jsx-only path)', () => {
     const s = boardsApi();
     // Without the per-kind tally the wall can only say "cards", which a user who
     // just dropped a folder of photos has to translate.
-    expect(s).toMatch(/rejected: fresh\.length/);
+    // The count is of what was taken back — the cards this tab had just placed.
+    // Refused existing work is kept and reported separately (capRefusal.js).
+    expect(s).toMatch(/rejected: withdraw\.length/);
+    expect(s).toMatch(/kept: keep\.length/);
     expect(s).toMatch(/kinds,/);
     expect(s).toMatch(/kinds\[k\] = \(kinds\[k\] \|\| 0\) \+ 1/);
   });

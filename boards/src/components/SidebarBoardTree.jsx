@@ -12,6 +12,7 @@ import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
+import { boardRecency } from '../lib/projectsHome.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
@@ -21,11 +22,15 @@ import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
 
-function loadExpanded(workspaceId) {
-  if (!workspaceId || typeof localStorage === 'undefined') return new Set();
+// With nothing stored for this workspace, the root starts OPEN: its children
+// are the person's projects, and a tree collapsed to one "Studio" row showed
+// none of them. Once anything is stored, the person's own choice wins.
+function loadExpanded(workspaceId, defaultOpenId = null) {
+  if (!workspaceId || typeof localStorage === 'undefined') return new Set(defaultOpenId ? [defaultOpenId] : []);
   try {
     const raw = localStorage.getItem(expandedKey(workspaceId));
-    return raw ? new Set(JSON.parse(raw)) : new Set();
+    if (raw) return new Set(JSON.parse(raw));
+    return new Set(defaultOpenId ? [defaultOpenId] : []);
   } catch (_) { return new Set(); }
 }
 function saveExpanded(workspaceId, set) {
@@ -36,6 +41,8 @@ function saveExpanded(workspaceId, set) {
 export function SidebarBoardTree({
   boards,                  // map of boardId → board
   workspaceId,
+  rootId = null,           // the workspace's root: open by default, its children sorted newest-first
+  renameRequest = null,    // { boardId, at } — put that row into inline rename once it exists
   activeBoardId,
   onOpenBoard,
   onShareBoard,            // (boardId) => void — open the Share panel on that cluster
@@ -54,7 +61,7 @@ export function SidebarBoardTree({
   peersBelowByBoard,
   onJumpToPeer,
 }) {
-  const [expanded, setExpanded] = useState(() => loadExpanded(workspaceId));
+  const [expanded, setExpanded] = useState(() => loadExpanded(workspaceId, rootId));
   // Inline rename: { boardId, draft }. Double-click a row to enter,
   // Enter/blur to commit, Escape to cancel.
   const [renaming, setRenaming] = useState(null);
@@ -139,6 +146,28 @@ export function SidebarBoardTree({
     try { await onRenameBoard?.(boardId, trimmed); } catch {}
   };
   const cancelRename = () => setRenaming(null);
+
+  // A project made from the sidebar's "+" asks for its name here, in the row,
+  // once the refreshed board list contains it — never by focusing a field on
+  // the canvas, where a focused input would swallow the paste the empty
+  // project is asking for.
+  const handledRenameRef = useRef(null);
+  useEffect(() => {
+    if (!renameRequest?.boardId || handledRenameRef.current === renameRequest.at) return;
+    const board = boards?.[renameRequest.boardId];
+    if (!board) return;
+    handledRenameRef.current = renameRequest.at;
+    if (board.parent_board_id) {
+      setExpanded(prev => {
+        if (prev.has(board.parent_board_id)) return prev;
+        const next = new Set(prev); next.add(board.parent_board_id);
+        saveExpanded(workspaceId, next);
+        return next;
+      });
+    }
+    beginRename(board);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renameRequest, boards]);
 
   // Expand a board's branch so a freshly-created/pasted child becomes visible.
   const expandBoard = (boardId) => {
@@ -241,7 +270,7 @@ export function SidebarBoardTree({
   // Reset expansion state when switching workspaces — we keep per-workspace
   // sets in localStorage so each workspace remembers its own open branches.
   useEffect(() => {
-    setExpanded(loadExpanded(workspaceId));
+    setExpanded(loadExpanded(workspaceId, rootId));
     setSelectedTreeBoards(new Set());
     lastClickedRef.current = null;
   }, [workspaceId]);
@@ -288,8 +317,13 @@ export function SidebarBoardTree({
       if (!out.has(key)) out.set(key, []);
       out.get(key).push(b);
     }
-    for (const arr of out.values()) {
-      arr.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+    for (const [key, arr] of out.entries()) {
+      // The root's children are the person's projects: newest work first, so
+      // the project they are in now is at the top rather than wherever its
+      // creation date put it. Deeper levels keep creation order — a project's
+      // own structure should not reshuffle every time a card moves.
+      if (rootId && key === rootId) arr.sort((a, b) => boardRecency(b) - boardRecency(a));
+      else arr.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
     }
     return out;
   })();

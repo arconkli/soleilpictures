@@ -232,7 +232,7 @@ export function getImageTierScheduler() {
   // ONE settle subscription for the whole app (vs the old ~70 per-card ones):
   // every canvas gesture settle drives one onSettle with the settled scale.
   import('./canvasScale.js')
-    .then((cs) => { cs.onCanvasSettle(() => sched.onSettle(cs.getCanvasScale())); })
+    .then((cs) => { cs.onCanvasSettle(() => sched.onSettle(cs.getImageTierScale())); })
     .catch(() => {});
   return _singleton;
 }

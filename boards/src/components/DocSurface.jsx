@@ -15,7 +15,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -439,15 +439,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const prev = prevTitleRef.current;
     prevTitleRef.current = titleOverride;
     if (!titleOverride || titleOverride === prev || !pages.length) return;
-    const primary = [...pages]
-      .filter(p => p.parent_id == null)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
-    if (!primary) return;
-    // "Tracking" = the page still has an auto-generated name (so syncing the
-    // first real card title is welcome) or its name equals the previous title.
-    const DEFAULT_NAMES = new Set(['', 'Untitled', 'Untitled doc']);
-    const tracking = primary.name === prev || DEFAULT_NAMES.has(primary.name || '');
-    if (tracking) renamePage(ydoc, primary.id, titleOverride, scope);
+    followTitle(ydoc, scope, prev, titleOverride);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titleOverride]);
 

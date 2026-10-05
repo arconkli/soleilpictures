@@ -47,6 +47,33 @@ export function initCardGridStore(ydoc, cardYMap) {
 export function gridCellsMap(cardYMap) { return (cardYMap && cardYMap.get) ? (cardYMap.get('gridCells') || null) : null; }
 export function gridMetaMap(cardYMap) { return (cardYMap && cardYMap.get) ? (cardYMap.get('gridMeta') || null) : null; }
 
+// ── cell hints ───────────────────────────────────────────────────────────────
+// The labels a template puts in its empty cells ("WIDE SHOT", "ACTION"). Stored
+// under gridMeta.hints as { cellId: string } and deliberately NOT in gridCells:
+// a hint is not content. Keeping it out of gridCells is what makes it vanish
+// the moment a cell is filled, and what keeps it out of isCellFilled, the demo
+// card cap, card_index and every export.
+//
+// gridMeta rather than a card field because it is per-card extras, which is
+// exactly what that map is for (the Schedule card keeps `expand` there), and
+// because being in the Y.Doc means hints sync and undo like everything else.
+export function readGridHints(cardYMap, card) {
+  const mm = gridMetaMap(cardYMap);
+  const v = mm && mm.get ? mm.get('hints') : null;
+  if (v && typeof v === 'object') return (typeof v.toJSON === 'function') ? v.toJSON() : v;
+  // Local shell (no Yjs) keeps them on the card, mirroring how `cells` works.
+  return (card && card.hints && typeof card.hints === 'object') ? card.hints : null;
+}
+
+export function setGridHints(ydoc, cardYMap, hints, origin = 'local') {
+  const mm = gridMetaMap(cardYMap);
+  if (!mm) return;
+  ydoc.transact(() => {
+    if (hints && Object.keys(hints).length) mm.set('hints', hints);
+    else mm.delete('hints');
+  }, origin);
+}
+
 // Live cardYMap for a grid id (Yjs path); null in local mode.
 export function gridCardYMap(ydoc, cardId) {
   return ydoc?.getMap?.('cards')?.get?.(cardId) || null;

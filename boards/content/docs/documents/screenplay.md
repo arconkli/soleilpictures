@@ -5,7 +5,7 @@ h1: Screenplay mode
 navLabel: Screenplays
 section: documents
 order: 1
-updated: 2026-08-08
+updated: 2026-10-01
 answer: Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.
 faq:
   - q: Do the on-screen pages match the exported PDF?
@@ -64,6 +64,11 @@ On a feature-length script this is the primary means of navigation.
 
 Bring in a script from Final Draft, work on it here, take it back out. Nothing
 is trapped in the format.
+
+Two ways in. From an open script, **Import** in the export menu replaces its
+content. Or drop a `.fountain` or `.fdx` file onto a canvas or into the list
+view — or paste one — and it becomes a new script document holding your script,
+title page included, ready for you to open. Importing is free on every plan.
 
 PDF export is real vector output in Courier — selectable, searchable text at the
 correct metrics, not a screenshot of the editor.

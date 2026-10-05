@@ -2,7 +2,7 @@
 
 > Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and 100GB storage.
 
-_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-07-07_
+_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-02_
 
 Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.
 
@@ -16,7 +16,7 @@ A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you bui
 
 ## From a quick pin to a real project
 
-Start with a scratch board of references, then grow it into a structured project as the idea firms up: nest boards, connect them, and let auto-tagging keep things filed. You never have to migrate to a "real" tool later — this is the real tool.
+Start with a scratch board of references, then grow it into a structured project as the idea firms up: nest boards, connect them, and tag what matters so it stays findable. You never have to migrate to a "real" tool later — this is the real tool.
 
 ## Made for creative work
 
@@ -34,7 +34,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards across unlimited boards, with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
+Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
 
 ### Do I have to download anything?
 

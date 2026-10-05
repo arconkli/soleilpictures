@@ -183,6 +183,28 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
       continue;
     }
 
+    // Re-checked at delivery, not only when saved. A hook saved under an older,
+    // looser rule (before 2026-10-02 it let [::ffff:…], CGNAT, .lan and
+    // .home.arpa through) must not be POSTed to because it was once accepted.
+    // It is switched off at once, with the reason: the URL can never pass, so
+    // the usual 25 retries would only be 25 more attempts to send it there.
+    const urlProblem = webhookUrlProblem(hook.url);
+    if (urlProblem) {
+      failed++;
+      await db.patch(env, 'webhook_deliveries', `id=eq.${d.id}`, {
+        delivered_at: new Date().toISOString(), attempt: (d.attempt || 0) + 1,
+        error: `not sent: the webhook ${urlProblem}`.slice(0, 300),
+      });
+      if (hook.active) {
+        hook.active = false;
+        await db.patch(env, 'webhooks', `id=eq.${hook.id}`, {
+          active: false,
+          disabled_reason: `the webhook ${urlProblem} — point it at a public https address`.slice(0, 300),
+        });
+      }
+      continue;
+    }
+
     const body = JSON.stringify(d.payload);
     const ts = Math.floor(Date.now() / 1000);
     const signature = await signBody(hook.secret, ts, body);
@@ -203,10 +225,18 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
           'x-soleil-delivery': d.id,
         },
         body,
+        // Never follow a redirect. The URL was checked when the webhook was
+        // saved; a receiver that 302s us somewhere else would send a signed
+        // body to an address that check never saw (fetch's default is to
+        // follow). A 3xx is a failure that names itself, so the owner fixes
+        // the URL rather than the delivery silently going elsewhere.
+        redirect: 'manual',
         signal: AbortSignal.timeout(10_000),
       });
       status = res.status;
-      if (!res.ok) error = `receiver answered ${res.status}`;
+      if (res.status >= 300 && res.status < 400) {
+        error = `receiver answered ${res.status} (a redirect) — webhooks are never redirected; update the webhook URL to the final address`;
+      } else if (!res.ok) error = `receiver answered ${res.status}`;
     } catch (e) {
       error = String(e?.message || e).slice(0, 300);
     }

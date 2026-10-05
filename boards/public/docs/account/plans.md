@@ -1,16 +1,24 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards, unlimited clusters and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
-_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-02_
 
 Two plans. The difference between them is deliberately small and deliberately
-honest — three enforced limits, listed below, and nothing else.
+honest — three enforced limits, listed below, and nothing else. The
+[pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
+is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
+
+Pressing **Get Creator** there before you have an account signs you in
+first, then opens the Creator offer in the app with the plan you picked —
+monthly or annual — rather than leaving you to find it. The choice is kept on
+that device for 24 hours. Pressing **Start free** instead, there or on any other
+page, drops it.
 
 ## Demo — free
 
 - **50 cards** to build with
-- Unlimited clusters and boards
+- No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
 
 ## Creator
@@ -41,6 +49,10 @@ Exactly three things:
 
 Everything else is the same on both plans.
 
+A [grid](/docs/canvas/grids) counts the boxes you have filled, one card each,
+and an empty grid counts as nothing — so laying out a storyboard before you draw
+it costs no cards.
+
 ## One plan covers the workspace
 
 Those three limits are charged to **whoever owns the workspace**, never to the
@@ -58,10 +70,10 @@ work across several, the one that matters is the workspace the cluster lives in.
 > is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced.
 > [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
-> **Note:** Clusters are **not** capped. Neither are collaborators, editing,
-> sharing, [public links](/docs/collaborate/sharing), comments, documents,
-> [screenplay mode](/docs/documents/screenplay) or the
-> [API](/docs/api). Images have no size cap on any plan.
+> **Note:** There is no separate cap on clusters — each one is a card, and counts
+> as one. Collaborators, editing, sharing, [public links](/docs/collaborate/sharing),
+> comments, documents, [screenplay mode](/docs/documents/screenplay) and the
+> [API](/docs/api) are not capped at all. Images have no size cap on any plan.
 
 ## Whose allowance
 
@@ -84,11 +96,14 @@ grant bonus cards when someone you invited actually gets started.
 Once there is a real cluster on your account, Clusters offers you
 **14 days of Creator** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
-on the prompts that show up as a cluster fills, and on the upgrade screen.
+on the prompts that show up as a cluster fills, when the files you drop will not
+fit, in **Settings → Plan & billing**, and on the upgrade screen.
 
 A card is required; nothing is charged until the trial ends, and cancelling
-before then costs nothing. It is one trial per account, and it is offered in
-the app rather than on this page — it is for people who have built something.
+before then costs nothing. About three days before the first charge, Clusters
+emails you the date and the amount, with a link to **Settings → Plan & billing**
+where you can cancel. It is one trial per account, and it is offered in the app
+rather than on this page — it is for people who have built something.
 
 ## Billing
 
@@ -111,6 +126,10 @@ The Demo plan is not a trial. It does not expire and it does not degrade. If
 50 cards is enough for what you do, that is a complete
 account. The Creator trial above is separate: it is a taste of the
 paid plan, and when it ends you are back on exactly this one.
+
+When a trial or a paid plan ends, nothing you made is deleted. Every cluster
+and card stays where it is, and you can keep opening and editing it. If you are
+over your card limit, new cards will not fit until you are back under it.
 
 ---
 

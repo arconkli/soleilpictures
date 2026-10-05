@@ -4,11 +4,39 @@
 // the large gallery tile); note / link are HTML (real text + favicon). The goal
 // isn't beauty — it's that every row is identifiable "from its little mark"
 // instead of falling to a generic glyph.
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ShapeGlyph, KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
 import { Link as LinkIcon } from '../../lib/icons.js';
 import { contrastRatio } from '../../lib/readableColor.js';
+import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAnalysis.js';
+
+// ── Audio ───────────────────────────────────────────────────────────────────
+// The loop's own shape, from the peaks already stored on the card — the same
+// data the row waveform and the audio card draw. Without it a gallery of a
+// sample pack is a wall of identical headphone glyphs, which is the one thing
+// every row in it already has in common.
+//
+// All 96 buckets here, not the row's thinned 48: a tile is wide enough for
+// them, and at this size the extra resolution is what makes one loop look
+// different from the next.
+export function AudioMark({ peaks: peaksB64 }) {
+  const path = useMemo(() => {
+    const p = peaksFromBase64(peaksB64);
+    if (!p) return null;
+    return { d: peaksToPath(p, { height: 40, barWidth: 2, gap: 1.6, minHeight: 1.5 }),
+             w: peaksPathWidth(p.length, { barWidth: 2, gap: 1.6 }) };
+  }, [peaksB64]);
+  if (!path?.d) return null;
+  return (
+    <div className="cbp-audio">
+      <svg className="cbp-audio-wave" viewBox={`0 0 ${path.w} 40`}
+           preserveAspectRatio="none" aria-hidden="true">
+        <path d={path.d} />
+      </svg>
+    </div>
+  );
+}
 
 // ── Grid ────────────────────────────────────────────────────────────────────
 // The subdivision, drawn from normalized cell rects (0–1 box). A filled cell =
