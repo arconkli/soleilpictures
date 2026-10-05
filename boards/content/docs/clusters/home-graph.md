@@ -1,17 +1,17 @@
 ---
-title: Home — Your Projects and Workspace Graph — Soleil Clusters
-metaDescription: Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.
+title: Home — Your Clusters and Workspace Graph — Soleil Clusters
+metaDescription: Home in Soleil Clusters shows your clusters — where you left off, every top-level cluster newest first, New cluster — over a 3D graph of your workspace.
 h1: Home
 navLabel: Home
 section: clusters
 order: 2
 updated: 2026-10-04
-answer: Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.
+answer: Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 faq:
-  - q: What is a project here?
-    a: A cluster at the top of your workspace, beside Studio. New project on Home, the + next to Clusters in the sidebar, and ⌘K → "new project" all create one at the top and open it.
+  - q: Which clusters does Home list?
+    a: Studio and every cluster at the top of your workspace, beside it. New cluster on Home, the + next to Clusters in the sidebar, and ⌘K → "new project" all create one there and open it.
   - q: How do I see the whole graph?
-    a: Press Explore universe on the panel. The panel slides away and the graph is yours to orbit and fly through; Projects brings the panel back. Clusters remembers which one you left on, per device.
+    a: Press Explore universe on the panel. The panel slides away and the graph is yours to orbit and fly through; Clusters brings the panel back. Clusters remembers which one you left on, per device.
   - q: What do the connections in the graph represent?
     a: Real relationships — nesting, links between documents, mentions, and shared URLs. The graph is derived from your content, not arranged by hand.
   - q: What if 3D is slow on my machine?
@@ -46,7 +46,7 @@ A panel shows three things:
   there are none, the ones you worked on most recently anywhere
 - **Your clusters** — **Studio** and every cluster at the top of your workspace,
   newest work first, each with its thumbnail
-- **New project** — type a name (or don't) and press Enter. The project is
+- **New cluster** — type a name (or don't) and press Enter. The cluster is
   created at the top of your workspace and opens, ready for you to paste or drag
   images in
 
@@ -55,7 +55,7 @@ A panel shows three things:
 Behind the panel is the workspace seen as a graph: every cluster, document, card
 and URL as a node, with edges for the relationships between them. It stays
 visible and usable around the panel. **Explore universe** puts the panel away so
-the whole graph is yours; **Projects** brings the panel back.
+the whole graph is yours; **Clusters** brings the panel back.
 
 ## Why a graph
 

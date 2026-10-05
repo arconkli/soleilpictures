@@ -2,7 +2,7 @@
 
 > Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
-_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-09-13_
+_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-10-04_
 
 Two ways to run it on a phone or tablet: the mobile browser, or the same app
 added to your home screen. They are the same app.
@@ -50,8 +50,9 @@ and **Layers** on the other — with the brushes, colours and sizes a tap behind
 the chip showing what you are drawing with, and the frame formats offered on the
 bar itself while the frame is still empty.
 
-On a phone or a touch tablet, [Home](/docs/clusters/home-graph) is your projects
-on their own: the boards you were last in, every project, and **New project**.
+On a phone or a touch tablet, [Home](/docs/clusters/home-graph) is your clusters
+on their own: the ones you were last in, every cluster at the top of your
+workspace, and **New cluster**.
 The 3D workspace graph is left for larger screens, and is never loaded here.
 
 ## Installing

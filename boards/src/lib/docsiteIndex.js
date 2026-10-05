@@ -125,7 +125,7 @@ export const DOCS_PAGES = [
     "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.",
     "section": "start",
     "order": 1,
-    "updated": "2026-10-02",
+    "updated": "2026-10-04",
     "navLabel": "Getting started",
     "headings": [
       {
@@ -1280,7 +1280,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-10-02",
+    "updated": "2026-10-04",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1422,10 +1422,10 @@ export const DOCS_PAGES = [
   },
   {
     "path": "/docs/clusters/home-graph",
-    "title": "Home — Your Projects and Workspace Graph — Soleil Clusters",
-    "metaDescription": "Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.",
+    "title": "Home — Your Clusters and Workspace Graph — Soleil Clusters",
+    "metaDescription": "Home in Soleil Clusters shows your clusters — where you left off, every top-level cluster newest first, New cluster — over a 3D graph of your workspace.",
     "h1": "Home",
-    "answer": "Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.",
+    "answer": "Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.",
     "section": "clusters",
     "order": 2,
     "updated": "2026-10-04",
@@ -1475,12 +1475,12 @@ export const DOCS_PAGES = [
     ],
     "faq": [
       {
-        "q": "What is a project here?",
-        "a": "A cluster at the top of your workspace, beside Studio. New project on Home, the + next to Clusters in the sidebar, and ⌘K → \"new project\" all create one at the top and open it."
+        "q": "Which clusters does Home list?",
+        "a": "Studio and every cluster at the top of your workspace, beside it. New cluster on Home, the + next to Clusters in the sidebar, and ⌘K → \"new project\" all create one there and open it."
       },
       {
         "q": "How do I see the whole graph?",
-        "a": "Press Explore universe on the panel. The panel slides away and the graph is yours to orbit and fly through; Projects brings the panel back. Clusters remembers which one you left on, per device."
+        "a": "Press Explore universe on the panel. The panel slides away and the graph is yours to orbit and fly through; Clusters brings the panel back. Clusters remembers which one you left on, per device."
       },
       {
         "q": "What do the connections in the graph represent?",
@@ -2772,7 +2772,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-09-13",
+    "updated": "2026-10-04",
     "navLabel": "Mobile and tablet",
     "headings": [
       {

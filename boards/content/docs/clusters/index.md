@@ -5,7 +5,7 @@ h1: Clusters
 navLabel: Overview
 section: clusters
 order: 0
-updated: 2026-10-02
+updated: 2026-10-04
 answer: A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 faq:
   - q: Is there a limit on how many clusters I can make?
@@ -29,7 +29,7 @@ A project is a cluster at the top of your workspace, beside **Studio** (the
 cluster everything starts in). Three ways to start one, and all three put it at
 the top and open it for you:
 
-- **New project** on [Home](/docs/clusters/home-graph) — type a name, press Enter
+- **New cluster** on [Home](/docs/clusters/home-graph) — type a name, press Enter
 - The **+** next to **Clusters** in the sidebar — name it right in the sidebar
 - `⌘K` → "new project"
 
