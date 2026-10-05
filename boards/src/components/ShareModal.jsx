@@ -448,6 +448,10 @@ export function ShareModal({
     // pending = no account yet, we wrote pending_invites + sent an
     //           invite-signup email. Claimed automatically on signup.
     const granted = []; const pending = []; const fail = [];
+    // The server's daily invite budget (migration 0358). Once it refuses, every
+    // remaining address would be refused the same way, so the loop stops there
+    // and the sentence is shown once instead of once per address.
+    let limitMsg = null; let limitAt = null;
 
     for (const email of emails) {
       try {
@@ -483,6 +487,7 @@ export function ShareModal({
         else granted.push(email);
       } catch (e) {
         const msg = e?.message || String(e);
+        if (/invite limit reached/i.test(msg)) { limitMsg = msg; limitAt = email; break; }
         fail.push({ email, reason: msg });
       }
     }
@@ -512,6 +517,22 @@ export function ShareModal({
         setPendingBoardInvites(pendingRows);
       } catch (_) {}
       onSharesChanged?.();
+    }
+
+    if (limitMsg) {
+      const sent = granted.length + pending.length;
+      const unsent = emails.slice(emails.indexOf(limitAt));
+      const reason = limitMsg.replace(/^invite limit reached:\s*/i, '');
+      feedback.toast({
+        type: 'warning',
+        message: sent > 0
+          ? `Sent ${sent}; ${unsent.length} not sent. ${reason}`
+          : `Not sent. ${reason}`,
+      });
+      // The unsent addresses stay in the box, ready for tomorrow.
+      setInviteEmail(unsent.join(', '));
+      setInviting(false);
+      return;
     }
 
     // Summary toast.

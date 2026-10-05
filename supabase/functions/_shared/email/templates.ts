@@ -8,6 +8,9 @@
 //   4. update send-transactional-email's accepted template list
 
 import { renderEmail, renderPlainNote } from "./layout.ts";
+// Names other people typed, made safe for a subject line: no links, no
+// newlines, a length cap. See safeLabel.mjs for why (migration 0358).
+import { safeLabel, safePerson } from "./safeLabel.mjs";
 
 export type TemplateName =
   | "waitlist_submitted"
@@ -1348,32 +1351,35 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       return waitlistAccepted();
     case "workspace_invite":
       return workspaceInvite({
-        workspaceName: String(data.workspaceName ?? "your workspace"),
-        inviterName:   String(data.inviterName   ?? "Someone"),
+        workspaceName: safeLabel(data.workspaceName, 60, "your workspace"),
+        inviterName:   safePerson(data.inviterName),
         role:          data.role != null ? String(data.role) : undefined,
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
       });
     case "board_shared":
       return boardShared({
-        boardName:   String(data.boardName  ?? "a board"),
-        sharerName:  String(data.sharerName ?? "Someone"),
+        boardName:   safeLabel(data.boardName, 60, "a board"),
+        sharerName:  safePerson(data.sharerName),
         role:        data.role != null ? String(data.role) : undefined,
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
       });
     case "invite_accepted":
       return inviteAccepted({
-        joinerName:  String(data.joinerName ?? "Someone"),
-        boardName:   String(data.boardName  ?? "a board"),
+        joinerName:  safePerson(data.joinerName),
+        boardName:   safeLabel(data.boardName, 60, "a board"),
         role:        data.role != null ? String(data.role) : undefined,
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
       });
     case "pending_invite":
+      // The recipient has no account, so this is the email a stranger reads:
+      // the inviter is named by account email (0358's trigger sends it), and a
+      // cluster name that sanitises to nothing falls back to the workspace form.
       return pendingInvite({
-        inviterName:   String(data.inviterName   ?? "Someone"),
-        workspaceName: String(data.workspaceName ?? "a workspace"),
-        boardName:     data.boardName != null ? String(data.boardName) : undefined,
+        inviterName:   safePerson(data.inviterName),
+        workspaceName: safeLabel(data.workspaceName, 60, "a workspace"),
+        boardName:     safeLabel(data.boardName, 60) || undefined,
         role:          String(data.role ?? "viewer"),
         token:         String(data.token ?? ""),
         expiresAt:     data.expiresAt != null ? String(data.expiresAt) : undefined,
@@ -1383,9 +1389,9 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       const surface = (surfaceRaw === "dm" || surfaceRaw === "board" || surfaceRaw === "workspace")
         ? surfaceRaw : "workspace";
       return mentionEmailTpl({
-        mentionerName:  String(data.mentionerName  ?? "Someone"),
+        mentionerName:  safePerson(data.mentionerName),
         surface,
-        surfaceContext: String(data.surfaceContext ?? "your workspace"),
+        surfaceContext: safeLabel(data.surfaceContext, 60, "your workspace"),
         messagePreview: String(data.messagePreview ?? ""),
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
@@ -1404,9 +1410,9 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       });
     case "comment_reply_email":
       return commentReplyEmailTpl({
-        replierName:   String(data.replierName   ?? "Someone"),
-        boardName:     String(data.boardName     ?? "a board"),
-        workspaceName: String(data.workspaceName ?? "your workspace"),
+        replierName:   safePerson(data.replierName),
+        boardName:     safeLabel(data.boardName, 60, "a board"),
+        workspaceName: safeLabel(data.workspaceName, 60, "your workspace"),
         replyPreview:  String(data.replyPreview  ?? ""),
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
