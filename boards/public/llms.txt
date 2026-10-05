@@ -11,7 +11,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Changelog
 
-- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly. Most recent entry: 2026-08-26. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
+- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly. Most recent entry: 2026-10-04. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
 
 ## Pricing
 

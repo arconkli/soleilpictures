@@ -2,6 +2,1150 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-04": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This release brings several weeks of work to the live site at once. Most of it is about getting material in without losing anything on the way: a folder keeps its shape, a file keeps its name, and an image dragged in from the web stops depending on the page it came from."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Folders, file names and web images",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Folders, file names and web images"
+    }
+   ],
+   "id": "2026-10-04-folders-file-names-and-web-images"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Drag a folder from your desktop onto a canvas and it becomes a cluster named after it, each folder inside it a nested cluster in the same shape, and every file a card in the cluster it was in. "
+     },
+     {
+      "t": "strong",
+      "v": "Add → Folder…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add → Folder…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " does the same from a picker, on a desktop browser. See "
+     },
+     {
+      "t": "link",
+      "v": "dropping a folder",
+      "href": "/docs/clusters#dropping-a-folder",
+      "children": [
+       {
+        "t": "text",
+        "v": "dropping a folder"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It runs with a progress bar and a "
+     },
+     {
+      "t": "strong",
+      "v": "Cancel",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cancel"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " that keeps what has landed, and its Undo takes every cluster it made to Trash. One drop reads up to 500 files and makes up to 60 clusters; folders nested deeper than 6 levels merge into the deepest cluster rather than being left out. On the free plan a folder is counted before anything uploads — a card per file, one per cluster — and "
+     },
+     {
+      "t": "strong",
+      "v": "Add what fits",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add what fits"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " brings files in, in order, up to what fits, without ever making an empty cluster."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Images and videos uploaded from now on keep the names their files had. "
+     },
+     {
+      "t": "code",
+      "v": "diner_ext_dusk_04.jpg"
+     },
+     {
+      "t": "text",
+      "v": " stays that in list view and comes back out of Download under it, rather than as "
+     },
+     {
+      "t": "code",
+      "v": "download.jpg"
+     },
+     {
+      "t": "text",
+      "v": ". Audio, PDFs and attachments always kept theirs."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An image dragged in from another tab is kept as a copy in your workspace, counted against the cluster owner's storage like any upload. It shows at once from the page, then switches to the copy, so it no longer breaks when that page moves, its link expires or the picture goes behind a login. Web images placed before this are copied a few at a time when someone who can edit the cluster opens it. Past 25 MB, behind a login, or in a format not every browser can show, an image stays a link, as before."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A "
+     },
+     {
+      "t": "code",
+      "v": ".fountain"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": ".fdx"
+     },
+     {
+      "t": "text",
+      "v": " file dropped or pasted in becomes a new script document, title page included, on every plan. It used to be treated as a plain file, which the free plan refused. An unfinished download ("
+     },
+     {
+      "t": "code",
+      "v": ".crdownload"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": ".part"
+     },
+     {
+      "t": "text",
+      "v": ") is skipped with a note to drop it again once it has finished, and on the free plan a PureRef "
+     },
+     {
+      "t": "code",
+      "v": ".pur"
+     },
+     {
+      "t": "text",
+      "v": " file gets a plain answer instead of an upgrade offer."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Search reads documents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Search reads documents"
+    }
+   ],
+   "id": "2026-10-04-search-reads-documents"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "code",
+      "v": "⌘K"
+     },
+     {
+      "t": "text",
+      "v": " searches the words inside documents, not only their titles. A match shows the line it came from under "
+     },
+     {
+      "t": "strong",
+      "v": "Inside docs",
+      "children": [
+       {
+        "t": "text",
+        "v": "Inside docs"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and opens the document at that page. A document written before this is indexed the next time it, or anything in its cluster, is edited."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It also finds an image or video by the name its file was uploaded with — a photo nobody captioned turns up as "
+     },
+     {
+      "t": "code",
+      "v": "diner_ext_dusk_04.jpg"
+     },
+     {
+      "t": "text",
+      "v": " — in the palette and in list view's search across clusters."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A search with brackets in it, such as "
+     },
+     {
+      "t": "code",
+      "v": "Act II (rev)"
+     },
+     {
+      "t": "text",
+      "v": ", finds the words instead of failing and showing nothing."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Projects and Home",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Projects and Home"
+    }
+   ],
+   "id": "2026-10-04-projects-and-home"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "New project",
+      "children": [
+       {
+        "t": "text",
+        "v": "New project"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — on Home, from the "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " beside Clusters in the sidebar, or "
+     },
+     {
+      "t": "code",
+      "v": "⌘K"
+     },
+     {
+      "t": "text",
+      "v": " → New project — makes a cluster at the top of your workspace, beside Studio, and opens it. Before, every way of making a cluster put it inside whichever one was open, unnamed and unopened. The canvas tool and right-click still add one inside the current cluster."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Home",
+      "children": [
+       {
+        "t": "text",
+        "v": "Home"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " shows your projects: "
+     },
+     {
+      "t": "strong",
+      "v": "Jump back in",
+      "children": [
+       {
+        "t": "text",
+        "v": "Jump back in"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " with the clusters you were last in, then Studio and every project, newest work first, on a panel over the workspace graph. "
+     },
+     {
+      "t": "strong",
+      "v": "Explore universe",
+      "children": [
+       {
+        "t": "text",
+        "v": "Explore universe"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts the panel away. On a phone or a touch tablet, Home is the panel alone."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The sidebar opens on your projects, most recently worked on first, and "
+     },
+     {
+      "t": "strong",
+      "v": "All clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "All clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the bottom of its list opens the cluster you pick. It used to drop a link card onto the canvas, which on the free plan cost a card."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Cards get "
+     },
+     {
+      "t": "strong",
+      "v": "Move to cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move to cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the right-click menu, listing every cluster in the workspace, so material gathered on one can be filed into another without a drag. Its Undo puts both sides back."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Moving cards at the card limit could lose the ones the destination would not take. A move now takes off the source only what landed, and a move within one workspace never changes your count."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Audio, downloads and list view",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Audio, downloads and list view"
+    }
+   ],
+   "id": "2026-10-04-audio-downloads-and-list-view"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Audio cards draw a real waveform, decoded from the file as it uploads. It used to be an invented shape, so two copies of the same take drew two different ones. Older cards get theirs filled in while the cluster is open; files over 25 MB or longer than 10 minutes show a flat strip and still play."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Tempo and key are read from the filename — "
+     },
+     {
+      "t": "code",
+      "v": "SFL_120_Gmin_Loop_Piano.wav"
+     },
+     {
+      "t": "text",
+      "v": " — and are editable on the card, where what you type is never overwritten. Cover art is lifted from the file's own tag in MP3, M4A and FLAC."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In list view, a cluster that is mostly audio swaps Type and Size for "
+     },
+     {
+      "t": "strong",
+      "v": "Time",
+      "children": [
+       {
+        "t": "text",
+        "v": "Time"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "BPM",
+      "children": [
+       {
+        "t": "text",
+        "v": "BPM"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Key",
+      "children": [
+       {
+        "t": "text",
+        "v": "Key"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Format",
+      "children": [
+       {
+        "t": "text",
+        "v": "Format"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", all sortable, with key in circle-of-fifths order. A row's thumbnail plays it, "
+     },
+     {
+      "t": "code",
+      "v": "↑"
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "↓"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "Space"
+     },
+     {
+      "t": "text",
+      "v": " audition from the keyboard, and when a clip ends the next row starts on its own. On the canvas, "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " plays the selected clip and "
+     },
+     {
+      "t": "code",
+      "v": "L"
+     },
+     {
+      "t": "text",
+      "v": " loops it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Audio and video cards get a download button, there for anyone who can see the card, including a visitor on a shared link. "
+     },
+     {
+      "t": "strong",
+      "v": "Download all",
+      "children": [
+       {
+        "t": "text",
+        "v": "Download all"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in list view, or "
+     },
+     {
+      "t": "strong",
+      "v": "Download",
+      "children": [
+       {
+        "t": "text",
+        "v": "Download"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on a selection, makes one zip of up to 500 files or 500 MB."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A "
+     },
+     {
+      "t": "code",
+      "v": ".flac"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": ".aiff"
+     },
+     {
+      "t": "text",
+      "v": " dropped in Safari, and an "
+     },
+     {
+      "t": "code",
+      "v": ".mp3"
+     },
+     {
+      "t": "text",
+      "v": " pasted from the clipboard, arrive as audio cards, which the free plan takes, instead of as file cards it turned away."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A cluster set to list view opens as a list on a shared or published link too, with its search, sorting, playback and downloads. List view also keeps its header and selection bar in view while you scroll, "
+     },
+     {
+      "t": "code",
+      "v": "Shift"
+     },
+     {
+      "t": "text",
+      "v": "-click selects a range, and in a narrow pane its columns give way in order, the name last."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "New pages, and a treatment to start from",
+   "inline": [
+    {
+     "t": "text",
+     "v": "New pages, and a treatment to start from"
+    }
+   ],
+   "id": "2026-10-04-new-pages-and-a-treatment-to-start-from"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Comparisons with "
+     },
+     {
+      "t": "link",
+      "v": "Eagle",
+      "href": "/vs/eagle",
+      "children": [
+       {
+        "t": "text",
+        "v": "Eagle"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "link",
+      "v": "Google Drive",
+      "href": "/vs/google-drive",
+      "children": [
+       {
+        "t": "text",
+        "v": "Google Drive"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": what each does better, and when to keep both. The list view docs gain a plain yes-and-no table for "
+     },
+     {
+      "t": "link",
+      "v": "using Clusters like a drive",
+      "href": "/docs/clusters/list-view#can-i-use-clusters-like-google-drive",
+      "children": [
+       {
+        "t": "text",
+        "v": "using Clusters like a drive"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Five pages for production departments: "
+     },
+     {
+      "t": "link",
+      "v": "shared reference boards",
+      "href": "/tools/shared-reference-board",
+      "children": [
+       {
+        "t": "text",
+        "v": "shared reference boards"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for art teams, the "
+     },
+     {
+      "t": "link",
+      "v": "director's treatment",
+      "href": "/tools/directors-treatment",
+      "children": [
+       {
+        "t": "text",
+        "v": "director's treatment"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "link",
+      "v": "production design",
+      "href": "/tools/production-design-mood-board",
+      "children": [
+       {
+        "t": "text",
+        "v": "production design"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "link",
+      "v": "costume design",
+      "href": "/tools/costume-design-mood-board",
+      "children": [
+       {
+        "t": "text",
+        "v": "costume design"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and the "
+     },
+     {
+      "t": "link",
+      "v": "cinematography lookbook",
+      "href": "/tools/cinematography-lookbook",
+      "children": [
+       {
+        "t": "text",
+        "v": "cinematography lookbook"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The director's treatment page hands you a document to start from. Press its button and, once you are signed in, a treatment — a cover, then a page for each section — is added to a cluster in your own workspace and opens. Until you change it, it is a template: it does not count toward your cards and search does not list it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Plans and pricing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Plans and pricing"
+    }
+   ],
+   "id": "2026-10-04-plans-and-pricing"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Pressing "
+     },
+     {
+      "t": "strong",
+      "v": "Get Creator",
+      "children": [
+       {
+        "t": "text",
+        "v": "Get Creator"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on "
+     },
+     {
+      "t": "link",
+      "v": "/pricing",
+      "href": "/pricing",
+      "children": [
+       {
+        "t": "text",
+        "v": "/pricing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " before you have an account now carries through sign-in: once you are in, the offer opens with the monthly or annual plan you picked. The choice is kept on that device for 24 hours, and "
+     },
+     {
+      "t": "strong",
+      "v": "Start free",
+      "children": [
+       {
+        "t": "text",
+        "v": "Start free"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " drops it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An empty grid costs no cards, however many boxes it has: only filled boxes count, so a storyboard laid out but not yet drawn is free."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "When a Creator plan or trial ends, nothing you made is deleted. A card placed on Creator that had not yet been counted could be taken off the canvas at the next sync; now a card over the limit stays where it is, and new cards wait until you are back under it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Starting a trial no longer returns you to a page saying a payment was taken: it says nothing was charged, and when the first charge will be. About three days before it, an email gives the date and the amount, with a link to "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → Plan & billing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Plan & billing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Plans, pricing and marketing pages stop calling clusters unlimited. There is no separate limit on clusters, but each one sits on its parent's canvas as a card, and on the free plan it counts as one of your 50."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The pricing page can be read without JavaScript, by search engines and assistants, and as Markdown at "
+     },
+     {
+      "t": "link",
+      "v": "/pricing.md",
+      "href": "/pricing.md",
+      "children": [
+       {
+        "t": "text",
+        "v": "/pricing.md"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". The Milanote, Miro, Storyflow, Eagle and Google Drive comparisons, and the five professional pages, show "
+     },
+     {
+      "t": "strong",
+      "v": "What it costs",
+      "children": [
+       {
+        "t": "text",
+        "v": "What it costs"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on the page."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "API and MCP",
+   "inline": [
+    {
+     "t": "text",
+     "v": "API and MCP"
+    }
+   ],
+   "id": "2026-10-04-api-and-mcp"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Uploads can keep a file's own name: pass "
+     },
+     {
+      "t": "code",
+      "v": "filename"
+     },
+     {
+      "t": "text",
+      "v": " to "
+     },
+     {
+      "t": "code",
+      "v": "POST /uploads"
+     },
+     {
+      "t": "text",
+      "v": " or the multipart complete call, and "
+     },
+     {
+      "t": "code",
+      "v": "file_name"
+     },
+     {
+      "t": "text",
+      "v": " on the card. "
+     },
+     {
+      "t": "code",
+      "v": "GET /images"
+     },
+     {
+      "t": "text",
+      "v": " returns it, and "
+     },
+     {
+      "t": "code",
+      "v": "GET /images/:key"
+     },
+     {
+      "t": "text",
+      "v": " sends it in "
+     },
+     {
+      "t": "code",
+      "v": "Content-Disposition"
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On the hosted MCP server, "
+     },
+     {
+      "t": "code",
+      "v": "upload_image"
+     },
+     {
+      "t": "text",
+      "v": " takes "
+     },
+     {
+      "t": "code",
+      "v": "file_name"
+     },
+     {
+      "t": "text",
+      "v": ", and "
+     },
+     {
+      "t": "code",
+      "v": "add_cards"
+     },
+     {
+      "t": "text",
+      "v": " creates "
+     },
+     {
+      "t": "code",
+      "v": "audio"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "pdf"
+     },
+     {
+      "t": "text",
+      "v": " cards — two kinds the REST API always accepted but the tool's schema left out."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Webhook deliveries no longer follow redirects: a "
+     },
+     {
+      "t": "code",
+      "v": "3xx"
+     },
+     {
+      "t": "text",
+      "v": " counts as a failed delivery, so point each webhook at its final address. The address is also checked again at every delivery. The importer still follows redirects, but every hop must pass the same public-host rule, and one that does not fails that item with "
+     },
+     {
+      "t": "code",
+      "v": "source_refused"
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Elsewhere",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Elsewhere"
+    }
+   ],
+   "id": "2026-10-04-elsewhere"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "With your system set to reduce motion, the canvas could not pan or zoom at all. It can now."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A photo whose upload never finished — the tab closed, or a phone sent the browser to the background — no longer spins on the board forever or counts toward your card limit. Once it clearly cannot finish, it is removed the next time someone who can edit the cluster opens it, with a note saying how many to add again."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Coming back to look at a board no longer means being asked to add to it every visit. The add-more prompts stop after a couple of visits to the same board, suggestions take turns at one per visit rather than one a minute, and the tour no longer starts over on a new device for an account that has already built something."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Send feedback",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send feedback"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens on a one-tap topic, with words and a screenshot both optional and "
+     },
+     {
+      "t": "strong",
+      "v": "OK to email me about this",
+      "children": [
+       {
+        "t": "text",
+        "v": "OK to email me about this"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " unticked. Two one-time questions join the return question — what best describes you, and, after you close an upgrade offer on the free plan, what is holding you back — and each shows what is sent with your answer before you send it. See "
+     },
+     {
+      "t": "link",
+      "v": "data and privacy",
+      "href": "/docs/account/data-and-privacy",
+      "children": [
+       {
+        "t": "text",
+        "v": "data and privacy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Several pages described things the product does not do, and now say what it does. Nothing files or tags a dropped image for you: automatic tagging reads text, never a picture, and marks what it applies as auto for you to confirm or remove. A palette is built with the eyedropper, a swatch at a time, rather than extracted from an image. "
+     },
+     {
+      "t": "link",
+      "v": "Soleil Scout",
+      "href": "/scout",
+      "children": [
+       {
+        "t": "text",
+        "v": "Soleil Scout"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is invite-only and not running yet."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-08-26": [
   {
    "type": "para",
