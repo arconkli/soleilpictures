@@ -1425,12 +1425,16 @@ export const DOCS_PAGES = [
     "title": "Home — Your Projects and Workspace Graph — Soleil Clusters",
     "metaDescription": "Home in Soleil Clusters shows your projects — where you left off, every project newest first, New project — over a 3D graph of your workspace.",
     "h1": "Home",
-    "answer": "Home shows your projects — the clusters you were last in, every project newest first, and New project — on a panel floating over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.",
+    "answer": "Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to, which you can switch or add to from the top of the panel. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.",
     "section": "clusters",
     "order": 2,
-    "updated": "2026-10-01",
+    "updated": "2026-10-04",
     "navLabel": "Home",
     "headings": [
+      {
+        "id": "your-workspace",
+        "text": "Your workspace"
+      },
       {
         "id": "your-projects",
         "text": "Your projects"

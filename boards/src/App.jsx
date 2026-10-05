@@ -88,6 +88,7 @@ import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
 import { isAiTaggerEnabled } from './lib/aiTaggerFlag.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
+import { markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch } from './lib/homeAfterSwitch.js';
 import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
@@ -3702,7 +3703,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Filtering happens in `currentCards` below — see useMemo there.
 
   // ── New workspace ────────────────────────────────────────────────────────
-  const addNewWorkspace = async () => {
+  // `thenHome`: asked for from Home, so the new workspace opens on Home — its
+  // projects panel, with Studio and New project — rather than on its canvas.
+  const addNewWorkspace = async ({ thenHome = false } = {}) => {
     const name = await feedback.prompt({
       title: 'New workspace',
       label: 'Workspace name',
@@ -3716,6 +3719,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // separate createBoard call is needed.
       const ws = await createWorkspace({ name: name.trim(), userId: user.id });
       await onWorkspacesChanged?.();
+      if (thenHome === true) markHomeAfterSwitch(ws.id);
       onSwitchWorkspace?.(ws.id);
     } catch (e) {
       console.error('addNewWorkspace failed', e);
@@ -4153,7 +4157,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const mainMutatorsGuarded = useMemo(
     () => guardCaptureMutators(mainMutatorsFull), [mainMutatorsFull]);
 
-  const [currentSurface, setCurrentSurface] = useState('board');
+  // 'board', unless this workspace was switched to (or created) from Home's
+  // switcher — then it opens on Home, showing its own projects
+  // (lib/homeAfterSwitch: the switch remounts all of this).
+  const [currentSurface, setCurrentSurface] = useState(() => (homeAfterSwitchFor(workspace.id) ? 'home' : 'board'));
+  useEffect(() => { clearHomeAfterSwitch(); }, []);
   // Home's panel put away to explore the graph. Per device, like the sidebar's
   // open state: someone who prefers the universe keeps it.
   const HOME_EXPLORE_KEY = 'soleil.home.exploring';
@@ -8469,6 +8477,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               setCurrentSurface('board');
             }}
             onNewProject={(name) => { mainMutators.addNewProject?.({ via: 'home', name }); }}
+            workspace={workspace}
+            workspaces={workspaces || []}
+            personalWorkspaceId={personalWorkspaceId}
+            selfUserId={user.id}
+            wsPeers={wsPeers}
+            onSwitchWorkspace={(id) => {
+              if (!id || id === workspace.id) return;
+              try { logEvent(EV.HOME_WORKSPACE_SWITCH, { n_workspaces: (workspaces || []).length }); } catch (_) {}
+              // Land on Home in the other workspace, not on its canvas.
+              markHomeAfterSwitch(id);
+              onSwitchWorkspace(id);
+            }}
+            onNewWorkspace={() => {
+              try { logEvent(EV.HOME_WORKSPACE_NEW, { n_workspaces: (workspaces || []).length }); } catch (_) {}
+              addNewWorkspace({ thenHome: true });
+            }}
+            onRemoveWorkspace={(ws, action) => removeWorkspace(ws, action)}
+            onOpenWorkspaceSettings={(ws) => openWorkspaceSettings(ws)}
             /* Phones get the panel only: no graph to float over, and no reason
                to load the 3D bundle for scenery. */
             graph={mobileShell ? null : (

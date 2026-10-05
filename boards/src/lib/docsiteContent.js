@@ -16628,6 +16628,50 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Your workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your workspace"
+    }
+   ],
+   "id": "your-workspace"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. Each workspace in the list has a ⋯ menu for its name and icon, or to delete or leave it. "
+    },
+    {
+     "t": "strong",
+     "v": "New workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "New workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " beside the name starts a fresh one, with its own Studio, and opens it on Home."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same switcher sits at the top of the sidebar. Switching from there takes you straight to the workspace's canvas instead."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Your projects",
    "inline": [
     {

@@ -5,8 +5,8 @@ h1: Home
 navLabel: Home
 section: clusters
 order: 2
-updated: 2026-10-01
-answer: Home shows your projects — the clusters you were last in, every project newest first, and New project — on a panel floating over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.
+updated: 2026-10-04
+answer: Home shows your projects — the clusters you were last in, every project newest first, and New project — under the workspace they belong to, which you can switch or add to from the top of the panel. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Projects brings it back.
 faq:
   - q: What is a project here?
     a: A cluster at the top of your workspace, beside Studio. New project on Home, the + next to Clusters in the sidebar, and ⌘K → "new project" all create one at the top and open it.
@@ -24,6 +24,18 @@ related:
 
 **Home** is where your projects are. Open it from **Home** in the sidebar or the
 **Clusters** logo in the top bar.
+
+## Your workspace
+
+The top of the panel names the workspace these projects belong to, and whether
+it is your personal one, another of yours, or shared with you. Click it to
+switch to any workspace you are in: Home stays open and shows that workspace's
+projects. Each workspace in the list has a ⋯ menu for its name and icon, or to
+delete or leave it. **New workspace** beside the name starts a fresh one, with
+its own Studio, and opens it on Home.
+
+The same switcher sits at the top of the sidebar. Switching from there takes
+you straight to the workspace's canvas instead.
 
 ## Your projects
 
