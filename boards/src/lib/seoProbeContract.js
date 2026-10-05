@@ -45,7 +45,7 @@ export const PROBE_ORIGIN = 'https://clusters.soleilpictures.com';
 //   { kind: 'listicle', path }       buildListicleCrawlableHtml(getListicleSpec(path))
 //   { kind: 'docs', path }           DOCS_HTML[path]
 //   { kind: 'pricing' }              buildPricingCrawlableHtml(), injected into
-//                                    #seo-fallback on /pricing (0350 rows, after promote)
+//                                    #seo-fallback on /pricing (0350's rows 78 and 80)
 //   { kind: 'file',  path }          a committed file under boards/ served as-is
 //   { kind: 'route' }                a route path, not prose — asserted against
 //                                    the landing/listicle path registries
@@ -141,6 +141,18 @@ export const SEO_PROBE_CONTRACT = [
     expected: 'A Storyflow Alternative for Crews That Work Live', source: { kind: 'file', path: 'public/vs/storyflow.md' } },
   { id: 75, path: '/sitemap.xml', check: 'sitemap has storyflow',
     expected: '/vs/storyflow', source: { kind: 'route' } },
+
+  // ── /pricing and its Markdown twin (0350, applied 2026-10-04) ────────────
+  // Applied only once production first served this body. The ids were minted
+  // in this order, not the migration file's.
+  { id: 78, path: '/pricing', check: 'GPTBot sees the pricing plans',
+    expected: 'no per-seat charges', source: { kind: 'pricing' } },
+  { id: 79, path: '/pricing.md', check: 'pricing md carries the plan table',
+    expected: '| | Free | Creator |', source: { kind: 'file', path: 'public/pricing.md' } },
+  { id: 80, path: '/pricing', check: 'pricing body is the pricing page',
+    expected: 'Both plans, line by line', source: { kind: 'pricing' } },
+  { id: 81, path: '/pricing.md', check: 'pricing md mirror',
+    expected: 'Start free. Pay when you outgrow it.', source: { kind: 'file', path: 'public/pricing.md' } },
 ];
 
 // Deliberately NOT pinned: their `expected` is live database content, not
