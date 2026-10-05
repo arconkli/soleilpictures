@@ -57,7 +57,7 @@ test('every Worker response passes through withSecurityHeaders', () => {
   // The wrapper exists precisely so new routes cannot forget. If the exported
   // fetch stops delegating to handleFetch through it, that guarantee is gone.
   assert.ok(
-    /async fetch\([^)]*\)\s*\{\s*const nonce = makeNonce\(\);\s*return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce\)/.test(src),
+    /async fetch\([^)]*\)\s*\{\s*const nonce = makeNonce\(\);\s*return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce(?:, new URL\(request\.url\)\.hostname)?\)/.test(src),
     'exported fetch must mint a nonce and wrap handleFetch in withSecurityHeaders with it',
   );
   assert.ok(/^export default worker;/m.test(src), 'worker.js must export the named worker object');
@@ -100,4 +100,19 @@ test('index.html carries no inline event handlers', () => {
   const html = read('index.html');
   const handlers = html.match(/\son[a-z]+="[^"]*"/gi) || [];
   assert.deepEqual(handlers, [], 'inline on*= handlers cannot run under the nonce CSP: ' + handlers.join(' '));
+});
+
+test('the workers.dev alias is kept out of search indexes, on both halves', () => {
+  // The production deploy answers on its *.workers.dev alias with every page at
+  // 200. Static responses never pass through the Worker, so the absolute host
+  // rule in _headers and the Worker's own header must BOTH hold.
+  const headers = read('public/_headers');
+  assert.match(headers, /^https:\/\/:worker\.:subdomain\.workers\.dev\/\*\s*\n\s+X-Robots-Tag: noindex/m,
+    '_headers must noindex the workers.dev host');
+  const src = read('src/worker.js');
+  assert.match(src, /function isWorkersDevHost\(host\)[\s\S]*?endsWith\('\.workers\.dev'\)/);
+  assert.match(src, /if \(noindexAlias\) headers\.set\('x-robots-tag', 'noindex'\)/,
+    'the Worker must set x-robots-tag on the alias');
+  assert.match(src, /withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce, new URL\(request\.url\)\.hostname\)/,
+    'the wrapper must hand withSecurityHeaders the request host');
 });
