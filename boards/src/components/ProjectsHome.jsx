@@ -261,7 +261,7 @@ export function ProjectsHome({
           Projects
         </button>
       ) : (
-        <section className="ph-panel surface-frosted" aria-label="Your projects">
+        <section className="ph-panel surface-frosted" aria-label="Your clusters">
           <WorkspaceHeader
             workspace={workspace}
             workspaces={workspaces}
@@ -290,7 +290,7 @@ export function ProjectsHome({
           )}
 
           <div className="ph-section">
-            <div className="ph-eyebrow">Your projects</div>
+            <div className="ph-eyebrow">Your clusters</div>
             <div className="ph-grid">
               {root && (
                 <Tile board={root} label={root.name || 'Studio'}

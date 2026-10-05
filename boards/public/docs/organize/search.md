@@ -2,7 +2,7 @@
 
 > Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
-_Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 2026-10-04_
 
 `⌘K`, or `/` when you are not typing into something.
 
@@ -33,7 +33,7 @@ The palette also runs commands. Type the verb rather than the noun:
 |---|---|
 | New project | A new cluster at the top of your workspace, opened |
 | New note | A note on the current board |
-| Go to Home | [Your projects](/docs/clusters/home-graph), over the relationship graph |
+| Go to Home | [Your clusters](/docs/clusters/home-graph), over the relationship graph |
 | Link a cluster onto canvas | Place a reference to another board |
 | Open split view | [Two boards side by side](/docs/clusters#side-by-side) |
 | Share this cluster | The [share dialog](/docs/collaborate/sharing) |

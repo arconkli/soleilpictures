@@ -16714,14 +16714,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Your projects",
+   "text": "Your clusters",
    "inline": [
     {
      "t": "text",
-     "v": "Your projects"
+     "v": "Your clusters"
     }
    ],
-   "id": "your-projects"
+   "id": "your-clusters"
   },
   {
    "type": "para",
@@ -16755,11 +16755,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Your projects",
+      "v": "Your clusters",
       "children": [
        {
         "t": "text",
-        "v": "Your projects"
+        "v": "Your clusters"
        }
       ]
      },
@@ -21816,12 +21816,12 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "link",
-       "v": "Your projects",
+       "v": "Your clusters",
        "href": "/docs/clusters/home-graph",
        "children": [
         {
          "t": "text",
-         "v": "Your projects"
+         "v": "Your clusters"
         }
        ]
       },

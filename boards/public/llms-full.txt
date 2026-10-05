@@ -1947,12 +1947,12 @@ The top of the panel names the workspace these projects belong to, and whether i
 
 The same switcher sits at the top of the sidebar. Switching from there takes you straight to the workspace's canvas instead.
 
-Your projects
+Your clusters
 
 A panel shows three things:
 
 Jump back in — the clusters you were last in on this device, and when there are none, the ones you worked on most recently anywhere
-Your projects — Studio and every cluster at the top of your workspace, newest work first, each with its thumbnail
+Your clusters — Studio and every cluster at the top of your workspace, newest work first, each with its thumbnail
 New project — type a name (or don't) and press Enter. The project is created at the top of your workspace and opens, ready for you to paste or drag images in
 
 The graph behind it
@@ -2610,7 +2610,7 @@ A: Yes. Copy link on any card gives a URL that opens the board with that card se
 ========================================================================
 # Search and the command palette
 URL: https://clusters.soleilpictures.com/docs/organize/search
-Updated: 2026-10-02
+Updated: 2026-10-04
 
 Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
@@ -2636,7 +2636,7 @@ The palette also runs commands. Type the verb rather than the noun:
 Command | Effect
 New project | A new cluster at the top of your workspace, opened
 New note | A note on the current board
-Go to Home | Your projects, over the relationship graph
+Go to Home | Your clusters, over the relationship graph
 Link a cluster onto canvas | Place a reference to another board
 Open split view | Two boards side by side
 Share this cluster | The share dialog

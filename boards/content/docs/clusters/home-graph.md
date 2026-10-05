@@ -38,13 +38,13 @@ beside the name starts a fresh one, with its own Studio, and opens it on Home.
 The same switcher sits at the top of the sidebar. Switching from there takes
 you straight to the workspace's canvas instead.
 
-## Your projects
+## Your clusters
 
 A panel shows three things:
 
 - **Jump back in** — the clusters you were last in on this device, and when
   there are none, the ones you worked on most recently anywhere
-- **Your projects** — **Studio** and every cluster at the top of your workspace,
+- **Your clusters** — **Studio** and every cluster at the top of your workspace,
   newest work first, each with its thumbnail
 - **New project** — type a name (or don't) and press Enter. The project is
   created at the top of your workspace and opens, ready for you to paste or drag
