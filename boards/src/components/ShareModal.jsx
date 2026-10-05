@@ -431,7 +431,15 @@ export function ShareModal({
     const parts = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
     const valid = parts.filter(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
     const invalid = parts.filter(s => !valid.includes(s));
-    return { valid, invalid };
+    // The same address twice in a paste is one person, and one invite.
+    const seen = new Set();
+    const unique = valid.filter(s => {
+      const k = s.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return { valid: unique, invalid };
   };
 
   const submitInvite = async () => {
@@ -451,9 +459,10 @@ export function ShareModal({
     // The server's daily invite budget (migration 0358). Once it refuses, every
     // remaining address would be refused the same way, so the loop stops there
     // and the sentence is shown once instead of once per address.
-    let limitMsg = null; let limitAt = null;
+    let limitMsg = null; let limitIdx = -1;
 
-    for (const email of emails) {
+    for (let i = 0; i < emails.length; i++) {
+      const email = emails[i];
       try {
         let status;
         if (isWorkspaceInvite) {
@@ -487,7 +496,7 @@ export function ShareModal({
         else granted.push(email);
       } catch (e) {
         const msg = e?.message || String(e);
-        if (/invite limit reached/i.test(msg)) { limitMsg = msg; limitAt = email; break; }
+        if (/invite limit reached/i.test(msg)) { limitMsg = msg; limitIdx = i; break; }
         fail.push({ email, reason: msg });
       }
     }
@@ -521,13 +530,18 @@ export function ShareModal({
 
     if (limitMsg) {
       const sent = granted.length + pending.length;
-      const unsent = emails.slice(emails.indexOf(limitAt));
+      const unsent = emails.slice(limitIdx);
       const reason = limitMsg.replace(/^invite limit reached:\s*/i, '');
+      // Addresses that failed for their own reason before the limit hit are
+      // reported too; they are not put back in the box.
+      const failed = fail.length
+        ? ` Also failed: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`
+        : '';
       feedback.toast({
         type: 'warning',
         message: sent > 0
-          ? `Sent ${sent}; ${unsent.length} not sent. ${reason}`
-          : `Not sent. ${reason}`,
+          ? `Sent ${sent}; ${unsent.length} not sent. ${reason}${failed}`
+          : `Not sent. ${reason}${failed}`,
       });
       // The unsent addresses stay in the box, ready for tomorrow.
       setInviteEmail(unsent.join(', '));

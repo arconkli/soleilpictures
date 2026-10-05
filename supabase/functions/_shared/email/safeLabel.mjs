@@ -8,6 +8,10 @@
 //
 //   - control characters, CR/LF above all: in a subject they are a
 //     header-injection primitive
+//   - invisible characters (Unicode's default-ignorables: zero-width spaces
+//     and joiners, the soft hyphen, bidi controls). One inside a domain splits
+//     it for our matcher while a URL parser deletes it and still reaches the
+//     host, so they are removed before anything else looks at the text
 //   - anything shaped like a link: a scheme, `www.`, or a `name.tld` token.
 //     The text is NFKC-normalised first, and look-alike full stops are folded
 //     to ".", so a full-width or ideographic dot is still a dot
@@ -36,17 +40,22 @@ const WWW = /www\.\S*/giu;
 // (Cyrillic included), with an optional path. "v2.0" and "Mr. Smith" survive;
 // "calendar.app.google/x" and "яндекс.рф" do not.
 const DOMAINISH = /[\p{L}\p{N}][\p{L}\p{N}_-]*(?:\.[\p{L}\p{N}_-]+)*\.\p{L}{2,}(?:[/?#]\S*)?/gu;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// A plain mailbox address and nothing else: no scheme, path, port or space.
+const PLAIN_ADDRESS = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+const INVISIBLE = /\p{Default_Ignorable_Code_Point}/u;
 
 // C0 and C1 controls, plus the two Unicode line terminators.
 function isControl(c) {
   return c < 0x20 || (c >= 0x7f && c <= 0x9f) || c === 0x2028 || c === 0x2029;
 }
 
-// Controls become `withText`; look-alike dots become "." when asked.
+// Invisible characters are dropped (so a split domain closes up again and is
+// then caught), controls become `withText`, and look-alike dots become "."
+// when asked.
 function scrub(s, withText, foldDots) {
   let out = "";
   for (const ch of s) {
+    if (INVISIBLE.test(ch)) continue;
     const c = ch.codePointAt(0);
     out += isControl(c) ? withText : (foldDots && LOOKALIKE_DOTS.has(c)) ? "." : ch;
   }
@@ -71,9 +80,15 @@ export function safeLabel(value, max = 60, fallback = "") {
 }
 
 /**
- * Who did something: an account email passes untouched (the trigger supplies
- * it from auth.users, so it is the account's own verified address); anything
- * else is a display name and gets safeLabel.
+ * Who did something. The triggers send a display name, or the account's email
+ * when there is none, so an address-shaped value is usually a real address and
+ * is kept whole (safeLabel would cut "ana@studio.example" to "ana@"). But a
+ * display name is typed by its owner and can be shaped like an address too,
+ * so only a PLAIN address passes untouched: mailbox characters only, no
+ * scheme, path or port, not starting "www.", at most 100 characters.
+ * Anything else, "https://x.example/claim@a.bc" included, gets safeLabel.
+ * (A typed name that is exactly a plain address still shows as one. It holds
+ * no link, and it goes only to people its owner already works with.)
  * @param {unknown} value
  * @param {number} [max=60]
  * @param {string} [fallback="Someone"]
@@ -81,6 +96,6 @@ export function safeLabel(value, max = 60, fallback = "") {
  */
 export function safePerson(value, max = 60, fallback = "Someone") {
   const s = scrub(String(value ?? "").normalize("NFKC"), "", false).trim();
-  if (s.length <= 254 && EMAIL.test(s)) return s;
+  if (s.length <= 100 && PLAIN_ADDRESS.test(s) && !/^www\./i.test(s)) return s;
   return safeLabel(s, max, fallback);
 }

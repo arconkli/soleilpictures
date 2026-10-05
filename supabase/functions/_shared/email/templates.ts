@@ -1398,11 +1398,14 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       });
     }
     case "schedule_update":
+      // An editor's typed text (a day label, a cluster name, a note) mailed to
+      // the whole crew: cleaned like every other name. The title gets 80 so
+      // the server-built " — Tue Aug 18" suffix survives the cap.
       return scheduleUpdateTpl({
         kind:           String(data.kind ?? "schedule.published"),
-        title:          String(data.title ?? "Your schedule changed"),
-        body:           data.body != null ? String(data.body) : undefined,
-        productionName: String(data.productionName ?? "Your schedule"),
+        title:          safeLabel(data.title, 80, "Your schedule changed"),
+        body:           data.body != null ? (safeLabel(data.body, 140) || undefined) : undefined,
+        productionName: safeLabel(data.productionName, 60, "Your schedule"),
         version:        data.version != null ? String(data.version) : undefined,
         unsubscribeToken: data.unsubscribeToken != null ? String(data.unsubscribeToken) : undefined,
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
