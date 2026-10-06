@@ -270,12 +270,18 @@ test('router (optional): 2–4 needs, each to one resolvable pick, exactly one i
     const r = p.router;
     assert.ok(typeof r.heading === 'string' && r.heading.length > 5, `${p.path}: router heading`);
     assert.ok(Array.isArray(r.routes) && r.routes.length >= 2 && r.routes.length <= 4, `${p.path}: 2–4 routes`);
-    const anchors = new Set(p.items.map((it) => it.anchor));
+    // Item reviews, or a section of the page itself (the honest accounting, the
+    // platform matrix, a head-to-head) — a need can be best answered by either.
+    const anchors = new Set([
+      ...p.items.map((it) => it.anchor),
+      ...listicleToc(p).map((t) => t.id),
+      ...(p.headToHead?.matchups || []).map((m) => m.slug),
+    ]);
     const usAnchor = p.items.find((it) => it.isUs)?.anchor;
     for (const x of r.routes) {
       assert.ok(typeof x.need === 'string' && x.need.length > 15, `${p.path}: route need`);
       assert.ok(typeof x.pick === 'string' && x.pick.length > 2, `${p.path}: route pick`);
-      if (x.href.startsWith('#')) assert.ok(anchors.has(x.href.slice(1)), `${p.path}: ${x.href} is no item anchor`);
+      if (x.href.startsWith('#')) assert.ok(anchors.has(x.href.slice(1)), `${p.path}: ${x.href} is no anchor on the page`);
       else assert.ok(known.has(x.href), `${p.path}: ${x.href} is no known page`);
       if (x.compare) assert.ok(known.has(x.compare.href) && x.compare.label, `${p.path}: compare link resolves`);
     }
