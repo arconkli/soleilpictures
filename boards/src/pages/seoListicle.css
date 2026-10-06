@@ -75,6 +75,33 @@
   border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
 }
 
+/* ── Intent router — "which one do you need?" under the quick answer. Ink,
+      not gold, for the picks: the one gold control is the signup CTA. ───── */
+.seo-li-router {
+  margin: 0 0 26px;
+  padding: 14px 18px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md, 8px);
+}
+.seo-li-router-head {
+  font: 600 0.78rem/1.2 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 10px;
+}
+.seo-li-router ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.seo-li-router li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 18px; align-items: center; }
+.seo-li-router li + li { border-top: 1px solid var(--line-1, rgba(255,255,255,.06)); padding-top: 12px; }
+.seo-li-router-need { color: var(--ink-1); font: 400 0.95rem/1.5 var(--font-sans); }
+.seo-li-router-pick { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 12px; }
+.seo-li-router-pick a:not(.seo-cta-primary) { color: var(--ink-0); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.seo-li-router-pick a.seo-li-router-compare { color: var(--ink-2); font-weight: 500; }
+@media (max-width: 640px) {
+  .seo-li-router li { grid-template-columns: minmax(0, 1fr); }
+  .seo-li-router-pick { justify-content: flex-start; }
+}
+
 /* ── Rank medallion — squared so it reads as a RANK, not as a numbered
       .seo-steps disc (which means "step N of a process" on the sibling
       landing pages). Shared by the pick cards and the review headings. ──── */

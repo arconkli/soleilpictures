@@ -33,6 +33,8 @@ export const EV = Object.freeze({
   AUTH_SESSION_READY:      'auth_session_ready',          // a session actually exists on this device {method,is_webview,webview_app,ms_since_landed}
   OTP_VERIFY_ERROR:        'otp_verify_error',            // code verify failed {reason:'code_rejected'|'expired'|'invalid'|'invalid_email'|'rate_limit'|'network'|'other'} — GoTrue answers a wrong digit and a dead token with ONE message ("expired or is invalid"), which is code_rejected; the bursts of 3-4 in a minute after a single send are typos, not expiry
   LANDING_EDIT_EMAIL:      'landing_edit_email',          // "edit" clicked on the code step
+  AUTH_CODE_RESTORED:      'auth_code_restored',          // the code step came back after a reload or reopen {age_s} — before 2026-10-05 a reload landed on an empty email field (lib/pendingCode.js)
+  AUTH_MAILBOX_OPEN:       'auth_mailbox_open',           // the code step's "Open Gmail"-style shortcut was used {provider:'gmail'|'outlook'|'yahoo'|'icloud'|'proton'}
   LANDING_CALLBACK_ERROR:  'landing_callback_error',      // magic-link ?code= exchange failed {reason}
   LANDING_SCROLL:          'landing_scroll',              // reveal scroll depth crossed {depth}
   LANDING_EXPLORE_CLICK:   'landing_explore_click',       // "Explore a live board" clicked

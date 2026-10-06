@@ -8862,6 +8862,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             if (type === 'pick_intent') {
               const intent = typeof arg === 'string' ? arg : null;
               try { logEvent(EV.ONBOARDING_INTENT, { intent, variant: tourVariantRef.current, board_id: currentId }); } catch (_) {}
+              // Kept on the profile, not only in analytics: most first boards
+              // hold no words a use-case could be read from, so this answer is
+              // the one signal there is for routing a first board (and it was
+              // otherwise only reconstructable from the event log). Its own
+              // top-level key on purpose — merge_profile_settings merges top-level
+              // keys but REPLACES `onboarding`, which the tour persists in the
+              // same tick; nesting it there would race and lose it.
+              if (intent) {
+                updateOwnSettings({ intent_pick: { intent, at: new Date().toISOString() } }).catch(() => {});
+              }
               tourFireRef.current?.({ type: 'intent_picked', intent });
               // The pick used to seed an empty cluster named for the answer.
               // That empty box was where a slice of one-and-done sessions

@@ -176,7 +176,7 @@ export function RetentionView() {
   // One wave, not four. The old view's sequencing was incidental — no call
   // depended on another's result — so it was pure added latency.
   const q = useAdminData(async () => {
-    const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb] = await Promise.allSettled([
+    const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb, bt, ss] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_retention_curve', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // p_require_work: the old call omitted it, so this panel and the habit
@@ -210,6 +210,13 @@ export function RetentionView() {
       // Only to size the intake for the power note — how long a change would
       // take to become readable depends on how fast people arrive.
       supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly }),
+      // 0361. The same fixed horizon, but only a later visit that MADE something
+      // counts — about half of the any-visit returners came back to look for a
+      // few seconds, and a change that produces glances must not grade as a win.
+      supabase.rpc('admin_built_return', { p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      // 0361. A same-day second sitting: the day-one marker of returning that
+      // can be read the day after a signup instead of eight days after.
+      supabase.rpc('admin_second_sitting', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -227,6 +234,8 @@ export function RetentionView() {
       survival: val(sc) || [],
       returnGap: val(rg) || [],
       fixedHorizon: val(fh) || [],
+      builtReturn: val(bt) || [],
+      secondSitting: val(ss) || [],
       // Mean weekly intake over the last 28 days. A mean rather than the latest
       // week on purpose: one quiet week would otherwise double the estimate of
       // how long everything takes to measure.
@@ -257,9 +266,42 @@ export function RetentionView() {
         <Deck>
           <Well
             span={12}
+            title="Back and built within a week"
+            meta="the headline — a return that made something"
+            foot="Grade a deploy here, by band and by week, two weeks after it lands. The any-visit read below also counts people who came back for a few seconds to look at a restored board; a change that only produces glances moves that one, not this one."
+          >
+            <FixedHorizonTable
+              rows={q.data?.builtReturn || []}
+              horizonDays={7}
+              note="Returned = a later visit within 7 days of the first placed, edited or wrote something (the WORK_EVENTS list). Faded bars rest on fewer than twenty people. Visits merge across UTC midnight; a heartbeat-only day is not a visit."
+            />
+          </Well>
+          <Well
+            span={12}
+            title="A second sitting on day one"
+            meta="readable the day after signup"
+            foot="Grade a day-one change here first, then confirm it on built return a week later. The first group re-measures the link on every cohort old enough to have answered; if two-sitting and one-sitting return ever converge, stop trusting this panel."
+          >
+            <FixedHorizonTable
+              rows={q.data?.secondSitting || []}
+              order={['link', 'band', 'week', 'device', 'source']}
+              allLabel="All first visits"
+              emptyTitle="No finished first visits yet"
+              titles={{
+                link: 'Back within a week, by sittings (first visits 8+ days old)',
+                band: 'Second sitting, by day-one cards',
+                week: 'Second sitting, by signup week',
+                device: 'Second sitting, by device',
+                source: 'Second sitting, by first source',
+              }}
+              note="Second sitting = real activity resumed after a break of 30+ minutes inside the first visit; heartbeats, summaries and traces do not count, so a tab left open is not a sitting. The bars show the share with a second sitting, except in the first group, where they show the 7-day return. Faded bars rest on fewer than twenty people."
+            />
+          </Well>
+          <Well
+            span={12}
             title="Back within a week"
-            meta="fixed horizon — the number that can move"
-            foot="Grade a deploy here, by band and by week, two weeks after it lands. The pooled step below cannot show a change for months."
+            meta="any visit — includes glances"
+            foot="The 0322 read: any later visit counts, including a few seconds on a restored board. Kept beside the built return so the gap between them stays visible."
           >
             <FixedHorizonTable rows={q.data?.fixedHorizon || []} horizonDays={7} />
           </Well>

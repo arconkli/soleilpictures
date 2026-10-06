@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-05_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
@@ -79,6 +79,10 @@ Yes — one public link opens a clean, read-only view in any browser, with no ac
 ### Can a reference board include video or other files?
 
 Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and on Creator, any file type. Motion reference sits on the board right next to your stills.
+
+### Is there an online version of PureRef?
+
+No. PureRef is a desktop app for Windows, macOS and Linux, and its boards are files on your machine. If you want the same drop-and-arrange reference board in a browser — opened on any device and shared with one link — Clusters is built for that. The trade is the connection: PureRef works offline, Clusters needs one.
 
 ### How does an online reference board compare to PureRef?
 

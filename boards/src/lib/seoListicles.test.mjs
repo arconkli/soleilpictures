@@ -260,3 +260,28 @@ test('spotlights: every page that carries them is well-formed', () => {
     }
   }
 });
+
+test('router (optional): 2–4 needs, each to one resolvable pick, exactly one isUs', () => {
+  const known = new Set([...SEO_LANDING_PATHS, ...SEO_LISTICLE_PAGES.map((p) => p.path)]);
+  let seen = 0;
+  for (const p of SEO_LISTICLE_PAGES) {
+    if (!p.router) continue;
+    seen += 1;
+    const r = p.router;
+    assert.ok(typeof r.heading === 'string' && r.heading.length > 5, `${p.path}: router heading`);
+    assert.ok(Array.isArray(r.routes) && r.routes.length >= 2 && r.routes.length <= 4, `${p.path}: 2–4 routes`);
+    const anchors = new Set(p.items.map((it) => it.anchor));
+    const usAnchor = p.items.find((it) => it.isUs)?.anchor;
+    for (const x of r.routes) {
+      assert.ok(typeof x.need === 'string' && x.need.length > 15, `${p.path}: route need`);
+      assert.ok(typeof x.pick === 'string' && x.pick.length > 2, `${p.path}: route pick`);
+      if (x.href.startsWith('#')) assert.ok(anchors.has(x.href.slice(1)), `${p.path}: ${x.href} is no item anchor`);
+      else assert.ok(known.has(x.href), `${p.path}: ${x.href} is no known page`);
+      if (x.compare) assert.ok(known.has(x.compare.href) && x.compare.label, `${p.path}: compare link resolves`);
+    }
+    const us = r.routes.filter((x) => x.isUs);
+    assert.equal(us.length, 1, `${p.path}: exactly one route is ours`);
+    assert.equal(us[0].href, `#${usAnchor}`, `${p.path}: our route points at our own review`);
+  }
+  assert.ok(seen >= 1, 'at least one page carries a router (the PureRef roundup)');
+});

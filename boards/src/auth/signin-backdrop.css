@@ -182,6 +182,11 @@
 .sb-frost .auth-form { gap: 12px; max-width: none; }
 .sb-frost .auth-btn { background: var(--soleil); color: var(--bg-0); }
 .sb-frost .auth-btn:hover:not(:disabled) { box-shadow: var(--shadow-2); transform: translateY(-1px); }
+/* A secondary action in the frost (the code step's "Open Gmail") is outlined in
+   light ink: the frost is dark in both themes, and gold stays with the one
+   primary control on the step. */
+.sb-frost .auth-btn.auth-btn-secondary { background: transparent; color: rgba(245,245,247,.92); border: 1px solid rgba(255,255,255,.2); }
+.sb-frost .auth-btn.auth-btn-secondary:hover { border-color: rgba(255,255,255,.36); }
 .sb-cap { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); text-align: center; }
 
 /* credential line — the whole pitch (IYKYK): "Made by a film studio, …". Sits

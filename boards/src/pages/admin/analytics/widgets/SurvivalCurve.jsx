@@ -163,7 +163,7 @@ export function ReturnGap({ rows = [] }) {
   const max = Math.max(...list.map((r) => num(r.n)), 1);
 
   return (
-    <div className="adm-gap">
+    <div className="adm-gap adm-return-gap">
       {list.map((r, i) => {
         const pct = num(r.pct) * 100;
         return (

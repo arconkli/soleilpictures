@@ -29,6 +29,14 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://checkout.stripe.com
 
+# The production deploy also answers on its workers.dev alias, every page at
+# 200. Keep that whole host out of search indexes (the canonical tag already
+# names the custom domain; this stops the alias being a candidate at all).
+# Cloudflare matches absolute https rules by host; the Worker sets the same
+# header on the responses it synthesizes (isWorkersDevHost in src/worker.js).
+https://:worker.:subdomain.workers.dev/*
+  X-Robots-Tag: noindex
+
 # Hashed build assets (/assets/index-<hash>.js etc.) never change content for a
 # given URL, so cache them hard for a year. index.html is intentionally NOT
 # matched here so new deploys are always picked up immediately.

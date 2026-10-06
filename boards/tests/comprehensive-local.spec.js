@@ -101,16 +101,17 @@ test.describe('Topbar', () => {
 // ═══════════════ CANVAS — TOOLBAR & ADD MENU ═══════════════
 
 test.describe('Canvas tools', () => {
-  test('Add menu opens, lists Doc / Shape / Palette / Linked cluster (Board + Text note moved off)', async ({ page }) => {
+  test('Add menu lists the secondary creators (Draw/Shape/Palette/File/Link/Linked cluster/Comment/Vote); rail items moved off', async ({ page }) => {
     await go(page);
     await page.getByRole('button', { name: 'Add menu', exact: true }).click();
-    for (const label of ['Doc', 'Shape', 'Palette', 'Linked cluster']) {
+    for (const label of ['Draw', 'Shape', 'Palette', 'File', 'Link', 'Linked cluster', 'Comment', 'Vote']) {
       await expect(page.getByRole('menuitem', { name: label, exact: true })).toBeVisible();
     }
-    // Board is now a first-class toolbar tool, and Text note is the toolbar's Add-note
-    // tool — so neither is repeated in the "+" menu anymore.
-    await expect(page.getByRole('menuitem', { name: 'Cluster', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('menuitem', { name: 'Text note', exact: true })).toHaveCount(0);
+    // Note, Image, Doc, Cluster and Grid are first-class toolbar tools now — and
+    // Script is redundant with Doc — so none of them are repeated in the "+" menu.
+    for (const gone of ['Doc', 'Cluster', 'Text note', 'Grid', 'Script']) {
+      await expect(page.getByRole('menuitem', { name: gone, exact: true })).toHaveCount(0);
+    }
     await page.keyboard.press('Escape');
   });
 
@@ -145,7 +146,7 @@ test.describe('Canvas tools', () => {
     await page.locator('.canvas-wrap').click({ position: { x: 180, y: 180 } });
     const before = await page.locator('.card').count();
     await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
-    await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
+    await expect(page.getByText('Click on the canvas to place a cluster')).toBeVisible();
     await page.locator('.canvas-wrap').click({ position: { x: 380, y: 320 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
   });
@@ -167,7 +168,8 @@ test.describe('Canvas tools', () => {
 
   test('Free-draw tool activates + Pen/Eraser segmented control appears', async ({ page }) => {
     await go(page);
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await expect(page.locator('.cnv-tools')).toBeVisible(); // app (keydown listener) mounted
+    await page.keyboard.press('d'); // Free-draw moved off the rail → keyboard shortcut / + menu
     await expect(page.getByText('Drag to draw')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Pen', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Eraser' })).toBeVisible();
@@ -229,7 +231,8 @@ test.describe('Canvas interaction', () => {
   test('Free-draw: dragging on canvas creates a stroke path', async ({ page }) => {
     await go(page, { blank: true });
     const before = await page.locator('.strokes-layer path').count();
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await expect(page.locator('.cnv-tools')).toBeVisible(); // app (keydown listener) mounted
+    await page.keyboard.press('d'); // Free-draw moved off the rail → keyboard shortcut / + menu
     const canvas = page.locator('.canvas-wrap');
     await canvas.dragTo(canvas, {
       sourcePosition: { x: 520, y: 300 },

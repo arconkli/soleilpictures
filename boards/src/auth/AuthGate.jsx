@@ -31,6 +31,8 @@ import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail } from '../lib/emailTypo.js';
+import { savePendingCode, readPendingCode, clearPendingCode, resendWait } from '../lib/pendingCode.js';
+import { mailboxFor, isConsumerAddress } from '../lib/mailboxLink.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -455,6 +457,7 @@ export function AuthGate({ children }) {
         // Unconditional: a signed-out arrival is the case we most need to see.
         consumeLifecycleLanding(!!data.session?.user?.id);
         if (data.session?.user?.id) {
+          clearPendingCode(window.localStorage);
           consumeDeepLink(data.session.user.id);
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
@@ -491,6 +494,7 @@ export function AuthGate({ children }) {
         // a recovery. ?lc= was deliberately left in the URL for exactly this.
         consumeLifecycleLanding(!!sess?.user?.id);
         if (sess?.user?.id) {
+          clearPendingCode(window.localStorage);
           consumeDeepLink(sess.user.id);
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
@@ -560,7 +564,14 @@ function PresenceTicker({ user }) {
 // ── Sign-in screen with OTP code ────────────────────────────────────────────
 
 function SignIn() {
-  const [email, setEmail]       = useState('');
+  // The code step survives a reload (lib/pendingCode.js). A phone goes to its
+  // mail app to read the code and can come back to a reloaded tab; with the
+  // step held only in state, that person faced an empty email field and no sign
+  // that their code was coming. Only the address is remembered, for 15 minutes.
+  const [restored] = useState(() => {
+    try { return readPendingCode(window.localStorage, Date.now()); } catch (_) { return null; }
+  });
+  const [email, setEmail]       = useState(() => restored?.email || '');
   // A mistyped consumer domain (gmail.como, gmasil.com, a bare "gmail") is
   // offered a one-tap fix. Never blocks the send; logged once per domain.
   const [typo, setTypo] = useState(null);
@@ -577,11 +588,11 @@ function SignIn() {
       try { logEvent(EV.EMAIL_TYPO_SUGGESTED, { from_domain: t.fromDomain, to_domain: t.toDomain, at }); } catch (_) {}
     }
   };
-  const [stage, setStage]       = useState('email'); // 'email' | 'code'
+  const [stage, setStage]       = useState(() => (restored ? 'code' : 'email')); // 'email' | 'code'
   const [busy,  setBusy]        = useState(false);
   const [code,  setCode]        = useState('');
   const [error, setError]       = useState(null);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(() => (restored ? resendWait(restored.sentAt, Date.now()) : 0));
   // Non-null when the user arrived via an /?invite=<token> link.
   // We pre-fill the email field and show an "invited as ..." banner.
   const [inviteHint, setInviteHint] = useState(null);
@@ -608,11 +619,22 @@ function SignIn() {
   // (logEventOnce dedups StrictMode's dev double-invoke).
   useEffect(() => { logEventOnce('landing_view', EV.LANDING_VIEW); }, []);
 
+  // How often the remembered step actually saves someone a re-send.
+  useEffect(() => {
+    if (!restored) return;
+    logEventOnce('auth_code_restored', EV.AUTH_CODE_RESTORED, {
+      age_s: Math.max(0, Math.round((Date.now() - restored.sentAt) / 1000)),
+    });
+  }, [restored]);
+
   // Pre-fill email from the stored invite token. Anon-callable RPC —
   // safe to run before the user has a session. Token presence in
   // localStorage is the trust boundary.
   useEffect(() => {
     let cancelled = false;
+    // A restored code step already knows its address; swapping it for the
+    // invite's would send the typed code to verify against the wrong email.
+    if (restored) return undefined;
     try {
       const token = localStorage.getItem(PENDING_INVITE_KEY);
       if (!token) return;
@@ -712,6 +734,7 @@ function SignIn() {
       if (!resending) lpCtaClick('/', 'home', 'form');
       if (!resending) setStage('code');
       setResendCooldown(60);
+      savePendingCode(window.localStorage, email.trim().toLowerCase(), Date.now());
     } catch (e) {
       logEvent(EV.EMAIL_SUBMIT_ERROR, { reason: classifyAuthError(e), resend: !!resending });
       setError(humanError(e));
@@ -746,6 +769,7 @@ function SignIn() {
       // measure ms_since_otp on its PS_SIGNUP anchor. Fires for new AND returning
       // users (newness isn't known until tier resolves); harmless either way.
       try { localStorage.setItem('soleil_ps_otp_at', String(Date.now())); } catch (_) {}
+      clearPendingCode(window.localStorage);
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
       logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e) });
@@ -756,6 +780,7 @@ function SignIn() {
 
   const editEmail = () => {
     logEvent(EV.LANDING_EDIT_EMAIL);
+    clearPendingCode(window.localStorage);
     setStage('email');
     setCode('');
     setError(null);
@@ -889,7 +914,7 @@ function SignIn() {
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="auth-hint t-meta">
-              Check your inbox for the 6-digit code.{' '}
+              Check your inbox for the 6-digit code — and Spam or Promotions if it isn't there.{' '}
               {/* The resend control stays a button during cooldown (disabled,
                   counting down) — swapping it for a bare span made it look
                   like the option vanished. */}
@@ -898,6 +923,25 @@ function SignIn() {
                 {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
               </button>
             </div>
+            {/* A new tab, so this step stays put. Gmail's link searches every
+                folder: after the 09-20 invite abuse, codes sat in spam for most
+                of a week while people waited here. */}
+            {(() => {
+              const box = mailboxFor(email);
+              return box ? (
+                <a className="auth-btn auth-btn-secondary auth-mailbox" href={box.href}
+                   target="_blank" rel="noopener noreferrer"
+                   onClick={() => { try { logEvent(EV.AUTH_MAILBOX_OPEN, { provider: box.id }); } catch (_) {} }}>
+                  {box.label}
+                </a>
+              ) : null;
+            })()}
+            {!isConsumerAddress(email) && (
+              <div className="auth-hint t-meta auth-work-hint">
+                Work and school mail can hold a code for a few minutes. If it doesn't
+                arrive, edit the address and use a personal one.
+              </div>
+            )}
           </form>
         )}
       </div>

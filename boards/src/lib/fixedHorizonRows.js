@@ -1,4 +1,5 @@
-// fixedHorizonRows.js — group admin_return_fixed_horizon rows for the panel.
+// fixedHorizonRows.js — group fixed-horizon rows for the panel: admin_return_fixed_horizon
+// (0322), and admin_built_return / admin_second_sitting (0361), which share its shape.
 //
 // The RPC (0322) returns one flat list keyed by a "kind:label" dim so it stays a
 // single query. The panel wants one table per kind, with the bands in depth
@@ -10,9 +11,23 @@
 import { wilson } from './retentionStats.js';
 
 export const BAND_ORDER = Object.freeze(['0', '1-2', '3-5', '6-12', '13+']);
-const GROUP_ORDER = Object.freeze(['device', 'source', 'band', 'week']);
+export const GROUP_ORDER = Object.freeze(['device', 'source', 'band', 'week']);
 
-export function groupFixedHorizon(rows) {
+// 'link:' rows (admin_second_sitting, 0361) re-measure the 7-day return inside
+// a coarse depth band, split by whether visit 1 held a second sitting:
+// '3-12 · one sitting', '3-12 · two+ sittings'. Shallow bands first, and within
+// a band the one-sitting row first so each pair reads as a before/after.
+const LINK_BANDS = ['0-2', '3-12', '13+'];
+function linkRank(label) {
+  const sep = label.indexOf(' · ');
+  const band = sep < 0 ? label : label.slice(0, sep);
+  const bi = LINK_BANDS.indexOf(band);
+  return (bi < 0 ? LINK_BANDS.length : bi) * 2 + (/two\+/.test(label) ? 1 : 0);
+}
+
+// `order` picks which kinds render and in what order; kinds not named are
+// dropped, which is how a panel built on one RPC hides the others' groups.
+export function groupFixedHorizon(rows, order = GROUP_ORDER) {
   const out = { all: null, groups: [] };
   if (!Array.isArray(rows)) return out;
   const byKind = new Map();
@@ -28,12 +43,13 @@ export function groupFixedHorizon(rows) {
     if (!byKind.has(kind)) byKind.set(kind, []);
     byKind.get(kind).push({ label, n, returned, ci: wilson(returned, n) });
   }
-  for (const kind of GROUP_ORDER) {
+  for (const kind of Array.isArray(order) ? order : GROUP_ORDER) {
     const list = byKind.get(kind);
     if (!list) continue;
     list.sort((a, b) => {
       if (kind === 'band') return BAND_ORDER.indexOf(a.label) - BAND_ORDER.indexOf(b.label);
       if (kind === 'week') return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
+      if (kind === 'link') return linkRank(a.label) - linkRank(b.label);
       return b.n - a.n;
     });
     out.groups.push({ key: kind, rows: list });

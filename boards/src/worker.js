@@ -245,11 +245,22 @@ class NonceStamp {
   element(el) { el.setAttribute('nonce', this.nonce); }
 }
 
-function withSecurityHeaders(res, nonce) {
+// The production deploy also answers on its *.workers.dev alias with every page
+// at 200. The canonical tag points at the custom domain, but a whole duplicate
+// host is a canonicalisation choice handed to Google — and in 2026-09 the top
+// compare page vanished from Search Console for eight days with nothing changed
+// on our side. Keep the alias out of every index: the Worker's responses here,
+// the static ones via the matching absolute rule in public/_headers.
+function isWorkersDevHost(host) {
+  return typeof host === 'string' && host.toLowerCase().endsWith('.workers.dev');
+}
+
+function withSecurityHeaders(res, nonce, host = null) {
   // A 101 (WebSocket upgrade) has immutable headers and no body to rewrite.
   if (!res || res.status === 101) return res;
   const isHtml = nonce && (res.headers.get('content-type') || '').includes('text/html');
-  let missing = false;
+  const noindexAlias = isWorkersDevHost(host) && !res.headers.has('x-robots-tag');
+  let missing = noindexAlias;
   for (const k of Object.keys(SECURITY_HEADERS)) {
     if (!res.headers.has(k)) { missing = true; break; }
   }
@@ -258,6 +269,7 @@ function withSecurityHeaders(res, nonce) {
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
     if (!headers.has(k)) headers.set(k, v);
   }
+  if (noindexAlias) headers.set('x-robots-tag', 'noindex');
   if (isHtml) {
     // Override, never fill: a static report-only policy with no nonce would
     // keep reporting every inline script as a violation.
@@ -476,7 +488,7 @@ const worker = {
   // fetch detached from the module object, which would make `this` undefined.
   async fetch(request, env, ctx) {
     const nonce = makeNonce();
-    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce);
+    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, new URL(request.url).hostname);
   },
 
   async handleFetch(request, env, ctx) {

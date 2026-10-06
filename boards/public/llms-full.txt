@@ -149,6 +149,9 @@ A: No. Clusters runs in the browser and can be added to your home screen as a we
 Q: Is there a password?
 A: No. Sign-in is a one-time code sent to your email address. There is no password to lose or rotate.
 
+Q: My sign-in code didn't arrive. What now?
+A: Look in Spam or Promotions first. On the code screen, a Gmail, Outlook, Yahoo, iCloud or Proton address gets a button that opens that inbox in a new tab, and for Gmail it searches every folder. Work and school mail servers can hold a code back for a few minutes, so a personal address is the quicker route. You can ask for a new code once the resend timer runs out, and reloading the page keeps you on the code step.
+
 Q: Can people I share with edit my board?
 A: Only if you invite them as an editor. A public link is view-only. Editors do not need a paid plan — collaboration is free on every tier.
 
@@ -6665,13 +6668,13 @@ Yes. You own your references and control who can see each board and whether it i
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/reference-board-maker
-Updated: 2026-10-02
+Updated: 2026-10-05
 
 # An Online Reference Board Maker for Working Artists
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-05_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
@@ -6748,6 +6751,10 @@ Yes — one public link opens a clean, read-only view in any browser, with no ac
 ### Can a reference board include video or other files?
 
 Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and on Creator, any file type. Motion reference sits on the board right next to your stills.
+
+### Is there an online version of PureRef?
+
+No. PureRef is a desktop app for Windows, macOS and Linux, and its boards are files on your machine. If you want the same drop-and-arrange reference board in a browser — opened on any device and shared with one link — Clusters is built for that. The trade is the connection: PureRef works offline, Clusters needs one.
 
 ### How does an online reference board compare to PureRef?
 
@@ -7987,17 +7994,23 @@ Visit the Explore gallery to browse curated public boards made with Clusters, th
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/pureref-alternatives
-Updated: 2026-10-02
+Updated: 2026-10-05
 
 # The 10 Best PureRef Alternatives in 2026
 
-> For shared, team reference boards, Soleil Clusters is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
+> For shared, team reference boards, Soleil Clusters (clusters.soleilpictures.com) is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
 
-_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-05_
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
 
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: reference boards a whole team works on together. For a private, offline wall on one machine, PureRef itself is still the better tool, and we say so plainly at the bottom of this page.
+
+## Which one do you need?
+
+- Your reference wall in the browser, shared with a team or a client and open on any device: **Soleil Clusters** (How it compares to PureRef: https://clusters.soleilpictures.com/vs/pureref)
+- A private wall that floats over your paint or 3D app on one machine: **PureRef itself, or BeeRef if it has to be free and open source**
+- A searchable library for years of saved images: **Eagle**
 
 ## The Reference Wall
 

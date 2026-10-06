@@ -214,6 +214,35 @@ export function SeoListiclePage({ path }) {
             <h2 className="seo-h2">{spec.answerHeading}</h2>
             <p className="seo-answer seo-li-answer">{spec.answer}</p>
             <aside className="seo-li-disclosure">{spec.disclosure}</aside>
+            {/* Intent router (optional): readers here are comparing, and most
+                scrolled into rival reviews before ever meeting a CTA. One need
+                per row, one pick per need — the same strings the crawlable HTML
+                and the .md twin render. */}
+            {spec.router && (
+              <div className="seo-li-router" role="group" aria-label={spec.router.heading}>
+                <div className="seo-li-router-head">{spec.router.heading}</div>
+                <ul>
+                  {spec.router.routes.map((r) => (
+                    <li key={r.href} className={r.isUs ? 'is-us' : undefined}>
+                      <span className="seo-li-router-need">{r.need}</span>
+                      <span className="seo-li-router-pick">
+                        <a href={r.href} {...lp.ctaProps(`route:${r.href.replace(/^[#/]+/, '')}`, r.href, { intent: 'nav' })}>{r.pick}</a>
+                        {r.isUs && (
+                          <a className="seo-cta-primary seo-cta-small" href={cta.href || '/'} {...lp.ctaProps('route:start', cta.href || '/')}>
+                            {cta.label || 'Start free'}
+                          </a>
+                        )}
+                        {r.compare && (
+                          <a className="seo-li-router-compare" href={r.compare.href} {...lp.ctaProps('route:compare', r.compare.href, { intent: 'nav' })}>
+                            {r.compare.label}
+                          </a>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <ol className="seo-li-ranklist">
               {spec.items.map((it) => (
                 <li key={it.anchor} className={`${it.rank <= 3 ? 'is-podium' : 'is-row'}${it.isUs ? ' is-us' : ''}`}>

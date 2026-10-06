@@ -536,7 +536,7 @@ const PAGES = [
       'Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.',
     answer:
       'Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.',
-    updated: '2026-10-02',
+    updated: '2026-10-05',
     cta: { label: 'Make a reference board', sub: 'Free Demo tier — no credit card, no trial clock.' },
     stepsHeading: 'How to make a reference board',
     steps: [
@@ -594,6 +594,10 @@ const PAGES = [
       { q: 'Can I use a reference board on an iPad?', a: 'Yes. Boards open in the tablet’s browser, and it can be added to the home screen as a web app — the same board you arranged on your workstation is waiting when you pick up the iPad.' },
       { q: 'Can my team or art director see my reference board?', a: 'Yes — one public link opens a clean, read-only view in any browser, with no account required. Invited collaborators can also edit the board live on any plan, with real-time cursors and comments pinned to specific images.' },
       { q: 'Can a reference board include video or other files?', a: 'Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and on Creator, any file type. Motion reference sits on the board right next to your stills.' },
+      // The query /vs/pureref answers alone ("pureref online", "pureref web"),
+      // answered on a second page in the same honest terms: in 2026-09 Google
+      // dropped /vs/pureref for eight days and nothing else carried the intent.
+      { q: 'Is there an online version of PureRef?', a: 'No. PureRef is a desktop app for Windows, macOS and Linux, and its boards are files on your machine. If you want the same drop-and-arrange reference board in a browser — opened on any device and shared with one link — Clusters is built for that. The trade is the connection: PureRef works offline, Clusters needs one.' },
       { q: 'How does an online reference board compare to PureRef?', a: 'PureRef is a beloved offline desktop app — free to use personally, and excellent when the board never leaves your machine. Clusters trades offline for a board that follows you across devices and shares with a link. Our full PureRef comparison breaks it down feature by feature.' },
     ],
     related: ['/vs/pureref', '/tools/shared-reference-board', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/use-cases', '/tools/ai-mood-board-maker'],
