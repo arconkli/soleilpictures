@@ -16,8 +16,10 @@ test.describe('classifyDropFile', () => {
     // extension guard they became paid-gated generic file cards.
     expect(classifyDropFile(f('IMG_0042.HEIC', ''), { canAttemptFiles: false }).route).toBe('image');
     expect(classifyDropFile(f('IMG_0042.heif', ''), { canAttemptFiles: false }).route).toBe('image');
-    // An unknown empty-MIME extension still hard-blocks for free owners.
-    expect(classifyDropFile(f('archive.zip', ''), { canAttemptFiles: false }).route).toBe('blocked');
+    // An unknown empty-MIME extension is a file card for free owners too since
+    // 0367 — up to the free file cap; past it the size gate, never the type.
+    expect(classifyDropFile(f('archive.zip', ''), { canAttemptFiles: false }).route).toBe('file');
+    expect(classifyDropFile(f('archive.zip', '', 60 * 1024 * 1024), { canAttemptFiles: false }).route).toBe('blocked');
   });
 
   test('over-cap media routes to multipart for paid, blocked for free owners', () => {

@@ -10,7 +10,7 @@ Pull your references, colors, and notes onto one infinite canvas — then share 
 
 A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.
 
-- Drag in images, links, video, PDFs — and any file type on Creator
+- Drag in images, links, video, PDFs — any file, with no size limits on Creator
 - Tags gather references from every board into one view
 - Color palettes and notes sit right beside the imagery
 
@@ -34,7 +34,7 @@ Send a board to a client or collaborator with one link — they see a clean, int
 
 ### Is the mood board maker free?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with collaborators included and uploads never metered. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type — collaboration is free for everyone.
+Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with collaborators included and uploads never metered. Creator ($25/mo) removes the card cap and adds 100GB storage with no size limits — collaboration is free for everyone.
 
 ### Can I make a mood board with my team?
 
@@ -42,7 +42,7 @@ Yes — Clusters is a real-time collaborative canvas. Multiple people can edit t
 
 ### What can I put on a mood board?
 
-Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file type on Creator. Everything lives on one infinite canvas you can pan and zoom.
+Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file — with no size limits on Creator. Everything lives on one infinite canvas you can pan and zoom.
 
 ### Can I share a mood board without making people sign up?
 

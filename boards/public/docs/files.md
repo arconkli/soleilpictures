@@ -1,6 +1,6 @@
 # Files and uploads
 
-> Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a 100GB drive.
+> Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.
 
 _Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-01_
 
@@ -26,9 +26,9 @@ Small text files get an inline preview on the card rather than only a download.
 
 Two different things are limited, and they are limited for different reasons.
 
-**File type.** Free accounts can upload standard media. Non-standard types —
-`.psd`, `.fig`, `.zip`, project files, archives — require
-Creator. This is the "upload anything" feature and it is the paid one.
+**File type.** Any, on every plan. `.psd`, `.fig`, `.zip`, project files,
+archives — each lands as a file card with a download. On the free plan one of
+those is capped at 50 MB, the same ceiling as a PDF.
 
 **Size.** On the free plan:
 
@@ -37,6 +37,7 @@ Creator. This is the "upload anything" feature and it is the paid one.
 | Video | 30 MB |
 | Audio | 50 MB |
 | PDF | 50 MB |
+| Any other file | 50 MB |
 | Images | No cap on any plan |
 
 Creator removes the size caps entirely.

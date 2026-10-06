@@ -12729,7 +12729,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Free accounts can upload standard media. Non-standard types — "
+     "v": " Any, on every plan. "
     },
     {
      "t": "code",
@@ -12753,7 +12753,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", project files, archives — require Creator. This is the \"upload anything\" feature and it is the paid one."
+     "v": ", project files, archives — each lands as a file card with a download. On the free plan one of those is capped at 50 MB, the same ceiling as a PDF."
     }
    ]
   },
@@ -12826,6 +12826,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "PDF"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "50 MB"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Any other file"
       }
      ],
      [
@@ -16474,7 +16488,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "On Creator, any file type on a 100GB drive. The free plan takes standard media under its "
+       "v": "Yes, on every plan. The free plan caps each file at 50 MB (standard media at its own "
       },
       {
        "t": "link",
@@ -16489,7 +16503,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", and every file is one of its 50 cards"
+       "v": "), and every file is one of its 50 cards; Creator lifts the size caps on a 100GB drive"
       }
      ]
     ],
@@ -26408,7 +26422,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Free-plan size limits are the same ones the canvas applies to a dropped file — 30 MB for video, 50 MB for audio, 50 MB for a PDF. Anything larger, and any other file type, needs "
+     "v": "Free-plan size limits are the same ones the canvas applies to a dropped file — 30 MB for video, 50 MB for audio, 50 MB for a PDF, 50 MB for any other file. Anything larger needs "
     },
     {
      "t": "link",
@@ -28594,6 +28608,12 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": "Free collaboration — invite editors to any cluster"
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Any file type, up to 50 MB each — images are never capped"
+     }
     ]
    ]
   },
@@ -28665,17 +28685,17 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Any file type",
+      "v": "No size limits",
       "children": [
        {
         "t": "text",
-        "v": "Any file type"
+        "v": "No size limits"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — drop a "
+      "v": " — video past 30 MB or 60 seconds, audio past 50 MB, a PDF or a "
      },
      {
       "t": "code",
@@ -28699,23 +28719,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", anything at all, straight onto the canvas instead of watching it bounce."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "No size limits",
-      "children": [
-       {
-        "t": "text",
-        "v": "No size limits"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — video past 30 MB or 60 seconds, audio past 50 MB, a PDF past 50 MB, all fine, on your own "
+      "v": " past 50 MB, all fine, on your own "
      },
      {
       "t": "strong",
@@ -28767,7 +28771,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Exactly three things:"
+     "v": "Exactly two things, and a third row that is the same thing said per file:"
     }
    ]
   },
@@ -28854,13 +28858,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Standard media"
+       "v": "Any — up to 50 MB each"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Anything"
+       "v": "Any, at any size"
       }
      ]
     ],
@@ -28880,7 +28884,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Video 30 MB or 60 seconds · audio 50 MB · PDF 50 MB"
+       "v": "Video 30 MB or 60 seconds · audio 50 MB · PDF and any other file 50 MB · images never"
       }
      ],
      [

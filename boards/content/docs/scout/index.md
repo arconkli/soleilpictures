@@ -68,9 +68,9 @@ moment to organize it — and it is the only moment when you actually know.
 
 Free-plan size limits are the same ones the canvas applies to a dropped file —
 {{fact:freeVideoCap}} for video, {{fact:freeAudioCap}} for audio,
-{{fact:freePdfCap}} for a PDF. Anything larger, and any other file type, needs
-[Creator](/docs/account/plans). Scout says which files it could not take rather
-than dropping them quietly.
+{{fact:freePdfCap}} for a PDF, {{fact:freeFileCap}} for any other file. Anything
+larger needs [Creator](/docs/account/plans). Scout says which files it could not
+take rather than dropping them quietly.
 
 ### Where and when a photo was taken
 

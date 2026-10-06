@@ -62,7 +62,7 @@ import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS,
-         AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS } from '../src/lib/fileIngest.js';
+         AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_FILE_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
@@ -185,6 +185,10 @@ export const FACTS = {
   zipMaxSize: `${ZIP_MAX_BYTES / MB} MB`,
   zipMaxFiles: String(ZIP_MAX_ENTRIES),
   freePdfCap: `${FREE_PDF_CAP / MB} MB`,
+  // Any OTHER file type on the free plan, up to this size (0367 opened file
+  // types on free; the server's authorize_upload() allows a demo owner exactly
+  // this many bytes — fileGateMigration.test.mjs pins the two together).
+  freeFileCap: `${FREE_FILE_CAP / MB} MB`,
   // Invitations one account can send in a rolling day, and on its first day
   // (_invite_budget_take, migration 0358). Shares to existing accounts count.
   inviteDailyLimit: inviteDaily[1],

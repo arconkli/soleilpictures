@@ -678,7 +678,7 @@ async function partyMpu(env, token, workspaceId, action, body) {
     }
     if (res.status === 403) {
       throw fail(403, 'forbidden', reason === 'owner_not_paid'
-        ? 'large uploads need a paid account on the workspace that owns this board'
+        ? 'files over the free size limit need a paid account on the workspace that owns this board'
         : 'you cannot upload to that board');
     }
     if (res.status === 400) throw fail(400, 'bad_request', 'the upload service rejected that request');

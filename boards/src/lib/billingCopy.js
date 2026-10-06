@@ -24,7 +24,7 @@ import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 // The free-tier per-file byte caps, from the module that enforces them on the
 // ingest path. gen-docs.mjs reads the same three constants for {{fact:…}}, so
 // the pricing page and the docs cannot disagree about a number.
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
+import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
 
 const MB = 1024 * 1024;
 const mb = (bytes) => `${Math.round(bytes / MB)} MB`;
@@ -88,13 +88,19 @@ export function planBilling(plan) {
 // "full edit access, everywhere you're invited" — which migration 0188 made
 // FREE for every tier. Before adding a line, name the gate that enforces it.
 //
-// The real, enforced free/paid differences are exactly these three:
+// The real, enforced free/paid differences are exactly these two:
 //   1. cards      — enforce_demo_card_cap_trg (0187): demo stops at the cap
-//   2. file types — fileIngest.js routes non-standard files to 'blocked' for
-//                   free owners; authorize_upload() rejects owner_not_paid
-//   3. size/length— free caps video 30MB/60s, audio 50MB, PDF 50MB (uploads.js)
+//   2. size/length— free caps video 30MB/60s, audio 50MB, PDF 50MB (uploads.js)
+//                   and ANY OTHER file at FREE_FILE_CAP (fileIngest.js routes a
+//                   free owner's larger file to 'blocked'; authorize_upload()
+//                   answers owner_not_paid past the same number — 0367)
 //
-// The fourth line is not a fourth LIMIT — it is the SCOPE of those three, and
+// File TYPES stopped being a difference on 2026-10-06 (0367): a free owner may
+// drop a .psd, a .fig, a .zip like anyone else, up to the cap. Any copy that
+// sells "any file type" as Creator's is now false, and publicClaims.test.mjs
+// bans that shape.
+//
+// The third line is not a third LIMIT — it is the SCOPE of those two, and
 // it is the one genuinely competitive thing on this list. Migration 0187
 // ("owner-pays capacity, keyed consistently to the WORKSPACE owner") re-keyed
 // every gate to workspaces.created_by: enforce_demo_card_cap_trg counts across
@@ -162,11 +168,14 @@ export const CREATOR_BENEFITS = [
     body: `The ${DEMO_CARD_LIMIT}-card ceiling comes off. Everything you have already made stays exactly where it is.`,
   },
   {
+    // The key stays 'filetypes' for the scorecard's history; the claim moved.
+    // Since 0367 a free owner may drop any TYPE up to FREE_FILE_CAP
+    // (fileIngest.js) — what Creator removes is the size, on both ends:
+    // the client routes a larger file to 'blocked', authorize_upload() answers
+    // owner_not_paid past the same number.
     key: 'filetypes',
-    title: 'Any file type',
-    // fileIngest.js routes non-standard files to route:'blocked' for a free
-    // owner; authorize_upload() rejects owner_not_paid on the server.
-    body: 'A .psd, a .fig, a .zip — anything at all — lands on the canvas instead of bouncing off it.',
+    title: 'Any file, any size',
+    body: `Free takes any file up to ${mb(FREE_FILE_CAP)}. ${PLAN_NAME} takes a .psd, a .fig, a .zip — anything at all — at any size.`,
   },
   {
     key: 'storage',
@@ -288,7 +297,7 @@ export const TRIAL_FROM_LABEL = `${CREATOR_TRIAL_DAYS} days free`;
 // median, several times the wall's), which is why it carries a full sentence
 // rather than a label.
 export function firstValueSentence(trialOffer) {
-  const lead = 'Creator is the complete studio — unlimited cards, any file type, any size.';
+  const lead = 'Creator is the complete studio — unlimited cards, any file at any size.';
   return trialOffer
     ? `${lead} Yours free for ${CREATOR_TRIAL_DAYS} days.`
     : `${lead} Everything your work deserves, ${PRICE_FROM_LABEL}.`;
@@ -441,10 +450,10 @@ export const PRICING_PAGE = {
   closingSub: `Upgrade when the ${DEMO_CARD_LIMIT}th card is in your way, not before.`,
 };
 
-// The comparison, built from the three gates that actually exist:
-// enforce_demo_card_cap_trg (0187), fileIngest's route:'blocked' for a free
-// owner, and the per-file byte caps in fileIngest.js. Sizes are imported, not
-// typed, so a cap change cannot leave a stale promise on the pricing page.
+// The comparison, built from the two gates that actually exist:
+// enforce_demo_card_cap_trg (0187) and the per-file byte caps in fileIngest.js
+// (media by kind, any other file at FREE_FILE_CAP — 0367). Sizes are imported,
+// not typed, so a cap change cannot leave a stale promise on the pricing page.
 export const PLAN_COMPARISON = [
   {
     key: 'cards',
@@ -453,10 +462,12 @@ export const PLAN_COMPARISON = [
     creator: 'Unlimited',
   },
   {
+    // Still keyed 'filetypes' for up_feature_hover's history. The row now says
+    // the true shape: any type on both plans; the free one up to a size.
     key: 'filetypes',
     label: 'File types',
-    demo: 'Images, video, audio, PDFs',
-    creator: 'Any file — .psd, .fig, .zip, anything',
+    demo: `Any file up to ${mb(FREE_FILE_CAP)} (images never capped)`,
+    creator: 'Any file, any size — .psd, .fig, .zip, anything',
   },
   {
     // Keyed 'storage' rather than 'size' so up_feature_hover's key space stays
@@ -478,9 +489,10 @@ export const PLAN_COMPARISON = [
 export const PRICING_FAQ = [
   {
     q: 'What is actually limited on the free plan?',
-    a: 'Three things and only three — how many cards you can have, which file types you can upload, ' +
+    a: 'Two things and only two — how many cards you can have, ' +
        `and how big or long a single file can be (video stops at ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, ` +
-       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs at ${mb(FREE_PDF_CAP)}). Collaborators and editing are not limited, and there is ` +
+       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs and any other file at ${mb(FREE_FILE_CAP)}; images are never capped). ` +
+       'Any file type is welcome on either plan. Collaborators and editing are not limited, and there is ' +
        'no separate limit on clusters — each one simply counts as a card.',
   },
   {
@@ -673,11 +685,16 @@ export function grantCopy({ grantActive, grantExpiresAt } = {}) {
 //     "ungradable" and says so instead of quoting a CTR.
 //   Expectation: no material change — the phrase is not a query term. A CTR
 //     drop well outside noise would mean it was doing selling work.
+//
+// AMENDED 2026-10-06 — "any file type" removed (truth fix, 0367: file types
+// are open on the free plan; only size is Creator's). Same predicate, window
+// and floor as above, dated from the production deploy that carries this;
+// expectation unchanged: "any file type" is not a query term either.
 export const PRICING_META_DESCRIPTION =
   `Soleil Clusters pricing — start free with the Demo (${DEMO_CARD_LIMIT} cards, ` +
   `free collaborators), or go ${PLAN_NAME} ` +
   `(${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually) ` +
-  `for unlimited cards, any file type, and no size limits on a ${CREATOR_STORAGE_LABEL} drive.`;
+  `for unlimited cards and no size limits on a ${CREATOR_STORAGE_LABEL} drive.`;
 
 // `trial` matters: during a trial this date is the FIRST CHARGE, not a renewal.
 // Calling it "Renews" is the word that turns a forgotten trial into a disputed

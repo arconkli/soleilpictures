@@ -11,9 +11,10 @@
 // tier). Both were found by grepping a production bundle, which is not a
 // process.
 //
-// The enforced free/paid differences are exactly three (see billingCopy.js):
-// cards, file types, per-file size on a 100GB drive. Anything else sold as a
-// paid unlock is false.
+// The enforced free/paid differences are exactly two (see billingCopy.js):
+// cards, and per-file size on a 100GB drive. File TYPES stopped being one on
+// 2026-10-06 (0367): a free owner may drop any type up to the free file cap.
+// Anything else sold as a paid unlock is false.
 //
 // SCOPE NOTE: these files legitimately describe COMPETITORS' plans, which do
 // cap boards and do gate editing. Every rule below is therefore scoped to
@@ -167,6 +168,26 @@ const RULES = [
     name: 'a cluster or a photo costs a card — never sell either as unlimited',
     scoped: true,
     pattern: /unlimited (boards|clusters|photo uploads)|(clusters|boards) (are|is) unlimited/i,
+  },
+  {
+    // Until 2026-10-06 "any file type" was Creator's one genuinely different
+    // upload claim, and every surface said so. 0367 opened file types on the
+    // free plan (up to the free file cap), so the shape "Creator adds / any
+    // file type on Creator / requires Creator" is now false. "Any size" is the
+    // true form; "any file type" on its own, or about both plans, is fine.
+    name: 'file types are not a paid unlock since 0367 — Creator is any SIZE, not any TYPE',
+    scoped: true,
+    // The third alternative tolerates dots: the offending sentence names
+    // extensions (".psd, .fig and .zip") before it reaches "require Creator".
+    pattern: /(creator|paid plan|paid tier|upgrad(e|ing))[^.!?]*\bany (other )?file types?\b|\bany (other )?file types?\b[^.!?]*\b(on|with|requires?|needs?|is|are) (creator|a paid|the paid)\b|non-standard (types|files)[^!?]{0,120}?\b(require|need)s? (creator|a paid)/i,
+    known: [
+      'Creator adds any file type at all',
+      'any file type on Creator',
+      'Non-standard types like .psd, .fig and .zip require Creator.',
+    ],
+    theirs: [
+      'Any file type is welcome on either plan.',
+    ],
   },
   {
     name: 'invited collaborators edit free on every tier (a public LINK is read-only, a collaborator is not)',

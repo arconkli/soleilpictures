@@ -59,7 +59,7 @@ Start free. Pay when you outgrow it.
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- Any file type
+- Any file, any size
 - No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
@@ -82,7 +82,7 @@ Yes. Share a link and they see a clean, interactive read-only preview — no wor
 
 ### Does Clusters have a free tier?
 
-Yes. The Demo tier is free; Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
+Yes. The Demo tier is free; Creator is $25/mo for unlimited cards, 100GB storage, and no size limits.
 
 ### Is there a simpler Miro alternative for mood boards?
 

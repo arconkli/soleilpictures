@@ -34,7 +34,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage and any file type.
+Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage with no size limits.
 
 ### Do I have to download anything?
 
@@ -42,7 +42,7 @@ No. It runs in your browser, and on a phone or tablet it can be added to the hom
 
 ### What is the catch with the free tier?
 
-The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and adds any file type and 100GB storage.
+The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and adds 100GB storage with no size limits.
 
 ### Can I share my free mood board?
 

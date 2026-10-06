@@ -16,11 +16,11 @@ Production design is many decisions per set, made by several people at once. One
 
 ## References, palettes and plans together
 
-A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Sample a palette off any reference with the eyedropper, a swatch at a time. On Creator, any file type rides along as an attachment — a .psd, a .zip of drawings, a model file.
+A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Sample a palette off any reference with the eyedropper, a swatch at a time. A .psd, a .zip of drawings, a model file ride along as attachments — at any size on Creator.
 
 - PDF plans and drawings beside the references
 - Palettes sampled off any image, with hex values
-- Any file type as an attachment on Creator
+- Any file as an attachment — any size on Creator
 
 ## The whole department, live
 
@@ -55,7 +55,7 @@ Start free. Pay when you outgrow it.
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- Any file type
+- Any file, any size
 - No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
@@ -74,7 +74,7 @@ Yes. Invite set decorators, prop masters and graphics as editors — free on eve
 
 ### Can I attach floor plans and drawings?
 
-Yes. PDFs of plans and drawings sit on the board as cards beside the references. Other formats — a .psd, a .zip, a model file — attach on Creator, which accepts any file type.
+Yes. PDFs of plans and drawings sit on the board as cards beside the references. Other formats — a .psd, a .zip, a model file — attach on any plan; Creator lifts the size caps.
 
 ### How do I share the boards with the director and producer?
 

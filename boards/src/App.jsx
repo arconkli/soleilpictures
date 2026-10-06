@@ -185,7 +185,7 @@ import { analyzeAudioFile, analyzable } from './lib/audioAnalysis.js';
 import { parseLoopMeta } from './lib/loopMeta.js';
 import { lowMemoryDevice } from './lib/device.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
-import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor } from './lib/fileIngest.js';
+import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from './lib/fileIngest.js';
 import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
@@ -2600,15 +2600,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const explained = csFiles.own && over === 0 ? pitchStorageGate() : false;
         const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
-          reason: 'owner_not_paid', surface: 'list', n: blocked.length,
+          reason: 'over_free_cap', surface: 'list', n: blocked.length,
           ext: (blocked[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
           size_bucket: sizeBucket(biggest),
         });
         feedback.toast({
           type: 'warning',
           message: csFiles.own
-            ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`
-            : `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs the cluster's owner to be on a paid plan.`,
+            ? `${blocked.length === 1 ? 'That file is' : `${blocked.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blocked.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`
+            : `${blocked.length === 1 ? 'That file is' : `${blocked.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit — the cluster's owner would need a paid plan.`,
           ttl: 6000,
           // Only when the modal did NOT open — otherwise the toast offers a
           // second route to the screen already in front of them. When it did
@@ -2783,7 +2783,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               type: 'warning',
               message: err.code === 402
                 ? "You're out of storage. Creator lifts the limit."
-                : 'That file needs a paid plan — Creator takes any file type.',
+                : `That file is over the free ${FREE_FILE_CAP_LABEL} limit — Creator takes any size.`,
               ttl: 6000,
               action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: err.code === 402 ? 'server_quota' : 'server_403' }); pitchStorageGate({ force: true }); } },
             });
@@ -5247,7 +5247,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (plan.blocked.length && !res.stopped) {
       feedback.toast({
         type: 'warning',
-        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file needs' : 'files need'} a paid plan and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`,
+        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file is' : 'files are'} over the free ${FREE_FILE_CAP_LABEL} limit and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`,
         ttl: 7000,
         action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
       });

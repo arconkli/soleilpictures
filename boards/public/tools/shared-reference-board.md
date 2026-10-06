@@ -32,7 +32,7 @@ Nest a cluster per character, environment or shot and the project stays navigabl
 
 ## One plan for the team, not a licence per seat
 
-Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards, with each cluster counting as one, shared by everyone working in it. Creator lifts that ceiling for the whole workspace at once and adds any file type with no per-file size limit — so a team of six pays for one plan, not six.
+Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards, with each cluster counting as one, shared by everyone working in it. Creator lifts that ceiling for the whole workspace at once and removes the per-file size limits — so a team of six pays for one plan, not six.
 
 ## Where a desktop app is still the right call
 
@@ -59,7 +59,7 @@ Start free. Pay when you outgrow it.
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- Any file type
+- Any file, any size
 - No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
@@ -90,5 +90,5 @@ No. Clusters is a browser workspace and needs a connection. In exchange the boar
 
 ### Is it free?
 
-Free for 50 cards across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and adds any file type; see “What it costs” on this page.
+Free for 50 cards across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and the file size limits; see “What it costs” on this page.
 

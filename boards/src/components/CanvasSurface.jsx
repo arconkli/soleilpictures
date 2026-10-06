@@ -159,7 +159,7 @@ import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
-import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from '../lib/fileIngest.js';
 import { saveWebImageCopy } from '../lib/webImageClient.js';
 import { pickHotlinks, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
 import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
@@ -3269,8 +3269,8 @@ export function CanvasSurface({
       feedback.toast({
         type: 'warning',
         message: ownsWorkspace
-          ? 'Uploading files needs a paid plan — upgrade to add any file type.'
-          : "Uploading that file needs the cluster's owner to be on a paid plan.",
+          ? `Files over ${FREE_FILE_CAP_LABEL} need Creator — upgrade for any size.`
+          : `Files over ${FREE_FILE_CAP_LABEL} need the cluster's owner to be on a paid plan.`,
         ...(ownsWorkspace && !explained
           ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: err.code === 402 ? 'server_quota' : 'server_403' }); upsell?.({ force: true }); } } }
           : {}),
@@ -3913,14 +3913,14 @@ export function CanvasSurface({
       try {
         const biggest = blockedForUpgrade.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
-          reason: 'owner_not_paid', surface: 'canvas', n: blockedForUpgrade.length,
+          reason: 'over_free_cap', surface: 'canvas', n: blockedForUpgrade.length,
           ext: (blockedForUpgrade[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
           size_bucket: sizeBucket(biggest),
         });
       } catch (_) {}
       feedback.toast({
         type: 'warning',
-        message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
+        message: `${blockedForUpgrade.length === 1 ? 'That file is' : `${blockedForUpgrade.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blockedForUpgrade.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to 100GB.`,
         ttl: 6000,
         ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });
@@ -4810,14 +4810,14 @@ export function CanvasSurface({
             const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
             try {
               logEvent(EV.UPLOAD_BLOCKED, {
-                reason: 'owner_not_paid', surface: 'canvas', n: 1,
+                reason: 'over_free_cap', surface: 'canvas', n: 1,
                 ext: (file.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
                 size_bucket: sizeBucket(file.size || 0),
               });
             } catch (_) {}
             feedback.toast({
               type: 'warning',
-              message: 'Uploading files needs a paid plan — upgrade to add any file type.',
+              message: `That file is over the free ${FREE_FILE_CAP_LABEL} limit — Creator takes any size.`,
               ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
             });
             return;

@@ -67,10 +67,10 @@ export function isImage(mimeType) {
 // only works if we hand it the filename too.
 //
 // `canAttemptFiles` is the free-tier gate. Per fileIngest.js, video ≤30MB,
-// audio ≤50MB and PDF ≤50MB are FREE and return before the gate is consulted;
-// only oversize media and arbitrary file types are the paid "upload anything"
-// feature. Scout's own copy used to claim all video and audio were paid, which
-// was simply wrong.
+// audio ≤50MB and PDF ≤50MB are FREE and return before the gate is consulted,
+// and since 0367 so is any other file up to FREE_FILE_CAP; only SIZE is the
+// paid feature. Scout's own copy used to claim all video and audio were paid,
+// and later that any other file type was — both simply wrong.
 export function classifyAttachment(att, { canAttemptFiles = true } = {}) {
   return classifyDropFile(
     { type: att?.mimeType || '', name: att?.name || '', size: att?.bytes?.length || att?.size || 0 },

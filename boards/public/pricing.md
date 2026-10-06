@@ -19,7 +19,7 @@ No card, no clock, no expiry.
 Or $20/mo billed annually ($240/yr) — save 20%. Cancel any time — your cards stay yours.
 
 - **Unlimited cards** — The 50-card ceiling comes off. Everything you have already made stays exactly where it is.
-- **Any file type** — A .psd, a .fig, a .zip — anything at all — lands on the canvas instead of bouncing off it.
+- **Any file, any size** — Free takes any file up to 50 MB. Creator takes a .psd, a .fig, a .zip — anything at all — at any size.
 - **No size limits** — Video past 30 MB or 60 seconds, audio past 50 MB, a PDF past 50 MB — all fine, on a **100GB** drive.
 - **Covers your whole workspace** — Everyone you invite builds at your limits. There are no per-seat charges.
 
@@ -30,7 +30,7 @@ Three differences, and nothing else. Everything absent from this table is on bot
 | | Free | Creator |
 |---|---|---|
 | Cards | 50 | Unlimited |
-| File types | Images, video, audio, PDFs | Any file — .psd, .fig, .zip, anything |
+| File types | Any file up to 50 MB (images never capped) | Any file, any size — .psd, .fig, .zip, anything |
 | Per-file size and length | Video 30 MB or 60s · audio 50 MB · PDF 50 MB | No limit, on a 100GB drive |
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
@@ -39,7 +39,7 @@ One Creator plan covers the whole workspace — everyone you invite builds at yo
 
 ### What is actually limited on the free plan?
 
-Three things and only three — how many cards you can have, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+Two things and only two — how many cards you can have, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs and any other file at 50 MB; images are never capped). Any file type is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
 
 ### Do the people I invite need to pay?
 

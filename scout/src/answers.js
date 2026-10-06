@@ -10,7 +10,7 @@
 // classification only when the wording is unusual.
 
 import {
-  FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP,
+  FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP,
 } from '../../boards/src/lib/fileIngest.js';
 import { DEMO_CARD_LIMIT } from '../../boards/src/lib/demoCardCap.js';
 
@@ -52,8 +52,8 @@ export const TOPICS = {
       '',
       'Voice notes — I transcribe them, so you can search what you said later.',
       '',
-      `PDFs up to ${mb(FREE_PDF_CAP)}. Bigger files, and any other file type,`,
-      'need a Creator plan.',
+      `PDFs up to ${mb(FREE_PDF_CAP)}, and any other file up to ${mb(FREE_FILE_CAP)} —`,
+      'a .psd, a .zip, a project file. Bigger than that needs a Creator plan.',
       '',
       'Links — YouTube, Vimeo, TikTok and the like become real embedded cards.',
       'Anything else becomes a preview card with its title and image.',
@@ -111,7 +111,7 @@ export const TOPICS = {
     answer: (ctx) => {
       if (ctx.cap === Infinity) {
         return [
-          'You\'re on Creator — no card limit, 100GB of storage, and any file type.',
+          'You\'re on Creator — no card limit, 100GB of storage, and no file size limits.',
           '',
           'Send as much as you like.',
         ].join('\n');
@@ -126,7 +126,7 @@ export const TOPICS = {
       // silently eats the '' that separates the paragraphs, because '' is falsy.
       if (used !== null) lines.push('', `You're at ${used} of ${cap}.`);
       lines.push('', 'When you hit the wall I\'ll tell you. Creator lifts the cap and adds 100GB',
-        `and any file type: ${ctx.origin}/pricing`);
+        `with no file size limits: ${ctx.origin}/pricing`);
       return lines.join('\n');
     },
   },

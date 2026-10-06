@@ -1,6 +1,6 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 _Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-02_
 
@@ -20,6 +20,7 @@ page, drops it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- Any file type, up to 50 MB each — images are never capped
 
 ## Creator
 
@@ -29,23 +30,21 @@ page, drops it.
 
 - **Unlimited cards** — the 50-card ceiling comes off, and every
   card you have already made stays exactly where it is.
-- **Any file type** — drop a `.psd`, a `.fig`, a `.zip`, anything at all, straight
-  onto the canvas instead of watching it bounce.
 - **No size limits** — video past 30 MB or 60 seconds, audio past
-  50 MB, a PDF past 50 MB, all fine, on your own
-  **100GB** drive.
+  50 MB, a PDF or a `.psd`, a `.fig`, a `.zip` past 50 MB, all
+  fine, on your own **100GB** drive.
 - **Covers your whole workspace** — everyone you invite builds at your limits,
   and there are no per-seat charges.
 
 ## What is genuinely limited
 
-Exactly three things:
+Exactly two things, and a third row that is the same thing said per file:
 
 | | Demo | Creator |
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | 50 | Unlimited |
-| **[File types](/docs/files)** | Standard media | Anything |
-| **Per-file size and length** | Video 30 MB or 60 seconds · audio 50 MB · PDF 50 MB | No limit |
+| **[File types](/docs/files)** | Any — up to 50 MB each | Any, at any size |
+| **Per-file size and length** | Video 30 MB or 60 seconds · audio 50 MB · PDF and any other file 50 MB · images never | No limit |
 
 Everything else is the same on both plans.
 

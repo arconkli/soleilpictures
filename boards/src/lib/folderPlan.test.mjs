@@ -25,14 +25,16 @@ test('a folder costs one card per file and one per cluster', () => {
 test('files the drop never takes are counted, not planned', () => {
   const root = dir(null, [], [dir('Mixed', [
     f('a.jpg'), f('draft.fountain', 'text/plain'), f('board.pur', ''), f('x.jpg.crdownload', ''),
-    f('stems.zip', 'application/zip'),
+    f('stems.zip', 'application/zip'), f('masters.zip', 'application/zip', 60 * 1024 * 1024),
   ])]);
   const free = planFolderImport(root, { canAttemptFiles: false });
-  assert.equal(free.files, 1);
+  // 0367: a free owner's zip comes along like any other file; only the one
+  // past the free file cap is blocked, and for its size, never its type.
+  assert.equal(free.files, 2);
   assert.deepEqual(free.skipped, { partial: 1, pureref: 1, scripts: 1 });
-  assert.deepEqual(free.blocked.map((x) => x.name), ['stems.zip'], 'a free owner\'s non-standard file is blocked');
+  assert.deepEqual(free.blocked.map((x) => x.name), ['masters.zip'], 'a free owner\'s over-cap file is blocked');
   const paid = planFolderImport(root, { canAttemptFiles: true });
-  assert.equal(paid.files, 3, 'on a paid plan the zip comes too, and the .pur as a file card');
+  assert.equal(paid.files, 4, 'on a paid plan both zips come, and the .pur as a file card');
   assert.equal(paid.skipped.pureref, 0);
 });
 
