@@ -26,7 +26,7 @@ test('the live body is the one that carries the outcome alerts', () => {
 test('no alert 0335 shipped was lost, and the three 0360 alerts are there', () => {
   for (const name of ['gsc-sync stale', 'AEO probe stale', 'AEO probe failing', 'AI crawler silence',
                       'seo-health prober stale', 'Sign-in email opens collapsed',
-                      'Sign-in email bounces spiked', 'App email volume spike']) {
+                      'Sign-in email bounces spiked', 'App email volume spike', 'Sign-in email rows missing']) {
     assert.ok(def.body.includes(`'${name}'`), `alert "${name}" is raised`);
   }
 });
@@ -45,7 +45,8 @@ test('every email read is scoped to our sending domain', () => {
   const reads = def.body.match(/from public\.email_sends es[\s\S]*?(?=\)\s*s;|group by|limit 1)/g) || [];
   assert.ok(reads.length >= 3, 'three email_sends reads');
   for (const r of reads) {
-    assert.match(r, /sending_domain like '%soleilpictures%'/, 'scoped to our domain');
+    // _email_domain_is_ours: ours, or NULL (a failed send never gets a domain).
+    assert.match(r, /public\._email_domain_is_ours\(es\.sending_domain\)/, 'scoped to our domain, NULL included');
   }
   assert.match(def.body, /es\.category = 'external'/, 'the code email is the external category');
   assert.match(def.body, /_internal_user_ids\(\)/, 'internal recipients are excluded from the open rate');
@@ -55,4 +56,11 @@ test('the function keeps its signature and its grants are proven, not trusted', 
   assert.doesNotMatch(src, /drop\s+function/i, 'a DROP would discard the ACL');
   assert.match(src, /has_function_privilege\('anon',\s*'public\.check_discovery_pipelines\(\)'/);
   assert.match(src, /has_function_privilege\('authenticated',\s*'public\.check_discovery_pipelines\(\)'/);
+});
+
+test('the page-drop baseline is lagged, so a long outage cannot erode it', () => {
+  // A baseline that ends days before the anchor absorbs a continuing drop
+  // within a week and the alert goes quiet while the page is still gone.
+  assert.match(def.body, /where day between v_gsc - 31 and v_gsc - 18/, 'baseline fortnight a month back');
+  assert.match(def.body, /p\.day between v_gsc - 3 and v_gsc - 1/, 'recent window: the three days before the newest');
 });

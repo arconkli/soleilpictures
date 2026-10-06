@@ -52,6 +52,7 @@ import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
 import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout, getGridLayout, recordTemplateDownload } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
+import { shouldGreetResume, lastTouchedCard, LAST_HIDDEN_KEY, resumePageState } from './lib/resumeSitting.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext, getFirstSource } from './lib/analytics.js';
@@ -6348,6 +6349,117 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => stopFriction();
   }, [frictionEligible]);
 
+  // ── Day one, after the first break (lib/resumeSitting.js) ──────────────────
+  // A second sitting on day one is the strongest early marker of coming back,
+  // and it used to arrive to a fresh app session with the ambient asks reset.
+  // Three ways back are watched, and the first to qualify greets once per page:
+  // the tab shown again after a long hide, a tab reopened after one (the hide
+  // was stamped by an earlier page), and the first input after a long idle with
+  // the tab still in front. The greeting claims the upsell slot BEFORE it shows,
+  // so it never stacks on an offer and every ambient ask stands down for its
+  // minute; it points back at the last card THEY touched, on a board they can
+  // edit, and stands down while the tour or coachmark holds the screen.
+  // "Once per page" is module state (resumePageState): <Workspace> remounts on
+  // a workspace switch, and a ref would greet again. A visible page CONSUMES
+  // the hide stamp it reads, so no later mount can measure from it again.
+  const resumeGreetRef = useRef(null);
+  // Assigned further down, once canEditCurrent / showCoachmark exist.
+  const resumeGateRef = useRef({ canEdit: false, tourActive: false, showCoachmark: false });
+  const ybBoardIdRef = useRef(yb.boardId);
+  ybBoardIdRef.current = yb.boardId;
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid || typeof document === 'undefined') return undefined;
+    const key = LAST_HIDDEN_KEY + uid;
+    const created = Date.parse(user?.created_at || '');
+    let lastInputAt = Date.now();
+    const readHidden = () => { try { return Number(localStorage.getItem(key)) || 0; } catch (_) { return 0; } };
+    const stampHidden = () => { try { localStorage.setItem(key, String(Date.now())); } catch (_) {} };
+    const consumeHidden = () => { try { localStorage.removeItem(key); } catch (_) {} };
+    const greet = (via, awayMs) => {
+      const now = Date.now();
+      const pageState = resumePageState();
+      const gate = resumeGateRef.current || {};
+      const tier = myTierRef.current || {};
+      // Stand down without spending the greeting: a later return may still get it.
+      if (!gate.canEdit || gate.tourActive || gate.showCoachmark || tier.loading) return;
+      const mine = genuineCards(ybCardsRef.current || []).filter((c) => c?.createdBy === uid);
+      if (!shouldGreetResume({ awayMs, accountAgeMs: now - created, genuineCards: mine.length, greeted: pageState.greeted })) return;
+      if (!claimUpsellSlot('resume')) return;
+      pageState.greeted = true;
+      const last = lastTouchedCard(mine);
+      const boardId = ybBoardIdRef.current;
+      const limit = Number(tier.effectiveCardLimit);
+      const atCap = tier.tier === 'demo' && Number.isFinite(limit) && Number(tier.demoCardCount) >= limit;
+      try { logEvent(EV.RESUME_GREET_SHOWN, { via, gap_min: Math.round(awayMs / 60000), cards: mine.length, at_cap: atCap }); } catch (_) {}
+      feedback.toast({
+        type: 'info',
+        message: atCap
+          ? 'Welcome back — your board is where you left it.'
+          : 'Welcome back — your board is where you left it. Paste or drop anything to keep adding.',
+        ttl: 9000,
+        action: last && boardId ? {
+          label: 'Show my last card',
+          onClick: () => {
+            try { logEvent(EV.RESUME_GREET_ACTION, { action: 'jump' }); } catch (_) {}
+            // Navigate the way ⌘K does: the board's own path (never a push onto
+            // whatever stack is open now), on its canvas, then centre the card.
+            try { setStack(ancestorPath(boardsRef.current || {}, boardId)); } catch (_) {}
+            setViewOverride((o) => ({ ...o, [boardId]: 'canvas' }));
+            setCurrentSurface('board');
+            setTimeout(() => {
+              document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId, cardId: last.id } }));
+            }, 0);
+          },
+        } : null,
+      });
+    };
+    // The reopen path runs once the board's cards are in (effect below), and
+    // only for a page someone is looking at.
+    resumeGreetRef.current = () => {
+      if (document.visibilityState !== 'visible') return;
+      const at = readHidden();
+      consumeHidden();
+      if (at > 0) greet('reopen', Date.now() - at);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') { stampHidden(); return; }
+      const at = readHidden();
+      consumeHidden();
+      if (at > 0) greet('tab', Date.now() - at);
+      lastInputAt = Date.now();
+    };
+    const onInput = () => {
+      const now = Date.now();
+      const idle = now - lastInputAt;
+      lastInputAt = now;
+      if (document.visibilityState === 'visible') greet('idle', idle);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', stampHidden);
+    window.addEventListener('pointerdown', onInput, { capture: true, passive: true });
+    window.addEventListener('keydown', onInput, { capture: true, passive: true });
+    window.addEventListener('wheel', onInput, { capture: true, passive: true });
+    return () => {
+      resumeGreetRef.current = null;
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', stampHidden);
+      window.removeEventListener('pointerdown', onInput, { capture: true });
+      window.removeEventListener('keydown', onInput, { capture: true });
+      window.removeEventListener('wheel', onInput, { capture: true });
+    };
+    // feedback is a stable context value; ybCardsRef / ybBoardIdRef are read live.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.created_at]);
+  // Once per page: the first time a board's cards are in. A later board or
+  // workspace switch must not replay a hide stamped before this page existed.
+  useEffect(() => {
+    const pageState = resumePageState();
+    if (!yb.ready || pageState.reopenTried || !resumeGreetRef.current) return;
+    pageState.reopenTried = true;
+    resumeGreetRef.current();
+  }, [yb.ready, user?.id]);
+
   // Post-signup journey: keep the live snapshot's board/genuine-card counts + route
   // fresh so every enveloped event (heartbeat, trace, gate skips) is self-describing.
   useEffect(() => {
@@ -6464,6 +6576,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // against a destroyed Y.Doc or in a workspace the user has left.
   const currentIdRef = useRef(currentId);
   currentIdRef.current = currentId;
+  // The day-one resume greeting reads these through a ref (its listeners
+  // outlive the render that created them).
+  resumeGateRef.current = { canEdit: !!canEditCurrent, tourActive: !!tourActive, showCoachmark: !!showCoachmark };
   const mainMutatorsRef = useRef(mainMutators);
   mainMutatorsRef.current = mainMutators;
   const aliveRef = useRef(true);

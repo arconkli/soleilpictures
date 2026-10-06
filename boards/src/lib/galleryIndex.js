@@ -116,7 +116,7 @@ export const GALLERY_ENTRIES = Object.freeze([
     note: 'Inline JSX inside CanvasSurface. Shows on a board holding 1-5 genuine cards. Place one image on a new cluster and it appears; the predicate is shouldShowDepthDock in lib/depthDock.js.' },
   { id: 'mix-prompt', label: 'Mix prompt', group: 'onboarding', kind: 'insitu',
     keywords: 'mix prompt add a note say what this is image heavy canvas nudge',
-    note: 'Inline JSX inside CanvasSurface, and it must also win the upsell slot. Place 3+ images and no text on a cluster; the predicate is shouldPromptMix in lib/mixPrompt.js. It beats the depth dock where both are eligible.' },
+    note: 'RETIRED 2026-10-05 — MIX_PROMPT_RETIRED in lib/mixPrompt.js keeps it from rendering; flip that flag locally to preview it. When live it was inline JSX inside CanvasSurface that had to win the upsell slot (3+ images, no text; predicate shouldPromptMix).' },
 
   // ── Sharing & collaboration ──────────────────────────────────────────────
   { id: 'share-modal', label: 'Share panel', group: 'sharing', kind: 'overlay',

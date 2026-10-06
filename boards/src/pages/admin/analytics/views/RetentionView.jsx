@@ -206,7 +206,10 @@ export function RetentionView() {
       // device, first source, day-one depth and signup week. This is the read
       // that can move within a fortnight of a deploy; the survival step above
       // pools three months of exposure and cannot.
-      supabase.rpc('admin_return_fixed_horizon', { p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      // Same cohort as the built read beside it (first visits since 2026-08-17,
+      // the usage_session epoch), so the gap between the two panels is glances,
+      // not a different set of people.
+      supabase.rpc('admin_return_fixed_horizon', { p_since: '2026-08-17', p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Only to size the intake for the power note — how long a change would
       // take to become readable depends on how fast people arrive.
       supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly }),
@@ -301,7 +304,7 @@ export function RetentionView() {
             span={12}
             title="Back within a week"
             meta="any visit — includes glances"
-            foot="The 0322 read: any later visit counts, including a few seconds on a restored board. Kept beside the built return so the gap between them stays visible."
+            foot="The 0322 read on the same cohort as the built return (first visits since 2026-08-17): any later visit counts, including a few seconds on a restored board. Kept beside the built return so the gap between them stays visible."
           >
             <FixedHorizonTable rows={q.data?.fixedHorizon || []} horizonDays={7} />
           </Well>

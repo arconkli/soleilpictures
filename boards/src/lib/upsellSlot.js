@@ -70,7 +70,14 @@ const ALWAYS_WINS = 'cap-hit';
 // request they made, not an ask, so it is not AMBIENT and spends no visit; it
 // claims so the ambient kinds stand down around it, and it waits (rather than
 // stacking) if the wall or another offer holds the minute.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent']);
+// 'resume' is the day-one "pick up where you left off" (lib/resumeSitting.js):
+// a person back from their first real break. It is not an ask — it offers
+// nothing and wants nothing — so it is not AMBIENT and spends no visit. It
+// claims so that every ambient ask stands down for that minute: the resumed
+// sitting is the moment most predictive of coming back, and it used to arrive
+// with a fresh app session and the asks reset. It never lands on a surface
+// that already holds the minute; a refusal means no greeting this time.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent', 'resume']);
 
 // The surfaces that put an offer on screen. Only these may be followed. (The
 // wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then

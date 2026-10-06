@@ -35,6 +35,13 @@
 // Deliberately its own constant and NOT wired to DEPTH_DOCK_MAX: that one marks
 // where a board stops being thin, which is a different question from where a
 // board has earned a caption. Moving one must not silently move the other.
+// RETIRED 2026-10-05. Engagement stayed a small fraction of shows, several
+// shows per person, and the day-one mix effect it was built on does not
+// survive stratifying by depth. CanvasSurface gates on this flag and keeps the
+// dock JSX in place, so bringing it back is this one line. The depth dock takes
+// the corner back wherever the two used to overlap.
+export const MIX_PROMPT_RETIRED = true;
+
 export const MIX_PROMPT_MIN_IMAGES = 3;
 
 // Ask iff the board has real pictures on it and no words anywhere, the viewer

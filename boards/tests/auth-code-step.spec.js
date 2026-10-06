@@ -64,3 +64,41 @@ test('a work address is told how to get a code through, and gets no inbox link',
   await expect(page.locator('.auth-work-hint')).toBeVisible();
   await expect(page.locator('a.auth-mailbox')).toHaveCount(0);
 });
+
+// Email invites are bound to the invited address (claim_pending_invite refuses
+// any other), so the code step must never lead an invitee off it.
+const INVITE_KEY = 'soleil.boards.pending.invite.token';
+async function stubInvite(page, addr) {
+  await page.route('**/rest/v1/rpc/peek_pending_invite_email**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(addr) }));
+  await page.addInitScript((k) => { try { localStorage.setItem(k, 'e2e-invite-token'); } catch { /* ignore */ } }, INVITE_KEY);
+}
+
+test('an invite for another address wins over a restored code step', async ({ page }) => {
+  await isolate(page);
+  await stubInvite(page, 'invitee@studio.film');
+  await seed(page, { email: 'someone-else@gmail.com', offset: -60_000 });
+  await page.goto('/');
+  await expect(page.getByLabel('Email address')).toHaveValue('invitee@studio.film', { timeout: 15000 });
+  await expect(page.getByText("You've been invited.")).toBeVisible();
+  await expect(page.locator('.auth-code-input')).toHaveCount(0);
+});
+
+test('a restored step for the invited address keeps its place, the banner, and no personal-address hint', async ({ page }) => {
+  await isolate(page);
+  await stubInvite(page, 'invitee@studio.film');
+  await seed(page, { email: 'invitee@studio.film', offset: -60_000 });
+  await page.goto('/');
+  await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("You've been invited.")).toBeVisible();
+  await expect(page.locator('.auth-work-hint')).toHaveCount(0);
+});
+
+test('a mistyped consumer domain keeps its typo offer after a reload, not the work hint', async ({ page }) => {
+  await isolate(page);
+  await seed(page, { email: 'me@gmial.com', offset: -60_000 });
+  await page.goto('/');
+  await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('.auth-typo')).toContainText('gmail.com');
+  await expect(page.locator('.auth-work-hint')).toHaveCount(0);
+});

@@ -10,11 +10,16 @@
 // the app far more often than consumer ones.
 const GMAIL_SEARCH = 'in:anywhere from:soleilpictures newer_than:1d';
 
+// href receives the address: Gmail's authuser= opens THAT account even when
+// another Google account is signed in first (/u/0/ would search the wrong
+// mailbox, find nothing, and say the code never came).
 const PROVIDERS = Object.freeze([
   { id: 'gmail',   label: 'Open Gmail',       test: /^(gmail|googlemail)\.com$/,
-    href: () => `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(GMAIL_SEARCH)}` },
+    href: (email) => `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#search/${encodeURIComponent(GMAIL_SEARCH)}` },
   { id: 'outlook', label: 'Open Outlook',     test: /^(outlook|hotmail|live|msn)\.[a-z.]+$/,
     href: () => 'https://outlook.live.com/mail/0/' },
+  { id: 'yahoo_jp', label: 'Open Yahoo! Mail', test: /^yahoo\.co\.jp$/,      // a separate service with separate accounts
+    href: () => 'https://mail.yahoo.co.jp/' },
   { id: 'yahoo',   label: 'Open Yahoo Mail',  test: /^(yahoo|ymail)\.[a-z.]+$/,
     href: () => 'https://mail.yahoo.com/' },
   { id: 'icloud',  label: 'Open iCloud Mail', test: /^(icloud|me|mac)\.com$/,
@@ -38,7 +43,7 @@ export function mailboxFor(email) {
   const d = domainOf(email);
   if (!d) return null;
   const p = PROVIDERS.find((x) => x.test.test(d));
-  return p ? { id: p.id, label: p.label, href: p.href() } : null;
+  return p ? { id: p.id, label: p.label, href: p.href(email.trim().toLowerCase()) } : null;
 }
 
 // True for a personal mailbox provider; false for a work, school or custom

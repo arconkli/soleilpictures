@@ -88,18 +88,29 @@ const AUTHOR = {
 };
 
 const PAGES = [
-  // PRE-REGISTERED 2026-10-05 — the intent router under the quick answer, and
-  // the answer naming our URL. Readers of this page are comparing: they scroll
-  // the whole list and click into rival reviews about as often as our own CTA,
-  // and the page converts a fraction of what /vs/pureref and /tools/* convert
-  // from the same referrers. Predicate: new-account rate for sessions whose
-  // first lp_view is this page (account created in the same session within a
-  // day, internal excluded), all devices and desktop, read separately for
-  // search and AI referrers. Window: ship+3 days to ship+45 days, against the
-  // 45 days before ship. Floor: 200 post-ship sessions, else ungradable. One
-  // surface: no other copy on this page changes inside the window. Guardrail:
-  // page-level web impressions and position for "pureref alternative" queries
-  // must hold (title and meta are untouched; the router is body copy).
+  // PRE-REGISTERED 2026-10-05 (amended the same day, before any post-ship
+  // read, after review) — the intent router under the quick answer, and the
+  // answer naming our URL. Readers of this page are comparing: they scroll the
+  // whole list and click into rival reviews about as often as our own CTA, and
+  // the page converts a fraction of what /vs/pureref and /tools/* convert from
+  // the same referrers.
+  //   Leading read (what the router moves directly): share of first-landing
+  //   sessions with an lp_cta_click whose pos starts 'route:' or is a signup
+  //   CTA, before vs after.
+  //   Outcome: new-account rate for sessions whose first lp_view is this page
+  //   (account created in the same session within a day, internal excluded),
+  //   graded as a DIFFERENCE against the same rate on /vs/pureref and /tools/*
+  //   first landings over the same windows — the sign-in fix shipped the same
+  //   day and lifts every landing page, so a bare before/after would credit it
+  //   to the router. Read for search and AI referrers separately.
+  //   Window: ship+3 days onward against the 45 days before ship, closing at
+  //   +45 days or later, once 200 post-ship sessions exist (at most +90; under
+  //   the floor at +90 it is ungradable, and we say so).
+  //   One surface: no other copy on this page changes inside the window.
+  //   Guardrail: this page's page-level web rows (query = '') — impressions and
+  //   impression-weighted position — must hold; query rows for "pureref
+  //   alternative" are read only as the labelled partial breakdown.
+  //   Title and meta are untouched; the router is body copy.
   {
     "path": "/best/pureref-alternatives",
     "kind": "listicle",
@@ -114,7 +125,7 @@ const PAGES = [
       "heading": "Which one do you need?",
       "routes": [
         { "need": "Your reference wall in the browser, shared with a team or a client and open on any device", "pick": "Soleil Clusters", "href": "#soleil-clusters", "isUs": true, "compare": { "href": "/vs/pureref", "label": "How it compares to PureRef" } },
-        { "need": "A private wall that floats over your paint or 3D app on one machine", "pick": "PureRef itself, or BeeRef if it has to be free and open source", "href": "#beeref" },
+        { "need": "A private wall that floats over your paint or 3D app on one machine", "pick": "PureRef itself, or BeeRef if it has to be free and open source", "href": "#honest" },
         { "need": "A searchable library for years of saved images", "pick": "Eagle", "href": "#eagle" }
       ]
     },
