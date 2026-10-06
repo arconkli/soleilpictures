@@ -68,6 +68,10 @@ Click **Share**. You have two different things there, and the difference matters
 
 ## Where to go next
 
+Inside the app, the **?** button at the top right (or `⌘K` → "Help") opens
+one screen that names every kind of card you can add and links to these
+pages. Press `?` on its own for the keyboard shortcuts.
+
 - [Core concepts](/docs/concepts) — the vocabulary, in two minutes
 - [The canvas](/docs/canvas) — every tool and gesture
 - [Cards](/docs/canvas/cards) — what each card type does

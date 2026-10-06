@@ -55,6 +55,7 @@ import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigge
 import { shouldGreetResume, lastTouchedCard, LAST_HIDDEN_KEY, resumePageState } from './lib/resumeSitting.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
+import { HelpHost, HelpButton, openHelpHub } from './components/HelpHub.jsx';
 import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext, getFirstSource } from './lib/analytics.js';
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
@@ -101,7 +102,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -7800,8 +7801,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // New tab: the docs are a separate reading surface, and losing an unsaved
     // canvas to a same-tab navigation would be a poor trade for a help link.
     { id: 'docs', label: 'Documentation', icon: BookOpen,
-      keywords: ['docs', 'documentation', 'help', 'guide', 'manual', 'api', 'mcp', 'how to'],
-      run: () => window.open('/docs', '_blank', 'noopener') },
+      keywords: ['docs', 'documentation', 'guide', 'manual', 'api', 'mcp', 'how to'],
+      run: () => { logEvent(EV.DOCS_OPEN, { from: 'palette', path: '/docs' }); window.open('/docs', '_blank', 'noopener'); } },
+    // The Help hub (components/HelpHub.jsx): one screen naming every kind of
+    // card, with the doors to shortcuts, guides, the changelog and feedback.
+    // Two commands for the two ways people ask — "help" and "what can I add".
+    { id: 'help', label: 'Help', icon: Question,
+      keywords: ['help', 'how', 'learn', 'tips', 'guide', 'support', 'what can i do'],
+      run: () => openHelpHub('palette') },
+    { id: 'add-anything', label: 'What can I add here?', icon: Question,
+      keywords: ['add', 'what', 'kinds', 'cards', 'image', 'note', 'doc', 'script', 'grid', 'cluster', 'file', 'video', 'pdf', 'palette', 'arrow'],
+      run: () => openHelpHub('palette_add') },
     { id: 'account', label: 'Account & billing', icon: User, keywords: ['account', 'profile', 'billing', 'plan'],
       run: () => openSettings('profile') },
     { id: 'invite', label: 'Invite friends', icon: UserPlus, keywords: ['invite', 'referral', 'friends', 'earn'],
@@ -8414,6 +8424,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               differ only in which tab it lands on. The cog is about the
               workspace, the avatar is about you. */}
           <div className="sb-foot">
+            <HelpButton as="foot" via="sidebar" />
             <button className="sb-foot-icon" title="Settings" aria-label="Settings"
                     onClick={() => openSettings('general')}>
               <Icon as={Settings} size={14} />
@@ -8563,6 +8574,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
               <Icon as={Trash2} size={16} />
             </button>
+            <HelpButton as="tb" via="topbar" />
             <FeedbackButton as="icon" />
             <span className="tb-divider" aria-hidden="true" />
             <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
@@ -8815,6 +8827,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       />
 
       <ShortcutsHost />
+      <HelpHost feedback={<FeedbackButton as="icon" />} />
 
       <WorkspaceRecoveryModal
         open={workspaceRecoveryOpen}

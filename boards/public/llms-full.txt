@@ -135,6 +135,8 @@ Create a public link produces a view-only URL that works for anyone, with no acc
 
 Where to go next
 
+Inside the app, the ? button at the top right (or ⌘K → "Help") opens one screen that names every kind of card you can add and links to these pages. Press ? on its own for the keyboard shortcuts.
+
 Core concepts — the vocabulary, in two minutes
 The canvas — every tool and gesture
 Cards — what each card type does

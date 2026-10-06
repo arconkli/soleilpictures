@@ -12,6 +12,12 @@
 // "Documentation" command does it.
 import { useEffect, useMemo, useState } from 'react';
 import { SettingsCategory } from './fields.jsx';
+import { logEvent } from '../../lib/analytics.js';
+import { EV } from '../../lib/analyticsEvents.js';
+
+// Settings → Documentation is one of the few doors into the docs from inside
+// the app; docs_open counts the people who walk through it (0365 reach read).
+const opened = (path) => logEvent(EV.DOCS_OPEN, { from: 'settings', path });
 
 export function DocsTab() {
   const [reg, setReg] = useState(null);
@@ -97,7 +103,8 @@ export function DocsTab() {
             <div className="settings-doclist">
               {s.pages.map((p) => (
                 <a key={p.path} className="settings-doc-item"
-                   href={p.path} target="_blank" rel="noreferrer noopener">
+                   href={p.path} target="_blank" rel="noreferrer noopener"
+                   onClick={() => opened(p.path)}>
                   <span className="settings-doc-title">{p.navLabel || p.h1}</span>
                   {p.answer && <span className="settings-doc-blurb">{p.answer}</span>}
                 </a>
@@ -108,7 +115,7 @@ export function DocsTab() {
       )}
 
       <p className="settings-section-hint" style={{ marginTop: 16 }}>
-        <a href="/docs" target="_blank" rel="noreferrer noopener">Open the full documentation →</a>
+        <a href="/docs" target="_blank" rel="noreferrer noopener" onClick={() => opened('/docs')}>Open the full documentation →</a>
         {' '}It is also readable as plain Markdown at <code>/docs/*.md</code>, and
         {' '}as <code>/llms.txt</code> for AI agents.
       </p>

@@ -5,7 +5,8 @@ import { CommandPalette } from '../components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote, Question } from '../lib/icons.js';
+import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { scheduleCreationAllowed } from '../lib/appHost.js';
@@ -1585,6 +1586,13 @@ export function LocalBoardsApp({ user, signOut }) {
       run: () => document.querySelector('.twk-gear')?.click() },
     { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
       run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
+    // Same two doors into the Help hub as the real App's registry.
+    { id: 'help', label: 'Help', icon: Question,
+      keywords: ['help', 'how', 'learn', 'tips', 'guide', 'support', 'what can i do'],
+      run: () => openHelpHub('palette') },
+    { id: 'add-anything', label: 'What can I add here?', icon: Question,
+      keywords: ['add', 'what', 'kinds', 'cards', 'image', 'note', 'doc', 'script', 'grid', 'cluster', 'file', 'video', 'pdf', 'palette', 'arrow'],
+      run: () => openHelpHub('palette_add') },
     { id: 'signout', label: 'Exit local QA', icon: LogOut, keywords: ['exit', 'sign out', 'log out', 'logout', 'quit'],
       run: () => signOut?.() },
   ], [view, currentSurface, tweak.theme, tweak.compactSidebar, setTweak, signOut]);
@@ -1597,6 +1605,7 @@ export function LocalBoardsApp({ user, signOut }) {
         <CaptureHud />
       </>)}
       <ShortcutsHost />
+      <HelpHost />
       {/* Dev-only, ?returnqa=1. The return question is otherwise unviewable
           without a signed-in account on a second calendar day plus a timer —
           the exact combination that let a version of it ship storing nothing
@@ -1744,6 +1753,7 @@ export function LocalBoardsApp({ user, signOut }) {
               <Icon as={Search} size={16} />
             </button>
             <LocalTopbarAddMenu onAddBoard={() => addNewBoard()} onLinkBoard={() => openBoardLinkPicker()} />
+            <HelpButton as="tb" via="topbar" />
             <button
               className="tb-icon"
               title="Toggle theme"

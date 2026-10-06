@@ -1204,6 +1204,45 @@ export const DOCS_CONTENT = {
    "id": "where-to-go-next"
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Inside the app, the "
+    },
+    {
+     "t": "strong",
+     "v": "?",
+     "children": [
+      {
+       "t": "text",
+       "v": "?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button at the top right (or "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " → \"Help\") opens one screen that names every kind of card you can add and links to these pages. Press "
+    },
+    {
+     "t": "code",
+     "v": "?"
+    },
+    {
+     "t": "text",
+     "v": " on its own for the keyboard shortcuts."
+    }
+   ]
+  },
+  {
    "type": "list",
    "ordered": false,
    "items": [

@@ -193,6 +193,15 @@ export const EV = Object.freeze({
   POWER_REVEAL_SHOWN:      'power_reveal_shown',            // JIT power hint surfaced when the user's content made a feature relevant {reveal,board_id,n_cards}
   POWER_REVEAL_ENGAGED:    'power_reveal_engaged',          // its action button was clicked {reveal}
   POWER_REVEAL_DISMISSED:  'power_reveal_dismissed',        // hand-dismissed via the toast X {reveal}; TTL expiry logs nothing, so expired = shown − engaged − dismissed
+  // Product education, pull side (2026-10-06, components/HelpHub.jsx). The pass
+  // that added these found every surface that TELLS people about power to be
+  // null for return — tour completion, the intent pick, the reveals above, the
+  // docs site hardly anyone reached from inside the app — so the hub opens only
+  // when asked, sits outside the ambient ask budget, and is graded on its own
+  // reach (admin_feature_reach, 0365), never on return.
+  HELP_OPEN:               'help_open',                     // the Help hub opened {via:'topbar'|'sidebar'|'palette'|'palette_add'|'other'}
+  HELP_ITEM:               'help_item',                     // a door in it was taken {item:'learn'|'shortcuts'|'guides'|'guide'|'changelog'|'feedback'|'docs',kind?,section?}
+  DOCS_OPEN:               'docs_open',                     // a signed-in person opened a docs page from inside the app {from:'help'|'settings'|'palette'|'shortcuts',path} — the first count of docs demand that is not a crawler
 
   // ── Onboarding failure paths (previously SILENT — a broken seed/persist left no signal) ──
   ONBOARDING_SEED_FAILED:            'onboarding_seed_failed',             // a seed step threw {stage,reason} — stage:'create_board'|'add_cards'|'persist'
