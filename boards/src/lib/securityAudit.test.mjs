@@ -138,3 +138,50 @@ test('every route into the API dispatcher meets the scope for its method (MCP in
   const head = api.slice(start, start + 1500);
   assert.match(head, /if \(!hasScope\(auth, need\)\)/, 'dispatch must re-check the scope MCP tools reach it with');
 });
+
+// ── Worker + client: what a visitor's browser is handed ─────────────────────
+
+const worker = read('../worker.js');
+
+test('navigable image routes never echo the uploader\'s content-type', () => {
+  assert.doesNotMatch(worker, /'content-type': obj\.httpMetadata\?\.contentType \|\| imgContentType\(key\)/,
+    'a stored content-type is the uploader\'s claim, and SVG/HTML from our origin runs script');
+  for (const fn of ['handlePublicThumb', 'handlePublicImg', 'handleAdminPreviewImg', 'handleAdminPreviewThumb']) {
+    const start = worker.indexOf(`async function ${fn}(`);
+    const body = worker.slice(start, worker.indexOf('\n}\n', start));
+    assert.match(body, /safeRasterType\(obj\.httpMetadata\?\.contentType, key\)/, `${fn} must force a raster type`);
+    assert.match(body, /'content-security-policy': IMAGE_ONLY_CSP/, `${fn} must sandbox what it serves`);
+  }
+  const set = worker.match(/SAFE_RASTER_TYPES = new Set\(\[([^\]]+)\]\)/)[1];
+  assert.doesNotMatch(set, /svg|html|xml/, 'SVG is a document that can carry script, not a raster');
+});
+
+test('our edge never hands a CSP nonce to anything under /api/', () => {
+  assert.match(worker, /const isHtml = nonce && !String\(path\)\.startsWith\('\/api\/'\)/);
+});
+
+test('the anonymous link-preview fetch is rate limited per address', () => {
+  assert.match(worker, /const ogAllow = makeRateLimiter\(\{ perMinute: \d+ \}\)/);
+  assert.match(worker, /if \(!ogAllow\(request\.headers\.get\('cf-connecting-ip'\)/);
+});
+
+test('a typed link can never become a script URL in an href', async () => {
+  const { safeExternalHref } = await import('./safeExternalHref.js');
+  for (const bad of ['javascript:alert(1)', ' JAVASCRIPT:alert(1)', 'java\tscript:alert(1)', 'data:text/html,<script>x</script>', 'vbscript:x']) {
+    const out = safeExternalHref(bad);
+    assert.match(out, /^https:\/\//, `${JSON.stringify(bad)} became ${JSON.stringify(out)}`);
+  }
+  assert.equal(safeExternalHref('https://example.com/a'), 'https://example.com/a');
+  assert.equal(safeExternalHref('example.com'), 'https://example.com');
+  assert.equal(safeExternalHref('mailto:ana@example.com'), 'mailto:ana@example.com');
+  assert.equal(safeExternalHref(''), null);
+  for (const [file, expr] of [
+    ['../components/cards.jsx', 'safeExternalHref(link)'],
+    ['../components/MessageBubble.jsx', 'safeExternalHref(att.href)'],
+    ['../components/AdminBoardPreviewModal.jsx', 'safeExternalHref(c.href)'],
+    ['../components/cards/ScheduleCard.jsx', 'safeExternalHref(cell.source || cell.link)'],
+    ['../components/cards/gridCellShared.jsx', 'safeExternalHref(cell.source || cell.link)'],
+  ]) {
+    assert.ok(read(file).includes(`href={${expr}`), `${file} must bind ${expr}`);
+  }
+});

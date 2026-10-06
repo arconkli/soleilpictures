@@ -57,7 +57,7 @@ test('every Worker response passes through withSecurityHeaders', () => {
   // The wrapper exists precisely so new routes cannot forget. If the exported
   // fetch stops delegating to handleFetch through it, that guarantee is gone.
   assert.ok(
-    /async fetch\([^)]*\)\s*\{\s*const nonce = makeNonce\(\);\s*return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce(?:, new URL\(request\.url\)\.hostname)?\)/.test(src),
+    /async fetch\([^)]*\)\s*\{\s*const nonce = makeNonce\(\);[\s\S]{0,120}?return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce\b/.test(src),
     'exported fetch must mint a nonce and wrap handleFetch in withSecurityHeaders with it',
   );
   assert.ok(/^export default worker;/m.test(src), 'worker.js must export the named worker object');
@@ -113,6 +113,8 @@ test('the workers.dev alias is kept out of search indexes, on both halves', () =
   assert.match(src, /function isWorkersDevHost\(host\)[\s\S]*?endsWith\('\.workers\.dev'\)/);
   assert.match(src, /if \(noindexAlias\) headers\.set\('x-robots-tag', 'noindex'\)/,
     'the Worker must set x-robots-tag on the alias');
-  assert.match(src, /withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce, new URL\(request\.url\)\.hostname\)/,
-    'the wrapper must hand withSecurityHeaders the request host');
+  // The path rides along too (2026-10-06 audit): nothing under /api/ is ever
+  // nonce-stamped, so the wrapper must say which path it is answering.
+  assert.match(src, /const \{ hostname, pathname \} = new URL\(request\.url\);\s*return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce, hostname, pathname\)/,
+    'the wrapper must hand withSecurityHeaders the request host and path');
 });

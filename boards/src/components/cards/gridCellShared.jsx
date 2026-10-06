@@ -19,6 +19,7 @@ import { resolveSrc } from '../../lib/r2.js';
 import { buildImgStyle } from '../../lib/imageAdjust.js';
 import { R2Image } from '../R2Image.jsx';
 import { FileCard } from './FileCard.jsx';
+import { safeExternalHref } from '../../lib/safeExternalHref.js';
 
 const stop = (e) => e.stopPropagation();
 
@@ -152,7 +153,7 @@ export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoa
   if (type === 'text') return <CellText html={cell.html} seqIndex={seqIndex} seqFormat={seqFormat} style={textStyle} effBg={effBg} />;
   if (type === 'link') {
     return (
-      <a className="gc-link" href={cell.source || cell.link || '#'} target="_blank" rel="noreferrer" onClick={stop}>
+      <a className="gc-link" href={safeExternalHref(cell.source || cell.link) || '#'} target="_blank" rel="noreferrer" onClick={stop}>
         {cell.image ? <img className="gc-link-img" src={cell.image} alt="" draggable="false" /> : null}
         <span className="gc-link-meta">
           {cell.favicon ? <img className="gc-link-fav" src={cell.favicon} alt="" /> : null}
