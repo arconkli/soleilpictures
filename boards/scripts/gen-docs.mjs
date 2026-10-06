@@ -136,6 +136,37 @@ if (!inviteDaily || !inviteFirstDay) {
   throw new Error('gen-docs: invite limits not found in the migration defining _invite_budget_take — update the extractor');
 }
 
+// The SQL of the latest migration that defines public.<fn>, as above.
+function latestSqlDefining(fn) {
+  return readdirSync(MIGRATIONS)
+    .filter((f) => f.endsWith('.sql'))
+    .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
+    .map((f) => readFileSync(resolve(MIGRATIONS, f), 'utf8'))
+    .filter((sql) => new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\s*\\(`).test(sql))
+    .pop();
+}
+
+// How many invitation emails one address can receive in a day, from every
+// sender combined (the outbound gate, migration 0369). The gate's fallback and
+// the app_config seed it ships with must agree.
+const gateSql = latestSqlDefining('_outbound_gate');
+const recipFallback = gateSql?.match(/coalesce\(\(cfg->>'recipient_stranger_day'\)::int,\s*(\d+)\)/);
+const recipSeed = gateSql?.match(/'recipient_stranger_day',\s*(\d+)/);
+if (!recipFallback || (recipSeed && recipSeed[1] !== recipFallback[1])) {
+  throw new Error('gen-docs: recipient_stranger_day not found (or seed and fallback disagree) in the migration defining _outbound_gate');
+}
+
+// How many times one person's mentions — and, separately, replies — reach the
+// same inbox in a day (the two email triggers, migration 0364). One number for
+// both, or the notifications page would be wrong about one of them.
+const mentionCap = latestSqlDefining('_tg_mention_notification_email')
+  ?.match(/_tg_mention_notification_email\(\)[\s\S]*?interval '24 hours'\) >= (\d+) then/);
+const replyCap = latestSqlDefining('_tg_comment_reply_email')
+  ?.match(/_tg_comment_reply_email\(\)[\s\S]*?interval '24 hours'\) >= (\d+) then/);
+if (!mentionCap || !replyCap || mentionCap[1] !== replyCap[1]) {
+  throw new Error('gen-docs: the mention / reply email caps are missing or disagree — update the extractor');
+}
+
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // The cap accounts created before migration 0229 keep, permanently. The plans
@@ -193,6 +224,13 @@ export const FACTS = {
   // (_invite_budget_take, migration 0358). Shares to existing accounts count.
   inviteDailyLimit: inviteDaily[1],
   inviteFirstDayLimit: inviteFirstDay[1],
+  // Invitation emails one address receives in a day from all senders combined
+  // (_outbound_gate, 0369). Past it the access is still granted; only the
+  // email is skipped.
+  inviteRecipientDailyCap: recipFallback[1],
+  // Emails one person's mentions (or replies) send the same inbox in a day
+  // (_tg_mention_notification_email / _tg_comment_reply_email, 0364).
+  mentionEmailDailyCap: mentionCap[1],
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
   maxPartsPerCall: String(api.maxPartsPerCall),

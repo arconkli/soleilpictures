@@ -5,7 +5,7 @@ h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-09-01
+updated: 2026-10-06
 answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
@@ -82,6 +82,10 @@ separate.
 The mention notification is the important one. When someone `@`s you, the
 notification links to the exact card, comment or passage, not just to the board
 — see [Links and mentions](/docs/organize/links-and-mentions).
+
+A busy thread cannot flood your inbox: one person's mentions reach you by email
+at most {{fact:mentionEmailDailyCap}} times a day, and the same goes for their
+replies to your comments. Every one of them still shows up in the app.
 
 ## Schedule changes
 

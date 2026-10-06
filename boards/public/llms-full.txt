@@ -2748,7 +2748,7 @@ A: Yes. Viewers can read, comment and vote; they cannot add, move or change card
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-10-05
+Updated: 2026-10-06
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
@@ -2799,6 +2799,10 @@ Inviting specific people
 Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, pick Can edit or Can view, and send. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up.
 
 Each account can send 20 invitations a day, or 5 on its first day. Sharing a cluster with someone who already has an account counts, because they get an email too. Inviting the same address to the same cluster again does not, and neither does changing someone's role: neither sends anything. Past the limit, nothing is sent and the share panel tells you when you can send more. For a bigger audience, a link reaches everyone at once.
+
+One address receives at most 3 invitation emails a day, from every sender combined. Past that the access is still granted; only the email is skipped, so the person finds the cluster waiting when they next sign in.
+
+Invitation emails are also watched across all of Clusters, not only per account. If an unusual number go out at once, or an account looks like it is sending in bulk, the emails are held for review instead of sent. An account under review sees "sharing is paused on this account while we review unusual activity" in the share panel; everything else about it, including its own clusters, works as before. Held invitations are sent if the review clears them.
 
 Workspace owners get a third choice, Whole workspace — that grants every cluster in the workspace, not just this one, so only the owner can hand it out.
 
@@ -3018,7 +3022,7 @@ A: Unread count. An @ prefix means at least one of them mentions you directly.
 ========================================================================
 # Notifications
 URL: https://clusters.soleilpictures.com/docs/collaborate/notifications
-Updated: 2026-09-01
+Updated: 2026-10-06
 
 Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
@@ -3060,6 +3064,8 @@ Every email carries a one-click unsubscribe that works without signing in. Unsub
 Mentions
 
 The mention notification is the important one. When someone @s you, the notification links to the exact card, comment or passage, not just to the board — see Links and mentions.
+
+A busy thread cannot flood your inbox: one person's mentions reach you by email at most 5 times a day, and the same goes for their replies to your comments. Every one of them still shows up in the app.
 
 Schedule changes
 
