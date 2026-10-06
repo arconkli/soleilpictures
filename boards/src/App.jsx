@@ -52,6 +52,7 @@ import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
 import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout, getGridLayout, recordTemplateDownload } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
+import { shouldGreetResume, lastTouchedCard, LAST_HIDDEN_KEY } from './lib/resumeSitting.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext, getFirstSource } from './lib/analytics.js';
@@ -6347,6 +6348,101 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
     return () => stopFriction();
   }, [frictionEligible]);
+
+  // ── Day one, after the first break (lib/resumeSitting.js) ──────────────────
+  // A second sitting on day one is the strongest early marker of coming back,
+  // and it used to arrive to a fresh app session with the ambient asks reset.
+  // Three ways back are watched, and the first to qualify greets once per page:
+  // the tab shown again after a long hide, a tab reopened after one (the hide
+  // was stamped by an earlier page), and the first input after a long idle with
+  // the tab still in front. The greeting claims the upsell slot BEFORE it shows,
+  // so it never stacks on an offer and every ambient ask stands down for its
+  // minute; it points back at the last card they touched.
+  const resumeGreetedRef = useRef(false);
+  const resumeGreetRef = useRef(null);
+  const resumeReopenTriedRef = useRef(false);
+  const ybBoardIdRef = useRef(yb.boardId);
+  ybBoardIdRef.current = yb.boardId;
+  // The toast's action outlives this render, so it reads openBoardRef (declared
+  // above, beside the folder import) and currentIdRef (declared further down —
+  // fine, the action only runs after render).
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid || typeof document === 'undefined') return undefined;
+    const key = LAST_HIDDEN_KEY + uid;
+    const created = Date.parse(user?.created_at || '');
+    let lastInputAt = Date.now();
+    const readHidden = () => { try { return Number(localStorage.getItem(key)) || 0; } catch (_) { return 0; } };
+    const stampHidden = () => { try { localStorage.setItem(key, String(Date.now())); } catch (_) {} };
+    const greet = (via, awayMs) => {
+      const now = Date.now();
+      const mine = genuineCards(ybCardsRef.current || []);
+      if (!shouldGreetResume({ awayMs, accountAgeMs: now - created, genuineCards: mine.length, greeted: resumeGreetedRef.current })) return;
+      if (!claimUpsellSlot('resume')) return;
+      resumeGreetedRef.current = true;
+      const last = lastTouchedCard(mine);
+      const boardId = ybBoardIdRef.current;
+      try { logEvent(EV.RESUME_GREET_SHOWN, { via, gap_min: Math.round(awayMs / 60000), cards: mine.length }); } catch (_) {}
+      feedback.toast({
+        type: 'info',
+        message: 'Welcome back — your board is where you left it. Paste or drop anything to keep adding.',
+        ttl: 9000,
+        action: last && boardId ? {
+          label: 'Show my last card',
+          onClick: () => {
+            try { logEvent(EV.RESUME_GREET_ACTION, { action: 'jump' }); } catch (_) {}
+            // From Home or another board, go to theirs first (never re-push the
+            // board already open — that duplicates the breadcrumb); the flash
+            // handler waits briefly for the card to stream in.
+            try { if (currentIdRef.current !== boardId) openBoardRef.current?.(boardId); } catch (_) {}
+            setCurrentSurface('board');
+            setTimeout(() => {
+              document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId, cardId: last.id } }));
+            }, 0);
+          },
+        } : null,
+      });
+    };
+    // The reopen path runs once the board's cards are in (effect below).
+    resumeGreetRef.current = () => {
+      const at = readHidden();
+      if (at > 0) greet('reopen', Date.now() - at);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') { stampHidden(); return; }
+      const at = readHidden();
+      if (at > 0) greet('tab', Date.now() - at);
+      lastInputAt = Date.now();
+    };
+    const onInput = () => {
+      const now = Date.now();
+      const idle = now - lastInputAt;
+      lastInputAt = now;
+      if (document.visibilityState === 'visible') greet('idle', idle);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', stampHidden);
+    window.addEventListener('pointerdown', onInput, { capture: true, passive: true });
+    window.addEventListener('keydown', onInput, { capture: true, passive: true });
+    window.addEventListener('wheel', onInput, { capture: true, passive: true });
+    return () => {
+      resumeGreetRef.current = null;
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', stampHidden);
+      window.removeEventListener('pointerdown', onInput, { capture: true });
+      window.removeEventListener('keydown', onInput, { capture: true });
+      window.removeEventListener('wheel', onInput, { capture: true });
+    };
+    // feedback is a stable context value; ybCardsRef / ybBoardIdRef are read live.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.created_at]);
+  // Once per page: the first time a board's cards are in. A later board switch
+  // must not replay a hide stamped before this page was ever active.
+  useEffect(() => {
+    if (!yb.ready || resumeReopenTriedRef.current || !resumeGreetRef.current) return;
+    resumeReopenTriedRef.current = true;
+    resumeGreetRef.current();
+  }, [yb.ready, user?.id]);
 
   // Post-signup journey: keep the live snapshot's board/genuine-card counts + route
   // fresh so every enveloped event (heartbeat, trace, gate skips) is self-describing.

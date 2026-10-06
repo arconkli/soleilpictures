@@ -246,5 +246,17 @@ __resetUpsellSlot();
 assert(claimUpsellSlot('invite-nudge', T), 'a default-visit claim shows');
 assertEq(claimUpsellSlot('share-ask', W), false, 'and the default visit is one visit');
 
+// The day-one resume greeting holds the minute without spending the visit.
+__resetUpsellSlot();
+assert(claimUpsellSlot('resume', T, 'v2'), 'a resumed sitting is greeted');
+assertEq(claimUpsellSlot('share-ask', T + 5_000, 'v2'), false, 'and no ambient ask lands on that minute');
+assert(claimUpsellSlot('share-ask', W, 'v2'), 'after it, the visit still has its one ambient ask');
+__resetUpsellSlot();
+assert(claimUpsellSlot('first-value', T, 'v2'), 'an offer holds the minute');
+assertEq(claimUpsellSlot('resume', T + 5_000, 'v2'), false, 'so the greeting does not stack on it');
+__resetUpsellSlot();
+assert(claimUpsellSlot('resume', T, 'v2'), 'greeted');
+assert(claimUpsellSlot('cap-hit', T + 1_000, 'v2'), 'and the wall still always shows');
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

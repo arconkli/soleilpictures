@@ -104,7 +104,7 @@ import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelStat
 import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
-import { shouldPromptMix } from '../lib/mixPrompt.js';
+import { shouldPromptMix, MIX_PROMPT_RETIRED } from '../lib/mixPrompt.js';
 import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
 import { getAppSessionId } from '../lib/appSession.js';
 import {
@@ -1629,7 +1629,8 @@ export function CanvasSurface({
     } catch (_) {}
   };
 
-  const mixPromptEligible = dockAllowed('mix') && shouldPromptMix({
+  // Retired 2026-10-05 (lib/mixPrompt.js MIX_PROMPT_RETIRED); the rest stays wired.
+  const mixPromptEligible = !MIX_PROMPT_RETIRED && dockAllowed('mix') && shouldPromptMix({
     images: mixImageCount,
     text: mixTextCount,
     dismissed: mixPromptDismissed,
