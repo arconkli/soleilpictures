@@ -13,6 +13,9 @@ export interface RenderEmailOpts {
   bodyHtml?: string;
   cta?: { label: string; url: string };
   caveat?: string;
+  // A one-click link that turns this kind of email off (mentions, replies).
+  // Escaped here, like the CTA.
+  unsubscribeUrl?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -25,7 +28,11 @@ function escapeHtml(s: string): string {
 }
 
 export function renderEmail(opts: RenderEmailOpts): string {
-  const { preheader, eyebrow, headline, subtitle, bodyHtml, cta, caveat } = opts;
+  const { preheader, eyebrow, headline, subtitle, bodyHtml, cta, caveat, unsubscribeUrl } = opts;
+
+  const unsubLine = unsubscribeUrl
+    ? `<br><a href="${escapeHtml(unsubscribeUrl)}" style="color:#8a8a8e; text-decoration:underline;">Turn these emails off</a>`
+    : "";
 
   const eyebrowBlock = eyebrow
     ? `
@@ -154,7 +161,7 @@ ${subtitleBlock}${bodyBlock}${ctaBlock}${caveatBlock}
             <tr>
               <td align="center" style="padding-top:40px;">
                 <div class="ink-3" style="font:400 11px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#8a8a8e; letter-spacing:0.04em;">
-                  © Soleil Pictures · clusters.soleilpictures.com
+                  © Soleil Pictures · clusters.soleilpictures.com${unsubLine}
                 </div>
               </td>
             </tr>

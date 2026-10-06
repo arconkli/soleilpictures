@@ -29,7 +29,8 @@ export type TemplateName =
   | "nudge_dormant_early"
   | "whats_new"
   | "schedule_update"
-  | "share_activity";
+  | "share_activity"
+  | "ops_alert";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -49,6 +50,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "whats_new",
   "schedule_update",
   "share_activity",
+  "ops_alert",
 ];
 
 export interface RenderedEmail {
@@ -95,6 +97,10 @@ function resumeTokenOf(v: unknown): string | undefined {
   const t = v != null ? String(v) : "";
   return /^[0-9a-f]{64}$/.test(t) ? t : undefined;
 }
+
+// An unsubscribe token (email_unsub_tokens) has the same shape, and the same
+// rule: anything else is dropped, and the email goes without the link.
+const unsubTokenOf = resumeTokenOf;
 
 function plain(lines: string[]): string {
   return lines.filter((l) => l !== "").join("\n");
@@ -478,6 +484,7 @@ interface MentionEmailData {
   messagePreview: string;
   workspaceId?: string;
   boardId?: string;
+  unsubscribeToken?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -506,6 +513,8 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
   const url = d.surface === "board"
     ? deepLink({ w: d.workspaceId, b: d.boardId })
     : deepLink({ w: d.workspaceId });
+  // 0369: one click turns mention emails off, as the notifications page says.
+  const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_mentions") : undefined;
   return {
     subject,
     html: renderEmail({
@@ -515,6 +524,7 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
       subtitle,
       bodyHtml: quoteBlock(d.messagePreview),
       cta: { label: "Open in Clusters", url },
+      unsubscribeUrl: unsub,
     }),
     text: plain([
       "CLUSTERS",
@@ -526,6 +536,7 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
       "Open in Clusters: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
+      unsub ? "Turn these emails off: " + unsub : "",
     ]),
   };
 }
@@ -537,11 +548,14 @@ interface CommentReplyEmailData {
   replyPreview: string;
   workspaceId?: string;
   boardId?: string;
+  unsubscribeToken?: string;
 }
 
 function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
   const subtitle = `On "${d.boardName}" in ${d.workspaceName}.`;
   const url = deepLink({ w: d.workspaceId, b: d.boardId });
+  // 0369: one click turns reply emails off.
+  const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_comment_replies") : undefined;
   return {
     subject: `${d.replierName} replied to your comment`,
     html: renderEmail({
@@ -551,6 +565,7 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       subtitle,
       bodyHtml: quoteBlock(d.replyPreview),
       cta: { label: "Open comment", url },
+      unsubscribeUrl: unsub,
     }),
     text: plain([
       "CLUSTERS",
@@ -562,6 +577,7 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       "Open comment: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
+      unsub ? "Turn these emails off: " + unsub : "",
     ]),
   };
 }
@@ -1370,6 +1386,46 @@ Unsubscribe: ${unsub}`,
   };
 }
 
+// ── Ops alerts (migration 0369) ─────────────────────────────────────────────
+// How the outbound breaker and the email-health checks reach a person. It only
+// ever goes to OPS_ALERT_TO — send-transactional-email ignores the request's
+// `to` for this template — and from the alerts@ address, never the bulk
+// domain. Everything in it is escaped: an alert can quote an abuser's address
+// or a reason someone typed.
+interface OpsAlertData {
+  alertId?: string;
+  kind: string;
+  title: string;
+  body: string;
+  createdAt?: string;
+}
+
+const SECURITY_URL = "https://clusters.soleilpictures.com/?settings=security";
+
+function opsAlertTpl(d: OpsAlertData): RenderedEmail {
+  const ref = `Alert #${d.alertId ?? "?"}${d.createdAt ? ` · ${d.createdAt}` : ""}`;
+  const bodyHtml = `<div style="font:400 14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#f5f5f7; text-align:left;">${escapeHtml(d.body).replace(/\n/g, "<br>")}</div>`;
+  return {
+    subject: `[Clusters alert] ${d.title}`,
+    html: renderEmail({
+      preheader: d.body.slice(0, 140),
+      eyebrow: `Alert · ${d.kind}`,
+      headline: d.title,
+      subtitle: ref,
+      bodyHtml,
+      cta: { label: "Open the Security tab", url: SECURITY_URL },
+    }),
+    text: plain([
+      `[Clusters alert] ${d.title}`,
+      "",
+      d.body,
+      "",
+      ref,
+      "Security tab: " + SECURITY_URL,
+    ]),
+  };
+}
+
 export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
   switch (name) {
     case "waitlist_submitted":
@@ -1424,6 +1480,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         messagePreview: safeLabel(data.messagePreview, 280),
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
+        unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
       });
     }
     case "schedule_update":
@@ -1448,6 +1505,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         replyPreview:  safeLabel(data.replyPreview, 280),
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
+        unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
       });
     case "activate_nudge_1":
     case "activate_nudge_2": {
@@ -1548,5 +1606,15 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         resumeToken:      resumeTokenOf(data.resumeToken),
       });
     }
+    case "ops_alert":
+      // Server-written (ops_alert_raise), but it can quote an abuser's address
+      // or an admin's typed reason: one line for the subject, a cap on all of it.
+      return opsAlertTpl({
+        alertId:   data.alertId != null ? String(data.alertId).slice(0, 20) : undefined,
+        kind:      String(data.kind ?? "").replace(/[^a-z_]/gi, "").slice(0, 40) || "alert",
+        title:     String(data.title ?? "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 160) || "Alert",
+        body:      String(data.body ?? "").slice(0, 4000),
+        createdAt: data.createdAt != null ? String(data.createdAt).replace(/[\r\n]/g, "").slice(0, 40) : undefined,
+      });
   }
 }

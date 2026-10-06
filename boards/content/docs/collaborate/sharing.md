@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-05
+updated: 2026-10-06
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -103,6 +103,18 @@ address to the same cluster again does not, and neither does changing someone's
 role: neither sends anything. Past the limit, nothing is sent and the share
 panel tells you when you can send more. For a bigger audience, a link reaches
 everyone at once.
+
+One address receives at most {{fact:inviteRecipientDailyCap}} invitation emails
+a day, from every sender combined. Past that the access is still granted; only
+the email is skipped, so the person finds the cluster waiting when they next
+sign in.
+
+Invitation emails are also watched across all of Clusters, not only per
+account. If an unusual number go out at once, or an account looks like it is
+sending in bulk, the emails are held for review instead of sent. An account
+under review sees "sharing is paused on this account while we review unusual
+activity" in the share panel; everything else about it, including its own
+clusters, works as before. Held invitations are sent if the review clears them.
 
 Workspace owners get a third choice, **Whole workspace** — that grants every
 cluster in the workspace, not just this one, so only the owner can hand it out.

@@ -23430,6 +23430,24 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "One address receives at most 3 invitation emails a day, from every sender combined. Past that the access is still granted; only the email is skipped, so the person finds the cluster waiting when they next sign in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Invitation emails are also watched across all of Clusters, not only per account. If an unusual number go out at once, or an account looks like it is sending in bulk, the emails are held for review instead of sent. An account under review sees \"sharing is paused on this account while we review unusual activity\" in the share panel; everything else about it, including its own clusters, works as before. Held invitations are sent if the review clears them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Workspace owners get a third choice, "
     },
     {
@@ -25438,6 +25456,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A busy thread cannot flood your inbox: one person's mentions reach you by email at most 5 times a day, and the same goes for their replies to your comments. Every one of them still shows up in the app."
     }
    ]
   },

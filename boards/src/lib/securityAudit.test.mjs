@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { latestDefinition, latestPolicy, latestMatch } from './migrationText.mjs';
+import { latestDefinition, latestPolicy, latestMatch, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
 import { safeLabel } from '../../../supabase/functions/_shared/email/safeLabel.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -183,5 +183,144 @@ test('a typed link can never become a script URL in an href', async () => {
     ['../components/cards/gridCellShared.jsx', 'safeExternalHref(cell.source || cell.link)'],
   ]) {
     assert.ok(read(file).includes(`href={${expr}`), `${file} must bind ${expr}`);
+  }
+});
+
+// ── 0369 + 0370: the outbound breaker ───────────────────────────────────────
+
+const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite'];
+const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted'];
+
+// Functions whose live (latest, not since dropped) definition matches `re`,
+// with what each match captured.
+function liveFunctionsMatching(re) {
+  const names = new Set();
+  for (const f of migrationFiles()) {
+    const sql = readFileSync(MIGRATIONS_DIR + f, 'utf8');
+    for (const m of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?(\w+)\s*\(/gi)) names.add(m[1]);
+  }
+  const out = new Map();
+  for (const name of names) {
+    let alive = false;
+    const create = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.)?${name}\\s*\\(`, 'gi');
+    const drop = new RegExp(`drop\\s+function\\s+(?:if\\s+exists\\s+)?(?:public\\.)?${name}\\s*\\(`, 'gi');
+    for (const f of migrationFiles()) {
+      const sql = readFileSync(MIGRATIONS_DIR + f, 'utf8');
+      const events = [...sql.matchAll(create)].map((m) => [m.index, true])
+        .concat([...sql.matchAll(drop)].map((m) => [m.index, false]))
+        .sort((a, b) => a[0] - b[0]);
+      for (const [, created] of events) alive = created;
+    }
+    if (!alive) continue;
+    const hits = [...latestDefinition(name).body.matchAll(re)].map((m) => m[1]);
+    if (hits.length) out.set(name, hits);
+  }
+  return out;
+}
+
+test('every database email asks the outbound gate first, and only the known triggers send', () => {
+  const notify = latestDefinition('_notify_email').body;
+  const gate = notify.indexOf('public._outbound_gate(');
+  assert.ok(gate > 0 && notify.indexOf('public._notify_email_send(') > gate,
+    '_notify_email must consult _outbound_gate before it sends');
+  assert.match(notify, /<> 'send' then\s+return;/, 'anything but "send" stops the email');
+
+  const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
+  assert.deepEqual([...senders.keys()].sort(), [
+    '_tg_comment_reply_email', '_tg_mention_notification_email', '_tg_pending_invite_email',
+    '_tg_schedule_notification_email', '_tg_share_notification_email', '_tg_workspace_member_email',
+  ], 'a new email path must be classified in _outbound_gate and added here on purpose');
+  const gateBody = latestDefinition('_outbound_gate').body;
+  for (const t of new Set([...senders.values()].flat())) {
+    assert.ok(STRANGER.includes(t) || MEMBER.includes(t), `template ${t} is in neither risk class`);
+    assert.ok(gateBody.includes(`'${t}'`), `_outbound_gate does not classify ${t}`);
+  }
+  // Around the gate: only _notify_email and an admin releasing held mail may
+  // send directly, and only they and the alert dispatcher call the edge sender.
+  assert.deepEqual([...liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email_send\((\s*)/g).keys()].sort(),
+    ['_notify_email', 'admin_outbound_release_held']);
+  assert.deepEqual([...liveFunctionsMatching(/(send-transactional-email)/g).keys()].sort(),
+    ['_notify_email_send', 'ops_alert_dispatch']);
+});
+
+test('an account on a sending hold invites nobody, mentions nobody, and its mail is held', () => {
+  const budget = latestDefinition('_invite_budget_take').body;
+  const hold = budget.indexOf('send_hold_at is not null');
+  assert.ok(hold > 0 && hold < budget.indexOf('pg_advisory_xact_lock'), 'the hold is checked first');
+  assert.match(budget, /raise exception 'invite limit reached: sharing is paused/,
+    'the refusal starts with the phrase ShareModal stops its loop on');
+  assert.match(latestDefinition('notify_comment_mention').body, /if not public\._actor_can_send\(\) then\s+return 0;/);
+  assert.match(latestDefinition('messages_fire_mention_notifications').body,
+    /p\.user_id = new\.sender_id and p\.send_hold_at is not null\) then\s+return new;/);
+  const gate = latestDefinition('_outbound_gate').body;
+  assert.match(gate, /p\.send_hold_at is not null\) then\s+v_state := 'hold'; v_reason := 'sender_on_hold';/);
+  assert.match(gate, /exception when others then[\s\S]*return 'hold';\s*end;\s*\$\$;$/, 'an error inside the gate holds');
+});
+
+test('the breaker trips on volume, a release restarts its count, and alerts reach a person', () => {
+  const gate = latestDefinition('_outbound_gate').body;
+  assert.match(gate, /pg_advisory_xact_lock\(hashtext\('outbound_breaker:stranger'\)\)/, 'stranger counts are race-safe');
+  assert.match(gate, /coalesce\(v_released, '-infinity'::timestamptz\)/, 'a release restarts the count');
+  assert.match(gate, /perform public\._hold_new_senders\(c_new_h\);/, 'a trip holds the new accounts that were sending');
+  assert.match(gate, /v_state := 'drop'; v_reason := 'recipient_never_opened_app';/,
+    'member mail goes only to people who have opened the app');
+  assert.match(latestDefinition('ops_alert_dispatch').body, /'template', 'ops_alert'/);
+  assert.ok(latestMatch(/cron\.schedule\('ops-alert-dispatch',\s+'\* \* \* \* \*'/), 'alerts go out every minute');
+  assert.ok(latestMatch(/cron\.schedule\('ops-heartbeat-weekly',/), 'a weekly heartbeat proves the alert path is alive');
+  assert.ok(latestMatch(/cron\.schedule\('abuse-signals',/), 'signup spikes and undecided held mail page');
+});
+
+test('the breaker\'s tables and helpers are server-only, and its admin RPCs are gated', () => {
+  for (const t of ['ops_alerts', 'outbound_ledger', 'outbound_breaker']) {
+    assert.ok(latestMatch(new RegExp(`alter table public\\.${t} enable row level security`)), `${t} needs RLS`);
+    assert.ok(latestMatch(new RegExp(`revoke all on table public\\.${t} from public, anon, authenticated`)), `${t} must be server-only`);
+  }
+  for (const sig of [
+    '_outbound_gate\\(text, text, jsonb\\)', '_notify_email_send\\(text, text, jsonb, uuid\\)',
+    '_hold_sending\\(uuid, text, text\\)', '_hold_new_senders\\(integer\\)', '_actor_can_send\\(\\)',
+    'ops_alert_raise\\(text, text, text, boolean, text, interval, uuid\\)', 'ops_alert_dispatch\\(\\)',
+  ]) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)),
+      `${sig} must not be client-callable`);
+  }
+  for (const fn of ['admin_security_overview', 'admin_outbound_release_breaker', 'admin_outbound_release_held',
+    'admin_outbound_drop_held', 'admin_hold_sending', 'admin_release_sending', 'admin_ops_alert_ack', 'admin_ops_alert_test']) {
+    assert.match(latestDefinition(fn).body, /perform public\._require_admin\(\);/, `${fn} must be admin-only`);
+  }
+});
+
+test('alerts go only to the owner, from the alerts address, and the sender checks its secret in constant time', () => {
+  const sender = read('../../../supabase/functions/send-transactional-email/index.ts');
+  assert.match(sender, /const to = body\.template === "ops_alert" \? OPS_ALERT_TO : body\.to;/,
+    'a request must not be able to redirect a security alert');
+  assert.match(sender, /const FROM_ALERTS\s+= "Clusters Alerts <alerts@clusters\.soleilpictures\.com>";/);
+  assert.match(sender, /case "ops_alert":\s+return FROM_ALERTS;/, 'never the bulk updates. domain');
+  assert.match(sender, /if \(!secretMatches\(token, SEND_EMAIL_SECRET\)\)/);
+  assert.doesNotMatch(sender, /token !== SEND_EMAIL_SECRET/);
+  assert.match(sender, /if \(await overHourlyCeiling\(body\.template\)\)/, 'the backstop ceiling runs before sending');
+  assert.match(sender, /from\("ops_alerts"\)\.update\(\{ paged_at:/, 'a delivered alert is stamped, so it is not resent');
+  assert.match(sender, /actor_id:\s+opts\.actorId \?\? null/, 'who caused an email is logged with it');
+  assert.ok(caseBlock('ops_alert').includes('replace(/[\\r\\n\\t]+/g, " ")'), 'an alert title is one line');
+});
+
+test('one-click unsubscribe covers mentions and replies, and its three allowlists agree', () => {
+  const sender = read('../../../supabase/functions/send-transactional-email/index.ts');
+  const keyMap = Object.fromEntries([...sender.matchAll(/^\s+(\w+):\s+"(email_\w+)",$/gm)].map((m) => [m[1], m[2]]));
+  assert.equal(keyMap.mention_email, 'email_mentions');
+  assert.equal(keyMap.comment_reply_email, 'email_comment_replies');
+  const listed = sender.match(/const LIST_UNSUB_TEMPLATES = new Set\(\[([^\]]+)\]\)/)[1];
+  for (const t of ['mention_email', 'comment_reply_email']) assert.ok(listed.includes(`"${t}"`), `${t} needs the header`);
+  assert.ok(caseBlock('mention_email').includes('unsubscribeToken: unsubTokenOf(data.unsubscribeToken)'));
+  assert.ok(caseBlock('comment_reply_email').includes('unsubscribeToken: unsubTokenOf(data.unsubscribeToken)'));
+
+  const rpcKeys = latestDefinition('email_unsubscribe').body.match(/p_key not in \(([^)]+)\)/)[1]
+    .match(/'(\w+)'/g).map((s) => s.slice(1, -1)).sort();
+  const workerKeys = Object.keys(Object.fromEntries(
+    [...worker.match(/const UNSUB_LABELS = \{([\s\S]*?)\};/)[1].matchAll(/^\s+(\w+):/gm)].map((m) => [m[1], 1]))).sort();
+  assert.deepEqual(workerKeys, rpcKeys, 'the Worker and email_unsubscribe() must accept the same keys');
+  for (const k of new Set(Object.values(keyMap))) assert.ok(rpcKeys.includes(k), `${k} is sent but cannot be unsubscribed`);
+  for (const fn of ['_tg_mention_notification_email', '_tg_comment_reply_email']) {
+    assert.match(latestDefinition(fn).body, /'unsubscribeToken', \(select t\.token from public\.email_unsub_tokens t/,
+      `${fn} must pass the recipient's own token`);
   }
 });

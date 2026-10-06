@@ -1133,18 +1133,26 @@ function unsubShell(inner) {
     + `</div></body></html>`;
 }
 
-function unsubConfirmPage(action) {
+function unsubConfirmPage(action, key) {
   return unsubShell(
-    `<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">Stop getting product tips &amp; check-in emails from Clusters?</p>`
+    `<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">Stop getting ${UNSUB_LABELS[key]} from Clusters?</p>`
     + `<form method="POST" action="${action}" style="margin-top:24px;">`
     + `<button type="submit" style="background:#ffa500;color:#0a0a0c;border:0;border-radius:4px;padding:12px 22px;font:600 14px inherit;cursor:pointer;">Unsubscribe</button>`
     + `</form>`,
   );
 }
 
-// Preference keys a one-click unsubscribe link may turn off. Mirrors the
-// allowlist inside the email_unsubscribe() RPC.
-const UNSUB_KEYS = new Set(['email_lifecycle', 'email_schedule', 'email_share_activity']);
+// Preference keys a one-click unsubscribe link may turn off, and what the
+// confirm page calls each one. Mirrors the allowlist inside the
+// email_unsubscribe() RPC (mentions and replies joined both in 0369).
+const UNSUB_LABELS = {
+  email_lifecycle: 'product tips &amp; check-in emails',
+  email_schedule: 'schedule emails',
+  email_share_activity: 'emails about who opened your clusters',
+  email_mentions: 'emails when someone mentions you',
+  email_comment_replies: 'emails when someone replies to your comments',
+};
+const UNSUB_KEYS = new Set(Object.keys(UNSUB_LABELS));
 
 function unsubResultPage(message) {
   return unsubShell(`<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">${message}</p>`);
@@ -1190,7 +1198,7 @@ async function handleUnsubscribe(request, url, env) {
 
   if (request.method !== 'GET') return new Response('Method not allowed', { status: 405, headers });
   if (!validToken) return new Response(unsubResultPage('That link looks invalid.'), { status: 400, headers });
-  return new Response(unsubConfirmPage(action), { status: 200, headers });
+  return new Response(unsubConfirmPage(action, key), { status: 200, headers });
 }
 
 // timeoutMs defaults to the cron budget. Callers on a REQUEST path must pass a
