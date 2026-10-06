@@ -37,11 +37,30 @@ test('every admin RPC in 0322 is granted to authenticated only and proven', () =
 });
 
 test('0322 owns the latest definition of every function it touches', () => {
-  for (const fn of ['admin_survival_curve', 'admin_return_gap', '_admin_visits', 'admin_return_fixed_horizon']) {
+  for (const fn of ['admin_survival_curve', 'admin_return_gap', 'admin_return_fixed_horizon']) {
     const def = latestDefinition(fn);
     assert.ok(def, `${fn}: no definition found in any migration`);
     assert.equal(def.file, FILE, `${fn} is last defined in ${def.file}`);
   }
+});
+
+// _admin_visits is the one visit definition every retention read shares. A
+// later migration may EXTEND its passive list (0363 added the day-one greeting's
+// own impression, which is telemetry, not a person) — and nothing else.
+test('_admin_visits is 0322\'s body, extended only by passive events', () => {
+  const latest = latestDefinition('_admin_visits');
+  const own = src.match(/create\s+(?:or\s+replace\s+)?function\s+public\._admin_visits\s*\([\s\S]*?\$\$;/i);
+  assert.ok(latest && own, '_admin_visits found in 0322 and in the migration history');
+  const listOf = (body) => {
+    const m = body.match(/bool_or\(e\.event not in \(([\s\S]*?)\)\) as real/);
+    assert.ok(m, 'the passive list is an `e.event not in (...)` clause');
+    return new Set([...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]));
+  };
+  const base = listOf(own[0]);
+  const now = listOf(latest.body);
+  for (const ev of base) assert.ok(now.has(ev), `${ev} is no longer passive`);
+  const strip = (b) => b.replace(/bool_or\(e\.event not in \([\s\S]*?\)\) as real/, 'PASSIVE').replace(/\s+/g, ' ').replace(/^create\s+(or\s+replace\s+)?/i, '');
+  assert.equal(strip(latest.body), strip(own[0]), 'everything but the passive list is 0322\'s');
 });
 
 test('the survival curve keeps the 0279 return columns the widget reads', () => {

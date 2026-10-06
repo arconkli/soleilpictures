@@ -39,7 +39,7 @@ test('a sitting gap is a real break, and only finished first visits are read', (
   const helper = latestDefinition('_admin_day_one_sittings').body;
   assert.match(helper, /make_interval\(mins => greatest\(coalesce\(p_gap_minutes, 30\), 5\)\)/);
   const rpc = latestDefinition('admin_second_sitting').body;
-  assert.match(rpc, /first_day <= current_date - 1/, 'a visit still in progress could gain a sitting');
+  assert.match(rpc, /first_day <= current_date - 2/, 'a visit still in progress could gain a sitting (0322 merges the next UTC day in)');
   assert.match(rpc, /first_day <= current_date - 8/, 'the 7-day link rows only use cohorts that have answered');
 });
 
@@ -63,5 +63,23 @@ test('nothing 0322 or 0347 defined is dropped or re-created here', () => {
   for (const fn of ['_admin_visits', '_admin_engaged_visits', 'admin_return_fixed_horizon', 'admin_engaged_return']) {
     assert.doesNotMatch(src, new RegExp(`(drop|create)\\s+(or\\s+replace\\s+)?function\\s+(if exists\\s+)?public\\.${fn}\\b`, 'i'),
       `${fn} is read here, never redefined`);
+  }
+});
+
+test('the day-one greeting\'s own impression is passive everywhere sittings and visits are counted', () => {
+  // Logged when a person comes back to a tab, not when they do anything: if it
+  // counted, the greeting would inflate the very rate that grades it.
+  for (const [fn, marker] of [['_admin_visits', 'bool_or(e.event not in'], ['_admin_day_one_sittings', 'e.event not in']]) {
+    const body = latestDefinition(fn).body;
+    assert.ok(eventList(body, marker).has('resume_greet_shown'), `${fn} treats resume_greet_shown as passive`);
+    assert.ok(!eventList(body, marker).has('resume_greet_action'), `${fn} still counts the click on it`);
+  }
+});
+
+test('day-one cards are null-safe and counted the same way in both new reads', () => {
+  for (const fn of ['admin_second_sitting', 'admin_built_return']) {
+    const body = latestDefinition(fn).body;
+    assert.match(body, /case when e\.id is null then 0\s+when e\.props->>'n' ~ '\^\[0-9\]\{1,6\}\$' then \(e\.props->>'n'\)::int\s+else 1 end/,
+      `${fn}: a user with no placement scores 0 cards, not 1`);
   }
 });
