@@ -574,7 +574,9 @@ function SignIn() {
   const [email, setEmail]       = useState(() => restored?.email || '');
   // A mistyped consumer domain (gmail.como, gmasil.com, a bare "gmail") is
   // offered a one-tap fix. Never blocks the send; logged once per domain.
-  const [typo, setTypo] = useState(null);
+  // A restored step keeps its offer: the person who mistyped the domain is
+  // exactly the one waiting for a code that is never coming.
+  const [typo, setTypo] = useState(() => (restored ? suggestEmail(restored.email) : null));
   const typoLoggedRef = useRef(new Set());
   // The offer follows every keystroke, but the EVENT is only logged once the
   // person has stopped typing (blur) or sent it (submit). Logged per keystroke,
@@ -632,16 +634,23 @@ function SignIn() {
   // localStorage is the trust boundary.
   useEffect(() => {
     let cancelled = false;
-    // A restored code step already knows its address; swapping it for the
-    // invite's would send the typed code to verify against the wrong email.
-    if (restored) return undefined;
     try {
       const token = localStorage.getItem(PENDING_INVITE_KEY);
       if (!token) return;
       peekPendingInviteEmail(token)
         .then(addr => {
           if (cancelled || !addr) return;
-          setEmail(addr);
+          // An email invite is bound to its address. A restored code step for
+          // the SAME address keeps its place and gets the banner back; one for
+          // another address yields to the invite (a code typed there would be
+          // claimed against the wrong email and the invite discarded).
+          if (restored && restored.email.toLowerCase() !== String(addr).toLowerCase()) {
+            clearPendingCode(window.localStorage);
+            setStage('email');
+            setCode('');
+            setResendCooldown(0);
+          }
+          if (!restored || restored.email.toLowerCase() !== String(addr).toLowerCase()) setEmail(addr);
           setInviteHint({ email: addr });
           logEvent(EV.LANDING_INVITE_PREFILL);
         })
@@ -936,10 +945,12 @@ function SignIn() {
                 </a>
               ) : null;
             })()}
-            {!isConsumerAddress(email) && (
+            {/* Not for an invitee (the invite is bound to this address) and not
+                for a mistyped consumer domain (the typo offer is the advice). */}
+            {!isConsumerAddress(email) && !inviteHint && !typo && !suggestEmail(email) && (
               <div className="auth-hint t-meta auth-work-hint">
-                Work and school mail can hold a code for a few minutes. If it doesn't
-                arrive, edit the address and use a personal one.
+                Work and school mail can hold a code for a few minutes, or quarantine
+                it — check there too. A different address signs in to a separate account.
               </div>
             )}
           </form>

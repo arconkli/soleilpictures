@@ -73,3 +73,11 @@ test('work and school domains are told apart from personal ones', () => {
   }
   assert.equal(isConsumerAddress(''), true, 'no hint for an empty field');
 });
+
+test('the Gmail shortcut opens the account the code went to; Yahoo Japan is its own service', () => {
+  const g = mailboxFor('Someone@Gmail.com');
+  assert.match(g.href, /[?&]authuser=someone%40gmail\.com#search\//, 'authuser, not /u/0/');
+  assert.equal(mailboxFor('a@yahoo.co.jp').id, 'yahoo_jp');
+  assert.match(mailboxFor('a@yahoo.co.jp').href, /mail\.yahoo\.co\.jp/);
+  assert.equal(mailboxFor('a@yahoo.co.uk').id, 'yahoo');
+});

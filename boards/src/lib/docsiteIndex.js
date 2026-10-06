@@ -169,7 +169,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "My sign-in code didn't arrive. What now?",
-        "a": "Look in Spam or Promotions first. On the code screen, a Gmail, Outlook, Yahoo, iCloud or Proton address gets a button that opens that inbox in a new tab, and for Gmail it searches every folder. Work and school mail servers can hold a code back for a few minutes, so a personal address is the quicker route. You can ask for a new code once the resend timer runs out, and reloading the page keeps you on the code step."
+        "a": "Look in Spam or Promotions first. On the code screen, a Gmail, Outlook, Yahoo, iCloud or Proton address gets a button that opens that inbox in a new tab, and for Gmail it searches every folder. Work and school mail servers can hold a code back for a few minutes or quarantine it, so check there too — signing in with a different address creates a separate account. You can ask for a new code once the resend timer runs out, and reloading the page keeps you on the code step."
       },
       {
         "q": "Can people I share with edit my board?",
