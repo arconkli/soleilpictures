@@ -111,3 +111,30 @@ test('_actor_active fails closed for a signed-in caller and stays open for anon'
   assert.match(def, /when auth\.uid\(\) is null then true/, 'public reads pass through it');
   assert.match(def, /where p\.user_id = auth\.uid\(\)\), false\)/, 'no profile row means not active');
 });
+
+// ── 0366 + Worker: tenant boundaries and the MCP scope gate ─────────────────
+
+test('a card_index row must belong to its board\'s workspace', () => {
+  const p = latestPolicy('card_index insert').body;
+  assert.match(p, /_board_in_workspace\(board_id, workspace_id\)/);
+});
+
+test('comments keep their author and thread, and move only where the author may comment', () => {
+  assert.match(latestPolicy('comments update self or editor').body, /can_comment_board\(board_id\)/);
+  assert.match(latestDefinition('_tg_comments_immutable').body, /new\.author is distinct from old\.author/);
+  assert.match(latestPolicy('comments insert').body, /comment_reply_on_board\(reply_to, board_id\)/);
+});
+
+test('a public image key must be an image of that card\'s own board', () => {
+  const def = latestDefinition('get_public_board_content').body;
+  assert.match(def, /img\.storage_path is not null/);
+  assert.match(def, /img\.board_id = p\.board_id or img\.referenced_in_board_ids @> array\[p\.board_id\]/);
+  assert.ok(latestMatch(/add constraint boards_thumb_key_own_thumbnail/));
+});
+
+test('every route into the API dispatcher meets the scope for its method (MCP included)', () => {
+  const api = read('../worker-api.js');
+  const start = api.indexOf('async function dispatch(');
+  const head = api.slice(start, start + 1500);
+  assert.match(head, /if \(!hasScope\(auth, need\)\)/, 'dispatch must re-check the scope MCP tools reach it with');
+});

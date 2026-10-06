@@ -974,6 +974,18 @@ async function dispatch(url, request, env, ctx) {
   const [head, id, sub, subId] = parts;
   const method = request.method;
 
+  // The scope gate in handleApiRoute reads the OUTER request's method, and the
+  // MCP transport is a POST: its tools call back in here through internalCall,
+  // so a token without the delete scope could run delete_board and
+  // delete_cards (2026-10-06 audit). Checked again here, every path into the
+  // dispatcher — REST and MCP alike — meets the same scope for the same method.
+  const need = method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : 'write';
+  if (!hasScope(auth, need)) {
+    throw fail(403, 'insufficient_scope', need === 'delete'
+      ? 'this token cannot delete — mint one with the delete scope if that was the intent'
+      : `this token cannot ${need}`);
+  }
+
   // The single-shot upload carries RAW BYTES, so its body must not be parsed as
   // JSON. Its multipart siblings underneath /uploads/* are ordinary JSON, and
   // treating them as raw too is what made every field arrive undefined.
