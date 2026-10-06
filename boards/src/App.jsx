@@ -8791,6 +8791,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         recents={recents.recents}
         commands={appCommands}
         mobileShell={mobileShell}
+        // What the open board holds, for the "no results" explanation: an
+        // all-images board is why most searches here find nothing.
+        emptyHelp={currentSurface === 'board' && currentId ? {
+          hasImages: yb.cards.some((c) => c.kind === 'image'),
+          hasText: yb.cards.some((c) => c.kind === 'note' || c.kind === 'doc'),
+          onBrowseList: () => { setCurrentSurface('board'); setView('list', 'search_empty'); },
+        } : null}
         onOpenBoard={(id) => {
           setStack(ancestorPath(boards, id));
           recents.push(id);

@@ -319,8 +319,11 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 label only says what the box is FOR. aria-hidden because it is
                 guidance about an empty region, not content a screen reader
                 should announce as present. */}
-            {empty && hints && hints[r.id] && !isEditingText && (
-              <div className="gridc-hint" aria-hidden="true">{hints[r.id]}</div>
+            {/* A template names what each cell is for; a bare grid used to say
+                nothing, and most grids placed were left with every cell empty.
+                The default line is the one gesture that fills a cell. */}
+            {empty && !isEditingText && ((hints && hints[r.id]) || editable) && (
+              <div className="gridc-hint" aria-hidden="true">{(hints && hints[r.id]) || 'Drop an image here'}</div>
             )}
             {editable && !isEditingText && !empty && !compact && (
               // Corner Clear only on normal cells; on compact cells Clear lives

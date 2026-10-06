@@ -73,12 +73,54 @@ function boardRank(name, lq) {
   return 3;
 }
 
+// The explanation under "No results". `emptyHelp` is { hasImages, hasText,
+// onBrowseList } about the board that is open; the host passes null where there
+// is no board (pick mode never shows this). Logged once per open, and once more
+// if the list door is taken — the two rows together say whether the explanation
+// is read as help or as noise.
+function EmptySearchHelp({ q, emptyHelp, onClose }) {
+  const loggedRef = useRef(false);
+  const short = q.trim().length <= 2;
+  useEffect(() => {
+    if (loggedRef.current) return;
+    loggedRef.current = true;
+    try {
+      logEvent(EV.SEARCH_EMPTY_HELP, { q_len: q.length, has_images: !!emptyHelp.hasImages, has_text: !!emptyHelp.hasText });
+    } catch (_) {}
+  }, [q, emptyHelp]);
+  const browse = () => {
+    try { logEvent(EV.SEARCH_EMPTY_HELP, { q_len: q.length, has_images: !!emptyHelp.hasImages, has_text: !!emptyHelp.hasText, action: 'list' }); } catch (_) {}
+    onClose?.();
+    emptyHelp.onBrowseList?.();
+  };
+  return (
+    <div className="cmdk-empty-help">
+      {short ? (
+        <p>Keep typing — a word finds cluster, group and tag names, notes, docs, captions and file names.</p>
+      ) : (
+        <>
+          <p>
+            Search sees cluster, group and tag names, notes, docs, captions and file names.
+            {emptyHelp.hasImages
+              ? ' A pasted image has none of those until you caption it — hover an image and choose Caption.'
+              : ' Images are found by their caption or file name.'}
+          </p>
+          {emptyHelp.onBrowseList && (
+            <button type="button" className="cmdk-empty-btn" onClick={browse}>Browse this cluster in List view</button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function CommandPalette({
   open,
   onClose,
   workspaceId,
   boards,
   rootId,
+  emptyHelp = null,
   recents = [],
   commands = [],
   onNavigateRef,
@@ -412,6 +454,13 @@ export function CommandPalette({
         <div className="cmdk-list">
           {showEmpty && (
             <div className="cmdk-empty">{isPick ? 'No clusters match.' : `No results for “${q}”.`}</div>
+          )}
+          {/* What search can see, said at the moment it found nothing. Most of
+              what people store is images without a word on them, so the honest
+              answer to an empty result is usually "that image has no name yet",
+              with the one door that does not need words: the list view. */}
+          {showEmpty && !isPick && emptyHelp && (
+            <EmptySearchHelp q={q} emptyHelp={emptyHelp} onClose={onClose} />
           )}
           {!q && !hasResults && !loading && (
             <div className="cmdk-empty">

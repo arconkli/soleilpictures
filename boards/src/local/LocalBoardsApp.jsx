@@ -1886,6 +1886,9 @@ export function LocalBoardsApp({ user, signOut }) {
         recents={recents.recents}
         commands={localCommands}
         mobileShell={mobileShell}
+        // The local shell has no content search, so every query finds nothing
+        // here; the explanation renders as it would on an all-images board.
+        emptyHelp={{ hasImages: true, hasText: false, onBrowseList: () => { setCurrentSurface('board'); setView('list'); } }}
         onOpenBoard={(id) => { setStack([id]); recents.push(id); setCurrentSurface('board'); }}
         onNavigateRef={(ref) => {
           const bid = ref.kind === 'board' ? ref.id : ref.boardId;

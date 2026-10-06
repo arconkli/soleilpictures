@@ -21756,3 +21756,27 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .help-guides-loading { grid-column: 1 / -1; padding: 6px 10px; color: var(--ink-2); font-size: 12.5px; }
 .help-hub-foot { margin: 16px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.5; }
 .help-hub-foot code { font-family: var(--font-mono); font-size: 11.5px; }
+
+/* ──────────────────── Failure-triggered hints (lib/hints.js) ──────────────── */
+/* The "no results" explanation in the palette, and the naming bar's button. */
+.cmdk-empty-help { padding: 2px 14px 12px; color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
+.cmdk-empty-help p { margin: 0 0 8px; }
+.cmdk-empty-btn {
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: var(--bg-1); color: var(--ink-0);
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.cmdk-empty-btn:hover, .cmdk-empty-btn:focus-visible { background: var(--bg-hov); outline: none; }
+.cnv-hint-btn {
+  appearance: none;
+  height: 22px; padding: 0 9px;
+  border: 1px solid var(--line-2); border-radius: 4px;
+  background: var(--bg-3); color: var(--ink-0);
+  font: 500 11px/1 var(--font-sans);
+  cursor: pointer;
+}
+.cnv-hint-btn:hover, .cnv-hint-btn:focus-visible { background: var(--bg-hov); outline: none; }
+/* The hero's hint line after a cancelled picker: the other ways in, a touch brighter. */
+.cnv-empty-tile-hero-hint.is-alt { color: var(--ink-0); }

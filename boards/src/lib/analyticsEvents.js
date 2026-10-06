@@ -202,6 +202,12 @@ export const EV = Object.freeze({
   HELP_OPEN:               'help_open',                     // the Help hub opened {via:'topbar'|'sidebar'|'palette'|'palette_add'|'other'}
   HELP_ITEM:               'help_item',                     // a door in it was taken {item:'learn'|'shortcuts'|'guides'|'guide'|'changelog'|'feedback'|'docs',kind?,section?}
   DOCS_OPEN:               'docs_open',                     // a signed-in person opened a docs page from inside the app {from:'help'|'settings'|'palette'|'shortcuts',path} — the first count of docs demand that is not a crawler
+  // Product education, failure side (lib/hints.js). A hint fires only when a
+  // specific how-to failure just happened, once per kind per device, never
+  // during the tour, never two at once, and is graded on its own conversion.
+  HINT_SHOWN:              'hint_shown',                    // {kind:'paste'|'name_cluster',trigger:'picker_cancel'|'timer',board_id,source?} — paste: the picker was cancelled on an empty board and the hero now names the other ways in; name_cluster: a cluster placed here still carried its default name a minute later
+  HINT_ACTED:              'hint_acted',                    // the thing the hint asked for happened while it was up {kind,ms,board_id} — a card landed (paste) or the cluster got a real name (name_cluster). A kind shown often and never acted on is in the way
+  SEARCH_EMPTY_HELP:       'search_empty_help',             // the palette explained what search can see because a query found nothing {q_len,has_images,has_text,action?} — one row when it shows, another with action:'list' if Browse in List view was taken
 
   // ── Onboarding failure paths (previously SILENT — a broken seed/persist left no signal) ──
   ONBOARDING_SEED_FAILED:            'onboarding_seed_failed',             // a seed step threw {stage,reason} — stage:'create_board'|'add_cards'|'persist'

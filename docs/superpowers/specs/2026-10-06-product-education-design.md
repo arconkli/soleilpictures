@@ -42,9 +42,13 @@ conversion, never on return:
 1. **Help that can be found** — a visible Help entry (topbar, sidebar, phone
    Settings): what can I add here, keyboard shortcuts, guides into `/docs`,
    what's new, send feedback. Pull, outside the ambient ask budget.
-2. **Hints at the moment something fails** — search found nothing; tool armed
-   and idle; picker cancelled; cluster left unnamed; grid left empty. Once per
-   kind per device, never two at once, never during the tour.
+2. **Hints at the moment something fails** — search found nothing (the
+   palette says what search can see and offers the list view); the picker
+   cancelled on an empty board (the hero names the other ways in); a cluster
+   still "Untitled cluster" a minute after it was placed (a bar with "Name
+   it"); an empty grid cell (a default "drop an image here" line). Once per
+   kind per device, never two at once, never during the tour. "Tool armed,
+   nothing placed" was planned and dropped: the canvas already shows that bar.
 3. **Email that teaches**, as a factorial arm the lifecycle optimizer grades.
 4. **Open file types on free** within the card cap and per-file size ceilings
    (owner's decision), with every public claim about plans rewritten in the
