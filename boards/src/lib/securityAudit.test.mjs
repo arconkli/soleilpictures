@@ -288,3 +288,39 @@ test('the breaker\'s tables and helpers are server-only, and its admin RPCs are 
     assert.match(latestDefinition(fn).body, /perform public\._require_admin\(\);/, `${fn} must be admin-only`);
   }
 });
+
+test('alerts go only to the owner, from the alerts address, and the sender checks its secret in constant time', () => {
+  const sender = read('../../../supabase/functions/send-transactional-email/index.ts');
+  assert.match(sender, /const to = body\.template === "ops_alert" \? OPS_ALERT_TO : body\.to;/,
+    'a request must not be able to redirect a security alert');
+  assert.match(sender, /const FROM_ALERTS\s+= "Clusters Alerts <alerts@clusters\.soleilpictures\.com>";/);
+  assert.match(sender, /case "ops_alert":\s+return FROM_ALERTS;/, 'never the bulk updates. domain');
+  assert.match(sender, /if \(!secretMatches\(token, SEND_EMAIL_SECRET\)\)/);
+  assert.doesNotMatch(sender, /token !== SEND_EMAIL_SECRET/);
+  assert.match(sender, /if \(await overHourlyCeiling\(body\.template\)\)/, 'the backstop ceiling runs before sending');
+  assert.match(sender, /from\("ops_alerts"\)\.update\(\{ paged_at:/, 'a delivered alert is stamped, so it is not resent');
+  assert.match(sender, /actor_id:\s+opts\.actorId \?\? null/, 'who caused an email is logged with it');
+  assert.ok(caseBlock('ops_alert').includes('replace(/[\\r\\n\\t]+/g, " ")'), 'an alert title is one line');
+});
+
+test('one-click unsubscribe covers mentions and replies, and its three allowlists agree', () => {
+  const sender = read('../../../supabase/functions/send-transactional-email/index.ts');
+  const keyMap = Object.fromEntries([...sender.matchAll(/^\s+(\w+):\s+"(email_\w+)",$/gm)].map((m) => [m[1], m[2]]));
+  assert.equal(keyMap.mention_email, 'email_mentions');
+  assert.equal(keyMap.comment_reply_email, 'email_comment_replies');
+  const listed = sender.match(/const LIST_UNSUB_TEMPLATES = new Set\(\[([^\]]+)\]\)/)[1];
+  for (const t of ['mention_email', 'comment_reply_email']) assert.ok(listed.includes(`"${t}"`), `${t} needs the header`);
+  assert.ok(caseBlock('mention_email').includes('unsubscribeToken: unsubTokenOf(data.unsubscribeToken)'));
+  assert.ok(caseBlock('comment_reply_email').includes('unsubscribeToken: unsubTokenOf(data.unsubscribeToken)'));
+
+  const rpcKeys = latestDefinition('email_unsubscribe').body.match(/p_key not in \(([^)]+)\)/)[1]
+    .match(/'(\w+)'/g).map((s) => s.slice(1, -1)).sort();
+  const workerKeys = Object.keys(Object.fromEntries(
+    [...worker.match(/const UNSUB_LABELS = \{([\s\S]*?)\};/)[1].matchAll(/^\s+(\w+):/gm)].map((m) => [m[1], 1]))).sort();
+  assert.deepEqual(workerKeys, rpcKeys, 'the Worker and email_unsubscribe() must accept the same keys');
+  for (const k of new Set(Object.values(keyMap))) assert.ok(rpcKeys.includes(k), `${k} is sent but cannot be unsubscribed`);
+  for (const fn of ['_tg_mention_notification_email', '_tg_comment_reply_email']) {
+    assert.match(latestDefinition(fn).body, /'unsubscribeToken', \(select t\.token from public\.email_unsub_tokens t/,
+      `${fn} must pass the recipient's own token`);
+  }
+});
