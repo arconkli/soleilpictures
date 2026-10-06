@@ -707,7 +707,7 @@ const activateNudge1Spec: FactorialSpec = {
       { k: "btn", label: "add 3 photos" },
       { k: "p", t: SIGNOFF },
     ],
-    // How-to arm (0366, product-education pass). The people who come back are
+    // How-to arm (0368, product-education pass). The people who come back are
     // the ones who pasted or dragged from the window they were already working
     // in; the ones who went looking for photos in a file picker mostly did not.
     // So this one names the ways in that need no picker, and nothing else.
@@ -984,7 +984,7 @@ const welcomeBoardSpec: FactorialSpec = {
       { k: "btn", label: "add ten photos" },
       { k: "p", t: SIGNOFF },
     ],
-    // How-to arm (0366, product-education pass): what a day-one board can take
+    // How-to arm (0368, product-education pass): what a day-one board can take
     // from wherever the material already is, and the one thing most people
     // never find — that a cluster is also a drive. Teaches, graded like the
     // rest on click-or-return; telling people about features ahead of time was

@@ -1,4 +1,4 @@
--- 0366 — a how-to body arm for the two live lifecycle types (product-education
+-- 0368 — a how-to body arm for the two live lifecycle types (product-education
 -- pass, 2026-10-06).
 --
 -- Every surface that teaches features ahead of time measured null for return
@@ -26,12 +26,12 @@ declare
 begin
   select value into v from public.app_config where key = 'lifecycle_email_experiments';
   if v is null then
-    raise exception '0366: app_config.lifecycle_email_experiments is missing';
+    raise exception '0368: app_config.lifecycle_email_experiments is missing';
   end if;
 
   foreach t in array array['welcome_board', 'activate_nudge_1'] loop
     if v #> array[t, 'factors', 'body'] is null then
-      raise exception '0366: % has no factorial body factor', t;
+      raise exception '0368: % has no factorial body factor', t;
     end if;
     -- Idempotent: re-running leaves an already-registered arm as it is.
     if not (v #> array[t, 'factors', 'body', 'arms']) ? 'b4' then
@@ -58,16 +58,16 @@ begin
   select value into v from public.app_config where key = 'lifecycle_email_experiments';
   foreach t in array array['welcome_board', 'activate_nudge_1'] loop
     if not (v #> array[t, 'factors', 'body', 'arms']) ? 'b4' then
-      raise exception '0366: % body arms lack b4', t;
+      raise exception '0368: % body arms lack b4', t;
     end if;
     if (v #>> array[t, 'factors', 'body', 'weights', 'b4'])::int <> 25 then
-      raise exception '0366: % b4 weight is not 25', t;
+      raise exception '0368: % b4 weight is not 25', t;
     end if;
     if (v #>> array[t, 'enabled']) is distinct from (case when t = 'welcome_board' then 'true' else 'true' end) then
-      raise notice '0366: % enabled=% (weighting only; nothing here enables a type)', t, v #>> array[t, 'enabled'];
+      raise notice '0368: % enabled=% (weighting only; nothing here enables a type)', t, v #>> array[t, 'enabled'];
     end if;
   end loop;
   if (v #>> array['activate_nudge_2', 'enabled']) = 'true' then
-    raise exception '0366: activate_nudge_2 must stay disabled (0359 sunset)';
+    raise exception '0368: activate_nudge_2 must stay disabled (0359 sunset)';
   end if;
 end $proof$;
