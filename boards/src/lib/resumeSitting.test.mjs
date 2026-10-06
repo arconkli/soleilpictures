@@ -3,7 +3,7 @@
 //   node --test src/lib/resumeSitting.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldGreetResume, lastTouchedCard, RESUME_GAP_MS, DAY_ONE_MS } from './resumeSitting.js';
+import { shouldGreetResume, lastTouchedCard, RESUME_GAP_MS, DAY_ONE_MS, resumePageState, __resetResumePage } from './resumeSitting.js';
 
 const base = { awayMs: RESUME_GAP_MS, accountAgeMs: 3 * 3600_000, genuineCards: 4, greeted: false };
 
@@ -32,4 +32,13 @@ test('the last-touched card is the newest of updatedAt and createdAt', () => {
   assert.equal(lastTouchedCard([{ id: 'x' }]).id, 'x', 'undated still beats nothing');
   assert.equal(lastTouchedCard([]), null);
   assert.equal(lastTouchedCard(null), null);
+});
+
+test('page state is one object for the page\'s life, shared by every caller', () => {
+  __resetResumePage();
+  const a = resumePageState();
+  a.greeted = true;
+  assert.equal(resumePageState().greeted, true, 'a remounted caller sees the same state');
+  __resetResumePage();
+  assert.deepEqual({ ...resumePageState() }, { greeted: false, reopenTried: false });
 });

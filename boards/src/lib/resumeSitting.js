@@ -17,6 +17,14 @@ export const RESUME_GAP_MS = 30 * 60 * 1000;
 export const DAY_ONE_MS = 24 * 60 * 60 * 1000;
 export const LAST_HIDDEN_KEY = 'soleil.lastHiddenAt:';
 
+// Page-lifetime state. "Once per page" cannot live in a React ref: App keys its
+// <Workspace> on the workspace id, so every workspace switch remounts it and a
+// ref would forget it had already greeted (and re-run the reopen check against
+// a stale stamp). Module scope lives exactly as long as the page.
+const page = { greeted: false, reopenTried: false };
+export function resumePageState() { return page; }
+export function __resetResumePage() { page.greeted = false; page.reopenTried = false; }
+
 // Greet when a person comes back after a real break, on the first day of their
 // account, to work that is theirs — at most once per page.
 export function shouldGreetResume({ awayMs, accountAgeMs, genuineCards, greeted } = {}) {

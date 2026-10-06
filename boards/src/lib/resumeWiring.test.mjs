@@ -25,9 +25,14 @@ test('the greeting claims the slot before it shows, and only for genuine cards',
   const claim = b.indexOf("claimUpsellSlot('resume')");
   const toast = b.indexOf('feedback.toast(');
   assert.ok(claim > 0 && toast > claim, 'claim first: never stacked on an offer, asks stand down for its minute');
-  assert.match(b, /genuineCards\(ybCardsRef\.current/, 'seed cards never count as work to come back to');
+  assert.match(b, /genuineCards\(ybCardsRef\.current \|\| \[\]\)\.filter\(\(c\) => c\?\.createdBy === uid\)/,
+    'only the person\'s own, non-seed cards count as work to come back to');
+  assert.match(b, /if \(!gate\.canEdit \|\| gate\.tourActive \|\| gate\.showCoachmark \|\| tier\.loading\) return;/,
+    'never on a board they cannot edit, under the tour or coachmark, or before the tier is known');
   assert.match(b, /shouldGreetResume\(\{ awayMs, accountAgeMs: now - created/, 'day-one gate is the pure predicate');
-  assert.match(b, /resumeGreetedRef\.current = true/, 'once per page');
+  assert.match(b, /pageState\.greeted = true/, 'once per page — module state, so a Workspace remount cannot replay it');
+  assert.match(app, /resumeGateRef\.current = \{ canEdit: !!canEditCurrent, tourActive: !!tourActive, showCoachmark: !!showCoachmark \}/,
+    'the gate values are refreshed every render');
 });
 
 test('every way back is watched, and the hide is stamped where a later page can read it', () => {
@@ -37,12 +42,17 @@ test('every way back is watched, and the hide is stamped where a later page can 
   assert.match(b, /greet\('tab'/);
   assert.match(b, /greet\('reopen'/);
   assert.match(b, /greet\('idle'/);
-  assert.match(b, /resumeReopenTriedRef\.current = true/, 'the reopen check runs once, not on every board switch');
+  assert.match(b, /pageState\.reopenTried = true/, 'the reopen check runs once per page, not on every board or workspace switch');
+  assert.match(b, /if \(document\.visibilityState !== 'visible'\) return;\s+const at = readHidden\(\);\s+consumeHidden\(\);/,
+    'a reopen is read only by a visible page, which consumes the stamp');
+  assert.match(b, /const at = readHidden\(\);\s+consumeHidden\(\);\s+if \(at > 0\) greet\('tab'/, 'the tab path consumes it too');
 });
 
-test('the jump never re-pushes the open board, and goes through the flash-card path', () => {
+test('the jump navigates like ⌘K — the board\'s own path, on its canvas — then flashes the card', () => {
   const b = block();
-  assert.match(b, /if \(currentIdRef\.current !== boardId\) openBoardRef\.current\?\.\(boardId\)/);
+  assert.match(b, /setStack\(ancestorPath\(boardsRef\.current \|\| \{\}, boardId\)\)/, 'never a push onto the open stack');
+  assert.match(b, /setViewOverride\(\(o\) => \(\{ \.\.\.o, \[boardId\]: 'canvas' \}\)\)/, 'the flash path is canvas-only');
+  assert.doesNotMatch(b, /openBoardRef\.current\?\.\(boardId\)/);
   assert.match(b, /new CustomEvent\('soleil-flash-card'/);
 });
 
