@@ -678,7 +678,7 @@ async function partyMpu(env, token, workspaceId, action, body) {
     }
     if (res.status === 403) {
       throw fail(403, 'forbidden', reason === 'owner_not_paid'
-        ? 'large uploads need a paid account on the workspace that owns this board'
+        ? 'files over the free size limit need a paid account on the workspace that owns this board'
         : 'you cannot upload to that board');
     }
     if (res.status === 400) throw fail(400, 'bad_request', 'the upload service rejected that request');
@@ -973,6 +973,18 @@ async function dispatch(url, request, env, ctx) {
   const parts = url.pathname.replace(/^\/api\/v1\/?/, '').replace(/\/$/, '').split('/').filter(Boolean);
   const [head, id, sub, subId] = parts;
   const method = request.method;
+
+  // The scope gate in handleApiRoute reads the OUTER request's method, and the
+  // MCP transport is a POST: its tools call back in here through internalCall,
+  // so a token without the delete scope could run delete_board and
+  // delete_cards (2026-10-06 audit). Checked again here, every path into the
+  // dispatcher — REST and MCP alike — meets the same scope for the same method.
+  const need = method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : 'write';
+  if (!hasScope(auth, need)) {
+    throw fail(403, 'insufficient_scope', need === 'delete'
+      ? 'this token cannot delete — mint one with the delete scope if that was the intent'
+      : `this token cannot ${need}`);
+  }
 
   // The single-shot upload carries RAW BYTES, so its body must not be parsed as
   // JSON. Its multipart siblings underneath /uploads/* are ordinary JSON, and

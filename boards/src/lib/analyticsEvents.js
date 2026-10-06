@@ -193,6 +193,21 @@ export const EV = Object.freeze({
   POWER_REVEAL_SHOWN:      'power_reveal_shown',            // JIT power hint surfaced when the user's content made a feature relevant {reveal,board_id,n_cards}
   POWER_REVEAL_ENGAGED:    'power_reveal_engaged',          // its action button was clicked {reveal}
   POWER_REVEAL_DISMISSED:  'power_reveal_dismissed',        // hand-dismissed via the toast X {reveal}; TTL expiry logs nothing, so expired = shown − engaged − dismissed
+  // Product education, pull side (2026-10-06, components/HelpHub.jsx). The pass
+  // that added these found every surface that TELLS people about power to be
+  // null for return — tour completion, the intent pick, the reveals above, the
+  // docs site hardly anyone reached from inside the app — so the hub opens only
+  // when asked, sits outside the ambient ask budget, and is graded on its own
+  // reach (admin_feature_reach, 0365), never on return.
+  HELP_OPEN:               'help_open',                     // the Help hub opened {via:'topbar'|'sidebar'|'palette'|'palette_add'|'other'}
+  HELP_ITEM:               'help_item',                     // a door in it was taken {item:'learn'|'shortcuts'|'guides'|'guide'|'changelog'|'feedback'|'docs',kind?,section?}
+  DOCS_OPEN:               'docs_open',                     // a signed-in person opened a docs page from inside the app {from:'help'|'settings'|'palette'|'shortcuts',path} — the first count of docs demand that is not a crawler
+  // Product education, failure side (lib/hints.js). A hint fires only when a
+  // specific how-to failure just happened, once per kind per device, never
+  // during the tour, never two at once, and is graded on its own conversion.
+  HINT_SHOWN:              'hint_shown',                    // {kind:'paste'|'name_cluster',trigger:'picker_cancel'|'timer',board_id,source?} — paste: the picker was cancelled on an empty board and the hero now names the other ways in; name_cluster: a cluster placed here still carried its default name a minute later
+  HINT_ACTED:              'hint_acted',                    // the thing the hint asked for happened while it was up {kind,ms,board_id} — a card landed (paste) or the cluster got a real name (name_cluster). A kind shown often and never acted on is in the way
+  SEARCH_EMPTY_HELP:       'search_empty_help',             // the palette explained what search can see because a query found nothing {q_len,has_images,has_text,action?} — one row when it shows, another with action:'list' if Browse in List view was taken
 
   // ── Onboarding failure paths (previously SILENT — a broken seed/persist left no signal) ──
   ONBOARDING_SEED_FAILED:            'onboarding_seed_failed',             // a seed step threw {stage,reason} — stage:'create_board'|'add_cards'|'persist'
@@ -314,7 +329,7 @@ export const EV = Object.freeze({
   LIST_BROWSER_VIEW:       'list_browser_view',           // ListSurface mounted (once per board per session) {board_id,files,subclusters}
   LIST_ADD_FILES:          'list_add_files',              // files handed to the list-mode ingest {board_id,n,via:'toolbar'|'drop'}
   LIST_UPSELL_CTA:         'list_upsell_cta',             // "Any file, any size — Creator" clicked in the list toolbar {board_id} (must-land)
-  UPLOAD_BLOCKED:          'upload_blocked',              // an upload was refused {reason:'owner_not_paid'|'server_403'|'server_quota'|'video_too_long',surface:'canvas'|'list',ext,size_bucket,n,duration_s?,max_s?} — owner_not_paid = client hard-block (free owner, non-standard file); server_* = party /mpu 403/402; video_too_long = the free-tier clip-length cap (uploads.js), the one paid limit that used to refuse silently
+  UPLOAD_BLOCKED:          'upload_blocked',              // an upload was refused {reason:'over_free_cap'|'owner_not_paid'|'server_403'|'server_quota'|'video_too_long',surface:'canvas'|'list',ext,size_bucket,n,duration_s?,max_s?} — over_free_cap = client hard-block since 0367 (free owner, file past the free size caps — the TYPE is no longer a reason); owner_not_paid = the same block before 0367 (free owner, non-standard file; historical rows only); server_* = party /mpu 403/402; video_too_long = the free-tier clip-length cap (uploads.js), the one paid limit that used to refuse silently
   UPLOAD_ABANDONED:        'upload_abandoned',            // photo cards saved without their file by a page that went away mid-upload, found on a later open {board_id,n,recovered,removed} — recovered = the original had landed and only the src patch was lost; removed = it never landed (lib/abandonedUploads.js). Before 2026-10-01 these spun 'Uploading…' for ever and were counted toward the cap
   FILE_SKIPPED:            'file_skipped',                // a dropped/pasted file was skipped ON PURPOSE, never pitched {reason:'partial_download'|'pureref',surface:'canvas'|'list',n,ext} — partial = an unfinished browser download (.crdownload/.part/…); pureref = a free owner's .pur scene, which no plan can open. Kept OUT of upload_blocked so readers counting paid refusals are not inflated by files nobody could have bought their way past
   SCRIPT_IMPORTED:         'script_imported',             // a dropped .fountain/.fdx became a script document {source:'drop'|'paste'|'list_drop',format:'fountain'|'fdx',blocks} — free on every tier; it used to fall through to the paid generic-file route

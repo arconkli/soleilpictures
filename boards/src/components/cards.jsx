@@ -284,6 +284,10 @@ function describeListItem(card, boards = {}) {
 
 function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                            onOpen, onOpenChild, onRename, autoFocus = false,
+                           // Bumped by the host to open the name for editing
+                           // (CanvasSurface editFieldSignal — the naming hint's
+                           // "Name it"); the same contract as the other cards.
+                           editTitleAt = 0,
                            clickToOpen = false,
                            onOpenItem,
                            peersHere = [],         // peers exactly on this board
@@ -294,6 +298,16 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                            peersHereByBoard,
                            peersBelowByBoard,
                            onJumpToPeer }) {
+  // Name editing is controlled here so a host signal can open it on a card
+  // that is already mounted (EditableText reads autoFocus only once). A
+  // signal-opened editor selects the whole default name — the point is to
+  // replace it — while a double-click keeps its caret at the end as before.
+  const [editingName, setEditingNameRaw] = useState(autoFocus);
+  const [selectAllNext, setSelectAllNext] = useState(false);
+  const setEditingName = (v) => { setEditingNameRaw(v); if (!v) setSelectAllNext(false); };
+  useEffect(() => {
+    if (editTitleAt > 0) { setSelectAllNext(true); setEditingNameRaw(true); }
+  }, [editTitleAt]);
   if (!board) {
     // Either the board was deleted, OR the viewer doesn't have read
     // access to it (per-board sharing didn't include it). Both cases
@@ -454,7 +468,8 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                             onChange={onRename}
                             placeholder="Untitled list"
                             autoFocus={autoFocus}
-                            selectAllOnFocus={autoFocus} />
+                            selectAllOnFocus={autoFocus || selectAllNext}
+                            editing={editingName} setEditing={setEditingName} />
             : <div className="bc-list-title">{board.name}</div>}
           {subParts.length > 0 && (
             <div className="bc-list-subtitle">{subParts.join(', ')}</div>
@@ -534,7 +549,8 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                           onChange={onRename}
                           placeholder="Untitled cluster"
                           autoFocus={autoFocus}
-                          selectAllOnFocus={autoFocus} />
+                          selectAllOnFocus={autoFocus || selectAllNext}
+                          editing={editingName} setEditing={setEditingName} />
           : <div className="bc-name">{board.name}</div>}
         <div className="bc-row">
           <span className="bc-sub">

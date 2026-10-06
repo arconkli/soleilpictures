@@ -54,6 +54,28 @@ test('a custom order picks and orders the groups; unnamed kinds are dropped', ()
   assert.deepEqual(groupFixedHorizon(rows).groups.map((x) => x.key), ['device', 'band', 'week']);
 });
 
+test('mode rows read hand, burst, none; mode_band rows read shallow to deep, hand before burst', () => {
+  const g = groupFixedHorizon([
+    { dim: 'all', n: 200, returned: 60 },
+    { dim: 'mode:none', n: 50, returned: 6 },
+    { dim: 'mode:burst', n: 34, returned: 9 },
+    { dim: 'mode:hand', n: 116, returned: 45 },
+    { dim: 'mode_band:13+ · burst', n: 18, returned: 5 },
+    { dim: 'mode_band:3-12 · hand', n: 58, returned: 19 },
+    { dim: 'mode_band:13+ · hand', n: 48, returned: 26 },
+    { dim: 'mode_band:0-2 · hand', n: 46, returned: 3 },
+    { dim: 'mode_band:3-12 · burst', n: 14, returned: 4 },
+    { dim: 'mode_band:0-2 · burst', n: 2, returned: 0 },
+  ], ['mode', 'mode_band']);
+  assert.deepEqual(g.groups.map((x) => x.key), ['mode', 'mode_band']);
+  assert.deepEqual(g.groups[0].rows.map((r) => r.label), ['hand', 'burst', 'none']);
+  assert.deepEqual(g.groups[1].rows.map((r) => r.label), [
+    '0-2 · hand', '0-2 · burst', '3-12 · hand', '3-12 · burst', '13+ · hand', '13+ · burst',
+  ]);
+  // The 0322 panel's default order still ignores both kinds.
+  assert.deepEqual(groupFixedHorizon([{ dim: 'mode:hand', n: 1, returned: 1 }]).groups, []);
+});
+
 test('link rows read shallow to deep, one sitting before two+ inside each band', () => {
   const g = groupFixedHorizon([
     { dim: 'link:13+ · two+ sittings', n: 24, returned: 18 },

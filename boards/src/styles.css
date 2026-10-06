@@ -21678,3 +21678,105 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 @media (max-width: 480px) {
   .folder-import-track { display: none; }
 }
+
+/* ──────────────────────────── Help hub ──────────────────────────────────── */
+/* components/HelpHub.jsx — the "What can I add here?" screen plus the doors to
+   shortcuts, guides, the changelog and feedback. Shares .shortcuts-modal's
+   shell; only the body is its own. */
+.help-hub { width: min(760px, calc(100vw - 48px)); }
+.help-hub-sub { margin: -8px 0 16px; color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+.help-kinds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+@media (max-width: 560px) { .help-kinds { grid-template-columns: 1fr; } }
+.help-kind {
+  padding: 10px 12px 9px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: var(--bg-1);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.help-kind-title { font: 600 13px/1.3 var(--font-sans); color: var(--ink-0); }
+.help-kind-line { font-size: 12.5px; line-height: 1.45; color: var(--ink-1); }
+.help-kind-more {
+  align-self: flex-start;
+  margin-top: 2px; padding: 0;
+  border: 0; background: transparent;
+  color: var(--ink-2);
+  font: 500 12px/1.4 var(--font-sans);
+  cursor: pointer;
+}
+.help-kind-more:hover, .help-kind-more:focus-visible { color: var(--ink-0); text-decoration: underline; outline: none; }
+.help-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin-top: 18px;
+}
+@media (max-width: 560px) { .help-actions { grid-template-columns: 1fr; } }
+.help-action {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  height: auto; min-height: 36px; padding: 8px 12px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-1);
+  text-align: left;
+  font: 500 13px/1.3 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.help-action:hover, .help-action:focus-visible, .help-action[aria-expanded="true"] {
+  background: var(--bg-hov); color: var(--ink-0); outline: none;
+}
+.help-action-feedback { align-items: center; cursor: default; }
+.help-action-feedback .tb-icon { width: 28px; height: 28px; }
+.help-action-label { color: inherit; }
+.help-action-hint { color: var(--ink-2); font-weight: 400; font-size: 12px; }
+.help-guides {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+}
+@media (max-width: 560px) { .help-guides { grid-template-columns: 1fr; } }
+.help-guide {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 7px 10px;
+  border: 0; border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.help-guide:hover, .help-guide:focus-visible { background: var(--bg-hov); outline: none; }
+.help-guide-label { font: 500 13px/1.3 var(--font-sans); color: var(--ink-0); }
+.help-guide-blurb { font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.help-guides-loading { grid-column: 1 / -1; padding: 6px 10px; color: var(--ink-2); font-size: 12.5px; }
+.help-hub-foot { margin: 16px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+.help-hub-foot code { font-family: var(--font-mono); font-size: 11.5px; }
+
+/* ──────────────────── Failure-triggered hints (lib/hints.js) ──────────────── */
+/* The "no results" explanation in the palette, and the naming bar's button. */
+.cmdk-empty-help { padding: 2px 14px 12px; color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
+.cmdk-empty-help p { margin: 0 0 8px; }
+.cmdk-empty-btn {
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: var(--bg-1); color: var(--ink-0);
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.cmdk-empty-btn:hover, .cmdk-empty-btn:focus-visible { background: var(--bg-hov); outline: none; }
+.cnv-hint-btn {
+  appearance: none;
+  height: 22px; padding: 0 9px;
+  border: 1px solid var(--line-2); border-radius: 4px;
+  background: var(--bg-3); color: var(--ink-0);
+  font: 500 11px/1 var(--font-sans);
+  cursor: pointer;
+}
+.cnv-hint-btn:hover, .cnv-hint-btn:focus-visible { background: var(--bg-hov); outline: none; }
+/* The hero's hint line after a cancelled picker: the other ways in, a touch brighter. */
+.cnv-empty-tile-hero-hint.is-alt { color: var(--ink-0); }

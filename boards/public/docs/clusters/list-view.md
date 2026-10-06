@@ -167,7 +167,7 @@ what a drive is really for, no. Here is the line:
 | Folders inside folders | Yes — nested clusters, as deep as you like |
 | Upload a whole folder | Yes — [drop it on a canvas](/docs/clusters#dropping-a-folder) and its folders become nested clusters |
 | Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free |
-| Store any kind of file | On Creator, any file type on a 100GB drive. The free plan takes standard media under its [size caps](/docs/account/plans), and every file is one of its 50 cards |
+| Store any kind of file | Yes, on every plan. The free plan caps each file at 50 MB (standard media at its own [size caps](/docs/account/plans)), and every file is one of its 50 cards; Creator lifts the size caps on a 100GB drive |
 | Keep each file's original name | Yes — images and videos since names were kept; audio, PDFs and attachments always |
 | Share one file by its own link | No — sharing is per cluster. **Copy link** opens a card on its board, for people who can already open that board |
 | Sync a folder on your computer | No — there is no desktop sync app |

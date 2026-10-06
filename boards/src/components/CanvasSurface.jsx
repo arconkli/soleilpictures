@@ -101,6 +101,7 @@ import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
+import { canShowHint, claimHint, releaseHint, markHintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
 import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
@@ -158,7 +159,7 @@ import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
-import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor } from '../lib/fileIngest.js';
+import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from '../lib/fileIngest.js';
 import { saveWebImageCopy } from '../lib/webImageClient.js';
 import { pickHotlinks, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
 import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
@@ -1391,6 +1392,63 @@ export function CanvasSurface({
   // re-fires the effect. No popup — same UX as board-name editing.
   const [editFieldSignal, setEditFieldSignal] = useState({ id: null, field: null, n: 0 });
   const triggerInlineEdit = (id, field) => setEditFieldSignal((s) => ({ id, field, n: s.n + 1 }));
+
+  // Failure-triggered hints (lib/hints.js) — one per kind per device, one on
+  // screen at a time, never during the tour, each graded on its own conversion.
+  //   pasteHintUp: the picker was cancelled on an empty board; the hero now
+  //                names the other ways in. Answered by any card landing.
+  //   nameHint:    a cluster placed here still carried its default name a
+  //                minute later. Answered by a real name.
+  const [pasteHintUp, setPasteHintUp] = useState(false);
+  const pasteHintAtRef = useRef(0);
+  const [nameHint, setNameHint] = useState(null); // { id, at }
+  const boardsRef = useRef(boards);
+  boardsRef.current = boards;
+  const boardIsEmptyRef = useRef(false);
+  const nameTimerRef = useRef(null);
+  // DEV: ?hintms=300 shortens the minute so the bar is testable; folds to the
+  // constant in production.
+  const NAME_HINT_DELAY_MS = (import.meta.env.DEV && typeof window !== 'undefined'
+    && Number(new URLSearchParams(window.location.search).get('hintms'))) || NAME_CLUSTER_AFTER_MS;
+  const scheduleNameHint = (id) => {
+    if (!id || !canShowHint('name_cluster')) return;
+    if (nameTimerRef.current) clearTimeout(nameTimerRef.current);
+    nameTimerRef.current = setTimeout(() => {
+      nameTimerRef.current = null;
+      const b = boardsRef.current?.[id];
+      if (!b || b.deleted_at || !isDefaultClusterName(b.name)) return;
+      if (!cardsRef.current?.some((c) => c.id === id)) return;
+      if (!canShowHint('name_cluster') || !claimHint('name_cluster')) return;
+      markHintSeen('name_cluster');
+      setNameHint({ id, at: Date.now() });
+      try { logEvent(EV.HINT_SHOWN, { kind: 'name_cluster', trigger: 'timer', board_id: boardIdRef.current }); } catch (_) {}
+    }, NAME_HINT_DELAY_MS);
+  };
+  const dismissNameHint = () => { releaseHint('name_cluster'); setNameHint(null); };
+  // Answered by a real name; outlived by the card going away.
+  useEffect(() => {
+    if (!nameHint) return;
+    const b = boards?.[nameHint.id];
+    if (!b || !cards.some((c) => c.id === nameHint.id)) { dismissNameHint(); return; }
+    if (!isDefaultClusterName(b.name)) {
+      try { logEvent(EV.HINT_ACTED, { kind: 'name_cluster', ms: Date.now() - nameHint.at, board_id: boardIdRef.current }); } catch (_) {}
+      dismissNameHint();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameHint, boards, cards]);
+  // The paste hint is answered by any card landing.
+  useEffect(() => {
+    if (!pasteHintUp || cards.length === 0) return;
+    try { logEvent(EV.HINT_ACTED, { kind: 'paste', ms: Date.now() - pasteHintAtRef.current, board_id: boardIdRef.current }); } catch (_) {}
+    releaseHint('paste');
+    setPasteHintUp(false);
+  }, [pasteHintUp, cards.length]);
+  // Leaving the canvas ends both, so a hint never outlives the board it was about.
+  useEffect(() => () => {
+    if (nameTimerRef.current) clearTimeout(nameTimerRef.current);
+    releaseHint('name_cluster');
+    releaseHint('paste');
+  }, []);
   // Lightbox: previewing an image inline (clicked from a list-board's child
   // row, or the expand button on a canvas image card). Null when closed.
   // Esc handling + close-on-backdrop-click live inside ImageLightbox.
@@ -1767,6 +1825,9 @@ export function CanvasSurface({
     // itself would silently no-op against a stale map. Asking for it by option
     // lets each host do the part it actually knows about.
     const newId = await mutators.addNewBoard?.(pos, { openAfter: wasFirst, via: method });
+    // A cluster that stays "Untitled cluster" a minute from now gets the naming
+    // bar — unless we are about to step inside it, where this canvas is gone.
+    if (newId && !(wasFirst && onOpenBoard)) scheduleNameHint(newId);
     if (!wasFirst || !newId || !onOpenBoard) return;
     const parentId = board?.id || null;
     try { logEvent(EV.CLUSTER_AUTO_OPEN, { board_id: parentId, new_board_id: newId, method }); } catch (_) {}
@@ -3208,8 +3269,8 @@ export function CanvasSurface({
       feedback.toast({
         type: 'warning',
         message: ownsWorkspace
-          ? 'Uploading files needs a paid plan — upgrade to add any file type.'
-          : "Uploading that file needs the cluster's owner to be on a paid plan.",
+          ? `Files over ${FREE_FILE_CAP_LABEL} need Creator — upgrade for any size.`
+          : `Files over ${FREE_FILE_CAP_LABEL} need the cluster's owner to be on a paid plan.`,
         ...(ownsWorkspace && !explained
           ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: err.code === 402 ? 'server_quota' : 'server_403' }); upsell?.({ force: true }); } } }
           : {}),
@@ -3852,14 +3913,14 @@ export function CanvasSurface({
       try {
         const biggest = blockedForUpgrade.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
-          reason: 'owner_not_paid', surface: 'canvas', n: blockedForUpgrade.length,
+          reason: 'over_free_cap', surface: 'canvas', n: blockedForUpgrade.length,
           ext: (blockedForUpgrade[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
           size_bucket: sizeBucket(biggest),
         });
       } catch (_) {}
       feedback.toast({
         type: 'warning',
-        message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
+        message: `${blockedForUpgrade.length === 1 ? 'That file is' : `${blockedForUpgrade.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blockedForUpgrade.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to 100GB.`,
         ttl: 6000,
         ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });
@@ -3957,6 +4018,14 @@ export function CanvasSurface({
     // event; a browser that lacks it simply never emits this row.
     input.oncancel = () => {
       try { logEvent(EV.PHOTO_PICK_CANCEL, { source, board_id: board?.id }); } catch (_) {}
+      // Nothing chosen on an empty board: the person most likely went looking
+      // for images they do not have at hand. Say the other ways in, once.
+      if (canEdit && !isPublic && boardIsEmptyRef.current && canShowHint('paste') && claimHint('paste')) {
+        markHintSeen('paste');
+        pasteHintAtRef.current = Date.now();
+        setPasteHintUp(true);
+        try { logEvent(EV.HINT_SHOWN, { kind: 'paste', trigger: 'picker_cancel', board_id: board?.id, source }); } catch (_) {}
+      }
     };
     input.click();
   }, [ingestFiles, board?.id, isPhone, canEdit, feedback]);
@@ -4741,14 +4810,14 @@ export function CanvasSurface({
             const explained = (onRequestStorageUpgrade || onRequestUpgrade)?.();
             try {
               logEvent(EV.UPLOAD_BLOCKED, {
-                reason: 'owner_not_paid', surface: 'canvas', n: 1,
+                reason: 'over_free_cap', surface: 'canvas', n: 1,
                 ext: (file.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
                 size_bucket: sizeBucket(file.size || 0),
               });
             } catch (_) {}
             feedback.toast({
               type: 'warning',
-              message: 'Uploading files needs a paid plan — upgrade to add any file type.',
+              message: `That file is over the free ${FREE_FILE_CAP_LABEL} limit — Creator takes any size.`,
               ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
             });
             return;
@@ -8927,7 +8996,8 @@ export function CanvasSurface({
                        return false;
                      }}
                      onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name) : null}
-                     autoFocus={af} />
+                     autoFocus={af}
+                     editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />
         : boardsReady
           ? <div className="bc bc-missing" title={`Missing cluster ${c.id}`}>Missing cluster</div>
           : <div className="bc bc-loading" aria-hidden="true" />;
@@ -10123,6 +10193,7 @@ export function CanvasSurface({
   // the fixed-size empty-state panel — that mismatch read as "broken". Normal
   // `× zoom` scaling + pan-follow resumes the moment the first card lands.
   const boardIsEmpty = cards.length === 0 && !(strokes?.length) && !(arrows?.length);
+  boardIsEmptyRef.current = boardIsEmpty;
   const gz = Math.max(8, 80 * (boardIsEmpty ? 1 : zoom));
   const dz = Math.max(2, 20 * (boardIsEmpty ? 1 : zoom));
   // Size-accurate eraser cursor — the red stroke preview only showed the
@@ -11267,6 +11338,17 @@ export function CanvasSurface({
           <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
         </div>
       )}
+      {/* The naming bar (lib/hints.js): a cluster placed here is still called
+          "Untitled cluster" a minute later. Most of them stay that way, and a
+          cluster with no name is one nobody searches for again. Yields to the
+          tool bars above, which share this spot. */}
+      {nameHint && selectedTool === 'select' && !annotPlacing && (
+        <div className="cnv-hint cnv-hint-name" role="status" data-hint="name_cluster">
+          Your new cluster is still “{boards?.[nameHint.id]?.name || 'Untitled cluster'}” — name it so you can find it later.
+          <button className="cnv-hint-btn" onClick={() => triggerInlineEdit(nameHint.id, 'title')}>Name it</button>
+          <button className="cnv-hint-x" aria-label="Dismiss" onClick={dismissNameHint}>×</button>
+        </div>
+      )}
       {annotPlacing && (
         <div className="cnv-hint">
           Click a card to attach, or empty space to drop a {annotPlacing}
@@ -11322,7 +11404,13 @@ export function CanvasSurface({
                   one gesture that selects ten gets there where ten gestures
                   mostly don't happen. */}
               <span className="cnv-empty-tile-lbl">{panelCopy.heroLabel}</span>
-              <span className="cnv-empty-tile-hero-hint">{panelCopy.heroHint}</span>
+              <span className={`cnv-empty-tile-hero-hint${pasteHintUp ? ' is-alt' : ''}`}>
+                {pasteHintUp
+                  ? (isPhone
+                    ? 'Nothing picked? Tap + for your camera roll, or paste an image here'
+                    : 'Nothing picked? Paste an image from any tab (⌘V), or drag one straight in from another window')
+                  : panelCopy.heroHint}
+              </span>
             </span>
           </button>
           <div className="cnv-empty-tiles-grid">

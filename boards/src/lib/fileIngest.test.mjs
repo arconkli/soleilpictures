@@ -12,11 +12,38 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyDropFile, sizeBucket, fitImageDims, meaningfulFileName, fileMetaFor,
-  FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FALLBACK_DIMS,
+  FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP, FREE_FILE_CAP_LABEL, FALLBACK_DIMS,
 } from './fileIngest.js';
 
 // Minimal File stand-in — classifyDropFile only reads .type/.name/.size.
 const f = (name, type, size = 1024) => ({ name, type, size });
+
+// 0367: file TYPES are open on the free plan; only SIZE stays Creator's.
+test('a free owner may drop any file type up to the free file cap', () => {
+  // (.psd arrives with an image/ MIME from most pickers and takes the image
+  // route, as it always has; the empty-MIME case is the one that used to bounce.)
+  for (const [name, type] of [['comp.psd', ''], ['mock.fig', ''], ['pack.zip', 'application/zip'],
+                              ['brief.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']]) {
+    const c = classifyDropFile(f(name, type, FREE_FILE_CAP), { canAttemptFiles: false });
+    assert.equal(c.route, 'file', `${name} is a file card on free`);
+    assert.equal(c.kind, 'file');
+  }
+});
+
+test('past the free file cap a free owner is refused for SIZE, never for the type', () => {
+  const c = classifyDropFile(f('pack.zip', 'application/zip', FREE_FILE_CAP + 1), { canAttemptFiles: false });
+  assert.equal(c.route, 'blocked');
+  assert.equal(c.why, 'size');
+  // Media past its own cap says the same thing.
+  const pdf = classifyDropFile(f('deck.pdf', 'application/pdf', FREE_PDF_CAP + 1), { canAttemptFiles: false });
+  assert.equal(pdf.route, 'blocked');
+  assert.equal(pdf.why, 'size');
+  // A paid owner takes both.
+  assert.equal(classifyDropFile(f('pack.zip', 'application/zip', FREE_FILE_CAP + 1), { canAttemptFiles: true }).route, 'file');
+  assert.equal(classifyDropFile(f('deck.pdf', 'application/pdf', FREE_PDF_CAP + 1), { canAttemptFiles: true }).route, 'file');
+  assert.equal(FREE_FILE_CAP, FREE_PDF_CAP, 'the file cap is the PDF cap — one number on the pricing page, not two');
+  assert.equal(FREE_FILE_CAP_LABEL, '50 MB');
+});
 
 test('audio mime types route to the audio card', () => {
   for (const type of ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/flac',

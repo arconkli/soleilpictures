@@ -37,7 +37,7 @@ We are a film studio. These are the tools we have run real boards through — sh
 
 **Rating:** 8.8/10
 
-**Pricing:** Free (Demo) — no credit card, no trial clock, with a card cap on the free tier; Creator $25/mo flat (not per person): unlimited cards, 100GB storage, any file type _(as of August 2026)_
+**Pricing:** Free (Demo) — no credit card, no trial clock, with a card cap on the free tier; Creator $25/mo flat (not per person): unlimited cards, 100GB storage, no size limits _(as of August 2026)_
 
 Frames in a grid, next to the coverage plan and the screenplay, on one canvas the whole production opens from a link.
 
@@ -47,7 +47,7 @@ The storyboard mechanic is the grid card. Drop a grid on the canvas, cut it into
 
 The team mechanics are why it survives a production. Live cursors and presence show who is on the board. Comments pin to a specific frame, so 'the third one' is unambiguous. A director or client opens a read-only view from one link with no account and nothing installed, on a laptop or an iPad at a scout. Invited collaborators edit free on every tier, so adding the first AD or the production designer does not change the invoice. Vote cards settle 'which of these five frames' without a thread.
 
-The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, with a card cap on the free tier; Creator is a flat $25 a month, not per person, for unlimited cards, 100GB of storage and any file type.
+The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, with a card cap on the free tier; Creator is a flat $25 a month, not per person, for unlimited cards, 100GB of storage and no size limits.
 
 - Grid cards as storyboard frames — cut the frames, drop images in, write the action beneath, and let shots number themselves
 - The board holds the rest of pre-production too: shot-list tables, documents with screenplay mode, palettes, PDFs, video and audio

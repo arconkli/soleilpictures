@@ -9,6 +9,8 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './Modal.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 const CMD = isMac ? '⌘' : 'Ctrl';
@@ -148,7 +150,8 @@ export function ShortcutsOverlay({ open, onClose }) {
         </ul>
         <p style={{ marginTop: 12, opacity: 0.7, fontSize: '0.85em' }}>
           Everything else is written up in the{' '}
-          <a href="/docs" target="_blank" rel="noreferrer noopener">documentation</a>.
+          <a href="/docs" target="_blank" rel="noreferrer noopener"
+             onClick={() => logEvent(EV.DOCS_OPEN, { from: 'shortcuts', path: '/docs' })}>documentation</a>.
         </p>
       </div>
     </Modal>

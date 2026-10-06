@@ -30,13 +30,13 @@ Clusters treats a reference board as a working surface, not a gallery.
 
 - Check your values — flip any image to black and white, or nudge brightness, contrast, saturation, and warmth. Every adjustment is non-destructive.
 - Steal the palette — sample swatches off any image with the eyedropper and keep them on the board beside the work they came from.
-- Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; Creator accepts any file type.
+- Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; any other file lands as a card too, and Creator lifts the size caps.
 - Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.
 - One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.
 
 ## Free to start, flat when you grow
 
-The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards, with each cluster you make counting as one. Invited collaborators edit free on every tier. When a team needs any file type or serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and 100GB of storage.
+The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards, with each cluster you make counting as one. Invited collaborators edit free on every tier. When a team needs big files or serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and 100GB of storage.
 
 ## The case for staying on desktop
 
@@ -78,7 +78,7 @@ Yes — one public link opens a clean, read-only view in any browser, with no ac
 
 ### Can a reference board include video or other files?
 
-Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and on Creator, any file type. Motion reference sits on the board right next to your stills.
+Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and any other file, at any size on Creator. Motion reference sits on the board right next to your stills.
 
 ### Is there an online version of PureRef?
 

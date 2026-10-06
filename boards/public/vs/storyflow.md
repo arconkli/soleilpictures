@@ -16,7 +16,7 @@ Storyflow is an AI visual workspace. You describe a board and its assistant draf
 
 ## Where Clusters is different
 
-A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file type up to 100GB rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
+A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size up to 100GB, rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
 
 - Mood board, storyboard, shot list and screenplay as nested boards
 - Tags and a relationship graph across the whole project
@@ -24,7 +24,7 @@ A production is not one board. In Clusters the mood board, the storyboard grid, 
 
 ## A free plan you can use today, and a flat price after it
 
-Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 50 cards — each cluster you make is one of them — and never meters uploads. Creator is a flat $25 a month for unlimited cards, 100GB and any file type, and everyone you invite edits free.
+Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 50 cards — each cluster you make is one of them — and never meters uploads. Creator is a flat $25 a month for unlimited cards, 100GB with no size limits, and everyone you invite edits free.
 
 - Free today: 50 cards (each cluster is one), uploads never metered
 - Creator is $25/mo flat — not per seat, not per AI call
@@ -58,7 +58,7 @@ How the two compare on the things production teams care about. Storyflow figures
 | Real-time multiplayer canvas | Yes | Yes |
 | Nested boards with a relationship graph | Yes | Not on its pricing page (September 2026) |
 | Screenplay mode (Final Draft and Fountain) | Yes | Not on its pricing page (September 2026) |
-| Any file type, up to 100GB | Yes (Creator) | Unlimited uploads on paid plans; 20 on the coming free plan |
+| Files of any type, up to 100GB | Yes — any size on Creator | Unlimited uploads on paid plans; 20 on the coming free plan |
 | Free-plan card cap | 50 cards, uploads never metered | No object or board limit on any plan; uploads and AI are capped |
 | Template library | Growing (grid templates) | 200+ frameworks on paid plans |
 | Works with Claude and other MCP clients | Yes, one URL | No server listed in the MCP registry |
@@ -76,7 +76,7 @@ Start free. Pay when you outgrow it.
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- Any file type
+- Any file, any size
 - No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.

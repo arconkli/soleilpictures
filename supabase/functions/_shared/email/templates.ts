@@ -443,9 +443,11 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
   const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 75 free cards — sign in and we'll set up your account.`;
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
-    subject: isWorkspace
-      ? `${d.inviterName} invited you to ${d.workspaceName} on Clusters`
-      : `${d.inviterName} invited you to "${d.boardName}" on Clusters`,
+    // A stranger reads this one. Its subject carries nothing anyone typed —
+    // not the cluster name, not the inviter's address (a throwaway account on a
+    // look-alike domain puts that domain in the subject). Names stay in the
+    // body, cleaned. (0364, the 2026-10-06 audit.)
+    subject: "You've been invited to collaborate on Clusters",
     html: renderEmail({
       preheader: subtitle,
       eyebrow: "Invitation",
@@ -703,6 +705,17 @@ const activateNudge1Spec: FactorialSpec = {
       { k: "p", t: "the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share." },
       { k: "p", t: c.name ? `"${c.name}" is ready when you are.` : "your board is ready when you are." },
       { k: "btn", label: "add 3 photos" },
+      { k: "p", t: SIGNOFF },
+    ],
+    // How-to arm (0368, product-education pass). The people who come back are
+    // the ones who pasted or dragged from the window they were already working
+    // in; the ones who went looking for photos in a file picker mostly did not.
+    // So this one names the ways in that need no picker, and nothing else.
+    b4: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: "the fastest way in isn't the file picker. copy an image anywhere on the web and paste it onto your board (⌘V), or drag one straight out of another window. a whole folder works too — drop it on the canvas and it files itself into clusters." },
+      { k: "p", t: c.name ? `"${c.name}" is open and waiting.` : "your board is open and waiting." },
+      { k: "btn", label: "paste something in" },
       { k: "p", t: SIGNOFF },
     ],
   },
@@ -969,6 +982,20 @@ const welcomeBoardSpec: FactorialSpec = {
       { k: "p", t: "the single best next move: open your camera roll and drag in ten photos at once. clusters lays them out, and that's usually the moment it clicks." },
       { k: "p", t: DESK_TIP },
       { k: "btn", label: "add ten photos" },
+      { k: "p", t: SIGNOFF },
+    ],
+    // How-to arm (0368, product-education pass): what a day-one board can take
+    // from wherever the material already is, and the one thing most people
+    // never find — that a cluster is also a drive. Teaches, graded like the
+    // rest on click-or-return; telling people about features ahead of time was
+    // null everywhere else, so this is the test of whether it is null here too.
+    b4: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: c.img ? "here's your board as of yesterday:" : "your board's up and running as of yesterday." },
+      { k: "img" },
+      { k: "p", t: "three ways to bring more in, from wherever it already is: paste an image from any tab (⌘V on the canvas), drag one straight out of another window, or drop a whole folder and it files itself into clusters." },
+      { k: "p", t: "and the thing most people miss: a cluster is also a drive. flip it to list and every file you've added is right there to browse, rename and download." },
+      { k: "btn", label: "bring something in" },
       { k: "p", t: SIGNOFF },
     ],
   },
@@ -1392,7 +1419,9 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         mentionerName:  safePerson(data.mentionerName),
         surface,
         surfaceContext: safeLabel(data.surfaceContext, 60, "your workspace"),
-        messagePreview: String(data.messagePreview ?? ""),
+        // 0364: the preview is text a sender typed — the one field 0358 missed.
+        // Same cleaning as a name (links out, controls out), at preview length.
+        messagePreview: safeLabel(data.messagePreview, 280),
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
       });
@@ -1416,7 +1445,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         replierName:   safePerson(data.replierName),
         boardName:     safeLabel(data.boardName, 60, "a board"),
         workspaceName: safeLabel(data.workspaceName, 60, "your workspace"),
-        replyPreview:  String(data.replyPreview  ?? ""),
+        replyPreview:  safeLabel(data.replyPreview, 280),
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
       });

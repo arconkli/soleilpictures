@@ -14,10 +14,21 @@
 
 // Free-tier inline-media byte caps. Over these (and paid), video/audio still
 // become inline cards but upload via multipart ('largeMedia'); anything else
-// non-standard becomes a generic downloadable file card.
+// non-standard becomes a generic downloadable file card — on free too, up to
+// FREE_FILE_CAP below.
 export const FREE_VIDEO_CAP = 30 * 1024 * 1024;
 export const FREE_AUDIO_CAP = 50 * 1024 * 1024;
 export const FREE_PDF_CAP   = 50 * 1024 * 1024;
+
+// Any OTHER file type on the free plan, up to this size (0367, 2026-10-06).
+// File types used to be Creator's: a free owner's .psd, .zip or .docx bounced
+// off the canvas with a storage pitch. The gate had fired a handful of times
+// in the product's life and it made "keep all your files here" untrue for
+// everyone on free, so the owner opened the TYPE and kept the SIZE — the same
+// ceiling as a PDF, and the server's authorize_upload() allows a demo owner
+// exactly this many bytes (fileGateMigration.test.mjs pins the two together).
+export const FREE_FILE_CAP = 50 * 1024 * 1024;
+export const FREE_FILE_CAP_LABEL = `${FREE_FILE_CAP / (1024 * 1024)} MB`;
 
 // The free tier also caps video LENGTH, not just weight, and that half of the
 // gate was enforced for the product's life while being stated nowhere public —
@@ -107,7 +118,15 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   if (isVideo && size <= FREE_VIDEO_CAP) return { route: 'video', kind: 'video', ...FALLBACK_DIMS.video };
   if (isAudio && size <= FREE_AUDIO_CAP) return { route: 'audio', kind: 'audio', ...FALLBACK_DIMS.audio };
   if (isPdf && size <= FREE_PDF_CAP) return { route: 'pdf', kind: 'pdf', ...FALLBACK_DIMS.pdf };
-  if (!canAttemptFiles) return { route: 'blocked', kind: null, w: 0, h: 0 };
+  if (!canAttemptFiles) {
+    // A free owner. Media past its own cap is refused — that is the size
+    // gate, Creator's. Any other type is a file card up to FREE_FILE_CAP
+    // (0367 opened file TYPES on free); past it, the same size gate. `why`
+    // tells the refusal copy what to say: it is never the type any more.
+    if (isVideo || isAudio || isPdf) return { route: 'blocked', why: 'size', kind: null, w: 0, h: 0 };
+    if (size <= FREE_FILE_CAP) return { route: 'file', kind: 'file', ...FALLBACK_DIMS.file };
+    return { route: 'blocked', why: 'size', kind: null, w: 0, h: 0 };
+  }
   if (isVideo || isAudio) {
     return isVideo
       ? { route: 'largeMedia', kind: 'video', ...FALLBACK_DIMS.video }

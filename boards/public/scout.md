@@ -58,7 +58,7 @@ It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the
 
 ### Is it free?
 
-Yes, to start. The free tier covers 50 cards — each cluster is one — with free collaborators and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and any file type.
+Yes, to start. The free tier covers 50 cards — each cluster is one — with free collaborators and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and no size limits.
 
 ### Can I use it with a board I already have?
 

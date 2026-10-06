@@ -1105,7 +1105,7 @@ export const DOCS_PAGES = [
     "title": "Files and Uploads — Soleil Clusters",
     "metaDescription": "Upload any file type to Soleil Clusters. What is supported free, where the size caps are, how large uploads work, and where storage is counted.",
     "h1": "Files and uploads",
-    "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a 100GB drive.",
+    "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.",
     "section": "files",
     "order": 0,
     "updated": "2026-10-01",
@@ -1144,11 +1144,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What file types can I upload on the free plan?",
-        "a": "Standard media — images, video, audio and PDFs — within the size caps listed below. Images have no size cap on any plan. Non-standard types like .psd, .fig and .zip require Creator."
+        "a": "Any. Images have no size cap on any plan; video, audio and PDFs have the size caps listed below; every other type — .psd, .fig, .zip, project files, archives — is a file card up to 50 MB."
       },
       {
         "q": "How large a file can I upload?",
-        "a": "On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio at 50 MB and PDF at 50 MB."
+        "a": "On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio at 50 MB, and a PDF or any other file at 50 MB."
       },
       {
         "q": "Where do my files actually live?",
@@ -2583,9 +2583,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/plans",
     "title": "Plans and Pricing — Soleil Clusters",
-    "metaDescription": "Soleil Clusters is free with 50 cards and free collaborators. Creator removes the card cap and adds any file type on a 100GB drive.",
+    "metaDescription": "Soleil Clusters is free with 50 cards and free collaborators. Creator removes the card cap and the file size limits on a 100GB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards — each cluster counts as one — and unlimited free collaborators. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly three things — the card cap is removed, any file type can be uploaded, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
+    "answer": "The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
     "updated": "2026-10-02",
@@ -2640,7 +2640,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Three things and only three — total cards, which file types you can upload, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs at 50 MB). Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card."
+        "a": "Two things and only two — total cards, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs and any other file at 50 MB; images are never capped). Any file type is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card."
       },
       {
         "q": "Do collaborators need to pay?",

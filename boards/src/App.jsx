@@ -55,6 +55,7 @@ import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigge
 import { shouldGreetResume, lastTouchedCard, LAST_HIDDEN_KEY, resumePageState } from './lib/resumeSitting.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
+import { HelpHost, HelpButton, openHelpHub } from './components/HelpHub.jsx';
 import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm, setAnalyticsContext, getFirstSource } from './lib/analytics.js';
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
@@ -101,7 +102,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -184,7 +185,7 @@ import { analyzeAudioFile, analyzable } from './lib/audioAnalysis.js';
 import { parseLoopMeta } from './lib/loopMeta.js';
 import { lowMemoryDevice } from './lib/device.js';
 import { arrangeInFreeSpace } from './lib/canvasGeom.js';
-import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor } from './lib/fileIngest.js';
+import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from './lib/fileIngest.js';
 import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
@@ -2599,15 +2600,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const explained = csFiles.own && over === 0 ? pitchStorageGate() : false;
         const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
         logEvent(EV.UPLOAD_BLOCKED, {
-          reason: 'owner_not_paid', surface: 'list', n: blocked.length,
+          reason: 'over_free_cap', surface: 'list', n: blocked.length,
           ext: (blocked[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
           size_bucket: sizeBucket(biggest),
         });
         feedback.toast({
           type: 'warning',
           message: csFiles.own
-            ? `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`
-            : `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs the cluster's owner to be on a paid plan.`,
+            ? `${blocked.length === 1 ? 'That file is' : `${blocked.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blocked.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`
+            : `${blocked.length === 1 ? 'That file is' : `${blocked.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit — the cluster's owner would need a paid plan.`,
           ttl: 6000,
           // Only when the modal did NOT open — otherwise the toast offers a
           // second route to the screen already in front of them. When it did
@@ -2782,7 +2783,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               type: 'warning',
               message: err.code === 402
                 ? "You're out of storage. Creator lifts the limit."
-                : 'That file needs a paid plan — Creator takes any file type.',
+                : `That file is over the free ${FREE_FILE_CAP_LABEL} limit — Creator takes any size.`,
               ttl: 6000,
               action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: err.code === 402 ? 'server_quota' : 'server_403' }); pitchStorageGate({ force: true }); } },
             });
@@ -5246,7 +5247,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (plan.blocked.length && !res.stopped) {
       feedback.toast({
         type: 'warning',
-        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file needs' : 'files need'} a paid plan and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — upgrade to add any file type, up to ${CREATOR_STORAGE_LABEL}.`,
+        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file is' : 'files are'} over the free ${FREE_FILE_CAP_LABEL} limit and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`,
         ttl: 7000,
         action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
       });
@@ -7800,8 +7801,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // New tab: the docs are a separate reading surface, and losing an unsaved
     // canvas to a same-tab navigation would be a poor trade for a help link.
     { id: 'docs', label: 'Documentation', icon: BookOpen,
-      keywords: ['docs', 'documentation', 'help', 'guide', 'manual', 'api', 'mcp', 'how to'],
-      run: () => window.open('/docs', '_blank', 'noopener') },
+      keywords: ['docs', 'documentation', 'guide', 'manual', 'api', 'mcp', 'how to'],
+      run: () => { logEvent(EV.DOCS_OPEN, { from: 'palette', path: '/docs' }); window.open('/docs', '_blank', 'noopener'); } },
+    // The Help hub (components/HelpHub.jsx): one screen naming every kind of
+    // card, with the doors to shortcuts, guides, the changelog and feedback.
+    // Two commands for the two ways people ask — "help" and "what can I add".
+    { id: 'help', label: 'Help', icon: Question,
+      keywords: ['help', 'how', 'learn', 'tips', 'guide', 'support', 'what can i do'],
+      run: () => openHelpHub('palette') },
+    { id: 'add-anything', label: 'What can I add here?', icon: Question,
+      keywords: ['add', 'what', 'kinds', 'cards', 'image', 'note', 'doc', 'script', 'grid', 'cluster', 'file', 'video', 'pdf', 'palette', 'arrow'],
+      run: () => openHelpHub('palette_add') },
     { id: 'account', label: 'Account & billing', icon: User, keywords: ['account', 'profile', 'billing', 'plan'],
       run: () => openSettings('profile') },
     { id: 'invite', label: 'Invite friends', icon: UserPlus, keywords: ['invite', 'referral', 'friends', 'earn'],
@@ -8414,6 +8424,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               differ only in which tab it lands on. The cog is about the
               workspace, the avatar is about you. */}
           <div className="sb-foot">
+            <HelpButton as="foot" via="sidebar" />
             <button className="sb-foot-icon" title="Settings" aria-label="Settings"
                     onClick={() => openSettings('general')}>
               <Icon as={Settings} size={14} />
@@ -8563,6 +8574,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
               <Icon as={Trash2} size={16} />
             </button>
+            <HelpButton as="tb" via="topbar" />
             <FeedbackButton as="icon" />
             <span className="tb-divider" aria-hidden="true" />
             <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
@@ -8779,6 +8791,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         recents={recents.recents}
         commands={appCommands}
         mobileShell={mobileShell}
+        // What the open board holds, for the "no results" explanation: an
+        // all-images board is why most searches here find nothing.
+        emptyHelp={currentSurface === 'board' && currentId ? {
+          hasImages: yb.cards.some((c) => c.kind === 'image'),
+          hasText: yb.cards.some((c) => c.kind === 'note' || c.kind === 'doc'),
+          onBrowseList: () => { setCurrentSurface('board'); setView('list', 'search_empty'); },
+        } : null}
         onOpenBoard={(id) => {
           setStack(ancestorPath(boards, id));
           recents.push(id);
@@ -8815,6 +8834,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       />
 
       <ShortcutsHost />
+      <HelpHost feedback={<FeedbackButton as="icon" />} />
 
       <WorkspaceRecoveryModal
         open={workspaceRecoveryOpen}

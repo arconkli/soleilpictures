@@ -8,7 +8,7 @@ Milanote is a lovely place to think. Clusters is where a team pulls a whole prod
 
 ## Where Clusters is different
 
-Both tools are beautiful, board-based, and made for creative work. Clusters leans harder into real-time team production: a live multiplayer canvas with cursors and presence, comments pinned to the exact card they are about, a relationship graph that connects a whole project, and 100GB of storage for any file type on Creator. If you are organizing a shoot or a campaign with a team, that is the difference.
+Both tools are beautiful, board-based, and made for creative work. Clusters leans harder into real-time team production: a live multiplayer canvas with cursors and presence, comments pinned to the exact card they are about, a relationship graph that connects a whole project, and 100GB of storage with no size limits on Creator. If you are organizing a shoot or a campaign with a team, that is the difference.
 
 - Live multiplayer canvas with cursors and presence
 - Comments pinned to the exact card they are about
@@ -16,7 +16,7 @@ Both tools are beautiful, board-based, and made for creative work. Clusters lean
 
 ## A free Milanote alternative without the per-person bill
 
-Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo, billed annually, for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and any file type — not a price that multiplies with every teammate you bring in.
+Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo, billed annually, for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and no size limits — not a price that multiplies with every teammate you bring in.
 
 - No trial clock on the free Demo tier
 - Flat $25/mo Creator — not per-person pricing
@@ -46,7 +46,7 @@ How the two compare on the things production teams care about:
 | --- | --- | --- |
 | Real-time multiplayer canvas (live cursors) | Yes | Limited |
 | Relationship graph across boards | Yes | No |
-| Any file type, up to 100GB | Yes (Creator) | Limited |
+| Files of any type, up to 100GB | Yes — any size on Creator | Limited |
 | Video & audio on the board | Yes | Limited |
 | Built-in docs & screenplay mode | Yes | Notes |
 | Share a live, interactive link | Yes | Yes |
@@ -67,7 +67,7 @@ Start free. Pay when you outgrow it.
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- Any file type
+- Any file, any size
 - No size limits, on a 100GB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
@@ -78,7 +78,7 @@ Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
 ### Is Soleil Clusters a good Milanote alternative?
 
-Yes, especially for teams doing visual, media-heavy, collaborative work. Clusters adds a real-time multiplayer canvas, screenplay mode, a relationship graph, and 100GB storage for any file type on Creator.
+Yes, especially for teams doing visual, media-heavy, collaborative work. Clusters adds a real-time multiplayer canvas, screenplay mode, a relationship graph, and 100GB storage with no size limits on Creator.
 
 ### How is Clusters different from Milanote?
 
@@ -86,7 +86,7 @@ Clusters focuses on live team production — multiplayer editing with cursors an
 
 ### Does Clusters have a free tier like Milanote?
 
-Yes. The Demo tier is free with no credit card and covers 50 cards — every cluster you make is one of them — with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and any file type.
+Yes. The Demo tier is free with no credit card and covers 50 cards — every cluster you make is one of them — with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and no size limits.
 
 ### Can I move my Milanote boards over?
 

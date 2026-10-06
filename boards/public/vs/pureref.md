@@ -139,7 +139,7 @@ Yes — images, notes, links, video, PDFs, docs, and color palettes all live on 
 
 ### Is Clusters free?
 
-Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited cards, 100GB storage, and any file type.
+Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited cards, 100GB storage, and no size limits.
 
 ### Can an AI assistant work with my reference board?
 

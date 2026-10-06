@@ -6,12 +6,12 @@ navLabel: Overview
 section: files
 order: 0
 updated: 2026-10-01
-answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else becomes a file card with a type icon and a download. Free accounts can upload standard media within size caps, and Creator adds any file type at all — .psd, .fig, .zip — with no size limit on a {{fact:creatorStorage}} drive.
+answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a {{fact:creatorStorage}} drive.
 faq:
   - q: What file types can I upload on the free plan?
-    a: Standard media — images, video, audio and PDFs — within the size caps listed below. Images have no size cap on any plan. Non-standard types like .psd, .fig and .zip require Creator.
+    a: Any. Images have no size cap on any plan; video, audio and PDFs have the size caps listed below; every other type — .psd, .fig, .zip, project files, archives — is a file card up to {{fact:freeFileCap}}.
   - q: How large a file can I upload?
-    a: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at {{fact:freeVideoCap}}, audio at {{fact:freeAudioCap}} and PDF at {{fact:freePdfCap}}.
+    a: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at {{fact:freeVideoCap}}, audio at {{fact:freeAudioCap}}, and a PDF or any other file at {{fact:freeFileCap}}.
   - q: Where do my files actually live?
     a: In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL.
   - q: Can I bring in my PureRef boards?
@@ -48,9 +48,9 @@ Small text files get an inline preview on the card rather than only a download.
 
 Two different things are limited, and they are limited for different reasons.
 
-**File type.** Free accounts can upload standard media. Non-standard types —
-`.psd`, `.fig`, `.zip`, project files, archives — require
-{{fact:planName}}. This is the "upload anything" feature and it is the paid one.
+**File type.** Any, on every plan. `.psd`, `.fig`, `.zip`, project files,
+archives — each lands as a file card with a download. On the free plan one of
+those is capped at {{fact:freeFileCap}}, the same ceiling as a PDF.
 
 **Size.** On the free plan:
 
@@ -59,6 +59,7 @@ Two different things are limited, and they are limited for different reasons.
 | Video | {{fact:freeVideoCap}} |
 | Audio | {{fact:freeAudioCap}} |
 | PDF | {{fact:freePdfCap}} |
+| Any other file | {{fact:freeFileCap}} |
 | Images | No cap on any plan |
 
 {{fact:planName}} removes the size caps entirely.
