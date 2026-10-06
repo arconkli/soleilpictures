@@ -211,7 +211,8 @@ test('a mention reaches people in the conversation, once each, and nobody else',
   assert.match(def, /select distinct t\.uid/);
   assert.match(def, /from public\.conversation_participants cp[\s\S]*cp\.left_at is null/);
   assert.match(def, /public\.can_message\(t\.uid\)/);
-  assert.match(def, /limit \d+/);
+  // 0364 makes the cap `limit least(50, <hourly room>)`; either form is a cap.
+  assert.match(def, /limit (?:\d+|least\(\d+)/);
   // Padding the participant list is the way round that, so it needs can_message too.
   const policy = latestPolicy('participants insert');
   assert.match(policy.body, /user_id = auth\.uid\(\) or can_message\(user_id\)/);

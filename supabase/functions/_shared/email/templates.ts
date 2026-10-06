@@ -443,9 +443,11 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
   const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 75 free cards — sign in and we'll set up your account.`;
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
-    subject: isWorkspace
-      ? `${d.inviterName} invited you to ${d.workspaceName} on Clusters`
-      : `${d.inviterName} invited you to "${d.boardName}" on Clusters`,
+    // A stranger reads this one. Its subject carries nothing anyone typed —
+    // not the cluster name, not the inviter's address (a throwaway account on a
+    // look-alike domain puts that domain in the subject). Names stay in the
+    // body, cleaned. (0364, the 2026-10-06 audit.)
+    subject: "You've been invited to collaborate on Clusters",
     html: renderEmail({
       preheader: subtitle,
       eyebrow: "Invitation",
@@ -1392,7 +1394,9 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         mentionerName:  safePerson(data.mentionerName),
         surface,
         surfaceContext: safeLabel(data.surfaceContext, 60, "your workspace"),
-        messagePreview: String(data.messagePreview ?? ""),
+        // 0364: the preview is text a sender typed — the one field 0358 missed.
+        // Same cleaning as a name (links out, controls out), at preview length.
+        messagePreview: safeLabel(data.messagePreview, 280),
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
       });
@@ -1416,7 +1420,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         replierName:   safePerson(data.replierName),
         boardName:     safeLabel(data.boardName, 60, "a board"),
         workspaceName: safeLabel(data.workspaceName, 60, "your workspace"),
-        replyPreview:  String(data.replyPreview  ?? ""),
+        replyPreview:  safeLabel(data.replyPreview, 280),
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
       });
