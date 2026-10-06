@@ -31,6 +31,7 @@ import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
 import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './lib/crawlerUa.js';
 import { ogTargetProblem } from './lib/safeUrl.js';
+import { makeRateLimiter } from './lib/webImageSave.js';
 import { runAeoRetrievalProbe } from './worker-aeo.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
@@ -255,10 +256,15 @@ function isWorkersDevHost(host) {
   return typeof host === 'string' && host.toLowerCase().endsWith('.workers.dev');
 }
 
-function withSecurityHeaders(res, nonce, host = null) {
+function withSecurityHeaders(res, nonce, host = null, path = '') {
   // A 101 (WebSocket upgrade) has immutable headers and no body to rewrite.
   if (!res || res.status === 101) return res;
-  const isHtml = nonce && (res.headers.get('content-type') || '').includes('text/html');
+  // The nonce is a promise that a script is OURS. Nothing under /api/ is a page
+  // this Worker wrote — it is JSON, an image, or bytes from storage — so it is
+  // never stamped: an uploaded HTML file served from there would otherwise
+  // have been handed a valid nonce by our own edge (2026-10-06 audit).
+  const isHtml = nonce && !String(path).startsWith('/api/')
+    && (res.headers.get('content-type') || '').includes('text/html');
   const noindexAlias = isWorkersDevHost(host) && !res.headers.has('x-robots-tag');
   let missing = noindexAlias;
   for (const k of Object.keys(SECURITY_HEADERS)) {
@@ -488,7 +494,8 @@ const worker = {
   // fetch detached from the module object, which would make `this` undefined.
   async fetch(request, env, ctx) {
     const nonce = makeNonce();
-    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, new URL(request.url).hostname);
+    const { hostname, pathname } = new URL(request.url);
+    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, hostname, pathname);
   },
 
   async handleFetch(request, env, ctx) {
@@ -576,7 +583,18 @@ const worker = {
         return await handleOAuthRoute(url, request, env);
       }
 
-      if (url.pathname === '/api/og') return await handleOg(url, request);
+      if (url.pathname === '/api/og') {
+        // Anyone may ask, so the fetch it does for them is bounded per
+        // address (2026-10-06 audit: it was an open proxy, unthrottled).
+        // A real person pastes links far slower; over the line, the client
+        // already falls back to its secondary preview source.
+        if (!ogAllow(request.headers.get('cf-connecting-ip') || 'unknown')) {
+          const r = json({ error: 'too many link previews — try again in a minute' }, 429);
+          r.headers.set('retry-after', '60');
+          return r;
+        }
+        return await handleOg(url, request);
+      }
       // Soleil Scout instant session — trades a token texted to someone's phone
       // for a real Supabase session. Must be intercepted BEFORE env.ASSETS, or
       // the SPA fallback swallows it and the user lands signed-out.
@@ -1275,6 +1293,23 @@ function imgContentType(key) {
     : ext === 'svg' ? 'image/svg+xml'
     : 'image/jpeg';
 }
+
+// Bytes anyone can navigate to on our own origin go out ONLY as a raster image.
+// The stored content-type is whatever the uploader's browser sent (aws4fetch
+// does not sign it), so echoing it let an uploaded SVG or HTML file run script
+// on clusters.soleilpictures.com, where the session lives (2026-10-06 audit).
+// SVG is not on the list: it is a document that can carry script. A type off
+// the list is never trusted; the key's extension is tried instead, and a
+// mislabelled payload then renders as a broken image, never as a page.
+const SAFE_RASTER_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif']);
+function safeRasterType(storedType, key) {
+  const declared = String(storedType || '').split(';')[0].trim().toLowerCase();
+  if (SAFE_RASTER_TYPES.has(declared)) return declared;
+  const byExt = imgContentType(key);
+  return SAFE_RASTER_TYPES.has(byExt) ? byExt : null;
+}
+// And should a browser ever treat it as a document anyway, it has no powers.
+const IMAGE_ONLY_CSP = "default-src 'none'; sandbox";
 
 // Inject /c/<slug> meta + crawlable content + JSON-LD. NEVER noindex: a public
 // board is meant to rank, and a transient RPC miss must not deindex it — on miss
@@ -2302,8 +2337,12 @@ async function handlePublicThumb(env, slug, searchParams, request) {
   if (!key || !env.IMAGES) return fallback();
   const obj = await env.IMAGES.get(key);
   if (!obj) return fallback();
+  // 0366 audit: never the uploader's declared type — see safeRasterType.
+  const type = safeRasterType(obj.httpMetadata?.contentType, key);
+  if (!type) return fallback();
   const headers = {
-    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    'content-type': type,
+    'content-security-policy': IMAGE_ONLY_CSP,
     'cache-control': 'public, max-age=3600',
     'etag': obj.httpEtag,
   };
@@ -2329,8 +2368,12 @@ async function handlePublicImg(env, slug, searchParams, request) {
   if (!key || !env.IMAGES) return new Response('Not found', { status: 404 });
   const obj = await env.IMAGES.get(key);
   if (!obj) return new Response('Not found', { status: 404 });
+  // 0366 audit: never the uploader's declared type — see safeRasterType.
+  const type = safeRasterType(obj.httpMetadata?.contentType, key);
+  if (!type) return new Response('Not found', { status: 404 });
   const headers = {
-    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    'content-type': type,
+    'content-security-policy': IMAGE_ONLY_CSP,
     'cache-control': 'public, max-age=86400',
     'etag': obj.httpEtag,
   };
@@ -2389,8 +2432,12 @@ async function handleAdminPreviewImg(env, boardId, searchParams, request) {
   if (!key || !env.IMAGES) return new Response('Not found', { status: 404 });
   const obj = await env.IMAGES.get(key);
   if (!obj) return new Response('Not found', { status: 404 });
+  // 0366 audit: never the uploader's declared type — see safeRasterType.
+  const type = safeRasterType(obj.httpMetadata?.contentType, key);
+  if (!type) return new Response('Not found', { status: 404 });
   const headers = {
-    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    'content-type': type,
+    'content-security-policy': IMAGE_ONLY_CSP,
     // private: it's behind an admin gate — never let a shared cache hold it.
     'cache-control': 'private, no-store',
     'etag': obj.httpEtag,
@@ -2427,8 +2474,12 @@ async function handleAdminPreviewThumb(env, boardId, request) {
   if (!key || !env.IMAGES) return new Response('Not found', { status: 404 });
   const obj = await env.IMAGES.get(key);
   if (!obj) return new Response('Not found', { status: 404 });
+  // 0366 audit: never the uploader's declared type — see safeRasterType.
+  const type = safeRasterType(obj.httpMetadata?.contentType, key);
+  if (!type) return new Response('Not found', { status: 404 });
   const headers = {
-    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    'content-type': type,
+    'content-security-policy': IMAGE_ONLY_CSP,
     // private: behind an admin gate, and it is another tenant's board.
     'cache-control': 'private, no-store',
     'etag': obj.httpEtag,
@@ -2643,6 +2694,10 @@ async function handleBoardReset(boardId, request) {
 function ogTargetIsAllowed(u) {
   return ogTargetProblem(u);
 }
+
+// Per isolate, per address: it bounds a loop, not a determined crowd (the same
+// trade worker-media's limiter makes), and needs no storage of its own.
+const ogAllow = makeRateLimiter({ perMinute: 60 });
 
 async function handleOg(url, request) {
   const target = url.searchParams.get('url');

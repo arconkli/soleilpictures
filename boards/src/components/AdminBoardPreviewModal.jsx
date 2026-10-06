@@ -20,6 +20,7 @@ import { Modal } from './Modal.jsx';
 import { supabase } from '../lib/supabase.js';
 import { fmtDate } from '../lib/adminFormat.js';
 import { adminPreviewPublicBoard } from '../lib/boardsApi.js';
+import { safeExternalHref } from '../lib/safeExternalHref.js';
 
 // Shared bearer-fetch → object URL. Both preview routes need it and neither can
 // use a bare <img src>; keeping one implementation means one revoke path too.
@@ -167,7 +168,7 @@ export function AdminBoardPreviewModal({ boardId, boardName, slug, onClose }) {
           {links.length > 0 && (
             <div className="admin-preview-links">
               {links.map((c) => (
-                <a key={c.card_id} className="admin-preview-link" href={c.href || '#'}
+                <a key={c.card_id} className="admin-preview-link" href={safeExternalHref(c.href) || '#'}
                    target="_blank" rel="noopener noreferrer">
                   {c.title || c.href}
                 </a>

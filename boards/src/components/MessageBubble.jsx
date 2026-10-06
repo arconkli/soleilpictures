@@ -9,6 +9,7 @@ import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { EntityLink } from './EntityLink.jsx';
 import { coerceRef } from '../lib/entityRef.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
+import { safeExternalHref } from '../lib/safeExternalHref.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -185,7 +186,7 @@ export function MessageBubble({
                 <span className="msg-attachment-file">{att.name || 'file'}</span>
               )}
               {att.kind === 'url' && (
-                <a href={att.href} target="_blank" rel="noopener noreferrer">{att.title || att.href}</a>
+                <a href={safeExternalHref(att.href) || undefined} target="_blank" rel="noopener noreferrer">{att.title || att.href}</a>
               )}
               {(att.kind === 'board' || att.kind === 'card' || att.kind === 'doc' || att.kind === 'docPos') && (
                 <EntityLink

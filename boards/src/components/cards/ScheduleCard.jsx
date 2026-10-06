@@ -63,6 +63,7 @@ import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShare
 import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import './gridCard.css';
 import './scheduleCard.css';
+import { safeExternalHref } from '../../lib/safeExternalHref.js';
 
 const stop = (e) => e.stopPropagation();
 // Same as `stop`, but first lets a one-finger drag scroll the clipped editor
@@ -232,7 +233,7 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive
       );
     }
     return (
-      <a className="schedc-chip is-link" data-cell-id={itemKey} href={cell.source || cell.link || '#'}
+      <a className="schedc-chip is-link" data-cell-id={itemKey} href={safeExternalHref(cell.source || cell.link) || '#'}
         target="_blank" rel="noreferrer" onClick={stop} onPointerDown={stop}
         title={cell.title || cell.source || cell.link}>
         {cell.favicon

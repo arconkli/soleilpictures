@@ -57,6 +57,7 @@ import { Icon } from './Icon.jsx';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
+import { safeExternalHref } from '../lib/safeExternalHref.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -696,7 +697,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           </button>
         )}
         {link && (
-          <a href={link} target="_blank" rel="noopener noreferrer" className="ic-link" title={link}
+          <a href={safeExternalHref(link) || undefined} target="_blank" rel="noopener noreferrer" className="ic-link" title={link}
              onPointerDown={(e) => e.stopPropagation()}
              onClick={(e) => e.stopPropagation()}>
             <svg width="10" height="10" viewBox="0 0 11 11" fill="none">
