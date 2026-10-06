@@ -707,6 +707,17 @@ const activateNudge1Spec: FactorialSpec = {
       { k: "btn", label: "add 3 photos" },
       { k: "p", t: SIGNOFF },
     ],
+    // How-to arm (0366, product-education pass). The people who come back are
+    // the ones who pasted or dragged from the window they were already working
+    // in; the ones who went looking for photos in a file picker mostly did not.
+    // So this one names the ways in that need no picker, and nothing else.
+    b4: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: "the fastest way in isn't the file picker. copy an image anywhere on the web and paste it onto your board (⌘V), or drag one straight out of another window. a whole folder works too — drop it on the canvas and it files itself into clusters." },
+      { k: "p", t: c.name ? `"${c.name}" is open and waiting.` : "your board is open and waiting." },
+      { k: "btn", label: "paste something in" },
+      { k: "p", t: SIGNOFF },
+    ],
   },
 };
 
@@ -971,6 +982,20 @@ const welcomeBoardSpec: FactorialSpec = {
       { k: "p", t: "the single best next move: open your camera roll and drag in ten photos at once. clusters lays them out, and that's usually the moment it clicks." },
       { k: "p", t: DESK_TIP },
       { k: "btn", label: "add ten photos" },
+      { k: "p", t: SIGNOFF },
+    ],
+    // How-to arm (0366, product-education pass): what a day-one board can take
+    // from wherever the material already is, and the one thing most people
+    // never find — that a cluster is also a drive. Teaches, graded like the
+    // rest on click-or-return; telling people about features ahead of time was
+    // null everywhere else, so this is the test of whether it is null here too.
+    b4: (c) => [
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: c.img ? "here's your board as of yesterday:" : "your board's up and running as of yesterday." },
+      { k: "img" },
+      { k: "p", t: "three ways to bring more in, from wherever it already is: paste an image from any tab (⌘V on the canvas), drag one straight out of another window, or drop a whole folder and it files itself into clusters." },
+      { k: "p", t: "and the thing most people miss: a cluster is also a drive. flip it to list and every file you've added is right there to browse, rename and download." },
+      { k: "btn", label: "bring something in" },
       { k: "p", t: SIGNOFF },
     ],
   },
