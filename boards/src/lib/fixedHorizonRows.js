@@ -25,6 +25,24 @@ function linkRank(label) {
   return (bi < 0 ? LINK_BANDS.length : bi) * 2 + (/two\+/.test(label) ? 1 : 0);
 }
 
+// 'mode:' and 'mode_band:' rows (admin_return_by_mode, 0365) split the same
+// return by how the day-one material arrived: hand (card by card), burst (a
+// folder drop, a multi-file pick, an import), none. Hand first, because it is
+// the one that comes back; inside a band the same order, so each band reads
+// hand → burst.
+export const MODE_ORDER = Object.freeze(['hand', 'burst', 'none']);
+function modeRank(label) {
+  const i = MODE_ORDER.indexOf(label);
+  return i < 0 ? MODE_ORDER.length : i;
+}
+function modeBandRank(label) {
+  const sep = label.indexOf(' · ');
+  const band = sep < 0 ? label : label.slice(0, sep);
+  const mode = sep < 0 ? '' : label.slice(sep + 3);
+  const bi = LINK_BANDS.indexOf(band);
+  return (bi < 0 ? LINK_BANDS.length : bi) * (MODE_ORDER.length + 1) + modeRank(mode);
+}
+
 // `order` picks which kinds render and in what order; kinds not named are
 // dropped, which is how a panel built on one RPC hides the others' groups.
 export function groupFixedHorizon(rows, order = GROUP_ORDER) {
@@ -50,6 +68,8 @@ export function groupFixedHorizon(rows, order = GROUP_ORDER) {
       if (kind === 'band') return BAND_ORDER.indexOf(a.label) - BAND_ORDER.indexOf(b.label);
       if (kind === 'week') return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
       if (kind === 'link') return linkRank(a.label) - linkRank(b.label);
+      if (kind === 'mode') return modeRank(a.label) - modeRank(b.label);
+      if (kind === 'mode_band') return modeBandRank(a.label) - modeBandRank(b.label);
       return b.n - a.n;
     });
     out.groups.push({ key: kind, rows: list });

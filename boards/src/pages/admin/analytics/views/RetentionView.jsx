@@ -34,6 +34,7 @@ import { ActivationByDevice } from '../widgets/ActivationByDevice.jsx';
 import { ReturnRate } from '../widgets/ReturnRate.jsx';
 import { SurvivalCurve, ReturnGap } from '../widgets/SurvivalCurve.jsx';
 import { FixedHorizonTable } from '../widgets/FixedHorizonTable.jsx';
+import { FeatureReach } from '../widgets/FeatureReach.jsx';
 import { ReturnPredictors } from '../widgets/ReturnPredictors.jsx';
 import { FirstSessionCompare, SessionOutcomes } from '../widgets/FirstSessionCompare.jsx';
 import { RetentionBySource } from '../widgets/RetentionBySource.jsx';
@@ -176,7 +177,7 @@ export function RetentionView() {
   // One wave, not four. The old view's sequencing was incidental — no call
   // depended on another's result — so it was pure added latency.
   const q = useAdminData(async () => {
-    const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb, bt, ss] = await Promise.allSettled([
+    const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb, bt, ss, bmA, bmB] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_retention_curve', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // p_require_work: the old call omitted it, so this panel and the habit
@@ -220,6 +221,14 @@ export function RetentionView() {
       // 0361. A same-day second sitting: the day-one marker of returning that
       // can be read the day after a signup instead of eight days after.
       supabase.rpc('admin_second_sitting', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      // 0365. The same fixed horizon split by how the day-one material ARRIVED:
+      // placed by hand, card by card, or landed in a burst (a folder drop, a
+      // multi-file pick, an import). Hand-placed boards come back and bursts do
+      // not, at every depth — the cut that explained what day-one breadth and
+      // "stuck" only seemed to. Any-visit and built, so the glance gap stays
+      // visible here too.
+      supabase.rpc('admin_return_by_mode', { p_horizon_days: 7, p_measure: 'any', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_return_by_mode', { p_horizon_days: 7, p_measure: 'built', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -239,6 +248,8 @@ export function RetentionView() {
       fixedHorizon: val(fh) || [],
       builtReturn: val(bt) || [],
       secondSitting: val(ss) || [],
+      byModeAny: val(bmA) || [],
+      byModeBuilt: val(bmB) || [],
       // Mean weekly intake over the last 28 days. A mean rather than the latest
       // week on purpose: one quiet week would otherwise double the estimate of
       // how long everything takes to measure.
@@ -307,6 +318,38 @@ export function RetentionView() {
             foot="The 0322 read on the same cohort as the built return (first visits since 2026-08-17): any later visit counts, including a few seconds on a restored board. Kept beside the built return so the gap between them stays visible."
           >
             <FixedHorizonTable rows={q.data?.fixedHorizon || []} horizonDays={7} />
+          </Well>
+          {/* 0365. Stratify every day-one signal by this before believing it:
+              breadth, writing and "stuck" all looked like levers until they
+              were split by whether the board was placed by hand or dropped in
+              one go. The left table is the headline (built); the right one is
+              any visit, kept for the same reason as the panel above. */}
+          <Well
+            span={6}
+            title="Built, by how the material arrived"
+            meta="hand-placed vs dropped in a burst"
+            foot="Burst = at least half of the day-one placements landed within two seconds of the previous one (a folder drop, a multi-file pick, an import counts as all of its files at once). Same cohort and horizon as the built return above. Read a day-one change inside a mode, never across them."
+          >
+            <FixedHorizonTable
+              rows={q.data?.byModeBuilt || []}
+              horizonDays={7}
+              order={['mode', 'mode_band']}
+              titles={{ mode: 'By import mode', mode_band: 'By day-one cards × mode' }}
+              note="Returned = a later visit within 7 days that placed, edited or wrote something. Faded bars rest on fewer than twenty people."
+            />
+          </Well>
+          <Well
+            span={6}
+            title="Any visit, by how the material arrived"
+            meta="includes glances"
+            foot="The any-visit version of the panel to its left. The gap between the two inside a mode is people who came back only to look."
+          >
+            <FixedHorizonTable
+              rows={q.data?.byModeAny || []}
+              horizonDays={7}
+              order={['mode', 'mode_band']}
+              titles={{ mode: 'By import mode', mode_band: 'By day-one cards × mode' }}
+            />
           </Well>
           <Well
             span={7}
@@ -461,18 +504,23 @@ function LazySegments({ days, f }) {
 
 function LazyProduct({ days, f }) {
   const q = useAdminData(async () => {
-    const [fa, st, cs, pd] = await Promise.allSettled([
+    const [fa, st, cs, pd, fr] = await Promise.allSettled([
       supabase.rpc('admin_feature_adoption', { p_days: Math.max(days, 30), p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_surface_time', { p_days: days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_card_stats', { p_days: days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_cards_per_day', { p_days: days, p_exclude_internal: f.excludeInternal }),
+      // 0365. Reach by signup week, not lift: the panel the Help menu and the
+      // failure-triggered hints are graded on. Deliberately not filtered by
+      // f.days — a cohort read over the whole post-usage_session history.
+      supabase.rpc('admin_feature_reach', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
-    return { adoption: val(fa) || [], surface: val(st) || [], cardStats: val(cs), perDay: val(pd) || [] };
-  }, [days, f.excludeInternal]);
+    return { adoption: val(fa) || [], surface: val(st) || [], cardStats: val(cs), perDay: val(pd) || [], reach: val(fr) || [] };
+  }, [days, f.excludeInternal, f.verifiedOnly]);
 
   return (
     <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+      <FeatureReach rows={q.data?.reach || []} />
       <FeatureAdoption rows={q.data?.adoption || []} days={Math.max(days, 30)} />
       <AdminCardsSection perDay={q.data?.perDay || []} cardStats={q.data?.cardStats} days={days} />
       <SurfaceTime rows={q.data?.surface || []} days={days} />
