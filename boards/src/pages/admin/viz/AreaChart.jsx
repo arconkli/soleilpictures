@@ -33,6 +33,7 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { VAR } from './palette.js';
 import { MARKER_KINDS, glyphFor } from './markerGlyphs.js';
+import { markersAtHover } from '../../../lib/weeklySeries.js';
 
 const num = (x) => (x == null || x === '' || Number.isNaN(Number(x)) ? null : Number(x));
 
@@ -88,7 +89,8 @@ export function AreaChart({
   /** The last point is a period still being counted: left out of the line, the fill and
    *  markLast, and drawn as a hollow dot. */
   partialLast = false,
-  /** Hatched spans, [{ from, to, title }] in index units, drawn from x(from) to x(to). */
+  /** Hatched spans, [{ from, to, title }] in index units, drawn from x(from) to x(to) clamped
+   *  to the plot. A band is enough to draw the chart even when no series has a reading. */
   bands = [],
   /** false leaves out the date row under the plot, for a caller that draws one shared axis. */
   axis = true,
@@ -105,7 +107,14 @@ export function AreaChart({
     return niceMax(Math.max(1, ...all));
   }, [live]);
 
-  if (!live.length || n < 2) return <div className="admin-empty">{emptyLabel}</div>;
+  // Hatched spans, as given: what is drawn is clamped to the plot below, but the
+  // hover reads each band's own extent, which runs a column past the right rule
+  // when the week so far was not measured either.
+  const spans = (Array.isArray(bands) ? bands : [])
+    .filter((b) => Number.isFinite(b?.from) && Number.isFinite(b?.to) && b.to > b.from);
+
+  // Nothing to draw: no axis, or neither a reading nor a span saying why there is none.
+  if (n < 2 || (!live.length && !spans.length)) return <div className="admin-empty">{emptyLabel}</div>;
 
   const x = (i) => (i / (n - 1)) * 100;
   const y = (v) => 100 - (v / top) * 100;
@@ -115,15 +124,14 @@ export function AreaChart({
   const partial = partialLast ? n - 1 : -1;
   const joined = (s) => s.values.map((v, i) => (i === partial ? null : num(v)));
 
-  // Markers and bands come from callers, so anything that cannot be placed is
-  // dropped and anything past an end is pinned to it.
+  // Markers come from callers, so one that cannot be placed is dropped and one
+  // past an end is pinned to it.
   const pin = (i) => Math.min(n - 1, Math.max(0, i));
   const marks = (Array.isArray(markers) ? markers : []).filter((m) => Number.isFinite(m?.index));
-  const spans = (Array.isArray(bands) ? bands : [])
-    .filter((b) => Number.isFinite(b?.from) && Number.isFinite(b?.to))
-    .map((b) => ({ from: pin(b.from), to: pin(b.to), title: b.title }))
-    .filter((b) => b.to > b.from);
   const markText = (m) => [m.day, m.label].filter(Boolean).join(' · ');
+  // The tip's rows. With no reading anywhere (a window nothing measured) the
+  // rows still name their series, so the band's reason has a line to sit on.
+  const tipSeries = live.length ? live : series;
 
   const onMove = (e) => {
     const el = wrapRef.current;
@@ -149,11 +157,12 @@ export function AreaChart({
       )}
 
       <div className="adm-area-frame" style={{ height }}>
-        {/* Scale. HTML rather than SVG text so it never stretches with the plot. */}
+        {/* Scale. HTML rather than SVG text so it never stretches with the plot.
+           With no reading there is no range to label, so the ticks stay blank. */}
         <div className="adm-area-scale" aria-hidden="true">
           {ticks.slice().reverse().map((t, i) => (
             <div className="adm-area-tick" key={i}>
-              <span>{formatValue(Math.round(t))}</span>
+              <span>{live.length ? formatValue(Math.round(t)) : ''}</span>
             </div>
           ))}
         </div>
@@ -192,15 +201,19 @@ export function AreaChart({
           {/* Unmeasured spans, then dated markers. Both come after the rules:
              `.adm-area-grid:first-of-type` strokes the baseline, and a band
              ahead of it would become the first div and take that away. */}
-          {spans.map((b, k) => (
-            <div
-              key={`b${k}`}
-              className="adm-area-band"
-              style={{ left: `${x(b.from)}%`, width: `${x(b.to) - x(b.from)}%` }}
-              title={b.title || undefined}
-              aria-hidden="true"
-            />
-          ))}
+          {spans.map((b, k) => {
+            const left = Math.max(0, x(b.from));
+            const right = Math.min(100, x(b.to));
+            return right > left ? (
+              <div
+                key={`b${k}`}
+                className="adm-area-band"
+                style={{ left: `${left}%`, width: `${right - left}%` }}
+                title={b.title || undefined}
+                aria-hidden="true"
+              />
+            ) : null;
+          })}
           {marks.map((m, k) => (
             <div
               key={`m${k}`}
@@ -309,21 +322,28 @@ export function AreaChart({
                 {labels[hover] && (
                   <span className="adm-area-tip-x">{labels[hover]}{hover === partial ? ' · so far' : ''}</span>
                 )}
-                {live.map((s) => {
-                  const v = num(s.values[hover]);
+                {tipSeries.map((s) => {
+                  const v = num(s.values?.[hover]);
                   // A hole inside a band says what the band says, not just "no data".
+                  // The band's own extent, so the week so far is inside a run that
+                  // reaches it even though the hatch stops at the right rule.
                   const why = v == null && spans.find((b) => hover >= b.from && hover < b.to)?.title;
                   return (
                     <span className="adm-area-tip-row" key={s.name}>
                       <span className="adm-legend-swatch" style={{ background: s.color }} />
                       <span className="adm-area-tip-v">{v == null ? (why || 'no data') : formatValue(v)}</span>
-                      {live.length > 1 && <span className="adm-area-tip-n">{s.name}</span>}
+                      {tipSeries.length > 1 && <span className="adm-area-tip-n">{s.name}</span>}
                     </span>
                   );
                 })}
-                {/* The markers in this column: a day belongs to the week it falls in. */}
-                {marks.filter((m) => Math.floor(pin(m.index)) === hover).map((m, k) => (
-                  <span className="adm-area-tip-m" key={`m${k}`}>{markText(m)}</span>
+                {/* The markers nearest this point, matched the way the crosshair
+                   snaps (Math.round), so a Sunday note is listed under the Monday
+                   the crosshair is standing on. Each line leads with its kind's
+                   glyph: in a stack only the top chart draws glyphs on the plot. */}
+                {markersAtHover(marks, hover, n).map((m, k) => (
+                  <span className="adm-area-tip-m" key={`m${k}`}>
+                    <span aria-hidden="true">{glyphFor(m.kind)}</span> {markText(m)}
+                  </span>
                 ))}
               </div>
             </>

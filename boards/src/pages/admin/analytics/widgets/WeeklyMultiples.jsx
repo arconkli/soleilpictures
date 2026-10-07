@@ -6,25 +6,36 @@
 // the floor. What they do share is the x axis, so it is drawn once, under the
 // stack, and every chart in it leaves its own out.
 //
-// Every dated marker is drawn on every chart, because a step in any one line is
-// what a marker is there to explain, and the eye should not have to carry a date
-// down from another row to find it. Only the top row draws the kind's glyph: the
-// shape names the kind once, and four copies of it would be noise.
+// A marker about the product (a note, an alert, a release) is drawn on every
+// chart, because a step in any one line is what a marker is there to explain and
+// the eye should not have to carry a date down from another row to find it. A
+// definition break is about one counter, so it is drawn only on the charts whose
+// column it names, and a break about a counter none of these charts draw is on
+// none of them (lib/weeklySeries.js markersForColumn); the markers list beside
+// the stack still carries it. Only the top row draws the kind's glyph: the shape
+// names the kind once, and four copies of it would be noise. The hover tip leads
+// every marker line with its glyph, so a row without glyphs still says the kind.
 //
 // Two honesty rules, drawn rather than written:
 //
 //   * the week so far is a hollow point the line never reaches. A line into a
 //     half-counted week reads as a collapse every Monday.
 //   * a week nothing was recording is hatched, in the same --adm-hatch the
-//     streak strip uses, and never drawn as a zero.
+//     streak strip uses, and never drawn as a zero. A row with nothing measured
+//     in the whole window still draws its plot, hatched end to end.
 //
 // The charts are pictures; what they mean in words is the verdict on each tile
-// above them. The markers are the one thing only the charts carry, so they are
-// also listed for a screen reader.
+// above them. The markers are the one thing only the charts carry, so the ones
+// drawn are also listed for a screen reader, once each.
 
 import { AreaChart } from '../../viz/AreaChart.jsx';
-import { bandsFromMeasurable, markerIndex, weekLabel } from '../../../../lib/weeklySeries.js';
+import {
+  WEEKLY_METRICS, bandsFromMeasurable, markerIndex, markersForColumn, weekLabel,
+} from '../../../../lib/weeklySeries.js';
 import { formatCount } from '../../../../lib/adminFormat.js';
+
+// A row's key is a WEEKLY_METRICS key; the column it names is what a break's series lists.
+const COLUMN_OF = new Map(WEEKLY_METRICS.map((m) => [m.key, m.col]));
 
 /**
  * @param {string[]} weeks         UTC Mondays ('YYYY-MM-DD'), oldest first, the week so far last
@@ -47,6 +58,17 @@ export function WeeklyMultiples({ weeks = [], series = [], markers = [], partial
     const at = markerIndex(m?.day, weeks);
     return at ? [{ ...m, index: at.index, edge: at.edge }] : [];
   });
+  // What each row draws, and the list of what is drawn anywhere: in order, and
+  // once per day and label, since four rows can draw the same marker.
+  const perRow = series.map((row) => markersForColumn(placed, COLUMN_OF.get(row?.key)));
+  const drawn = new Set(perRow.flat());
+  const seen = new Set();
+  const listed = placed.filter((m) => {
+    const id = `${m.day}\u0000${m.label}`;
+    if (!drawn.has(m) || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 
   return (
     <div className="adm-stack">
@@ -59,7 +81,7 @@ export function WeeklyMultiples({ weeks = [], series = [], markers = [], partial
             // minor columns, still a whole number of minors per major.
             vLines={weeks.length - 1}
             axis={false}
-            markers={placed}
+            markers={perRow[i]}
             markerGlyphs={i === 0}
             markPoints
             partialLast={partial}
@@ -77,9 +99,9 @@ export function WeeklyMultiples({ weeks = [], series = [], markers = [], partial
         <span>{partial ? 'so far' : labels[weeks.length - 1]}</span>
       </div>
 
-      {placed.length > 0 && (
+      {listed.length > 0 && (
         <ul className="sr-only">
-          {placed.map((m, k) => (
+          {listed.map((m, k) => (
             <li key={k}>{`Marker, ${m.day}, ${m.kind}: ${m.label}`}</li>
           ))}
         </ul>

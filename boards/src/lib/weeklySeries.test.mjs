@@ -17,7 +17,7 @@ import { DEFINITION_BREAKS, WEEKLY_SERIES_KEYS } from './adminDefinitionBreaks.j
 import { CHANGELOG_ENTRIES } from './changelogIndex.js';
 import {
   WEEKLY_METRICS, mondayOf, mondayOnOrAfter, addDays, toWeekPoints, breaksFor, markerIndex,
-  bandsFromMeasurable, mergeMarkers, weekLabel, streakSlots,
+  bandsFromMeasurable, markersForColumn, markersAtHover, mergeMarkers, weekLabel, streakSlots,
 } from './weeklySeries.js';
 
 // ── Calendar ──────────────────────────────────────────────────────────────
@@ -403,6 +403,8 @@ test('an axis that is not consecutive weeks has no columns to measure against', 
 // Thursday three sevenths of the way along). So a run of unmeasured weeks ends
 // at the Monday of the first week after it, which is exactly where the line
 // picks up again: the hatch meets the line instead of stopping a column short.
+// A run that takes in the week so far ends a column past the right rule; the
+// chart clamps what it draws there, and its hover reads the band's own extent.
 const NOT_MEASURED = 'not measured yet';
 
 test('the weeks before a counter existed are one band, ending where the line starts', () => {
@@ -429,12 +431,16 @@ test('separate runs are separate bands, oldest first', () => {
   ]);
 });
 
-test('a run into this week stops at the right rule: the week so far is a point, not a column', () => {
-  assert.deepEqual(bandsFromMeasurable([true, false, false]), [{ from: 1, to: 2, title: NOT_MEASURED }]);
-  assert.deepEqual(bandsFromMeasurable([false, false, false]), [{ from: 0, to: 2, title: NOT_MEASURED }]);
-  // Only this week unmeasured, or a one-week axis: there is no width to hatch.
-  assert.deepEqual(bandsFromMeasurable([true, true, false]), []);
-  assert.deepEqual(bandsFromMeasurable([false]), []);
+test('a run into this week ends a column past the right rule, so the week so far is inside it', () => {
+  // An unmeasured week so far must read "not measured yet" under the crosshair,
+  // not "no data", so the band's own extent takes it in; the chart clamps the
+  // hatch it draws at the right rule.
+  assert.deepEqual(bandsFromMeasurable([true, false, false]), [{ from: 1, to: 3, title: NOT_MEASURED }]);
+  assert.deepEqual(bandsFromMeasurable([false, false, false]), [{ from: 0, to: 3, title: NOT_MEASURED }]);
+  // Only this week unmeasured: nothing to hatch on the chart, but still a band
+  // for the hover to find. A one-week axis is the same case.
+  assert.deepEqual(bandsFromMeasurable([true, true, false]), [{ from: 2, to: 3, title: NOT_MEASURED }]);
+  assert.deepEqual(bandsFromMeasurable([false]), [{ from: 0, to: 1, title: NOT_MEASURED }]);
 });
 
 test('only an explicit false is "not measured": a flag that is missing makes no claim', () => {
@@ -458,6 +464,116 @@ test('the flags toWeekPoints reads off the rows give the band the chart draws', 
   // The same rows hatch nothing for a counter that always existed.
   assert.deepEqual(bandsFromMeasurable(flags('signups')), []);
   assert.deepEqual(bandsFromMeasurable(flags('active')), []);
+});
+
+// ── Which chart a marker belongs on ───────────────────────────────────────
+// A note, an alert or a release note is about the product, so every chart in
+// the stack draws it. A definition break is about one counter: it is drawn on
+// the charts whose column it names, and on none when it names no weekly column.
+test('a marker without a series is drawn on every chart', () => {
+  const note = { day: '2026-09-17', kind: 'note', label: 'Newsletter went out', source: 'note' };
+  const release = { day: '2026-09-20', kind: 'changelog', label: 'A release', source: 'changelog' };
+  for (const { col } of WEEKLY_METRICS) {
+    assert.deepEqual(markersForColumn([note, release], col), [note, release], col);
+  }
+});
+
+test('a marker with a series is drawn only on the charts it names', () => {
+  const cut = { day: '2026-10-01', kind: 'break', label: 'Work redefined', series: ['work_users'] };
+  const both = { day: '2026-09-01', kind: 'break', label: 'Both', series: ['work_users', 'cards'] };
+  assert.deepEqual(markersForColumn([cut, both], 'work_users'), [cut, both]);
+  assert.deepEqual(markersForColumn([cut, both], 'cards'), [both]);
+  assert.deepEqual(markersForColumn([cut, both], 'signups'), []);
+  assert.deepEqual(markersForColumn([cut, both], 'active_users'), []);
+});
+
+test('a scope that is not a list matches nothing, so a substring can never place a marker', () => {
+  // As in breaksFor: 'cards'.includes('card') is true, and a string scope would
+  // put a marker on a chart by accident.
+  const odd = { day: '2026-09-01', kind: 'break', label: 'Odd', series: 'cards' };
+  assert.deepEqual(markersForColumn([odd], 'card'), []);
+  assert.deepEqual(markersForColumn([odd], 'cards'), []);
+});
+
+test('the real definition breaks land only on the weekly charts they name', () => {
+  const marks = mergeMarkers({ breaks: DEFINITION_BREAKS });
+  const cols = WEEKLY_METRICS.map((m) => m.col);
+  for (const m of marks) {
+    for (const col of cols) {
+      assert.equal(markersForColumn([m], col).length, m.series.includes(col) ? 1 : 0, `${m.migration} on ${col}`);
+    }
+  }
+  // Money counters and the analytics quarantine change nothing these charts
+  // draw, so those breaks are on none of them (the markers list still has them).
+  const nowhere = marks.filter((m) => !cols.some((col) => m.series.includes(col)));
+  assert.ok(nowhere.length > 0);
+  for (const m of nowhere) {
+    for (const col of cols) assert.deepEqual(markersForColumn([m], col), [], `${m.migration} on ${col}`);
+  }
+});
+
+test('markers come back as given and in order; anything that is not a marker is dropped', () => {
+  const a = { label: 'a' };
+  const b = { label: 'b', series: ['cards'] };
+  const c = { label: 'c', series: null };
+  const out = markersForColumn([a, null, 3, 'x', b, c], 'cards');
+  assert.deepEqual(out, [a, b, c]);
+  assert.equal(out[1], b);
+  for (const junk of [null, undefined, 'x', 7, {}]) {
+    assert.deepEqual(markersForColumn(junk, 'cards'), [], JSON.stringify(junk));
+  }
+});
+
+// ── Markers under the crosshair ───────────────────────────────────────────
+// The crosshair snaps to the nearest point (Math.round of the pointer), so the
+// tooltip lists the markers drawn nearest that point. Matched with Math.floor
+// instead, a Sunday release note, six sevenths of the way to the next rule, was
+// listed under the week before the one the crosshair stood on.
+test('a marker is listed under the point nearest to it, as the crosshair snaps', () => {
+  const late = { index: 5 + 5 / 7, label: 'Saturday' }; // 5.714
+  const early = { index: 5.2, label: 'Monday after a long weekend' };
+  assert.deepEqual(markersAtHover([late, early], 6, 14), [late]);
+  assert.deepEqual(markersAtHover([late, early], 5, 14), [early]);
+  assert.deepEqual(markersAtHover([late, early], 4, 14), []);
+});
+
+test('a Sunday release note is listed under the next Monday, where the crosshair is', () => {
+  const sunday = { ...markerIndex('2026-09-20', AXIS), label: 'Sunday notes' }; // 6/7 of week 0
+  assert.deepEqual(markersAtHover([sunday], 1, AXIS.length), [sunday]);
+  assert.deepEqual(markersAtHover([sunday], 0, AXIS.length), []);
+});
+
+test('a marker in the week so far is listed under the last point', () => {
+  const edge = { ...markerIndex('2026-10-08', AXIS), label: 'this week' };
+  assert.equal(edge.edge, true);
+  assert.deepEqual(markersAtHover([edge], AXIS.length - 1, AXIS.length), [edge]);
+});
+
+test('a marker off either end is pinned to that end before it is matched', () => {
+  const before = { index: -2 };
+  const after = { index: 40 };
+  assert.deepEqual(markersAtHover([before, after], 0, 14), [before]);
+  assert.deepEqual(markersAtHover([before, after], 13, 14), [after]);
+});
+
+test('markers under the crosshair come back as given, in order, and unplaceable ones never do', () => {
+  const a = { index: 2 };
+  const b = { index: 2.4 };
+  const c = { index: 1.6 };
+  const out = markersAtHover([a, null, { index: NaN }, { index: '2' }, {}, 3, b, c], 2, 14);
+  assert.deepEqual(out, [a, b, c]);
+  assert.equal(out[0], a);
+});
+
+test('without markers, a point to hover or an axis, nothing is listed', () => {
+  for (const junk of [null, undefined, 'x', 7, {}]) assert.deepEqual(markersAtHover(junk, 2, 14), []);
+  const ms = [{ index: 2 }];
+  for (const hover of [null, undefined, 2.5, NaN, '2']) {
+    assert.deepEqual(markersAtHover(ms, hover, 14), [], String(hover));
+  }
+  for (const n of [0, -1, NaN, null, 2.5]) assert.deepEqual(markersAtHover(ms, 2, n), [], String(n));
+  // A one-point axis has one place to stand.
+  assert.deepEqual(markersAtHover([{ index: 0.4 }], 0, 1), [{ index: 0.4 }]);
 });
 
 // ── Marker merging ────────────────────────────────────────────────────────

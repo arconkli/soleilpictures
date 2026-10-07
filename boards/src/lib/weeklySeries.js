@@ -186,8 +186,9 @@ const NOT_MEASURED = 'not measured yet';
  *   returns [{ from, to, title: 'not measured yet' }], oldest first, drawn from x(from) to x(to).
  * from is the run's first index. A complete week runs from its Monday to the next one
  * (the axis markerIndex places days on), so to is the index just past the run, which is
- * where the line resumes. A run that reaches the last row stops there: the week so far is
- * a point at the right rule with no width of its own, so a run of only that week is no band.
+ * where the line resumes. A run that takes in the week so far ends a column past the right
+ * rule: the chart clamps the hatch it draws there, and its hover, which reads the band's
+ * own extent, finds an unmeasured week so far inside it.
  *
  * Only an explicit false is unmeasured. A flag that is missing makes no claim, and
  * hatching a week as "not measured" when nobody knows would be a small lie of its own.
@@ -200,10 +201,39 @@ export function bandsFromMeasurable(measurable) {
     if (measurable[i] !== false) continue;
     const from = i;
     while (i < last && measurable[i + 1] === false) i += 1;
-    const to = Math.min(i + 1, last);
-    if (to > from) bands.push({ from, to, title: NOT_MEASURED });
+    bands.push({ from, to: i + 1, title: NOT_MEASURED });
   }
   return bands;
+}
+
+// ── Markers on a chart ────────────────────────────────────────────────────
+/**
+ * The markers a chart of one column draws: every marker with no `series` (a note, an
+ * alert, a release note: about the product, so on every chart), and every one whose
+ * `series` list names col (a definition break: about one counter). A break that names
+ * no weekly column is therefore on no chart; the markers list beside them still has it.
+ *
+ * As in breaksFor, only a real list is a scope: 'cards'.includes('card') is true, and a
+ * marker placed by a substring would sit on a chart it has nothing to do with.
+ * Markers come back as given, in order.
+ */
+export function markersForColumn(markers, col) {
+  if (!Array.isArray(markers)) return [];
+  return markers.filter((m) => m !== null && typeof m === 'object'
+    && (m.series == null || (Array.isArray(m.series) && m.series.includes(col))));
+}
+
+/**
+ * The markers to list when the crosshair stands on point `hover` of an n-point axis:
+ * those whose index, pinned to [0, n - 1], rounds to hover. The crosshair snaps to the
+ * nearest point, so a marker is listed under the point it is drawn nearest to; a Sunday
+ * release note, six sevenths of the way along its week, is listed under the next Monday.
+ * Markers come back as given, in order; one without a finite index is never listed.
+ */
+export function markersAtHover(markers, hover, n) {
+  if (!Array.isArray(markers) || !Number.isInteger(hover) || !Number.isInteger(n) || n < 1) return [];
+  return markers.filter((m) => Number.isFinite(m?.index)
+    && Math.round(Math.min(n - 1, Math.max(0, m.index))) === hover);
 }
 
 // ── Marker merging ────────────────────────────────────────────────────────

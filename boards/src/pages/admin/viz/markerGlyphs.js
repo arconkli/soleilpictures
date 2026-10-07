@@ -10,6 +10,11 @@
 // is not a status. ◆ is kept for the owner's own `ship` notes; a changelog entry
 // is a batch of release notes rather than a ship date, so it is the hollow ◇.
 //
+// Every glyph has to survive 10px in the mono face and sit on a dashed rule. An
+// alert is the plain triangle △, because the warning sign ⚠ is not in the mono
+// font and its fallback read as a "4"; a break is the double bar ║, because a
+// dashed bar ┆ vanished into the dashed rule it sat on.
+//
 // The glyphs are real text, never CSS `content:`, because generated text enters
 // the accessible name. Callers mark them aria-hidden and say the kind in words.
 
@@ -18,8 +23,8 @@ export const GLYPH = Object.freeze({
   changelog: '◇',
   event: '●',
   note: '●',
-  alert: '⚠',
-  break: '┆',
+  alert: '△',
+  break: '║',
 });
 
 export const MARKER_KINDS = Object.keys(GLYPH);

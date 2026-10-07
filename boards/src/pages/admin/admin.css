@@ -3990,14 +3990,23 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  */
 .adm-area { display: flex; flex-direction: column; gap: 10px; }
 
+/* The scale column and the gap after it, as properties: a stack of charts lines
+   its one shared date row up with their plots by reading the same two values
+   (.adm-stack-x). Declared on :root rather than on the frame, because custom
+   properties only inherit downwards and that row is not inside any frame. */
+:root {
+  --adm-area-scale-w: 44px;
+  --adm-area-scale-gap: 10px;
+}
+
 /* The row must be explicit. Without it the row is auto-sized, the SVG's 1:1
    viewBox aspect ratio decides its own intrinsic height, and a 280px chart
    renders 1,566px tall with its content off-screen. */
 .adm-area-frame {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: var(--adm-area-scale-w) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--adm-area-scale-gap);
 }
 
 .adm-area-plot { height: 100%; }
@@ -5631,10 +5640,13 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 /* A marker inside the week so far sits flush against the right rule. */
 .adm-area-marker.is-edge { transform: translateX(-100%); }
 
-/* The kind's shape, at the head of its rule. The one part of a marker that
-   takes the pointer, so the marker's native title (day · label) can show. */
+/* The kind's shape, at the head of its rule and centred on it whatever the
+   glyph's width. left: 0 is the marker's padding edge, just past its 1px
+   border, so the rule's centre is half a pixel back from there. The one part
+   of a marker that takes the pointer, so its native title (day · label) shows. */
 .adm-area-marker-glyph {
-  position: absolute; top: -2px; left: -5px;
+  position: absolute; top: -2px; left: 0;
+  transform: translateX(calc(-50% - .5px));
   font: 10px/1 var(--font-mono);
   color: var(--ink-2);
   pointer-events: auto;
@@ -5661,21 +5673,35 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   border: 2px solid var(--_c, var(--ink-2));
 }
 
-/* A marker in the hovered week, listed under the reading. */
-.adm-area-tip-m { font: 400 11px/1.3 var(--font-sans); color: var(--ink-3); }
+/* A marker at the hovered point, listed under the reading. The tip itself never
+   wraps; a release title can run to sixty characters, so these lines do, rather
+   than running the tip out of the well and under the panel beside it. The width
+   is the line's own, capped: a tip near the right rule has no room left to
+   shrink-wrap into, and without it the line wrapped to one word per row. */
+.adm-area-tip-m {
+  font: 400 11px/1.3 var(--font-sans); color: var(--ink-3);
+  white-space: normal; width: max-content; max-width: 36ch;
+}
 
 /* Scale labels are centred on their rules, so a chart's 0 hangs half a 10.5px
    line below its plot and the next chart's top label half a line above its
-   own. At 6px apart the two printed on top of each other. */
-.adm-stack { display: grid; gap: 14px; }
+   own. At 6px apart the two printed on top of each other.
+   The label column and its gap are properties so the shared date row below
+   (.adm-stack-x) is measured from the same two values as the rows. */
+.adm-stack {
+  --adm-stack-label-w: 96px;
+  --adm-stack-gap: 8px;
+  display: grid; gap: 14px;
+}
 
 /* minmax(0, 1fr), as .adm-area-frame does: a chart may shrink, but it may not
-   push the stack wider than its well. */
+   push the stack wider than its well. --adm-stack-gap is the space between a
+   row's label and its chart, not the 14px between rows. */
 .adm-stack-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: var(--adm-stack-label-w) minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: var(--adm-stack-gap);
 }
 
 /* The row's name is its chart's title, so it takes the well title's ink
@@ -5687,12 +5713,13 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   letter-spacing: .06em;
 }
 
-/* The stack's one date row, under the plot column: past the 96px label column
-   and the 8px row gap, then the 54px every AreaChart keeps for its scale
-   (.adm-area-frame's 44px column plus its 10px gap, the 54px .adm-area-x pads). */
+/* The stack's one date row, under the plot column: past each row's label column
+   and its gap, then the scale column and gap every AreaChart frame keeps, all
+   read from the properties those rules are laid out with. */
 .adm-stack-x {
   display: flex; justify-content: space-between;
-  padding-left: calc(96px + 8px + 54px);
+  padding-left: calc(var(--adm-stack-label-w) + var(--adm-stack-gap)
+    + var(--adm-area-scale-w) + var(--adm-area-scale-gap));
   font: 10px/1 var(--font-mono);
   color: var(--ink-3);
 }
