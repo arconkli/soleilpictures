@@ -405,3 +405,33 @@ test('every ban and sharing hold is recorded with evidence, and a ban ends every
   assert.match(api, /banAccount = \(userId, reason\) => adminAccountAction\(\{ userId, action: 'ban', reason \}\)/,
     'Ban goes through admin-account-action, which also does the native auth ban');
 });
+
+// ── 0374: the live database re-checks all of this every day ─────────────────
+
+test('the live database re-checks the audit\'s invariants daily and pages on a slip', () => {
+  const def = latestDefinition('check_security_invariants').body;
+  for (const key of ['http_post', 'notify_email', 'gate', 'helpers', 'open_insert', 'rls', 'alert_path']) {
+    assert.ok(def.includes(`'invariant:${key}'`), `check_security_invariants lost its ${key} check`);
+  }
+  // Its sender allowlist is the same six triggers the repo says send email.
+  const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
+  for (const name of senders.keys()) assert.ok(def.includes(`'${name}'`), `${name} sends email but is not in the live allowlist`);
+  assert.ok(latestMatch(/cron\.schedule\('security-invariants',/), 'the check must be scheduled');
+  assert.ok(latestMatch(/revoke execute on function public\.check_security_invariants\(\) from public, anon, authenticated/));
+});
+
+test('every new internal helper is born server-only (the 0311 rule, linted from 0369 on)', () => {
+  const seen = new Set();
+  for (const f of migrationFiles()) {
+    const sql = readFileSync(MIGRATIONS_DIR + f, 'utf8');
+    const num = Number(f.slice(0, 4));
+    for (const m of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?(_\w+)\s*\([^)]*\)\s*returns\s+(\w+)/gi)) {
+      const [, name, ret] = m;
+      const isNew = !seen.has(name);
+      seen.add(name);
+      if (num < 369 || !isNew || /^trigger$/i.test(ret)) continue;
+      assert.match(sql, new RegExp(`revoke (?:execute|all) on function public\\.${name}\\(`),
+        `${f}: new helper ${name} must revoke execute from public, anon, authenticated`);
+    }
+  }
+});
