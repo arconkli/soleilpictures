@@ -24,13 +24,18 @@
 //
 // Then a guard for each way the sentence could overclaim:
 //
-//   - The noise floor. A rise is only 'solid' if it clears what two ordinary
-//     weeks differ by anyway. Two Poisson weeks differ with sd sqrt(2 * base),
-//     base being the median of the window's first half, and the floor is
-//     NOISE_K of those; MIN_BASE stops a near-zero series from getting a
-//     near-zero floor that one extra sign-up clears. Cards arrive in bulk
-//     imports, so their floor is robust instead: 1.4826 * MAD of the
-//     week-to-week differences, which one import barely moves.
+//   - The noise floor. A rise is only 'solid' if it clears what the two ends of
+//     the window could differ by anyway. Under Poisson, x_end - x_start has
+//     variance lambda_start + lambda_end, so the floor is NOISE_K * sqrt(start +
+//     end), each end the median of its half of the window. Reading both ends is
+//     what treats a fall like its mirror-image rise: a floor read from the start
+//     alone is higher for a fall (it starts high) than for the same rise, and so
+//     asked declines for more evidence. On a flat series the two ends agree and
+//     this is exactly NOISE_K * sqrt(2 * base), the single-ended floor, so the
+//     calibration where nothing is happening is unchanged. MIN_BASE stops a
+//     near-zero end from giving a floor that one extra sign-up clears. Cards
+//     arrive in bulk imports, so their floor is robust instead: 1.4826 * MAD of
+//     the week-to-week differences, which one import barely moves.
 //   - The events gate. A significant rank test resting on fewer than
 //     MIN_DELTA_EVENTS events is 'directional' at most, and the detail says
 //     how few there were. Under MIN_ZERO_EVENTS the read is "Nothing yet", and
@@ -213,6 +218,8 @@ const MAD_SD = 1.4826; // 1.4826 * MAD estimates a normal standard deviation
 const isWeek = (w) => addDays(w, 0) !== null; // a real ISO day, by weeklySeries' own parse
 const byWeek = (a, b) => (a.week < b.week ? -1 : a.week > b.week ? 1 : 0);
 const valueOf = (p) => (isNum(p?.value) ? p.value : null);
+// The two sentences that can count exactly one week say "1 week"; every other label is fixed.
+const weeksWord = (k) => (k === 1 ? 'week' : 'weeks');
 
 // The cut that applies is the latest one; an entry without a real week cuts nothing.
 function latestBreak(breaks) {
@@ -248,9 +255,12 @@ function slopeOf(usable, steps, dispersion) {
   const xs = usable.map((u) => u.value);
   const { perWeek, rise } = theilSen(xs, usable.map((u) => u.t));
   const level = median(xs);
+  // The two ends of the window: the first and the last floor(n/2) readings (with an odd
+  // n the middle one belongs to neither).
   const half = Math.floor(xs.length / 2);
   const baseline = half > 0 ? median(xs.slice(0, half)) : null;
-  let floor = NOISE_K * Math.sqrt(2 * Math.max(baseline ?? 0, MIN_BASE));
+  const endLevel = half > 0 ? median(xs.slice(-half)) : null;
+  let floor = NOISE_K * Math.sqrt(Math.max(baseline ?? 0, MIN_BASE) + Math.max(endLevel ?? 0, MIN_BASE));
   let floorKind = 'poisson';
   if (dispersion === 'mad') {
     // A difference needs two adjacent weeks with readings, so a gap breaks one.
@@ -265,7 +275,7 @@ function slopeOf(usable, steps, dispersion) {
   return {
     perWeek,
     pctOfLevelPerWeek: perWeek !== null && level ? (100 * perWeek) / level : null,
-    rise, level, baseline, floor, floorKind,
+    rise, level, baseline, endLevel, floor, floorKind,
     clears: rise !== null && Math.abs(rise) >= floor,
   };
 }
@@ -285,7 +295,7 @@ function spikesOf(usable, level) {
 
 // The verdict tree; the first match wins. Labels are shown verbatim elsewhere
 // (the streak strip's accessible name is the label), so tests pin every one.
-function verdictOf({ xs, sum, minWeeks, mk, slope, steps, counts, spikes }) {
+function verdictOf({ xs, sum, missing, minWeeks, mk, slope, steps, counts, spikes }) {
   const n = xs.length;
   // Nothing is scored, so nothing qualifies the read: no detail.
   const unread = (code, label) => ({ code, label, confidence: 'none', detail: null });
@@ -339,14 +349,15 @@ function verdictOf({ xs, sum, minWeeks, mk, slope, steps, counts, spikes }) {
     if (!up && tailS >= 0 && mid <= slope.level) return say('trough', `Fell, then flat for ${PLATEAU_N} weeks`);
   }
 
-  const { up: u, down: d, flat: f, gaps: g, total: m } = counts;
+  const { up: u, down: d, flat: f, total: m } = counts;
   if (confidence === 'directional') {
     return up
       ? say('leaning_up', `Leaning up, ${u} of ${m} weeks`)
       : say('leaning_down', `Leaning down, ${d} of ${m} weeks`);
   }
   const [code, word, k, against] = up ? ['rising', 'Up', u, d] : ['falling', 'Down', d, u];
-  if (g > 0) return say(code, `${word} ${k} of ${m} measured weeks, ${g} missing`);
+  // Missing counts WEEKS without a reading, not the steps that touch them.
+  if (missing > 0) return say(code, `${word} ${k} of ${m} measured ${weeksWord(m)}, ${missing} missing`);
   if (n >= STEADY_WEEKS && k >= STEADY_UP_SHARE * m && against <= 1) {
     return say(code, `${word} ${k} of the last ${m} weeks, steady`);
   }
@@ -385,17 +396,19 @@ export function weeklyTrend(points, {
   let caveat = null;
   if (cut) {
     const since = remaining.filter((p) => valueOf(p) !== null).length;
-    if (since < window) caveat = `Definition changed ${cut.date ?? cut.week}; ${since} weeks since`;
+    if (since < window) caveat = `Definition changed ${cut.date ?? cut.week}; ${since} ${weeksWord(since)} since`;
   }
 
-  // The last `window` calendar weeks ending at the newest remaining week. A week
-  // with no reading, or no row at all, stays in the calendar as a gap.
+  // The last `window` calendar weeks ending at the newest remaining week. The walk opens at
+  // `first`, the oldest of them, even when that week has no row, so a missing row and a row
+  // with no reading are the same gap at the edge as anywhere else; it opens later only where
+  // the scorable history itself begins later (a short series, an unmeasured prefix, a cut).
   const newest = remaining.at(-1)?.week;
   const first = newest ? addDays(newest, -7 * (window - 1)) : null;
-  const inWindow = first ? remaining.filter((p) => p.week >= first) : [];
-  const at = new Map(inWindow.map((p) => [p.week, p]));
+  const start = first && remaining[0].week > first ? remaining[0].week : first;
+  const at = new Map(remaining.filter((p) => start && p.week >= start).map((p) => [p.week, p]));
   const weeks = [];
-  for (let w = inWindow[0]?.week; w && w <= newest; w = addDays(w, 7)) weeks.push(w);
+  for (let w = start; w && w <= newest; w = addDays(w, 7)) weeks.push(w);
   const values = weeks.map((w) => valueOf(at.get(w)));
 
   const usable = [];
@@ -428,6 +441,6 @@ export function weeklyTrend(points, {
     spikes,
     thisWeek,
     caveat,
-    verdict: verdictOf({ xs, sum, minWeeks, mk, slope, steps, counts, spikes }),
+    verdict: verdictOf({ xs, sum, missing: weeks.length - n, minWeeks, mk, slope, steps, counts, spikes }),
   };
 }

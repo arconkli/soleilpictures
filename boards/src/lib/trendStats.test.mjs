@@ -34,6 +34,16 @@ const pointsOf = (values, from = 0) => values.map((value, i) => ({
 const read = (values, opts) => weeklyTrend(pointsOf(values), opts);
 const dirs = (t) => t.steps.map((st) => st.dir);
 
+// A seeded generator (the Numerical Recipes LCG), so a property runs the same
+// series on every machine and every run. Never Math.random.
+const lcg = (seed) => {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+    return s / 2 ** 32;
+  };
+};
+
 // The brief's vectors, by number (#13 and #21 as amended; their original values
 // are kept below as pinned cases of their own).
 const V1 = [10, 12, 15, 17, 18, 21, 25, 30];
@@ -468,6 +478,24 @@ test('a week with no row still counts as one of the eight calendar weeks', () =>
   assert.equal(t.window.gaps, 1);
 });
 
+test('at the oldest edge of the window, a missing row and a row with no reading are the same gap', () => {
+  // The reviewer's probe: W(0)..W(9) = 10 + 4i, so the window is W(2)..W(9), and W(2) has no
+  // reading: once as a null row, once with no row at all. Either way it is eight calendar weeks
+  // holding seven readings, 22..46: S = 21, exact p = 1/5040; every slope is 4, rise =
+  // 4 * (7 - 1) = 24; baseline = median(22,26,30) = 26, endLevel = median(38,42,46) = 42,
+  // floor = 2 * sqrt(68) = 16.49: clears; one week is missing.
+  const rows = pointsOf(Array.from({ length: 10 }, (_, i) => 10 + 4 * i));
+  const nulled = rows.map((p) => (p.week === W(2) ? { ...p, value: null } : p));
+  const removed = rows.filter((p) => p.week !== W(2));
+  for (const t of [weeklyTrend(nulled), weeklyTrend(removed)]) {
+    assert.equal(t.window.from, '2026-06-15');
+    assert.equal(t.window.calendarWeeks, 8);
+    assert.equal(t.window.gaps, 1);
+    close(t.slope.rise, 24, 0.01, 'rise');
+    assert.equal(t.verdict.label, 'Up 6 of 6 measured weeks, 1 missing');
+  }
+});
+
 test('only the newest step can be settling, and only when its own week is', () => {
   // #24: #1 with the newest week still settling.
   const pts = pointsOf(V1);
@@ -482,14 +510,16 @@ test('the slope, its level and its noise floor', () => {
   // #1. The 28 pairwise slopes, sorted: 1, 3/2, 2 (x6), 11/5, 9/4, 7/3, then 5/2 at
   // positions 12-15, so the 14th and 15th are both 5/2: perWeek = 2.5, rise = 2.5 * 7 = 17.5.
   // level = median of all eight = (17 + 18) / 2 = 17.5; baseline = median(10,12,15,17) = 13.5;
-  // floor = 2 * sqrt(2 * 13.5) = 2 * sqrt(27) = 10.392; 17.5 >= 10.392 clears.
+  // endLevel = median(18,21,25,30) = 23; floor = 2 * sqrt(13.5 + 23) = 2 * sqrt(36.5) = 12.083;
+  // 17.5 >= 12.083 clears.
   const { slope } = read(V1);
   close(slope.perWeek, 2.5, 1e-12, 'perWeek');
   close(slope.rise, 17.5, 0.01, 'rise');
   assert.equal(slope.level, 17.5);
   close(slope.pctOfLevelPerWeek, (100 * 2.5) / 17.5, 1e-9, 'pct');
   assert.equal(slope.baseline, 13.5);
-  close(slope.floor, 2 * Math.sqrt(27), 1e-9, 'floor');
+  assert.equal(slope.endLevel, 23);
+  close(slope.floor, 2 * Math.sqrt(36.5), 1e-9, 'floor');
   assert.equal(slope.floorKind, 'poisson');
   assert.equal(slope.clears, true);
   assert.equal(mannKendall(V1).S, read(V1).mk.S);
@@ -497,7 +527,8 @@ test('the slope, its level and its noise floor', () => {
 });
 
 test('a near-zero series gets the MIN_BASE floor, and a zero level has no percentage', () => {
-  // 0,0,0,0,1,1,1,1: baseline = median(0,0,0,0) = 0, raised to MIN_BASE 2: floor = 2 * sqrt(4) = 4.
+  // 0,0,0,0,1,1,1,1: baseline = median(0,0,0,0) = 0 and endLevel = median(1,1,1,1) = 1, each
+  // raised to MIN_BASE 2: floor = 2 * sqrt(2 + 2) = 4.
   // level = (0 + 1) / 2 = 0.5. With level 0 (all zeros) there is nothing to be a percentage of.
   close(read([0, 0, 0, 0, 1, 1, 1, 1]).slope.floor, 4, 1e-12, 'floor');
   assert.equal(read(Array(8).fill(0)).slope.pctOfLevelPerWeek, null);
@@ -513,16 +544,17 @@ test("dispersion 'mad': the floor comes from the week-to-week differences, which
 });
 
 test("dispersion 'mad' falls back to Poisson with no spread to measure or too few differences", () => {
-  // #16: every difference is 0, so MAD = 0. Poisson: 2 * sqrt(2 * 12) = 9.798.
+  // #16: every difference is 0, so MAD = 0. Poisson, both ends 12: 2 * sqrt(12 + 12) = 9.798.
   const flat = read(V16, { dispersion: 'mad' }).slope;
   assert.equal(flat.floorKind, 'poisson');
   close(flat.floor, 2 * Math.sqrt(24), 1e-9, 'flat floor');
   // Gaps break differences: 10 -> 12 and 14 -> 20 are the only adjacent readings, and
   // two differences are under 3 even though their MAD (|2 - 4| and |6 - 4| -> 2) is not 0.
-  // Poisson from baseline = median(10, 12) = 11: 2 * sqrt(22) = 9.381.
+  // Poisson over the readings 10,12,14,20,16: baseline = median(10, 12) = 11,
+  // endLevel = median(20, 16) = 18 (14, the middle one, is in neither half): 2 * sqrt(29) = 10.770.
   const sparse = read([10, 12, null, 14, 20, null, null, 16], { dispersion: 'mad' }).slope;
   assert.equal(sparse.floorKind, 'poisson');
-  close(sparse.floor, 2 * Math.sqrt(22), 1e-9, 'sparse floor');
+  close(sparse.floor, 2 * Math.sqrt(29), 1e-9, 'sparse floor');
 });
 
 test('a spike is an isolated week, well above both of its neighbours', () => {
@@ -560,10 +592,11 @@ test('nothing usable is an empty read, not an error', () => {
 // window total, the one-sided p, the rise against the floor, then the shape
 // checks (one step carrying the move, rose-then-flat), then the counts.
 // rise is perWeek * (t_last - t_first), perWeek the median pairwise slope;
-// floor = 2 * sqrt(2 * max(baseline, 2)), baseline the median of the first n/2.
+// floor = 2 * sqrt(max(baseline, 2) + max(endLevel, 2)), with baseline and endLevel
+// the medians of the first and of the last floor(n/2) usable weeks.
 
 test('#1 rising clean: up every week, certain, and well clear of the floor', () => {
-  // S = 28, untied: exact p = 1/40320 = 2.48e-5. rise 17.5 >= floor 10.39 (the slope
+  // S = 28, untied: exact p = 1/40320 = 2.48e-5. rise 17.5 >= floor 12.08 (the slope
   // test above); sum 148 >= 10: solid. No shift: the largest rise, 25 -> 30, is
   // 5 of the 20. No plateau: the last four (18,21,25,30) still rise.
   // u = 7 >= 0.7 * 7 = 4.9 and d = 0: steady.
@@ -586,7 +619,8 @@ test('#2 rising with one dip: still steady, and its newest week is not a spike',
   // The 28 slopes sorted: -1, 1, 1, 4/3, 5/3, 5/3, 7/4, 2, 2, 2, 9/4, 7/3, 12/5,
   // [5/2, 18/7], 13/5, 8/3, 3 (x4), 10/3, 7/2, 7/2, 11/3, 4, 4, 4.
   // perWeek = (5/2 + 18/7)/2 = 71/28; rise = 71/28 * 7 = 17.75.
-  // baseline = median(8,10,13,12) = 11, floor = 2 * sqrt(22) = 9.38: clears; sum 124.
+  // baseline = median(8,10,13,12) = 11, endLevel = median(15,18,22,26) = 20,
+  // floor = 2 * sqrt(11 + 20) = 11.14: clears; sum 124.
   // Steps + + - + + + +: u = 6 >= 4.9, d = 1 <= 1: steady. No shift (4 of 19), no plateau.
   const t = read(V2);
   assert.deepEqual(dirs(t), [1, 1, -1, 1, 1, 1, 1]);
@@ -642,7 +676,8 @@ test('#5 a step change: one week carried the rise, and the read says which', () 
   // z = 18/sqrt(59.667) = 2.3303; p = 1 - Phi(2.3303) = 0.0099.
   // Slopes sorted: -1, -1, 0 (x5), 1/3, 1/2, 1, 1, 1, 11/7, [5/3, 11/6], 2, 2, ...
   // perWeek = (5/3 + 11/6)/2 = 7/4; rise = 7/4 * 7 = 12.25.
-  // baseline = median(10,10,11,10) = 10, floor = 2 * sqrt(20) = 8.94: clears; sum 123: solid.
+  // baseline = median(10,10,11,10) = 10, endLevel = median(20,21,20,21) = 20.5,
+  // floor = 2 * sqrt(30.5) = 11.05: 12.25 clears; sum 123: solid.
   // Rising steps: +1, +10, +1, +1 = 13; the +10 into W(4) is 77% >= 60%, and
   // weekDelta(20, 10): z = 10/sqrt(30) = 1.83 >= 1.645 is up, like mk.
   const t = read(V5);
@@ -682,7 +717,8 @@ test('#8 decline clean: down every week, the mirror of #1', () => {
   // 30,27,24,22,19,16,14,11: every pair falls, S = -28, exact p = 1/40320.
   // Steps -3,-3,-2,-3,-3,-2,-3. Slopes sorted: -3 (x7), -2.8, -2.75 (x3), -19/7,
   // then -8/3 at positions 13-19: perWeek = -8/3, rise = -56/3 = -18.67.
-  // baseline = median(30,27,24,22) = 25.5, floor = 2 * sqrt(51) = 14.28: clears; sum 163.
+  // baseline = median(30,27,24,22) = 25.5, endLevel = median(19,16,14,11) = 15,
+  // floor = 2 * sqrt(40.5) = 12.73: clears; sum 163.
   const t = read([30, 27, 24, 22, 19, 16, 14, 11]);
   assert.equal(t.mk.S, -28);
   assert.equal(t.mk.method, 'exact');
@@ -697,7 +733,8 @@ test('#9 decline with one rise: still steady', () => {
   // 30,27,24,26,19,16,14,11. Only (24,26) rises: S = 1 - 27 = -26, exact p = 8/40320.
   // Slopes sorted: -7, -5, -4, -3.75, -3 (x5), -2.8, -2.75 (x2), -19/7, then -8/3 at
   // positions 14-18: perWeek = -8/3, rise = -56/3 = -18.67.
-  // baseline = median(30,27,24,26) = 26.5, floor = 2 * sqrt(53) = 14.56: clears; sum 167.
+  // baseline = median(30,27,24,26) = 26.5, endLevel = median(19,16,14,11) = 15,
+  // floor = 2 * sqrt(41.5) = 12.88: clears; sum 167.
   // d = 6 >= 4.9, u = 1 <= 1: steady. No shift: the -7 is 7 of the 21 fallen.
   const t = read([30, 27, 24, 26, 19, 16, 14, 11]);
   assert.equal(t.mk.S, -26);
@@ -714,7 +751,8 @@ test('#10 rose, then held: a plateau, not a rise', () => {
   // Var = (1176 - 3*2*11)/18 = 1110/18 = 61.667; z = 20/sqrt(61.667) = 2.5469; p = 0.0054.
   // Slopes sorted: -1, -1/2, 0, 0, 0, 2/3, 3/4, 1, 1, 6/5, 5/4, 9/7, 4/3, [4/3, 7/5], ...
   // perWeek = (4/3 + 7/5)/2 = 41/30; rise = 41/30 * 7 = 9.567.
-  // baseline = median(5,6,8,11) = 7, floor = 2 * sqrt(14) = 7.48: clears; sum 85: solid.
+  // baseline = median(5,6,8,11) = 7, endLevel = median(14,14,13,14) = 14,
+  // floor = 2 * sqrt(21) = 9.17: 9.567 clears; sum 85: solid.
   // No shift (3 of 10). The last four, 14,14,13,14: S = -1 <= 0, and their median 14
   // is at least the level, median(5,6,8,11,13,14,14,14) = 12.
   const t = read([5, 6, 8, 11, 14, 14, 13, 14]);
@@ -731,7 +769,9 @@ test('#11 an unmeasured prefix: only the measured weeks are read', () => {
   // S = 21 - 2 = 19, n = 7: exact p = P(I <= 1) = (1 + 6)/5040 = 1.39e-3.
   // Slopes sorted (21): -1, 1, 1, 4/3, 5/3, 5/3, 7/4, 2, 2, 2, [9/4], 7/3, 12/5, 5/2, 3 (x4), ...
   // perWeek = 9/4; rise = 9/4 * 6 = 13.5.
-  // baseline = median(8,10,13) = 10, floor = 2 * sqrt(20) = 8.94: clears; sum 98.
+  // n = 7, so each half is three weeks and the middle one (12) is in neither:
+  // baseline = median(8,10,13) = 10, endLevel = median(15,18,22) = 18,
+  // floor = 2 * sqrt(28) = 10.58: clears; sum 98.
   // n = 7 >= 6; u = 5 >= 0.7 * 6 = 4.2 and d = 1: steady.
   const before = [0, 1, 2, 3, 4].map((i) => ({ week: W(i), value: null, measurable: false, complete: true, settling: false }));
   const t = weeklyTrend([...before, ...pointsOf([8, 10, 13, 12, 15, 18, 22], 5)]);
@@ -746,14 +786,35 @@ test('#11 an unmeasured prefix: only the measured weeks are read', () => {
 
 test('#12 missing weeks are counted as missing, not as flat', () => {
   // 10,12,-,15,16,18,-,22. Usable 10,12,15,16,18,22 all rise: S = 15, exact p = 1/720.
-  // rise = 35/3 (the theilSen case), baseline = median(10,12,15) = 12,
-  // floor = 2 * sqrt(24) = 9.80: clears; sum 93. Only 3 steps are defined, so no shift.
+  // rise = 35/3 = 11.67 (the theilSen case); baseline = median(10,12,15) = 12,
+  // endLevel = median(16,18,22) = 18, floor = 2 * sqrt(30) = 10.95: clears; sum 93.
+  // Only 3 steps are defined, so no shift. Two WEEKS have no reading (four steps touch them).
   const t = read(V12);
   assert.equal(t.mk.S, 15);
   close(t.mk.p, 1 / 720, 1e-4, 'p');
   assert.deepEqual(t.counts, { up: 3, down: 0, flat: 0, gaps: 4, total: 3 });
   assert.deepEqual(t.verdict, {
-    code: 'rising', label: 'Up 3 of 3 measured weeks, 4 missing', confidence: 'solid', detail: null,
+    code: 'rising', label: 'Up 3 of 3 measured weeks, 2 missing', confidence: 'solid', detail: null,
+  });
+});
+
+test('one week is a week: the two sentences that can count exactly one say so', () => {
+  // The caveat: a break at W(7) = 07-20 leaves one reading after it; a break after the newest
+  // week leaves none.
+  assert.equal(read(V1, { breaks: [{ week: '2026-07-20' }] }).caveat, 'Definition changed 2026-07-20; 1 week since');
+  assert.equal(read(V1, { breaks: [{ week: '2026-07-27' }] }).caveat, 'Definition changed 2026-07-27; 0 weeks since');
+  // The gap label: 10,-,14,-,18,-,22,26 has one defined step (22 -> 26) and three weeks with
+  // no reading. S = 10 (n = 5, all rising), exact p = 1/120. The six slopes among 10,14,18,22
+  // (t = 0,2,4,6) are 2; with 26 (t = 7) they are 16/7, 12/5, 8/3, 4. Sorted, the 5th and 6th
+  // of the ten are both 2: perWeek 2, rise = 2 * 7 = 14. baseline = median(10,14) = 12,
+  // endLevel = median(22,26) = 24, floor = 2 * sqrt(36) = 12: clears; sum 90: solid.
+  // One defined step is under 4, so no shift; n = 5, so no plateau.
+  const t = read([10, null, 14, null, 18, null, 22, 26]);
+  close(t.mk.p, 1 / 120, 1e-4, 'p');
+  close(t.slope.rise, 14, 0.01, 'rise');
+  close(t.slope.floor, 12, 1e-9, 'floor');
+  assert.deepEqual(t.verdict, {
+    code: 'rising', label: 'Up 1 of 1 measured week, 3 missing', confidence: 'solid', detail: null,
   });
 });
 
@@ -765,14 +826,15 @@ test('#13 tiny counts where flat weeks dominate: up, said with the flats', () =>
   // Var = (1176 - 2 * 3*2*11)/18 = 1044/18 = 58; z = 21/sqrt(58) = 2.7574; p = 0.0029.
   // Slopes sorted: 0 (x6), 1/3, 2/5, 1/2 (x4), 3/5, then 2/3 at positions 14-18:
   // perWeek = 2/3, rise = 14/3 = 4.67. baseline = median(0,1,1,1) = 1, raised to
-  // MIN_BASE 2: floor = 2 * sqrt(4) = 4. 4.67 clears; sum 17 >= 10: solid.
+  // MIN_BASE 2; endLevel = median(3,3,3,5) = 3: floor = 2 * sqrt(2 + 3) = 4.47.
+  // 4.67 clears; sum 17 >= 10: solid.
   // No shift (2 of 5); the last four 3,3,3,5 still rise. u = 3 < 4.9; f = 4 > 3.
   const t = read(V13);
   assert.equal(t.mk.method, 'normal');
   assert.equal(t.mk.S, 22);
   close(t.mk.p, 0.0029, 0.002, 'p');
   close(t.slope.rise, 14 / 3, 0.01, 'rise');
-  close(t.slope.floor, 4, 1e-12, 'floor');
+  close(t.slope.floor, 2 * Math.sqrt(5), 1e-9, 'floor');
   assert.deepEqual(t.verdict, {
     code: 'rising', label: 'Up 3, flat 4 of the last 7 weeks', confidence: 'solid', detail: null,
   });
@@ -782,7 +844,8 @@ test('#13 original: significant, but the rise is under the floor, so it only lea
   // 0,1,1,2,2,3,3,3. Tie groups [2, 2, 3]. S = 7 + 5 + 5 + 3 + 3 = 23.
   // Var = (1176 - (2*1*9 + 2*1*9 + 3*2*11))/18 = 1074/18 = 59.667; z = 22/7.7244 = 2.8481;
   // p = 0.0022. Slopes sorted: 0 (x5), 1/4, 1/3 (x4), 2/5 (x2), 3/7, then 1/2 at positions
-  // 14-22: perWeek 1/2, rise 3.5 < floor 4 (baseline median(0,1,1,2) = 1 -> MIN_BASE 2).
+  // 14-22: perWeek 1/2, rise 3.5 < floor 2 * sqrt(2 + 3) = 4.47 (baseline median(0,1,1,2) = 1,
+  // raised to MIN_BASE 2; endLevel median(2,3,3,3) = 3).
   const t = read([0, 1, 1, 2, 2, 3, 3, 3]);
   assert.equal(t.mk.S, 23);
   close(t.mk.p, 0.0022, 0.002, 'p');
@@ -797,7 +860,8 @@ test('#14 a rise of four events is never solid, and the read says how few there 
   // 0,0,0,0,1,1,1,1. Tie groups [4, 4]; S = 4 * 4 = 16; Var = (1176 - 312)/18 = 48;
   // z = 15/sqrt(48) = 2.1651; p = 1 - Phi(2.1651) = 0.0152 <= 0.05.
   // Slopes: 12 zeros, then 1/7, 1/6, 1/6, ...: perWeek = (1/6 + 1/6)/2 = 1/6, rise 7/6 = 1.17.
-  // floor 4 (MIN_BASE): not cleared. sum 4 < 10: and that alone would stop it.
+  // baseline 0 and endLevel 1 are both raised to MIN_BASE: floor = 2 * sqrt(4) = 4, not
+  // cleared. sum 4 < 10: and that alone would stop it.
   // p <= 0.10: directional. No shift: the one rising step, 0 -> 1, is 'thin'.
   // The last four 1,1,1,1: S = 0 <= 0, median 1 >= level 0.5: plateau.
   // p <= 0.05 with sum < 10 is what "capped by the events" means: the detail says so.
@@ -836,12 +900,13 @@ test('#17 a drift inside the noise: significant, but only leaning', () => {
   // 10,10,12,12,12,14,14,15: S = 23, p = 0.0022 (the tied mannKendall case).
   // Slopes sorted: 0 (x5), 1/2 (x3), 3/5, 2/3 (x5), 5/7, 3/4, ...: the 14th is 2/3 and
   // the 15th 5/7, perWeek = 29/42, rise = 29/6 = 4.83.
-  // baseline = median(10,10,12,12) = 11, floor = 2 * sqrt(22) = 9.38: not cleared.
+  // baseline = median(10,10,12,12) = 11, endLevel = median(12,14,14,15) = 14,
+  // floor = 2 * sqrt(25) = 10: not cleared.
   // No shift (2 of 5); the last four 12,14,14,15 still rise.
   const t = read([10, 10, 12, 12, 12, 14, 14, 15]);
   close(t.mk.p, 0.0022, 0.002, 'p');
   close(t.slope.rise, 29 / 6, 0.01, 'rise');
-  close(t.slope.floor, 2 * Math.sqrt(22), 1e-9, 'floor');
+  close(t.slope.floor, 10, 1e-9, 'floor');
   assert.equal(t.slope.clears, false);
   assert.deepEqual(t.verdict, {
     code: 'leaning_up', label: 'Leaning up, 3 of 7 weeks', confidence: 'directional', detail: null,
@@ -866,7 +931,8 @@ test('#18 up this week, flat over the window: the week is named, the trend is no
 test('#19 five weeks, all up: solid, without the steady wording it has not earned', () => {
   // 10,12,15,18,22: S = 10, exact p = 1/5! = 1/120.
   // Slopes sorted: 2, 5/2, 8/3, [3, 3], 3, 3, 10/3, 7/2, 4: perWeek 3, rise 12.
-  // baseline = median(10,12) = 11, floor 9.38: clears; sum 77. n = 5 < 6.
+  // n = 5: baseline = median(10,12) = 11, endLevel = median(18,22) = 20 (15 is in
+  // neither half), floor = 2 * sqrt(31) = 11.14: 12 clears; sum 77. n = 5 < 6.
   const t = read([10, 12, 15, 18, 22]);
   close(t.mk.p, 1 / 120, 1e-4, 'p');
   close(t.slope.rise, 12, 0.01, 'rise');
@@ -890,7 +956,8 @@ test('#20 four weeks with a dip: flat', () => {
 // does not, and the exact p of 1/24 alone must not make that solid.
 test('#21 four weeks, all up and clear of the floor: solid', () => {
   // S = 6, exact p = 1/4! = 1/24 = 0.0417. Every slope is 4: perWeek 4, rise 12.
-  // baseline = median(10,14) = 12, floor = 2 * sqrt(24) = 9.80: clears; sum 64.
+  // baseline = median(10,14) = 12, endLevel = median(18,22) = 20,
+  // floor = 2 * sqrt(32) = 11.31: 12 clears; sum 64.
   const t = read([10, 14, 18, 22]);
   close(t.mk.p, 1 / 24, 1e-4, 'p');
   close(t.slope.rise, 12, 0.01, 'rise');
@@ -901,7 +968,7 @@ test('#21 four weeks, all up and clear of the floor: solid', () => {
 
 test('#21 original: four weeks up, but by less than the floor, only leans', () => {
   // 10,12,15,18: exact p = 1/24; rise 8.5 (the theilSen case); baseline = median(10,12) = 11,
-  // floor = 2 * sqrt(22) = 9.38 > 8.5.
+  // endLevel = median(15,18) = 16.5, floor = 2 * sqrt(27.5) = 10.49 > 8.5.
   const t = read([10, 12, 15, 18]);
   close(t.mk.p, 1 / 24, 1e-4, 'p');
   close(t.slope.rise, 8.5, 0.01, 'rise');
@@ -940,7 +1007,8 @@ test('up more often than not, with real dips: uneven', () => {
   // with slope 2 + 3/d; odd-to-even pairs (6) have slope 2 - 3/d, falling only at
   // d = 1 (3 pairs). S = 25 - 3 = 22: exact p = P(I <= 3) = (1+7+27+76)/40320 = 111/40320.
   // Sorted slopes: 6 below 2, 12 at 2 (positions 7-18), 10 above: perWeek 2, rise 14.
-  // baseline = median(10,15,14,19) = 14.5, floor = 2 * sqrt(29) = 10.77: clears; sum 148.
+  // baseline = median(10,15,14,19) = 14.5, endLevel = median(18,23,22,27) = 22.5,
+  // floor = 2 * sqrt(37) = 12.17: 14 clears; sum 148.
   // No shift (every rise is +5); the last four 18,23,22,27 rise. u = 4 < 4.9, f = 0.
   const t = read([10, 15, 14, 19, 18, 23, 22, 27]);
   assert.equal(t.mk.S, 22);
@@ -955,7 +1023,8 @@ test('steady allows one down week, not two', () => {
   // 10,15,14,19,18,23,28,33: steps +5,-1,+5,-1,+5,+5,+5. Untied; (15,14) and (19,18)
   // fall: S = 26 - 2 = 24, exact p = P(I <= 2) = (1+7+27)/40320 = 35/40320.
   // Slopes sorted: -1, -1, 1, 2 (x6), 13/5, 13/5, then 3 at positions 12-16, ...:
-  // perWeek 3, rise 21. baseline = median(10,15,14,19) = 14.5, floor = 2 * sqrt(29) = 10.77.
+  // perWeek 3, rise 21. baseline = median(10,15,14,19) = 14.5, endLevel = median(18,23,28,33)
+  // = 25.5, floor = 2 * sqrt(40) = 12.65.
   // u = 5 >= 4.9, but d = 2 > 1: not steady, and with no flats it is uneven.
   const t = read([10, 15, 14, 19, 18, 23, 28, 33]);
   assert.equal(t.mk.S, 24);
@@ -967,10 +1036,8 @@ test('steady allows one down week, not two', () => {
 });
 
 test('reversing time mirrors the verdict: rising becomes falling, with the counts swapped', () => {
-  // Reversal negates S and every pairwise slope. The floor is recomputed from the
-  // new first half, so each case was checked: #1 reversed has baseline
-  // median(30,25,21,18) = 23, floor 13.56 < 17.5; #2 reversed has baseline 20,
-  // floor 12.65 < 17.75; the uneven case reversed has baseline 22.5, floor 13.42 < 14.
+  // Reversal negates S and every pairwise slope, and swaps baseline with endLevel,
+  // which leaves the floor where it was: 12.08, 11.14 and 12.17 for both directions.
   for (const xs of [V1, V2, [10, 15, 14, 19, 18, 23, 22, 27]]) {
     const up = read(xs);
     const down = read([...xs].reverse());
@@ -986,7 +1053,8 @@ test('reversing time mirrors the verdict: rising becomes falling, with the count
 test('down, with flat weeks dominating', () => {
   // 10,8,8,8,4,4,4,0 is 10 - 2x of #13's 0,1,1,1,3,3,3,5: S = -22, ties [3, 3], Var 58,
   // z = -21/sqrt(58) = -2.7574, p = 0.0029; slopes times -2: perWeek -4/3, rise -28/3 = -9.33.
-  // baseline = median(10,8,8,8) = 8, floor = 2 * sqrt(16) = 8: clears; sum 46.
+  // baseline = median(10,8,8,8) = 8, endLevel = median(4,4,4,0) = 4,
+  // floor = 2 * sqrt(12) = 6.93: 9.33 clears; sum 46.
   // No shift (4 of 10); the last four 4,4,4,0 still fall. d = 3 < 4.9; f = 4 > 3.
   const t = read([10, 8, 8, 8, 4, 4, 4, 0]);
   assert.equal(t.mk.S, -22);
@@ -1000,19 +1068,21 @@ test('down, with flat weeks dominating', () => {
 test('down, with weeks missing', () => {
   // 30,27,-,21,18,15,-,9 is 30 - 3t on every week with a reading: all 15 slopes are -3,
   // rise -21. S = -15, exact p = 1/720. baseline = median(30,27,21) = 27,
-  // floor = 2 * sqrt(54) = 14.70: clears; sum 120.
+  // endLevel = median(18,15,9) = 15, floor = 2 * sqrt(42) = 12.96: clears; sum 120.
+  // Two weeks have no reading.
   const t = read([30, 27, null, 21, 18, 15, null, 9]);
   close(t.mk.p, 1 / 720, 1e-4, 'p');
   close(t.slope.rise, -21, 0.01, 'rise');
   assert.deepEqual(t.verdict, {
-    code: 'falling', label: 'Down 3 of 3 measured weeks, 4 missing', confidence: 'solid', detail: null,
+    code: 'falling', label: 'Down 3 of 3 measured weeks, 2 missing', confidence: 'solid', detail: null,
   });
 });
 
 test('down over five weeks', () => {
   // 30,25,20,16,12: S = -10, exact p = 1/120. Slopes sorted: -5, -5, -5, -14/3,
   // [-9/2, -9/2], -13/3, -4, -4, -4: rise = -9/2 * 4 = -18.
-  // baseline = median(30,25) = 27.5, floor = 2 * sqrt(55) = 14.83: clears; sum 103.
+  // baseline = median(30,25) = 27.5, endLevel = median(16,12) = 14,
+  // floor = 2 * sqrt(41.5) = 12.88: clears; sum 103.
   const t = read([30, 25, 20, 16, 12]);
   close(t.mk.p, 1 / 120, 1e-4, 'p');
   close(t.slope.rise, -18, 0.01, 'rise');
@@ -1044,8 +1114,8 @@ test('a jump of two events in the newest week is not "up this week"', () => {
 test('leaning down', () => {
   // 15,14,14,12,12,12,10,10 is #17 reversed: S = -23, ties [2, 3, 2], z = -2.8481,
   // p = 0.0022; rise = -29/6 = -4.83. baseline = median(15,14,14,12) = 14,
-  // floor = 2 * sqrt(28) = 10.58: not cleared. No shift (2 of 5); the last four
-  // 12,12,10,10 still fall.
+  // endLevel = median(12,12,10,10) = 11, floor = 2 * sqrt(25) = 10: not cleared,
+  // exactly as for #17. No shift (2 of 5); the last four 12,12,10,10 still fall.
   const t = read([15, 14, 14, 12, 12, 12, 10, 10]);
   close(t.mk.p, 0.0022, 0.002, 'p');
   close(t.slope.rise, -29 / 6, 0.01, 'rise');
@@ -1054,22 +1124,25 @@ test('leaning down', () => {
   });
 });
 
-test('stepped down: the step is named whatever the confidence', () => {
+test('stepped down: #5 read backwards is the same step, and just as sure', () => {
   // 21,20,21,20,10,11,10,10 is #5 reversed: S = -19, p = 0.0099, rise -12.25. baseline
-  // = median(21,20,21,20) = 20.5, floor = 2 * sqrt(41) = 12.81: not cleared, so directional.
+  // = median(21,20,21,20) = 20.5, endLevel = median(10,11,10,10) = 10, floor = 2 * sqrt(30.5)
+  // = 11.05, the same as #5's: 12.25 clears, so solid, as #5 is. (A floor read from the
+  // first half alone gave 12.81 here and called the fall 'directional'.)
   // Falling steps: 1, 1, 10, 1 = 13; the 10 into W(4) is 77%, and weekDelta(10, 20) is down.
   const t = read([21, 20, 21, 20, 10, 11, 10, 10]);
   close(t.mk.p, 0.0099, 0.002, 'p');
   close(t.slope.rise, -12.25, 0.01, 'rise');
   assert.deepEqual(t.verdict, {
-    code: 'shift_down', label: 'Stepped down (week of 06-29 carried most of the drop)', confidence: 'directional', detail: null,
+    code: 'shift_down', label: 'Stepped down (week of 06-29 carried most of the drop)', confidence: 'solid', detail: null,
   });
 });
 
 test('fell, then held: a trough', () => {
   // 28,26,22,16,10,10,12,10 is 38 - 2x of #10: S = -21, ties [3], z = -2.5469,
   // p = 0.0054; slopes times -2: perWeek -41/15, rise -287/15 = -19.13.
-  // baseline = median(28,26,22,16) = 24, floor = 2 * sqrt(48) = 13.86: clears; sum 134.
+  // baseline = median(28,26,22,16) = 24, endLevel = median(10,10,12,10) = 10,
+  // floor = 2 * sqrt(34) = 11.66: clears; sum 134.
   // No shift (6 of 20). The last four 10,10,12,10: S = +1 >= 0, and their median 10
   // is at most the level, median(10,10,10,12,16,22,26,28) = 14.
   const t = read([28, 26, 22, 16, 10, 10, 12, 10]);
@@ -1114,11 +1187,48 @@ test('adding a constant leaves S, the steps and p where they were', () => {
 });
 
 test('#17 at ten times the counts clears its floor: the floor scales with the square root, the rise linearly', () => {
-  // rise 4.83 * 10 = 48.3; baseline 110, floor = 2 * sqrt(220) = 29.66.
+  // rise 4.83 * 10 = 48.3; baseline 110, endLevel 140, floor = 2 * sqrt(250) = 31.62.
+  // Unscaled the floor was 10 against a rise of 4.83.
   assert.equal(read([10, 10, 12, 12, 12, 14, 14, 15]).slope.clears, false);
   const t = read([100, 100, 120, 120, 120, 140, 140, 150]);
   close(t.slope.rise, 290 / 6, 0.01, 'rise');
   assert.equal(t.slope.clears, true);
+});
+
+test('reading the weeks backwards mirrors the verdict, with the same confidence', () => {
+  // 300 seeded count series, n 4..8, values 0..40. Reversal negates S and every pairwise
+  // slope and swaps the halves the floor is read from, so the confidence cannot change and
+  // the direction must flip. Plateau and trough are the one exception to an exact mirror of
+  // the code: they describe the NEWEST four weeks, which reversal moves to the other end
+  // ("rose, then flat" read backwards is "flat, then fell"), so where either side is one of
+  // them only the direction is asserted.
+  const MIRROR = {
+    rising: 'falling', falling: 'rising', leaning_up: 'leaning_down', leaning_down: 'leaning_up',
+    shift_up: 'shift_down', shift_down: 'shift_up', plateau: 'trough', trough: 'plateau',
+    flat: 'flat', zero: 'zero', too_few: 'too_few',
+  };
+  const SIDE = {
+    rising: 'up', leaning_up: 'up', shift_up: 'up', plateau: 'up',
+    falling: 'down', leaning_down: 'down', shift_down: 'down', trough: 'down',
+    flat: 'flat', zero: 'zero', too_few: 'too_few',
+  };
+  const shaped = (code) => code === 'plateau' || code === 'trough';
+  const next = lcg(20261007);
+  let directed = 0;
+  for (let k = 0; k < 300; k += 1) {
+    const n = 4 + Math.floor(next() * 5);
+    const xs = Array.from({ length: n }, () => Math.floor(next() * 41));
+    const fwd = read(xs).verdict;
+    const back = read([...xs].reverse()).verdict;
+    const what = JSON.stringify(xs);
+    assert.ok(fwd.code in MIRROR && back.code in MIRROR, what);
+    assert.equal(back.confidence, fwd.confidence, what);
+    assert.equal(SIDE[back.code], SIDE[MIRROR[fwd.code]], what);
+    if (!shaped(fwd.code) && !shaped(back.code)) assert.equal(back.code, MIRROR[fwd.code], what);
+    if (fwd.confidence !== 'none') directed += 1;
+  }
+  // Not a vacuous pass: this seed gives dozens of reads with a direction.
+  assert.ok(directed >= 30, `only ${directed} of 300 reads had a direction`);
 });
 
 test('junk in is too few weeks out, never an exception', () => {
