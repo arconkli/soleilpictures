@@ -55,7 +55,8 @@ synthetic; the repo is public.
   means.
 - **On Today**: a seven-glyph strip, a verdict sentence and a quiet week-over-week badge
   on four tiles; a stack of four weekly charts with dated markers; a "What changed" list
-  with a note form and an undo; two new status-strip items.
+  with a note form and an undo; one new status-strip item (WEEKS) and a longer WINDOW
+  value.
 - **A harness and guards**: preview fixtures that put every state on screen without
   waiting for the calendar, node tests for every rule, and Playwright guards that were
   each seen to fail with the thing they protect broken.
@@ -109,8 +110,8 @@ is untouched and `npm run docs:check` stays a no-op.
 | `src/pages/admin/analytics/widgets/WeeklyMultiples.jsx` | The stack of four charts |
 | `src/pages/admin/analytics/widgets/MarkersPanel.jsx` | The "What changed" list and note form |
 | `src/pages/admin/analytics/views/TodayView.jsx` | Wiring: fetch, reads, notes, tiles, bands |
-| `src/pages/admin/AdminAnalyticsTab.jsx`, `analytics/AnalyticsFiltersContext.jsx` | Status strip items |
-| `src/pages/admin/admin.css` | Styles, appended at the end under "Weekly consistency" and "Weekly multiples" |
+| `src/pages/admin/AdminAnalyticsTab.jsx`, `src/pages/admin/analytics/AnalyticsFiltersContext.jsx` | Status strip items |
+| `src/pages/admin/admin.css` | Styles, appended at the end under "Weekly consistency", "Weekly multiples" and "Markers panel" |
 | `src/local/adminFixtures.js` | Preview-harness fixtures and mock RPCs |
 | `src/lib/*.test.mjs`, `tests/admin-dashboard.spec.js` | Node tests and Playwright guards |
 
@@ -242,9 +243,11 @@ Same signature, and 0149's body verbatim except for four things, each changed li
    never had.
 2. Weekly active is **exactly `p_days` calendar days** in both windows, today included in
    the current one: `day > v_cur_lo::date and day <= v_now::date` for current, and
-   `day > v_prev_lo::date and day <= v_cur_lo::date` for previous. It used to compare
-   eight days against seven whatever `p_days` said, so it changes meaning for any caller
-   passing a `p_days` other than 7; the only caller, Today, passes 7.
+   `day > v_prev_lo::date and day <= v_cur_lo::date` for previous. It used to be today
+   and the seven days before it (eight calendar days) against seven in the previous
+   window, whatever `p_days` said. So at Today's `p_days` of 7 the current window shrinks
+   from eight days to seven and, with item 1, gains the verified rule; for any other
+   `p_days` the windows now scale with it. Today is the only caller.
 3. A new `work_users` key in both `current` and `previous`: distinct people with a work
    event in the window. The Did-real-work tile's headline reads it.
 4. `cards_created` counts `card_index.created_at`, not `updated_at`, in both windows.
@@ -473,8 +476,10 @@ inside the noise reads 'Leaning'") so that nobody promises seven straight rises 
 A weekly trend is a claim that this week is comparable to last week, and the claim is
 false across a change in what a counter counts. `adminDefinitionBreaks.js` is the one
 place those dates live. It does two jobs: a `cut` entry tells the trend where to stop
-scoring, and every entry, cut or not, is drawn as a dated marker so a step in a line has
-its explanation printed beside it.
+scoring, and every entry, cut or not, is a dated marker inside the thirteen-week window
+Today shows: the What-changed list lists each one, and a weekly chart draws only those
+whose `series` names that chart's column, so a step in a line has its explanation printed
+beside it.
 
 | Date | Migration | Series | Cuts | Label |
 |---|---|---|---|---|
@@ -539,7 +544,7 @@ needs a reason written down".
 
 ### What the view fetches
 
-`TodayView` makes nine windowed RPCs in one `Promise.allSettled`, keyed on the toolbar's
+`TodayView` makes nine RPCs in one `Promise.allSettled`, keyed on the toolbar's
 two population flags (`excludeInternal`, `verifiedOnly`) and polled every five minutes and
 on focus:
 
@@ -612,9 +617,11 @@ UTC Monday", footer "History can shrink: deleted accounts and cards leave it."
 
 `WeeklyMultiples` stacks one `AreaChart` per `WEEKLY_METRICS` entry, in that order, each
 96px tall with its own y scale: the four series sit an order of magnitude apart, so they
-share the x axis and never the y. Rows are keyed by the metric key, because the key names
-the column a definition break's `series` lists. Hues follow the metric's family
-(acquisition, engagement, output), not four decorative colours.
+share the x axis and never the y. Rows are keyed by the metric key (`signups`, `active`,
+`work`, `cards`); a row's key maps to its column through `COLUMN_OF` (`active` to
+`active_users`, `work` to `work_users`), and that column is what a definition break's
+`series` lists. Hues follow the metric's family (acquisition, engagement, output), not
+four decorative colours.
 
 - **One shared axis.** Each chart omits its own date row; the stack draws one, under the
   plot column, from the same two custom properties the rows are laid out with (first week,
@@ -661,7 +668,7 @@ uses that to put the glyph on the first row only.
 At 1400px and narrower the charts take the whole row and the plate drops beneath them at
 full width.
 
-**The list.** `mergeMarkers` merges four sources into one list, sorted by day, then
+**The list.** `mergeMarkers` merges three inputs into one list, sorted by day, then
 source, then label, inside the stack's window (from its first week to today in UTC):
 
 - `admin_markers` rows: the owner's notes and the pipeline and ops alerts;
@@ -723,10 +730,10 @@ registered one.
 ### Palette and accessibility
 
 - **Colour never works alone.** `▲ ▼ ·` carry direction in shape; good and bad are about
-  1.6 apart in OKLab under deuteranopia, so a red and green pair alone would fail
-  a large minority of readers. `chartPalette.test.mjs` asserts this stays true and reads
-  the first `.adm-well {` block of `admin.css`, so new rules are only ever appended at the
-  end of the file.
+  1.6 apart in OKLab under deuteranopia in the dark theme and about 1.0 in the light, so
+  a red and green pair alone would fail a large minority of readers.
+  `chartPalette.test.mjs` asserts this stays true and reads the first `.adm-well {` block
+  of `admin.css`, so new rules are only ever appended at the end of the file.
 - **Markers are neutral ink and told apart by shape.** The palette has no hue to spare.
   Date, migration tag and hint text use `--ink-2`, not `--ink-3`, for contrast.
 - **One hatch for "not measured"**: the `--adm-hatch` token, shared by the strip, the
@@ -843,9 +850,9 @@ theme-tokened CSS they run in both themes.
 
 | Guard | The promise it protects |
 |---|---|
-| `under four complete weeks every tile says too few, not a verdict` (`?weeks=3`) | All four trended tiles read "Too few weeks"; no strip cell is up, down or flat; every cell is hatched and empty; each strip's accessible name is that sentence |
+| `under four complete weeks every tile says too few, not a verdict` (`?weeks=3`) | All four trended tiles read "Too few weeks"; no strip cell is up, down or flat; every slot is unmeasured; each strip's accessible name is that sentence |
 | `the streak strip is seven glyphs and one sentence` | The Signups strip has seven cells and exactly one verdict; the strip's name equals the sentence; at least two strips carry a sustained read |
-| `an unmeasured week never gets a direction` | In Did real work, both by default and scored (`?breaks=0`), each unmeasured cell is empty, hatched and not up or down, and hatched cells come before the first directed one |
+| `an unmeasured week never gets a direction` | In Did real work, both by default and scored (`?breaks=0`), each unmeasured cell is empty, hatched and not up or down; under `?breaks=0` the hatched cells also all come before the first directed one |
 | `markers land on their week, on every chart` | The ship note sits at 3/13 of each plot's width (within half a percent, tighter than one day), as a direct child of the plot and not a graticule rule, with its glyph on the first chart only |
 | `the partial week is hollow and not joined` | The newest point on each chart is the only hollow one, sits at the right rule, has a ring and a plot-ground fill, and neither the line nor the fill reaches the right edge |
 | `the note form adds a marker, and removing it offers undo` | Enter adds one list row and four chart markers and calls `admin_note_add` once; remove shows the "Note removed" toast with Undo; Undo restores the same note by calling `admin_note_restore`, not a second `admin_note_add` |
@@ -983,6 +990,7 @@ The plan stays in the repo as written. These are the places review changed it:
   only); the first-screen guard's proxy (`.adm-stack` above 900px) is weak; the partial-week
   guard's fill check has no existence guard.
 - In the harness the stack's break markers use the real list while the tiles cut on
-  `HARNESS_BREAKS`, and its banner says every date is relative while seven break entries
-  keep real dates (production is unaffected); `admin_note_add`'s mock validates only the
-  date format.
+  `HARNESS_BREAKS`, and the header comment above the weekly fixtures says every date is
+  relative while seven break entries keep real dates (production is unaffected). The
+  fixtures' `admin_note_add` mock checks the day's format but not its window (2026-01-01
+  to tomorrow) or that it is a real day (it accepts 2026-02-30).

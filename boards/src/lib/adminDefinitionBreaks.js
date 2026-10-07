@@ -13,8 +13,10 @@
 //   1. A `cut` entry tells the weekly trend where to stop scoring. Weeks before
 //      it are still drawn, but never compared with the weeks after it
 //      (breaksFor() in weeklySeries.js turns the date into a Monday cut point).
-//   2. Every entry, cut or not, is drawn as a dated marker on the charts, so a
-//      step in a line has its explanation printed beside it.
+//   2. Every entry, cut or not, is a dated marker inside the thirteen-week
+//      window Today shows: the What-changed list lists it, and a weekly chart
+//      draws it only if its `series` names that chart's column, so a step in a
+//      line has its explanation printed beside it.
 //
 // Only one entry cuts. That is a judgement made series by series, not an
 // omission:
