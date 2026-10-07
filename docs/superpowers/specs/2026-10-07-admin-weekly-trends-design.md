@@ -66,8 +66,9 @@ synthetic; the repo is public.
 `/admin`, Overview, Today view (`?tab=overview&view=today`), in its first two bands:
 
 - Band 01, **The last seven days**: the hero tiles. Unchanged title.
-- Band 02, **13 weeks, and what changed**: replaces "Growth". The weekly stack and
-  the markers list.
+- Band 02, **Thirteen weeks, and what changed**: replaces "Growth". The weekly stack and
+  the markers list. The title is prose on purpose; the metas and the status strip derive
+  their 13 from `WEEKS_FETCHED`.
 - Bands 03 and 04 (activity by weekday and hour, live console, people) are unchanged.
 
 Two widgets that nothing imported any more (`HabitCurve`, `AcquisitionBreakdown`) were

@@ -64,7 +64,7 @@ const TZ = (() => {
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? null : Number(x));
 
-// The complete weeks the stack draws: every week fetched but this one. The titles
+// The complete weeks the stack draws: every week fetched but this one. The metas
 // below say this number, so it comes from the fetch rather than being typed.
 const COMPLETE_WEEKS = WEEKS_FETCHED - 1;
 
@@ -589,7 +589,9 @@ export function TodayView() {
             magnitude apart, so they share the x axis and never the y. The
             markers list sits beside them because a step in a line needs its
             explanation within reach, and it is where the owner pins a note. */}
-        <h2 className="admin-section-title">{`${COMPLETE_WEEKS} weeks, and what changed`}</h2>
+        {/* Deliberately prose, like every section title here. The metas below and
+            the status strip derive their 13 from WEEKS_FETCHED. */}
+        <h2 className="admin-section-title">Thirteen weeks, and what changed</h2>
         <Deck>
           <Well
             span={8}
