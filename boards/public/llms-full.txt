@@ -3419,7 +3419,7 @@ A: Under Connections, alongside any apps you have approved. Tokens are shown onc
 ========================================================================
 # Plans and pricing
 URL: https://clusters.soleilpictures.com/docs/account/plans
-Updated: 2026-10-02
+Updated: 2026-10-07
 
 The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
@@ -3475,7 +3475,7 @@ Hitting the cap
 
 You are told when you reach it, and offered the upgrade. Nothing you have already made is removed, locked, or hidden.
 
-You can also raise your own cap without paying: referrals grant bonus cards when someone you invited actually gets started.
+You can also raise your own cap without paying: referrals grant bonus cards for people you invite who actually get started.
 
 Trying Creator first
 
@@ -3601,17 +3601,23 @@ A: No. Text colours are resolved against the actual background, so notes stay le
 ========================================================================
 # Referrals
 URL: https://clusters.soleilpictures.com/docs/account/referrals
-Updated: 2026-08-08
+Updated: 2026-10-07
 
-Settings has an Invite and earn tab with your referral link. When someone you invited signs up and actually starts using Clusters, you both get bonus cards added on top of the free plan's allowance. The reward is activation-gated, so a signup that never makes anything does not earn anything.
+Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get 25 bonus cards once they have actually started using Clusters and their account is 72 hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.
 
 Settings → Invite and earn.
 
 How it works
 
-Share your referral link. When someone signs up through it and actually gets started, you both get bonus cards.
+Share your referral link. Someone who signs up through it gets bonus cards of their own straight away. You get 25 bonus cards once they actually get started — they have placed their first card — and their account is 72 hours old and has been opened in the app.
 
 The activation gate is the important detail. The reward is not for a signup, it is for someone who used the product — which means the number in your stats reflects people who are actually there.
+
+Limits
+
+4 rewards in any 30 days. Friends past that still count as got started; their rewards wait their turn, oldest first, and land as the 30-day window frees.
+Nothing is paid to, or for, a banned account.
+Rewards are checked every hour, so one lands within the hour of coming due.
 
 Bonus cards
 
@@ -3629,7 +3635,7 @@ Got started | Of those, how many actually used it
 Cards earned | Bonus cards credited to you
 Free months | Any subscription time earned
 
-The gap between the first two is the honest one. It is shown rather than hidden.
+The gap between the first two is the honest one. It is shown rather than hidden. Cards still on their way — for friends who got started recently, or past the 30-day limit — are listed under the stats until they land.
 
 Sharing the link
 
@@ -3639,21 +3645,24 @@ Referrals versus collaboration
 
 Two different things:
 
-Inviting a collaborator to a cluster is free, unlimited, and needs no referral link. That is how you work with someone.
+Inviting a collaborator to a cluster is free and needs no referral link. That is how you work with someone.
 A referral is inviting someone to have their own account and workspace.
 
-Inviting a collaborator to your board does not consume or produce referral credit — it is not a growth mechanism, it is how the product works.
+They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once.
 
 ## Frequently asked questions
 
 Q: When does the reward land?
-A: When the person you invited actually gets started, not when they sign up. A dormant signup earns nothing for either of you.
+A: Your friend's bonus lands when they sign up. Yours lands once they have placed their first card, opened the app, and their account is 72 hours old. Rewards are checked every hour. A dormant signup earns you nothing.
+
+Q: Is there a limit?
+A: You can earn at most 4 rewards in any 30 days. Friends past that still count; their rewards wait their turn and land as the window frees.
 
 Q: What do bonus cards do?
 A: They raise your card limit above the free plan's 50. They stack, and they do not expire.
 
 Q: Where do I see how it is going?
-A: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months.
+A: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months, and any cards still on their way.
 
 
 ========================================================================
