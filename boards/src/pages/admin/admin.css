@@ -5723,3 +5723,102 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   font: 10px/1 var(--font-mono);
   color: var(--ink-3);
 }
+
+/* ── Markers panel ──────────────────────────────────────────────────────────
+ * "What changed": the list beside the weekly charts, and the one-line form for
+ * pinning a dated note of your own (analytics/widgets/MarkersPanel.jsx).
+ *
+ * A kind is told by the SHAPE of its glyph, as on the charts, so every glyph is
+ * the same neutral ink. Nothing here is gold and nothing is generated text.
+ */
+
+.adm-markers-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+
+/* glyph, day, label, and the row's one action. The label track is minmax(0, 1fr)
+   and its text breaks anywhere, so an unbroken string in a note (a URL, a path)
+   wraps inside the plate instead of widening it. */
+.adm-marker-row {
+  display: grid; grid-template-columns: 14px 44px minmax(0, 1fr) auto;
+  gap: 8px; align-items: baseline;
+  font-size: 12px; color: var(--ink-1);
+}
+
+/* The chart's own face and size for a glyph (.adm-area-marker-glyph), so a kind
+   is one drawing in both places. Left to inherit the row's 12px sans, a filled
+   dot came out the size of a bullet and the double bar ran past its line: rows
+   with one measured 15 to 18px tall beside 16px for the rest. */
+.adm-marker-g { font: 10px/1 var(--font-mono); color: var(--ink-2); text-align: center; }
+
+/* The day is half of what a row says, so it takes --ink-2. On the plate --ink-3
+   measures 2.7:1 in dark and 3.1:1 in light at this size; --ink-2 is 5.3 and 5.4. */
+.adm-marker-d { font: 11px/1.4 var(--font-mono); color: var(--ink-2); }
+
+.adm-marker-l { min-width: 0; overflow-wrap: anywhere; }
+.adm-marker-l a { color: inherit; text-decoration: underline dotted; }
+.adm-marker-l a:hover { text-decoration-style: solid; }
+
+/* A migration number is a tag: it never breaks across lines, whatever the label does. */
+.adm-marker-m { color: var(--ink-3); font: 10px/1 var(--font-mono); margin-left: 6px; white-space: nowrap; }
+
+/* line-height 1: at 1.2 the button was 16.4px tall, which made every row that has
+   one 1px taller than the 15.4px the day's line sets for the rest. */
+.adm-marker-x { padding: 0 6px; line-height: 1; }
+
+.adm-markers-more { color: var(--ink-3); font-size: 11px; }
+
+/* The form lays itself out by ITS OWN width, not the window's. The plate is a
+   third of the deck on a large screen (a 424px form at 1440) and the whole deck
+   on a laptop (1190px at 1280), and a window breakpoint cannot be right for both:
+   the five fields in one row need about 560px, and in 424px the label field ran
+   out of the plate. So the base layout is two rows, which is right at any width
+   and is what a browser without container queries gets:
+       date  today  kind
+       label ............ Add
+   and from 560px up the label and Add rejoin the first row.
+
+   The app declares no color-scheme outside .public-dark, so on the dark theme a
+   native date field draws its calendar icon and its popup for a light page: a
+   near-black icon on this field's dark fill. Declaring the scheme on the form
+   puts the native parts on the same ground as the field around them. */
+.adm-markers-form {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 128px) auto minmax(0, 96px) minmax(0, 1fr) auto;
+  gap: 6px; align-items: center; margin-top: 10px;
+  color-scheme: dark;
+}
+
+[data-theme='light'] .adm-markers-form { color-scheme: light; }
+
+.adm-markers-label { grid-column: 1 / 5; grid-row: 2; }
+.adm-markers-form > button[type='submit'] { grid-column: 5; grid-row: 2; }
+
+@container (min-width: 560px) {
+  .adm-markers-label,
+  .adm-markers-form > button[type='submit'] { grid-column: auto; grid-row: auto; }
+}
+
+/* The shared .auth-input is the 44px sign-in field. Beside 12px rows it reads as
+   another product, so the form's controls, buttons included, share one 32px
+   height. Nothing else about them changes: type, colours and the 16px touch size
+   are still the shared ones. */
+.adm-markers-form .auth-input { height: 32px; padding: 0 10px; min-width: 0; }
+.adm-markers-form .admin-action { height: 32px; }
+
+/* The quiet button: no fill until it is pointed at, and --ink-2 (5.3:1 on dark),
+   not the body ink. It is one class short of the house hover rule on purpose, so
+   the hover fill still wins over the transparent one. */
+.adm-markers-form .is-quiet { background: transparent; color: var(--ink-2); }
+.adm-markers-form .is-quiet:hover:not(:disabled) { color: var(--ink-0); }
+
+.adm-markers-hint {
+  grid-column: 1 / -1;
+  font: 10px/1 var(--font-mono); color: var(--ink-3);
+  letter-spacing: .06em; text-transform: uppercase;
+}
+
+/* Under 1400px the charts take the whole row (.adm-c8 goes full width above), so
+   the list sits full width beneath them instead of squeezed beside. */
+@media (max-width: 1400px) {
+  .adm-plate.adm-markers { grid-column: span 12; }
+}
