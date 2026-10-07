@@ -10,13 +10,25 @@
 // queued, Drop discards it; both ask first, because a send cannot be taken back
 // and a blast's mail must not go out on a mis-tap. Every action is an admin RPC
 // behind _require_admin() — the tab only rendering for an admin is cosmetic.
+//
+// Ban (0371/0373) is the existing admin-account-action: the account is signed
+// out everywhere, and everything it shared, published or sent stops working.
+// Unban brings all of it back, because nothing was deleted — the record of
+// what it had out in the world is kept in account_actions either way.
 import { useEffect, useState } from 'react';
 import { useFeedback } from '../AppFeedback.jsx';
 import { SettingsCategory } from './fields.jsx';
 import {
-  securityOverview, releaseBreaker, sendHeldMail, dropHeldMail,
-  liftSendingHold, ackAlert, sendTestAlert,
+  securityOverview, releaseBreaker, sendHeldMail, dropHeldMail, sendHeldMailIds, dropHeldMailIds,
+  liftSendingHold, ackAlert, sendTestAlert, banAccount, unbanAccount,
 } from '../../lib/securityAdminApi.js';
+
+const ACTION_LABEL = {
+  ban: 'Banned',
+  unban: 'Unbanned',
+  send_hold: 'Sharing paused',
+  send_release: 'Sharing restored',
+};
 
 const TEMPLATE_LABEL = {
   pending_invite: 'invitation',
@@ -43,6 +55,7 @@ export function SecurityTab() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [openAlert, setOpenAlert] = useState(null);
+  const [openAction, setOpenAction] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -73,6 +86,8 @@ export function SecurityTab() {
   const breaker = data?.breaker || null;
   const heldMail = data?.held_mail || [];
   const heldAccounts = data?.held_accounts || [];
+  const banned = data?.banned_accounts || [];
+  const actions = data?.actions || [];
   const alerts = data?.alerts || [];
   const week = data?.last_7d || {};
   const n = (k) => Number(week[k] || 0);
@@ -94,7 +109,8 @@ export function SecurityTab() {
       confirmLabel: 'Send them',
       danger: true,
     });
-    if (ok) act(() => sendHeldMail(g.actor), (sent) => `Sent ${plural(Number(sent) || 0, 'email')}.`);
+    if (ok) act(() => (g.actor ? sendHeldMail(g.actor) : sendHeldMailIds(g.ids || [])),
+                (sent) => `Sent ${plural(Number(sent) || 0, 'email')}.`);
   };
 
   const onDrop = async (g) => {
@@ -105,7 +121,8 @@ export function SecurityTab() {
       confirmLabel: 'Drop them',
       danger: true,
     });
-    if (ok) act(() => dropHeldMail(g.actor), (dropped) => `Dropped ${plural(Number(dropped) || 0, 'email')}.`);
+    if (ok) act(() => (g.actor ? dropHeldMail(g.actor) : dropHeldMailIds(g.ids || [])),
+                (dropped) => `Dropped ${plural(Number(dropped) || 0, 'email')}.`);
   };
 
   const onLift = async (a) => {
@@ -115,6 +132,27 @@ export function SecurityTab() {
       confirmLabel: 'Lift the hold',
     });
     if (ok) act(() => liftSendingHold(a.user_id), `${a.email} can share again.`);
+  };
+
+  const onBan = async (a) => {
+    const reason = await feedback.prompt({
+      title: `Ban ${a.email}?`,
+      message: 'They are signed out everywhere and cannot sign in. Their share links, published clusters, invitations and API keys stop working, and any subscription is cancelled. Unbanning brings everything back except the subscription.',
+      label: 'Reason (kept with the record)',
+      defaultValue: a.reason || '',
+      confirmLabel: 'Ban account',
+    });
+    if (reason == null) return;
+    act(() => banAccount(a.user_id, String(reason).trim() || 'banned from the Security tab'), `${a.email} is banned.`);
+  };
+
+  const onUnban = async (a) => {
+    const ok = await feedback.confirm({
+      title: `Unban ${a.email}?`,
+      message: 'They can sign in again, and their links, published clusters, invitations and keys work again. A cancelled subscription is not restored.',
+      confirmLabel: 'Unban',
+    });
+    if (ok) act(() => unbanAccount(a.user_id), `${a.email} is unbanned.`);
   };
 
   return (
@@ -162,7 +200,7 @@ export function SecurityTab() {
               <span className="settings-member-role">
                 {plural(Number(g.count), 'email')} · {(g.templates || []).map((t) => TEMPLATE_LABEL[t] || t).join(', ')} · since {when(g.oldest)}
               </span>
-              {g.actor && (
+              {(g.actor || (g.ids && g.ids.length > 0)) && (
                 <span className="settings-member-actions">
                   <button type="button" className="settings-link-btn" disabled={busy} onClick={() => onSend(g)}>Send</button>
                   <button type="button" className="settings-link-btn is-danger" disabled={busy} onClick={() => onDrop(g)}>Drop</button>
@@ -182,7 +220,45 @@ export function SecurityTab() {
               <span className="settings-member-role">since {when(a.since)}</span>
               <span className="settings-member-actions">
                 <button type="button" className="settings-link-btn" disabled={busy} onClick={() => onLift(a)}>Lift hold</button>
+                <button type="button" className="settings-link-btn is-danger" disabled={busy} onClick={() => onBan(a)}>Ban</button>
               </span>
+            </li>
+          ))}
+        </ul>
+      </SettingsCategory>
+
+      <SettingsCategory title="Banned accounts" desc="Signed out, and nothing they shared, published or sent works">
+        {data && banned.length === 0 && <div className="settings-empty">None.</div>}
+        <ul className="settings-member-list">
+          {banned.map((a) => (
+            <li key={a.user_id} className="settings-member-row">
+              <span className="settings-member-name" title={a.reason || ''}>{a.email}</span>
+              <span className="settings-member-role">since {when(a.since)}</span>
+              <span className="settings-member-actions">
+                <button type="button" className="settings-link-btn" disabled={busy} onClick={() => onUnban(a)}>Unban</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </SettingsCategory>
+
+      <SettingsCategory title="Account actions" desc="Every ban and sharing hold, with what the account had out at the time">
+        {data && actions.length === 0 && <div className="settings-empty">None yet.</div>}
+        <ul className="settings-member-list">
+          {actions.map((x) => (
+            <li key={x.id} className="settings-member-row" style={{ flexWrap: 'wrap' }}>
+              <button type="button" className="settings-link-btn settings-member-name" style={{ textAlign: 'left' }}
+                      aria-expanded={openAction === x.id} disabled={!x.evidence && !x.reason}
+                      onClick={() => setOpenAction(openAction === x.id ? null : x.id)}>
+                {ACTION_LABEL[x.action] || x.action} · {x.email || x.user_id}
+              </button>
+              <span className="settings-member-role">{when(x.created_at)}</span>
+              {openAction === x.id && (
+                <p className="settings-section-hint"
+                   style={{ flexBasis: '100%', maxWidth: 'none', whiteSpace: 'pre-wrap', margin: '6px 0 0', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 }}>
+                  {[x.reason, x.evidence ? JSON.stringify(x.evidence, null, 2) : ''].filter(Boolean).join('\n\n')}
+                </p>
+              )}
             </li>
           ))}
         </ul>
@@ -209,7 +285,7 @@ export function SecurityTab() {
                 </span>
               )}
               {openAlert === a.id && (
-                <p className="settings-section-hint" style={{ flexBasis: '100%', whiteSpace: 'pre-wrap', margin: '6px 0 0' }}>
+                <p className="settings-section-hint" style={{ flexBasis: '100%', maxWidth: 'none', whiteSpace: 'pre-wrap', margin: '6px 0 0' }}>
                   {a.body}
                 </p>
               )}
