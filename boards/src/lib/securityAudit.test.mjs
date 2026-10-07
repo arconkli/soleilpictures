@@ -324,3 +324,25 @@ test('one-click unsubscribe covers mentions and replies, and its three allowlist
       `${fn} must pass the recipient's own token`);
   }
 });
+
+test('the Security tab is admin-only, its alert link opens it, and it calls only admin-gated RPCs', () => {
+  const panel = read('../components/SettingsPanel.jsx');
+  const adminTabs = panel.slice(panel.indexOf('const ADMIN_TABS = ['), panel.indexOf('];', panel.indexOf('const ADMIN_TABS = [')));
+  assert.match(adminTabs, /\{ id: 'security', label: 'Security', group: 'admin' \}/, 'Security belongs in the admin rail');
+  const publicTabs = panel.slice(panel.indexOf('const TABS = ['), panel.indexOf('];', panel.indexOf('const TABS = [')));
+  assert.doesNotMatch(publicTabs, /'security'/, 'a tab no non-admin can render stays out of TABS');
+  assert.match(panel, /\{tab === 'security' && isAdmin && \(/, 'the pane re-checks isAdmin');
+
+  const app = read('../App.jsx');
+  assert.match(app, /get\('settings'\) === 'security'[\s\S]{0,120}if \(!wanted \|\| myTier\.loading\) return;\s+if \(captureAllowed\) openSettings\('security'\);/,
+    'the alert email\'s ?settings=security waits for the tier and opens only for an admin');
+
+  const api = read('./securityAdminApi.js');
+  const rpcs = [...api.matchAll(/call\('(\w+)'/g)].map((m) => m[1]);
+  assert.ok(rpcs.length >= 7);
+  for (const fn of rpcs) {
+    assert.match(fn, /^admin_/, `${fn} is not an admin RPC`);
+    assert.match(latestDefinition(fn).body, /perform public\._require_admin\(\);/, `${fn} must be admin-gated`);
+  }
+  assert.doesNotMatch(api, /\.catch\(/, 'never .catch() a supabase.rpc() builder');
+});

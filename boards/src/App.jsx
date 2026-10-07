@@ -4668,6 +4668,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const galleryActive = useGalleryActive();
   useEffect(() => { armGallery(captureAllowed); }, [captureAllowed]);
 
+  // ?settings=security is where every security alert email lands (0369). The
+  // tab exists only for an admin and the tier arrives after the first render,
+  // so this waits for the tier instead of opening Settings on Profile; anyone
+  // else just gets the URL cleaned.
+  useEffect(() => {
+    let wanted = false;
+    try { wanted = new URLSearchParams(window.location.search).get('settings') === 'security'; } catch (_) {}
+    if (!wanted || myTier.loading) return;
+    if (captureAllowed) openSettings('security');
+    try { window.history.replaceState({}, '', '/'); } catch (_) {}
+  }, [captureAllowed, myTier.loading, openSettings]);
+
   // The ephemeral phone reframe. Solved against a width derived from the
   // board's own median card size and how many cards should read across the
   // chosen frame — the same reasoning as CanvasSurface's phone-rescue block,
