@@ -252,8 +252,13 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(body, /deleted_at is null/, 'live notes only');
   assert.match(body, /kind = 'discovery_pipeline'/);
   assert.match(body, /row_number\(\) over \(partition by [^)]*order by [^)]*\)/, 'runs of consecutive days');
-  assert.match(body, /' days\)'/, 'a run says how many days');
-  assert.match(body, /\.kind not in \('heartbeat', 'test', 'held_reminder', 'signups'\)/);
+  // Scoped to the disc CTE, so the discovery collapse is guarded on its own and
+  // the ops label (which also ends ' days)') cannot pass for it.
+  assert.match(cteIn(body, 'disc'),
+    /case when count\(\*\) = 1 then r\.name\s+else r\.name \|\| ' \(' \|\| count\(\*\) \|\| ' days\)' end as label/,
+    'a one-day discovery run is its name; a longer one says how many days');
+  assert.match(cteIn(body, 'ops_days'), /oa\.kind not in \('heartbeat', 'test', 'held_reminder', 'signups'\)/,
+    'the exclusion still tests the kind');
   for (const k of ["'heartbeat'", "'test'", "'held_reminder'", "'signups'"]) assert.ok(body.includes(k), `${k} is excluded`);
   assert.match(body, /order by m\.day, m\.source, m\.label/);
 
@@ -265,11 +270,15 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(comment, /shortened \(n days\)/, 'and that a run begun before it is cut short');
   assert.match(comment, /24-hour dedupe/, 'the comment says why ops runs are bridged');
   assert.match(comment, /bridges gaps of up to 2 days/, 'and by how much');
+  assert.match(comment, /per dedupe key \(falling back to kind\)/, 'and that ops runs are per dedupe key');
 
   // Discovery re-fires daily (20-hour dedupe), so its runs are strictly
   // consecutive days. A stuck 0374 invariant goes through a 24-hour dedupe and
   // skips days at random, so an ops run bridges gaps of up to 2 days.
-  assert.match(cteIn(body, 'disc_runs'), /row_number\(\) over \(partition by d\.name order by d\.day\)/, 'discovery runs');
+  assert.match(cteIn(body, 'disc_runs'),
+    /d\.day - \(row_number\(\) over \(partition by d\.name order by d\.day\)\)::int as grp/,
+    'discovery runs: a day minus its rank is constant across a run');
+  assert.match(cteIn(body, 'disc'), /from disc_runs r\s+group by r\.name, r\.grp/, 'one discovery marker per run');
   assert.doesNotMatch(cteIn(body, 'disc_runs'), /lag\(/, 'discovery stays strictly consecutive');
   assert.equal(body.match(/row_number\(\) over \(partition by/g)?.length ?? 0, 1, 'only discovery numbers its days');
   assert.match(cteIn(body, 'ops_gaps'),
@@ -278,7 +287,14 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(cteIn(body, 'ops_runs'),
     /sum\(g\.starts\) over \(partition by g\.k order by g\.day rows unbounded preceding\) as grp/,
     'an ops run id is the count of starts so far');
-  assert.match(cteIn(body, 'ops_days'), /min\(oa\.title\) as title/, 'one title per kind per day');
+  // All seven 0374 invariants share kind 'invariant' with distinct dedupe keys:
+  // keyed by kind, two different failures would merge into one marker.
+  const opsDays = cteIn(body, 'ops_days');
+  assert.match(opsDays, /select coalesce\(oa\.dedupe_key, oa\.kind\) as k,/,
+    'ops runs are keyed by dedupe key, falling back to kind');
+  assert.match(opsDays, /group by coalesce\(oa\.dedupe_key, oa\.kind\), \(oa\.created_at at time zone 'utc'\)::date/,
+    'one row per key per UTC day');
+  assert.match(opsDays, /min\(oa\.title\) as title/, 'one title per key per day');
   const ops = cteIn(body, 'ops');
   assert.match(ops, /from ops_runs r\s+group by r\.k, r\.grp/, 'one ops marker per run');
   assert.match(ops,
