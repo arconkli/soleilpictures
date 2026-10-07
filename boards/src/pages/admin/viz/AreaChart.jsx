@@ -20,7 +20,8 @@
 // default so every other chart draws exactly as before:
 //
 //   * `markers`: dated events as dashed verticals at a fractional index, named
-//     in the hover tip, with the kind's glyph on top when `markerGlyphs` is set.
+//     in the hover tip, with the kind's glyph on top when `markerGlyphs` is set
+//     (or the marker's own `glyph` says so).
 //     They are their own class and never `.adm-area-vgrid`: the vertical rules
 //     are the graticule, and the graph-paper guard counts them.
 //   * `bands`: hatched spans where nothing was being recorded, in the same
@@ -79,8 +80,9 @@ export function AreaChart({
    *  axis are equal intervals, so these carry meaning rather than texture. */
   vLines = 6,
   emptyLabel = 'Nothing to plot yet',
-  /** Dated events, [{ index, edge, kind, label, day }]: a dashed vertical at x(index), where
-   *  index may fall between two points. `edge` draws it flush inside the right rule. */
+  /** Dated events, [{ index, edge, kind, label, day, glyph? }]: a dashed vertical at x(index), where
+   *  index may fall between two points. `edge` draws it flush inside the right rule. A boolean
+   *  `glyph` decides that one marker's glyph, over `markerGlyphs`. */
   markers = [],
   /** Draw each marker's kind glyph at the top of its line (one chart of a stack, not all). */
   markerGlyphs = false,
@@ -222,7 +224,8 @@ export function AreaChart({
               title={markText(m) || undefined}
               aria-hidden="true"
             >
-              {markerGlyphs ? <span className="adm-area-marker-glyph">{glyphFor(m.kind)}</span> : null}
+              {(typeof m.glyph === 'boolean' ? m.glyph : markerGlyphs)
+                ? <span className="adm-area-marker-glyph">{glyphFor(m.kind)}</span> : null}
             </div>
           ))}
 

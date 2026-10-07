@@ -12,9 +12,11 @@
 // definition break is about one counter, so it is drawn only on the charts whose
 // column it names, and a break about a counter none of these charts draw is on
 // none of them (lib/weeklySeries.js markersForColumn); the markers list beside
-// the stack still carries it. Only the top row draws the kind's glyph: the shape
-// names the kind once, and four copies of it would be noise. The hover tip leads
-// every marker line with its glyph, so a row without glyphs still says the kind.
+// the stack still carries it. A marker's glyph is drawn once, on the first row
+// that draws the marker: the top row for one on every chart, the work row for a
+// break about the work counter. The shape names the kind once, and four copies
+// of it would be noise. The hover tip leads every marker line with its glyph, so
+// a row without glyphs still says the kind.
 //
 // Two honesty rules, drawn rather than written:
 //
@@ -39,7 +41,10 @@ const COLUMN_OF = new Map(WEEKLY_METRICS.map((m) => [m.key, m.col]));
 
 /**
  * @param {string[]} weeks         UTC Mondays ('YYYY-MM-DD'), oldest first, the week so far last
- * @param {object[]} series        one row per chart: { key, name, color, values: (number|null)[], measurable: boolean[] }
+ * @param {object[]} series        one row per chart: { key, name, color, values: (number|null)[], measurable: boolean[] }.
+ *                                 `key` MUST be a WEEKLY_METRICS key ('signups', 'active', 'work', 'cards'): it names
+ *                                 the column a definition break's `series` lists, so a row keyed anything else draws
+ *                                 only the markers that are on every chart.
  * @param {object[]} markers       merged markers, [{ day, kind, label, … }] (lib/weeklySeries.js mergeMarkers)
  * @param {number}   partialWeeks  trailing rows still being counted: 1, or 0 when every row is complete
  */
@@ -61,7 +66,11 @@ export function WeeklyMultiples({ weeks = [], series = [], markers = [], partial
   // What each row draws, and the list of what is drawn anywhere: in order, and
   // once per day and label, since four rows can draw the same marker.
   const perRow = series.map((row) => markersForColumn(placed, COLUMN_OF.get(row?.key)));
-  const drawn = new Set(perRow.flat());
+  // The first row each marker is drawn on, which is where its glyph goes. Keyed
+  // by the placed object, which every row's list shares.
+  const glyphRow = new Map();
+  perRow.forEach((ms, i) => ms.forEach((m) => { if (!glyphRow.has(m)) glyphRow.set(m, i); }));
+  const drawn = new Set(glyphRow.keys());
   const seen = new Set();
   const listed = placed.filter((m) => {
     const id = `${m.day}\u0000${m.label}`;
@@ -81,8 +90,7 @@ export function WeeklyMultiples({ weeks = [], series = [], markers = [], partial
             // minor columns, still a whole number of minors per major.
             vLines={weeks.length - 1}
             axis={false}
-            markers={perRow[i]}
-            markerGlyphs={i === 0}
+            markers={perRow[i].map((m) => ({ ...m, glyph: glyphRow.get(m) === i }))}
             markPoints
             partialLast={partial}
             bands={bandsFromMeasurable(row.measurable)}

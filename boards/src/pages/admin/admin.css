@@ -4088,7 +4088,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 .adm-area-x {
   display: flex; justify-content: space-between;
-  padding-left: 54px;
+  padding-left: calc(var(--adm-area-scale-w) + var(--adm-area-scale-gap));
   font: 400 10.5px/1 var(--font-sans); color: var(--adm-axis);
 }
 
@@ -5732,16 +5732,18 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * the same neutral ink. Nothing here is gold and nothing is generated text.
  */
 
-/* Every marker is listed. Past 400px the list scrolls and the form stays where it
-   is beneath it. The 2px of padding (none on the left, where the glyph column sits
-   flush) is room for the remove buttons' focus ring: a scroll box clips at its
-   padding edge, and a ring drawn against the edge of the content would be cut.
-   Padding only exists at the ends of the content, so scroll-padding gives a button
-   the browser scrolls into view the same 2px of room above or below it. */
+/* Every marker is listed. Past 440px the list scrolls and the form stays where it
+   is beneath it (a 13-week window of releases, breaks and alerts runs to about
+   410px, and a 400px box cut its last row in half). The 2px of padding (none on
+   the left, where the glyph column sits flush) is room for the remove buttons'
+   focus ring: a scroll box clips at its padding edge, and a ring drawn against the
+   edge of the content would be cut. Padding only exists at the ends of the content,
+   so scroll-padding gives a button the browser scrolls into view the same 2px of
+   room above or below it. */
 .adm-markers-list {
   list-style: none; margin: 0; padding: 2px 2px 2px 0;
   display: grid; gap: 4px;
-  max-height: 400px; overflow-y: auto; scroll-padding-block: 2px;
+  max-height: 440px; overflow-y: auto; scroll-padding-block: 2px;
 }
 
 /* glyph, day, label, and the row's one action. The label track is minmax(0, 1fr)

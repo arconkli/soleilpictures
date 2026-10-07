@@ -29,7 +29,7 @@ const LS_VERIFIED = 'admin.analytics.verifiedOnly';
  * dashboard left open on a second monitor overnight costs nothing until it is
  * looked at again.
  *
- * The intervals are not uniform because the views are not: Today is eleven
+ * The intervals are not uniform because the views are not: Today is nine
  * windowed RPCs and is the one people leave open, while System reads storage
  * and coverage figures that move on the order of hours. Polling those as often
  * as Today would be work nobody asked for and nobody would see.
@@ -59,11 +59,22 @@ export function useAnalyticsFilters() {
 // The active view registers its refresh fn + freshness so the shell's single
 // persistent toolbar can drive a refresh and show "updated …" without the
 // toolbar remounting on every sub-tab switch.
-export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing }) {
+//
+// `status` is what the view knows about its own calendar, for the status strip:
+// { weeks, partialDays } (complete weeks read, and days of this UTC week so far).
+// The effect is keyed on those two numbers, never on the object. A caller that
+// builds the object inline hands over a new one every render, and registering it
+// re-renders the provider, which re-renders the caller, without end.
+export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, status }) {
   const { registerRuntime } = useAnalyticsFilters();
+  const weeks = status?.weeks ?? null;
+  const partialDays = status?.partialDays ?? null;
   useEffect(() => {
-    registerRuntime({ refresh, lastUpdated, refreshing });
-  }, [registerRuntime, refresh, lastUpdated, refreshing]);
+    registerRuntime({
+      refresh, lastUpdated, refreshing,
+      status: weeks == null && partialDays == null ? null : { weeks, partialDays },
+    });
+  }, [registerRuntime, refresh, lastUpdated, refreshing, weeks, partialDays]);
 }
 
 function getParam(name) {
@@ -147,7 +158,7 @@ export function AnalyticsFiltersProvider({ children }) {
     return sg.error ? [] : (sg.data || []);
   }, [days, excludeInternal]);
 
-  const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false });
+  const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false, status: null });
   const registerRuntime = useCallback((r) => setRuntime(r), []);
 
   const value = useMemo(() => ({

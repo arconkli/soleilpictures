@@ -777,6 +777,16 @@ test('settling comes from the step, so only the newest week is drawn as still mo
   assert.deepEqual(padded.map((x) => x.settling), [false, false, false, false, false, false, true]);
 });
 
+test('a settling slot says so in its title, after what it went from and to', () => {
+  const slots = streakSlots(trendOf([1, 1, 1, 1, 1, 1, 1], { settlingLast: true }));
+  assert.equal(slots.at(-1).title, 'wk of Sep 14: 10 → 12 · still settling');
+  // Only the settling week: the one before it reads as it always did.
+  assert.equal(slots.at(-2).title, 'wk of Sep 7: 10 → 12');
+  // A week with no reading has nothing to report, settling or not.
+  const gap = streakSlots(trendOf([1, null], { settlingLast: true })).at(-1);
+  assert.deepEqual([gap.state, gap.settling, gap.title], ['gap', true, '']);
+});
+
 test('a week with no reading is a gap, in place, not a shortened strip', () => {
   const slots = streakSlots(trendOf([1, null, -1, 1, 1, 1, 1]));
   assert.deepEqual(states(slots), ['up', 'gap', 'down', 'up', 'up', 'up', 'up']);

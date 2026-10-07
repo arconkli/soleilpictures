@@ -59,7 +59,8 @@ function rowKeys(rows) {
  *                             A rejection is deliberately NOT caught: it surfaces as an unhandled rejection, the
  *                             typed label stays, and the caller owns turning a failure into a message.
  * @param {function} onRemove  (row) => void, called with the marker row; offered on `source === 'note'` rows only.
- *                             Focus moves to the label field first, so it never falls to the page when the row goes.
+ *                             On a keyboard press focus moves to the label field first, so it never falls to the
+ *                             page when the row goes.
  * @param {boolean}  busy      a write is in flight: the Add and remove buttons are disabled
  * @param {string}   todayUtc  today as a UTC 'YYYY-MM-DD'. The date field's initial value is read ONCE, at mount;
  *                             its `max` and the `today` button follow the prop after that.
@@ -132,11 +133,14 @@ export function MarkersPanel({ markers, onAdd, onRemove, busy = false, todayUtc 
                     type="button"
                     className="admin-action adm-marker-x"
                     aria-label={`Remove note: ${text}`}
-                    onClick={() => {
+                    onClick={(e) => {
                       // This row is about to unmount, and focus on an element that
-                      // unmounts falls to the page. Park it on the label field, where
-                      // the next note is typed, before the row goes.
-                      labelRef.current?.focus();
+                      // unmounts falls to the page. For a keyboard press (detail 0)
+                      // park it on the label field, where the next note is typed,
+                      // before the row goes. Not for a pointer: there it scrolled the
+                      // page to the field and opened the soft keyboard on a tablet,
+                      // and a pointer user is not lost when focus falls.
+                      if (e.detail === 0) labelRef.current?.focus({ preventScroll: true });
                       onRemove(m);
                     }}
                     disabled={busy}

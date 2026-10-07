@@ -29,7 +29,8 @@ import { VAR } from './palette.js';
  * weeks differ by anyway). Both draw the flat dot, and say in words why.
  *
  * `quiet` drops the colour to neutral ink and keeps the glyph, for a badge that
- * sits in a sub line beside a streak that has already made the main claim.
+ * sits in a sub line beside a streak that has already made the main claim. Its
+ * dot then has no colour to say why it is a dot, so a hover title says it.
  * `suffix` names the comparison ("vs prior 7d").
  */
 export function DeltaBadge({ delta, quiet = false, suffix }) {
@@ -41,8 +42,9 @@ export function DeltaBadge({ delta, quiet = false, suffix }) {
     : noise ? 'flat, within noise'
       : delta.dir === 'up' ? 'up' : delta.dir === 'down' ? 'down' : 'flat';
   const tone = thin ? 'is-thin' : noise ? 'is-flat' : `is-${delta.dir}`;
+  const why = !quiet ? undefined : thin ? 'too few to compare' : noise ? 'within noise' : undefined;
   return (
-    <span className={`admin-stat-delta ${tone}${quiet ? ' is-quiet' : ''}`}>
+    <span className={`admin-stat-delta ${tone}${quiet ? ' is-quiet' : ''}`} title={why}>
       <span aria-hidden="true">{arrow}</span>
       <span className="sr-only">{word} </span>
       {delta.text}
@@ -145,7 +147,9 @@ export function Metric({
           {trend.verdict?.label}
         </div>
       )}
-      {trend?.caveat && <div className="admin-stat-caveat">{trend.caveat}</div>}
+      {/* U+2011, the non-breaking hyphen: at 1280 the line wrapped inside its
+          own date, leaving "2026-10-" on one line and "01" on the next. */}
+      {trend?.caveat && <div className="admin-stat-caveat">{trend.caveat.replace(/-/g, '\u2011')}</div>}
       {hasSpark && (
         <div className="admin-stat-spark"><Spark values={spark} color={sparkColor} /></div>
       )}

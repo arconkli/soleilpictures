@@ -110,16 +110,24 @@ function VerifiedToggle() {
 function DeckStatus({ view }) {
   const f = useAnalyticsFilters();
   const cadence = POLL_MS[view] ?? POLL_MS.shell;
+  const today = view === 'today';
+  // What Today registered about its own calendar. Read on Today only: for the
+  // render after a switch the previous view's runtime is still the registered one.
+  const st = today ? f.runtime.status : null;
 
   const items = [
     ['MODE', view.toUpperCase()],
-    // Today is a fixed seven-day window by definition; the others follow the
-    // range control, which is why the range control is hidden on Today.
-    ['WINDOW', view === 'today' ? '7d · fixed' : `${f.days}d`],
+    // Today is a fixed seven-day window by definition, plus the thirteen complete
+    // UTC weeks its trends read and how far into this one we are; the others
+    // follow the range control, which is why the range control is hidden on Today.
+    ['WINDOW', today
+      ? `7d · 13 wk UTC${st?.partialDays != null ? ` · ${st.partialDays} of 7 days` : ''}`
+      : `${f.days}d`],
     ['POP', f.verifiedOnly ? 'verified' : 'all signups'],
     ['INTERNAL', f.excludeInternal ? 'excluded' : 'counted'],
     ['SYNC', `${Math.round(cadence / 1000)}s`],
   ];
+  if (st?.weeks != null) items.push(['WEEKS', `${st.weeks} complete`]);
 
   return (
     <div className="adm-status" role="note" aria-label="Current measurement conditions">

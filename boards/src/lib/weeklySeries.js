@@ -293,12 +293,16 @@ const STATE_OF_DIR = new Map([[1, 'up'], [0, 'flat'], [-1, 'down']]);
 // that shared one object would decorate them all.
 const unmeasuredSlot = () => ({ state: 'unmeasured', settling: false, title: '' });
 
+// The outline that marks a settling slot says nothing on its own, so its title
+// does: the reading is real but may still move.
 function slotOf(step) {
   const state = STATE_OF_DIR.get(step?.dir) ?? 'gap';
+  const settling = !!step?.settling;
   return {
     state,
-    settling: !!step?.settling,
-    title: state === 'gap' ? '' : `${weekLabel(step.week)}: ${step.from} → ${step.to}`,
+    settling,
+    title: state === 'gap' ? ''
+      : `${weekLabel(step.week)}: ${step.from} → ${step.to}${settling ? ' · still settling' : ''}`,
   };
 }
 
@@ -307,11 +311,12 @@ function slotOf(step) {
  *   returns `slots` entries, newest last: { state: 'up'|'down'|'flat'|'gap'|'unmeasured', settling, title }
  * Under verdict.code === 'too_few' every slot is 'unmeasured'. Otherwise the last
  * min(slots, steps.length) steps map dir 1/0/-1/null -> up/flat/down/gap, left-padded
- * with 'unmeasured'. title = `${weekLabel(step.week)}: ${from} → ${to}` for defined steps.
+ * with 'unmeasured'. title = `${weekLabel(step.week)}: ${from} → ${to}` for defined steps,
+ * ending ' · still settling' when the step is settling.
  *
  * Reads only trend.verdict.code and trend.steps, so the strip cannot drift from
  * what the trend read decided. A step with no direction, and a slot with no step
- * behind it, have no from and to to report, so their title is ''.
+ * behind it, have no from and to to report, so their title is '', settling or not.
  */
 export function streakSlots(trend, slots = 7) {
   const steps = trend?.verdict?.code === 'too_few' || !Array.isArray(trend?.steps) ? [] : trend.steps;

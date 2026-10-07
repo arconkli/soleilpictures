@@ -139,14 +139,17 @@ const funnelSegments = [
 
 // ── kpi summary (rich; everything above the small-N floor so it reads "solid") ──
 // work_users (0372) is distinct people who did real work in the window, a subset of
-// wau; it sits at the level the weekly series below reads for its newest weeks.
+// wau; it sits at the level the weekly series below reads for its newest weeks. So
+// do wau and cards_created (about 90 active and 415 cards a week): the tile's figure
+// sits right above that series' strip and spark, and a figure three times the
+// weekly scale would make the work ratio and the badges read as if they disagreed.
 const kpi = {
   current:  { signups: 96, activated: 58, activation_rate: 0.604, demo_base: 812, converted: 142,
     demo_to_paid_rate: 0.175, checkout_open: 64, checkout_success: 41, checkout_success_rate: 0.641,
-    wau: 287, work_users: 17, cards_created: 1840 },
+    wau: 91, work_users: 17, cards_created: 418 },
   previous: { signups: 81, activated: 44, activation_rate: 0.543, demo_base: 760, converted: 118,
     demo_to_paid_rate: 0.155, checkout_open: 58, checkout_success: 33, checkout_success_rate: 0.569,
-    wau: 252, work_users: 13, cards_created: 1610 },
+    wau: 86, work_users: 13, cards_created: 426 },
 };
 
 const cohorts = [];
