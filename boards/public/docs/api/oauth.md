@@ -2,7 +2,7 @@
 
 > Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
 
-_Source: https://clusters.soleilpictures.com/docs/api/oauth · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/api/oauth · Updated 2026-10-07_
 
 There are two ways into this API.
 
@@ -165,7 +165,8 @@ Disconnecting revokes the access token in the same statement, so it stops
 working immediately rather than at its next expiry. Everything the app did is in
 the [audit log](/docs/api/audit), with the tool it used.
 
-At most 20 connected apps per account.
+At most 20 connected apps per account, and connecting one
+opens up once the account is 72 hours old.
 
 ## What a token can reach
 

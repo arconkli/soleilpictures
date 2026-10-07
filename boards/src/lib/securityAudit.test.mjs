@@ -405,3 +405,86 @@ test('every ban and sharing hold is recorded with evidence, and a ban ends every
   assert.match(api, /banAccount = \(userId, reason\) => adminAccountAction\(\{ userId, action: 'ban', reason \}\)/,
     'Ban goes through admin-account-action, which also does the native auth ban');
 });
+
+// ── 0374: the live database re-checks all of this every day ─────────────────
+
+test('the live database re-checks the audit\'s invariants daily and pages on a slip', () => {
+  const def = latestDefinition('check_security_invariants').body;
+  for (const key of ['http_post', 'notify_email', 'gate', 'helpers', 'open_insert', 'rls', 'alert_path']) {
+    assert.ok(def.includes(`'invariant:${key}'`), `check_security_invariants lost its ${key} check`);
+  }
+  // Its sender allowlist is the same six triggers the repo says send email.
+  const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
+  for (const name of senders.keys()) assert.ok(def.includes(`'${name}'`), `${name} sends email but is not in the live allowlist`);
+  assert.ok(latestMatch(/cron\.schedule\('security-invariants',/), 'the check must be scheduled');
+  assert.ok(latestMatch(/revoke execute on function public\.check_security_invariants\(\) from public, anon, authenticated/));
+});
+
+test('every new internal helper is born server-only (the 0311 rule, linted from 0369 on)', () => {
+  const seen = new Set();
+  for (const f of migrationFiles()) {
+    const sql = readFileSync(MIGRATIONS_DIR + f, 'utf8');
+    const num = Number(f.slice(0, 4));
+    for (const m of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?(_\w+)\s*\([^)]*\)\s*returns\s+(\w+)/gi)) {
+      const [, name, ret] = m;
+      const isNew = !seen.has(name);
+      seen.add(name);
+      if (num < 369 || !isNew || /^trigger$/i.test(ret)) continue;
+      assert.match(sql, new RegExp(`revoke (?:execute|all) on function public\\.${name}\\(`),
+        `${f}: new helper ${name} must revoke execute from public, anon, authenticated`);
+    }
+  }
+});
+
+// ── Phase 3: a captcha in front of the sign-in code ──────────────────────────
+
+test('the sign-in code request carries a Turnstile token once a site key is built in', async () => {
+  const ts = read('../auth/turnstile.js');
+  assert.match(ts, /const SITE_KEY = import\.meta\.env\?\.VITE_TURNSTILE_SITE_KEY \|\| '';/);
+  assert.doesNotMatch(ts, /^import /m, 'AuthGate stays import-light: turnstile.js imports nothing');
+  // The script is fetched only inside loadTurnstile, i.e. when a code is requested.
+  assert.equal((ts.match(/document\.createElement\('script'\)/g) || []).length, 1);
+  assert.ok(ts.indexOf("document.createElement('script')") > ts.indexOf('function loadTurnstile'));
+  const gate = read('../auth/AuthGate.jsx');
+  assert.match(gate, /const challenge = captchaEnabled\(\) \? await captchaToken\(captchaRef\.current\) : '';/);
+  assert.match(gate, /\.\.\.\(challenge \? \{ captchaToken: challenge \} : \{\}\)/);
+  assert.match(gate, /<div ref=\{captchaRef\} className="auth-captcha" \/>/);
+  const { classifyAuthError } = await import('./analyticsEvents.js');
+  assert.equal(classifyAuthError(new Error('captcha protection: request disallowed (timeout-or-duplicate)')), 'captcha');
+});
+
+// ── 0375: an account's first days, and an invite budget per inbox ────────────
+
+test('a brand-new account gets no keys, webhooks, connected apps, service accounts or indexable links', () => {
+  const isNew = latestDefinition('_account_is_new').body;
+  const hours = Number(isNew.match(/interval '(\d+) hours'/)[1]);
+  const refuse = latestDefinition('_refuse_if_new').body;
+  assert.match(refuse, /opens up once an account is three days old/);
+  assert.equal(hours, 72, 'the refusal says three days, so the window must be 72 hours');
+  for (const [fn, what] of [
+    ['api_token_mint', 'Creating an API key'], ['api_token_mint_for', 'Creating a service token'],
+    ['oauth_authorize_consent', 'Connecting an app'], ['webhook_create', 'Adding a webhook'],
+    ['webhook_update', 'Pointing a webhook at a new address'], ['service_account_register', 'Adding a service account'],
+    ['submit_board_to_explore', 'Submitting to Explore'], ['set_public_link_indexing', 'Letting search engines index a link'],
+  ]) {
+    assert.ok(latestDefinition(fn).body.includes(`_refuse_if_new('${what}')`), `${fn} must refuse a new account`);
+  }
+  for (const fn of ['api_token_mint', 'oauth_authorize_consent']) {
+    assert.match(latestDefinition(fn).body, /if not public\._actor_active\(\) then/, `${fn} must refuse a suspended account`);
+  }
+  const ws = latestDefinition('create_workspace_with_root').body;
+  assert.match(ws, /c_new_account_workspaces constant integer := \d+;/);
+  assert.match(ws, /if public\._account_is_new\(\)\s+and \(select count\(\*\) from workspaces w where w\.created_by = uid\) >= c_new_account_workspaces then/);
+  for (const sig of ['_account_is_new\\(\\)', '_refuse_if_new\\(text\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
+});
+
+test('the invite budget belongs to the inbox, so plus-addressed accounts share it', () => {
+  const def = latestDefinition('_invite_budget_take').body;
+  assert.match(def, /public\._outbound_recipient_key\(u\.email\) into v_created, v_key/);
+  assert.match(def, /where \(l\.inviter = v_uid or l\.identity_key = v_key\)/);
+  assert.match(def, /insert into public\.invite_send_ledger \(inviter, identity_key\) values \(v_uid, v_key\);/);
+  assert.match(def, /pg_advisory_xact_lock\(hashtext\('invite_budget:' \|\| coalesce\(v_key, v_uid::text\)\)\)/,
+    'the lock is per inbox too, or two accounts on one inbox race the count');
+});

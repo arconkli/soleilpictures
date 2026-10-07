@@ -1941,7 +1941,7 @@ A: For the files a project is working from, largely yes. You can browse, sort, f
 ========================================================================
 # Home
 URL: https://clusters.soleilpictures.com/docs/clusters/home-graph
-Updated: 2026-10-04
+Updated: 2026-10-07
 
 Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 
@@ -1949,7 +1949,7 @@ Home is where your projects are. Open it from Home in the sidebar or the Cluster
 
 Your workspace
 
-The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. In the list, a workspace you own has a ⋯ menu with Rename & icon… and Delete workspace — your personal workspace can be renamed but never deleted — and one shared with you has Leave workspace. New workspace beside the name starts a fresh one, with its own Studio, and opens it on Home.
+The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. In the list, a workspace you own has a ⋯ menu with Rename & icon… and Delete workspace — your personal workspace can be renamed but never deleted — and one shared with you has Leave workspace. New workspace beside the name starts a fresh one, with its own Studio, and opens it on Home. In an account's first 72 hours it can own up to 4 workspaces; the limit lifts after that.
 
 The same switcher sits at the top of the sidebar. Switching from there takes you straight to the workspace's canvas instead.
 
@@ -2748,7 +2748,7 @@ A: Yes. Viewers can read, comment and vote; they cannot add, move or change card
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-10-06
+Updated: 2026-10-07
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
@@ -2788,7 +2788,7 @@ With sub-clusters included, viewers navigate into nested boards with breadcrumbs
 
 The same disclosure lists every link currently live on the cluster, with what each one grants, how many people have joined through it, when it expires, and buttons to copy or revoke it.
 
-By default a shared board tells search engines not to index it. It is reachable by anyone with the URL, but it will not turn up in a search unless you allow indexing or publish it to Explore.
+By default a shared board tells search engines not to index it. It is reachable by anyone with the URL, but it will not turn up in a search unless you allow indexing or publish it to Explore. Allowing indexing opens up once an account is 72 hours old.
 
 The board renders in a real canvas — viewers pan, zoom and open images at full size. It is not a flattened image.
 
@@ -2799,6 +2799,8 @@ Inviting specific people
 Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, pick Can edit or Can view, and send. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up.
 
 Each account can send 20 invitations a day, or 5 on its first day. Sharing a cluster with someone who already has an account counts, because they get an email too. Inviting the same address to the same cluster again does not, and neither does changing someone's role: neither sends anything. Past the limit, nothing is sent and the share panel tells you when you can send more. For a bigger audience, a link reaches everyone at once.
+
+Accounts that reach the same inbox share one allowance: an address with a +tag, or a Gmail address written with extra dots, counts as the address itself.
 
 One address receives at most 3 invitation emails a day, from every sender combined. Past that the access is still granted; only the email is skipped, so the person finds the cluster waiting when they next sign in.
 
@@ -3094,7 +3096,7 @@ A: No. The button in a product email opens a resume link that signs you in on on
 ========================================================================
 # Publishing to Explore
 URL: https://clusters.soleilpictures.com/docs/publish/explore
-Updated: 2026-08-08
+Updated: 2026-10-07
 
 Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.
 
@@ -3107,6 +3109,8 @@ In the Share dialog, the Publish to Explore section submits the board for review
 Review is a real step: a human looks before it appears. Nothing becomes public because somebody clicked the wrong control, and the directory does not fill with half-finished boards.
 
 Publishing is reversible from the same place.
+
+Submitting opens up once an account is 72 hours old.
 
 What a published board gets
 
@@ -4149,7 +4153,7 @@ A: Two requests. POST the bytes to /uploads to get an image_key, then create a c
 ========================================================================
 # Authentication
 URL: https://clusters.soleilpictures.com/docs/api/authentication
-Updated: 2026-08-10
+Updated: 2026-10-07
 
 Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
 
@@ -4164,6 +4168,8 @@ Both end at the same place: a bearer token that resolves to one person's own ses
 Minting a token
 
 Settings → Connections → New token. Give it a name that says where it will be used, so you know which one to revoke later.
+
+An account can mint tokens once it is 72 hours old — an account's first hours are when throwaway sign-ups do their damage.
 
 Then choose what it may do — Read only, Read & write, or Full access. Read only is the right choice unless you know you need more; full access is the only one that can delete, and is worth withholding from an AI assistant unless you specifically want it able to throw things away. Deletes are recoverable, but you would have to notice first.
 
@@ -4498,7 +4504,7 @@ A: Usually. DELETE is a soft delete and POST /boards/:id/restore puts it back, w
 ========================================================================
 # Connecting an app (OAuth)
 URL: https://clusters.soleilpictures.com/docs/api/oauth
-Updated: 2026-08-10
+Updated: 2026-10-07
 
 Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
 
@@ -4613,7 +4619,7 @@ One screen: who is asking, what each scope means in plain words, and two buttons
 
 Disconnecting revokes the access token in the same statement, so it stops working immediately rather than at its next expiry. Everything the app did is in the audit log, with the tool it used.
 
-At most 20 connected apps per account.
+At most 20 connected apps per account, and connecting one opens up once the account is 72 hours old.
 
 What a token can reach
 
@@ -5865,7 +5871,7 @@ A: 402 means a quota — the card cap or storage. 403 means permission — an in
 ========================================================================
 # Webhooks
 URL: https://clusters.soleilpictures.com/docs/api/webhooks
-Updated: 2026-10-02
+Updated: 2026-10-07
 
 Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 
@@ -5874,6 +5880,8 @@ Register an HTTPS endpoint and we post to it when something changes.
 Including changes made in the app. That is the part worth stating plainly: events come from the database, not from the API request handler, so a card someone drags on the canvas fires the same event as one added by your importer. A webhook that only saw API traffic would miss almost everything that actually happens to a board.
 
 Register one
+
+Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old.
 
 curl -X POST "$SOLEIL_API/webhooks" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
@@ -6006,7 +6014,7 @@ A: A payload is a copy, and a copy goes stale. You get the type and the ids; cal
 ========================================================================
 # Service accounts
 URL: https://clusters.soleilpictures.com/docs/api/service-accounts
-Updated: 2026-08-09
+Updated: 2026-10-07
 
 A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.
 
@@ -6082,6 +6090,7 @@ Per workspace | 10 active service accounts
 Per account | 20 active tokens
 Reach | The one workspace it belongs to
 Requests | 10000/hour by default, per token
+Owner's account | At least 72 hours old to add one or mint its tokens
 
 What it deliberately cannot do
 
