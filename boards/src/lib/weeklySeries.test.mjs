@@ -268,8 +268,10 @@ test('a value that is not a finite number is a gap, never NaN or a string poison
 test('the did_work fix cuts the work series at the first Monday after it', () => {
   const fix = DEFINITION_BREAKS.find((b) => b.migration === '0347');
   assert.equal(fix.date, '2026-10-01'); // a Thursday: the week of 09-28 straddles it
+  // The cut is a Monday, but the change happened on the Thursday: the trend
+  // read prints the real day ("Definition changed 2026-10-01"), so it travels too.
   assert.deepEqual(breaksFor('work_users'), [
-    { week: '2026-10-05', label: fix.label, migration: '0347' },
+    { week: '2026-10-05', date: '2026-10-01', label: fix.label, migration: '0347' },
   ]);
 });
 
@@ -286,7 +288,7 @@ test('an override list replaces the real one: empty turns every cut off, a relat
 
   const wed = { date: '2026-09-09', migration: '9999', series: ['work_users'], cut: true, label: 'synthetic' };
   assert.deepEqual(breaksFor('work_users', [wed]), [
-    { week: '2026-09-14', label: 'synthetic', migration: '9999' },
+    { week: '2026-09-14', date: '2026-09-09', label: 'synthetic', migration: '9999' },
   ]);
   // A cut that lands on a Monday keeps that Monday: the whole week is the new definition.
   assert.equal(breaksFor('work_users', [{ ...wed, date: '2026-09-14' }])[0].week, '2026-09-14');

@@ -129,8 +129,10 @@ export function toWeekPoints(rows, metric) {
 // ── Definition breaks ─────────────────────────────────────────────────────
 /**
  * Cut points for a series column: entries with cut=true whose series includes col,
- * each as { week: mondayOnOrAfter(date), label, migration }. The straddling week is
+ * each as { week: mondayOnOrAfter(date), date, label, migration }. The straddling week is
  * thereby excluded from scoring (trendStats excludes weeks starting BEFORE week).
+ * `date` is the day the change actually happened, kept because the trend read's
+ * caveat prints it: the Monday is where the cut falls, not when anything changed.
  * `breaks` is overridable (the harness passes a relative list; DEV `?breaks=0` passes []).
  *
  * Oldest first. Strict about what counts as a cut: only a literal true, and a
@@ -143,7 +145,7 @@ export function breaksFor(col, breaks = DEFINITION_BREAKS) {
   for (const b of breaks) {
     if (!b || b.cut !== true || !Array.isArray(b.series) || !b.series.includes(col)) continue;
     const week = mondayOnOrAfter(b.date);
-    if (week) cuts.push({ week, label: b.label, migration: b.migration });
+    if (week) cuts.push({ week, date: b.date, label: b.label, migration: b.migration });
   }
   return cuts.sort(byWeek);
 }
