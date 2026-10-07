@@ -342,7 +342,8 @@ export function AreaChart({
                 {/* The markers nearest this point, matched the way the crosshair
                    snaps (Math.round), so a Sunday note is listed under the Monday
                    the crosshair is standing on. Each line leads with its kind's
-                   glyph: in a stack only the top chart draws glyphs on the plot. */}
+                   glyph: in a stack a marker's glyph is drawn on the plot only on
+                   the first row that draws the marker. */}
                 {markersAtHover(marks, hover, n).map((m, k) => (
                   <span className="adm-area-tip-m" key={`m${k}`}>
                     <span aria-hidden="true">{glyphFor(m.kind)}</span> {markText(m)}

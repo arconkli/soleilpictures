@@ -5612,6 +5612,13 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
    two-line sentence as well as its figures. */
 .admin-stat-grid.is-hero { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 
+/* The rail's sparks and proportion bars on one line. Every tile is a flex column
+   stretched to the row's height, but what sits above its spark differs (a caveat,
+   a sub that wraps, no strip at all), so the spark is pushed to the tile's foot
+   and the difference is taken up above it rather than below. */
+.admin-stat-card.is-hero > .admin-stat-spark,
+.admin-stat-card.is-hero > .admin-stat-ratio { margin-top: auto; }
+
 /* ── Weekly multiples ───────────────────────────────────────────────────────
  * Four weekly charts stacked under one shared axis, and what AreaChart grew
  * for them: dated markers, hatched weeks nothing was recording, a dot per

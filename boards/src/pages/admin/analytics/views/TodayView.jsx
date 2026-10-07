@@ -188,8 +188,11 @@ export function TodayView() {
       startedAt,
       kpi: val(kpi),
       history: val(hist) || [],
-      weekly: val(wk) || [],
-      markers: val(mk) || [],
+      // Both stay null, not [], when their call failed. A failed read is not a
+      // short history: it must never print "Too few weeks (0 of 4)" or "0
+      // complete", and it must not empty the notes list either.
+      weekly: val(wk),
+      markers: val(mk),
       activeNow: val(active),
       users: val(users) || [],
       lifetime: val(life) || null,
@@ -214,6 +217,10 @@ export function TodayView() {
   const workUsers = num(cur.work_users);
 
   // ── The weekly read ─────────────────────────────────────────────────────
+  // false while loading and when admin_weekly_series failed. The tiles then make
+  // no weekly claim at all: no strip, no verdict, no spark, no WEEKS in the
+  // status strip, and the stack shows its empty state.
+  const weeklyRead = Array.isArray(d?.weekly);
   // Oldest first, as the RPC sends them, and sorted anyway: the strips, the
   // sparks and the stack are all positional, so a row out of order would draw
   // one week in another's place.
@@ -221,8 +228,7 @@ export function TodayView() {
     .filter((r) => r && typeof r.week_start === 'string')
     .sort(byWeekStart), [d?.weekly]);
   const weeks = useMemo(() => rows.map((r) => r.week_start), [rows]);
-  // null until there is data, so the status strip never says "0 complete" while loading.
-  const completeWeeks = d ? rows.filter((r) => r.complete).length : null;
+  const completeWeeks = weeklyRead ? rows.filter((r) => r.complete).length : null;
 
   const now = new Date();
   const todayUtc = now.toISOString().slice(0, 10);
@@ -245,24 +251,28 @@ export function TodayView() {
     return undefined;
   }, []);
 
-  const trends = useMemo(() => Object.fromEntries(WEEKLY_METRICS.map((m) => [
-    m.key,
-    weeklyTrend(toWeekPoints(rows, m), { breaks: breaksFor(m.col, breakList), dispersion: m.dispersion }),
-  ])), [rows, breakList]);
+  const trends = useMemo(() => (weeklyRead
+    ? Object.fromEntries(WEEKLY_METRICS.map((m) => [
+      m.key,
+      weeklyTrend(toWeekPoints(rows, m), { breaks: breaksFor(m.col, breakList), dispersion: m.dispersion }),
+    ]))
+    : null), [weeklyRead, rows, breakList]);
 
-  // A tile's spark is its complete weeks, the ones its strip reads: the week so
-  // far would draw a collapse every Monday. A week nothing was recording is left
-  // out rather than drawn as a zero; with nothing left there is no spark.
-  const sparks = useMemo(() => {
-    const complete = rows.filter((r) => r.complete);
-    return Object.fromEntries(WEEKLY_METRICS.map((m) => {
-      const values = complete
-        .filter((r) => !m.measurableCol || r[m.measurableCol])
-        .map((r) => num(r[m.col]))
-        .filter((v) => v != null);
-      return [m.key, values.length ? values : null];
-    }));
-  }, [rows]);
+  // A tile's spark draws the weeks its strip reads: complete (the week so far
+  // would draw a collapse every Monday), measured (a week nothing was recording
+  // is not a zero), and on this side of the metric's latest definition cut (a
+  // week before it measured something else). Under "Too few weeks" there is no
+  // spark either, so the picture never says more than the sentence; the work
+  // tile's proportion bar stands in, which is true.
+  const sparks = useMemo(() => Object.fromEntries(WEEKLY_METRICS.map((m) => {
+    if (!trends || trends[m.key]?.verdict?.code === 'too_few') return [m.key, null];
+    const cut = breaksFor(m.col, breakList).at(-1)?.week;
+    const values = rows
+      .filter((r) => r.complete && (!m.measurableCol || r[m.measurableCol]) && (!cut || r.week_start >= cut))
+      .map((r) => num(r[m.col]))
+      .filter((v) => v != null);
+    return [m.key, values.length ? values : null];
+  })), [trends, rows, breakList]);
 
   // One row per WEEKLY_METRICS entry, keyed by its key: that is how the stack
   // knows which column a definition break is about.
@@ -286,13 +296,16 @@ export function TodayView() {
   // replayed over each list, until a list from a read that began after the
   // change was answered (`at`; Infinity while it is still out) has been seeded.
   // Every change is idempotent, so replaying one the list already shows is free.
+  // A read whose markers call failed re-seeds nothing: the notes keep the list
+  // they have, and the changes still pending wait for a read that worked.
   const fetchedMarkers = d?.markers;
   const fetchedAt = d?.startedAt;
   const pending = useRef([]);
   const [notes, setNotes] = useState([]);
   useEffect(() => {
+    if (!Array.isArray(fetchedMarkers)) return;
     if (fetchedAt != null) pending.current = pending.current.filter((op) => op.at > fetchedAt);
-    const listed = Array.isArray(fetchedMarkers) ? fetchedMarkers.filter((m) => m?.source === 'note') : [];
+    const listed = fetchedMarkers.filter((m) => m?.source === 'note');
     setNotes(pending.current.reduce((n, op) => op.apply(n), listed));
   }, [fetchedMarkers, fetchedAt]);
   const alerts = useMemo(
@@ -345,18 +358,24 @@ export function TodayView() {
     const id = row?.ref_id;
     if (id == null) return;
     const note = { day: row.day, kind: row.kind, label: row.label, source: 'note', ref_id: id };
-    // Off the list at once; back on it if the server says no.
+    // Off the list at once; back on it only if the call failed.
     const gone = change(withoutNote(id));
     track(1);
     try {
       const { data, error } = await supabase.rpc('admin_note_delete', { p_id: id });
-      if (error || data === false) {
+      if (error) {
         pending.current = pending.current.filter((op) => op !== gone);
         setNotes(withNote(note));
-        feedback.toast({ type: 'error', message: error?.message ? `Note not removed · ${error.message}` : 'Note not removed' });
+        feedback.toast({ type: 'error', message: error.message ? `Note not removed · ${error.message}` : 'Note not removed' });
         return;
       }
       gone.at = Date.now();
+      // false: no live note had this id, so it was removed elsewhere first (another
+      // tab, another admin). It stays off the list, and there is nothing to undo.
+      if (data === false) {
+        feedback.toast({ type: 'info', message: 'Already removed' });
+        return;
+      }
     } finally {
       track(-1);
     }
@@ -461,10 +480,10 @@ export function TodayView() {
             total={lifeN('total_users') != null
               ? { value: formatCount(lifeN('total_users')), label: 'all time' } : null}
             delta={weekDelta(num(cur.signups), num(prev.signups))}
-            trend={trends.signups}
+            trend={trends?.signups ?? null}
             spark={sparks.signups}
             sparkColor={VAR.cat[0]}   /* acquisition */
-            title={READ_HOW}
+            title={trends ? READ_HOW : undefined}
           />
           <Metric
             hero
@@ -474,10 +493,10 @@ export function TodayView() {
             total={lifeN('total_users') != null && wau != null
               ? { value: formatCount(lifeN('total_users')), label: 'signed up' } : null}
             delta={weekDelta(wau, num(prev.wau))}
-            trend={trends.active}
+            trend={trends?.active ?? null}
             spark={sparks.active}
             sparkColor={VAR.cat[1]}   /* engagement */
-            title={READ_HOW}
+            title={trends ? READ_HOW : undefined}
           />
           <Metric
             hero
@@ -492,10 +511,10 @@ export function TodayView() {
               ? { pct: workUsers / Math.max(1, wau),
                   title: `${formatCount(workUsers)} of ${formatCount(wau)} weekly actives did real work` }
               : null}
-            trend={trends.work}
+            trend={trends?.work ?? null}
             spark={sparks.work}
             sparkColor={VAR.cat[1]}
-            title={`People with a work event in the last 7 days, not everyone who opened the app. ${READ_HOW}`}
+            title={`People with a work event in the last 7 days, not everyone who opened the app.${trends ? ` ${READ_HOW}` : ''}`}
           />
           <Metric
             hero
@@ -536,10 +555,10 @@ export function TodayView() {
             total={lifeN('total_cards') != null
               ? { value: formatCompact(lifeN('total_cards')), label: 'all time' } : null}
             delta={weekDelta(num(cur.cards_created), num(prev.cards_created))}
-            trend={trends.cards}
+            trend={trends?.cards ?? null}
             spark={sparks.cards}
             sparkColor={VAR.cat[2]}   /* output */
-            title={READ_HOW}
+            title={trends ? READ_HOW : undefined}
           />
         </MetricGrid>
         </Well>
@@ -577,6 +596,7 @@ export function TodayView() {
               onRemove={removeNote}
               busy={inFlight > 0}
               todayUtc={todayUtc}
+              windowFrom={windowFrom}
             />
           </Plate>
         </Deck>

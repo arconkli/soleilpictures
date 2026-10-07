@@ -64,8 +64,10 @@ function rowKeys(rows) {
  * @param {boolean}  busy      a write is in flight: the Add and remove buttons are disabled
  * @param {string}   todayUtc  today as a UTC 'YYYY-MM-DD'. The date field's initial value is read ONCE, at mount;
  *                             its `max` and the `today` button follow the prop after that.
+ * @param {string}   windowFrom the first day the list and the charts show ('YYYY-MM-DD'): the date field's `min`,
+ *                             so a note cannot be dated where nothing would draw it.
  */
-export function MarkersPanel({ markers, onAdd, onRemove, busy = false, todayUtc }) {
+export function MarkersPanel({ markers, onAdd, onRemove, busy = false, todayUtc, windowFrom }) {
   const [day, setDay] = useState(todayUtc ?? '');
   const [kind, setKind] = useState('note');
   const [label, setLabel] = useState('');
@@ -157,6 +159,7 @@ export function MarkersPanel({ markers, onAdd, onRemove, busy = false, todayUtc 
           type="date"
           className="auth-input adm-markers-date"
           value={day}
+          min={windowFrom}
           max={todayUtc}
           required
           aria-label="Date"
