@@ -452,3 +452,39 @@ test('the sign-in code request carries a Turnstile token once a site key is buil
   const { classifyAuthError } = await import('./analyticsEvents.js');
   assert.equal(classifyAuthError(new Error('captcha protection: request disallowed (timeout-or-duplicate)')), 'captcha');
 });
+
+// ── 0375: an account's first days, and an invite budget per inbox ────────────
+
+test('a brand-new account gets no keys, webhooks, connected apps, service accounts or indexable links', () => {
+  const isNew = latestDefinition('_account_is_new').body;
+  const hours = Number(isNew.match(/interval '(\d+) hours'/)[1]);
+  const refuse = latestDefinition('_refuse_if_new').body;
+  assert.match(refuse, /opens up once an account is three days old/);
+  assert.equal(hours, 72, 'the refusal says three days, so the window must be 72 hours');
+  for (const [fn, what] of [
+    ['api_token_mint', 'Creating an API key'], ['api_token_mint_for', 'Creating a service token'],
+    ['oauth_authorize_consent', 'Connecting an app'], ['webhook_create', 'Adding a webhook'],
+    ['webhook_update', 'Pointing a webhook at a new address'], ['service_account_register', 'Adding a service account'],
+    ['submit_board_to_explore', 'Submitting to Explore'], ['set_public_link_indexing', 'Letting search engines index a link'],
+  ]) {
+    assert.ok(latestDefinition(fn).body.includes(`_refuse_if_new('${what}')`), `${fn} must refuse a new account`);
+  }
+  for (const fn of ['api_token_mint', 'oauth_authorize_consent']) {
+    assert.match(latestDefinition(fn).body, /if not public\._actor_active\(\) then/, `${fn} must refuse a suspended account`);
+  }
+  const ws = latestDefinition('create_workspace_with_root').body;
+  assert.match(ws, /c_new_account_workspaces constant integer := \d+;/);
+  assert.match(ws, /if public\._account_is_new\(\)\s+and \(select count\(\*\) from workspaces w where w\.created_by = uid\) >= c_new_account_workspaces then/);
+  for (const sig of ['_account_is_new\\(\\)', '_refuse_if_new\\(text\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
+});
+
+test('the invite budget belongs to the inbox, so plus-addressed accounts share it', () => {
+  const def = latestDefinition('_invite_budget_take').body;
+  assert.match(def, /public\._outbound_recipient_key\(u\.email\) into v_created, v_key/);
+  assert.match(def, /where \(l\.inviter = v_uid or l\.identity_key = v_key\)/);
+  assert.match(def, /insert into public\.invite_send_ledger \(inviter, identity_key\) values \(v_uid, v_key\);/);
+  assert.match(def, /pg_advisory_xact_lock\(hashtext\('invite_budget:' \|\| coalesce\(v_key, v_uid::text\)\)\)/,
+    'the lock is per inbox too, or two accounts on one inbox race the count');
+});

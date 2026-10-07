@@ -2,7 +2,7 @@
 
 > Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
 
-_Source: https://clusters.soleilpictures.com/docs/api/authentication · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/api/authentication · Updated 2026-10-07_
 
 ## Which one do you want
 
@@ -19,6 +19,9 @@ the audit trail applies to both.
 
 **Settings → Connections → New token.** Give it a name that says where it will be used,
 so you know which one to revoke later.
+
+An account can mint tokens once it is 72 hours old — an
+account's first hours are when throwaway sign-ups do their damage.
 
 Then choose what it may do — **Read only**, **Read & write**, or **Full
 access**. Read only is the right choice unless you know you need more; full

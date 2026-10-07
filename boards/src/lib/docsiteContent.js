@@ -16751,7 +16751,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " beside the name starts a fresh one, with its own Studio, and opens it on Home."
+     "v": " beside the name starts a fresh one, with its own Studio, and opens it on Home. In an account's first 72 hours it can own up to 4 workspaces; the limit lifts after that."
     }
    ]
   },
@@ -23345,7 +23345,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". Allowing indexing opens up once an account is 72 hours old."
     }
    ]
   },
@@ -23422,6 +23422,23 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Each account can send 20 invitations a day, or 5 on its first day. Sharing a cluster with someone who already has an account counts, because they get an email too. Inviting the same address to the same cluster again does not, and neither does changing someone's role: neither sends anything. Past the limit, nothing is sent and the share panel tells you when you can send more. For a bigger audience, a link reaches everyone at once."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Accounts that reach the same inbox share one allowance: an address with a "
+    },
+    {
+     "t": "code",
+     "v": "+tag"
+    },
+    {
+     "t": "text",
+     "v": ", or a Gmail address written with extra dots, counts as the address itself."
     }
    ]
   },
@@ -25615,6 +25632,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Publishing is reversible from the same place."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Submitting opens up once an account is 72 hours old."
     }
    ]
   },
@@ -34293,6 +34319,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "An account can mint tokens once it is 72 hours old — an account's first hours are when throwaway sign-ups do their damage."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Then choose what it may do — "
     },
     {
@@ -37687,7 +37722,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "At most 20 connected apps per account."
+     "v": "At most 20 connected apps per account, and connecting one opens up once the account is 72 hours old."
     }
    ]
   },
@@ -48495,6 +48530,15 @@ export const DOCS_CONTENT = {
    "id": "register-one"
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old."
+    }
+   ]
+  },
+  {
    "type": "code",
    "lang": "sh",
    "code": "curl -X POST \"$SOLEIL_API/webhooks\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"workspace_id\":\"'$WS'\",\"url\":\"https://hooks.example.com/soleil\",\n       \"events\":[\"card.created\",\"card.updated\",\"board.created\"],\n       \"name\":\"pipeline sync\"}'"
@@ -49690,6 +49734,26 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "10000/hour by default, per token"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Owner's account",
+       "children": [
+        {
+         "t": "text",
+         "v": "Owner's account"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "At least 72 hours old to add one or mint its tokens"
       }
      ]
     ]

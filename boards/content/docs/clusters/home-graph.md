@@ -5,7 +5,7 @@ h1: Home
 navLabel: Home
 section: clusters
 order: 2
-updated: 2026-10-04
+updated: 2026-10-07
 answer: Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 faq:
   - q: Which clusters does Home list?
@@ -34,6 +34,8 @@ projects. In the list, a workspace you own has a ⋯ menu with **Rename & icon�
 and **Delete workspace** — your personal workspace can be renamed but never
 deleted — and one shared with you has **Leave workspace**. **New workspace**
 beside the name starts a fresh one, with its own Studio, and opens it on Home.
+In an account's first {{fact:newAccountHours}} hours it can own up to
+{{fact:newAccountWorkspaces}} workspaces; the limit lifts after that.
 
 The same switcher sits at the top of the sidebar. Switching from there takes
 you straight to the workspace's canvas instead.

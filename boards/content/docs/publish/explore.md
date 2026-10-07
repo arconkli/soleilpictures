@@ -5,7 +5,7 @@ h1: Publishing to Explore
 navLabel: Explore
 section: publish
 order: 0
-updated: 2026-08-08
+updated: 2026-10-07
 answer: Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.
 faq:
   - q: How is publishing different from a share link?
@@ -33,6 +33,8 @@ because somebody clicked the wrong control, and the directory does not fill with
 half-finished boards.
 
 Publishing is reversible from the same place.
+
+Submitting opens up once an account is {{fact:newAccountHours}} hours old.
 
 ## What a published board gets
 

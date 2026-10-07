@@ -1432,7 +1432,7 @@ export const DOCS_PAGES = [
     "answer": "Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.",
     "section": "clusters",
     "order": 2,
-    "updated": "2026-10-04",
+    "updated": "2026-10-07",
     "navLabel": "Home",
     "headings": [
       {
@@ -2092,7 +2092,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-10-06",
+    "updated": "2026-10-07",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2380,7 +2380,7 @@ export const DOCS_PAGES = [
     "answer": "Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.",
     "section": "publish",
     "order": 0,
-    "updated": "2026-08-08",
+    "updated": "2026-10-07",
     "navLabel": "Explore",
     "headings": [
       {
@@ -3036,7 +3036,7 @@ export const DOCS_PAGES = [
     "answer": "Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.",
     "section": "developers",
     "order": 2,
-    "updated": "2026-08-10",
+    "updated": "2026-10-07",
     "navLabel": "Authentication",
     "headings": [
       {
@@ -3193,7 +3193,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.",
     "section": "developers",
     "order": 3,
-    "updated": "2026-08-10",
+    "updated": "2026-10-07",
     "navLabel": "OAuth",
     "headings": [
       {
@@ -3810,7 +3810,7 @@ export const DOCS_PAGES = [
     "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
     "section": "developers",
     "order": 12,
-    "updated": "2026-10-02",
+    "updated": "2026-10-07",
     "navLabel": "Webhooks",
     "headings": [
       {
@@ -3882,7 +3882,7 @@ export const DOCS_PAGES = [
     "answer": "A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.",
     "section": "developers",
     "order": 13,
-    "updated": "2026-08-09",
+    "updated": "2026-10-07",
     "navLabel": "Service accounts",
     "headings": [
       {

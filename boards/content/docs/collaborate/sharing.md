@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-06
+updated: 2026-10-07
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -80,6 +80,7 @@ buttons to copy or **revoke** it.
 > **Note:** By default a shared board tells search engines not to index it. It
 > is reachable by anyone with the URL, but it will not turn up in a search
 > unless you allow indexing or [publish it to Explore](/docs/publish/explore).
+> Allowing indexing opens up once an account is {{fact:newAccountHours}} hours old.
 
 The board renders in a real canvas — viewers pan, zoom and open images at full
 size. It is not a flattened image.
@@ -103,6 +104,10 @@ address to the same cluster again does not, and neither does changing someone's
 role: neither sends anything. Past the limit, nothing is sent and the share
 panel tells you when you can send more. For a bigger audience, a link reaches
 everyone at once.
+
+Accounts that reach the same inbox share one allowance: an address with a
+`+tag`, or a Gmail address written with extra dots, counts as the address
+itself.
 
 One address receives at most {{fact:inviteRecipientDailyCap}} invitation emails
 a day, from every sender combined. Past that the access is still granted; only

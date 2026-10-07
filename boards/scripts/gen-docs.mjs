@@ -128,7 +128,7 @@ const inviteBudgetSql = readdirSync(MIGRATIONS)
   .filter((f) => f.endsWith('.sql'))
   .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
   .map((f) => readFileSync(resolve(MIGRATIONS, f), 'utf8'))
-  .filter((sql) => /create\s+(?:or\s+replace\s+)?function\s+public\._invite_budget_take\s*\(/.test(sql))
+  .filter((sql) => /create\s+(?:or\s+replace\s+)?function\s+public\._invite_budget_take\s*\(/i.test(sql))
   .pop();
 const inviteDaily = inviteBudgetSql?.match(/c_invite_daily_limit\s+constant\s+integer\s*:=\s*(\d+)/);
 const inviteFirstDay = inviteBudgetSql?.match(/c_invite_first_day_limit\s+constant\s+integer\s*:=\s*(\d+)/);
@@ -142,7 +142,8 @@ function latestSqlDefining(fn) {
     .filter((f) => f.endsWith('.sql'))
     .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
     .map((f) => readFileSync(resolve(MIGRATIONS, f), 'utf8'))
-    .filter((sql) => new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\s*\\(`).test(sql))
+    // Case-insensitive: a definition copied from pg_get_functiondef is upper case.
+    .filter((sql) => new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${fn}\\s*\\(`, 'i').test(sql))
     .pop();
 }
 
@@ -165,6 +166,17 @@ const replyCap = latestSqlDefining('_tg_comment_reply_email')
   ?.match(/_tg_comment_reply_email\(\)[\s\S]*?interval '24 hours'\) >= (\d+) then/);
 if (!mentionCap || !replyCap || mentionCap[1] !== replyCap[1]) {
   throw new Error('gen-docs: the mention / reply email caps are missing or disagree — update the extractor');
+}
+
+// An account's first hours (_account_is_new, migration 0375): no API keys,
+// webhooks, connected apps, service accounts, indexable links or Explore
+// submissions, and a cap on workspaces (create_workspace_with_root's constant).
+const newAccountHours = latestSqlDefining('_account_is_new')
+  ?.match(/_account_is_new\(\)[\s\S]*?interval '(\d+) hours'/);
+const newAccountWorkspaces = latestSqlDefining('create_workspace_with_root')
+  ?.match(/c_new_account_workspaces\s+constant\s+integer\s*:=\s*(\d+)/);
+if (!newAccountHours || !newAccountWorkspaces) {
+  throw new Error('gen-docs: the new-account limits were not found — update the extractor');
 }
 
 export const FACTS = {
@@ -231,6 +243,10 @@ export const FACTS = {
   // Emails one person's mentions (or replies) send the same inbox in a day
   // (_tg_mention_notification_email / _tg_comment_reply_email, 0364).
   mentionEmailDailyCap: mentionCap[1],
+  // How long an account counts as new, and how many workspaces it may own
+  // meanwhile (0375).
+  newAccountHours: newAccountHours[1],
+  newAccountWorkspaces: newAccountWorkspaces[1],
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
   maxPartsPerCall: String(api.maxPartsPerCall),

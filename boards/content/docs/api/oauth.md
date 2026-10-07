@@ -5,7 +5,7 @@ h1: Connecting an app (OAuth)
 navLabel: OAuth
 section: developers
 order: 3
-updated: 2026-08-10
+updated: 2026-10-07
 answer: Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last {{fact:oauthAccessTtl}} with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
 faq:
   - q: Do I need to register an application first?
@@ -185,7 +185,8 @@ Disconnecting revokes the access token in the same statement, so it stops
 working immediately rather than at its next expiry. Everything the app did is in
 the [audit log](/docs/api/audit), with the tool it used.
 
-At most {{fact:maxConnectedApps}} connected apps per account.
+At most {{fact:maxConnectedApps}} connected apps per account, and connecting one
+opens up once the account is {{fact:newAccountHours}} hours old.
 
 ## What a token can reach
 

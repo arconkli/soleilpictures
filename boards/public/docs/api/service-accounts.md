@@ -2,7 +2,7 @@
 
 > A personal access token belongs to one person, so an integration built on it stops the day that person leaves the workspace. A service account is a credential owned by the workspace itself. It is a real member of exactly one workspace, subject to the same permissions as anyone else, and its tokens keep working regardless of who comes and goes. Only the workspace owner can create one, and a token can never grant more than the token that created it.
 
-_Source: https://clusters.soleilpictures.com/docs/api/service-accounts · Updated 2026-08-09_
+_Source: https://clusters.soleilpictures.com/docs/api/service-accounts · Updated 2026-10-07_
 
 A [personal access token](/docs/api/authentication) is **you**. Everything it
 can do, it does as your account, under your permissions. That is the right
@@ -109,6 +109,7 @@ deleted id.
 | **Per account** | 20 active tokens |
 | **Reach** | The one workspace it belongs to |
 | **Requests** | 10000/hour by default, per token |
+| **Owner's account** | At least 72 hours old to add one or mint its tokens |
 
 ## What it deliberately cannot do
 
