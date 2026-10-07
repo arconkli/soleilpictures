@@ -519,6 +519,7 @@ export const JOURNEY_PHASE_ORDER = Object.freeze([
 // not user copy, so we can aggregate "why did email→OTP drop".
 export function classifyAuthError(e) {
   const m = (e?.message || String(e || '')).toLowerCase();
+  if (m.includes('captcha'))                            return 'captcha';
   if (m.includes('rate') || m.includes('too many'))   return 'rate_limit';
   // GoTrue returns the single message "Token has expired or is invalid" for a
   // wrong code AND for an expired one. Reading it as 'expired' told every

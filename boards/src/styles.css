@@ -5502,6 +5502,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--line-2);
 }
 .auth-error { color: var(--ink-error); margin-top: 6px; }
+/* Turnstile's check, only when it needs a person to tap (turnstile.js). */
+.auth-captcha { display: flex; justify-content: center; margin-top: 12px; }
+.auth-captcha:empty { display: none; }
 .auth-hint  { color: var(--ink-3); }
 .auth-foot  { position: absolute; bottom: 20px; left: 0; right: 0; color: var(--ink-3); text-align: center; font-size: 11px; letter-spacing: 0.04em; }
 .auth-link  { background: transparent; border: 0; color: var(--soleil); cursor: pointer; font: 500 13px/1 var(--font-sans); padding: 8px 12px; }

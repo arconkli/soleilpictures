@@ -435,3 +435,20 @@ test('every new internal helper is born server-only (the 0311 rule, linted from 
     }
   }
 });
+
+// ── Phase 3: a captcha in front of the sign-in code ──────────────────────────
+
+test('the sign-in code request carries a Turnstile token once a site key is built in', async () => {
+  const ts = read('../auth/turnstile.js');
+  assert.match(ts, /const SITE_KEY = import\.meta\.env\?\.VITE_TURNSTILE_SITE_KEY \|\| '';/);
+  assert.doesNotMatch(ts, /^import /m, 'AuthGate stays import-light: turnstile.js imports nothing');
+  // The script is fetched only inside loadTurnstile, i.e. when a code is requested.
+  assert.equal((ts.match(/document\.createElement\('script'\)/g) || []).length, 1);
+  assert.ok(ts.indexOf("document.createElement('script')") > ts.indexOf('function loadTurnstile'));
+  const gate = read('../auth/AuthGate.jsx');
+  assert.match(gate, /const challenge = captchaEnabled\(\) \? await captchaToken\(captchaRef\.current\) : '';/);
+  assert.match(gate, /\.\.\.\(challenge \? \{ captchaToken: challenge \} : \{\}\)/);
+  assert.match(gate, /<div ref=\{captchaRef\} className="auth-captcha" \/>/);
+  const { classifyAuthError } = await import('./analyticsEvents.js');
+  assert.equal(classifyAuthError(new Error('captcha protection: request disallowed (timeout-or-duplicate)')), 'captcha');
+});

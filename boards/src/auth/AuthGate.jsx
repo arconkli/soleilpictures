@@ -32,6 +32,7 @@ import { readCreatorIntent } from '../lib/creatorIntent.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail } from '../lib/emailTypo.js';
 import { savePendingCode, readPendingCode, clearPendingCode, resendWait } from '../lib/pendingCode.js';
+import { captchaEnabled, captchaToken } from './turnstile.js';
 import { mailboxFor, isConsumerAddress } from '../lib/mailboxLink.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
@@ -606,6 +607,7 @@ function SignIn() {
   // Read once: an expired entry is removed on read and simply shows nothing.
   const [creatorHint] = useState(() => { try { return readCreatorIntent(); } catch (_) { return null; } });
   const codeRef = useRef(null);
+  const captchaRef = useRef(null);   // where Turnstile shows a check, if it ever needs one
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
   const codeEngagedRef  = useRef(false);
   const autoSubmitRef   = useRef(null);   // 6th-digit auto-submit debounce
@@ -726,6 +728,10 @@ function SignIn() {
         ...(firstSourceMeta ? { first_source: firstSourceMeta } : {}),
         ...(referralCode ? { referral_code: referralCode } : {}),
       };
+      // Turnstile (2026-10-06 audit): a fresh token for every request, a
+      // resend included. Dormant until a site key is built in; see turnstile.js
+      // for the order the key and Supabase's captcha switch must go live in.
+      const challenge = captchaEnabled() ? await captchaToken(captchaRef.current) : '';
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: {
@@ -733,6 +739,7 @@ function SignIn() {
           // at verify time. tier defaults to 'waitlist' (server trigger);
           // ad_fbc may bump it to 'demo' while the campaign flag is on.
           emailRedirectTo: window.location.origin,
+          ...(challenge ? { captchaToken: challenge } : {}),
           ...(Object.keys(signupData).length ? { data: signupData } : {}),
         },
       });
@@ -955,6 +962,8 @@ function SignIn() {
             )}
           </form>
         )}
+        {/* Empty unless Turnstile needs a person to tap; it serves both steps. */}
+        <div ref={captchaRef} className="auth-captcha" />
       </div>
 
       <p className="sb-trust">Made by a film studio, for creative professionals.</p>
@@ -964,6 +973,7 @@ function SignIn() {
 
 function humanError(e) {
   const msg = (e?.message || String(e || '')).toLowerCase();
+  if (msg.includes('captcha')) return "We couldn't confirm you're a person, not a bot. Try again — or another browser if it keeps happening.";
   if (msg.includes('rate') || msg.includes('too many')) return 'Hold on — too many attempts. Try again in a minute.';
   // One GoTrue message covers a wrong digit and a dead token; do not tell a
   // mistyped code it "expired" and send the person to the resend button.
