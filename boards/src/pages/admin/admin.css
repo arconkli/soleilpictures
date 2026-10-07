@@ -4813,12 +4813,12 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 .adm-cohort-cell.is-future { background: transparent; }
 
+/* The shared "not measured" hatch — the token is defined with the weekly
+   consistency rules at the end of this file, where the streak strip draws its
+   gap and unmeasured weeks with it. Inside a well it is the same dark value as
+   the literal that used to live here. */
 .adm-cohort-cell.is-unknown {
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, .075) 0 2px,
-    transparent 2px 5px
-  );
+  background: var(--adm-hatch);
 }
 
 .adm-cohort-row.is-avg {
@@ -5505,3 +5505,93 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   font: 600 9.5px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase;
   color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 999px; padding: 2px 5px;
 }
+
+/* ── Weekly consistency ─────────────────────────────────────────────────────
+ * The streak strip, the sentence under it, the quiet week-over-week badge and
+ * the one hatch that means "this was not measured".
+ *
+ * Appended last on purpose. chartPalette.test.mjs parses the FIRST .adm-well
+ * rule in this file for the palette steps, so the well's hatch override below
+ * has to come after that block and must never be hoisted above it.
+ */
+
+/* One drawing for "not measured", shared by the cohort matrix and the strip.
+   Ink at a fixed alpha rather than a theme colour: on dark it is a lighter
+   hatch, on light a darker one. */
+:root {
+  --adm-hatch: repeating-linear-gradient(45deg, rgba(255, 255, 255, .075) 0 2px, transparent 2px 5px);
+}
+
+[data-theme='light'] {
+  --adm-hatch: repeating-linear-gradient(45deg, rgba(0, 0, 0, .09) 0 2px, transparent 2px 5px);
+}
+
+/* A well is the same near-black in both themes, so inside one the hatch is the
+   dark value in both. A custom property is resolved where it is DECLARED and
+   inherited as a finished value, so this repeats the literal instead of
+   pointing at a helper variable. */
+.adm-well {
+  --adm-hatch: repeating-linear-gradient(45deg, rgba(255, 255, 255, .075) 0 2px, transparent 2px 5px);
+}
+
+/* The strip: one 9x11 cell per week, seven of them 75px wide in all. Colour is
+   the status pair and is never alone — the glyph is the direction. */
+.adm-streak { display: inline-flex; gap: 2px; vertical-align: middle; }
+
+.adm-streak-g {
+  width: 9px; height: 11px;
+  font: 500 9px/11px var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.adm-streak-g.is-up   { color: var(--adm-good); }
+.adm-streak-g.is-down { color: var(--adm-bad); }
+.adm-streak-g.is-flat { color: var(--ink-3); }
+
+/* No glyph and no colour: a week with no reading, or one nothing was recording
+   for, is hatched instead of drawn as a zero or as flat. */
+.adm-streak-g.is-gap,
+.adm-streak-g.is-unmeasured { background: var(--adm-hatch); }
+
+/* The newest weeks of some series are still being written. An outline reads as
+   "may still move" without borrowing another colour. It is an inset shadow
+   rather than a border because a border would make this cell larger than its
+   neighbours and shove the rest of the strip along. */
+.adm-streak-g.is-settling { box-shadow: inset 0 0 0 1px currentColor; }
+
+.admin-stat-streak { margin: 2px 0 0; }
+
+/* Two lines are reserved whether or not the sentence needs them, so a tile with
+   a short verdict does not sit a line higher than its neighbour with a long
+   one. */
+.admin-stat-verdict {
+  font: 500 12px/1.3 var(--font-sans);
+  color: var(--ink-1);
+  min-height: 2.6em;
+}
+
+.admin-stat-caveat { font-size: 11px; color: var(--ink-3); }
+
+/* The week-over-week badge once a streak has made the main claim: neutral ink,
+   mono, glyph kept. It follows .is-up and .is-down at the same specificity, so
+   it wins by order. */
+.admin-stat-delta.is-quiet {
+  font: 500 11px/1 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--ink-3);
+}
+
+/* Too few events to compare: a count, never a percentage and never a colour. */
+.admin-stat-delta.is-thin { color: var(--ink-3); }
+
+/* Under a streak the badge is a line of its own inside the sub block. Inline it
+   broke wherever the sub text happened to end, so the same tile layout wrapped
+   differently from one tile to the next. The suffix needs a word space the flex
+   gap alone does not give it. */
+.admin-stat-sub > .admin-stat-delta { display: flex; }
+
+.admin-stat-delta-suffix { margin-left: 3px; }
+
+/* A wider minimum track for the hero row: each tile now carries a strip and a
+   two-line sentence as well as its figures. */
+.admin-stat-grid.is-hero { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }

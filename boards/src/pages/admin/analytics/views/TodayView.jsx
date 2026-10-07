@@ -27,10 +27,11 @@
 
 import { supabase } from '../../../../lib/supabase.js';
 import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
+import { weekDelta } from '../../../../lib/trendStats.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
-import { Metric, MetricGrid, deltaInfo } from '../../viz/Metric.jsx';
+import { Metric, MetricGrid } from '../../viz/Metric.jsx';
 import { AreaChart } from '../../viz/AreaChart.jsx';
 import { Heatmap } from '../../viz/Heatmap.jsx';
 import { EventConsole } from '../../viz/EventConsole.jsx';
@@ -255,7 +256,7 @@ export function TodayView() {
             sub="new accounts"
             total={lifeN('total_users') != null
               ? { value: formatCount(lifeN('total_users')), label: 'all time' } : null}
-            delta={deltaInfo(num(cur.signups), num(prev.signups))}
+            delta={weekDelta(num(cur.signups), num(prev.signups))}
             spark={(d?.signups || []).map((r) => num(r.signups) || 0)}
             sparkColor={VAR.cat[0]}   /* acquisition */
           />
@@ -266,7 +267,7 @@ export function TodayView() {
             sub="opened the app"
             total={lifeN('total_users') != null && cur.wau != null
               ? { value: formatCount(lifeN('total_users')), label: 'signed up' } : null}
-            delta={deltaInfo(num(cur.wau), num(prev.wau))}
+            delta={weekDelta(num(cur.wau), num(prev.wau))}
             spark={(d?.history || []).map((r) => num(r.active_users) || 0)}
             sparkColor={VAR.cat[1]}   /* engagement */
           />
@@ -308,7 +309,7 @@ export function TodayView() {
             muted={!(mrrCents > 0)}
             total={payingUsers > 0 && arpu != null
               ? { value: formatMoney(arpu), label: 'per account' } : null}
-            delta={mrrCents > 0 ? deltaInfo(mrrCents, mrrPrev, 'money') : null}
+            delta={mrrCents > 0 ? weekDelta(mrrCents, mrrPrev, { kind: 'exact' }) : null}
             spark={mrrCents > 0 ? (d?.history || []).map((r) => num(r.mrr_cents) || 0) : null}
             sparkColor={VAR.cat[1]}
             title={mrrCents > 0
@@ -322,7 +323,7 @@ export function TodayView() {
             sub="across every cluster"
             total={lifeN('total_cards') != null
               ? { value: formatCompact(lifeN('total_cards')), label: 'all time' } : null}
-            delta={deltaInfo(num(cur.cards_created), num(prev.cards_created))}
+            delta={weekDelta(num(cur.cards_created), num(prev.cards_created))}
             spark={(d?.cards || []).map((r) => num(r.cards) || 0)}
             sparkColor={VAR.cat[2]}   /* output */
           />
