@@ -15,9 +15,26 @@
 //   * A null value breaks the path. metrics_daily has no backfill, so the
 //     series genuinely has holes, and a line drawn across a hole invents the
 //     days it is missing.
+//
+// The weekly stack (widgets/WeeklyMultiples.jsx) adds four things, each off by
+// default so every other chart draws exactly as before:
+//
+//   * `markers`: dated events as dashed verticals at a fractional index, named
+//     in the hover tip, with the kind's glyph on top when `markerGlyphs` is set
+//     (or the marker's own `glyph` says so).
+//     They are their own class and never `.adm-area-vgrid`: the vertical rules
+//     are the graticule, and the graph-paper guard counts them.
+//   * `bands`: hatched spans where nothing was being recorded, in the same
+//     `--adm-hatch` the streak strip and the cohort matrix use for that.
+//   * `markPoints` and `partialLast`: a dot per reading, and the newest reading,
+//     a period still being counted, drawn hollow and never joined. A line into
+//     a half-counted week would read as a fall every Monday.
+//   * `axis={false}`: no date row, for a stack that draws one shared axis.
 
 import { useId, useMemo, useRef, useState } from 'react';
 import { VAR } from './palette.js';
+import { MARKER_KINDS, glyphFor } from './markerGlyphs.js';
+import { markersAtHover } from '../../../lib/weeklySeries.js';
 
 const num = (x) => (x == null || x === '' || Number.isNaN(Number(x)) ? null : Number(x));
 
@@ -63,6 +80,22 @@ export function AreaChart({
    *  axis are equal intervals, so these carry meaning rather than texture. */
   vLines = 6,
   emptyLabel = 'Nothing to plot yet',
+  /** Dated events, [{ index, edge, kind, label, day, glyph? }]: a dashed vertical at x(index), where
+   *  index may fall between two points. `edge` draws it flush inside the right rule. A boolean
+   *  `glyph` decides that one marker's glyph, over `markerGlyphs`. */
+  markers = [],
+  /** Draw each marker's kind glyph at the top of its line (one chart of a stack, not all). */
+  markerGlyphs = false,
+  /** A dot on every reading, for a few discrete totals rather than a curve. */
+  markPoints = false,
+  /** The last point is a period still being counted: left out of the line, the fill and
+   *  markLast, and drawn as a hollow dot. */
+  partialLast = false,
+  /** Hatched spans, [{ from, to, title }] in index units, drawn from x(from) to x(to) clamped
+   *  to the plot. A band is enough to draw the chart even when no series has a reading. */
+  bands = [],
+  /** false leaves out the date row under the plot, for a caller that draws one shared axis. */
+  axis = true,
 }) {
   const uid = useId();
   const wrapRef = useRef(null);
@@ -76,10 +109,31 @@ export function AreaChart({
     return niceMax(Math.max(1, ...all));
   }, [live]);
 
-  if (!live.length || n < 2) return <div className="admin-empty">{emptyLabel}</div>;
+  // Hatched spans, as given: what is drawn is clamped to the plot below, but the
+  // hover reads each band's own extent, which runs a column past the right rule
+  // when the week so far was not measured either.
+  const spans = (Array.isArray(bands) ? bands : [])
+    .filter((b) => Number.isFinite(b?.from) && Number.isFinite(b?.to) && b.to > b.from);
+
+  // Nothing to draw: no axis, or neither a reading nor a span saying why there is none.
+  if (n < 2 || (!live.length && !spans.length)) return <div className="admin-empty">{emptyLabel}</div>;
 
   const x = (i) => (i / (n - 1)) * 100;
   const y = (v) => 100 - (v / top) * 100;
+
+  // The index of the reading still being counted, or -1. The line and the fill
+  // are drawn from `joined`, which leaves it out; the hollow dot below draws it.
+  const partial = partialLast ? n - 1 : -1;
+  const joined = (s) => s.values.map((v, i) => (i === partial ? null : num(v)));
+
+  // Markers come from callers, so one that cannot be placed is dropped and one
+  // past an end is pinned to it.
+  const pin = (i) => Math.min(n - 1, Math.max(0, i));
+  const marks = (Array.isArray(markers) ? markers : []).filter((m) => Number.isFinite(m?.index));
+  const markText = (m) => [m.day, m.label].filter(Boolean).join(' · ');
+  // The tip's rows. With no reading anywhere (a window nothing measured) the
+  // rows still name their series, so the band's reason has a line to sit on.
+  const tipSeries = live.length ? live : series;
 
   const onMove = (e) => {
     const el = wrapRef.current;
@@ -105,11 +159,12 @@ export function AreaChart({
       )}
 
       <div className="adm-area-frame" style={{ height }}>
-        {/* Scale. HTML rather than SVG text so it never stretches with the plot. */}
+        {/* Scale. HTML rather than SVG text so it never stretches with the plot.
+           With no reading there is no range to label, so the ticks stay blank. */}
         <div className="adm-area-scale" aria-hidden="true">
           {ticks.slice().reverse().map((t, i) => (
             <div className="adm-area-tick" key={i}>
-              <span>{formatValue(Math.round(t))}</span>
+              <span>{live.length ? formatValue(Math.round(t)) : ''}</span>
             </div>
           ))}
         </div>
@@ -145,6 +200,35 @@ export function AreaChart({
             />
           ))}
 
+          {/* Unmeasured spans, then dated markers. Both come after the rules:
+             `.adm-area-grid:first-of-type` strokes the baseline, and a band
+             ahead of it would become the first div and take that away. */}
+          {spans.map((b, k) => {
+            const left = Math.max(0, x(b.from));
+            const right = Math.min(100, x(b.to));
+            return right > left ? (
+              <div
+                key={`b${k}`}
+                className="adm-area-band"
+                style={{ left: `${left}%`, width: `${right - left}%` }}
+                title={b.title || undefined}
+                aria-hidden="true"
+              />
+            ) : null;
+          })}
+          {marks.map((m, k) => (
+            <div
+              key={`m${k}`}
+              className={`adm-area-marker is-${MARKER_KINDS.includes(m.kind) ? m.kind : 'other'}${m.edge ? ' is-edge' : ''}`}
+              style={{ left: `${x(pin(m.index))}%` }}
+              title={markText(m) || undefined}
+              aria-hidden="true"
+            >
+              {(typeof m.glyph === 'boolean' ? m.glyph : markerGlyphs)
+                ? <span className="adm-area-marker-glyph">{glyphFor(m.kind)}</span> : null}
+            </div>
+          ))}
+
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               {live.map((s, si) => (
@@ -157,7 +241,7 @@ export function AreaChart({
             </defs>
 
             {live.map((s, si) => {
-              const vals = s.values.map(num);
+              const vals = joined(s);
               const runs = segments(vals);
               return (
                 <g key={s.name}>
@@ -188,9 +272,25 @@ export function AreaChart({
             })}
           </svg>
 
+          {/* A dot per reading when asked for, and always the hollow one for a
+             reading still being counted. HTML, so a dot stays round however
+             the plot is stretched. */}
+          {live.flatMap((s, si) => s.values.map((raw, i) => {
+            const v = num(raw);
+            if (v == null || i >= n || (!markPoints && i !== partial)) return null;
+            return (
+              <div
+                key={`p${si}-${i}`}
+                className={`adm-area-pt${i === partial ? ' is-partial' : ''}`}
+                style={{ left: `${x(i)}%`, top: `${y(v)}%`, '--_c': s.color }}
+                aria-hidden="true"
+              />
+            );
+          }))}
+
           {/* Last value, called out — the number you look for first. */}
           {markLast && live.map((s) => {
-            const vals = s.values.map(num);
+            const vals = joined(s);
             let li = -1;
             for (let i = vals.length - 1; i >= 0; i--) if (vals[i] != null) { li = i; break; }
             if (li < 0) return null;
@@ -211,37 +311,57 @@ export function AreaChart({
               {live.map((s) => {
                 const v = num(s.values[hover]);
                 if (v == null) return null;
+                // Hollow on the reading still being counted, as it is at rest.
+                const hollow = hover === partial;
                 return (
                   <div
                     key={s.name}
-                    className="adm-area-dot"
-                    style={{ left: `${x(hover)}%`, top: `${y(v)}%`, background: s.color }}
+                    className={`adm-area-dot${hollow ? ' is-partial' : ''}`}
+                    style={{ left: `${x(hover)}%`, top: `${y(v)}%`, ...(hollow ? { '--_c': s.color } : { background: s.color }) }}
                   />
                 );
               })}
               <div className={`adm-area-tip ${x(hover) > 62 ? 'is-left' : ''}`} style={{ left: `${x(hover)}%` }}>
-                {labels[hover] && <span className="adm-area-tip-x">{labels[hover]}</span>}
-                {live.map((s) => {
-                  const v = num(s.values[hover]);
+                {labels[hover] && (
+                  <span className="adm-area-tip-x">{labels[hover]}{hover === partial ? ' · so far' : ''}</span>
+                )}
+                {tipSeries.map((s) => {
+                  const v = num(s.values?.[hover]);
+                  // A hole inside a band says what the band says, not just "no data".
+                  // The band's own extent, so the week so far is inside a run that
+                  // reaches it even though the hatch stops at the right rule.
+                  const why = v == null && spans.find((b) => hover >= b.from && hover < b.to)?.title;
                   return (
                     <span className="adm-area-tip-row" key={s.name}>
                       <span className="adm-legend-swatch" style={{ background: s.color }} />
-                      <span className="adm-area-tip-v">{v == null ? 'no data' : formatValue(v)}</span>
-                      {live.length > 1 && <span className="adm-area-tip-n">{s.name}</span>}
+                      <span className="adm-area-tip-v">{v == null ? (why || 'no data') : formatValue(v)}</span>
+                      {tipSeries.length > 1 && <span className="adm-area-tip-n">{s.name}</span>}
                     </span>
                   );
                 })}
+                {/* The markers nearest this point, matched the way the crosshair
+                   snaps (Math.round), so a Sunday note is listed under the Monday
+                   the crosshair is standing on. Each line leads with its kind's
+                   glyph: in a stack a marker's glyph is drawn on the plot only on
+                   the first row that draws the marker. */}
+                {markersAtHover(marks, hover, n).map((m, k) => (
+                  <span className="adm-area-tip-m" key={`m${k}`}>
+                    <span aria-hidden="true">{glyphFor(m.kind)}</span> {markText(m)}
+                  </span>
+                ))}
               </div>
             </>
           )}
         </div>
       </div>
 
-      <div className="adm-area-x">
-        <span>{labels[0]}</span>
-        <span>{labels[Math.floor((n - 1) / 2)]}</span>
-        <span>{labels[n - 1]}</span>
-      </div>
+      {axis && (
+        <div className="adm-area-x">
+          <span>{labels[0]}</span>
+          <span>{labels[Math.floor((n - 1) / 2)]}</span>
+          <span>{labels[n - 1]}</span>
+        </div>
+      )}
     </div>
   );
 }

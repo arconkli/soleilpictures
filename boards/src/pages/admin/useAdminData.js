@@ -63,7 +63,7 @@ export function useAdminData(fetchFn, deps = [], opts = {}) {
 
   // Refetch when the operator comes back to the tab — but not more often than
   // the poll would have. Without the floor, alt-tabbing replayed the whole
-  // view on every focus event: on Today that is eleven multi-second RPCs, on
+  // view on every focus event: on Today that is nine multi-second RPCs, on
   // demand, as fast as you can switch windows.
   useEffect(() => {
     if (!refetchOnFocus) return undefined;

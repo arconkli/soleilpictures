@@ -129,8 +129,10 @@ export function toWeekPoints(rows, metric) {
 // ── Definition breaks ─────────────────────────────────────────────────────
 /**
  * Cut points for a series column: entries with cut=true whose series includes col,
- * each as { week: mondayOnOrAfter(date), label, migration }. The straddling week is
+ * each as { week: mondayOnOrAfter(date), date, label, migration }. The straddling week is
  * thereby excluded from scoring (trendStats excludes weeks starting BEFORE week).
+ * `date` is the day the change actually happened, kept because the trend read's
+ * caveat prints it: the Monday is where the cut falls, not when anything changed.
  * `breaks` is overridable (the harness passes a relative list; DEV `?breaks=0` passes []).
  *
  * Oldest first. Strict about what counts as a cut: only a literal true, and a
@@ -143,7 +145,7 @@ export function breaksFor(col, breaks = DEFINITION_BREAKS) {
   for (const b of breaks) {
     if (!b || b.cut !== true || !Array.isArray(b.series) || !b.series.includes(col)) continue;
     const week = mondayOnOrAfter(b.date);
-    if (week) cuts.push({ week, label: b.label, migration: b.migration });
+    if (week) cuts.push({ week, date: b.date, label: b.label, migration: b.migration });
   }
   return cuts.sort(byWeek);
 }
@@ -173,6 +175,65 @@ export function markerIndex(day, weeks) {
   const i = Math.floor((dayMs - firstMs) / WEEK_MS);
   const daysIn = (dayMs - (firstMs + i * WEEK_MS)) / DAY_MS;
   return { index: i + daysIn / 7, edge: false };
+}
+
+// ── Unmeasured bands ──────────────────────────────────────────────────────
+const NOT_MEASURED = 'not measured yet';
+
+/**
+ * Runs of weeks nothing was recording, as hatched bands on the chart's index axis:
+ *   measurable: one flag per week, oldest first, this week so far last
+ *   returns [{ from, to, title: 'not measured yet' }], oldest first, drawn from x(from) to x(to).
+ * from is the run's first index. A complete week runs from its Monday to the next one
+ * (the axis markerIndex places days on), so to is the index just past the run, which is
+ * where the line resumes. A run that takes in the week so far ends a column past the right
+ * rule: the chart clamps the hatch it draws there, and its hover, which reads the band's
+ * own extent, finds an unmeasured week so far inside it.
+ *
+ * Only an explicit false is unmeasured. A flag that is missing makes no claim, and
+ * hatching a week as "not measured" when nobody knows would be a small lie of its own.
+ */
+export function bandsFromMeasurable(measurable) {
+  if (!Array.isArray(measurable)) return [];
+  const last = measurable.length - 1;
+  const bands = [];
+  for (let i = 0; i <= last; i += 1) {
+    if (measurable[i] !== false) continue;
+    const from = i;
+    while (i < last && measurable[i + 1] === false) i += 1;
+    bands.push({ from, to: i + 1, title: NOT_MEASURED });
+  }
+  return bands;
+}
+
+// ── Markers on a chart ────────────────────────────────────────────────────
+/**
+ * The markers a chart of one column draws: every marker with no `series` (a note, an
+ * alert, a release note: about the product, so on every chart), and every one whose
+ * `series` list names col (a definition break: about one counter). A break that names
+ * no weekly column is therefore on no chart; the markers list beside them still has it.
+ *
+ * As in breaksFor, only a real list is a scope: 'cards'.includes('card') is true, and a
+ * marker placed by a substring would sit on a chart it has nothing to do with.
+ * Markers come back as given, in order.
+ */
+export function markersForColumn(markers, col) {
+  if (!Array.isArray(markers)) return [];
+  return markers.filter((m) => m !== null && typeof m === 'object'
+    && (m.series == null || (Array.isArray(m.series) && m.series.includes(col))));
+}
+
+/**
+ * The markers to list when the crosshair stands on point `hover` of an n-point axis:
+ * those whose index, pinned to [0, n - 1], rounds to hover. The crosshair snaps to the
+ * nearest point, so a marker is listed under the point it is drawn nearest to; a Sunday
+ * release note, six sevenths of the way along its week, is listed under the next Monday.
+ * Markers come back as given, in order; one without a finite index is never listed.
+ */
+export function markersAtHover(markers, hover, n) {
+  if (!Array.isArray(markers) || !Number.isInteger(hover) || !Number.isInteger(n) || n < 1) return [];
+  return markers.filter((m) => Number.isFinite(m?.index)
+    && Math.round(Math.min(n - 1, Math.max(0, m.index))) === hover);
 }
 
 // ── Marker merging ────────────────────────────────────────────────────────
@@ -232,12 +293,16 @@ const STATE_OF_DIR = new Map([[1, 'up'], [0, 'flat'], [-1, 'down']]);
 // that shared one object would decorate them all.
 const unmeasuredSlot = () => ({ state: 'unmeasured', settling: false, title: '' });
 
+// The outline that marks a settling slot says nothing on its own, so its title
+// does: the reading is real but may still move.
 function slotOf(step) {
   const state = STATE_OF_DIR.get(step?.dir) ?? 'gap';
+  const settling = !!step?.settling;
   return {
     state,
-    settling: !!step?.settling,
-    title: state === 'gap' ? '' : `${weekLabel(step.week)}: ${step.from} → ${step.to}`,
+    settling,
+    title: state === 'gap' ? ''
+      : `${weekLabel(step.week)}: ${step.from} → ${step.to}${settling ? ' · still settling' : ''}`,
   };
 }
 
@@ -246,11 +311,12 @@ function slotOf(step) {
  *   returns `slots` entries, newest last: { state: 'up'|'down'|'flat'|'gap'|'unmeasured', settling, title }
  * Under verdict.code === 'too_few' every slot is 'unmeasured'. Otherwise the last
  * min(slots, steps.length) steps map dir 1/0/-1/null -> up/flat/down/gap, left-padded
- * with 'unmeasured'. title = `${weekLabel(step.week)}: ${from} → ${to}` for defined steps.
+ * with 'unmeasured'. title = `${weekLabel(step.week)}: ${from} → ${to}` for defined steps,
+ * ending ' · still settling' when the step is settling.
  *
  * Reads only trend.verdict.code and trend.steps, so the strip cannot drift from
  * what the trend read decided. A step with no direction, and a slot with no step
- * behind it, have no from and to to report, so their title is ''.
+ * behind it, have no from and to to report, so their title is '', settling or not.
  */
 export function streakSlots(trend, slots = 7) {
   const steps = trend?.verdict?.code === 'too_few' || !Array.isArray(trend?.steps) ? [] : trend.steps;
