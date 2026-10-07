@@ -177,6 +177,35 @@ export function markerIndex(day, weeks) {
   return { index: i + daysIn / 7, edge: false };
 }
 
+// ── Unmeasured bands ──────────────────────────────────────────────────────
+const NOT_MEASURED = 'not measured yet';
+
+/**
+ * Runs of weeks nothing was recording, as hatched bands on the chart's index axis:
+ *   measurable: one flag per week, oldest first, this week so far last
+ *   returns [{ from, to, title: 'not measured yet' }], oldest first, drawn from x(from) to x(to).
+ * from is the run's first index. A complete week runs from its Monday to the next one
+ * (the axis markerIndex places days on), so to is the index just past the run, which is
+ * where the line resumes. A run that reaches the last row stops there: the week so far is
+ * a point at the right rule with no width of its own, so a run of only that week is no band.
+ *
+ * Only an explicit false is unmeasured. A flag that is missing makes no claim, and
+ * hatching a week as "not measured" when nobody knows would be a small lie of its own.
+ */
+export function bandsFromMeasurable(measurable) {
+  if (!Array.isArray(measurable)) return [];
+  const last = measurable.length - 1;
+  const bands = [];
+  for (let i = 0; i <= last; i += 1) {
+    if (measurable[i] !== false) continue;
+    const from = i;
+    while (i < last && measurable[i + 1] === false) i += 1;
+    const to = Math.min(i + 1, last);
+    if (to > from) bands.push({ from, to, title: NOT_MEASURED });
+  }
+  return bands;
+}
+
 // ── Marker merging ────────────────────────────────────────────────────────
 const asList = (x) => (Array.isArray(x) ? x : []);
 const byDaySourceLabel = (a, b) =>

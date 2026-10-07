@@ -17,7 +17,7 @@ import { DEFINITION_BREAKS, WEEKLY_SERIES_KEYS } from './adminDefinitionBreaks.j
 import { CHANGELOG_ENTRIES } from './changelogIndex.js';
 import {
   WEEKLY_METRICS, mondayOf, mondayOnOrAfter, addDays, toWeekPoints, breaksFor, markerIndex,
-  mergeMarkers, weekLabel, streakSlots,
+  bandsFromMeasurable, mergeMarkers, weekLabel, streakSlots,
 } from './weeklySeries.js';
 
 // ── Calendar ──────────────────────────────────────────────────────────────
@@ -394,6 +394,70 @@ test('an axis that is not consecutive weeks has no columns to measure against', 
   assert.equal(markerIndex('2026-09-17', ['2026-09-14', '2026-09-28']), null); // a week missing
   assert.equal(markerIndex('2026-09-17', ['2026-09-21', '2026-09-14']), null); // backwards
   assert.equal(markerIndex('2026-09-17', ['2026-09-14', '2026-09-14']), null); // a repeat
+});
+
+// ── Unmeasured bands ──────────────────────────────────────────────────────
+// A week nothing was recording is hatched on the chart. A band is drawn from
+// x(from) to x(to) on the same index axis as the points, and on that axis a
+// complete week runs from its own Monday to the next (markerIndex above puts a
+// Thursday three sevenths of the way along). So a run of unmeasured weeks ends
+// at the Monday of the first week after it, which is exactly where the line
+// picks up again: the hatch meets the line instead of stopping a column short.
+const NOT_MEASURED = 'not measured yet';
+
+test('the weeks before a counter existed are one band, ending where the line starts', () => {
+  // The Did-real-work shape: nine weeks before the counter, then five with it,
+  // the last of those five being this week so far.
+  const measurable = [...Array(9).fill(false), ...Array(5).fill(true)];
+  assert.deepEqual(bandsFromMeasurable(measurable), [{ from: 0, to: 9, title: NOT_MEASURED }]);
+});
+
+test('every week measured is no band at all', () => {
+  assert.deepEqual(bandsFromMeasurable(Array(14).fill(true)), []);
+});
+
+test('one unmeasured week is a column wide, never a band of zero width', () => {
+  assert.deepEqual(bandsFromMeasurable([true, true, false, true, true]), [
+    { from: 2, to: 3, title: NOT_MEASURED },
+  ]);
+});
+
+test('separate runs are separate bands, oldest first', () => {
+  assert.deepEqual(bandsFromMeasurable([false, true, false, false, true]), [
+    { from: 0, to: 1, title: NOT_MEASURED },
+    { from: 2, to: 4, title: NOT_MEASURED },
+  ]);
+});
+
+test('a run into this week stops at the right rule: the week so far is a point, not a column', () => {
+  assert.deepEqual(bandsFromMeasurable([true, false, false]), [{ from: 1, to: 2, title: NOT_MEASURED }]);
+  assert.deepEqual(bandsFromMeasurable([false, false, false]), [{ from: 0, to: 2, title: NOT_MEASURED }]);
+  // Only this week unmeasured, or a one-week axis: there is no width to hatch.
+  assert.deepEqual(bandsFromMeasurable([true, true, false]), []);
+  assert.deepEqual(bandsFromMeasurable([false]), []);
+});
+
+test('only an explicit false is "not measured": a flag that is missing makes no claim', () => {
+  assert.deepEqual(bandsFromMeasurable([true, undefined, null, 0, '', 'false', true]), []);
+});
+
+test('anything that is not a list of flags is no bands, never an error', () => {
+  for (const junk of [null, undefined, 'false', 7, true, {}, []]) {
+    assert.deepEqual(bandsFromMeasurable(junk), [], JSON.stringify(junk));
+  }
+});
+
+test('the flags toWeekPoints reads off the rows give the band the chart draws', () => {
+  // The path the dashboard takes: wide rows, one metric, its measurable flags.
+  const weeks = Array.from({ length: 14 }, (_, i) => addDays('2026-07-06', 7 * i));
+  const rows = weeks.map((week, i) => (
+    i < 9 ? wide(week, { work_users: null, work_measurable: false }) : wide(week)
+  ));
+  const flags = (key) => toWeekPoints(rows, metric(key)).map((p) => p.measurable);
+  assert.deepEqual(bandsFromMeasurable(flags('work')), [{ from: 0, to: 9, title: NOT_MEASURED }]);
+  // The same rows hatch nothing for a counter that always existed.
+  assert.deepEqual(bandsFromMeasurable(flags('signups')), []);
+  assert.deepEqual(bandsFromMeasurable(flags('active')), []);
 });
 
 // ── Marker merging ────────────────────────────────────────────────────────

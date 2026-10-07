@@ -5547,7 +5547,10 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 .adm-streak-g.is-up   { color: var(--adm-good); }
 .adm-streak-g.is-down { color: var(--adm-bad); }
-.adm-streak-g.is-flat { color: var(--ink-3); }
+/* Brighter and heavier than the default ink. A middle dot is a couple of pixels
+   across, and in --ink-3 it was the faintest mark in the strip, for a reading
+   that is just as real as an arrow. */
+.adm-streak-g.is-flat { color: var(--ink-2); font-weight: 700; }
 
 /* No glyph and no colour: a week with no reading, or one nothing was recording
    for, is hatched instead of drawn as a zero or as flat. */
@@ -5555,10 +5558,12 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .adm-streak-g.is-unmeasured { background: var(--adm-hatch); }
 
 /* The newest weeks of some series are still being written. An outline reads as
-   "may still move" without borrowing another colour. It is an inset shadow
-   rather than a border because a border would make this cell larger than its
-   neighbours and shove the rest of the strip along. */
-.adm-streak-g.is-settling { box-shadow: inset 0 0 0 1px currentColor; }
+   "may still move" without borrowing another colour. It is a border, not a
+   shadow: forced-colors mode drops box-shadow, and the outline vanished with it.
+   Every box here is border-box, so the cell stays 9x11 and the border is drawn
+   inside it; the line height drops by the two border pixels so the glyph stays
+   centred where its neighbours' glyphs are. */
+.adm-streak-g.is-settling { border: 1px solid currentColor; line-height: 9px; }
 
 .admin-stat-streak { margin: 2px 0 0; }
 
@@ -5575,10 +5580,12 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 /* The week-over-week badge once a streak has made the main claim: neutral ink,
    mono, glyph kept. It follows .is-up and .is-down at the same specificity, so
-   it wins by order. */
+   it wins by order. The wider gap keeps the glyph off the figure: at 2px,
+   "▲+14%" read as one token. */
 .admin-stat-delta.is-quiet {
   font: 500 11px/1 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   color: var(--ink-3);
+  gap: 4px;
 }
 
 /* Too few events to compare: a count, never a percentage and never a colour. */
@@ -5595,3 +5602,97 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 /* A wider minimum track for the hero row: each tile now carries a strip and a
    two-line sentence as well as its figures. */
 .admin-stat-grid.is-hero { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+/* ── Weekly multiples ───────────────────────────────────────────────────────
+ * Four weekly charts stacked under one shared axis, and what AreaChart grew
+ * for them: dated markers, hatched weeks nothing was recording, a dot per
+ * reading and a hollow one for the week still being counted.
+ *
+ * Nothing here is gold, and no marker kind has a colour of its own: kinds are
+ * told apart by the glyph's shape (viz/markerGlyphs.js), all in neutral ink.
+ */
+
+/* Weeks nothing was recording: the strip's and the cohort matrix's hatch, so
+   "not measured" is one drawing wherever it appears. */
+.adm-area-band {
+  position: absolute; top: 0; bottom: 0;
+  background: var(--adm-hatch);
+  pointer-events: none;
+}
+
+/* Dashed, where the graticule's verticals are solid, so a marker beside a
+   week's rule never reads as one more rule. */
+.adm-area-marker {
+  position: absolute; top: 0; bottom: 0;
+  border-left: 1px dashed var(--ink-3);
+  pointer-events: none;
+}
+
+/* A marker inside the week so far sits flush against the right rule. */
+.adm-area-marker.is-edge { transform: translateX(-100%); }
+
+/* The kind's shape, at the head of its rule. The one part of a marker that
+   takes the pointer, so the marker's native title (day · label) can show. */
+.adm-area-marker-glyph {
+  position: absolute; top: -2px; left: -5px;
+  font: 10px/1 var(--font-mono);
+  color: var(--ink-2);
+  pointer-events: auto;
+}
+
+/* One reading. --_c is the series colour, set inline by the chart. */
+.adm-area-pt {
+  position: absolute;
+  width: 6px; height: 6px; border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: var(--_c, var(--ink-2));
+  pointer-events: none;
+}
+
+/* The week so far: hollow on the plot ground, and never joined to the line. */
+.adm-area-pt.is-partial {
+  background: var(--adm-plot);
+  border: 1.5px solid var(--_c, var(--ink-2));
+}
+
+/* The crosshair's dot keeps it hollow while it is hovered. */
+.adm-area-dot.is-partial {
+  background: var(--adm-plot);
+  border: 2px solid var(--_c, var(--ink-2));
+}
+
+/* A marker in the hovered week, listed under the reading. */
+.adm-area-tip-m { font: 400 11px/1.3 var(--font-sans); color: var(--ink-3); }
+
+/* Scale labels are centred on their rules, so a chart's 0 hangs half a 10.5px
+   line below its plot and the next chart's top label half a line above its
+   own. At 6px apart the two printed on top of each other. */
+.adm-stack { display: grid; gap: 14px; }
+
+/* minmax(0, 1fr), as .adm-area-frame does: a chart may shrink, but it may not
+   push the stack wider than its well. */
+.adm-stack-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+/* The row's name is its chart's title, so it takes the well title's ink
+   (--ink-2, 7:1 on the plot ground) rather than the meta's (--ink-3, 3.6:1). */
+.adm-stack-label {
+  font: 500 10px/1.2 var(--font-mono);
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* The stack's one date row, under the plot column: past the 96px label column
+   and the 8px row gap, then the 54px every AreaChart keeps for its scale
+   (.adm-area-frame's 44px column plus its 10px gap, the 54px .adm-area-x pads). */
+.adm-stack-x {
+  display: flex; justify-content: space-between;
+  padding-left: calc(96px + 8px + 54px);
+  font: 10px/1 var(--font-mono);
+  color: var(--ink-3);
+}
