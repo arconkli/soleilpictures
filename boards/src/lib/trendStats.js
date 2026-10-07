@@ -40,6 +40,12 @@
 //     MIN_DELTA_EVENTS events is 'directional' at most, and the detail says
 //     how few there were. Under MIN_ZERO_EVENTS the read is "Nothing yet", and
 //     under MIN_WEEKS usable weeks it is "Too few weeks", never a direction.
+//   - A short window. At four or five usable weeks the rank test has almost no
+//     power: 10, 12, 11, 15 is up 50% end to end and scores p = 1/6. Finding
+//     no direction there is not finding that there is none, so under
+//     STEADY_WEEKS a read with no direction says "No clear direction over n
+//     weeks". "Flat" would print an absence of evidence as evidence of
+//     absence. The code is 'flat' either way; only the sentence changes.
 //   - Shapes that are not trends are named as what they are: one week carrying
 //     most of the movement is a step ("Stepped up (week of ...)"), and a rise
 //     whose newest PLATEAU_N weeks have stopped is "Rose, then flat".
@@ -69,8 +75,9 @@
 import { addDays } from './weeklySeries.js';
 
 export const DEFAULT_WINDOW   = 8;     // complete calendar weeks scored
+export const WEEKS_FETCHED    = 14;    // weekly rows fetched: 13 complete weeks + the week so far
 export const MIN_WEEKS        = 4;     // fewer usable weeks -> 'too_few'
-export const STEADY_WEEKS     = 6;     // n >= this before "steady"/"uneven"/flat-dominant wording
+export const STEADY_WEEKS     = 6;     // n >= this before "steady"/"uneven"/flat-dominant wording, and "Flat"
 export const EXACT_MAX_N      = 12;    // exact Mann-Kendall null up to here (untied only)
 export const ALPHA_SOLID      = 0.05;  // one-sided; stated in the UI tooltip, never halved
 export const ALPHA_LEAN       = 0.10;  // one-sided
@@ -319,9 +326,15 @@ function verdictOf({ xs, sum, missing, minWeeks, mk, slope, steps, counts, spike
     const last = steps.at(-1);
     const quiet = !last || last.dir === 0 || last.dir === null
       || ['flat', 'thin'].includes(weekDelta(last.to, last.from)?.dir);
-    if (!quiet && last.dir === 1) return say('flat', `Up this week, flat over ${n}`);
-    if (!quiet && last.dir === -1) return say('flat', `Down this week, flat over ${n}`);
-    return say('flat', `Flat over ${n} weeks`);
+    // Under STEADY_WEEKS readings it cannot call it flat, only say it sees no direction (header).
+    const short = n < STEADY_WEEKS;
+    if (!quiet && last.dir === 1) {
+      return say('flat', short ? `Up this week, no clear direction over ${n}` : `Up this week, flat over ${n}`);
+    }
+    if (!quiet && last.dir === -1) {
+      return say('flat', short ? `Down this week, no clear direction over ${n}` : `Down this week, flat over ${n}`);
+    }
+    return say('flat', short ? `No clear direction over ${n} weeks` : `Flat over ${n} weeks`);
   }
 
   // Past here p <= ALPHA_LEAN, so S is not 0 and mk.dir is 'up' or 'down'.

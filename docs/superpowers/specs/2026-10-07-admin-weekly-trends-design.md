@@ -66,7 +66,7 @@ synthetic; the repo is public.
 `/admin`, Overview, Today view (`?tab=overview&view=today`), in its first two bands:
 
 - Band 01, **The last seven days**: the hero tiles. Unchanged title.
-- Band 02, **Thirteen weeks, and what changed**: replaces "Growth". The weekly stack and
+- Band 02, **13 weeks, and what changed**: replaces "Growth". The weekly stack and
   the markers list.
 - Bands 03 and 04 (activity by weekday and hour, live console, people) are unchanged.
 
@@ -297,7 +297,7 @@ scored as if it were.
 |---|---|---|
 | `DEFAULT_WINDOW` | 8 | Complete calendar weeks scored |
 | `MIN_WEEKS` | 4 | Fewer usable weeks reads "Too few weeks" |
-| `STEADY_WEEKS` | 6 | Weeks needed before "steady", "uneven" and flat-dominant wording |
+| `STEADY_WEEKS` | 6 | Weeks needed before "steady", "uneven", flat-dominant wording and "Flat" |
 | `EXACT_MAX_N` | 12 | The exact rank null is used up to here (untied only) |
 | `ALPHA_SOLID` | 0.05 | One-sided, never halved |
 | `ALPHA_LEAN` | 0.10 | One-sided |
@@ -413,7 +413,7 @@ and flat steps, `m` their total, `g` the weeks missing from the window.
 |---|---|---|---|---|
 | 1 | `n < 4` | `too_few` | `Too few weeks ({n} of {minWeeks})` | none |
 | 2 | `sum < 3` | `zero` | `Nothing yet ({sum} in {n} weeks)` | none |
-| 3 | confidence none | `flat` | `Up this week, flat over {n}` or `Down this week, flat over {n}` when the newest step is outside the noise (`weekDelta` says up or down); else `Flat over {n} weeks` | none |
+| 3 | confidence none | `flat` | `Up this week, flat over {n}` or `Down this week, flat over {n}` when the newest step is outside the noise (`weekDelta` says up or down); else `Flat over {n} weeks`. With `n` of 4 or 5: `Up this week, no clear direction over {n}`, `Down this week, no clear direction over {n}`, else `No clear direction over {n} weeks` | none |
 | 4 | at least 4 defined steps, and one step in the trend's direction carries at least 60% of that direction's movement and is itself outside the noise | `shift_up` or `shift_down` | `Stepped up (week of {MM-DD} carried most of the rise)` or `Stepped down (week of {MM-DD} carried most of the drop)` | solid or directional |
 | 5 | `n >= 6`, rising, `S` over the newest 4 readings `<= 0`, and their median at or above the level | `plateau` | `Rose, then flat for 4 weeks` | solid or directional |
 | 5 | the mirror, falling | `trough` | `Fell, then flat for 4 weeks` | solid or directional |
@@ -427,6 +427,11 @@ and flat steps, `m` their total, `g` the weeks missing from the window.
 For a fall the counts swap (`Down {d} …`, with `u` and `d` exchanged in the steady and
 flat rules). Where the count is exactly one the sentence says "1 measured week" and the
 caveat says "1 week since"; no other label pluralizes.
+
+Under `STEADY_WEEKS` usable weeks the rank test has almost no power (`10, 12, 11, 15` is
+up 50% end to end and scores p = 1/6), so a read with no direction there says it cannot
+see one: "flat" would print an absence of evidence as evidence of absence. The code is
+`flat` either way.
 
 **`detail`** is a string joined with ` · `, or null. It is null for `too_few` and `zero`.
 Otherwise it holds, in order: `one spike week ({week})` or `{k} spike weeks`;
@@ -551,8 +556,9 @@ on focus:
 1. `admin_kpi_summary` with `p_days: 7`. **First, and the only call that gates the view**:
    everything else degrades in place.
 2. `admin_metrics_history` (60 days), for the MRR spark and its prior value only.
-3. `admin_weekly_series` with `p_weeks: 14` and the same two flags, so a tile's number and
-   its strip count the same people.
+3. `admin_weekly_series` with `p_weeks: 14` (`WEEKS_FETCHED`; every "13" on the view is
+   `WEEKS_FETCHED - 1`) and the same two flags, so a tile's number and its strip count the
+   same people.
 4. `admin_markers` (default 120 days).
 5. `admin_active_now`, `admin_user_dormancy`, `admin_list_users`, `admin_universe_stats`,
    `admin_activity_heatmap`: unchanged.
@@ -587,9 +593,10 @@ read.
   cell's title is the week and the move, `wk of Sep 15: 12 → 15`, plus " · still
   settling".
 - **The sentence** is `.admin-stat-verdict`, two lines reserved so a short verdict does
-  not sit a line higher than its neighbour. Its hover title is the caveat, else the
-  detail. When a `caveat` exists it prints on a muted line below, with non-breaking
-  hyphens so the date never splits across lines.
+  not sit a line higher than its neighbour. Its hover title is the detail and the caveat
+  joined with ` · `, and absent when there is neither, so the tile's own shows through.
+  When a `caveat` exists it prints on a muted line below, with non-breaking hyphens so
+  the date never splits across lines.
 - **The badge** (week over week) moves to the sub line, **quiet** (neutral ink, glyph
   kept) and named **"vs prior 7d"**, because six hero tiles cannot hold a label, a badge
   and a strip in one head row. `thin` and `noise` both draw `·` with screen-reader words
@@ -613,7 +620,9 @@ read.
 ### The weekly stack (band 02, left)
 
 `Well span=8`, titled "Weekly, by metric", meta "13 complete weeks + this week so far ·
-UTC Monday", footer "History can shrink: deleted accounts and cards leave it."
+UTC Monday", footer "History can shrink: deleted accounts and cards leave it. It can also
+grow: a late verification raises a recent week." (the population predicate reads the
+current `email_confirmed_at` and `last_sign_in_at`).
 
 `WeeklyMultiples` stacks one `AreaChart` per `WEEKLY_METRICS` entry, in that order, each
 96px tall with its own y scale: the four series sit an order of magnitude apart, so they
@@ -698,11 +707,12 @@ at once.
 - *Remove* takes the note off the list at once, then calls `admin_note_delete`.
   - On success: an undo toast "Note removed · {label}" with an **Undo** button. Undo
     calls `admin_note_restore` and puts back the **same row**, id and all; if the restore
-    fails it says "Undo failed".
+    fails (an error, an empty answer or a rejected call) it says "Undo failed".
   - On `false` (no live note had that id, because another tab or admin removed it first):
     the note stays off the list, an info toast says "Already removed", and there is
     nothing to undo.
-  - On an error: the note comes back and an error toast says "Note not removed".
+  - On an error, or a rejected call: the note comes back, its pending change is dropped,
+    and an error toast says "Note not removed".
   - A keyboard press on the remove button first moves focus to the label field, so focus
     never falls to the page when the row unmounts; a pointer click does not, since that
     scrolled the page and opened the soft keyboard on tablets.
@@ -719,8 +729,9 @@ markers call failed re-seeds nothing.
 ### The status strip
 
 On Today the strip reads `WINDOW 7d · 13 wk UTC · {k} of 7 days`, where `k` is the days
-of this UTC week so far (Monday is 1), and gains `WEEKS {n} complete` when the weekly read
-succeeded. The view registers its calendar with the shell through
+of this UTC week so far (Monday is 1), and `WEEKS {n} complete`. The weeks are claimed only
+once the weekly read has come back: while it loads, and when it failed, WINDOW is `7d`
+alone and there is no `WEEKS` item. The view registers its calendar with the shell through
 `useRegisterViewRuntime`, whose effect is keyed on the two primitives (`weeks`,
 `partialDays`) and never on the object: a literal in a dependency array hands over a new
 object every render and loops the provider. The strip reads the registered status on Today
@@ -754,10 +765,11 @@ registered one.
 
 A failed secondary read says nothing rather than something false. If
 `admin_weekly_series` fails, `weekly` stays `null` (not `[]`): the four tiles render with
-no strip, no verdict, no spark and no hover rule, with their badge back in the head; no
-`WEEKS` item appears, and the stack says "Nothing to plot yet". It never prints "Too few
-weeks (0 of 4)" or "0 complete". If `admin_markers` fails, the notes keep the list they
-have and the alerts are empty. Only `admin_kpi_summary` takes the view down.
+no strip, no verdict, no spark and no hover rule, with their badge back in the head; the
+status strip's WINDOW reads `7d` alone and no `WEEKS` item appears, and the stack says
+"Nothing to plot yet". It never prints "Too few weeks (0 of 4)" or "0 complete". If
+`admin_markers` fails, the notes keep the list they have and the alerts are empty. Only
+`admin_kpi_summary` takes the view down.
 
 ---
 

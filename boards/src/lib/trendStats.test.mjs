@@ -941,14 +941,80 @@ test('#19 five weeks, all up: solid, without the steady wording it has not earne
   });
 });
 
-test('#20 four weeks with a dip: flat', () => {
+test('#20 four weeks with a dip: too short to call flat, so no clear direction', () => {
   // 10,12,11,15: S = 5 - 1 = 4, exact p = P(I <= 1) = (1 + 3)/24 = 1/6: none.
   // Slopes sorted: -1, 1/2, [3/2, 5/3], 2, 4: perWeek 19/12, rise 4.75.
   // Last step 11 -> 15: z = 4/sqrt(26) = 0.78, noise.
+  // Up 50% end to end, and four untied weeks out of perfect order can do no better than
+  // 1/6. n = 4 is under STEADY_WEEKS: the read cannot see a direction, which is not the
+  // same as seeing that there is none. The code is still 'flat'.
   const t = read([10, 12, 11, 15]);
   close(t.mk.p, 1 / 6, 1e-4, 'p');
   close(t.slope.rise, 4.75, 0.01, 'rise');
-  assert.deepEqual(t.verdict, { code: 'flat', label: 'Flat over 4 weeks', confidence: 'none', detail: null });
+  assert.deepEqual(t.verdict, {
+    code: 'flat', label: 'No clear direction over 4 weeks', confidence: 'none', detail: null,
+  });
+});
+
+// ── Short windows: no clear direction, never "flat" ───────────────────────
+// Under STEADY_WEEKS (6) readings a read with no direction says it cannot see
+// one; from six on, it says flat. Each of the three short sentences has a case.
+test('five weeks with no direction: no clear direction, and so is a window holding five readings', () => {
+  // 10,12,11,15,14: untied; inversions (12,11) and (15,14): I = 2, S = 10 - 4 = 6.
+  // Exact p = P(I <= 2) = (1 + 4 + 9)/120 = 14/120 = 0.1167 > 0.10: none, on a 40% rise.
+  // Last step 15 -> 14: weekDelta(14, 15), z = -1/sqrt(29) = -0.19, noise.
+  const five = read([10, 12, 11, 15, 14]);
+  assert.equal(five.mk.S, 6);
+  close(five.mk.p, 14 / 120, 1e-12, 'p');
+  assert.deepEqual(five.verdict, {
+    code: 'flat', label: 'No clear direction over 5 weeks', confidence: 'none', detail: null,
+  });
+  // n counts readings, not calendar weeks: the same five values spread over eight weeks,
+  // three of them missing, rank the same (S = 6, p = 14/120), and the newest step has a
+  // gap in it, so it names no week.
+  const spread = read([10, null, 12, 11, null, 15, null, 14]);
+  assert.equal(spread.window.calendarWeeks, 8);
+  assert.equal(spread.window.n, 5);
+  assert.equal(spread.mk.S, 6);
+  assert.deepEqual(spread.verdict, five.verdict);
+});
+
+test('at STEADY_WEEKS readings a read with no direction is flat again', () => {
+  // 10,12,11,15,14,13: untied; inversions (12,11), (15,14), (15,13), (14,13): I = 4,
+  // S = 15 - 8 = 7. Exact p = P(I <= 4) = (1 + 5 + 14 + 29 + 49)/720 = 98/720 = 0.136: none.
+  // Last step 14 -> 13: z = -1/sqrt(27) = -0.19, noise. n = 6.
+  const t = read([10, 12, 11, 15, 14, 13]);
+  assert.equal(t.mk.S, 7);
+  close(t.mk.p, 98 / 720, 1e-12, 'p');
+  assert.deepEqual(t.verdict, { code: 'flat', label: 'Flat over 6 weeks', confidence: 'none', detail: null });
+});
+
+test('up this week, no clear direction over a short window', () => {
+  // 20,14,20,14,25. Tie groups: two 14s, two 20s -> [2, 2].
+  // S by first index: -1 + 0 - 1 + 1 = -1, +1 + 0 + 1 = +2, -1 + 1 = 0, +1: S = 2.
+  // Var = (5*4*15 - 2 * 2*1*9)/18 = (300 - 36)/18 = 14.667;
+  // z = (2 - 1)/sqrt(14.667) = 0.2611; p = 1 - Phi(0.2611) = 0.397: none.
+  // Last step 14 -> 25: weekDelta(25, 14), z = 11/sqrt(39) = 1.76, a real rise. Not a
+  // spike: 25 - 14 = 11 is under 3 * sqrt(20) = 13.42, 20 being the median.
+  const t = read([20, 14, 20, 14, 25]);
+  assert.equal(t.mk.method, 'normal');
+  assert.equal(t.mk.S, 2);
+  close(t.mk.p, 0.397, 0.002, 'p');
+  assert.deepEqual(t.verdict, {
+    code: 'flat', label: 'Up this week, no clear direction over 5', confidence: 'none', detail: null,
+  });
+});
+
+test('down this week, no clear direction over a short window', () => {
+  // 19,25,19,25,14 is 39 - x of the case above: S = -2, ties [2, 2], Var 14.667,
+  // z = -0.2611, p = 0.397: none. Last step 25 -> 14: weekDelta(14, 25),
+  // z = -11/sqrt(39) = -1.76, a real fall. A drop is never a spike.
+  const t = read([19, 25, 19, 25, 14]);
+  assert.equal(t.mk.S, -2);
+  close(t.mk.p, 0.397, 0.002, 'p');
+  assert.deepEqual(t.verdict, {
+    code: 'flat', label: 'Down this week, no clear direction over 5', confidence: 'none', detail: null,
+  });
 });
 
 // #21 comes as a pair too. 10,14,18,22 is four perfect weeks that clear their

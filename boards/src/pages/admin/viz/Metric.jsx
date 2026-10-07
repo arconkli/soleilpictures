@@ -142,8 +142,14 @@ export function Metric({
         <div className="admin-stat-streak"><StreakStrip trend={trend} /></div>
       )}
       {(sub || subDelta) && <div className="admin-stat-sub">{sub}{subDelta}</div>}
+      {/* The hover holds the detail (a spike week, a week still settling, how few
+          events) and the caveat, which also prints below: the caveat must not hide
+          the detail. Neither, and there is no title, so the tile's own shows through. */}
       {trend && (
-        <div className="admin-stat-verdict" title={trend.caveat ?? trend.verdict?.detail}>
+        <div
+          className="admin-stat-verdict"
+          title={[trend.verdict?.detail, trend.caveat].filter(Boolean).join(' · ') || undefined}
+        >
           {trend.verdict?.label}
         </div>
       )}

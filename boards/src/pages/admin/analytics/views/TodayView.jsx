@@ -35,7 +35,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
 import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
-import { ALPHA_SOLID, DEFAULT_WINDOW, weekDelta, weeklyTrend } from '../../../../lib/trendStats.js';
+import { ALPHA_SOLID, DEFAULT_WINDOW, WEEKS_FETCHED, weekDelta, weeklyTrend } from '../../../../lib/trendStats.js';
 import {
   WEEKLY_METRICS, addDays, breaksFor, mergeMarkers, mondayOf, toWeekPoints,
 } from '../../../../lib/weeklySeries.js';
@@ -63,6 +63,10 @@ const TZ = (() => {
 })();
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? null : Number(x));
+
+// The complete weeks the stack draws: every week fetched but this one. The titles
+// below say this number, so it comes from the fetch rather than being typed.
+const COMPLETE_WEEKS = WEEKS_FETCHED - 1;
 
 // How a trended tile reads, on hover. The window and the threshold come from the
 // module that applies them, so the sentence cannot drift from the test.
@@ -161,7 +165,7 @@ export function TodayView() {
       // strip, verdict and tile spark, and the stack in band 02. The same
       // population flags as the headline figures, so a tile's number and its
       // strip count the same people.
-      supabase.rpc('admin_weekly_series', { p_weeks: 14, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_weekly_series', { p_weeks: WEEKS_FETCHED, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // The owner's notes and the pipeline alerts. Releases and definition
       // breaks are repo facts, merged in below rather than fetched.
       supabase.rpc('admin_markers'),
@@ -312,9 +316,9 @@ export function TodayView() {
     () => (Array.isArray(fetchedMarkers) ? fetchedMarkers.filter((m) => m?.source !== 'note') : []),
     [fetchedMarkers],
   );
-  // The window the stack draws. Without a weekly series, the same thirteen weeks
+  // The window the stack draws. Without a weekly series, the same complete weeks
   // counted back from this Monday, so the list never runs back to the first release.
-  const windowFrom = weeks[0] ?? addDays(mondayOf(todayUtc), -7 * 13);
+  const windowFrom = weeks[0] ?? addDays(mondayOf(todayUtc), -7 * COMPLETE_WEEKS);
   // Everything in the window. The list shows all of it; the stack draws each
   // marker only on the charts it is about (WeeklyMultiples).
   const mergedMarkers = useMemo(() => mergeMarkers({
@@ -362,7 +366,16 @@ export function TodayView() {
     const gone = change(withoutNote(id));
     track(1);
     try {
-      const { data, error } = await supabase.rpc('admin_note_delete', { p_id: id });
+      let data;
+      let error;
+      // The call resolves with { error } when it fails. A rejection takes the same
+      // path: left to throw, it kept the note off the list, its change replaying
+      // over every later list, and said nothing.
+      try {
+        ({ data, error } = await supabase.rpc('admin_note_delete', { p_id: id }));
+      } catch (thrown) {
+        error = thrown || {};
+      }
       if (error) {
         pending.current = pending.current.filter((op) => op !== gone);
         setNotes(withNote(note));
@@ -385,7 +398,14 @@ export function TodayView() {
       onUndo: async () => {
         track(1);
         try {
-          const { data, error } = await supabase.rpc('admin_note_restore', { p_id: id });
+          let data;
+          let error;
+          // A rejection is a failed undo too, not a silent one.
+          try {
+            ({ data, error } = await supabase.rpc('admin_note_restore', { p_id: id }));
+          } catch (thrown) {
+            error = thrown || {};
+          }
           if (error || !data) {
             feedback.toast({ type: 'error', message: 'Undo failed' });
             return;
@@ -569,13 +589,15 @@ export function TodayView() {
             magnitude apart, so they share the x axis and never the y. The
             markers list sits beside them because a step in a line needs its
             explanation within reach, and it is where the owner pins a note. */}
-        <h2 className="admin-section-title">Thirteen weeks, and what changed</h2>
+        <h2 className="admin-section-title">{`${COMPLETE_WEEKS} weeks, and what changed`}</h2>
         <Deck>
           <Well
             span={8}
             title="Weekly, by metric"
-            meta="13 complete weeks + this week so far · UTC Monday"
-            foot="History can shrink: deleted accounts and cards leave it."
+            meta={`${COMPLETE_WEEKS} complete weeks + this week so far · UTC Monday`}
+            // Both ways: _admin_people reads email_confirmed_at and last_sign_in_at
+            // as they are now, so an account verified late joins weeks already drawn.
+            foot="History can shrink: deleted accounts and cards leave it. It can also grow: a late verification raises a recent week."
           >
             <WeeklyMultiples
               weeks={weeks}
@@ -588,7 +610,7 @@ export function TodayView() {
             span={4}
             className="adm-markers"
             title="What changed"
-            meta={`${mergedMarkers.length} marker${mergedMarkers.length === 1 ? '' : 's'} in 13 wk`}
+            meta={`${mergedMarkers.length} marker${mergedMarkers.length === 1 ? '' : 's'} in ${COMPLETE_WEEKS} wk`}
           >
             <MarkersPanel
               markers={mergedMarkers}
