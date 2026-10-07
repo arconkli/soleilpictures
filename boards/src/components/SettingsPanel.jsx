@@ -40,6 +40,7 @@ import { DocsTab } from './settings/DocsTab.jsx';
 // reason AdminPage is lazy in TierRouter.
 const CaptureTab = lazyWithReload(() => import('./settings/CaptureTab.jsx').then(m => ({ default: m.CaptureTab })));
 const GalleryTab = lazyWithReload(() => import('./settings/GalleryTab.jsx').then(m => ({ default: m.GalleryTab })));
+const SecurityTab = lazyWithReload(() => import('./settings/SecurityTab.jsx').then(m => ({ default: m.SecurityTab })));
 
 // `group` decides which heading a tab sits under. Ids are load-bearing beyond
 // this file — `?settings=billing` is the Stripe Customer Portal's return_url
@@ -77,6 +78,8 @@ const TABS = [
 const ADMIN_TABS = [
   { id: 'capture', label: 'Capture', group: 'admin' },
   { id: 'gallery', label: 'Gallery', group: 'admin' },
+  // Where every security alert email lands (?settings=security, 0369).
+  { id: 'security', label: 'Security', group: 'admin' },
 ];
 
 const GROUPS = [
@@ -306,6 +309,9 @@ export function SettingsPanel({
                 <Suspense fallback={null}>
                   <GalleryTab onOpen={() => { onClose?.(); onOpenGallery?.(); }} />
                 </Suspense>
+              )}
+              {tab === 'security' && isAdmin && (
+                <Suspense fallback={null}><SecurityTab /></Suspense>
               )}
             </SettingsSaveProvider>
           </div>

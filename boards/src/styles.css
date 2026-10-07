@@ -21502,6 +21502,12 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .settings-link-btn.is-danger { color: #ef4444; }
 .settings-invite-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .settings-invite-row input.settings-input { flex: 1; min-width: 180px; }
+/* Settings → Security (admin, 0369). Its rows lead with an address, and on a
+   phone the address is the part that must not be squeezed out: wrap instead. */
+@media (max-width: 640px) {
+  .settings-security .settings-member-row { flex-wrap: wrap; }
+  .settings-security .settings-member-name { flex-basis: 100%; white-space: normal; overflow-wrap: anywhere; }
+}
 
 /* ─── Surface Gallery (admin) ───────────────────────────────────────────────
    The admin-only browser for every popup and screen. Two states: a searchable
