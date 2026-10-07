@@ -114,7 +114,10 @@ account. If an unusual number go out at once, or an account looks like it is
 sending in bulk, the emails are held for review instead of sent. An account
 under review sees "sharing is paused on this account while we review unusual
 activity" in the share panel; everything else about it, including its own
-clusters, works as before. Held invitations are sent if the review clears them.
+clusters, works as before. While the review runs, the invitations it already
+sent can't be accepted, and if the account is less than a week old its share
+links pause too. All of it works again, and held invitations are sent, if the
+review clears it.
 
 Workspace owners get a third choice, **Whole workspace** — that grants every
 cluster in the workspace, not just this one, so only the owner can hand it out.

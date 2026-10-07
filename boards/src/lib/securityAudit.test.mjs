@@ -346,3 +346,62 @@ test('the Security tab is admin-only, its alert link opens it, and it calls only
   }
   assert.doesNotMatch(api, /\.catch\(/, 'never .catch() a supabase.rpc() builder');
 });
+
+// ── 0371 + 0373: a ban takes things down; a suspended account acts on nothing ─
+
+test('a banned account\'s shares and published clusters stop serving, and its invitations do nothing', () => {
+  assert.match(latestDefinition('_resolve_share_target').body,
+    /if public\._sharer_suspended\(v_creator\)\s+or exists \(select 1 from boards b join workspaces w on w\.id = b\.workspace_id\s+where b\.id = v_root and public\._user_banned\(w\.created_by\)\) then/);
+  for (const fn of ['_resolve_published_board', 'list_public_boards', 'list_public_board_images', 'get_related_public_boards']) {
+    const body = latestDefinition(fn).body;
+    assert.match(body, /not public\._user_banned\(w\.created_by\)/, `${fn} must drop a banned owner's clusters`);
+    assert.match(body, /not public\._user_banned\(pb\.submitted_by\)/, `${fn} must drop a banned submitter's clusters`);
+  }
+  for (const fn of ['_resolve_published_grid_layout', 'list_public_grid_layouts']) {
+    assert.match(latestDefinition(fn).body, /not public\._user_banned\(g\.created_by\)/, fn);
+  }
+  assert.match(latestDefinition('get_grid_layout_by_token').body, /not public\._sharer_suspended\(g\.created_by\)/);
+  assert.match(latestDefinition('claim_pending_invite').body,
+    /if v_row\.held_at is not null or public\._sharer_suspended\(v_row\.invited_by\) then/);
+  for (const fn of ['_claim_pending_invites_for_user', 'peek_pending_invite_email']) {
+    assert.match(latestDefinition(fn).body, /and held_at is null\s+and not public\._sharer_suspended\(invited_by\)/, fn);
+  }
+  const collab = latestDefinition('claim_collab_link').body;
+  assert.match(collab, /if public\._sharer_suspended\(v_link\.created_by\) then/);
+  assert.match(collab, /if public\._user_banned\(v_owner\) then/);
+});
+
+test('a suspended account acts on nothing: links, workspaces, keys, OAuth, self-delete', () => {
+  for (const fn of ['create_public_link', 'create_collab_link']) {
+    assert.match(latestDefinition(fn).body, /if not public\._actor_can_send\(\) then/, `${fn}: a held or banned account makes no link`);
+  }
+  for (const fn of ['set_public_link_indexing', 'set_public_link_subboards', 'transfer_workspace_ownership',
+    'delete_workspace', 'create_workspace_with_root', 'claim_pending_invite', 'claim_collab_link']) {
+    assert.match(latestDefinition(fn).body, /if not public\._actor_active\(\) then/, `${fn} must check the caller`);
+  }
+  assert.match(latestDefinition('api_token_resolve').body,
+    /if public\._user_banned\(t\.user_id\) then\s+return query select null::uuid, null::uuid, null::text\[\], 'revoked'::text/);
+  assert.match(latestDefinition('oauth_code_redeem').body, /if public\._user_banned\(c\.user_id\) then/);
+  assert.match(latestDefinition('oauth_refresh_rotate').body, /if public\._user_banned\(g\.user_id\) then/);
+  assert.match(latestDefinition('prepare_account_deletion').body, /if public\._user_banned\(p_user_id\) then/);
+  assert.match(latestDefinition('can_read_board').body, /or \(chain\.deleted_at is null and exists \(/,
+    'a share on a cluster in the trash grants nothing');
+});
+
+test('every ban and sharing hold is recorded with evidence, and a ban ends every session', () => {
+  const trg = latestDefinition('_tg_profiles_account_action').body;
+  assert.match(trg, /delete from auth\.sessions s where s\.user_id = new\.user_id;/);
+  assert.match(trg, /delete from public\.api_sessions a where a\.user_id = new\.user_id;/);
+  assert.match(trg, /public\._account_evidence\(new\.user_id\)/);
+  assert.ok(latestMatch(/create trigger profiles_account_action\s+after update of banned_at, send_hold_at on public\.profiles/));
+  assert.ok(latestMatch(/user_id\s+uuid not null,\s+-- deliberately no foreign key/), 'the record must outlive the account');
+  for (const sig of ['_user_banned\\(uuid\\)', '_sharer_suspended\\(uuid\\)', '_account_evidence\\(uuid\\)',
+    '_tg_profiles_account_action\\(\\)', 'reconcile_storage_usage\\(\\)', 'purge_old_deleted_tags\\(\\)',
+    'purge_old_deleted_vote_cards\\(\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)),
+      `${sig} must not be client-callable`);
+  }
+  const api = read('./securityAdminApi.js');
+  assert.match(api, /banAccount = \(userId, reason\) => adminAccountAction\(\{ userId, action: 'ban', reason \}\)/,
+    'Ban goes through admin-account-action, which also does the native auth ban');
+});
