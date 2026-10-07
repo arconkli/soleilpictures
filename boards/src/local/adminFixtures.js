@@ -7,6 +7,10 @@
 // rather than empty states. Shapes match the real RPC/table return types
 // (verified via pg_get_function_result / pg_get_functiondef).
 
+// Data only and import-free. It is the one thing these fixtures take from lib/;
+// the weekly calendar below is deliberately their own (see weekStarts).
+import { DEFINITION_BREAKS } from '../lib/adminDefinitionBreaks.js';
+
 const TODAY = new Date();
 const dayISO = (back) => {
   const d = new Date(TODAY);
@@ -134,13 +138,15 @@ const funnelSegments = [
 ];
 
 // ── kpi summary (rich; everything above the small-N floor so it reads "solid") ──
+// work_users (0372) is distinct people who did real work in the window, a subset of
+// wau; it sits at the level the weekly series below reads for its newest weeks.
 const kpi = {
   current:  { signups: 96, activated: 58, activation_rate: 0.604, demo_base: 812, converted: 142,
     demo_to_paid_rate: 0.175, checkout_open: 64, checkout_success: 41, checkout_success_rate: 0.641,
-    wau: 287, cards_created: 1840 },
+    wau: 287, work_users: 17, cards_created: 1840 },
   previous: { signups: 81, activated: 44, activation_rate: 0.543, demo_base: 760, converted: 118,
     demo_to_paid_rate: 0.155, checkout_open: 58, checkout_success: 33, checkout_success_rate: 0.569,
-    wau: 252, cards_created: 1610 },
+    wau: 252, work_users: 13, cards_created: 1610 },
 };
 
 const cohorts = [];
@@ -925,6 +931,117 @@ RPCS.admin_user_api_usage = {
     ({ at, method, route, tool, status, ms })),
 };
 
+// ── Weekly trends: admin_weekly_series, admin_markers, admin_note_* (0372) ──
+//
+// Shapes are 0372's declared return types. Every date here is RELATIVE to this
+// week's UTC Monday and never a calendar date. The trend read scores the last
+// eight complete weeks, so a fixed date would age out of its own window and
+// change which verdicts the harness can show without anyone touching this file.
+//
+// Shaped so each row of tiles lands in a different state, because a fixture
+// that produces one verdict cannot tell you whether the others render:
+//
+//   signups  rising with exactly ONE down week inside the scored window, so the
+//            strip has a down glyph to draw ("Up 6 of the last 7 weeks, steady")
+//   active   up every week ("Up 7 of the last 7 weeks, steady")
+//   work     NULL with work_measurable false for the first nine weeks, the state
+//            production is in (did_work arrived with 0248 and was never
+//            backfilled). Which verdict it reads is HARNESS_BREAKS' doing, below.
+//   cards    noisy and flat, in the hundreds ("Flat over 8 weeks")
+//
+// The counts are synthetic; this repo is public. The last row is THIS week so
+// far: the only complete:false row, never scored, and small because only a few
+// days of it exist. settling is true for it and for the newest complete week.
+// The live RPC clears the older one after three days; the harness keeps both so
+// the "newest week still settling" note is exercised whatever day it is opened.
+const DAY_MS = 86400000;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+// The last n UTC Mondays, oldest first, ending with this week's. getUTCDay() has
+// Sunday as 0, so (day + 6) % 7 counts the days since Monday and a Sunday belongs
+// to the PREVIOUS Monday's week, as date_trunc('week') has it in the RPC. Written
+// out here rather than borrowed from lib/weeklySeries.js on purpose: a fixture
+// that shares its calendar with the code under test agrees with that code's bugs,
+// and every marker would then land in the right column of the wrong week.
+const weekStarts = (n) => {
+  const now = new Date();
+  const monday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7));
+  return Array.from({ length: n }, (_, i) => new Date(monday - (n - 1 - i) * 7 * DAY_MS).toISOString().slice(0, 10));
+};
+const isoPlus = (iso, days) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
+const WK = weekStarts(14); // WK[13] is this week, the partial one
+
+// One entry per row of WK: rows 0-12 are complete weeks, row 13 is this week so far.
+const WEEKLY_SIGNUPS = [28, 31, 35, 38, 41, 45, 49, 52, 50, 58, 63, 67, 72, 24];
+const WEEKLY_ACTIVE  = [41, 45, 49, 52, 57, 61, 66, 70, 75, 79, 84, 88, 93, 52];
+const WEEKLY_CARDS   = [412, 389, 441, 398, 430, 405, 447, 392, 421, 437, 401, 428, 415, 133];
+// did_work was first recorded in row 9, so only rows 9-13 have a number, and
+// only rows 9-12 of those are complete. That is structural, not a data accident:
+// the work tile can have four measurable complete weeks at most, three steps, and
+// the rest of its seven slots are hatched "not measured" rather than a verdict.
+const WORK_FROM = 9;
+const WEEKLY_WORK = [6, 9, 11, 14, 5]; // rows 9..13
+
+RPCS.admin_weekly_series = WK.map((week_start, i) => ({
+  week_start,
+  complete: i < WK.length - 1,
+  settling: i >= WK.length - 2,
+  signups: WEEKLY_SIGNUPS[i],
+  active_users: WEEKLY_ACTIVE[i],
+  active_measurable: true,
+  // NULL exactly where the week is not measurable: NULL means "we were not
+  // counting", 0 means "nobody", and the trend read treats them differently.
+  work_users: i >= WORK_FROM ? WEEKLY_WORK[i - WORK_FROM] : null,
+  work_measurable: i >= WORK_FROM,
+  cards: WEEKLY_CARDS[i],
+  active_floor: WK[0],
+  work_floor: WK[WORK_FROM],
+}));
+
+// DEFINITION_BREAKS with its one cut moved to the day after this harness's work
+// floor, so the Monday it lands on (the Monday ON OR AFTER) is WK[10]. The real
+// cut is a fixed calendar date, which would leave the Did-real-work tile in
+// whatever state today's date happens to produce. Here it always leaves exactly
+// three complete measurable weeks to score (rows 10-12), one short of the four
+// the read needs, so the tile says "Too few weeks" on any day the harness is
+// opened. This is what the Overview hands breaksFor() in the harness in place of
+// DEFINITION_BREAKS; ?breaks=0 hands it nothing, and the same rows then score.
+// The other entries keep their dates: they are markers, not cuts, and
+// breaksFor() ignores them.
+export const HARNESS_BREAKS = DEFINITION_BREAKS.map((b) => (
+  b.cut === true ? { ...b, date: isoPlus(WK[WORK_FROM], 1) } : b
+));
+
+// The notes table is reached only through admin_note_add / _delete / _restore and
+// read only through admin_markers: it has no client grants, so TABLES below has
+// no entry for it and must not get one. The state is mutable on purpose. The
+// harness has to add a note, remove it and undo the removal and see the page
+// follow, and window.__admRpcCalls is how a test proves the RPC was made. It
+// lives for the page's lifetime; a reload starts from the three rows below.
+const NOTE_KINDS = ['ship', 'event', 'note'];
+const NOTE_EPOCH = new Date(0).toISOString(); // created_at is fixed so every read is deterministic
+const NOTES = [
+  // Exactly on a Monday, so its position is the week's own column (index 3) and
+  // not a fraction of one: a Playwright guard anchors on it.
+  { id: 1, day: WK[3],              label: 'New import flow shipped', kind: 'ship',  created_by: null, created_at: NOTE_EPOCH },
+  { id: 2, day: isoPlus(WK[7], 2),  label: 'Press mention',           kind: 'event', created_by: null, created_at: NOTE_EPOCH },
+  { id: 3, day: isoPlus(WK[11], 4), label: 'Welcome email reworded',  kind: 'note',  created_by: null, created_at: NOTE_EPOCH },
+];
+let nextNoteId = NOTES.length + 1; // never reused, as the identity column never is
+// Soft-deleted rows by id (the real table keeps them with deleted_at set), so an
+// undo brings back the same row and not a copy of it.
+const DELETED_NOTES = new Map();
+
+// The other half of admin_markers: discovery-pipeline and ops alerts, each
+// already collapsed to one marker per run at the run's first day, labelled
+// "<name> (n days)" when the run was longer than one.
+const ALERT_MARKERS = [
+  { day: isoPlus(WK[5], 2),  kind: 'alert', label: 'Search probe failing (3 days)', source: 'discovery', ref_id: null },
+  { day: isoPlus(WK[8], 1),  kind: 'alert', label: 'Crawler digest stalled',        source: 'discovery', ref_id: null },
+  { day: isoPlus(WK[11], 3), kind: 'alert', label: 'Outbound mail breaker tripped', source: 'ops',       ref_id: null },
+];
+
 const TABLES = {
   waitlist_entries: waitlistEntries,
   tags, workspaces: tagWorkspaces, tag_centroids: tagCentroids,
@@ -934,6 +1051,18 @@ const TABLES = {
 
 function zeroRevenue() {
   try { return new URLSearchParams(window.location.search).get('mrr') === '0'; } catch { return false; }
+}
+
+// ?weeks=N, a whole number of weeks (0 included), or null when it is absent or
+// not one. See admin_weekly_series in rpcResult. An empty value is absent:
+// Number('') is 0, which would quietly mean "no complete weeks".
+function weeksParam() {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('weeks');
+    if (raw == null || raw.trim() === '') return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 ? n : null;
+  } catch { return null; }
 }
 
 // ── mock supabase shim ──────────────────────────────────────────────
@@ -995,6 +1124,81 @@ function rpcResult(name, params) {
   if (name === 'admin_list_feedback') {
     const rows = RPCS.admin_list_feedback || [];
     return params?.p_kind ? rows.filter((r) => r.kind === params.p_kind) : rows;
+  }
+  // admin_weekly_series(p_weeks): the last p_weeks rows, the partial week last. The
+  // RPC clamps p_weeks to 2..52 and defaults it to 14; the harness holds fourteen
+  // rows, so anything past that returns all of them.
+  //
+  // ?weeks=N is the harness's own switch, like ?mrr=0: keep the last N COMPLETE
+  // weeks plus the partial one. ?weeks=3 puts every tile under the four-week
+  // minimum without waiting for a database that young, and it wins over p_weeks,
+  // which the caller hard-codes. p_exclude_internal and p_verified_only are
+  // accepted and change nothing: the harness has one population, so a toolbar
+  // toggle re-issues the call (the tally counts it) over the same numbers. Rows
+  // are copied so a caller cannot edit the fixture.
+  if (name === 'admin_weekly_series') {
+    const rows = RPCS.admin_weekly_series;
+    const keep = weeksParam();
+    let kept;
+    if (keep !== null) {
+      // slice(-0) is slice(0), the whole array: ?weeks=0 needs the explicit start.
+      const complete = rows.filter((r) => r.complete);
+      kept = [...complete.slice(Math.max(0, complete.length - keep)), ...rows.filter((r) => !r.complete)];
+    } else {
+      const asked = params?.p_weeks == null ? 14 : Math.trunc(Number(params.p_weeks));
+      const want = Math.min(52, Math.max(2, Number.isFinite(asked) ? asked : 14));
+      kept = rows.slice(Math.max(0, rows.length - want));
+    }
+    return kept.map((r) => ({ ...r }));
+  }
+  // admin_markers(p_since): live notes plus the collapsed alerts, oldest first and
+  // ordered by day, source, label as the SQL is, so equal days do not shuffle
+  // between reads. A note removed since the last read is simply absent.
+  if (name === 'admin_markers') {
+    const since = typeof params?.p_since === 'string' && ISO_DAY.test(params.p_since.slice(0, 10))
+      ? params.p_since.slice(0, 10) : null;
+    const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+    return [
+      ...NOTES.map((n) => ({ day: n.day, kind: n.kind, label: n.label, source: 'note', ref_id: n.id })),
+      ...ALERT_MARKERS.map((a) => ({ ...a })),
+    ]
+      .filter((m) => since === null || m.day >= since)
+      .sort((a, b) => cmp(a.day, b.day) || cmp(a.source, b.source) || cmp(a.label, b.label));
+  }
+  // admin_note_add(p_day, p_label, p_kind) -> the new row. The real RPC raises on a
+  // label outside 1-120 characters once trimmed, a kind outside ship/event/note, or
+  // a day outside its allowed window. This refuses the first two, and anything that
+  // is not a YYYY-MM-DD; the window is not modelled. The shim has no error channel,
+  // and the caller treats "no row" as a failure just as it does an error, so a
+  // refusal here is null.
+  if (name === 'admin_note_add') {
+    const day = String(params?.p_day ?? '');
+    const label = String(params?.p_label ?? '').trim();
+    const kind = params?.p_kind === undefined ? 'note' : params.p_kind;
+    if (!ISO_DAY.test(day) || label.length < 1 || label.length > 120 || !NOTE_KINDS.includes(kind)) return null;
+    const row = { id: nextNoteId, day, label, kind, created_by: null, created_at: NOTE_EPOCH };
+    nextNoteId += 1;
+    NOTES.push(row);
+    return { ...row };
+  }
+  // admin_note_delete(p_id) -> true when a live note was deleted, false when there
+  // was none (already deleted, or never there).
+  if (name === 'admin_note_delete') {
+    const at = NOTES.findIndex((n) => n.id === Number(params?.p_id));
+    if (at < 0) return false;
+    const [row] = NOTES.splice(at, 1);
+    DELETED_NOTES.set(row.id, row);
+    return true;
+  }
+  // admin_note_restore(p_id) -> the same row back. The real RPC raises when there
+  // is nothing to restore; here that is null, for the reason given at admin_note_add.
+  if (name === 'admin_note_restore') {
+    const id = Number(params?.p_id);
+    const row = DELETED_NOTES.get(id);
+    if (!row) return null;
+    DELETED_NOTES.delete(id);
+    NOTES.push(row);
+    return { ...row };
   }
   return Object.prototype.hasOwnProperty.call(RPCS, name) ? RPCS[name] : null;
 }
