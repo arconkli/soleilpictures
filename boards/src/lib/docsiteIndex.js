@@ -2588,7 +2588,7 @@ export const DOCS_PAGES = [
     "answer": "The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
-    "updated": "2026-10-02",
+    "updated": "2026-10-07",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2721,15 +2721,19 @@ export const DOCS_PAGES = [
     "title": "Referrals — Invite and Earn — Soleil Clusters",
     "metaDescription": "Invite people to Soleil Clusters and earn bonus cards when they actually get started. Your referral link, share targets and stats live in Settings.",
     "h1": "Referrals",
-    "answer": "Settings has an Invite and earn tab with your referral link. When someone you invited signs up and actually starts using Clusters, you both get bonus cards added on top of the free plan's allowance. The reward is activation-gated, so a signup that never makes anything does not earn anything.",
+    "answer": "Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get 25 bonus cards once they have actually started using Clusters and their account is 72 hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.",
     "section": "account",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-10-07",
     "navLabel": "Referrals",
     "headings": [
       {
         "id": "how-it-works",
         "text": "How it works"
+      },
+      {
+        "id": "limits",
+        "text": "Limits"
       },
       {
         "id": "bonus-cards",
@@ -2756,7 +2760,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "When does the reward land?",
-        "a": "When the person you invited actually gets started, not when they sign up. A dormant signup earns nothing for either of you."
+        "a": "Your friend's bonus lands when they sign up. Yours lands once they have placed their first card, opened the app, and their account is 72 hours old. Rewards are checked every hour. A dormant signup earns you nothing."
+      },
+      {
+        "q": "Is there a limit?",
+        "a": "You can earn at most 4 rewards in any 30 days. Friends past that still count; their rewards wait their turn and land as the window frees."
       },
       {
         "q": "What do bonus cards do?",
@@ -2764,7 +2772,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do I see how it is going?",
-        "a": "Settings, under Invite and earn — friends joined, how many got started, cards earned, free months."
+        "a": "Settings, under Invite and earn — friends joined, how many got started, cards earned, free months, and any cards still on their way."
       }
     ]
   },

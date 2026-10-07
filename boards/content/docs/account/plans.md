@@ -5,7 +5,7 @@ h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-10-02
+updated: 2026-10-07
 answer: The free Demo plan gives you {{fact:demoCardLimit}} cards — each cluster counts as one — unlimited free collaborators, and any file type up to {{fact:freeFileCap}}. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
@@ -114,7 +114,7 @@ You are told when you reach it, and offered the upgrade. Nothing you have
 already made is removed, locked, or hidden.
 
 You can also raise your own cap without paying: [referrals](/docs/account/referrals)
-grant bonus cards when someone you invited actually gets started.
+grant bonus cards for people you invite who actually get started.
 
 ## Trying {{fact:planName}} first
 

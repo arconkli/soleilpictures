@@ -1,19 +1,30 @@
 # Referrals
 
-> Settings has an Invite and earn tab with your referral link. When someone you invited signs up and actually starts using Clusters, you both get bonus cards added on top of the free plan's allowance. The reward is activation-gated, so a signup that never makes anything does not earn anything.
+> Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get 25 bonus cards once they have actually started using Clusters and their account is 72 hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.
 
-_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-10-07_
 
 **Settings → Invite and earn.**
 
 ## How it works
 
-Share your referral link. When someone signs up through it **and actually gets
-started**, you both get bonus cards.
+Share your referral link. Someone who signs up through it gets bonus cards of
+their own straight away. You get **25 bonus cards**
+once they **actually get started** — they have placed their first card — and
+their account is 72 hours old and has been opened in
+the app.
 
 The activation gate is the important detail. The reward is not for a signup, it
 is for someone who used the product — which means the number in your stats
 reflects people who are actually there.
+
+## Limits
+
+- **4 rewards in any 30 days.** Friends past
+  that still count as got started; their rewards wait their turn, oldest first,
+  and land as the 30-day window frees.
+- **Nothing is paid to, or for, a banned account.**
+- Rewards are checked every hour, so one lands within the hour of coming due.
 
 ## Bonus cards
 
@@ -36,6 +47,8 @@ The tab tracks four things:
 | Free months | Any subscription time earned |
 
 The gap between the first two is the honest one. It is shown rather than hidden.
+Cards still on their way — for friends who got started recently, or past the
+30-day limit — are listed under the stats until they land.
 
 ## Sharing the link
 
@@ -47,8 +60,10 @@ are offered instead.
 
 Two different things:
 
-- **[Inviting a collaborator](/docs/collaborate)** to a cluster is free, unlimited, and needs no referral link. That is how you work with someone.
+- **[Inviting a collaborator](/docs/collaborate)** to a cluster is free and needs no referral link. That is how you work with someone.
 - **A referral** is inviting someone to have their own account and workspace.
 
-Inviting a collaborator to your board does not consume or produce referral
-credit — it is not a growth mechanism, it is how the product works.
+They overlap in one place: someone who signs up because you invited them to a
+cluster by email counts as your referral, and so does someone who joins through
+one of your edit links within 7 days of signing up.
+The same rules apply, and each person counts once.

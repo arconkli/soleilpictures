@@ -29216,7 +29216,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " grant bonus cards when someone you invited actually gets started."
+     "v": " grant bonus cards for people you invite who actually get started."
     }
    ]
   },
@@ -30138,21 +30138,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Share your referral link. When someone signs up through it "
+     "v": "Share your referral link. Someone who signs up through it gets bonus cards of their own straight away. You get "
     },
     {
      "t": "strong",
-     "v": "and actually gets started",
+     "v": "25 bonus cards",
      "children": [
       {
        "t": "text",
-       "v": "and actually gets started"
+       "v": "25 bonus cards"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", you both get bonus cards."
+     "v": " once they "
+    },
+    {
+     "t": "strong",
+     "v": "actually get started",
+     "children": [
+      {
+       "t": "text",
+       "v": "actually get started"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — they have placed their first card — and their account is 72 hours old and has been opened in the app."
     }
    ]
   },
@@ -30163,6 +30177,58 @@ export const DOCS_CONTENT = {
      "t": "text",
      "v": "The activation gate is the important detail. The reward is not for a signup, it is for someone who used the product — which means the number in your stats reflects people who are actually there."
     }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
+   "id": "limits"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "4 rewards in any 30 days.",
+      "children": [
+       {
+        "t": "text",
+        "v": "4 rewards in any 30 days."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Friends past that still count as got started; their rewards wait their turn, oldest first, and land as the 30-day window frees."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Nothing is paid to, or for, a banned account.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Nothing is paid to, or for, a banned account."
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Rewards are checked every hour, so one lands within the hour of coming due."
+     }
+    ]
    ]
   },
   {
@@ -30325,7 +30391,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The gap between the first two is the honest one. It is shown rather than hidden."
+     "v": "The gap between the first two is the honest one. It is shown rather than hidden. Cards still on their way — for friends who got started recently, or past the 30-day limit — are listed under the stats until they land."
     }
    ]
   },
@@ -30395,7 +30461,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " to a cluster is free, unlimited, and needs no referral link. That is how you work with someone."
+      "v": " to a cluster is free and needs no referral link. That is how you work with someone."
      }
     ],
     [
@@ -30421,7 +30487,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Inviting a collaborator to your board does not consume or produce referral credit — it is not a growth mechanism, it is how the product works."
+     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once."
     }
    ]
   }

@@ -187,7 +187,9 @@ export async function getOrCreateMyReferralCode() {
 // Referral: the caller's invite stats for the "Invite & earn" tab. Always
 // returns one row (zeros when no referrals yet). friendsPaid/monthsEarned are
 // the conversion-gated paid reward (migration 0167): a referee who upgrades to a
-// paid plan earns the referrer a free Creator month.
+// paid plan earns the referrer a free Creator month. rewardsWaiting counts
+// friends who got started but whose cards haven't landed yet (0377: a reward
+// waits for the friend's account to age, and a few land per month).
 export async function getMyReferralStats() {
   const { data, error } = await supabase.rpc('get_my_referral_stats');
   if (error) throw error;
@@ -200,6 +202,7 @@ export async function getMyReferralStats() {
     cardsEarned:       Number(row?.cards_earned ?? 0),
     friendsPaid:       Number(row?.friends_paid ?? 0),
     monthsEarned:      Number(row?.months_earned ?? 0),
+    rewardsWaiting:    Number(row?.rewards_waiting ?? 0),
   };
 }
 

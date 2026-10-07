@@ -5,15 +5,17 @@ h1: Referrals
 navLabel: Referrals
 section: account
 order: 3
-updated: 2026-08-08
-answer: Settings has an Invite and earn tab with your referral link. When someone you invited signs up and actually starts using Clusters, you both get bonus cards added on top of the free plan's allowance. The reward is activation-gated, so a signup that never makes anything does not earn anything.
+updated: 2026-10-07
+answer: Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get {{fact:referralRewardCards}} bonus cards once they have actually started using Clusters and their account is {{fact:referralMatureHours}} hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.
 faq:
   - q: When does the reward land?
-    a: When the person you invited actually gets started, not when they sign up. A dormant signup earns nothing for either of you.
+    a: Your friend's bonus lands when they sign up. Yours lands once they have placed their first card, opened the app, and their account is {{fact:referralMatureHours}} hours old. Rewards are checked every hour. A dormant signup earns you nothing.
+  - q: Is there a limit?
+    a: You can earn at most {{fact:referralRewardsPer30Days}} rewards in any 30 days. Friends past that still count; their rewards wait their turn and land as the window frees.
   - q: What do bonus cards do?
     a: They raise your card limit above the free plan's {{fact:demoCardLimit}}. They stack, and they do not expire.
   - q: Where do I see how it is going?
-    a: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months.
+    a: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months, and any cards still on their way.
 related:
   - /docs/account/plans
   - /docs/canvas/cards
@@ -24,12 +26,23 @@ related:
 
 ## How it works
 
-Share your referral link. When someone signs up through it **and actually gets
-started**, you both get bonus cards.
+Share your referral link. Someone who signs up through it gets bonus cards of
+their own straight away. You get **{{fact:referralRewardCards}} bonus cards**
+once they **actually get started** — they have placed their first card — and
+their account is {{fact:referralMatureHours}} hours old and has been opened in
+the app.
 
 The activation gate is the important detail. The reward is not for a signup, it
 is for someone who used the product — which means the number in your stats
 reflects people who are actually there.
+
+## Limits
+
+- **{{fact:referralRewardsPer30Days}} rewards in any 30 days.** Friends past
+  that still count as got started; their rewards wait their turn, oldest first,
+  and land as the 30-day window frees.
+- **Nothing is paid to, or for, a banned account.**
+- Rewards are checked every hour, so one lands within the hour of coming due.
 
 ## Bonus cards
 
@@ -52,6 +65,8 @@ The tab tracks four things:
 | Free months | Any subscription time earned |
 
 The gap between the first two is the honest one. It is shown rather than hidden.
+Cards still on their way — for friends who got started recently, or past the
+30-day limit — are listed under the stats until they land.
 
 ## Sharing the link
 
@@ -63,8 +78,10 @@ are offered instead.
 
 Two different things:
 
-- **[Inviting a collaborator](/docs/collaborate)** to a cluster is free, unlimited, and needs no referral link. That is how you work with someone.
+- **[Inviting a collaborator](/docs/collaborate)** to a cluster is free and needs no referral link. That is how you work with someone.
 - **A referral** is inviting someone to have their own account and workspace.
 
-Inviting a collaborator to your board does not consume or produce referral
-credit — it is not a growth mechanism, it is how the product works.
+They overlap in one place: someone who signs up because you invited them to a
+cluster by email counts as your referral, and so does someone who joins through
+one of your edit links within {{fact:referralLinkJoinDays}} days of signing up.
+The same rules apply, and each person counts once.

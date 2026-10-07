@@ -162,8 +162,15 @@ export function InviteTab({ user }) {
           </div>
           {stats?.pending > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 12 }}>
-              {stats.pending} {stats.pending === 1 ? 'friend has' : 'friends have'} joined but
-              {' '}haven’t placed their first card yet — you’ll earn 25 cards each when they do.
+              {stats.pending} {stats.pending === 1 ? 'friend has joined but hasn’t' : 'friends have joined but haven’t'}
+              {' '}placed a first card yet. You earn 25 cards for each friend who gets started,
+              {' '}once their account is three days old.
+            </p>
+          )}
+          {(stats?.rewardsWaiting ?? 0) > 0 && (
+            <p className="settings-section-hint" style={{ marginTop: 8 }}>
+              Cards for {stats.rewardsWaiting} {stats.rewardsWaiting === 1 ? 'friend' : 'friends'} are on the way.
+              {' '}They land once a friend’s account is three days old, for up to four friends a month.
             </p>
           )}
           {(stats?.friendsPaid ?? 0) > 0 && (

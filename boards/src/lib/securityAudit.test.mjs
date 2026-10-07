@@ -488,3 +488,62 @@ test('the invite budget belongs to the inbox, so plus-addressed accounts share i
   assert.match(def, /pg_advisory_xact_lock\(hashtext\('invite_budget:' \|\| coalesce\(v_key, v_uid::text\)\)\)/,
     'the lock is per inbox too, or two accounts on one inbox race the count');
 });
+
+// ── 0377: a referral pays once the friend is real, a few at a time ──────────
+
+test('a referral pays the referrer only for an aged friend who opened the app, a few a month', () => {
+  const pay = latestDefinition('_pay_referral_rewards').body;
+  const num = (name) => Number(pay.match(new RegExp(`${name}\\s+constant\\s+integer\\s*:=\\s*(\\d+)`))[1]);
+  const hours = num('c_mature_hours'), per30 = num('c_per_30_days'), cards = num('c_reward_cards');
+  assert.ok(hours >= 72, 'the friend\'s account must be at least three days old');
+  assert.ok(per30 <= 4, 'at most four rewards in 30 days');
+  assert.match(pay, /u\.created_at <= now\(\) - make_interval\(hours => c_mature_hours\)/);
+  assert.match(pay, /exists \(select 1 from public\.user_presence pr where pr\.user_id = rf\.referee_id\)/,
+    'the friend has opened the app');
+  assert.match(pay, /not public\._user_banned\(rf\.referee_id\)\s+and not public\._user_banned\(rf\.referrer_id\)/);
+  assert.match(pay, /pg_advisory_xact_lock\(hashtext\('referral_rewards:' \|\| r\.referrer_id::text\)\)/,
+    'the 30-day count is race-safe');
+  assert.match(pay, /x\.reward_granted_at > now\(\) - interval '30 days'\) >= c_per_30_days then\s+continue;/);
+  assert.ok(latestMatch(/cron\.schedule\('referral-rewards', '[^']+', \$\$select public\._pay_referral_rewards\(\)\$\$\)/),
+    'waiting rewards are paid by a schedule');
+
+  // Activation no longer pays on its own; it asks the payer, and a payout
+  // failure must not undo it (_stamp_first_card fires once per account).
+  const grant = latestDefinition('grant_referral_reward').body;
+  assert.doesNotMatch(grant, /bonus_card_credits/, 'grant_referral_reward must not credit cards itself');
+  assert.doesNotMatch(grant, /reward_granted_at\s*=\s*now\(\)/);
+  assert.match(grant, /begin\s+perform public\._pay_referral_rewards\(p_referee\);\s+exception when others then/);
+
+  // Every count shown to people is cards credited, at the payer's rate.
+  for (const fn of ['get_my_referral_stats', 'admin_referral_stats']) {
+    const body = latestDefinition(fn).body;
+    assert.doesNotMatch(body, /filter \(where (?:r\.)?status = 'activated'\) \* \d+/, `${fn} must count credited cards`);
+    const rates = [...body.matchAll(/\*\s*(\d+)/g)].map((m) => Number(m[1]));
+    assert.ok(rates.length > 0 && rates.every((r) => r === cards), `${fn} must multiply by ${cards}`);
+  }
+  assert.match(latestDefinition('get_my_referral_stats').body,
+    /count\(\*\) filter \(where status = 'activated' and reward_granted_at is null\)::integer\s+from public\.referrals/,
+    'rewards_waiting is the last column, as boardsApi reads it');
+
+  for (const sig of ['_pay_referral_rewards\\(uuid\\)', 'grant_referral_reward\\(uuid\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
+  assert.ok(latestMatch(/revoke execute on function public\.get_my_referral_stats\(\) from public, anon;/));
+
+  // The Invite tab says the same numbers the payer enforces.
+  const WORDS = { 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven' };
+  assert.equal(hours % 24, 0);
+  const tab = read('../components/settings/InviteTab.jsx');
+  assert.ok(tab.includes(`You earn ${cards} cards for each friend who gets started`));
+  assert.equal(tab.split(`${WORDS[hours / 24]} days old`).length - 1, 2, 'both hints name the waiting period');
+  assert.ok(tab.includes(`for up to ${WORDS[per30]} friends a month`));
+  assert.match(read('./boardsApi.js'), /rewardsWaiting:\s+Number\(row\?\.rewards_waiting \?\? 0\)/);
+
+  // The public page states the rules from code, and no longer says invitations
+  // never make referrals (emailed invitations and edit links do).
+  const doc = read('../../content/docs/account/referrals.md');
+  for (const fact of ['referralRewardCards', 'referralMatureHours', 'referralRewardsPer30Days', 'referralLinkJoinDays']) {
+    assert.ok(doc.includes(`{{fact:${fact}}}`), `referrals.md must use {{fact:${fact}}}`);
+  }
+  assert.doesNotMatch(doc, /does not consume or produce referral/);
+});

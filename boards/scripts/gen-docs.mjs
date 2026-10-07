@@ -179,6 +179,21 @@ if (!newAccountHours || !newAccountWorkspaces) {
   throw new Error('gen-docs: the new-account limits were not found — update the extractor');
 }
 
+// A referral's reward to the referrer (_pay_referral_rewards, migration 0377):
+// the cards, how old the friend's account must be before it pays, and how many
+// rewards one person collects in 30 days. Plus how new an account joining
+// through an edit link must be to count as the link creator's referral
+// (claim_collab_link).
+const referralSql = latestSqlDefining('_pay_referral_rewards');
+const referralCards = referralSql?.match(/c_reward_cards\s+constant\s+integer\s*:=\s*(\d+)/);
+const referralHours = referralSql?.match(/c_mature_hours\s+constant\s+integer\s*:=\s*(\d+)/);
+const referralPer30 = referralSql?.match(/c_per_30_days\s+constant\s+integer\s*:=\s*(\d+)/);
+const referralLinkDays = latestSqlDefining('claim_collab_link')
+  ?.match(/created_at > now\(\) - interval '(\d+) days'\) into v_is_new_user/i);
+if (!referralCards || !referralHours || !referralPer30 || !referralLinkDays) {
+  throw new Error('gen-docs: the referral reward rules were not found — update the extractor');
+}
+
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // The cap accounts created before migration 0229 keep, permanently. The plans
@@ -247,6 +262,12 @@ export const FACTS = {
   // meanwhile (0375).
   newAccountHours: newAccountHours[1],
   newAccountWorkspaces: newAccountWorkspaces[1],
+  // What a referral pays the referrer, when, and how often (0377), and the
+  // edit-link window for counting as a referral (claim_collab_link).
+  referralRewardCards: referralCards[1],
+  referralMatureHours: referralHours[1],
+  referralRewardsPer30Days: referralPer30[1],
+  referralLinkJoinDays: referralLinkDays[1],
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
   maxPartsPerCall: String(api.maxPartsPerCall),
