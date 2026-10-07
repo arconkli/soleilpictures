@@ -31,14 +31,15 @@ function watchConsole(page) {
   return errors;
 }
 
-async function openAdmin(page, { view, tab = 'overview', theme }) {
+/** `query` is appended as is, for the harness's own switches: '&weeks=3', '&breaks=0'. */
+async function openAdmin(page, { view, tab = 'overview', theme, query = '' }) {
   await page.addInitScript((t) => {
     try {
       window.localStorage.setItem('soleil.ui', JSON.stringify({ theme: t }));
       document.documentElement.setAttribute('data-theme', t);
     } catch { /* ignore */ }
   }, theme);
-  await page.goto(`/?adminpreview=1&tab=${tab}${view ? `&view=${view}` : ''}`);
+  await page.goto(`/?adminpreview=1&tab=${tab}${view ? `&view=${view}` : ''}${query}`);
 }
 
 for (const theme of ['dark', 'light']) {
@@ -162,15 +163,30 @@ test.describe('admin dashboard charts', () => {
           '.adm-trend-plot path[stroke]', '.adm-area-plot path[stroke]',
           '.adm-cohort-cell', '.adm-heat-cell', '.adm-heat-marg > span',
           '.adm-console-dot', '.adm-console-tick', '.admin-stat-ratio > span',
+          // The weekly read on Today: the streak strip's glyphs, the dated
+          // marker rules and the glyph on top of each, a dot per reading
+          // (hollow for the week so far), and the unmeasured hatch.
+          '.adm-streak-g', '.adm-area-marker', '.adm-area-marker-glyph',
+          '.adm-area-pt', '.adm-area-band',
         ].join(', '));
-        const bad = [];
+        // A mark is not only its fill. A glyph is painted in `color`, a marker
+        // rule is its dashed left border, and the hollow point for the week so
+        // far is all border. Read only fill and stroke, and any of those could
+        // turn gold without this test noticing.
+        const props = ['backgroundColor', 'stroke', 'color', 'borderLeftColor', 'borderColor'];
+        // One entry per kind of mark and property, counted: a gold dot repeats
+        // on every reading of every chart.
+        const bad = new Map();
         for (const el of marks) {
           const cs = getComputedStyle(el);
-          if (gold.includes(cs.backgroundColor) || gold.includes(cs.stroke)) {
-            bad.push(el.className?.toString?.() || el.tagName);
+          // borderColor is the shorthand: four colours when the sides differ.
+          const hit = props.find((p) => gold.some((g) => String(cs[p] || '').includes(g)));
+          if (hit) {
+            const key = `${el.className?.toString?.() || el.tagName} (${hit})`;
+            bad.set(key, (bad.get(key) || 0) + 1);
           }
         }
-        return bad;
+        return [...bad].map(([key, n]) => (n > 1 ? `${key} x${n}` : key));
       });
       expect(offenders, `data marks painted in --soleil on ${view}: ${offenders.join(', ')}`).toEqual([]);
     }
@@ -297,18 +313,25 @@ test.describe('admin dashboard charts', () => {
     // six things across four screens of scroll; the deck exists to make the
     // first screen worth opening. If someone re-introduces generous vertical
     // rhythm here, this is what says so.
+    //
+    // Re-floored from 11 to 9, and plates now count, when the weekly read
+    // replaced the four Growth wells: one well of four stacked weekly charts
+    // now carries what four wells did, and the "What changed" plate beside it
+    // is as much a first-screen instrument as a well. At 1440x900 that is the
+    // rail, its six tiles, the weekly well and the plate.
     await page.setViewportSize({ width: 1440, height: 900 });
     await openAdmin(page, { view: 'today', theme: 'dark' });
     await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.adm-stack')).toBeVisible();
 
     const aboveFold = await page.evaluate(() => [
-      ...document.querySelectorAll('.adm-well, .admin-stat-card'),
+      ...document.querySelectorAll('.adm-well, .adm-plate, .admin-stat-card'),
     ].filter((el) => {
       const r = el.getBoundingClientRect();
       return r.top < 900 && r.height > 20;
     }).length);
 
-    expect(aboveFold).toBeGreaterThanOrEqual(11);
+    expect(aboveFold).toBeGreaterThanOrEqual(9);
   });
 
   test('the heatmap margins are drawn, and are not mistaken for cells', async ({ page }) => {
@@ -719,5 +742,349 @@ test.describe('admin dashboard charts', () => {
     });
     // At minimum the primitive rendered something rather than silently nothing.
     expect(segments).toBeGreaterThan(0);
+  });
+});
+
+// ── Today: the weekly read ─────────────────────────────────────────────────
+//
+// No admin-dashboard test may depend on the real date; fixtures are relative
+// to this week's Monday.
+//
+// The harness cannot be frozen in time. The trend read scores the last eight
+// complete weeks, so the weekly fixtures are built on the UTC Mondays counted
+// back from now (`WK` in local/adminFixtures.js), and a test here is written
+// against WK's structure, never against a calendar date. Two consequences:
+//
+//   * Markers are counted BY KIND (.is-note, .is-ship), never in total. The
+//     owner's notes and the alerts are placed relative to WK, but definition
+//     breaks and changelog entries keep their real dates, so they enter and
+//     leave the thirteen-week window as the calendar moves.
+//   * A test that reads the Did-real-work tile waits for "Too few weeks (3 of
+//     4)" first. Until the harness's own break list arrives (a dynamic import),
+//     that tile is cut at the real, dated definition change, and what it shows
+//     then depends on the day.
+//
+// A guard added here must be seen to fail with the thing it protects broken,
+// before it is trusted to pass. One that cannot fail is not a guard.
+
+/** A tile by its label, exactly. */
+const tile = (page, label) => page.locator('.admin-stat-card', {
+  has: page.locator('.admin-stat-label', { hasText: new RegExp(`^${label}$`) }),
+});
+
+/** The harness's per-RPC call tally (installAdminPreviewMocks). */
+const rpcCalls = (page, name) => page.evaluate((n) => window.__admRpcCalls?.[n] || 0, name);
+
+/** The harness's relative break list has replaced the dated one (see above). */
+async function weeklyReadSettled(page) {
+  await expect(tile(page, 'Did real work').locator('.admin-stat-verdict'))
+    .toHaveText('Too few weeks (3 of 4)', { timeout: 15000 });
+}
+
+for (const theme of ['dark', 'light']) {
+  test.describe(`admin Today, the weekly read (${theme})`, () => {
+    test('under four complete weeks every tile says too few, not a verdict', async ({ page }) => {
+      // ?weeks=3 keeps three complete weeks and the week so far, one short of
+      // the four the read needs, for every series at once. A strip that still
+      // drew arrows there would be drawing a claim its own sentence refuses.
+      const errors = watchConsole(page);
+      await openAdmin(page, { view: 'today', theme, query: '&weeks=3' });
+
+      const trended = page.locator('.admin-stat-card', { has: page.locator('.adm-streak') });
+      await expect(trended).toHaveCount(4, { timeout: 15000 });
+      for (const card of await trended.all()) {
+        await expect(card.locator('.admin-stat-verdict')).toHaveText(/Too few weeks/);
+      }
+      // The strip's accessible name is the same sentence, on all four.
+      await expect(page.getByRole('img', { name: /^Too few weeks/ })).toHaveCount(4);
+
+      await expect(page.locator('.adm-streak-g.is-up, .adm-streak-g.is-down')).toHaveCount(0);
+      // Nor a flat dot, which is a measured "no change". Every slot is the
+      // hatched "not measured", and there are slots, so none of this is vacuous.
+      const slots = await page.locator('.adm-streak-g').count();
+      expect(slots, 'no strip glyphs at all').toBeGreaterThan(0);
+      await expect(page.locator('.adm-streak-g.is-unmeasured')).toHaveCount(slots);
+
+      expect(errors, `console errors under ?weeks=3:\n${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('the streak strip is seven glyphs and one sentence', async ({ page }) => {
+      // Seven steps between the eight weeks the read scores, newest last, and
+      // the sentence they add up to. The sentence is also the strip's
+      // accessible name, so the two cannot say different things.
+      await openAdmin(page, { view: 'today', theme });
+      const signups = tile(page, 'Signups');
+      await expect(signups.locator('.adm-streak-g')).toHaveCount(7, { timeout: 15000 });
+      await expect(signups.locator('.admin-stat-verdict')).toHaveCount(1);
+      const sentence = (await signups.locator('.admin-stat-verdict').innerText()).trim();
+      expect(sentence).not.toBe('');
+      await expect(signups.locator('.adm-streak')).toHaveAttribute('aria-label', sentence);
+
+      // Signups and Weekly active both hold a direction over the window.
+      await expect.poll(
+        () => page.getByRole('img', { name: /of the last \d+ weeks/ }).count(),
+        { message: 'fewer than two strips are named with a sustained read' },
+      ).toBeGreaterThanOrEqual(2);
+    });
+
+    test('an unmeasured week never gets a direction', async ({ page }) => {
+      // Two states of the work tile. By default the harness cuts its series
+      // three complete weeks back, so it reads "Too few weeks (3 of 4)" and
+      // every slot is unmeasured. Under ?breaks=0 it scores its four measured
+      // weeks: three steps with a direction, and before them the slots for the
+      // weeks before the counter existed, which must stay hatched and empty.
+      const errors = watchConsole(page);
+      for (const query of ['', '&breaks=0']) {
+        await openAdmin(page, { view: 'today', theme, query });
+        const work = tile(page, 'Did real work');
+        await expect(work.locator('.adm-streak-g')).toHaveCount(7, { timeout: 15000 });
+        if (query === '') await weeklyReadSettled(page);
+
+        const slots = await work.locator('.adm-streak-g').evaluateAll((els) => els.map((el) => ({
+          unmeasured: el.classList.contains('is-unmeasured'),
+          directed: el.classList.contains('is-up') || el.classList.contains('is-down'),
+          text: el.textContent,
+          image: getComputedStyle(el).backgroundImage,
+        })));
+        const unmeasured = slots.filter((s) => s.unmeasured);
+        expect(unmeasured.length, `no unmeasured slot (${query || 'default'})`).toBeGreaterThanOrEqual(1);
+        for (const s of unmeasured) {
+          expect(s.text, 'an unmeasured slot drew a glyph').toBe('');
+          expect(s.image, 'an unmeasured slot is not hatched').toContain('repeating-linear-gradient');
+          expect(s.directed, 'an unmeasured slot carries a direction').toBe(false);
+        }
+
+        if (query === '&breaks=0') {
+          // The scored state really scored, and the hatched slots are the
+          // oldest ones: before the counter, never between two readings.
+          const directed = slots.flatMap((s, i) => (s.directed ? [i] : []));
+          expect(directed.length, 'the work tile did not score under ?breaks=0').toBeGreaterThan(0);
+          const lastHatched = slots.findLastIndex((s) => s.unmeasured);
+          expect(lastHatched, 'a hatched slot sits after a measured step').toBeLessThan(directed[0]);
+        }
+      }
+      expect(errors, errors.join('\n')).toEqual([]);
+    });
+
+    test('markers land on their week, on every chart', async ({ page }) => {
+      // The fixture pins one `ship` note exactly on WK[3], the Monday of the
+      // fourth of fourteen weeks, so it sits at index 3 of 0..13 on the axis
+      // whatever today is. A marker drawn a column off is worse than none: it
+      // puts the explanation beside the wrong step.
+      await openAdmin(page, { view: 'today', theme });
+      const plots = page.locator('.adm-stack .adm-area-plot');
+      await expect(plots).toHaveCount(4, { timeout: 15000 });
+      await expect(page.locator('.adm-stack .adm-area-marker.is-ship')).toHaveCount(4);
+
+      const rows = await plots.evaluateAll((els) => els.map((plot) => {
+        const width = plot.getBoundingClientRect().width;
+        return [...plot.querySelectorAll('.adm-area-marker.is-ship')].map((m) => ({
+          // Where it was laid out, not the percentage it asked for.
+          at: (parseFloat(getComputedStyle(m).left) / width) * 100,
+          inPlot: m.parentElement === plot,
+          rule: m.classList.contains('adm-area-vgrid'),
+          glyph: m.querySelector('.adm-area-marker-glyph') !== null,
+        }));
+      }));
+
+      const expected = (3 / 13) * 100;
+      rows.forEach((ships, i) => {
+        expect(ships, `chart ${i} does not draw the ship note exactly once`).toHaveLength(1);
+        const [ship] = ships;
+        expect(
+          Math.abs(ship.at - expected),
+          `chart ${i}: the ship note sits at ${ship.at.toFixed(2)}%, its week is at ${expected.toFixed(2)}%`,
+        ).toBeLessThanOrEqual(0.5);
+        expect(ship.inPlot, 'a marker drawn outside its plot').toBe(true);
+        // The graticule is counted by "the paper subdivides the graticule".
+        expect(ship.rule, 'a marker drawn as a graticule rule').toBe(false);
+      });
+      // The kind's glyph once, on the first chart that draws the marker.
+      expect(rows.map(([ship]) => ship.glyph)).toEqual([true, false, false, false]);
+    });
+
+    test('the partial week is hollow and not joined', async ({ page }) => {
+      // The week so far is a few days of counting. Joined to the line, it reads
+      // as a collapse every Monday; so it is a hollow point at the right rule
+      // that no line or fill reaches.
+      await openAdmin(page, { view: 'today', theme });
+      const plots = page.locator('.adm-stack .adm-area-plot');
+      await expect(plots).toHaveCount(4, { timeout: 15000 });
+
+      const rows = await plots.evaluateAll((els) => els.map((plot) => {
+        const width = plot.getBoundingClientRect().width;
+        const pts = [...plot.querySelectorAll('.adm-area-pt')];
+        const last = pts.at(-1);
+        const cs = last ? getComputedStyle(last) : null;
+        // Every x in a path's d: "M0.00 41.20 L7.69 38.10 …".
+        const xs = (sel) => [...plot.querySelectorAll(sel)].flatMap((p) => [
+          ...(p.getAttribute('d') || '').matchAll(/[ML]\s*(-?\d+(?:\.\d+)?)[\s,]+-?\d+(?:\.\d+)?/g),
+        ].map((m) => Number(m[1])));
+        const stroked = xs('svg path[stroke]');
+        const filled = xs('svg path:not([stroke])');
+        return {
+          points: pts.length,
+          partials: pts.filter((p) => p.classList.contains('is-partial')).length,
+          lastIsPartial: !!last?.classList.contains('is-partial'),
+          lastAt: last ? (parseFloat(cs.left) / width) * 100 : null,
+          ring: cs ? parseFloat(cs.borderTopWidth) : 0,
+          inside: cs?.backgroundColor,
+          rim: cs?.borderTopColor,
+          strokes: stroked.length,
+          strokeMaxX: Math.max(...stroked),
+          fillMaxX: Math.max(...filled),
+        };
+      }));
+
+      rows.forEach((r, i) => {
+        expect(r.points, `chart ${i} drew no points`).toBeGreaterThan(1);
+        expect(r.lastIsPartial, `chart ${i}: the newest point is not the partial one`).toBe(true);
+        expect(r.partials, `chart ${i}: not exactly one point is partial`).toBe(1);
+        expect(r.lastAt, `chart ${i}: the partial point is not at the right rule`).toBeGreaterThan(99.5);
+        // Hollow: a ring, with the plot ground inside it rather than the series colour.
+        expect(r.ring, `chart ${i}: the partial point has no ring`).toBeGreaterThan(0);
+        expect(r.inside, `chart ${i}: the partial point is filled`).not.toBe(r.rim);
+        expect(r.strokes, `chart ${i} drew no line`).toBeGreaterThan(0);
+        expect(r.strokeMaxX, `chart ${i}: a line runs into the week so far`).toBeLessThan(100);
+        expect(r.fillMaxX, `chart ${i}: the fill runs into the week so far`).toBeLessThan(100);
+      });
+    });
+  });
+}
+
+test.describe('admin Today, the weekly read', () => {
+  test('the note form adds a marker, and removing it offers undo', async ({ page }) => {
+    // The owner's one write on this dashboard, end to end through the harness's
+    // notes table: add, remove, undo. Deleting shows an undo toast, the house
+    // convention, and the undo brings back the same note (a soft delete), so
+    // it lands back on the list and on all four charts.
+    const errors = watchConsole(page);
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+
+    const panel = page.locator('.adm-plate.adm-markers');
+    const form = page.getByRole('form', { name: 'Add a dated note' });
+    await expect(form).toBeVisible({ timeout: 15000 });
+    // The fixture's notes have been seeded (its one ship note is listed).
+    await expect(panel.locator('.adm-marker-row.is-ship')).toHaveCount(1);
+
+    const listed = panel.locator('.adm-marker-row.is-note');
+    const drawn = page.locator('.adm-stack .adm-area-marker.is-note');
+    const rows0 = await listed.count();
+    const lines0 = await drawn.count();
+
+    const label = 'Guard note from the dashboard spec';
+    const field = form.getByRole('textbox', { name: 'Label', exact: true });
+    await field.fill(label);
+    await field.press('Enter');
+
+    await expect(listed).toHaveCount(rows0 + 1);
+    await expect(drawn).toHaveCount(lines0 + 4);
+    await expect.poll(() => rpcCalls(page, 'admin_note_add')).toBe(1);
+
+    await page.getByRole('button', { name: `Remove note: ${label}` }).click();
+    const toast = page.locator('.toast', { hasText: 'Note removed' });
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText(label);
+    const undo = toast.getByRole('button', { name: 'Undo' });
+    await expect(undo).toBeVisible();
+    // Off the list and the charts at once, before anyone touches Undo.
+    await expect(listed).toHaveCount(rows0);
+    await expect(drawn).toHaveCount(lines0);
+    await expect.poll(() => rpcCalls(page, 'admin_note_delete')).toBe(1);
+
+    await undo.click();
+    await expect(listed).toHaveCount(rows0 + 1);
+    await expect(drawn).toHaveCount(lines0 + 4);
+    // The counts alone cannot tell a restore from a fresh add of the same words.
+    await expect.poll(() => rpcCalls(page, 'admin_note_restore'), {
+      message: 'Undo put the note back without restoring it',
+    }).toBe(1);
+    // The same note, removable again by its own name.
+    await expect(page.getByRole('button', { name: `Remove note: ${label}` })).toHaveCount(1);
+    expect(await rpcCalls(page, 'admin_note_add'), 'the undo re-added rather than restored').toBe(1);
+
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('the thirteen-week well is on the first screen', async ({ page }) => {
+    // The strips on the tiles are claims about weeks; the charts are the
+    // evidence. If the evidence slides below the fold, the claim gets read
+    // without it.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await weeklyReadSettled(page);
+    const stack = page.locator('.adm-stack');
+    await expect(stack).toBeVisible();
+    const top = await stack.evaluate((el) => el.getBoundingClientRect().top);
+    expect(top, `the weekly charts start at ${Math.round(top)}px`).toBeLessThan(900);
+  });
+
+  test("the weekly series is fetched with the toolbar's population", async ({ page }) => {
+    // The strip under a tile and the number above it must count the same
+    // people. So flipping the population re-reads the weekly series too, not
+    // only the headline figures. (The harness answers both populations with
+    // the same rows, so it is the call that is asserted, not the numbers.)
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await expect(page.locator('.adm-stack')).toBeVisible({ timeout: 15000 });
+
+    // StrictMode mounts twice in dev, so wait for the tally to stop moving.
+    let seen = -1;
+    await expect.poll(async () => {
+      const n = await rpcCalls(page, 'admin_weekly_series');
+      const settled = n > 0 && n === seen;
+      seen = n;
+      return settled;
+    }, { intervals: [300], message: 'the weekly series was never fetched' }).toBe(true);
+
+    const internal = page.getByRole('switch', { name: /^Internal:/ });
+    const was = await internal.getAttribute('aria-checked');
+    await internal.click();
+    await expect(internal).toHaveAttribute('aria-checked', was === 'true' ? 'false' : 'true');
+    await expect.poll(() => rpcCalls(page, 'admin_weekly_series'), {
+      message: 'flipping INTERNAL did not re-read the weekly series',
+    }).toBeGreaterThan(seen);
+  });
+
+  test('hero tiles never overflow sideways', async ({ page }) => {
+    // Each trended tile now carries a seven-glyph strip, a two-line sentence
+    // and sometimes a dated caveat in a 190px track. Content wider than its
+    // tile runs under the neighbour or is clipped mid-word.
+    for (const [width, height] of [[1280, 800], [1440, 900]]) {
+      await page.setViewportSize({ width, height });
+      await openAdmin(page, { view: 'today', theme: 'dark' });
+      await weeklyReadSettled(page);
+      await expect(page.locator('.admin-stat-card.is-hero .adm-streak')).toHaveCount(4);
+
+      const over = await page.locator('.admin-stat-card.is-hero').evaluateAll((els) => els
+        .filter((el) => el.scrollWidth > el.clientWidth)
+        .map((el) => `${el.querySelector('.admin-stat-label')?.textContent}: ${el.scrollWidth} > ${el.clientWidth}`));
+      expect(over, `hero tiles wider than their box at ${width}x${height}: ${over.join(' | ')}`).toEqual([]);
+    }
+  });
+
+  test('four stacked charts share one axis', async ({ page }) => {
+    // Small multiples share the x axis and never the y. The date row is drawn
+    // once, under the stack, and it has to sit under the plots it labels, or
+    // the shared axis is a caption floating near four charts.
+    await openAdmin(page, { view: 'today', theme: 'dark' });
+    const stack = page.locator('.adm-stack');
+    await expect(stack.locator('.adm-stack-row')).toHaveCount(4, { timeout: 15000 });
+    await expect(stack.locator('.adm-area-plot')).toHaveCount(4);
+    await expect(page.locator('.adm-stack-x')).toHaveCount(1);
+    await expect(stack.locator('.adm-area-x')).toHaveCount(0);
+
+    const fit = await stack.evaluate((el) => {
+      const axis = el.querySelector('.adm-stack-x');
+      const a = axis.getBoundingClientRect();
+      const start = a.left + parseFloat(getComputedStyle(axis).paddingLeft);
+      return [...el.querySelectorAll('.adm-area-plot')].map((p) => {
+        const r = p.getBoundingClientRect();
+        return { left: Math.abs(r.left - start), right: Math.abs(r.right - a.right) };
+      });
+    });
+    fit.forEach((d, i) => {
+      expect(d.left, `chart ${i} starts ${d.left.toFixed(1)}px from the shared date row`).toBeLessThanOrEqual(2);
+      expect(d.right, `chart ${i} ends ${d.right.toFixed(1)}px from the shared date row`).toBeLessThanOrEqual(2);
+    });
   });
 });
