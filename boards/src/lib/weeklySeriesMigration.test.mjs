@@ -257,9 +257,14 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(cteIn(body, 'disc'),
     /case when count\(\*\) = 1 then r\.name\s+else r\.name \|\| ' \(' \|\| count\(\*\) \|\| ' days\)' end as label/,
     'a one-day discovery run is its name; a longer one says how many days');
-  assert.match(cteIn(body, 'ops_days'), /oa\.kind not in \('heartbeat', 'test', 'held_reminder', 'signups'\)/,
-    'the exclusion still tests the kind');
-  for (const k of ["'heartbeat'", "'test'", "'held_reminder'", "'signups'"]) assert.ok(body.includes(k), `${k} is excluded`);
+  // Five kinds are not markers. email_health is raised by _discovery_alert for
+  // every discovery row (0369), so it would twin each discovery marker.
+  assert.match(cteIn(body, 'ops_days'),
+    /oa\.kind not in \('heartbeat', 'test', 'held_reminder', 'signups', 'email_health'\)/,
+    'the exclusion tests the kind, and names all five');
+  for (const k of ["'heartbeat'", "'test'", "'held_reminder'", "'signups'", "'email_health'"]) {
+    assert.ok(body.includes(k), `${k} is excluded`);
+  }
   assert.match(body, /order by m\.day, m\.source, m\.label/);
 
   // client_errors is purged after 90 days (0108): discovery reads no further back.
@@ -270,7 +275,12 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(comment, /shortened \(n days\)/, 'and that a run begun before it is cut short');
   assert.match(comment, /24-hour dedupe/, 'the comment says why ops runs are bridged');
   assert.match(comment, /bridges gaps of up to 2 days/, 'and by how much');
-  assert.match(comment, /per dedupe key \(falling back to kind\)/, 'and that ops runs are per dedupe key');
+  assert.match(comment, /per dedupe key only for the 0374 invariants, whose seven checks share one kind/,
+    'and that only the invariants are split by dedupe key');
+  assert.match(comment, /every other kind is one marker per run regardless of how many accounts it touched/,
+    'and that no other kind is split per account');
+  assert.match(comment, /email_health is left out because _discovery_alert raises one for every discovery row/,
+    'and why email_health is not a marker');
 
   // Discovery re-fires daily (20-hour dedupe), so its runs are strictly
   // consecutive days. A stuck 0374 invariant goes through a 24-hour dedupe and
@@ -287,13 +297,16 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(cteIn(body, 'ops_runs'),
     /sum\(g\.starts\) over \(partition by g\.k order by g\.day rows unbounded preceding\) as grp/,
     'an ops run id is the count of starts so far');
-  // All seven 0374 invariants share kind 'invariant' with distinct dedupe keys:
-  // keyed by kind, two different failures would merge into one marker.
+  // The run key is the dedupe key only for 0374's invariants (seven checks, one
+  // kind, one key each). Every other kind runs per kind: 0369 keys its hold,
+  // budget and member alerts per ACCOUNT, and one breaker trip that holds N
+  // senders must be one marker, not N. Select and group by must agree.
   const opsDays = cteIn(body, 'ops_days');
-  assert.match(opsDays, /select coalesce\(oa\.dedupe_key, oa\.kind\) as k,/,
-    'ops runs are keyed by dedupe key, falling back to kind');
-  assert.match(opsDays, /group by coalesce\(oa\.dedupe_key, oa\.kind\), \(oa\.created_at at time zone 'utc'\)::date/,
-    'one row per key per UTC day');
+  const KEY = /case when oa\.kind = 'invariant' then coalesce\(oa\.dedupe_key, oa\.kind\) else oa\.kind end/.source;
+  assert.match(opsDays, new RegExp(`select ${KEY} as k,`),
+    'ops runs are per kind, and per dedupe key only for the invariants');
+  assert.match(opsDays, new RegExp(`group by ${KEY},\\s+\\(oa\\.created_at at time zone 'utc'\\)::date`),
+    'one row per run key per UTC day, grouped by the same expression');
   assert.match(opsDays, /min\(oa\.title\) as title/, 'one title per key per day');
   const ops = cteIn(body, 'ops');
   assert.match(ops, /from ops_runs r\s+group by r\.k, r\.grp/, 'one ops marker per run');

@@ -48,13 +48,15 @@
 --      as one dated list for the charts. An alert that keeps firing is ONE
 --      marker per run, at the run's first day, labelled "<title> (n days)": a
 --      discovery run is consecutive UTC days (a broken pipeline re-fires
---      daily); an ops run, per dedupe key (falling back to kind), bridges gaps
---      of up to 2 days (a stuck 0374 invariant re-raises through a 24-hour
---      dedupe, so it skips days at random).
---      Ops alerts leave out the kinds that would mislead: the Monday heartbeat
---      and the test button (a marker every week), held-mail reminders (daily
---      while mail is held), and the signup spike (a function of the signups
---      line itself, so it explains nothing). client_errors keeps 90 days
+--      daily); an ops run, per kind (per dedupe key only for the 0374
+--      invariants, whose seven checks share one kind), bridges gaps of up to
+--      2 days (a stuck invariant re-raises through a 24-hour dedupe, so it
+--      skips days at random). Ops alerts leave out the kinds that would
+--      mislead: the Monday heartbeat and the test button (a marker every
+--      week), held-mail reminders (daily while mail is held), the signup spike
+--      (a function of the signups line itself, so it explains nothing), and
+--      email_health (_discovery_alert raises one for every discovery row, so
+--      it would twin each discovery marker). client_errors keeps 90 days
 --      (0108), so discovery markers reach no further back than that.
 --   5. admin_kpi_summary, rewritten in place with the same signature: every
 --      user count goes through _admin_people; WAU is exactly p_days days in
@@ -409,24 +411,28 @@ begin
      group by r.name, r.grp
   ),
   -- Not markers: the Monday heartbeat and the test button would put one on
-  -- every week, held-mail reminders repeat daily while mail is held, and the
-  -- signup spike is the signups line itself. The rest collapse into runs per
-  -- dedupe key (falling back to kind): all seven 0374 invariants share kind
-  -- 'invariant' but each has its own key, so two different failures stay two
-  -- markers. Runs are not strictly consecutive: a stuck 0374 invariant
-  -- re-raises from a daily cron through a 24-hour dedupe, so whenever a run
-  -- starts a moment earlier than the day before it is suppressed, and the
-  -- alert lands every day or two at random. A run therefore bridges gaps of
-  -- up to 2 days, and its (n days) is the span from its first alert day to
-  -- its last.
+  -- every week, held-mail reminders repeat daily while mail is held, the
+  -- signup spike is the signups line itself, and email_health is raised by
+  -- _discovery_alert for every discovery row (0369), so it would twin each
+  -- discovery marker. The rest collapse into runs per kind, and per dedupe key
+  -- only for the 0374 invariants: their seven checks share kind 'invariant'
+  -- with one key each, so two different failures stay two markers. No other
+  -- kind is split by key, because 0369 keys its hold, budget and member alerts
+  -- per account: a breaker trip that holds N senders is one marker, not N.
+  -- Runs are not strictly consecutive: a stuck 0374 invariant re-raises from
+  -- a daily cron through a 24-hour dedupe, so whenever a run starts a moment
+  -- earlier than the day before it is suppressed, and the alert lands every
+  -- day or two at random. A run therefore bridges gaps of up to 2 days, and
+  -- its (n days) is the span from its first alert day to its last.
   ops_days as (
-    select coalesce(oa.dedupe_key, oa.kind) as k,
+    select case when oa.kind = 'invariant' then coalesce(oa.dedupe_key, oa.kind) else oa.kind end as k,
            (oa.created_at at time zone 'utc')::date as day,
            min(oa.title) as title
       from public.ops_alerts oa
      where oa.created_at >= v_since
-       and oa.kind not in ('heartbeat', 'test', 'held_reminder', 'signups')
-     group by coalesce(oa.dedupe_key, oa.kind), (oa.created_at at time zone 'utc')::date
+       and oa.kind not in ('heartbeat', 'test', 'held_reminder', 'signups', 'email_health')
+     group by case when oa.kind = 'invariant' then coalesce(oa.dedupe_key, oa.kind) else oa.kind end,
+              (oa.created_at at time zone 'utc')::date
   ),
   -- 1 where a new run starts: more than 2 days after this key's previous alert
   -- day. lag() is null on a key's first day, so its first run is run 0. (Two
@@ -465,11 +471,14 @@ grant execute on function public.admin_markers(date) to authenticated, service_r
 comment on function public.admin_markers(date) is
   'Admin. Dated markers since p_since (default 120 days ago), oldest first: live notes '
   '(source note, ref_id = admin_notes.id), discovery-pipeline alerts collapsed per name '
-  '(source discovery), and ops alerts without heartbeat, test, held_reminder and signups '
-  'collapsed per dedupe key (falling back to kind), so distinct failures that share a kind, '
-  'such as two 0374 invariants, stay distinct (source ops). A collapsed alert is one marker '
-  'per run, at the run''s first day, labelled with its name or min(title) plus (n days) '
-  'when the run spans more than one day; alerts carry kind alert and no ref_id. '
+  '(source discovery), and ops alerts collapsed per kind (source ops), without heartbeat, '
+  'test, held_reminder, signups and email_health. '
+  'Ops runs are per dedupe key only for the 0374 invariants, whose seven checks share one kind; '
+  'every other kind is one marker per run regardless of how many accounts it touched. '
+  'email_health is left out because _discovery_alert raises one for every discovery row '
+  '(0369), so it would twin each discovery marker. A collapsed alert is one marker per run, '
+  'at the run''s first day, labelled with its name or min(title) plus (n days) when the run '
+  'spans more than one day; alerts carry kind alert and no ref_id. '
   'A discovery run is consecutive UTC days: its 20-hour dedupe re-fires daily. '
   'An ops run bridges gaps of up to 2 days and its n is the span from first to last alert '
   'day: 0374''s invariants re-raise from a daily cron through a 24-hour dedupe, so '
