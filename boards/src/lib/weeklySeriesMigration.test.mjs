@@ -263,16 +263,27 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   const comment = src.match(/comment on function public\.admin_markers\(date\) is([\s\S]*?)';/)?.[1] ?? '';
   assert.match(comment, /~90 days/, 'the comment states the discovery horizon');
   assert.match(comment, /shortened \(n days\)/, 'and that a run begun before it is cut short');
+  assert.match(comment, /24-hour dedupe/, 'the comment says why ops runs are bridged');
+  assert.match(comment, /bridges gaps of up to 2 days/, 'and by how much');
 
-  // Both alert branches collapse daily re-fires into runs of consecutive days.
+  // Discovery re-fires daily (20-hour dedupe), so its runs are strictly
+  // consecutive days. A stuck 0374 invariant goes through a 24-hour dedupe and
+  // skips days at random, so an ops run bridges gaps of up to 2 days.
   assert.match(cteIn(body, 'disc_runs'), /row_number\(\) over \(partition by d\.name order by d\.day\)/, 'discovery runs');
-  assert.match(cteIn(body, 'ops_runs'), /row_number\(\) over \(partition by o\.k order by o\.day\)/, 'ops runs, per kind');
-  assert.equal(body.match(/row_number\(\) over \(partition by/g)?.length ?? 0, 2, 'one run-collapse per alert branch');
+  assert.doesNotMatch(cteIn(body, 'disc_runs'), /lag\(/, 'discovery stays strictly consecutive');
+  assert.equal(body.match(/row_number\(\) over \(partition by/g)?.length ?? 0, 1, 'only discovery numbers its days');
+  assert.match(cteIn(body, 'ops_gaps'),
+    /case when o\.day - lag\(o\.day\) over \(partition by o\.k order by o\.day\) > 2 then 1 else 0 end as starts/,
+    'a new ops run starts only after a gap of more than 2 days');
+  assert.match(cteIn(body, 'ops_runs'),
+    /sum\(g\.starts\) over \(partition by g\.k order by g\.day rows unbounded preceding\) as grp/,
+    'an ops run id is the count of starts so far');
   assert.match(cteIn(body, 'ops_days'), /min\(oa\.title\) as title/, 'one title per kind per day');
   const ops = cteIn(body, 'ops');
   assert.match(ops, /from ops_runs r\s+group by r\.k, r\.grp/, 'one ops marker per run');
-  assert.match(ops, /case when count\(\*\) = 1 then min\(r\.title\)\s+else min\(r\.title\) \|\| ' \(' \|\| count\(\*\) \|\| ' days\)' end/,
-    'a one-day run is its title; a longer one says how many days');
+  assert.match(ops,
+    /case when max\(r\.day\) = min\(r\.day\) then min\(r\.title\)\s+else min\(r\.title\) \|\| ' \(' \|\| \(max\(r\.day\) - min\(r\.day\) \+ 1\) \|\| ' days\)' end/,
+    'a one-day run is its title; a longer one says its span in days');
 });
 
 test('notes are validated, soft-deleted and restorable as the same row', () => {

@@ -45,10 +45,11 @@
 --      note). Delete is soft: the house rule is that deleting shows an undo
 --      toast, and an undo must bring back the same row, not a copy of it.
 --   4. admin_markers(p_since): notes, discovery-pipeline alerts and ops alerts
---      as one dated list for the charts. An alert that keeps firing (a broken
---      pipeline re-fires daily, a stuck 0374 invariant from a daily cron) is
---      collapsed per alert name, or per ops kind, into runs of consecutive UTC
---      days: ONE marker at the run's first day, labelled "<title> (n days)".
+--      as one dated list for the charts. An alert that keeps firing is ONE
+--      marker per run, at the run's first day, labelled "<title> (n days)": a
+--      discovery run is consecutive UTC days (a broken pipeline re-fires
+--      daily); an ops run bridges gaps of up to 2 days (a stuck 0374 invariant
+--      re-raises through a 24-hour dedupe, so it skips days at random).
 --      Ops alerts leave out the kinds that would mislead: the Monday heartbeat
 --      and the test button (a marker every week), held-mail reminders (daily
 --      while mail is held), and the signup spike (a function of the signups
@@ -409,8 +410,11 @@ begin
   -- Not markers: the Monday heartbeat and the test button would put one on
   -- every week, held-mail reminders repeat daily while mail is held, and the
   -- signup spike is the signups line itself. The rest collapse per kind into
-  -- runs of consecutive UTC days exactly as discovery alerts do: a stuck 0374
-  -- invariant re-raises from a daily cron and would otherwise mark most days.
+  -- runs, but not strictly consecutive ones: a stuck 0374 invariant re-raises
+  -- from a daily cron through a 24-hour dedupe, so whenever a run starts a
+  -- moment earlier than the day before it is suppressed, and the alert lands
+  -- every day or two at random. A run therefore bridges gaps of up to 2 days,
+  -- and its (n days) is the span from its first alert day to its last.
   ops_days as (
     select oa.kind as k,
            (oa.created_at at time zone 'utc')::date as day,
@@ -420,16 +424,24 @@ begin
        and oa.kind not in ('heartbeat', 'test', 'held_reminder', 'signups')
      group by oa.kind, (oa.created_at at time zone 'utc')::date
   ),
-  ops_runs as (
+  -- 1 where a new run starts: more than 2 days after this kind's previous alert
+  -- day. lag() is null on a kind's first day, so its first run is run 0. (Two
+  -- steps, because window calls cannot be nested.)
+  ops_gaps as (
     select o.k, o.day, o.title,
-           o.day - (row_number() over (partition by o.k order by o.day))::int as grp
+           case when o.day - lag(o.day) over (partition by o.k order by o.day) > 2 then 1 else 0 end as starts
       from ops_days o
+  ),
+  ops_runs as (
+    select g.k, g.day, g.title,
+           sum(g.starts) over (partition by g.k order by g.day rows unbounded preceding) as grp
+      from ops_gaps g
   ),
   ops as (
     select min(r.day) as day,
            'alert'::text as kind,
-           case when count(*) = 1 then min(r.title)
-                else min(r.title) || ' (' || count(*) || ' days)' end as label,
+           case when max(r.day) = min(r.day) then min(r.title)
+                else min(r.title) || ' (' || (max(r.day) - min(r.day) + 1) || ' days)' end as label,
            'ops'::text as source,
            null::bigint as ref_id
       from ops_runs r
@@ -450,11 +462,15 @@ comment on function public.admin_markers(date) is
   'Admin. Dated markers since p_since (default 120 days ago), oldest first: live notes '
   '(source note, ref_id = admin_notes.id), discovery-pipeline alerts collapsed per name '
   '(source discovery), and ops alerts without heartbeat, test, held_reminder and signups '
-  'collapsed per kind (source ops). A collapsed alert is one marker per run of consecutive '
-  'UTC days, at the run''s first day, labelled with its name or min(title) plus (n days) '
-  'when the run is longer than one day; alerts carry kind alert and no ref_id. '
-  'client_errors is purged after 90 days (0108), so discovery markers cannot reach further '
-  'back than ~90 days, and a run that began before that horizon shows a shortened (n days).';
+  'collapsed per kind (source ops). A collapsed alert is one marker per run, at the run''s '
+  'first day, labelled with its name or min(title) plus (n days) when the run spans more '
+  'than one day; alerts carry kind alert and no ref_id. A discovery run is consecutive UTC '
+  'days: its 20-hour dedupe re-fires daily. An ops run bridges gaps of up to 2 days and its '
+  'n is the span from first to last alert day: 0374''s invariants re-raise from a daily cron '
+  'through a 24-hour dedupe, so start-time jitter suppresses some days at random, and a '
+  'strictly consecutive run would break at each. client_errors is purged after 90 days '
+  '(0108), so discovery markers cannot reach further back than ~90 days, and a run that '
+  'began before that horizon shows a shortened (n days).';
 
 -- ── 5. admin_kpi_summary, fixed in place ────────────────────────────────────
 -- 0149's body; every changed line ends -- 0372. Same signature, so the ACL
