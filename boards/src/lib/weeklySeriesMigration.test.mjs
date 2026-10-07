@@ -69,6 +69,15 @@ function returnsTable(body) {
   return m[1].split(',').map((s) => s.trim().split(/\s+/));
 }
 
+// One CTE's text, for bodies laid out as this file's are: "\n  name as (" … "\n  )".
+// Scoping an assertion to its CTE is what stops a match elsewhere in the body
+// from passing for a CTE that lost the line.
+function cteIn(body, name) {
+  const m = body.match(new RegExp(`\\n  ${name} as \\(([\\s\\S]*?)\\n  \\)`));
+  assert.ok(m, `the ${name} CTE`);
+  return m[1];
+}
+
 test('the migration exists and is one transaction', () => {
   assert.ok(src, `${FILE} exists`);
   assert.match(src, /^begin;$/m, 'opens a transaction');
@@ -108,7 +117,7 @@ test('every admin_* function is revoked from public and anon, and granted to aut
   }
 });
 
-test('the proof names all seven signatures and checks every role, the table and the admin gate', () => {
+test('the proof names all seven signatures and checks every role, the table, its sequence and the admin gate', () => {
   const proof = src.match(/do \$proof\$[\s\S]*?\$proof\$;/)?.[0];
   assert.ok(proof, 'a do $proof$ block');
   for (const sig of SIGNATURES) assert.ok(proof.includes(`'${sig}'`), `the proof names ${sig}`);
@@ -120,6 +129,10 @@ test('the proof names all seven signatures and checks every role, the table and 
     assert.ok(proof.includes(`has_table_privilege('${role}', 'public.admin_notes', `), `admin_notes is closed to ${role}`);
   }
   assert.match(proof, /'select'/, 'including select');
+  for (const role of ['anon', 'authenticated']) {
+    assert.ok(proof.includes(`has_sequence_privilege('${role}', 'public.admin_notes_id_seq', 'usage')`),
+      `admin_notes_id_seq is proven closed to ${role}`);
+  }
   assert.match(proof, /relrowsecurity/, 'row-level security is proven on');
   assert.match(proof, /position\('_require_admin\(\)' in v_src\)/, 'each admin_* body is proven admin-gated');
 });
@@ -135,6 +148,8 @@ test('admin_notes is reachable only through the RPCs', () => {
   assert.match(src, /on public\.admin_notes \(day\) where deleted_at is null;/, 'partial index on live notes');
   assert.match(src, /alter table public\.admin_notes enable row level security;/);
   assert.match(src, /revoke all on table public\.admin_notes from public, anon, authenticated;/);
+  assert.match(src, /revoke all on sequence public\.admin_notes_id_seq from public, anon, authenticated;/,
+    "the identity column's sequence is born with default grants");
   assert.doesNotMatch(code, /create policy[^;]*admin_notes/i, 'no policies: RLS denies every client');
   assert.doesNotMatch(code, /grant [^;]*on (table )?public\.admin_notes/i, 'no table grants');
 });
@@ -164,6 +179,12 @@ test('admin_weekly_series counts complete UTC weeks from durable tables, with ho
   assert.match(body, /date_trunc\('week', current_date\)::date/, 'weeks start on Monday');
   assert.match(body, /generate_series\(v_first, v_this, interval '7 days'\)/, 'zero-filled');
   assert.match(body, /people as \(select \* from public\._admin_people\(p_exclude_internal, p_verified_only\)\)/);
+  assert.match(cteIn(body, 'su'), /from people p\b/, 'signups count only the population');
+  assert.match(cteIn(body, 'act'), /from public\.user_active_day a\s+join people p on p\.user_id = a\.user_id/,
+    'presence and work count only the population');
+  assert.match(cteIn(body, 'ca'),
+    /not p_exclude_internal\s+or b\.created_by is null\s+or b\.created_by not in \(select iu\.user_id from public\._internal_user_ids\(\) iu\)/,
+    'cards leave out internal owners, as admin_cards_per_day (0254) does');
   assert.match(body, /date_trunc\('week', \(p\.created_at at time zone 'utc'\)\)::date/, 'signups by UTC week');
   assert.match(body, /date_trunc\('week', a\.day\)::date/, 'presence by week');
   assert.match(body, /count\(distinct a\.user_id\) filter \(where a\.did_work\)/, 'work is distinct people');
@@ -234,8 +255,24 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(body, /' days\)'/, 'a run says how many days');
   assert.match(body, /\.kind not in \('heartbeat', 'test', 'held_reminder', 'signups'\)/);
   for (const k of ["'heartbeat'", "'test'", "'held_reminder'", "'signups'"]) assert.ok(body.includes(k), `${k} is excluded`);
-  assert.match(body, /min\(oa\.title\)/, 'one ops marker per day and kind');
   assert.match(body, /order by m\.day, m\.source, m\.label/);
+
+  // client_errors is purged after 90 days (0108): discovery reads no further back.
+  assert.match(cteIn(body, 'disc_days'), /ce\.occurred_at >= greatest\(v_since, current_date - 90\)/,
+    'discovery is clamped to the client_errors horizon');
+  const comment = src.match(/comment on function public\.admin_markers\(date\) is([\s\S]*?)';/)?.[1] ?? '';
+  assert.match(comment, /~90 days/, 'the comment states the discovery horizon');
+  assert.match(comment, /shortened \(n days\)/, 'and that a run begun before it is cut short');
+
+  // Both alert branches collapse daily re-fires into runs of consecutive days.
+  assert.match(cteIn(body, 'disc_runs'), /row_number\(\) over \(partition by d\.name order by d\.day\)/, 'discovery runs');
+  assert.match(cteIn(body, 'ops_runs'), /row_number\(\) over \(partition by o\.k order by o\.day\)/, 'ops runs, per kind');
+  assert.equal(body.match(/row_number\(\) over \(partition by/g)?.length ?? 0, 2, 'one run-collapse per alert branch');
+  assert.match(cteIn(body, 'ops_days'), /min\(oa\.title\) as title/, 'one title per kind per day');
+  const ops = cteIn(body, 'ops');
+  assert.match(ops, /from ops_runs r\s+group by r\.k, r\.grp/, 'one ops marker per run');
+  assert.match(ops, /case when count\(\*\) = 1 then min\(r\.title\)\s+else min\(r\.title\) \|\| ' \(' \|\| count\(\*\) \|\| ' days\)' end/,
+    'a one-day run is its title; a longer one says how many days');
 });
 
 test('notes are validated, soft-deleted and restorable as the same row', () => {

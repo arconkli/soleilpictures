@@ -45,13 +45,15 @@
 --      note). Delete is soft: the house rule is that deleting shows an undo
 --      toast, and an undo must bring back the same row, not a copy of it.
 --   4. admin_markers(p_since): notes, discovery-pipeline alerts and ops alerts
---      as one dated list for the charts. A discovery alert re-fires daily while
---      its pipeline stays broken, so each run of consecutive days is ONE marker
---      at the run's first day, labelled "<name> (n days)". Ops alerts are one
---      per day and kind, minus the kinds that would mislead: the Monday
---      heartbeat and the test button (a marker every week), held-mail
---      reminders (daily while mail is held), and the signup spike (a function
---      of the signups line itself, so it explains nothing).
+--      as one dated list for the charts. An alert that keeps firing (a broken
+--      pipeline re-fires daily, a stuck 0374 invariant from a daily cron) is
+--      collapsed per alert name, or per ops kind, into runs of consecutive UTC
+--      days: ONE marker at the run's first day, labelled "<title> (n days)".
+--      Ops alerts leave out the kinds that would mislead: the Monday heartbeat
+--      and the test button (a marker every week), held-mail reminders (daily
+--      while mail is held), and the signup spike (a function of the signups
+--      line itself, so it explains nothing). client_errors keeps 90 days
+--      (0108), so discovery markers reach no further back than that.
 --   5. admin_kpi_summary, rewritten in place with the same signature: every
 --      user count goes through _admin_people; WAU is exactly p_days days in
 --      both windows, over the same people; a work_users key (distinct people
@@ -233,6 +235,8 @@ create table if not exists public.admin_notes (
 create index if not exists admin_notes_live_day_idx on public.admin_notes (day) where deleted_at is null;
 alter table public.admin_notes enable row level security;
 revoke all on table public.admin_notes from public, anon, authenticated;
+-- The identity column's sequence is born with the schema's default grants.
+revoke all on sequence public.admin_notes_id_seq from public, anon, authenticated;
 
 comment on table public.admin_notes is
   'The owner''s own dated notes for the admin charts (kind ship, event or note). '
@@ -377,12 +381,15 @@ begin
   -- days, at the run's first day: a day minus its rank within its name is
   -- constant across a run (gaps and islands). Clients cannot write this kind
   -- (0364); the coalesce only keeps a label from ever being null.
+  -- client_errors is purged nightly after 90 days (0108), so this branch never
+  -- looks further back than that; a run that began before the horizon counts
+  -- only its days since.
   disc_days as (
     select distinct coalesce(ce.name, 'discovery_pipeline') as name,
            (ce.occurred_at at time zone 'utc')::date as day
       from public.client_errors ce
      where ce.kind = 'discovery_pipeline'
-       and ce.occurred_at >= v_since
+       and ce.occurred_at >= greatest(v_since, current_date - 90)
   ),
   disc_runs as (
     select d.name, d.day,
@@ -401,17 +408,32 @@ begin
   ),
   -- Not markers: the Monday heartbeat and the test button would put one on
   -- every week, held-mail reminders repeat daily while mail is held, and the
-  -- signup spike is the signups line itself.
-  ops as (
-    select (oa.created_at at time zone 'utc')::date as day,
-           'alert'::text as kind,
-           min(oa.title) as label,
-           'ops'::text as source,
-           null::bigint as ref_id
+  -- signup spike is the signups line itself. The rest collapse per kind into
+  -- runs of consecutive UTC days exactly as discovery alerts do: a stuck 0374
+  -- invariant re-raises from a daily cron and would otherwise mark most days.
+  ops_days as (
+    select oa.kind as k,
+           (oa.created_at at time zone 'utc')::date as day,
+           min(oa.title) as title
       from public.ops_alerts oa
      where oa.created_at >= v_since
        and oa.kind not in ('heartbeat', 'test', 'held_reminder', 'signups')
-     group by (oa.created_at at time zone 'utc')::date, oa.kind
+     group by oa.kind, (oa.created_at at time zone 'utc')::date
+  ),
+  ops_runs as (
+    select o.k, o.day, o.title,
+           o.day - (row_number() over (partition by o.k order by o.day))::int as grp
+      from ops_days o
+  ),
+  ops as (
+    select min(r.day) as day,
+           'alert'::text as kind,
+           case when count(*) = 1 then min(r.title)
+                else min(r.title) || ' (' || count(*) || ' days)' end as label,
+           'ops'::text as source,
+           null::bigint as ref_id
+      from ops_runs r
+     group by r.k, r.grp
   )
   select m.day, m.kind, m.label, m.source, m.ref_id
     from (select * from notes
@@ -426,10 +448,13 @@ grant execute on function public.admin_markers(date) to authenticated, service_r
 
 comment on function public.admin_markers(date) is
   'Admin. Dated markers since p_since (default 120 days ago), oldest first: live notes '
-  '(source note, ref_id = admin_notes.id), discovery-pipeline alerts collapsed to one per '
-  'name per run of consecutive UTC days at its first day (source discovery), and ops '
-  'alerts one per UTC day and kind without heartbeat, test, held_reminder and signups '
-  '(source ops). Alerts carry kind alert and no ref_id.';
+  '(source note, ref_id = admin_notes.id), discovery-pipeline alerts collapsed per name '
+  '(source discovery), and ops alerts without heartbeat, test, held_reminder and signups '
+  'collapsed per kind (source ops). A collapsed alert is one marker per run of consecutive '
+  'UTC days, at the run''s first day, labelled with its name or min(title) plus (n days) '
+  'when the run is longer than one day; alerts carry kind alert and no ref_id. '
+  'client_errors is purged after 90 days (0108), so discovery markers cannot reach further '
+  'back than ~90 days, and a run that began before that horizon shows a shortened (n days).';
 
 -- ── 5. admin_kpi_summary, fixed in place ────────────────────────────────────
 -- 0149's body; every changed line ends -- 0372. Same signature, so the ACL
@@ -590,6 +615,10 @@ begin
       raise exception '0372: a client role has % on admin_notes', v_priv;
     end if;
   end loop;
+  if has_sequence_privilege('anon', 'public.admin_notes_id_seq', 'usage')
+     or has_sequence_privilege('authenticated', 'public.admin_notes_id_seq', 'usage') then
+    raise exception '0372: a client role can use admin_notes_id_seq';
+  end if;
   if (select c.relrowsecurity from pg_class c where c.oid = 'public.admin_notes'::regclass) is not true then
     raise exception '0372: admin_notes has row-level security off';
   end if;
