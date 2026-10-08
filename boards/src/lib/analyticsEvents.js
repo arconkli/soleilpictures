@@ -326,6 +326,7 @@ export const EV = Object.freeze({
   //    shipped with zero instrumentation, and upload-gate rejections left no
   //    signal beyond an eventual pricing_view{header:'storage'}) ──
   VIEW_MODE_SWITCH:        'view_mode_switch',            // Board↔Files toggle (stored as canvas↔list) {view:'canvas'|'list',board_id,via:'topbar'|'toast'|'reveal'|'power_reveal'|'shortcut'|'palette'} — 'reveal' = the list-surface Reveal-on-canvas action; 'power_reveal' = the list_drive JIT hint; 'shortcut' = the F key; 'palette' = ⌘K Switch to Files/Board; the tour's terminal advance rides onboarding_step instead
+  FILES_DOCK:              'files_dock',                  // Files beside the board changed size {from,to:'off'|'panel'|'full',via:'topbar'|'shortcut'|'palette'|'button'|'divider'|'reveal'|'power_reveal',board_id}
   LIST_BROWSER_VIEW:       'list_browser_view',           // ListSurface mounted (once per board per session) {board_id,files,subclusters}
   LIST_ADD_FILES:          'list_add_files',              // files handed to the list-mode ingest {board_id,n,via:'toolbar'|'drop'}
   LIST_UPSELL_CTA:         'list_upsell_cta',             // "Any file, any size — Creator" clicked in the list toolbar {board_id} (must-land)

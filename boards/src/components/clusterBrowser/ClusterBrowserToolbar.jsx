@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
-import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X } from '../../lib/icons.js';
+import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X, Maximize2, Minimize2 } from '../../lib/icons.js';
 
 const SORT_OPTIONS = [
   // The canvas read like a page — the default, so Files opens on the same
@@ -47,9 +47,17 @@ export function ClusterBrowserToolbar({
   facePeers = [],
   onSearchKeyDown, searchRef,
   audioMode = false,
+  // Beside the board (FilesDock): a two-row panel header — the cluster's name
+  // with the dock's ⤢ and ×, then search with one View menu holding sort,
+  // filter and layout. dockControls = { mode, canShrink, onExpand, onShrink,
+  // onClose } from the shell; in full Files it adds the ⤡ that docks it again.
+  compact = false,
+  clusterName = '',
+  dockControls = null,
 }) {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   const activeFilters = filters instanceof Set ? filters : new Set(filters || []);
   const dedupPeers = [];
   const seen = new Set();
@@ -60,26 +68,101 @@ export function ClusterBrowserToolbar({
     dedupPeers.push(u);
   }
 
+  const searchBox = (
+    <div className="cbt-search">
+      <Icon as={Search} size={15} className="cbt-search-icon" />
+      <input
+        ref={searchRef}
+        className="cbt-input"
+        type="text"
+        placeholder="Search this cluster…"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onKeyDown={onSearchKeyDown}
+        aria-label="Search files in this cluster"
+      />
+      {query && (
+        <button className="cbt-clear" onClick={() => onQueryChange('')} aria-label="Clear search">
+          <Icon as={X} size={13} />
+        </button>
+      )}
+    </div>
+  );
+
+  if (compact) {
+    const sortOptions = [...SORT_OPTIONS, ...(audioMode ? AUDIO_SORT_OPTIONS : [])];
+    return (
+      <div className="cbt cbt--compact">
+        <div className="cbt-titlerow">
+          <span className="cbt-title" title={clusterName}>{clusterName || 'Files'}</span>
+          {dockControls?.onExpand && (
+            <button type="button" className="cbt-iconbtn" onClick={dockControls.onExpand}
+                    aria-label="Expand Files to full screen" title="Full screen (or drag the edge all the way)">
+              <Icon as={Maximize2} size={14} />
+            </button>
+          )}
+          {dockControls?.onClose && (
+            <button type="button" className="cbt-iconbtn" onClick={dockControls.onClose}
+                    aria-label="Close Files" title="Close Files (F)">
+              <Icon as={X} size={15} />
+            </button>
+          )}
+        </div>
+        <div className="cbt-row">
+          {searchBox}
+          <div className="cbt-menuwrap">
+            <button className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeFilters.size ? ' has-active' : ''}`}
+                    onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
+              View{activeFilters.size ? ` · ${activeFilters.size}` : ''}<Icon as={ChevronDown} size={12} />
+            </button>
+            <Menu open={viewOpen} onClose={() => setViewOpen(false)}>
+              <div className="cbt-menu-label">Layout</div>
+              <button className={`ctx-item${viewMode === 'gallery' ? ' is-active' : ''}`} onClick={() => onViewMode('gallery')}>
+                <span>Grid</span>
+              </button>
+              <button className={`ctx-item${viewMode === 'table' ? ' is-active' : ''}`} onClick={() => onViewMode('table')}>
+                <span>List</span>
+              </button>
+              <div className="ctx-divider" />
+              <div className="cbt-menu-label">Sort by</div>
+              {sortOptions.map(o => (
+                <button key={o.key} className={`ctx-item${sortKey === o.key ? ' is-active' : ''}`} onClick={() => onSort(o.key)}>
+                  <span>{o.label}</span>
+                  {sortKey === o.key && <span className="cbt-caret">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                </button>
+              ))}
+              {availableBuckets.length > 0 && (
+                <>
+                  <div className="ctx-divider" />
+                  <div className="cbt-menu-label">Show only</div>
+                  {availableBuckets.map(b => (
+                    <button key={b.key} className={`ctx-item${activeFilters.has(b.key) ? ' is-active' : ''}`}
+                            onClick={() => onToggleFilter(b.key)}>
+                      <span>{b.label}</span>
+                      <span className="cbt-count">{b.count}</span>
+                    </button>
+                  ))}
+                  {activeFilters.size > 0 && (
+                    <button className="ctx-item" onClick={() => onClearFilters()}>Clear filters</button>
+                  )}
+                </>
+              )}
+            </Menu>
+          </div>
+          {canEdit && (
+            <button type="button" className="cbt-iconbtn cbt-add-ico" onClick={onAddFiles}
+                    aria-label="Add files" title="Add files">
+              <Icon as={Plus} size={15} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="cbt">
-      <div className="cbt-search">
-        <Icon as={Search} size={15} className="cbt-search-icon" />
-        <input
-          ref={searchRef}
-          className="cbt-input"
-          type="text"
-          placeholder="Search this cluster…"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          onKeyDown={onSearchKeyDown}
-          aria-label="Search files in this cluster"
-        />
-        {query && (
-          <button className="cbt-clear" onClick={() => onQueryChange('')} aria-label="Clear search">
-            <Icon as={X} size={13} />
-          </button>
-        )}
-      </div>
+      {searchBox}
 
       <div className="cbt-spacer" />
 
@@ -142,6 +225,13 @@ export function ClusterBrowserToolbar({
       {canEdit && showUpsell && (
         <button className="cbt-upsell" onClick={() => onUpsell?.()}>
           Any file, any size — Creator
+        </button>
+      )}
+
+      {dockControls?.mode === 'full' && dockControls.canShrink && dockControls.onShrink && (
+        <button type="button" className="cbt-btn cbt-shrink" onClick={dockControls.onShrink}
+                title="Put Files beside the board">
+          <Icon as={Minimize2} size={13} />Beside board
         </button>
       )}
 

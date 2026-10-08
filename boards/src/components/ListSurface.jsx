@@ -16,6 +16,7 @@ import { searchEntities } from '../lib/entitySearch.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import { usePeerSelections } from '../hooks/usePeerSelections.js';
 import { ClusterBrowserToolbar } from './clusterBrowser/ClusterBrowserToolbar.jsx';
+import { FolderTile } from './clusterBrowser/FolderTiles.jsx';
 import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { ClusterGallery } from './clusterBrowser/ClusterGallery.jsx';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
@@ -80,8 +81,16 @@ export function ListSurface({
   // gate, the window keydown below deleted from BOTH panes on one Backspace.
   paneId = 'main',
   hasSplit = false,
+  // 'full' — Files fills the pane; 'panel' — docked beside the board
+  // (components/FilesDock.jsx): compact header, folders as compact tiles, no
+  // side detail panel, and double-click flies the board to the card.
+  mode = 'full',
+  // { canShrink, onExpand, onShrink, onClose } — the ⤢ ⤡ × controls of the
+  // dock, from the shell that owns the mode. Null in the split pane / harness.
+  dockControls = null,
 }) {
   const feedback = useFeedback();
+  const isPanel = mode === 'panel';
   const subBoards = childBoards || [];
   const linkedCards = (cards || []).filter(c => c.kind === 'boardlink');
   const otherCards = (cards || []).filter(c => c.kind !== 'board' && c.kind !== 'boardlink');
@@ -745,6 +754,7 @@ export function ListSurface({
   // What the right-side detail popout shows: a single selected card, or a
   // selected grid family. Nothing selected (or multi-select) → no popout.
   const detailTarget = useMemo(() => {
+    if (isPanel) return null;
     if (selectedGroupId) {
       const g = displayItems.find(d => d.isGroup && d.id === selectedGroupId);
       if (g) return { type: 'group', group: g };
@@ -755,7 +765,17 @@ export function ListSurface({
       if (it) return { type: 'card', item: it };
     }
     return null;
-  }, [selectedGroupId, selectedCards, displayItems, items]);
+  }, [isPanel, selectedGroupId, selectedCards, displayItems, items]);
+
+  // The topbar's Files button, pressed while Files is already open beside the
+  // board, asks for its search box (App applyFilesEvent → focusSearch).
+  const searchRef = useRef(null);
+  useEffect(() => {
+    if (!isPanel) return undefined;
+    const onFocus = () => { try { searchRef.current?.focus(); searchRef.current?.select?.(); } catch (_) {} };
+    document.addEventListener('soleil-files-focus-search', onFocus);
+    return () => document.removeEventListener('soleil-files-focus-search', onFocus);
+  }, [isPanel]);
 
   // Download one row, or the whole selection as a zip.
   //
@@ -840,14 +860,79 @@ export function ListSurface({
   const downloadAll = useCallback(
     () => downloadMany(downloadableVisible), [downloadMany, downloadableVisible]);
 
+  // Click, double-click, drag (reparent) and drop handlers for one sub-cluster
+  // tile — shared by the full-mode cluster cards and the panel's folder tiles.
+  const folderProps = (b) => ({
+    onClick: (e) => onTileClick(e, 'board', b.id),
+    onDoubleClick: (e) => onTileDoubleClick(e, 'board', b.id),
+    onDragStart: (e) => {
+      const ids = (selectedBoards.size > 1 && selectedBoards.has(b.id)) ? [...selectedBoards] : [b.id];
+      try { window.__soleilBoardDrag = { boardIds: ids }; } catch (_) {}
+      try {
+        e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
+        if (ids.length > 1) e.dataTransfer.setData(BOARD_REF_LIST_MIME, JSON.stringify(ids));
+        e.dataTransfer.effectAllowed = 'copyMove';
+      } catch (_) {}
+    },
+    onDragEnd: () => { try { window.__soleilBoardDrag = null; } catch (_) {} setDropTileId(null); },
+    onDragOver: (e) => {
+      const t = e.dataTransfer.types;
+      if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
+      const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
+      const invalid = ids.length > 0 && (ids.includes(b.id) || ids.some(id => wouldCreateCycle(boards, id, b.id)));
+      if (invalid) { try { e.dataTransfer.dropEffect = 'none'; } catch (_) {} return; }
+      e.preventDefault();
+      e.stopPropagation();
+      try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+      if (dropTileId !== b.id) setDropTileId(b.id);
+    },
+    onDragLeave: (e) => { if (e.currentTarget.contains?.(e.relatedTarget)) return; setDropTileId(prev => (prev === b.id ? null : prev)); },
+    onDrop: (e) => {
+      setDropTileId(null);
+      const childIds = readBoardRefIds(e.dataTransfer);
+      if (!childIds.length) return;
+      e.preventDefault();
+      e.stopPropagation();
+      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+        detail: { childIds, targetId: b.id, sourceSurface: 'list' },
+      }));
+    },
+  });
+
+  // One toolbar, two placements: in full Files it sits under the Files label;
+  // beside the board it is the panel's header — compact, always present (it
+  // carries the dock's ⤢ and ×), and first in the panel.
+  const toolbarJsx = (
+    <ClusterBrowserToolbar
+      query={query} onQueryChange={setQuery}
+      sortKey={sortKey} sortDir={sortDir} onSort={onSort}
+      audioMode={audioMode}
+      filters={filters} availableBuckets={availableBuckets}
+      onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
+      viewMode={viewMode} onViewMode={onViewMode}
+      onAddFiles={openAddPicker} canEdit={canEdit}
+      showUpsell={!isPanel && showStorageUpsell && !!onStorageUpsell}
+      onUpsell={() => {
+        try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
+        onStorageUpsell?.();
+      }}
+      facePeers={isPanel ? [] : facePeers}
+      searchRef={searchRef}
+      compact={isPanel}
+      clusterName={board?.name}
+      dockControls={dockControls ? { ...dockControls, mode } : null}
+    />
+  );
+
   return (
-    <div className={`list-wrap ${dragOver ? 'is-drop-target' : ''}`}
+    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}
          onClick={() => { setSelectedBoards(new Set()); setSelectedCards(new Set()); }}>
       <div className="list-inner" ref={listInnerRef} onClick={(e) => e.stopPropagation()}>
-        {subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
+        {isPanel && <div className="lp-head">{toolbarJsx}</div>}
+        {!isPanel && subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
             <div className="list-empty-sub">Add a sub-cluster, or link to one elsewhere.</div>
@@ -857,45 +942,23 @@ export function ListSurface({
         {subBoards.length > 0 && (
           <>
             <div className="list-section">Clusters</div>
+            {isPanel ? (
+              <div className="ft-grid">
+                {subBoards.map(b => (
+                  <FolderTile key={b.id} board={b}
+                              selected={selectedBoards.has(b.id)}
+                              dropTarget={dropTileId === b.id}
+                              draggable={canEdit}
+                              {...folderProps(b)} />
+                ))}
+              </div>
+            ) : (
             <div className="list-grid">
               {subBoards.map(b => (
                 <div key={b.id}
                      className={`list-tile ${selectedBoards.has(b.id) ? 'is-selected' : ''} ${dropTileId === b.id ? 'is-drop-target' : ''}`}
                      draggable={canEdit}
-                     onClick={(e) => onTileClick(e, 'board', b.id)}
-                     onDoubleClick={(e) => onTileDoubleClick(e, 'board', b.id)}
-                     onDragStart={(e) => {
-                       const ids = (selectedBoards.size > 1 && selectedBoards.has(b.id)) ? [...selectedBoards] : [b.id];
-                       try { window.__soleilBoardDrag = { boardIds: ids }; } catch (_) {}
-                       try {
-                         e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
-                         if (ids.length > 1) e.dataTransfer.setData(BOARD_REF_LIST_MIME, JSON.stringify(ids));
-                         e.dataTransfer.effectAllowed = 'copyMove';
-                       } catch (_) {}
-                     }}
-                     onDragEnd={() => { try { window.__soleilBoardDrag = null; } catch (_) {} setDropTileId(null); }}
-                     onDragOver={(e) => {
-                       const t = e.dataTransfer.types;
-                       if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
-                       const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
-                       const invalid = ids.length > 0 && (ids.includes(b.id) || ids.some(id => wouldCreateCycle(boards, id, b.id)));
-                       if (invalid) { try { e.dataTransfer.dropEffect = 'none'; } catch (_) {} return; }
-                       e.preventDefault();
-                       e.stopPropagation();
-                       try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
-                       if (dropTileId !== b.id) setDropTileId(b.id);
-                     }}
-                     onDragLeave={(e) => { if (e.currentTarget.contains?.(e.relatedTarget)) return; setDropTileId(prev => (prev === b.id ? null : prev)); }}
-                     onDrop={(e) => {
-                       setDropTileId(null);
-                       const childIds = readBoardRefIds(e.dataTransfer);
-                       if (!childIds.length) return;
-                       e.preventDefault();
-                       e.stopPropagation();
-                       document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
-                         detail: { childIds, targetId: b.id, sourceSurface: 'list' },
-                       }));
-                     }}>
+                     {...folderProps(b)}>
                   <BoardCard board={b} boards={boards} teammates={TEAMMATES}
                              peersHere={peersHereByBoard?.get?.(b.id) || []}
                              peersBelow={peersBelowByBoard?.get?.(b.id) || []}
@@ -912,6 +975,7 @@ export function ListSurface({
                 </div>
               ))}
             </div>
+            )}
           </>
         )}
         {linkedCards.length > 0 && (
@@ -934,8 +998,9 @@ export function ListSurface({
             </div>
           </>
         )}
-        {otherCards.length > 0 && (
+        {(otherCards.length > 0 || isPanel) && (
           <div className="cluster-browser">
+            {!isPanel && (
             <div className="list-section list-section-files">
               <span>Files</span>
               {packSummary && <span className="list-section-meta">{packSummary}</span>}
@@ -948,26 +1013,14 @@ export function ListSurface({
                 </button>
               )}
             </div>
-            <ClusterBrowserToolbar
-              query={query} onQueryChange={setQuery}
-              sortKey={sortKey} sortDir={sortDir} onSort={onSort}
-              audioMode={audioMode}
-              filters={filters} availableBuckets={availableBuckets}
-              onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
-              viewMode={viewMode} onViewMode={onViewMode}
-              onAddFiles={openAddPicker} canEdit={canEdit}
-              showUpsell={showStorageUpsell && !!onStorageUpsell}
-              onUpsell={() => {
-                try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
-                onStorageUpsell?.();
-              }}
-              facePeers={facePeers}
-            />
+            )}
+            {!isPanel && toolbarJsx}
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
               <div className="cb-main">
                 {visibleItems.length === 0 && descHits.length === 0 ? (
                   <div className="cluster-browser-empty">
-                    {query || filters.size ? 'No files match your search.' : 'No files yet.'}
+                    {query || filters.size ? 'No files match your search.'
+                      : isPanel ? 'No files here yet — drop some in.' : 'No files yet.'}
                   </div>
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <ClusterGallery

@@ -21831,3 +21831,139 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .cnv-hint-btn:hover, .cnv-hint-btn:focus-visible { background: var(--bg-hov); outline: none; }
 /* The hero's hint line after a cancelled picker: the other ways in, a touch brighter. */
 .cnv-empty-tile-hero-hint.is-alt { color: var(--ink-0); }
+
+/* ───────────────────── Files beside the board (FilesDock.jsx) ─────────────────
+   One view, two sizes: [board][divider][Files] inside the main pane. The three
+   children keep their places so the board survives Files opening beside it and
+   Files survives expanding to full. Gold only for the focused divider. */
+.fdl {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: row;
+  position: relative; overflow: hidden;
+}
+.fdl-canvas {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.fdl-files {
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0;
+  position: relative;
+}
+.fdl-off .fdl-files { display: none; }
+.fdl-full .fdl-canvas { display: none; }
+.fdl-full .fdl-files { flex: 1 1 auto; }
+.fdl-panel .fdl-files {
+  flex: 0 0 auto;
+  border-left: 1px solid var(--line-2);
+  box-shadow: -10px 0 28px -22px rgba(0, 0, 0, 0.55);
+  background: var(--bg-2);
+}
+.fdl-divider {
+  flex: 0 0 auto;
+  width: 7px; margin: 0 -3px; z-index: 6;
+  position: relative;
+  cursor: col-resize;
+  display: grid; place-items: center;
+  touch-action: none;
+  outline: none;
+}
+.fdl-grip {
+  width: 3px; height: 38px; border-radius: 3px;
+  background: var(--line-3);
+  opacity: 0; transition: opacity var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
+}
+.fdl-divider:hover .fdl-grip, .fdl-divider.is-dragging .fdl-grip { opacity: 1; background: var(--ink-3); }
+.fdl-divider:focus-visible .fdl-grip { opacity: 1; background: var(--soleil); }
+body.fdl-resizing { cursor: col-resize; user-select: none; }
+body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none; }
+.fdl-preview {
+  position: absolute; inset: 0; z-index: 7;
+  display: grid; place-items: center;
+  pointer-events: none;
+  font: 500 13px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  background: color-mix(in srgb, var(--bg-0) 45%, transparent);
+  backdrop-filter: blur(2px);
+}
+.fdl-preview.is-close { background: transparent; backdrop-filter: none; color: var(--ink-2); }
+
+/* The Files view as a panel: tighter gutters, no width cap, the toolbar as a
+   sticky two-row header. */
+.list-wrap.is-panel { padding: 0 12px; }
+.list-wrap.is-panel .list-inner { max-width: none; padding-block: 0 16px; }
+.list-wrap.is-panel .list-section { margin: 14px 0 8px; }
+.lp-head {
+  position: sticky; top: 0; z-index: 8;
+  margin: 0 -12px 2px; padding: 10px 12px 10px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-1);
+}
+.cbt--compact { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 0; padding: 0; }
+.cbt-titlerow, .cbt-row { display: flex; align-items: center; gap: 6px; min-width: 0; justify-content: flex-start; }
+.cbt-titlerow .cbt-title { margin-right: auto; }
+.cbt-title {
+  font: 600 13px/1.2 var(--font-sans); color: var(--ink-0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.cbt--compact .cbt-search { flex: 1 1 auto; min-width: 0; max-width: none; width: auto; }
+.cbt-iconbtn {
+  width: 28px; height: 28px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  border-radius: 7px; border: 1px solid transparent;
+  background: transparent; color: var(--ink-2);
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
+}
+.cbt-iconbtn:hover { background: var(--bg-3); color: var(--ink-0); }
+.cbt-iconbtn:focus-visible { outline: 1px solid var(--soleil); outline-offset: 1px; }
+.cbt-add-ico { border-color: var(--line-2); }
+.cbt-menu-label {
+  padding: 8px 10px 3px;
+  font: 600 10px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cbt-shrink { white-space: nowrap; }
+
+/* Folders — compact tiles: a small cover, the name, how much is inside
+   (clusterBrowser/FolderTiles.jsx). */
+.ft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.ft {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 0;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid var(--line-2); border-radius: 10px;
+  background: var(--bg-1);
+  cursor: pointer; user-select: none;
+  transition: border-color var(--dur-base) var(--ease), background var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
+}
+.ft:hover { border-color: var(--line-3); background: var(--bg-3); }
+.ft.is-selected { border-color: var(--soleil); box-shadow: 0 0 0 1px var(--soleil); }
+.ft.is-drop-target { border-color: var(--soleil); background: var(--soleil-soft); }
+.ft-cover {
+  position: relative;
+  width: 44px; height: 44px; flex: 0 0 auto;
+  border-radius: 7px; overflow: hidden;
+  display: grid; place-items: center;
+  color: var(--ft-tint, var(--ink-2));
+  background: color-mix(in srgb, var(--ft-tint, var(--ink-3)) 18%, var(--bg-3));
+}
+.ft-thumb, .ft-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ft-text { min-width: 0; }
+.ft-name {
+  font: 500 12.5px/1.25 var(--font-sans); color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ft-meta { margin-top: 2px; font: 400 11px/1.2 var(--font-sans); color: var(--ink-3); }
+.ft-badge {
+  position: absolute; right: 2px; bottom: 2px;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg-1); color: var(--ink-2);
+}
+.list-wrap.is-panel .ft-grid { margin-bottom: 16px; }

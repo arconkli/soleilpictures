@@ -58,7 +58,7 @@ Every cluster has two views, and they are not two places:
 - **Board** — the infinite canvas. Position matters. This is where you arrange, connect, draw and compare.
 - **Files** — the same contents as a sortable, searchable file browser, as a grid of previews or a list. This is where you find a specific thing.
 
-Switch with **Board · Files** at the top of the screen, or press `F`.
+Press `F`, or **Files** at the top of the screen, and Files opens beside the board; it can expand to fill the screen.
 
 Switching views does not move or convert anything. A cluster is one set of
 contents with two ways to look at it, which is why the product describes every

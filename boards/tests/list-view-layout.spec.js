@@ -6,6 +6,7 @@
 // a PANE, and that neither fact is visible to the two things CSS reaches for
 // first — an absolutely-positioned pseudo-element, and a viewport media query.
 import { expect, test } from '@playwright/test';
+import { openFullFiles } from './files-helpers.js';
 
 // A pack with varied names, tempos and keys. Everything points at the one real
 // fixture file; only the metadata differs, which is all the layout cares about.
@@ -52,8 +53,7 @@ async function boot(page, { width = 1440, height = 900 } = {}) {
     });
   }, PACK);
   await expect(page.locator('.ac').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
-  await expect(page.locator('.list-wrap')).toBeVisible();
+  await openFullFiles(page);
   await page.getByRole('button', { name: 'List layout' }).click();
   await expect(page.locator('.ct-row').first()).toBeVisible();
 }

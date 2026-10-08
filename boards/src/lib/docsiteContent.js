@@ -1608,21 +1608,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Switch with "
-    },
-    {
-     "t": "strong",
-     "v": "Board · Files",
-     "children": [
-      {
-       "t": "text",
-       "v": "Board · Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " at the top of the screen, or press "
+     "v": "Press "
     },
     {
      "t": "code",
@@ -1630,7 +1616,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of the screen, and Files opens beside the board; it can expand to fill the screen."
     }
    ]
   },
@@ -2186,7 +2186,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Switch between Board and "
+       "v": "Show or hide "
       },
       {
        "t": "link",
@@ -2198,6 +2198,10 @@ export const DOCS_CONTENT = {
          "v": "Files"
         }
        ]
+      },
+      {
+       "t": "text",
+       "v": " beside the board"
       }
      ]
     ],
@@ -4092,7 +4096,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": " and it opens beside the board."
     }
    ]
   },
@@ -14613,15 +14617,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for you; press "
+     "v": " for you; "
     },
     {
-     "t": "code",
-     "v": "F"
+     "t": "strong",
+     "v": "Board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Board"
+      }
+     ]
     },
     {
      "t": "text",
-     "v": " for the canvas, where the cards are already laid out."
+     "v": " at the top shows the canvas, where the cards are already laid out."
     }
    ]
   },
@@ -15121,21 +15131,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Switch with "
-    },
-    {
-     "t": "strong",
-     "v": "Board · Files",
-     "children": [
-      {
-       "t": "text",
-       "v": "Board · Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " at the top of the screen, or press "
+     "v": "Press "
     },
     {
      "t": "code",
@@ -15143,7 +15139,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Switching does not convert anything. Settings → "
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of the screen, to open Files beside the board; expand it to fill the screen. Switching does not convert anything. Settings → "
     },
     {
      "t": "strong",
@@ -15349,7 +15359,50 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Same cluster, same contents, different question being asked. Switch with "
+     "v": "Same cluster, same contents, different question being asked — and you can ask both at once."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Files beside the board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files beside the board"
+    }
+   ],
+   "id": "files-beside-the-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Press "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in "
     },
     {
      "t": "strong",
@@ -15363,7 +15416,151 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the top of the screen — the Files side counts the cards inside, not counting nested clusters — or press "
+     "v": " at the top of the screen, and Files opens as a panel on the right of the board. The board stays where it was and keeps working: you can pan, select and arrange while the panel is open. The Files side of the switch counts the cards inside, not counting nested clusters."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "To do this"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Do this"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Open or close Files beside the board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "F"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "strong",
+       "v": "Files",
+       "children": [
+        {
+         "t": "text",
+         "v": "Files"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "strong",
+       "v": "Board",
+       "children": [
+        {
+         "t": "text",
+         "v": "Board"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " at the top"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Make the panel wider or narrower"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Drag its left edge; double-click the edge to reset it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Fill the screen with Files"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The expand button in the panel, or drag the edge most of the way across"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Put full-screen Files back beside the board"
+      }
+     ],
+     [
+      {
+       "t": "strong",
+       "v": "Beside board",
+       "children": [
+        {
+         "t": "text",
+         "v": "Beside board"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in its toolbar"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Find a file on the board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Double-click it in the panel — the board flies to it"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " → \"Show Files\" does the same as "
     },
     {
      "t": "code",
@@ -15371,15 +15568,24 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to flip between them. "
+     "v": ". Whether the panel is open, and how wide, is remembered on your device; it never changes the cluster for anyone else. Full-screen Files is the cluster's own view, so a cluster you leave in Files opens in Files for everyone, and on shared and published links."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The panel needs room: in a narrow window, and on phones and tablets, Files fills the screen instead. In split view, the switch and "
     },
     {
      "t": "code",
-     "v": "⌘K"
+     "v": "F"
     },
     {
      "t": "text",
-     "v": " → \"Switch to Files\" does the same. On a phone the switch is the two icons in the top bar. In split view all three act on the pane you last worked in."
+     "v": " act on the pane you last worked in, and Files there fills that pane."
     }
    ]
   },
@@ -15403,15 +15609,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, one "
-    },
-    {
-     "t": "code",
-     "v": "F"
-    },
-    {
-     "t": "text",
-     "v": " away, and on the parent board they keep their thumbnail."
+     "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, and on the parent board they keep their thumbnail."
     }
    ]
   },

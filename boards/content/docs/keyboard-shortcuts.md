@@ -68,7 +68,7 @@ contents, notes, docs and tags, and it also runs commands — "share", "trash",
 
 | Key | Action |
 |---|---|
-| `F` | Switch between Board and [Files](/docs/clusters/list-view) |
+| `F` | Show or hide [Files](/docs/clusters/list-view) beside the board |
 | `⌘0` | Reset zoom |
 | `⌘+` / `⌘−` | Zoom in · out |
 | `⇧1` | Fit everything |

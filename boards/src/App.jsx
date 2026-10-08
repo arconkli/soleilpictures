@@ -100,6 +100,8 @@ import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
+import { FilesDockLayout } from './components/FilesDock.jsx';
+import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
@@ -1132,6 +1134,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const switchInSplit = activePaneId === 'split' && !!splitId && !splitDoc;
   const switchView = switchInSplit ? splitView : view;
   const switchBoardId = switchInSplit ? splitId : currentId;
+  // Files beside the board (lib/filesDock.js) — main pane only. Whether the
+  // panel is open and how wide is this device's preference; full Files is the
+  // stored view. `mainRoom` comes from the dock layout's own measurement, so it
+  // tracks the sidebar, the split and the window together; the first guess is
+  // the window minus the sidebar.
+  const [dockPrefs, setDockPrefs] = useState(() => readDockPrefs());
+  const [mainRoom, setMainRoom] = useState(() => (
+    typeof window !== 'undefined' && canDock(window.innerWidth - 240, { mobileShell })
+  ));
+  const canDockMain = mainRoom && !mobileShell;
+  const mainFilesMode = filesModeOf({ view, dockOpen: dockPrefs.open, canDock: canDockMain });
+  // The switch, F and ⌘K describe the split pane when that's the one in hand —
+  // where Files is still the plain full view (no dock there).
+  const switchMode = switchInSplit ? (splitView === 'list' ? 'full' : 'off') : mainFilesMode;
+  const updateDockPrefs = useCallback((patch) => {
+    setDockPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      writeDockPrefs(next);
+      return next;
+    });
+  }, []);
   const switchFilesCount = useMemo(() => {
     if (!switchInSplit) return filesCount;
     return splitYb.ready && splitYb.boardId === splitId ? filesCountOf(splitYb.cards) : 0;
@@ -1297,9 +1320,46 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the engine).
     tourFireRef.current?.({ type: 'view_switched', view: v, boardId });
     logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: boardId, via });
+    // Only a real change reaches the board. A cluster opened in Files on this
+    // device alone (folder drop, a folder opened from Files) is still stored as
+    // canvas, so going back to the board must not write anything.
+    if ((boards[boardId]?.view || 'canvas') === v) return;
     updateBoardMeta(boardId, { view: v })
       .then(() => refreshBoards())
       .catch((e) => console.warn('persist board view failed', e));
+  };
+
+  // Every way of showing, sizing or putting away Files on the main pane comes
+  // through here: the topbar switch, F, ⌘K, the panel's ⤢ ⤡ × buttons and the
+  // divider (lib/filesDock.js planFilesEvent). Full Files is the stored view,
+  // so moving into or out of it goes through setView; the panel itself is this
+  // device's preference and never writes to the board.
+  const applyFilesEvent = (event, via = 'button') => {
+    const plan = planFilesEvent(mainFilesMode, event, { canDock: canDockMain });
+    if (plan.focusSearch) {
+      try { document.dispatchEvent(new CustomEvent('soleil-files-focus-search')); } catch (_) {}
+    }
+    const from = mainFilesMode;
+    const to = plan.next;
+    if (to === from) return;
+    if (to === 'full') setView('list', via);
+    else if (from === 'full') setView('canvas', via);
+    if (to === 'panel') updateDockPrefs({ open: true });
+    else if (to === 'off') updateDockPrefs({ open: false });
+    if (from === 'off') {
+      // Opening Files at all proves the switch was found — the same signals a
+      // real switch to the list view sends (the list_drive reveal retires, the
+      // guided tour's last step completes). setView already sent them for full.
+      if (to === 'panel') {
+        markViewSwitched();
+        tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId: currentId });
+        if (!dockHintSeen()) {
+          markDockHintSeen();
+          feedback.toast({ message: 'Files opens beside your board now — drag files onto it. Drag the edge, or press ⤢, for full screen.', ttl: 7000 });
+        }
+      }
+    }
+    logEvent(EV.FILES_DOCK, { from, to, via, board_id: currentId });
   };
 
   // Children of the current board (used by sidebar + ListSurface).
@@ -6690,7 +6750,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const actions = {
       grids: engage(() => mainMutatorsRef.current?.addGrid?.(nearContent(), {})),
       group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent(), { via: 'power_reveal' })),
-      list_drive: engage(() => setView('list', 'power_reveal')),
+      list_drive: engage(() => (canDockMain
+        ? applyFilesEventRef.current('files', 'power_reveal')
+        : setView('list', 'power_reveal'))),
       docs: engage(() => mainMutatorsRef.current?.addDocCard?.(nearContent())),
       palette: engage(() => setPaletteOpen(true)),
     };
@@ -7791,6 +7853,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // flips that board. Otherwise it acts on the pane the switch describes.
   const setViewRef = useRef(setView);
   setViewRef.current = setView;
+  const applyFilesEventRef = useRef(applyFilesEvent);
+  applyFilesEventRef.current = applyFilesEvent;
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
@@ -7801,11 +7865,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (openDocCard && !dockedDoc) return;
       if (dockedDoc && activePaneId === 'split') return;
       e.preventDefault();
-      setViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
+      if (switchInSplit) setViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
+      else applyFilesEventRef.current('toggle', 'shortcut');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [switchView, switchBoardId, splitDoc, splitDocFull, activePaneId, currentSurface, openDocCard,
+  }, [switchInSplit, switchView, switchBoardId, splitDoc, splitDocFull, activePaneId, currentSurface, openDocCard,
       paletteOpen, settingsOpen, pickerOpen, mobileNavOpen, tweak.showMessages]);
 
   // Command palette actions. Per-shell so each closure captures the right
@@ -7831,11 +7896,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       keywords: ['gallery', 'surface', 'preview', 'popup', 'modal', 'screen', 'browse', 'design'],
       available: captureAllowed,
       run: () => openGallery() },
-    { id: 'view-switch', label: switchView === 'list' ? 'Switch to Board' : 'Switch to Files',
-      icon: switchView === 'list' ? BoundingBox : FilesIcon,
-      keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch'],
+    { id: 'view-switch', label: switchMode === 'off' ? 'Show Files' : 'Hide Files',
+      icon: switchMode === 'off' ? FilesIcon : BoundingBox,
+      keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch', 'panel'],
       available: currentSurface === 'board',
-      run: () => setView(nextView(switchView), 'palette', switchBoardId) },
+      run: () => (switchInSplit
+        ? setView(nextView(switchView), 'palette', switchBoardId)
+        : applyFilesEventRef.current('toggle', 'palette')) },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
@@ -7888,7 +7955,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
-      captureAllowed, capture.on,
+      captureAllowed, capture.on, switchMode, switchInSplit, switchView, switchBoardId,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
 
 
@@ -8094,108 +8161,140 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const paneId = isMain ? 'main' : 'split';
     const openInPane = isMain ? openBoard : openSplitBoard;
     const paneCanEdit = isMain ? canEditCurrent : splitBoardPerm.canEdit;
-    const surfaceJsx = (() => {
-      if (view === 'list') return (
-        <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
-                     childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
-                     onOpenBoard={openInPane}
-                     onOpenPicker={() => openBoardLinkPicker(null, paneId)}
-                     onDropInboxItem={dropInboxItemFor(muts)}
-                     canEdit={paneCanEdit}
-                     peersHereByBoard={peersHereByBoard}
-                     peersBelowByBoard={peersBelowByBoard}
-                     onJumpToPeer={jumpToPeer}
-                     onDropFilesToCluster={(files) => muts.ingestFilesArranged?.(files)}
-                     recentlyAddedIds={focusRequest?.boardId === board.id ? recentlyAddedIds : null}
-                     getAwareness={yh.getAwareness}
-                     workspaceId={workspace.id}
-                     selfId={user.id}
-                     gridTemplates={gridTemplates}
-                     getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
-                     onRevealOnCanvas={(ids) => { setView('canvas', 'reveal', board.id); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
-                     showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
-                     // Deliberate: a toolbar button the user chose to press, not a
-                     // refusal that interrupted them, so it forces past the latch —
-                     // the same distinction the chip and the cap wall already make.
-                     onStorageUpsell={() => pitchStorageGate({ force: true })}
-                     paneId={paneId}
-                     hasSplit={!!splitId}
-                     mutators={muts} />
-      );
+    // The docked Files panel answers to its own pane id, so the board beside it
+    // keeps its keys until the pointer crosses into Files (lib/activePane.js).
+    const basePaneId = paneId;
+    const dockPanel = isMain && mainFilesMode === 'panel';
+    const renderList = (listMode) => {
+      const paneId = listMode === 'panel' ? 'files' : basePaneId;
       return (
-        <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
-          <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
-                         /* The empty panel waits for the Y.Doc (boardReady) and takes its
-                            first-board shape from the server card count: no cards anywhere
-                            means this is the first board (lib/firstBoardCopy). */
-                         boardReady={ready}
-                         boardSynced={synced}
-                         firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
-                         firstBoardKind={firstBoardKind}
-                         freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
-                         gridTemplates={gridTemplates} gridSequences={gridSequences}
-                         ydoc={yd}
-                         getAwareness={yh.getAwareness}
-                         focusRequest={focusRequest?.boardId === board.id ? focusRequest : null}
-                         clearFocusRequest={() => setFocusRequest(null)}
-                         peersHereByBoard={peersHereByBoard}
-                         peersBelowByBoard={peersBelowByBoard}
-                         wsPeers={wsPeers}
-                         onJumpToPeer={jumpToPeer}
-                         canEdit={paneCanEdit}
-                         boardPermission={isMain ? currentBoardPerm : splitBoardPerm}
-                         onRequestStorageUpgrade={pitchStorageGate}
-                         onImportFolder={importFolder}
-                         isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
-                         ownsWorkspace={workspace?.created_by === user?.id}
-                         currentUser={currentUser}
-                         onOpenBoard={openInPane} tweak={tweak}
-                         depth={(isMain ? stack.length : splitStack.length) - 1}
-                         onDockDoc={({ cardId }) => dockDocCard({ cardId, boardId: board.id })}
-                         dockedDocCardId={splitDoc?.cardId || null}
-                         onSetSchedule={handleSetSchedule}
-                         /* Held with the calendar rebuild (lib/appHost.js). This is the
-                            SECOND minting path: scaffoldShootDay puts a schedView:'day'
-                            card inside every day it creates without ever going through
-                            mutators.addSchedule. Passing null closes the tile '+', the
-                            rail's "Add days" range and the slot-menu items — all three
-                            already branch on this prop being falsy. */
-                         onAddShootDay={scheduleCreationAllowed() ? handleAddShootDay : null}
-                         onOpenPicker={(pos) => openBoardLinkPicker(pos, paneId)}
-                         onDropInboxItem={dropInboxItemFor(muts)}
-                         onDropFileImage={dropFileImageFor(muts)}
-                         workspaceId={workspace.id} userId={user.id}
-                         personalWorkspaceId={personalWorkspaceId}
-                         /* Main pane only: one prompt, on the canvas you are
-                            looking at. Placing or dismissing it clears the state
-                            here, so it cannot come back on the next render. */
-                         justAddedTemplate={isMain ? justAddedTemplate : null}
-                         onDismissJustAdded={() => setJustAddedTemplate(null)}
-                         selectedTool={selectedTool} setSelectedTool={setSelectedTool}
-                         mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
-                         autotagSuggest={autotagSuggest}
-                         autotagReady={autotagReady}
-                         sessionId={yh?.sessionId || null}
-                         paneId={paneId}
-                         hasSplit={!!splitId}
-                         frictionStuck={isMain ? frictionStuck : false}
-                         /* The bold "Start your cluster" tiles are the DEFAULT
-                            empty-canvas affordance. firstCardPrompt ALSO surfaces
-                            them on the SEEDED root for onboarding_v2 arm B (the
-                            guided-first-card flow) until the user places their own
-                            genuine card — the strongest affordance was otherwise
-                            hidden on a seeded board (the 38% seed→first-action
-                            cliff). The empty-board case still shows them unchanged. */
-                         firstCardPrompt={isMain && (getEnrolledArm('onboarding_v2') === 'B')
-                           && onboardingUiActive && board?.id === rootBoard.id && !hasGenuineCard(cards)}
-                         /* showcaseArm 'B' = show the "Clear & try it yourself"
-                            banner. onboarding_v2 arm C seeds the brand showcase, so
-                            map C→'B'; keep the ?showcasepreview clone path. */
-                         showcaseArm={isMain ? ((getEnrolledArm('onboarding_v2') === 'C' || board?.id === showcasePreviewBoardId) ? 'B' : 'A') : 'A'}
-                         defaults={defaults} />
-        </Profiler>
+          <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
+                       childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
+                       onOpenBoard={openInPane}
+                       onOpenPicker={() => openBoardLinkPicker(null, basePaneId)}
+                       onDropInboxItem={dropInboxItemFor(muts)}
+                       canEdit={paneCanEdit}
+                       peersHereByBoard={peersHereByBoard}
+                       peersBelowByBoard={peersBelowByBoard}
+                       onJumpToPeer={jumpToPeer}
+                       onDropFilesToCluster={(files) => muts.ingestFilesArranged?.(files)}
+                       recentlyAddedIds={focusRequest?.boardId === board.id ? recentlyAddedIds : null}
+                       getAwareness={yh.getAwareness}
+                       workspaceId={workspace.id}
+                       selfId={user.id}
+                       gridTemplates={gridTemplates}
+                       getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
+                       onRevealOnCanvas={(ids) => {
+                         // Beside the board, the board is right there: fly to it.
+                         // From full Files, shrink to the panel when there's room,
+                         // so the file you were looking at stays in view.
+                         if (listMode !== 'panel') {
+                           if (isMain && canDockMain) applyFilesEvent('shrink', 'reveal');
+                           else setView('canvas', 'reveal', board.id);
+                         }
+                         setFocusRequest({ boardId: board.id, ids, token: Date.now() });
+                       }}
+                       showStorageUpsell={myTier.tier === 'demo' && workspace?.created_by === user?.id && upsellElig.eligible}
+                       // Deliberate: a toolbar button the user chose to press, not a
+                       // refusal that interrupted them, so it forces past the latch —
+                       // the same distinction the chip and the cap wall already make.
+                       onStorageUpsell={() => pitchStorageGate({ force: true })}
+                       paneId={paneId}
+                       hasSplit={listMode === 'panel' || !!splitId}
+                       mode={listMode}
+                       dockControls={isMain ? {
+                         canShrink: canDockMain,
+                         onExpand: () => applyFilesEvent('expand', 'button'),
+                         onShrink: () => applyFilesEvent('shrink', 'button'),
+                         onClose: () => applyFilesEvent('close', 'button'),
+                       } : null}
+                       mutators={muts} />
       );
-    })();
+    };
+    const renderCanvas = () => (
+          <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
+            <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
+                           /* The empty panel waits for the Y.Doc (boardReady) and takes its
+                              first-board shape from the server card count: no cards anywhere
+                              means this is the first board (lib/firstBoardCopy). */
+                           boardReady={ready}
+                           boardSynced={synced}
+                           firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
+                           firstBoardKind={firstBoardKind}
+                           freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
+                           gridTemplates={gridTemplates} gridSequences={gridSequences}
+                           ydoc={yd}
+                           getAwareness={yh.getAwareness}
+                           focusRequest={focusRequest?.boardId === board.id ? focusRequest : null}
+                           clearFocusRequest={() => setFocusRequest(null)}
+                           peersHereByBoard={peersHereByBoard}
+                           peersBelowByBoard={peersBelowByBoard}
+                           wsPeers={wsPeers}
+                           onJumpToPeer={jumpToPeer}
+                           canEdit={paneCanEdit}
+                           boardPermission={isMain ? currentBoardPerm : splitBoardPerm}
+                           onRequestStorageUpgrade={pitchStorageGate}
+                           onImportFolder={importFolder}
+                           isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
+                           ownsWorkspace={workspace?.created_by === user?.id}
+                           currentUser={currentUser}
+                           onOpenBoard={openInPane} tweak={tweak}
+                           depth={(isMain ? stack.length : splitStack.length) - 1}
+                           onDockDoc={({ cardId }) => dockDocCard({ cardId, boardId: board.id })}
+                           dockedDocCardId={splitDoc?.cardId || null}
+                           onSetSchedule={handleSetSchedule}
+                           /* Held with the calendar rebuild (lib/appHost.js). This is the
+                              SECOND minting path: scaffoldShootDay puts a schedView:'day'
+                              card inside every day it creates without ever going through
+                              mutators.addSchedule. Passing null closes the tile '+', the
+                              rail's "Add days" range and the slot-menu items — all three
+                              already branch on this prop being falsy. */
+                           onAddShootDay={scheduleCreationAllowed() ? handleAddShootDay : null}
+                           onOpenPicker={(pos) => openBoardLinkPicker(pos, paneId)}
+                           onDropInboxItem={dropInboxItemFor(muts)}
+                           onDropFileImage={dropFileImageFor(muts)}
+                           workspaceId={workspace.id} userId={user.id}
+                           personalWorkspaceId={personalWorkspaceId}
+                           /* Main pane only: one prompt, on the canvas you are
+                              looking at. Placing or dismissing it clears the state
+                              here, so it cannot come back on the next render. */
+                           justAddedTemplate={isMain ? justAddedTemplate : null}
+                           onDismissJustAdded={() => setJustAddedTemplate(null)}
+                           selectedTool={selectedTool} setSelectedTool={setSelectedTool}
+                           mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
+                           autotagSuggest={autotagSuggest}
+                           autotagReady={autotagReady}
+                           sessionId={yh?.sessionId || null}
+                           paneId={paneId}
+                           hasSplit={!!splitId || dockPanel}
+                           frictionStuck={isMain ? frictionStuck : false}
+                           /* The bold "Start your cluster" tiles are the DEFAULT
+                              empty-canvas affordance. firstCardPrompt ALSO surfaces
+                              them on the SEEDED root for onboarding_v2 arm B (the
+                              guided-first-card flow) until the user places their own
+                              genuine card — the strongest affordance was otherwise
+                              hidden on a seeded board (the 38% seed→first-action
+                              cliff). The empty-board case still shows them unchanged. */
+                           firstCardPrompt={isMain && (getEnrolledArm('onboarding_v2') === 'B')
+                             && onboardingUiActive && board?.id === rootBoard.id && !hasGenuineCard(cards)}
+                           /* showcaseArm 'B' = show the "Clear & try it yourself"
+                              banner. onboarding_v2 arm C seeds the brand showcase, so
+                              map C→'B'; keep the ?showcasepreview clone path. */
+                           showcaseArm={isMain ? ((getEnrolledArm('onboarding_v2') === 'C' || board?.id === showcasePreviewBoardId) ? 'B' : 'A') : 'A'}
+                           defaults={defaults} />
+          </Profiler>
+    );
+    // Main pane: [board][divider][Files] — one view, two sizes (FilesDock.jsx).
+    // The split pane keeps its plain Board-or-Files switch.
+    const surfaceJsx = isMain ? (
+      <FilesDockLayout mode={mainFilesMode} width={dockPrefs.width} mobileShell={mobileShell}
+                       onResize={(w) => updateDockPrefs({ width: w })}
+                       onExpand={() => applyFilesEvent('expand', 'divider')}
+                       onClose={() => applyFilesEvent('close', 'divider')}
+                       onRoomChange={setMainRoom}
+                       canvas={mainFilesMode !== 'full' ? renderCanvas() : null}
+                       files={mainFilesMode !== 'off' ? renderList(mainFilesMode) : null} />
+    ) : (view === 'list' ? renderList('full') : renderCanvas());
     return (
       <div className={`surface-wrap ${isMain ? '' : 'is-split'}`}>
         {/* No chrome of its own — no bar (that read as a second toolbar) and no
@@ -8609,8 +8708,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-center">
-            <ViewSwitch view={switchView} filesCount={switchFilesCount}
-                        onSwitch={(v) => setView(v, 'topbar', switchBoardId)} />
+            <ViewSwitch mode={switchMode} filesCount={switchFilesCount}
+                        onSegment={(seg) => (switchInSplit
+                          ? setView(seg === 'board' ? 'canvas' : 'list', 'topbar', switchBoardId)
+                          : applyFilesEvent(seg, 'topbar'))} />
           </div>
 
           <div className="tb-right">

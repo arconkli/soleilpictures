@@ -51,7 +51,7 @@ const SECTIONS = [
   {
     title: 'View',
     rows: [
-      [['F'], 'Switch between Board and Files'],
+      [['F'], 'Show or hide Files beside the board'],
       [[`${CMD}0`], 'Reset zoom'],
       [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],
       [['⇧1'], 'Fit everything'],
