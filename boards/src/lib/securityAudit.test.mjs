@@ -676,4 +676,8 @@ test('workspace mates read member_profiles, never the whole profiles row', () =>
   assert.doesNotMatch(byIds, /\.from\('profiles'\)/);
   assert.match(read('./userProfiles.js'), /table: 'member_profiles'/);
   assert.doesNotMatch(read('./userProfiles.js'), /table: 'profiles'/);
+  // 0383: and the policy that let workspace mates read whole rows is gone.
+  assert.ok(latestMatch(/drop policy if exists "ws-mate read profile" on public\.profiles;/));
+  const later = latestPolicy('ws-mate read profile');
+  assert.ok(!later || Number(later.file.slice(0, 4)) < 383, `${later?.file} re-creates the ws-mate policy on profiles`);
 });
