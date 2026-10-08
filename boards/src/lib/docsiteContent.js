@@ -27146,7 +27146,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " flow attaches an email address to the shell account created behind your number."
+     "v": " flow attaches an email address to the shell account created behind your number. Nothing changes until you follow the link sent to that address, and the answer is the same whether or not the address already has an account — if no link arrives, sign into that account and connect your number from its settings instead."
     }
    ]
   },
@@ -27237,6 +27237,24 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "There is also a rolling daily ceiling on how much one number can send. It is abuse protection rather than a plan limit, and it sits far above anything a day's scouting produces."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scout reads one-to-one chats only. Add it to a group chat and it stays out of the conversation: nothing anyone sends there is filed to anyone's canvas."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The waitlist takes only a few numbers from one connection a day, and has a ceiling as a whole — every number on it is one Scout will text."
     }
    ]
   },

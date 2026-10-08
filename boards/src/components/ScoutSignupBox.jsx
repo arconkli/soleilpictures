@@ -18,6 +18,7 @@ import { useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { stashScoutPhone } from '../lib/scoutClaim.js';
+import { captchaEnabled, captchaToken } from '../auth/turnstile.js';
 
 // Campaign attribution, read off the URL at submit time rather than stored, so
 // this doesn't need its own persistence and can't go stale.
@@ -46,6 +47,9 @@ export function ScoutSignupBox({
   const [error, setError] = useState(null);
   const [done, setDone] = useState(null);   // { status: 'queued' | 'texted', is_new }
   const engaged = useRef(false);
+  // Where Turnstile may show its check, if it needs one (dormant until the site
+  // key is built in — see auth/turnstile.js).
+  const captchaRef = useRef(null);
 
   const submit = async (e) => {
     e?.preventDefault?.();
@@ -54,11 +58,26 @@ export function ScoutSignupBox({
     setError(null);
     logEvent(EV.SCOUT_SIGNUP_SUBMIT, { pos });
 
+    // Every number on this list is one the bot will text, so the list sits
+    // behind the same bot check as the sign-in code.
+    let challenge = '';
+    try {
+      challenge = captchaEnabled() ? await captchaToken(captchaRef.current) : '';
+    } catch (_) {
+      logEvent(EV.SCOUT_SIGNUP_ERROR, { pos, reason: 'captcha' });
+      setError('We could not confirm you are not a bot. Try again in a moment.');
+      setBusy(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/scout/signup', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ phone, source: `scout_landing_${pos}`, ...campaignFields() }),
+        body: JSON.stringify({
+          phone, source: `scout_landing_${pos}`, ...campaignFields(),
+          ...(challenge ? { turnstileToken: challenge } : {}),
+        }),
       });
       const body = await res.json().catch(() => ({}));
 
@@ -159,6 +178,7 @@ export function ScoutSignupBox({
         <button className="auth-btn" type="submit" disabled={busy || !phone.trim()}>
           {busy ? 'Sending…' : `${ctaLabel} →`}
         </button>
+        <div ref={captchaRef} className="auth-captcha" />
         {error && <div className="auth-error t-meta">{error}</div>}
         {/* Consent ONLY. This is the line that makes the first message an
             opt-in rather than cold outreach, and it is stored with the row

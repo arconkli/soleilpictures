@@ -5,7 +5,7 @@ h1: Soleil Scout
 navLabel: Soleil Scout
 section: scout
 order: 0
-updated: 2026-08-11
+updated: 2026-10-07
 answer: Soleil Scout is a text-message ingest bot. You text photos, clips, voice notes, PDFs or links and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. No app, and no signup — an account and a board are created behind you the first time you text, and voice notes are transcribed so you can search them. Scout is invite-only for now, so /scout puts you on the list; the canvas is open today and the number you leave connects to the account you make.
 faq:
   - q: Can I use Scout right now?
@@ -173,7 +173,10 @@ for the same reason as everything else here: there is no line to text. When it
 is, you will get a connect code from your settings and text it once.
 
 If you started from Scout with no account, a **claim** flow attaches an email
-address to the shell account created behind your number.
+address to the shell account created behind your number. Nothing changes until
+you follow the link sent to that address, and the answer is the same whether or
+not the address already has an account — if no link arrives, sign into that
+account and connect your number from its settings instead.
 
 ## Links
 
@@ -195,6 +198,12 @@ dropping photos.
 There is also a rolling daily ceiling on how much one number can send. It is
 abuse protection rather than a plan limit, and it sits far above anything a
 day's scouting produces.
+
+Scout reads one-to-one chats only. Add it to a group chat and it stays out of
+the conversation: nothing anyone sends there is filed to anyone's canvas.
+
+The waitlist takes only a few numbers from one connection a day, and has a
+ceiling as a whole — every number on it is one Scout will text.
 
 ## Transport
 

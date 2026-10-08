@@ -35,7 +35,7 @@ export function ScoutClaimBanner({ user }) {
     try { return sessionStorage.getItem(DISMISS_KEY) === '1'; } catch (_) { return false; }
   });
   const [email, setEmail] = useState('');
-  const [state, setState] = useState('idle');   // idle | saving | sent | conflict
+  const [state, setState] = useState('idle');   // idle | saving | sent
   const [error, setError] = useState('');
 
   if (!isShellEmail(user?.email) || dismissed) return null;
@@ -63,10 +63,9 @@ export function ScoutClaimBanner({ user }) {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error || 'Could not save that address.');
 
-      // The address is spoken for. Do NOT offer to merge from here — proving
-      // they own the other account is the whole point, and the connect code
-      // does exactly that, from inside it.
-      setState(body?.conflict ? 'conflict' : 'sent');
+      // One answer whether or not the address is free: the route will not say
+      // who is registered (see handleScoutClaim), so the copy covers both cases.
+      setState('sent');
     } catch (err) {
       setError(err?.message || 'Could not save that address.');
       setState('idle');
@@ -79,11 +78,8 @@ export function ScoutClaimBanner({ user }) {
         {state === 'sent' ? (
           <p className="scout-claim-msg">
             <b>Check {email}.</b> Follow the link there and this account is yours —
-            {' '}same boards, same photos, an address you recognise.
-          </p>
-        ) : state === 'conflict' ? (
-          <p className="scout-claim-msg">
-            <b>That address already has a Soleil account.</b> Sign into it, open
+            {' '}same boards, same photos, an address you recognise. If no link arrives,
+            {' '}that address may already have a Soleil account: sign into it, open
             {' '}Settings → Scout, and text yourself the connect code — everything you
             {' '}have already sent moves across with you.
           </p>

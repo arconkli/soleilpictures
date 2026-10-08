@@ -210,6 +210,27 @@ const jsonRes = (data, status = 200) => new Response(JSON.stringify(data), {
 //
 // It never sends anything. The bot drains the queue on its own schedule —
 // see scout/src/invites.js and the header of migration 0210 for why.
+// Cloudflare Turnstile, as on the sign-in code. Dormant until TURNSTILE_SECRET_KEY
+// is set — and set it only AFTER a build carrying VITE_TURNSTILE_SITE_KEY is
+// live, or every signup is refused. Every number on this list is one the bot
+// will text, so filling it is how a script would make Scout text strangers.
+export async function turnstileOk(env, token, ip) {
+  if (!env.TURNSTILE_SECRET_KEY) return true;
+  if (typeof token !== 'string' || !token || token.length > 2048) return false;
+  const form = new FormData();
+  form.append('secret', env.TURNSTILE_SECRET_KEY);
+  form.append('response', token);
+  if (ip) form.append('remoteip', ip);
+  try {
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST', body: form, signal: AbortSignal.timeout(8000),
+    });
+    return (await r.json().catch(() => null))?.success === true;
+  } catch (_) {
+    return false;
+  }
+}
+
 export async function handleScoutSignup(request, env) {
   if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405);
 
@@ -225,6 +246,10 @@ export async function handleScoutSignup(request, env) {
     return jsonRes({ error: "That doesn't look like a mobile number. Include the country code if you're outside the US." }, 400);
   }
 
+  if (!await turnstileOk(env, body.turnstileToken, request.headers.get('cf-connecting-ip'))) {
+    return jsonRes({ error: 'We could not confirm you are not a bot. Try again in a moment.' }, 403);
+  }
+
   // Only the campaign fields, and only as strings — this lands in a jsonb
   // column, and echoing an arbitrary client object into the database is how you
   // end up storing whatever someone felt like posting.
@@ -237,9 +262,11 @@ export async function handleScoutSignup(request, env) {
   let hashed = null;
   try {
     hashed = await ipHash(env, request.headers.get('cf-connecting-ip'));
-  } catch (_) {
-    // No secret configured yet — rate limiting degrades, the signup still works.
-  }
+  } catch (_) { /* refused below */ }
+  // FAIL CLOSED (audit OM-7, 2026-10-06). This used to carry on without the
+  // hash, which switched off every per-connection limit — on a list the bot
+  // texts from. scout_request_invite refuses a null hash too.
+  if (!hashed) return jsonRes({ error: 'We could not save that just now. Try again in a moment.' }, 503);
 
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/scout_request_invite`, {
     method: 'POST',
@@ -262,14 +289,20 @@ export async function handleScoutSignup(request, env) {
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    // 53400 = the per-IP limit. Everything else is ours, not theirs.
+    // 53400 = a per-connection limit (hourly or daily). Everything else is ours.
     if (detail.includes('53400') || detail.includes('too many requests')) {
-      return jsonRes({ error: 'Too many numbers from this connection. Try again in an hour.' }, 429);
+      return jsonRes({ error: 'Too many numbers from this connection. Try again later.' }, 429);
     }
     return jsonRes({ error: 'We could not save that just now. Try again in a moment.' }, 502);
   }
 
   const row = (await res.json().catch(() => null))?.[0] || {};
+
+  // The whole list has a ceiling (0380), so a flood cannot queue more texts
+  // than the bot would send in a few days. Hitting it pages the owner.
+  if (row.status === 'full') {
+    return jsonRes({ error: 'The waitlist is full for now. Try again tomorrow.' }, 503);
+  }
 
   // `status` here is the SIGNUP's state, and it is what the page renders. It
   // says 'pending' until the bot has actually sent something, so the success
@@ -302,14 +335,25 @@ export async function handleScoutSignup(request, env) {
 // same user row, same workspace, same board, real address.
 //
 // WHY THIS DOES NOT SET THE ADDRESS DIRECTLY
-// It hands the change to Supabase's own email-change flow, which mails a
-// confirmation to the NEW address and only applies it when that link is
-// followed. Writing the address straight in would let anyone standing at this
-// endpoint attach an email they do not control — and since the address is what
-// sharing, invites and sign-in all key on, that is an account takeover with
-// extra steps. is_shell therefore clears later, when the app calls
-// scout_settle_shell and finds the address is genuinely no longer synthetic —
-// never on this route's say-so.
+// It hands the change to Supabase's own email-change flow, through the USER
+// endpoint with the caller's own token, which mails a confirmation to the NEW
+// address and only applies it when that link is followed. Writing the address
+// straight in would let anyone standing at this endpoint attach an email they do
+// not control — and since the address is what sharing, invites and sign-in all
+// key on, that is an account takeover with extra steps. is_shell therefore
+// clears later, when the app calls scout_settle_shell and finds the address is
+// genuinely no longer synthetic — never on this route's say-so.
+//
+// This route used to call the ADMIN endpoint instead, under a comment saying
+// the change would wait for confirmation. The admin endpoint applies it at once
+// (audit AC-11, 2026-10-06). It also looked the address up first and answered
+// "conflict" when another account had it, which told anyone holding a texted
+// link whether an address is registered. Every outcome now gets the same
+// answer, and the banner's copy covers both.
+//
+// With "secure email change" on, Supabase also wants a confirmation from the
+// CURRENT address — a synthetic one that receives no mail — so a claim cannot
+// complete. That fails closed, which is the right way to fail.
 export async function handleScoutClaim(request, env) {
   if (request.method !== 'POST') return jsonRes({ error: 'method not allowed' }, 405);
 
@@ -345,54 +389,27 @@ export async function handleScoutClaim(request, env) {
   if (!state) return jsonRes({ error: 'not a scout account' }, 403);
   if (state.is_shell === false) return jsonRes({ error: 'already claimed' }, 409);
 
-  // Is the address already spoken for? Ask before attempting the change, so the
-  // answer is a clean "use the code instead" rather than a Supabase error.
-  //
-  // The response says only that this address cannot be used HERE. It never
-  // confirms an account exists: this endpoint is reachable by anyone holding a
-  // link texted to a phone, and turning it into an email-enumeration oracle
-  // would be a worse leak than the problem it solves.
-  const takenRes = await fetch(
-    `${env.SUPABASE_URL}/auth/v1/admin/users?filter=${encodeURIComponent(email)}`,
-    {
-      headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        accept: 'application/json',
-      },
-      signal: AbortSignal.timeout(8000),
-    },
-  );
-  if (takenRes.ok) {
-    const users = (await takenRes.json().catch(() => null))?.users || [];
-    if (users.some((u) => String(u.email || '').toLowerCase() === email && u.id !== auth.userId)) {
-      return jsonRes({ conflict: true }, 200);
-    }
-  }
-
-  const upd = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${auth.userId}`, {
+  const upd = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
     method: 'PUT',
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: env.SUPABASE_ANON_KEY,
+      authorization: request.headers.get('authorization') || '',
       'content-type': 'application/json',
       accept: 'application/json',
     },
-    // email_confirm omitted ON PURPOSE — see the header. Supabase mails the new
-    // address and holds the change until it is confirmed.
     body: JSON.stringify({ email }),
     signal: AbortSignal.timeout(8000),
   });
   if (!upd.ok) {
     const detail = await upd.text().catch(() => '');
-    // Supabase's own uniqueness check, in case the lookup above raced it.
-    if (detail.includes('already been registered') || detail.includes('email_exists')) {
-      return jsonRes({ conflict: true }, 200);
+    // An address another account holds gets the same answer as a free one, so
+    // this route cannot be asked who is registered. Nothing is sent for it.
+    if (!/already been registered|email_exists|email_address_not_authorized/i.test(detail)) {
+      return jsonRes({ error: 'We could not send the confirmation. Try again in a moment.' }, 502);
     }
-    return jsonRes({ error: 'We could not send the confirmation. Try again in a moment.' }, 502);
   }
 
-  return jsonRes({ status: 'confirm_sent', email }, 200);
+  return jsonRes({ status: 'confirm_sent' }, 200);
 }
 
 // POST /api/scout/session — internal. The ingest service asks for a link to text
