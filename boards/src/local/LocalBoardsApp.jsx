@@ -10,9 +10,7 @@ import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { ViewSwitch } from '../components/ViewSwitch.jsx';
-import { FilesDockLayout, FilesPane } from '../components/FilesDock.jsx';
-import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } from '../lib/filesDock.js';
-import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
+import { filesCountOf, isViewSwitchKey, nextView } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { scheduleCreationAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
@@ -1485,93 +1483,20 @@ export function LocalBoardsApp({ user, signOut }) {
       : prev);
   };
 
-  // Files beside the board — parity with the real shell (App.jsx
-  // applyFilesEvent): F, the topbar and the dock's own controls all go
-  // through planFilesEvent; full Files is the board's stored view.
-  const [dockPrefs, setDockPrefs] = useState(() => readDockPrefs());
-  const [dockRoom, setDockRoom] = useState(() => (
-    typeof window !== 'undefined' && canDock(window.innerWidth - 240, { mobileShell })
-  ));
-  const canDockHere = dockRoom && !mobileShell;
-  const filesMode = filesModeOf({ view, dockOpen: dockPrefs.open, canDock: canDockHere });
-  const updateDockPrefs = (patch) => setDockPrefs((prev) => {
-    const next = { ...prev, ...patch };
-    writeDockPrefs(next);
-    return next;
-  });
-  const applyFilesEvent = (event) => {
-    const plan = planFilesEvent(filesMode, event, { canDock: canDockHere });
-    if (plan.focusSearch) {
-      try { document.dispatchEvent(new CustomEvent('soleil-files-focus-search')); } catch (_) {}
-    }
-    if (plan.next === filesMode) return;
-    if (plan.next === 'full') setView('list');
-    else if (filesMode === 'full') setView('canvas');
-    if (plan.next === 'panel') {
-      updateDockPrefs({ open: true });
-      if (filesMode === 'off') tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId: currentId });
-    } else if (plan.next === 'off') updateDockPrefs({ open: false });
-  };
-  const applyFilesEventRef = useRef(applyFilesEvent);
-  applyFilesEventRef.current = applyFilesEvent;
-  // Same as App.revealInFiles: show files that aren't on the board in Files.
-  const [filesReveal, setFilesReveal] = useState(null);
-  const revealInFilesLocal = (ids) => {
-    if (canDockHere) applyFilesEventRef.current('reveal');
-    else setViewOverride((o) => ({ ...o, [currentId]: 'list' }));
-    setFilesReveal({ boardId: currentId, ids: ids || [], token: Date.now() });
-  };
-  // Files drops — App.ingestFilesArranged's twin, minus uploads: blob URLs,
-  // and the files wait in Files off the board at free spots below every card.
-  const feedback = useFeedback();
-  const [localRecentlyAdded, setLocalRecentlyAdded] = useState(null);   // { boardId, ids }
-  const ingestFilesLocal = (fileList) => {
-    const accepted = [];
-    for (const file of Array.from(fileList || [])) {
-      const c = classifyDropFile(file);
-      if (!c.kind || c.route === 'blocked' || c.route === 'screenplay') continue;
-      accepted.push({ file, kind: c.kind, w: c.w, h: c.h });
-    }
-    if (!accepted.length) return;
-    const made = positionUnplaced(currentState.cards, accepted).map((it) => {
-      const url = URL.createObjectURL(it.file);
-      const ext = (it.file.name.split('.').pop() || '').toLowerCase();
-      const base = { id: createId(it.kind), kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, unplaced: true };
-      if (it.kind === 'video') return { ...base, src: url, ...fileMetaFor(it.file), sizeBytes: it.file.size, mime: it.file.type, _probe: it.file };
-      if (it.kind === 'image') return { ...base, src: url, ...fileMetaFor(it.file) };
-      if (it.kind === 'audio') return { ...base, src: url, title: it.file.name, fileName: it.file.name, mime: it.file.type, ext, sizeBytes: it.file.size };
-      if (it.kind === 'pdf') return { ...base, src: url, pdfSrc: url, name: it.file.name };
-      return { ...base, fileSrc: url, fileName: it.file.name, mime: it.file.type, ext, sizeBytes: it.file.size };
-    });
-    // Twin of the app's upload probe (lib/mediaProbe.js): a video's own facts.
-    const probes = made.filter((c) => c._probe).map((c) => [c.id, c._probe]);
-    for (const c of made) delete c._probe;
-    addCards(made);
-    for (const [id, file] of probes) probeFile(file).then((media) => { if (media) mutators.updateCardMeta(id, { media }); });
-    setLocalRecentlyAdded({ boardId: currentId, ids: new Set(made.map((c) => c.id)) });
-    feedback.toast({
-      type: 'success',
-      message: `Added ${made.length} ${made.length === 1 ? 'file' : 'files'} to Files — not on the board`,
-      ...(filesMode === 'full' && canDockHere ? { action: { label: 'Open beside board', onClick: () => applyFilesEventRef.current('shrink') } } : {}),
-    });
-  };
-  const localDockControls = {
-    canShrink: canDockHere,
-    onExpand: () => applyFilesEvent('expand'),
-    onShrink: () => applyFilesEvent('shrink'),
-    onClose: () => applyFilesEvent('close'),
-  };
+  // F flips Board ↔ Files — parity with the real shell (App.jsx).
+  const setViewRef = useRef(setView);
+  setViewRef.current = setView;
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
-      if (isEditableTarget(e) || anyModalOpen() || overlayOpen()) return;
+      if (isEditableTarget(e) || anyModalOpen()) return;
       if (currentSurface !== 'board' || paletteOpen) return;
       e.preventDefault();
-      applyFilesEventRef.current('toggle');
+      setViewRef.current(nextView(view));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [currentSurface, paletteOpen]);
+  }, [view, currentSurface, paletteOpen]);
 
   const openBoard = (id) => {
     if (boards[id]) { setStack(prev => [...prev, id]); recents.push(id); tourFireRef.current?.({ type: 'cluster_opened', boardId: id }); }
@@ -1924,8 +1849,7 @@ export function LocalBoardsApp({ user, signOut }) {
           </div>
 
           <div className="tb-center">
-            <ViewSwitch mode={filesMode} filesCount={filesCountOf(currentState.cards)}
-                        onSegment={(seg) => applyFilesEvent(seg)} />
+            <ViewSwitch view={view} filesCount={filesCountOf(currentState.cards)} onSwitch={setView} />
           </div>
 
           <div className="tb-right">

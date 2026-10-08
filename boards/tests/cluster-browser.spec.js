@@ -8,7 +8,8 @@ async function goList(page) {
   await page.goto('/?local=1&reset=1');
   await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
   await expect(page.locator('.rail-brand')).toBeVisible();
-  await openFullFiles(page);
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await expect(page.locator('.list-wrap')).toBeVisible();
   // Files opens in Grid for a cluster that isn't mostly audio; these specs
   // drive the table, so pick the List layout.
   await page.getByRole('button', { name: 'List layout' }).click();

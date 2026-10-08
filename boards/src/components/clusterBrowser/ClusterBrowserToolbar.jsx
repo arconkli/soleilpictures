@@ -236,12 +236,13 @@ export function ClusterBrowserToolbar({
     );
   }
 
-  // Full Files: search, then one quiet group — View, Grid/List — and the one
-  // filled button, Add files. ⤡ mirrors the panel's ⤢.
-  if (dropBanner) {
-    return (
-      <div className="cbt cbt--full">
-        <div className={`lp-drop${dropBanner.blocked ? ' is-blocked' : ''}`} role="status">{dropBanner.text}</div>
+      {/* Grid / List layout (internally 'gallery' / 'table'). Grid first: it is
+          the default for any cluster that is not mostly audio. */}
+      <div className="view-pill cbt-viewtoggle" role="group" aria-label="Layout">
+        <button className={`view-pill-btn${viewMode === 'gallery' ? ' on' : ''}`} onClick={() => onViewMode('gallery')}
+                aria-label="Grid layout" aria-pressed={viewMode === 'gallery'} title="Grid"><Icon as={LayoutGrid} size={14} /></button>
+        <button className={`view-pill-btn${viewMode === 'table' ? ' on' : ''}`} onClick={() => onViewMode('table')}
+                aria-label="List layout" aria-pressed={viewMode === 'table'} title="List"><Icon as={List} size={14} /></button>
       </div>
     );
   }

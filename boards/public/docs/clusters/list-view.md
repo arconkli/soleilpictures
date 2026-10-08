@@ -1,124 +1,26 @@
 # Files view
 
-> Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
+> Every cluster has two views, Board and Files, switched at the top of the screen or with F. Files shows the same contents as a file browser — a grid of previews or a list — with sorting, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-10-11_
+_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-10-08_
 
 The board is for arranging. Files is for finding.
 
-Same cluster, same contents, different question being asked — and you can ask
-both at once.
+Same cluster, same contents, different question being asked. Switch with
+**Board · Files** at the top of the screen — the Files side shows how many
+things are inside — or press `F` to flip between them. `⌘K` → "Switch to
+Files" does the same.
 
-## Files beside the board
-
-Press `F`, or **Files** in **Board · Files** at the top of the screen, and Files
-opens as a panel on the right of the board. The board stays where it was and
-keeps working: you can pan, select and arrange while the panel is open. The
-Files side of the switch counts the cards inside, not counting nested clusters.
-
-| To do this | Do this |
-|---|---|
-| Open or close Files beside the board | `F`, or **Files** / **Board** at the top |
-| Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it |
-| Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across |
-| Put full-screen Files back beside the board | The shrink button at the top right, beside **Download all** |
-| Find a file on the board | Click it in the panel — the board brings it into view and selects it |
-| Put a file somewhere on the board | Drag it from the panel onto the board |
-
-`⌘K` → "Show Files" does the same as `F`. Whether the panel is open, and how
-wide, is remembered on your device; it never changes the cluster for anyone
-else. Full-screen Files is the cluster's own view, so a cluster you leave in
-Files opens in Files for everyone, and on shared and published links.
-
-The panel needs room: in a narrow window, and on phones and tablets, Files
-fills the screen instead. In split view, the switch and `F` act on the pane you
-last worked in, and Files there fills that pane.
-
-A cluster remembers which view it was left in. Clusters made from a folder you
-[drop in](/docs/clusters#dropping-a-folder) open in Files for you, because a
-dropped folder is files first; their cards are still laid out on each canvas,
-and on the parent board they keep their thumbnail.
-
-## Dragging files onto the board
-
-Drag anything from the panel onto the board and it lands where you let go.
-Select several first and they travel together.
-
-| Where the file is | What the drop does |
-|---|---|
-| This cluster | Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there |
-| Another cluster | Adds a **linked copy**: a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit |
-| Another cluster, and already copied here | Moves the copy that's already on the board instead of adding a second one. Hold `⌥` (`Alt`) while you drop to add another |
-
-A linked copy is its own card: retitling or captioning it leaves the original
-alone, and deleting either one leaves the other. While you browse another
-cluster in the panel, its files that already have a copy on this board are
-marked **On board**, and clicking one finds that copy.
-
-Notes, docs and grids from another cluster are copied the same way — the copy
-takes their words, cells and pages from the cluster they live in, and the
-original stays where it was. A grid linked to its cluster's shared layout
-arrives as a standalone grid with that layout. The toast that follows offers
-**Move instead**, which takes the copy back off and moves the original here;
-`⌘Z` undoes the copy. Copies count toward your plan's card limit like any
-other card.
-
-## Not on board
-
-A file can be in a cluster without being on its board. Files you add in Files
-start that way, and so does a card you take off: right-click it on the board
-and choose **Remove from board**. Either way it waits in Files with a **Not on
-board** mark. **Not on board** in the **View** menu shows just those.
-
-To put one on the board, drag it there, or right-click it in Files — or use
-the selection bar, or Quick look — and choose **Put on board**, which places it
-in the clear space nearest the middle of where the board was last looking. A
-link or search result that points at a file that isn't on the board opens Files
-with it picked out instead.
-
-Files waiting off the board are still cards: they count toward your plan's
-card limit, and anyone the cluster is shared with sees them in Files.
-
-## Folders and the path bar
-
-A cluster's nested clusters are its folders. They sit first, as compact rows —
-the cluster's colour dot (or its cover), its name and how many items are inside —
-with the files after them.
-
-In the panel, **double-click a folder to step into it**. The path bar at the top
-shows where the panel is; click any step to go back up, or use the back arrow
-to retrace where you have been. The ▾ on the current step lists the clusters
-inside it, and its **Go to cluster…** jumps to any cluster in the workspace.
-**The board doesn't move** while you browse — the
-breadcrumb at the top of the screen still says where it is.
-
-Another cluster's files are read-only from the panel: browse, preview and
-download, but edits happen in that cluster. Double-click one of its files and
-the board goes there and flies to it. Expanding the panel while you are
-browsing takes you to that cluster, in Files. In full-screen Files, opening a
-folder goes there and stays in Files, and the clusters above it sit over the
-title — click one to go up.
-
-### Springing into folders while you drag
-
-As in Finder, you can move something into a folder you can't see yet. Drag a
-file (or a folder), **hold it over a folder for a moment** and Files opens that
-folder with the drag still in your hand; hold it over **Back** or a step of the
-path to go back up. Let go on the folder's files, or on a folder inside it, to
-move what you're dragging there. The folder blinks just before it opens.
-
-Beside the board, the panel stays where you dropped. In full-screen Files you
-land in that cluster once the move is saved. Let go anywhere else, or press
-`Esc`, and Files goes back to where the drag started.
+A cluster remembers which view it was left in. Folders you
+[drop in](/docs/clusters#dropping-a-folder) open in Files, because a dropped
+folder is files first; their cards are still laid out on each canvas, one `F`
+away.
 
 ## Grid and list
 
-**Grid** — a tile per item with a real preview, laid out in rows that fill the
-width. Pictures keep their own shape — a portrait stays tall, a panorama stays
-wide — instead of being cropped to a box. The default, because most of what
-you are looking for you would recognise by sight; for audio the preview is the
-waveform, so no two loops look the same. **S**, **M** and **L** set the tile
-size, remembered on your device.
+**Grid** — a tile per item with a real preview. The default, because most of
+what you are looking for you would recognise by sight; for audio the preview is
+the waveform, so no two loops look the same.
 
 **List** — a row per item, with type, size and dates. Dense, scannable,
 sortable. A cluster that is mostly audio opens in the list, for the columns
@@ -155,7 +57,11 @@ filename. The name is the last thing to give up room.
 
 ## Sorting and filtering
 
-Both live in the **View** menu, beside the search field.
+Files opens in **board order**: the canvas read like a page, top row first and
+each row left to right, so what you see is the board you just left, lined up.
+Sort by **name**, **type**, **size**, **date modified** or **date added**
+instead — plus **length**, **tempo**, **key** and **format** when the cluster is
+mostly audio.
 
 Files opens in **board order**: the canvas read like a page, top row first and
 each row left to right, so what you see is the board you just left, lined up.
@@ -290,7 +196,7 @@ own. From there:
 | **Copy link** | A deep link that opens the board with the card selected |
 | **Delete** | Removes it, with undo |
 
-**Show on board** is the important one: it connects the two views, so finding
+**Open on canvas** is the important one: it connects the two views, so finding
 something in Files puts you in front of it in context. It and **Copy link**
 are app actions, so they are not offered to a signed-out visitor on a shared
 link — there is no canvas for them to open, and the deep link would not resolve.
@@ -305,17 +211,8 @@ version…** too.
 
 ## Adding files here
 
-Drag files into Files, or use **Add files** in the toolbar. They join the
-cluster without going on its board: they wait in Files, marked
-[**Not on board**](#not-on-board), until you drag them onto the board or choose
-**Put on board**. That holds beside the board and in full-screen Files alike —
-dropping on the canvas is how you put files straight on the board. An empty
-cluster offers **Add files**, **New cluster** and **Link a cluster** right
-where its contents would be.
-
-Drop a single file onto a file of the same kind instead, and it becomes that
-file's [next version](/docs/files#versions) — the file lights up and says so
-first. Hold `⌥` to add it as a separate file.
+Drag files into Files, or use **Add files** in the toolbar. They land on the
+cluster exactly as if dropped on the canvas, auto-placed in free space.
 
 ## Presence
 

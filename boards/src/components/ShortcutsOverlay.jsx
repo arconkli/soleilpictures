@@ -51,8 +51,7 @@ const SECTIONS = [
   {
     title: 'View',
     rows: [
-      [['F'], 'Show or hide Files beside the board'],
-      [[`${CMD}I`], 'Info — the selection, or the cluster when nothing is selected'],
+      [['F'], 'Switch between Board and Files'],
       [[`${CMD}0`], 'Reset zoom'],
       [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],
       [['⇧1'], 'Fit everything'],
@@ -83,41 +82,8 @@ const SECTIONS = [
     rows: [
       [['Enter'], 'Play · pause the selected clip'],
       [['L'], 'Loop the selected clip'],
-      [['Space'], 'Audition the highlighted row (Files, list layout)'],
-    ],
-  },
-  {
-    // The review player (components/film/), while it's open. Mirrors
-    // lib/playerKeys.js.
-    title: 'Player',
-    rows: [
-      [['Space'], 'Play · pause'],
-      [['J', 'K', 'L'], 'Play backward · stop · forward — again to go faster'],
-      [['K+J', 'K+L'], 'Tap: one frame back · forward. Hold: play slowly'],
-      [['←', '→'], 'One frame back · forward'],
-      [[',', '.'], 'One frame back · forward'],
-      [['⇧←', '⇧→'], 'One second back · forward'],
-      [['Home', 'End'], 'First · last frame'],
-      [['⇧<', '⇧>'], 'Slower · faster'],
-      [['0–9'], 'Type a timecode, frame or seconds to jump to'],
-      [['I', 'O'], 'Set in · out'],
-      [['⇧I', '⇧O'], 'Go to in · out'],
-      [['⇧Space'], 'Play from in to out'],
-      [['⌥L'], 'Loop (between in and out, or the whole clip)'],
-      [['⌥X'], 'Clear in and out'],
-      [['⌥=', '⌥−'], 'Zoom the timeline in · out'],
-      [['⌥0'], 'Fit the whole clip in the timeline'],
-      [['⇧Z'], 'Zoom the timeline to in and out'],
-      [['Z'], 'Zoom the picture: fit · 100% · 200% — drag to look around'],
-      [['G'], 'Framing guides — again for the next one'],
-      [['F'], 'Full screen'],
-      [['M'], 'Mute'],
-      [['⇧↑', '⇧↓'], 'Volume up · down'],
-      [['\\'], 'Flip to the version you compare with'],
-      [[`${CMD}C`], 'Copy the timecode'],
-      [[`⇧${CMD}C`], 'Copy a link to this frame'],
-      [['?'], 'Show these shortcuts'],
-      [['Esc'], 'Close the player'],
+      [['Space'], 'Audition the highlighted row (Files)'],
+      [['↑', '↓'], 'Move through rows (Files)'],
     ],
   },
   {

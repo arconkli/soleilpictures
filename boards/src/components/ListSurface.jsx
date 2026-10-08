@@ -289,18 +289,8 @@ export function ListSurface({
 
   // Grid or List: this session's pick for the cluster, else what this device
   // remembers for it, else Grid (List for a mostly-audio pack).
-  // The default is decided once per cluster, the first time it has contents,
-  // so a card added or deleted later never swaps the layout under you.
   const savedLayout = useMemo(() => readFilesLayout(board?.id), [board?.id, layoutChoice]);
-  const openedLayoutRef = useRef({});
-  if (board?.id && items.length && !openedLayoutRef.current[board.id]) {
-    openedLayoutRef.current[board.id] = defaultFilesLayout(items);
-  }
-  const viewMode = layoutChoice[board?.id] || savedLayout
-    || openedLayoutRef.current[board?.id] || defaultFilesLayout(items);
-  // Grid tile size — this device's, for every cluster.
-  const [tileSize, setTileSize] = useState(() => readTileSize());
-  const onTileSize = useCallback((k) => { setTileSize(k); writeTileSize(k); }, []);
+  const viewMode = layoutChoice[board?.id] || savedLayout || defaultFilesLayout(items);
 
   // Available filter buckets (with counts) present in this cluster.
   const availableBuckets = useMemo(() => {

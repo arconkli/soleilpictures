@@ -66,8 +66,8 @@ to [Trash](/docs/clusters/trash-and-recovery).
 
 Dropping a folder works on the canvas, on a desktop browser. A phone cannot
 drag a folder, and the Files view takes files rather than folders.
-Clusters made from a dropped folder open in [Files](/docs/clusters/list-view)
-for you; **Board** at the top shows the canvas, where the cards are already laid out.
+Clusters made from a dropped folder open in [Files](/docs/clusters/list-view);
+press `F` for the canvas, where the cards are already laid out.
 
 ## Adding a cluster inside one
 

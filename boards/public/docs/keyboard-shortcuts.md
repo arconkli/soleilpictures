@@ -2,7 +2,7 @@
 
 > Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
-_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-10-08_
 
 Press `?` on any canvas to see this list in the app, where it shows the right
 modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl`.
@@ -53,8 +53,7 @@ contents, notes, docs and tags, and it also runs commands — "share", "trash",
 
 | Key | Action |
 |---|---|
-| `F` | Show or hide [Files](/docs/clusters/list-view) beside the board |
-| `⌘I` | [Info](/docs/canvas/cards#info) — the selection, or the cluster when nothing is selected |
+| `F` | Switch between Board and [Files](/docs/clusters/list-view) |
 | `⌘0` | Reset zoom |
 | `⌘+` / `⌘−` | Zoom in · out |
 | `⇧1` | Fit everything |
@@ -105,7 +104,8 @@ the board, these keys go to whichever side the pointer was last over.
 |---|---|
 | `Enter` | Play · pause the selected clip |
 | `L` | Loop the selected clip |
-| `Space` | Audition the highlighted row (Files, list layout) |
+| `Space` | Audition the highlighted row (Files) |
+| `↑` / `↓` | Move through rows (Files) |
 
 `Enter` rather than `Space` on the canvas, because `Space` is already the pan
 modifier there and arrows already move cards. In [Files](/docs/clusters/list-view)

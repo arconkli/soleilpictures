@@ -182,7 +182,7 @@ export const DOCS_PAGES = [
     "title": "Core Concepts — Soleil Clusters",
     "metaDescription": "Workspaces, clusters, cards and nesting explained. The vocabulary Soleil Clusters uses, and why the app says \"cluster\" where the API says \"board\".",
     "h1": "Core concepts",
-    "answer": "Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.",
+    "answer": "Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as a board, an infinite canvas, or as files, a browsable grid or list, and both views show the same contents.",
     "section": "start",
     "order": 2,
     "updated": "2026-10-08",
@@ -237,7 +237,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-12",
+    "updated": "2026-10-08",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -1373,28 +1373,12 @@ export const DOCS_PAGES = [
     "title": "Files View — Soleil Clusters",
     "metaDescription": "Every cluster in Soleil Clusters is also a drive. Files shows it as a grid or a list, with search, sort, type filters and a detail panel with previews.",
     "h1": "Files view",
-    "answer": "Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.",
+    "answer": "Every cluster has two views, Board and Files, switched at the top of the screen or with F. Files shows the same contents as a file browser — a grid of previews or a list — with sorting, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-11",
+    "updated": "2026-10-08",
     "navLabel": "Files view",
     "headings": [
-      {
-        "id": "files-beside-the-board",
-        "text": "Files beside the board"
-      },
-      {
-        "id": "dragging-files-onto-the-board",
-        "text": "Dragging files onto the board"
-      },
-      {
-        "id": "not-on-board",
-        "text": "Not on board"
-      },
-      {
-        "id": "folders-and-the-path-bar",
-        "text": "Folders and the path bar"
-      },
       {
         "id": "grid-and-list",
         "text": "Grid and list"
@@ -1455,20 +1439,12 @@ export const DOCS_PAGES = [
     ],
     "faq": [
       {
-        "q": "Does opening Files change my board?",
-        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched, and opening Files beside the board never changes how anyone else sees the cluster."
-      },
-      {
-        "q": "Can I see my files and my board at the same time?",
-        "a": "Yes. Files opens as a panel beside the board. Drag its edge to make it wider, or press the expand button to fill the screen with it."
-      },
-      {
-        "q": "Can I drag files from Files onto the board?",
-        "a": "Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again. A note, doc or grid from another cluster is copied too, and the toast that follows can move it instead."
+        "q": "Does switching to Files change my board?",
+        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched."
       },
       {
         "q": "Can I upload from Files?",
-        "a": "Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board."
+        "a": "Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas."
       },
       {
         "q": "Can I make Files the default?",

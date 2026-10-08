@@ -3359,8 +3359,8 @@ body {
 
 /* Board · Files — the topbar's primary switch (components/ViewSwitch.jsx).
    It replaced a pill quiet enough that most people never found list mode, so
-   it is bigger — labels on desktop, glyphs on phone — and the Files side
-   shows a count. Gold only on the active segment's phone glyph. */
+   it is bigger, carries icons and labels, and the Files side shows a count.
+   Gold only on the active segment's icon: gold is reserved for active state. */
 .view-pill--primary {
   padding: 3px;
   background: var(--bg-2);
@@ -3368,12 +3368,13 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 .view-pill--primary .view-pill-btn {
-  gap: 6px;
-  padding: 7px 14px;
+  gap: 7px;
+  padding: 7px 15px 7px 13px;
   font: 550 13px/1 var(--font-sans);
   color: var(--ink-2);
 }
-.view-pill--primary .view-pill-btn .vp-ico { display: none; color: var(--ink-3); transition: color var(--dur-base) var(--ease); }
+.view-pill--primary .view-pill-btn .vp-ico { display: inline-flex; color: var(--ink-3); transition: color var(--dur-base) var(--ease); }
+.view-pill--primary .view-pill-btn:not(.on):hover .vp-ico { color: var(--ink-1); }
 .view-pill--primary .view-pill-btn.on {
   background: var(--bg-4);
   color: var(--ink-0);

@@ -1608,7 +1608,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Press "
+     "v": "Switch with "
+    },
+    {
+     "t": "strong",
+     "v": "Board · Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Board · Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of the screen, or press "
     },
     {
      "t": "code",
@@ -1616,21 +1630,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or "
-    },
-    {
-     "t": "strong",
-     "v": "Files",
-     "children": [
-      {
-       "t": "text",
-       "v": "Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " at the top of the screen, and Files opens beside the board; it can expand to fill the screen."
+     "v": "."
     }
    ]
   },
@@ -2186,7 +2186,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Show or hide "
+       "v": "Switch between Board and "
       },
       {
        "t": "link",
@@ -2198,35 +2198,6 @@ export const DOCS_CONTENT = {
          "v": "Files"
         }
        ]
-      },
-      {
-       "t": "text",
-       "v": " beside the board"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "⌘I"
-      }
-     ],
-     [
-      {
-       "t": "link",
-       "v": "Info",
-       "href": "/docs/canvas/cards#info",
-       "children": [
-        {
-         "t": "text",
-         "v": "Info"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " — the selection, or the cluster when nothing is selected"
       }
      ]
     ],
@@ -2858,7 +2829,29 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Audition the highlighted row (Files, list layout)"
+       "v": "Audition the highlighted row (Files)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move through rows (Files)"
       }
      ]
     ]
@@ -5098,7 +5091,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and it opens beside the board."
+     "v": "."
     }
    ]
   },
@@ -17457,21 +17450,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for you; "
+     "v": "; press "
     },
     {
-     "t": "strong",
-     "v": "Board",
-     "children": [
-      {
-       "t": "text",
-       "v": "Board"
-      }
-     ]
+     "t": "code",
+     "v": "F"
     },
     {
      "t": "text",
-     "v": " at the top shows the canvas, where the cards are already laid out."
+     "v": " for the canvas, where the cards are already laid out."
     }
    ]
   },
@@ -18199,50 +18186,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Same cluster, same contents, different question being asked — and you can ask both at once."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Files beside the board",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Files beside the board"
-    }
-   ],
-   "id": "files-beside-the-board"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Press "
-    },
-    {
-     "t": "code",
-     "v": "F"
-    },
-    {
-     "t": "text",
-     "v": ", or "
-    },
-    {
-     "t": "strong",
-     "v": "Files",
-     "children": [
-      {
-       "t": "text",
-       "v": "Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " in "
+     "v": "Same cluster, same contents, different question being asked. Switch with "
     },
     {
      "t": "strong",
@@ -18256,173 +18200,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the top of the screen, and Files opens as a panel on the right of the board. The board stays where it was and keeps working: you can pan, select and arrange while the panel is open. The Files side of the switch counts the cards inside, not counting nested clusters."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "To do this"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Do this"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "text",
-       "v": "Open or close Files beside the board"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "F"
-      },
-      {
-       "t": "text",
-       "v": ", or "
-      },
-      {
-       "t": "strong",
-       "v": "Files",
-       "children": [
-        {
-         "t": "text",
-         "v": "Files"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " / "
-      },
-      {
-       "t": "strong",
-       "v": "Board",
-       "children": [
-        {
-         "t": "text",
-         "v": "Board"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " at the top"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Make the panel wider or narrower"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Drag its left edge; double-click the edge to reset it"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Fill the screen with Files"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The expand button in the panel, or drag the edge most of the way across"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Put full-screen Files back beside the board"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The shrink button at the top right, beside "
-      },
-      {
-       "t": "strong",
-       "v": "Download all",
-       "children": [
-        {
-         "t": "text",
-         "v": "Download all"
-        }
-       ]
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Find a file on the board"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Click it in the panel — the board brings it into view and selects it"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Put a file somewhere on the board"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Drag it from the panel onto the board"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
+     "v": " at the top of the screen — the Files side shows how many things are inside — or press "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": " to flip between them. "
+    },
     {
      "t": "code",
      "v": "⌘K"
     },
     {
      "t": "text",
-     "v": " → \"Show Files\" does the same as "
-    },
-    {
-     "t": "code",
-     "v": "F"
-    },
-    {
-     "t": "text",
-     "v": ". Whether the panel is open, and how wide, is remembered on your device; it never changes the cluster for anyone else. Full-screen Files is the cluster's own view, so a cluster you leave in Files opens in Files for everyone, and on shared and published links."
+     "v": " → \"Switch to Files\" does the same."
     }
    ]
   },
@@ -18431,24 +18225,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The panel needs room: in a narrow window, and on phones and tablets, Files fills the screen instead. In split view, the switch and "
-    },
-    {
-     "t": "code",
-     "v": "F"
-    },
-    {
-     "t": "text",
-     "v": " act on the pane you last worked in, and Files there fills that pane."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A cluster remembers which view it was left in. Clusters made from a folder you "
+     "v": "A cluster remembers which view it was left in. Folders you "
     },
     {
      "t": "link",
@@ -18463,429 +18240,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, and on the parent board they keep their thumbnail."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Dragging files onto the board",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Dragging files onto the board"
-    }
-   ],
-   "id": "dragging-files-onto-the-board"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Drag anything from the panel onto the board and it lands where you let go. Select several first and they travel together."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Where the file is"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "What the drop does"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "text",
-       "v": "This cluster"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Another cluster"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Adds a "
-      },
-      {
-       "t": "strong",
-       "v": "linked copy",
-       "children": [
-        {
-         "t": "text",
-         "v": "linked copy"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": ": a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Another cluster, and already copied here"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Moves the copy that's already on the board instead of adding a second one. Hold "
-      },
-      {
-       "t": "code",
-       "v": "⌥"
-      },
-      {
-       "t": "text",
-       "v": " ("
-      },
-      {
-       "t": "code",
-       "v": "Alt"
-      },
-      {
-       "t": "text",
-       "v": ") while you drop to add another"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A linked copy is its own card: retitling or captioning it leaves the original alone, and deleting either one leaves the other. While you browse another cluster in the panel, its files that already have a copy on this board are marked "
-    },
-    {
-     "t": "strong",
-     "v": "On board",
-     "children": [
-      {
-       "t": "text",
-       "v": "On board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", and clicking one finds that copy."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Notes, docs and grids from another cluster are copied the same way — the copy takes their words, cells and pages from the cluster they live in, and the original stays where it was. A grid linked to its cluster's shared layout arrives as a standalone grid with that layout. The toast that follows offers "
-    },
-    {
-     "t": "strong",
-     "v": "Move instead",
-     "children": [
-      {
-       "t": "text",
-       "v": "Move instead"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", which takes the copy back off and moves the original here; "
+     "v": " open in Files, because a dropped folder is files first; their cards are still laid out on each canvas, one "
     },
     {
      "t": "code",
-     "v": "⌘Z"
+     "v": "F"
     },
     {
      "t": "text",
-     "v": " undoes the copy. Copies count toward your plan's card limit like any other card."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Not on board",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Not on board"
-    }
-   ],
-   "id": "not-on-board"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A file can be in a cluster without being on its board. Files you add in Files start that way, and so does a card you take off: right-click it on the board and choose "
-    },
-    {
-     "t": "strong",
-     "v": "Remove from board",
-     "children": [
-      {
-       "t": "text",
-       "v": "Remove from board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". Either way it waits in Files with a "
-    },
-    {
-     "t": "strong",
-     "v": "Not on board",
-     "children": [
-      {
-       "t": "text",
-       "v": "Not on board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " mark. "
-    },
-    {
-     "t": "strong",
-     "v": "Not on board",
-     "children": [
-      {
-       "t": "text",
-       "v": "Not on board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " in the "
-    },
-    {
-     "t": "strong",
-     "v": "View",
-     "children": [
-      {
-       "t": "text",
-       "v": "View"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " menu shows just those."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "To put one on the board, drag it there, or right-click it in Files — or use the selection bar, or Quick look — and choose "
-    },
-    {
-     "t": "strong",
-     "v": "Put on board",
-     "children": [
-      {
-       "t": "text",
-       "v": "Put on board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", which places it in the clear space nearest the middle of where the board was last looking. A link or search result that points at a file that isn't on the board opens Files with it picked out instead."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Files waiting off the board are still cards: they count toward your plan's card limit, and anyone the cluster is shared with sees them in Files."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Folders and the path bar",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Folders and the path bar"
-    }
-   ],
-   "id": "folders-and-the-path-bar"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A cluster's nested clusters are its folders. They sit first, as compact rows — the cluster's colour dot (or its cover), its name and how many items are inside — with the files after them."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "In the panel, "
-    },
-    {
-     "t": "strong",
-     "v": "double-click a folder to step into it",
-     "children": [
-      {
-       "t": "text",
-       "v": "double-click a folder to step into it"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". The path bar at the top shows where the panel is; click any step to go back up, or use the back arrow to retrace where you have been. The ▾ on the current step lists the clusters inside it, and its "
-    },
-    {
-     "t": "strong",
-     "v": "Go to cluster…",
-     "children": [
-      {
-       "t": "text",
-       "v": "Go to cluster…"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " jumps to any cluster in the workspace. "
-    },
-    {
-     "t": "strong",
-     "v": "The board doesn't move",
-     "children": [
-      {
-       "t": "text",
-       "v": "The board doesn't move"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " while you browse — the breadcrumb at the top of the screen still says where it is."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files, and the clusters above it sit over the title — click one to go up."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 3,
-   "text": "Springing into folders while you drag",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Springing into folders while you drag"
-    }
-   ],
-   "id": "springing-into-folders-while-you-drag"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "As in Finder, you can move something into a folder you can't see yet. Drag a file (or a folder), "
-    },
-    {
-     "t": "strong",
-     "v": "hold it over a folder for a moment",
-     "children": [
-      {
-       "t": "text",
-       "v": "hold it over a folder for a moment"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and Files opens that folder with the drag still in your hand; hold it over "
-    },
-    {
-     "t": "strong",
-     "v": "Back",
-     "children": [
-      {
-       "t": "text",
-       "v": "Back"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " or a step of the path to go back up. Let go on the folder's files, or on a folder inside it, to move what you're dragging there. The folder blinks just before it opens."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Beside the board, the panel stays where you dropped. In full-screen Files you land in that cluster once the move is saved. Let go anywhere else, or press "
-    },
-    {
-     "t": "code",
-     "v": "Esc"
-    },
-    {
-     "t": "text",
-     "v": ", and Files goes back to where the drag started."
+     "v": " away."
     }
    ]
   },
@@ -18916,49 +18279,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a tile per item with a real preview, laid out in rows that fill the width. Pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same. "
-    },
-    {
-     "t": "strong",
-     "v": "S",
-     "children": [
-      {
-       "t": "text",
-       "v": "S"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "M",
-     "children": [
-      {
-       "t": "text",
-       "v": "M"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "strong",
-     "v": "L",
-     "children": [
-      {
-       "t": "text",
-       "v": "L"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " set the tile size, remembered on your device."
+     "v": " — a tile per item with a real preview. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same."
     }
    ]
   },
@@ -19198,29 +18519,6 @@ export const DOCS_CONTENT = {
     }
    ],
    "id": "sorting-and-filtering"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Both live in the "
-    },
-    {
-     "t": "strong",
-     "v": "View",
-     "children": [
-      {
-       "t": "text",
-       "v": "View"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " menu, beside the search field."
-    }
-   ]
   },
   {
    "type": "para",

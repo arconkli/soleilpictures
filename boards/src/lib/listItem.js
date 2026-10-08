@@ -290,25 +290,18 @@ const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: tr
 // joins the current row when at least half of the shorter of it and the card
 // that started the row (the anchor) overlap vertically. Measuring against the
 // anchor rather than the row's growing extent stops a staircase of cards from
-// chaining into one long row, and heights are capped at twice the median so a
-// tall hero image beside a 2×2 of thumbnails doesn't swallow both of their
-// rows. Cards with no position (never placed on a canvas) go last; ties fall
-// back to z-order. dir 'desc' reverses it.
+// chaining into one long row. Cards with no position (never placed on a
+// canvas) go last; ties fall back to z-order. dir 'desc' reverses it.
 const BOARD_ORDER_DEFAULT_SIZE = 200;
 export function boardOrder(items, dir = 'asc') {
   const placed = [];
   const unplaced = [];
   for (const it of items || []) {
     const c = it?.card;
-    // Files waiting off the board keep a spot below its content; they still
-    // read after everything on it.
-    if (c && c.unplaced !== true && Number.isFinite(c.x) && Number.isFinite(c.y)) placed.push(it);
+    if (c && Number.isFinite(c.x) && Number.isFinite(c.y)) placed.push(it);
     else unplaced.push(it);
   }
-  const rawH = (it) => (Number.isFinite(it.card.h) && it.card.h > 0 ? it.card.h : BOARD_ORDER_DEFAULT_SIZE);
-  const heights = placed.map(rawH).sort((a, b) => a - b);
-  const capH = heights.length ? 2 * heights[Math.floor((heights.length - 1) / 2)] : Infinity;
-  const h = (it) => Math.min(rawH(it), capH);
+  const h = (it) => (Number.isFinite(it.card.h) && it.card.h > 0 ? it.card.h : BOARD_ORDER_DEFAULT_SIZE);
   const zcmp = (a, b) => (a.z || 0) - (b.z || 0);
   placed.sort((a, b) => (a.card.y - b.card.y) || (a.card.x - b.card.x) || zcmp(a, b));
   const rows = [];
