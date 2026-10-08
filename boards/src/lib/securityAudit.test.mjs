@@ -657,3 +657,23 @@ test('every embedding call asks the daily budget first, and spends only on a yes
   assert.ok(latestMatch(/revoke all on table public\.embed_usage from public, anon, authenticated;/));
   assert.match(read('../../content/docs/organize/tags.md'), /\{\{fact:embedCharsPerDay\}\}/);
 });
+
+// ── 0382: a co-member sees a name, a colour and a picture ───────────────────
+
+test('workspace mates read member_profiles, never the whole profiles row', () => {
+  const create = latestMatch(/create table if not exists public\.member_profiles \(([\s\S]*?)\n\);/);
+  assert.ok(create, 'member_profiles is defined');
+  const cols = [...create.match[1].matchAll(/^\s+(\w+)\s/gm)].map((m) => m[1]);
+  assert.deepEqual(cols, ['user_id', 'display_name', 'color', 'avatar_url', 'updated_at'],
+    'only presentational columns — anything added here is readable by every workspace mate');
+  assert.ok(latestMatch(/revoke all on table public\.member_profiles from public, anon, authenticated;\s+grant select on table public\.member_profiles to authenticated;/));
+  assert.ok(latestMatch(/create trigger profiles_member_profile_sync\s+after insert or update of display_name, color, avatar_url on public\.profiles/));
+
+  // The client reads peers from member_profiles, and listens to it.
+  const api = read('./boardsApi.js');
+  const byIds = api.slice(api.indexOf('export async function getProfilesByIds'), api.indexOf('export async function listWorkspaceMembers'));
+  assert.match(byIds, /\.from\('member_profiles'\)/);
+  assert.doesNotMatch(byIds, /\.from\('profiles'\)/);
+  assert.match(read('./userProfiles.js'), /table: 'member_profiles'/);
+  assert.doesNotMatch(read('./userProfiles.js'), /table: 'profiles'/);
+});

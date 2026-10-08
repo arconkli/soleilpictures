@@ -3799,6 +3799,8 @@ Confirmation is typing your own email address. There is no grace period and no u
 
 Accounts and access
 
+People you share a workspace with see your name, your colour and your picture — nothing else from your account: not your settings, your plan, or where you signed up from.
+
 Sign-in is a one-time emailed code. There is no password to be reused or leaked.
 
 API tokens are stored only as a hash — the value is shown once and cannot be recovered. A token acts as you, reaching exactly what your account reaches under the same access rules the app uses, and can be revoked at any time with immediate effect.
