@@ -10,7 +10,7 @@ import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { ViewSwitch } from '../components/ViewSwitch.jsx';
-import { filesCountOf, isViewSwitchKey, nextView } from '../lib/viewSwitch.js';
+import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { scheduleCreationAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
@@ -1418,7 +1418,7 @@ export function LocalBoardsApp({ user, signOut }) {
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
-      if (isEditableTarget(e) || anyModalOpen()) return;
+      if (isEditableTarget(e) || anyModalOpen() || overlayOpen()) return;
       if (currentSurface !== 'board' || paletteOpen) return;
       e.preventDefault();
       setViewRef.current(nextView(view));

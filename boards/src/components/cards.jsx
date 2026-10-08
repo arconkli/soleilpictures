@@ -468,7 +468,7 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
           {onRename
             ? <EditableText className="bc-list-title" value={board.name}
                             onChange={onRename}
-                            placeholder="Untitled list"
+                            placeholder="Untitled cluster"
                             autoFocus={autoFocus}
                             selectAllOnFocus={autoFocus || selectAllNext}
                             editing={editingName} setEditing={setEditingName} />

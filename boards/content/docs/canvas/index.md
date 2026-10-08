@@ -6,7 +6,7 @@ navLabel: Overview
 section: canvas
 order: 0
 updated: 2026-10-02
-answer: Every cluster opens as an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
+answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 faq:
   - q: How big is the canvas?
     a: There is no boundary. Cards can go anywhere, and Shift-1 fits everything you have made back on screen no matter how far it spread.
@@ -20,7 +20,7 @@ related:
   - /docs/canvas/snapping-and-alignment
 ---
 
-The canvas is the default view of every cluster. It is an unbounded surface —
+The canvas is a cluster's Board view, and where a new cluster opens. It is an unbounded surface —
 position means something here, which is the whole point. Two images side by side
 are being compared; an image with a note under it is being annotated.
 

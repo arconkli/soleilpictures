@@ -30,8 +30,8 @@ test('strings are capped at 80, matching the server, so what is shown is what is
 });
 
 test('the visible line names surface, depth, plan and device, and nothing it does not have', () => {
-  assert.equal(describeFeedbackContext(buildFeedbackContext({ cards: 34 }, env)), 'canvas · 34 cards · Free · desktop');
-  assert.equal(describeFeedbackContext({ surface: 'list', cards: 1 }), 'list view · 1 card');
+  assert.equal(describeFeedbackContext(buildFeedbackContext({ cards: 34 }, env)), 'board · 34 cards · Free · desktop');
+  assert.equal(describeFeedbackContext({ surface: 'list', cards: 1 }), 'Files · 1 card');
   assert.equal(describeFeedbackContext({}), '');
   assert.equal(describeFeedbackContext({ tier: 'paid' }), 'Creator');
 });

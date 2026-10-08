@@ -73,6 +73,7 @@ export const ClusterRow = memo(function ClusterRow({
     <div
       ref={rowRef}
       className={`ct-row${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}`}
+      data-item-id={item.id}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
       role="row"
       onClick={onClick}

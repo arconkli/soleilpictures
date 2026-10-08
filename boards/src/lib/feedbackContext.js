@@ -52,7 +52,7 @@ export function buildFeedbackContext(input = {}, env = {}) {
 }
 
 const SURFACE_NAMES = Object.freeze({
-  canvas: 'canvas', list: 'list view', doc: 'document', universe: 'home',
+  canvas: 'board', list: 'Files', doc: 'document', universe: 'home',
   tag: 'tag page', settings: 'settings', public: 'public page',
 });
 const TIER_NAMES = Object.freeze({ demo: 'Free', paid: 'Creator', admin: 'Admin' });

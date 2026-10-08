@@ -2512,7 +2512,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Audition the highlighted row (Files)"
+       "v": "Audition the highlighted row (Files, list layout)"
       }
      ]
     ],
@@ -2534,7 +2534,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Move through rows (Files)"
+       "v": "Move through rows (Files, list layout)"
       }
      ]
     ]
@@ -4088,7 +4088,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The canvas is the default view of every cluster. It is an unbounded surface — position means something here, which is the whole point. Two images side by side are being compared; an image with a note under it is being annotated."
+     "v": "The canvas is a cluster's Board view, and where a new cluster opens. It is an unbounded surface — position means something here, which is the whole point. Two images side by side are being compared; an image with a note under it is being annotated."
     }
    ]
   },
@@ -14672,7 +14672,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "; press "
+     "v": " for you; press "
     },
     {
      "t": "code",
@@ -15130,16 +15130,16 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Canvas](/docs/canvas)",
+      "v": "[Board](/docs/canvas)",
       "children": [
        {
         "t": "link",
-        "v": "Canvas",
+        "v": "Board",
         "href": "/docs/canvas",
         "children": [
          {
           "t": "text",
-          "v": "Canvas"
+          "v": "Board"
          }
         ]
        }
@@ -15147,22 +15147,22 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — the infinite surface, where position means something"
+      "v": " — the infinite canvas, where position means something"
      }
     ],
     [
      {
       "t": "strong",
-      "v": "[List](/docs/clusters/list-view)",
+      "v": "[Files](/docs/clusters/list-view)",
       "children": [
        {
         "t": "link",
-        "v": "List",
+        "v": "Files",
         "href": "/docs/clusters/list-view",
         "children": [
          {
           "t": "text",
-          "v": "List"
+          "v": "Files"
          }
         ]
        }
@@ -15170,7 +15170,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — a sortable, searchable file browser"
+      "v": " — a sortable, searchable file browser, as a grid or a list"
      }
     ]
    ]
@@ -15180,7 +15180,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Switching does not convert anything. Settings → "
+     "v": "Switch with "
+    },
+    {
+     "t": "strong",
+     "v": "Board · Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Board · Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of the screen, or press "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": ". Switching does not convert anything. Settings → "
     },
     {
      "t": "strong",
@@ -15194,7 +15216,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sets which view new clusters open in."
+     "v": " sets which view new clusters open in; clusters made from a dropped folder open in Files for the person who dropped them."
     }
    ]
   },
@@ -15400,7 +15422,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the top of the screen — the Files side shows how many things are inside — or press "
+     "v": " at the top of the screen — the Files side counts the cards inside, not counting nested clusters — or press "
     },
     {
      "t": "code",
@@ -15416,7 +15438,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " → \"Switch to Files\" does the same."
+     "v": " → \"Switch to Files\" does the same. On a phone the switch is the two icons in the top bar. In split view all three act on the pane you last worked in."
     }
    ]
   },
@@ -15425,7 +15447,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A cluster remembers which view it was left in. Folders you "
+     "v": "A cluster remembers which view it was left in. Clusters made from a folder you "
     },
     {
      "t": "link",
@@ -15440,7 +15462,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " open in Files, because a dropped folder is files first; their cards are still laid out on each canvas, one "
+     "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, one "
     },
     {
      "t": "code",
@@ -15448,7 +15470,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " away."
+     "v": " away, and on the parent board they keep their thumbnail."
     }
    ]
   },
@@ -15983,7 +16005,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "For going through a lot of them, use the keyboard: "
+     "v": "For going through a lot of them, use the keyboard in the "
+    },
+    {
+     "t": "strong",
+     "v": "list",
+     "children": [
+      {
+       "t": "text",
+       "v": "list"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " layout: "
     },
     {
      "t": "code",
@@ -28674,16 +28710,16 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — whether new clusters open as "
+      "v": " — whether new clusters open as a board or in "
      },
      {
       "t": "link",
-      "v": "canvas or list",
+      "v": "Files",
       "href": "/docs/clusters/list-view",
       "children": [
        {
         "t": "text",
-        "v": "canvas or list"
+        "v": "Files"
        }
       ]
      }
@@ -30536,16 +30572,16 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Whether clusters open as "
+       "v": "Whether new clusters open as a board or in "
       },
       {
        "t": "link",
-       "v": "canvas or list",
+       "v": "Files",
        "href": "/docs/clusters/list-view",
        "children": [
         {
          "t": "text",
-         "v": "canvas or list"
+         "v": "Files"
         }
        ]
       }
