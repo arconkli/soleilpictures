@@ -63,7 +63,7 @@ Effectively everything:
 | Typing in a [note](/docs/canvas/notes) | ✓, with carets |
 | Writing in a [document](/docs/documents) | ✓, with carets |
 | [Comments](/docs/collaborate/comments) and [votes](/docs/canvas/vote-cards) | ✓ |
-| [List view](/docs/clusters/list-view) selections | ✓ |
+| [Files view](/docs/clusters/list-view) selections | ✓ |
 | [Messages](/docs/collaborate/messages) | ✓ |
 
 Concurrent edits merge. There is no locking and no last-write-wins overwrite —

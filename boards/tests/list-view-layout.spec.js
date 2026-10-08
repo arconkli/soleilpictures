@@ -52,8 +52,9 @@ async function boot(page, { width = 1440, height = 900 } = {}) {
     });
   }, PACK);
   await expect(page.locator('.ac').first()).toBeVisible();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await expect(page.locator('.list-wrap')).toBeVisible();
+  await page.getByRole('button', { name: 'List layout' }).click();
   await expect(page.locator('.ct-row').first()).toBeVisible();
 }
 
@@ -301,7 +302,7 @@ test('the waveform scrubs the row that is sounding, and only that one', async ({
 
 test('a gallery of a loop pack shows the sound, not a wall of one icon', async ({ page }) => {
   await boot(page);
-  await page.getByRole('button', { name: 'Gallery view' }).click();
+  await page.getByRole('button', { name: 'Grid layout' }).click();
   await expect(page.locator('.ct-tile').first()).toBeVisible();
   await expect(page.locator('.cbp-audio-wave')).toHaveCount(12);
   await expect(page.locator('.ct-tile .cbp-glyph')).toHaveCount(0);

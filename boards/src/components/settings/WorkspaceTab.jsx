@@ -206,8 +206,8 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
                   value={cat('board').view ?? 'canvas'}
                   disabled={disabled}
                   onChange={(e) => setKey('board', 'view', e.target.value)}>
-            <option value="canvas">Canvas</option>
-            <option value="list">List</option>
+            <option value="canvas">Board</option>
+            <option value="list">Files</option>
           </select>
         </Field>
       </SettingsCategory>

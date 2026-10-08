@@ -161,9 +161,9 @@ A: Only if you invite them as an editor. A public link is view-only. Editors do 
 ========================================================================
 # Core concepts
 URL: https://clusters.soleilpictures.com/docs/concepts
-Updated: 2026-08-08
+Updated: 2026-10-08
 
-Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as an infinite canvas or as a file list, and both views show the same contents.
+Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as a board, an infinite canvas, or as files, a browsable grid or list, and both views show the same contents.
 
 Four ideas, nested inside each other. Once these are straight, the rest of the product is discoverable.
 
@@ -197,8 +197,10 @@ Two views of the same cluster
 
 Every cluster has two views, and they are not two places:
 
-Canvas — the infinite surface. Position matters. This is where you arrange, connect, draw and compare.
-List — the same contents as a sortable, searchable file browser with table and gallery modes. This is where you find a specific thing.
+Board — the infinite canvas. Position matters. This is where you arrange, connect, draw and compare.
+Files — the same contents as a sortable, searchable file browser, as a grid of previews or a list. This is where you find a specific thing.
+
+Switch with Board · Files at the top of the screen, or press F.
 
 Switching views does not move or convert anything. A cluster is one set of contents with two ways to look at it, which is why the product describes every cluster as also being a drive.
 
@@ -225,7 +227,7 @@ A: No. A personal workspace is created for you the first time you need one, incl
 ========================================================================
 # Keyboard shortcuts
 URL: https://clusters.soleilpictures.com/docs/keyboard-shortcuts
-Updated: 2026-08-08
+Updated: 2026-10-08
 
 Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
@@ -267,6 +269,7 @@ Undo is per-session and per-board. It undoes your own edits, not a collaborator'
 View
 
 Key | Action
+F | Switch between Board and Files
 ⌘0 | Reset zoom
 ⌘+ / ⌘− | Zoom in · out
 ⇧1 | Fit everything
@@ -290,10 +293,10 @@ Audio
 Key | Action
 Enter | Play · pause the selected clip
 L | Loop the selected clip
-Space | Audition the highlighted row (list view)
-↑ / ↓ | Move through rows (list view)
+Space | Audition the highlighted row (Files)
+↑ / ↓ | Move through rows (Files)
 
-Enter rather than Space on the canvas, because Space is already the pan modifier there and arrows already move cards. In list view neither is taken, so auditioning a pack is ↓ and Space — and when a clip finishes, the next one starts on its own.
+Enter rather than Space on the canvas, because Space is already the pan modifier there and arrows already move cards. In Files neither is taken, so auditioning a pack is ↓ and Space — and when a clip finishes, the next one starts on its own.
 
 Both canvas keys only fire when exactly one audio card is selected; otherwise they fall through to whatever else is listening.
 
@@ -433,7 +436,7 @@ Every cluster opens as an infinite canvas. You pan with Space or H, zoom with Cm
 
 The canvas is the default view of every cluster. It is an unbounded surface — position means something here, which is the whole point. Two images side by side are being compared; an image with a note under it is being annotated.
 
-If you want the same contents as a sortable file list instead, every cluster also has a list view.
+If you want the same contents as a sortable file browser instead, every cluster also has a Files view — press F.
 
 Moving around
 
@@ -585,7 +588,7 @@ Copy link — a deep link that opens the board with that card selected. Useful i
 
 Titles
 
-Most cards have a title. Double-click it to edit. Titles are searchable in ⌘K and they are what shows in list view, so a card called "Untitled" is a card you will not find later.
+Most cards have a title. Double-click it to edit. Titles are searchable in ⌘K and they are what shows in Files, so a card called "Untitled" is a card you will not find later.
 
 Shape cards are the exception — they have no title. If you need a labelled shape, put a note on top of it or use a group, which does have a name.
 
@@ -634,7 +637,7 @@ Soleil Scout — text them from your phone.
 
 Uploads go straight to storage from your browser. Large batches run a few at a time so one enormous file cannot block the rest.
 
-Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in list view and comes back out of Download under it. Give a card a caption and the caption is what list view shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one image.png), so it is not given one.
+Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in Files and comes back out of Download under it. Give a card a caption and the caption is what Files shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one image.png), so it is not given one.
 
 HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all.
 
@@ -1644,11 +1647,11 @@ Hover an audio card and a download button appears next to the transport. It is t
 
 The file comes back under its original name, not the card's title. Renaming a card to something readable never costs you the extension, which is what makes the file openable.
 
-To take several at once, switch to list view, select the ones you want and press Download — one zip, original names intact. Zips are capped at 500 files or 500 MB, whichever comes first; past either, download in batches.
+To take several at once, switch to Files, select the ones you want and press Download — one zip, original names intact. Zips are capped at 500 files or 500 MB, whichever comes first; past either, download in batches.
 
 Tempo and key
 
-Sample and loop packs are named by machine — SFL_120_Gmin_Loop_Piano.wav, Cymatics - Orchid Kick 3 - 140 BPM.wav — so the tempo and key are usually already written down. Clusters reads them out of the filename as the file uploads and puts them on the card, where you can sort and filter by them in list view.
+Sample and loop packs are named by machine — SFL_120_Gmin_Loop_Piano.wav, Cymatics - Orchid Kick 3 - 140 BPM.wav — so the tempo and key are usually already written down. Clusters reads them out of the filename as the file uploads and puts them on the card, where you can sort and filter by them in Files.
 
 Both fields are editable: click the tempo or the key under the waveform and type. What you type wins permanently and is never overwritten.
 
@@ -1723,7 +1726,7 @@ Folders nested more than 6 levels deep are merged into the deepest cluster rathe
 The things a computer keeps in folders that are not yours to look at — .DS_Store, hidden files, app and project bundles such as a .logicx session or a Photos library — are left out, and so are files iCloud has not downloaded yet. The message counts them.
 On the free plan the folder is counted before anything uploads: one card for each file and one for each cluster it becomes. If it will not all fit, you are asked first, and Add what fits takes whole folders in order rather than a scatter of half-filled ones.
 
-Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and list view takes files rather than folders.
+Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and the Files view takes files rather than folders. Clusters made from a dropped folder open in Files; press F for the canvas, where the cards are already laid out.
 
 Adding a cluster inside one
 
@@ -1807,25 +1810,29 @@ A: To the trash, for 30 days, from which they can be restored. See Trash and rec
 
 
 ========================================================================
-# List view
+# Files view
 URL: https://clusters.soleilpictures.com/docs/clusters/list-view
-Updated: 2026-10-02
+Updated: 2026-10-08
 
-Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
+Every cluster has two views, Board and Files, switched at the top of the screen or with F. Files shows the same contents as a file browser — a grid of previews or a list — with sorting, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
 
-The canvas is for arranging. List view is for finding.
+The board is for arranging. Files is for finding.
 
-Same cluster, same contents, different question being asked. Switch with the view control in the cluster header.
+Same cluster, same contents, different question being asked. Switch with Board · Files at the top of the screen — the Files side shows how many things are inside — or press F to flip between them. ⌘K → "Switch to Files" does the same.
 
-Table and gallery
+A cluster remembers which view it was left in. Folders you drop in open in Files, because a dropped folder is files first; their cards are still laid out on each canvas, one F away.
 
-Table — a row per item, with type, size and dates. Dense, scannable, sortable.
+Grid and list
 
-Gallery — a tile per item with a real preview. Better when you are looking for something you would recognise by sight; for audio the preview is the waveform, so no two loops look the same.
+Grid — a tile per item with a real preview. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same.
+
+List — a row per item, with type, size and dates. Dense, scannable, sortable. A cluster that is mostly audio opens in the list, for the columns below.
+
+Your choice is remembered per cluster on the device you made it on.
 
 When a cluster is mostly audio
 
-The table swaps its columns. Type and Size give way to Time, BPM, Key and Format, and each one sorts — so a folder of samples becomes something you can order by tempo or by key.
+The list swaps its columns. Type and Size give way to Time, BPM, Key and Format, and each one sorts — so a folder of samples becomes something you can order by tempo or by key.
 
 It switches on its own once half of what you are looking at is audio, which is also true the moment you filter to Audio. Nothing to turn on, and a cluster of notes and images never grows four empty columns.
 
@@ -1833,13 +1840,13 @@ Key sorts by the circle of fifths, not the alphabet. Sorting a pack by key is re
 
 Tempo and key come from the filename as the file uploads, and are editable on the card — see video and audio.
 
-Above the table you get the pack in one line: how many audio files, the tempo range they span, and how much material there is in total. It follows the search and the filters, so narrowing to 128 re-reads the selection you are actually looking at.
+Above the list you get the pack in one line: how many audio files, the tempo range they span, and how much material there is in total. It follows the search and the filters, so narrowing to 128 re-reads the selection you are actually looking at.
 
 On a narrow window, in a split pane, or with the detail panel open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room.
 
 Sorting and filtering
 
-Sort by name, type, size, date modified or date added — plus length, tempo, key and format when the cluster is mostly audio.
+Files opens in board order: the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. Sort by name, type, size, date modified or date added instead — plus length, tempo, key and format when the cluster is mostly audio.
 
 Filter to a single content type: Images, PDFs, Video, Audio, Files, Notes, Links, Docs, Palettes, Other.
 
@@ -1851,7 +1858,7 @@ Auditioning audio
 
 An audio row's thumbnail is a play button. Press it and the clip plays in place. The waveform beside it is drawn from the file itself, and it fills as the clip plays. While it is playing, click anywhere along that waveform to jump there — the fastest way to the part of a long sample you actually want. A line fills along the bottom of the row as well, for when the waveform has no room.
 
-In gallery mode a loop's tile is its waveform, so a pack reads as a wall of shapes rather than a wall of identical icons.
+In the grid a loop's tile is its waveform, so a pack reads as a wall of shapes rather than a wall of identical icons.
 
 For going through a lot of them, use the keyboard: ↑ and ↓ move a highlight down the rows, Space plays whatever is highlighted, Enter selects it. When a clip finishes, the next audio row starts on its own and the highlight follows — so a pack of loops plays through while you keep your hands still. It stops at the end rather than wrapping.
 
@@ -1861,7 +1868,7 @@ Downloading
 
 Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. Files come down under their original names, so renaming a card for readability never costs you the extension. Images and videos uploaded before they started keeping names come down under the card's title, or a generic name if it has none. A name a browser invents for a pasted image — image.png — is not kept.
 
-Download all sits above the table whenever there is more than one file to take. It follows the search and the filters, so it reads Download 14 once you have narrowed to fourteen. Select particular rows instead and the selection bar offers Download for just those.
+Download all sits above the files whenever there is more than one file to take. It follows the search and the filters, so it reads Download 14 once you have narrowed to fourteen. Select particular rows instead and the selection bar offers Download for just those.
 
 Either way you get a single zip named after the cluster. Zips are capped at 500 files or 500 MB, whichever comes first; past either, take it in batches.
 
@@ -1881,17 +1888,17 @@ Download | The original file
 Copy link | A deep link that opens the board with the card selected
 Delete | Removes it, with undo
 
-Open on canvas is the important one: it connects the two views, so finding something in list view puts you in front of it in context. It and Copy link are app actions, so they are not offered to a signed-out visitor on a shared link — there is no canvas for them to open, and the deep link would not resolve.
+Open on canvas is the important one: it connects the two views, so finding something in Files puts you in front of it in context. It and Copy link are app actions, so they are not offered to a signed-out visitor on a shared link — there is no canvas for them to open, and the deep link would not resolve.
 
 For an audio clip the panel also reports its length, tempo, key and format, which is most of the reason to open it at all.
 
 Adding files here
 
-Drag files into list view, or use Add files in the toolbar. They land on the cluster exactly as if dropped on the canvas, auto-placed in free space.
+Drag files into Files, or use Add files in the toolbar. They land on the cluster exactly as if dropped on the canvas, auto-placed in free space.
 
 Presence
 
-List view shows who else is in the cluster, and what they have selected — the same presence information the canvas shows, so switching views does not mean losing sight of your collaborators.
+Files shows who else is in the cluster, and what they have selected — the same presence information the canvas shows, so switching views does not mean losing sight of your collaborators.
 
 Every cluster is a drive
 
@@ -1904,7 +1911,7 @@ Can I use Clusters like Google Drive?
 For the files a project is working from, largely yes — and the difference is that the same files are also a canvas your team arranges and argues over. For what a drive is really for, no. Here is the line:
 
 Like a drive | In Clusters
-Browse a folder's contents | Yes — list view, as a table or a gallery
+Browse a folder's contents | Yes — the Files view, as a grid or a list
 Sort and filter | Yes — by name, type, size and dates, filtered to one kind of content
 Search | Yes — ⌘K finds files by name, card text and the words inside documents. It does not read text inside images or PDFs
 Preview without opening | Yes — every item has a real preview, and the detail panel a large one
@@ -1925,14 +1932,14 @@ Coming from a reference tool that only does one of these? See how Clusters compa
 
 ## Frequently asked questions
 
-Q: Does switching to list view change my board?
+Q: Does switching to Files change my board?
 A: No. It is a different view of the same contents. Positions on the canvas are untouched.
 
-Q: Can I upload from list view?
+Q: Can I upload from Files?
 A: Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas.
 
-Q: Can I make list the default?
-A: Yes, in Settings under Defaults. You can also set the view per cluster.
+Q: Can I make Files the default?
+A: Yes, in Settings under Defaults. A cluster also remembers the view it was last left in, and a dropped folder opens in Files.
 
 Q: Can I use Clusters like Google Drive?
 A: For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that.
@@ -2003,7 +2010,7 @@ The graph is a heavy piece of code and is loaded only when you open Home, so it 
 When to use something else
 
 Looking for one specific thing you can name — ⌘K
-Browsing the contents of one cluster — list view
+Browsing the contents of one cluster — Files
 Finding everything on a theme — tags
 
 ## Frequently asked questions
@@ -2663,7 +2670,7 @@ The same interface is reused wherever the app needs you to choose something — 
 
 When to use something else
 
-Browsing one cluster's contents by type, size or date — list view
+Browsing one cluster's contents by type, size or date — Files
 Everything on a theme, across the workspace — tags
 Seeing how things relate rather than finding one — Home graph
 Inside one long document — ⌘F find and replace
@@ -2889,7 +2896,7 @@ Moving, resizing, adding, deleting cards | ✓
 Typing in a note | ✓, with carets
 Writing in a document | ✓, with carets
 Comments and votes | ✓
-List view selections | ✓
+Files view selections | ✓
 Messages | ✓
 
 Concurrent edits merge. There is no locking and no last-write-wins overwrite — two people editing the same note produce a note containing both edits.
@@ -3122,7 +3129,7 @@ Indexable | Search engines may index it — unlike a plain share link
 Listed | Appears in the directory with a thumbnail
 Link previews | Unfurls with its own name and a thumbnail of its contents
 
-The board renders in a real canvas — visitors pan, zoom and open images at full size — with no account required. A cluster you have set to list view opens as a list here too, which is what you want for anything that is a collection rather than an arrangement: a sample pack, a stills selects, a reference library. Visitors get the search, the sorting and the audition-through, and can download what is on it.
+The board renders in a real canvas — visitors pan, zoom and open images at full size — with no account required. A cluster you have set to Files opens in Files here too, which is what you want for anything that is a collection rather than an arrangement: a sample pack, a stills selects, a reference library. Visitors get the search, the sorting and the audition-through, and can download what is on it.
 
 The directory
 
@@ -4951,7 +4958,7 @@ curl -X POST "$SOLEIL_API/uploads?board=$BOARD&filename=diner_ext_dusk_04.jpg" \
 
 The response spells out the next call, because it is not guessable from the key alone.
 
-filename is optional. Pass it and the file keeps its own name — the stored file carries it, and so does the card when you send file_name on it, which is what list view shows and what Download names the file. A path is cut to the basename, and a name a browser invents for a paste (image.png) is not kept, the same rule the app applies to a drop.
+filename is optional. Pass it and the file keeps its own name — the stored file carries it, and so does the card when you send file_name on it, which is what the Files view shows and what Download names the file. A path is cut to the basename, and a name a browser invents for a paste (image.png) is not kept, the same rule the app applies to a drop.
 
 The ?board= parameter is required: an upload is charged to a board, and write access to that board is checked before anything is stored.
 

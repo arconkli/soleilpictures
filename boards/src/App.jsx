@@ -99,10 +99,13 @@ import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
+import { ViewSwitch } from './components/ViewSwitch.jsx';
+import { filesCountOf, isViewSwitchKey, nextView } from './lib/viewSwitch.js';
+import { anyModalOpen } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -1040,6 +1043,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // loadYBoard regenerates it with the new look.
   const yb = useYBoard(currentBoard.id, user.id, userInfo, workspace.id,
     !!currentBoard.thumb_key && currentBoard.thumb_version === THUMB_VERSION);
+  // The count on the topbar's Files switch. Only this board's own snapshot —
+  // on the navigation commit yb.cards still holds the previous board.
+  const filesCount = useMemo(
+    () => (yb.ready && yb.boardId === currentBoard.id ? filesCountOf(yb.cards) : 0),
+    [yb.ready, yb.boardId, yb.cards, currentBoard.id]
+  );
 
   // Avatar-click → open DM with a workspace member. Exposed via context.
   const [pendingDmPeerId, setPendingDmPeerId] = useState(null);
@@ -5178,8 +5187,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try {
       res = await runFolderImport(nodes, {
         parentBoardId: targetBoardId, at,
+        // A dropped folder is files first, so its clusters open in Files
+        // (the cards are still laid out on each canvas — Board is one F away).
         createCluster: async ({ parentBoardId, name }) => {
-          const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'canvas', userId: user.id });
+          const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'list', userId: user.id });
           return b.id;
         },
         deleteCluster, removeTopCard,
@@ -5742,7 +5753,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             });
           }
         } else {
-          feedback.toast({ type: 'success', message: 'That’s the tour — tip: List view works like a drive for any cluster.', ttl: 5000 });
+          feedback.toast({ type: 'success', message: 'That’s the tour — tip: Files shows any cluster like a drive. Press F to switch.', ttl: 5000 });
         }
       } catch (_) {}
     }
@@ -7756,6 +7767,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // F — flip a cluster between Board and Files. App-level rather than in
+  // CanvasSurface's keymap because it has to work from the Files view too.
+  // Same guards as the canvas tool keys (V/H/N…): never while typing, never
+  // under a dialog, an open doc or the palette, and only on a board surface.
+  // In split view it flips the pane the pointer last touched.
+  const setViewRef = useRef(setView);
+  setViewRef.current = setView;
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!isViewSwitchKey(e)) return;
+      if (isEditableTarget(e) || anyModalOpen()) return;
+      if (currentSurface !== 'board' || openDocCard || paletteOpen) return;
+      e.preventDefault();
+      if (splitId && !splitDoc && activePaneId === 'split') {
+        setViewRef.current(nextView(splitView), 'shortcut', splitId);
+      } else {
+        setViewRef.current(nextView(view), 'shortcut');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, splitView, splitId, splitDoc, activePaneId, currentSurface, openDocCard, paletteOpen]);
+
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
   const appCommands = useMemo(() => [
@@ -7779,6 +7813,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       keywords: ['gallery', 'surface', 'preview', 'popup', 'modal', 'screen', 'browse', 'design'],
       available: captureAllowed,
       run: () => openGallery() },
+    { id: 'view-switch', label: view === 'list' ? 'Switch to Board' : 'Switch to Files',
+      icon: view === 'list' ? BoundingBox : FilesIcon,
+      keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch'],
+      available: currentSurface === 'board',
+      run: () => setView(nextView(view), 'palette') },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
@@ -8552,14 +8591,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-center">
-            <div className="view-pill">
-              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')} title="Canvas view">
-                <span className="vp-ico" aria-hidden="true"><Icon as={LayoutGrid} size={14} /></span><span className="vp-lbl">Canvas</span>
-              </button>
-              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')} title="List view" data-tour="view-toggle">
-                <span className="vp-ico" aria-hidden="true"><Icon as={ListIcon} size={14} /></span><span className="vp-lbl">List</span>
-              </button>
-            </div>
+            <ViewSwitch view={view} filesCount={filesCount} onSwitch={(v) => setView(v)} />
           </div>
 
           <div className="tb-right">

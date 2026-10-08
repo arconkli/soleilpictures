@@ -107,3 +107,37 @@ test('a photo row is named by its file when nobody captioned it', () => {
   assert.equal(toListItem({ id: 'i3', kind: 'image', src: 'r2:k' }).name, 'Image');
   assert.equal(toListItem({ id: 'v1', kind: 'video', src: 'r2:v', fileName: 'take_03.mov' }).name, 'take_03.mov');
 });
+
+// ── Board order: the canvas read like a page ────────────────────────────────
+const placed = (id, x, y, h = 100, extra = {}) => ({ id, z: 0, card: { id, x, y, h, w: 100 }, ...extra });
+
+test('board order reads rows top to bottom, each row left to right', () => {
+  const items = [
+    placed('c', 400, 10), placed('a', 0, 0), placed('b', 200, 30),   // row 1 (staggered)
+    placed('e', 200, 300), placed('d', 0, 320),                        // row 2
+  ];
+  assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['a', 'b', 'c', 'd', 'e']);
+  assert.deepEqual(sortItems(items, 'board', 'desc').map(i => i.id), ['e', 'd', 'c', 'b', 'a']);
+});
+
+test('a staircase of cards does not chain into one long row', () => {
+  // b overlaps a by half, so it joins a's row; c overlaps b but not a, so it
+  // starts the next row. Measured against the row's growing extent instead,
+  // all three would merge and read a, c, b.
+  const items = [placed('a', 0, 0), placed('b', 200, 50), placed('c', 100, 100)];
+  assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['a', 'b', 'c']);
+});
+
+test('a tall card level with a short one shares its row', () => {
+  const items = [placed('short', 200, 0, 100), placed('tall', 0, 10, 600)];
+  assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['tall', 'short']);
+});
+
+test('cards with no position go last in board order, in z order', () => {
+  const items = [
+    { id: 'u2', z: 2, card: { id: 'u2' } },
+    placed('p', 50, 50),
+    { id: 'u1', z: 1, card: { id: 'u1', x: null, y: 5 } },
+  ];
+  assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['p', 'u1', 'u2']);
+});

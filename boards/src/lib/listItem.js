@@ -217,11 +217,49 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
 // ── sort / filter / search (pure) ──────────────────────────────────────────
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
-// key ∈ 'name'|'type'|'size'|'created'|'updated'|'duration'|'bpm'|'key'|'format'.
+// Board order: the canvas read the way a page is — rows top to bottom, each
+// row left to right — so Files opens on the same board, just lined up. A card
+// joins the current row when at least half of the shorter of it and the card
+// that started the row (the anchor) overlap vertically. Measuring against the
+// anchor rather than the row's growing extent stops a staircase of cards from
+// chaining into one long row. Cards with no position (never placed on a
+// canvas) go last; ties fall back to z-order. dir 'desc' reverses it.
+const BOARD_ORDER_DEFAULT_SIZE = 200;
+export function boardOrder(items, dir = 'asc') {
+  const placed = [];
+  const unplaced = [];
+  for (const it of items || []) {
+    const c = it?.card;
+    if (c && Number.isFinite(c.x) && Number.isFinite(c.y)) placed.push(it);
+    else unplaced.push(it);
+  }
+  const h = (it) => (Number.isFinite(it.card.h) && it.card.h > 0 ? it.card.h : BOARD_ORDER_DEFAULT_SIZE);
+  const zcmp = (a, b) => (a.z || 0) - (b.z || 0);
+  placed.sort((a, b) => (a.card.y - b.card.y) || (a.card.x - b.card.x) || zcmp(a, b));
+  const rows = [];
+  for (const it of placed) {
+    const row = rows[rows.length - 1];
+    const top = it.card.y;
+    const bottom = top + h(it);
+    const overlap = row ? Math.min(bottom, row.bottom) - Math.max(top, row.top) : 0;
+    if (row && overlap >= Math.min(h(it), row.bottom - row.top) / 2) row.members.push(it);
+    else rows.push({ top, bottom, members: [it] });
+  }
+  const out = [];
+  for (const row of rows) {
+    row.members.sort((a, b) => (a.card.x - b.card.x) || (a.card.y - b.card.y) || zcmp(a, b));
+    out.push(...row.members);
+  }
+  if (dir === 'desc') out.reverse();
+  return [...out, ...unplaced.sort(zcmp)];
+}
+
+// key ∈ 'board'|'name'|'type'|'size'|'created'|'updated'|'duration'|'bpm'|'key'|'format'.
 // dir ∈ 'asc'|'desc'.
 // Missing values always sort LAST (regardless of dir), then fall back to
 // z-order so undated legacy cards keep a stable place. Returns a NEW array.
 export function sortItems(items, key = 'updated', dir = 'desc') {
+  if (key === 'board') return boardOrder(items, dir);
   const arr = [...(items || [])];
   const sign = dir === 'asc' ? 1 : -1;
   const zcmp = (a, b) => (a.z || 0) - (b.z || 0);

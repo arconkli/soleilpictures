@@ -38,8 +38,8 @@ export const POWER_REVEALS = [
     // a real cluster fills up). Root is group's territory — and the copy says
     // "cluster", so it only fires inside one.
     key: 'list_drive',
-    message: 'This cluster is also a drive — flip to List and every file you added is right there.',
-    actionLabel: 'Flip to List',
+    message: 'This cluster is also a drive — open Files and everything you added is lined up in one place. Press F any time.',
+    actionLabel: 'Open Files',
     eligible: (s) => !s.isRoot && s.nonBoardCards >= 4 && s.view === 'canvas' && !s.viewEverSwitched,
   },
   {

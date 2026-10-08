@@ -28,6 +28,7 @@ export {
   Envelope,
   Camera,
   SquaresFour as LayoutGrid,
+  BoundingBox,
   GridFour,
   GridNine,
   ListBullets as List,

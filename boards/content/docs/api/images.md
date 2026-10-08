@@ -55,7 +55,7 @@ alone.
 
 `filename` is optional. Pass it and the file keeps its own name — the stored
 file carries it, and so does the card when you send `file_name` on it, which is
-what list view shows and what Download names the file. A path is cut to the
+what the Files view shows and what Download names the file. A path is cut to the
 basename, and a name a browser invents for a paste (`image.png`) is not kept,
 the same rule the app applies to a drop.
 

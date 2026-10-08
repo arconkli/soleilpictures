@@ -70,7 +70,7 @@ use `⌘K`, you already know how to use those.
 
 ## When to use something else
 
-- Browsing one cluster's contents by type, size or date — [list view](/docs/clusters/list-view)
+- Browsing one cluster's contents by type, size or date — [Files](/docs/clusters/list-view)
 - Everything on a theme, across the workspace — [tags](/docs/organize/tags)
 - Seeing how things relate rather than finding one — [Home graph](/docs/clusters/home-graph)
 - Inside one long document — `⌘F` [find and replace](/docs/documents)

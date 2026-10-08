@@ -40,11 +40,11 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
   const newNote = page.locator('.card .note').last();
   await expect(newNote).toBeVisible();
 
-  await page.getByRole('button', { name: 'List' }).click();
-  await expect(page.getByText('Files', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await expect(page.locator('.list-section-files')).toBeVisible();
   await expect(page.getByText('Empty note')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Canvas' }).click();
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
   await page.getByTitle('Toggle theme').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
@@ -202,7 +202,7 @@ test('local QA mode preserves session location and card edits across refresh', a
   // Open Halcyon (canvas-view board) by double-clicking its card.
   await page.locator('.card', { has: page.locator('.bc-name', { hasText: 'Halcyon' }) }).dblclick();
   await expect(page.locator('.crumb.here')).toHaveText('Halcyon');
-  await page.getByRole('button', { name: 'Canvas' }).click();
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
 
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await canvas.click({ position: { x: 430, y: 330 } });

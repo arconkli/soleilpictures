@@ -20,7 +20,7 @@ export const DOCS_SECTIONS = [
   {
     "id": "clusters",
     "label": "Clusters",
-    "blurb": "Organizing boards, the list view, and getting work back."
+    "blurb": "Organizing boards, the Files view, and getting work back."
   },
   {
     "id": "documents",
@@ -182,10 +182,10 @@ export const DOCS_PAGES = [
     "title": "Core Concepts — Soleil Clusters",
     "metaDescription": "Workspaces, clusters, cards and nesting explained. The vocabulary Soleil Clusters uses, and why the app says \"cluster\" where the API says \"board\".",
     "h1": "Core concepts",
-    "answer": "Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as an infinite canvas or as a file list, and both views show the same contents.",
+    "answer": "Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as a board, an infinite canvas, or as files, a browsable grid or list, and both views show the same contents.",
     "section": "start",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-10-08",
     "navLabel": "Core concepts",
     "headings": [
       {
@@ -237,7 +237,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-10-08",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -1346,18 +1346,18 @@ export const DOCS_PAGES = [
   },
   {
     "path": "/docs/clusters/list-view",
-    "title": "List View — Soleil Clusters",
-    "metaDescription": "Every cluster in Soleil Clusters is also a drive. List view gives you table and gallery modes, search, sort, type filters and a detail panel with previews.",
-    "h1": "List view",
-    "answer": "Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.",
+    "title": "Files View — Soleil Clusters",
+    "metaDescription": "Every cluster in Soleil Clusters is also a drive. Files shows it as a grid or a list, with search, sort, type filters and a detail panel with previews.",
+    "h1": "Files view",
+    "answer": "Every cluster has two views, Board and Files, switched at the top of the screen or with F. Files shows the same contents as a file browser — a grid of previews or a list — with sorting, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-02",
-    "navLabel": "List view",
+    "updated": "2026-10-08",
+    "navLabel": "Files view",
     "headings": [
       {
-        "id": "table-and-gallery",
-        "text": "Table and gallery"
+        "id": "grid-and-list",
+        "text": "Grid and list"
       },
       {
         "id": "when-a-cluster-is-mostly-audio",
@@ -1407,16 +1407,16 @@ export const DOCS_PAGES = [
     ],
     "faq": [
       {
-        "q": "Does switching to list view change my board?",
+        "q": "Does switching to Files change my board?",
         "a": "No. It is a different view of the same contents. Positions on the canvas are untouched."
       },
       {
-        "q": "Can I upload from list view?",
+        "q": "Can I upload from Files?",
         "a": "Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas."
       },
       {
-        "q": "Can I make list the default?",
-        "a": "Yes, in Settings under Defaults. You can also set the view per cluster."
+        "q": "Can I make Files the default?",
+        "a": "Yes, in Settings under Defaults. A cluster also remembers the view it was last left in, and a dropped folder opens in Files."
       },
       {
         "q": "Can I use Clusters like Google Drive?",

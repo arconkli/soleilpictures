@@ -1572,35 +1572,66 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Canvas",
+      "v": "Board",
       "children": [
        {
         "t": "text",
-        "v": "Canvas"
+        "v": "Board"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — the infinite surface. Position matters. This is where you arrange, connect, draw and compare."
+      "v": " — the infinite canvas. Position matters. This is where you arrange, connect, draw and compare."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "List",
+      "v": "Files",
       "children": [
        {
         "t": "text",
-        "v": "List"
+        "v": "Files"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — the same contents as a sortable, searchable file browser with table and gallery modes. This is where you find a specific thing."
+      "v": " — the same contents as a sortable, searchable file browser, as a grid of previews or a list. This is where you find a specific thing."
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Switch with "
+    },
+    {
+     "t": "strong",
+     "v": "Board · Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Board · Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of the screen, or press "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
    ]
   },
   {
@@ -2149,6 +2180,31 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "F"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Switch between Board and "
+      },
+      {
+       "t": "link",
+       "v": "Files",
+       "href": "/docs/clusters/list-view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Files"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌘0"
       }
      ],
@@ -2456,7 +2512,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Audition the highlighted row (list view)"
+       "v": "Audition the highlighted row (Files)"
       }
      ]
     ],
@@ -2478,7 +2534,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Move through rows (list view)"
+       "v": "Move through rows (Files)"
       }
      ]
     ]
@@ -2513,12 +2569,12 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "link",
-     "v": "list view",
+     "v": "Files",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "list view"
+       "v": "Files"
       }
      ]
     },
@@ -4013,18 +4069,26 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you want the same contents as a sortable file list instead, every cluster also has a "
+     "v": "If you want the same contents as a sortable file browser instead, every cluster also has a "
     },
     {
      "t": "link",
-     "v": "list view",
+     "v": "Files view",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "list view"
+       "v": "Files view"
       }
      ]
+    },
+    {
+     "t": "text",
+     "v": " — press "
+    },
+    {
+     "t": "code",
+     "v": "F"
     },
     {
      "t": "text",
@@ -6024,12 +6088,12 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "link",
-     "v": "list view",
+     "v": "Files",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "list view"
+       "v": "Files"
       }
      ]
     },
@@ -6416,18 +6480,18 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "link",
-     "v": "list view",
+     "v": "Files",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "list view"
+       "v": "Files"
       }
      ]
     },
     {
      "t": "text",
-     "v": " and comes back out of Download under it. Give a card a caption and the caption is what list view shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one "
+     "v": " and comes back out of Download under it. Give a card a caption and the caption is what Files shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one "
     },
     {
      "t": "code",
@@ -13827,12 +13891,12 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "link",
-     "v": "list view",
+     "v": "Files",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "list view"
+       "v": "Files"
       }
      ]
     },
@@ -13921,12 +13985,12 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "link",
-     "v": "list view",
+     "v": "Files",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "list view"
+       "v": "Files"
       }
      ]
     },
@@ -14534,7 +14598,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and list view takes files rather than folders."
+     "v": "Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and the Files view takes files rather than folders. Clusters made from a dropped folder open in "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; press "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": " for the canvas, where the cards are already laid out."
     }
    ]
   },
@@ -15231,7 +15318,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The canvas is for arranging. List view is for finding."
+     "v": "The board is for arranging. Files is for finding."
     }
    ]
   },
@@ -15240,38 +15327,100 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Same cluster, same contents, different question being asked. Switch with the view control in the cluster header."
+     "v": "Same cluster, same contents, different question being asked. Switch with "
+    },
+    {
+     "t": "strong",
+     "v": "Board · Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Board · Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of the screen — the Files side shows how many things are inside — or press "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": " to flip between them. "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " → \"Switch to Files\" does the same."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cluster remembers which view it was left in. Folders you "
+    },
+    {
+     "t": "link",
+     "v": "drop in",
+     "href": "/docs/clusters#dropping-a-folder",
+     "children": [
+      {
+       "t": "text",
+       "v": "drop in"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " open in Files, because a dropped folder is files first; their cards are still laid out on each canvas, one "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": " away."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Table and gallery",
+   "text": "Grid and list",
    "inline": [
     {
      "t": "text",
-     "v": "Table and gallery"
+     "v": "Grid and list"
     }
    ],
-   "id": "table-and-gallery"
+   "id": "grid-and-list"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "strong",
-     "v": "Table",
+     "v": "Grid",
      "children": [
       {
        "t": "text",
-       "v": "Table"
+       "v": "Grid"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — a row per item, with type, size and dates. Dense, scannable, sortable."
+     "v": " — a tile per item with a real preview. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same."
     }
    ]
   },
@@ -15280,17 +15429,26 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Gallery",
+     "v": "List",
      "children": [
       {
        "t": "text",
-       "v": "Gallery"
+       "v": "List"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — a tile per item with a real preview. Better when you are looking for something you would recognise by sight; for audio the preview is the waveform, so no two loops look the same."
+     "v": " — a row per item, with type, size and dates. Dense, scannable, sortable. A cluster that is mostly audio opens in the list, for the columns below."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your choice is remembered per cluster on the device you made it on."
     }
    ]
   },
@@ -15311,7 +15469,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The table swaps its columns. "
+     "v": "The list swaps its columns. "
     },
     {
      "t": "strong",
@@ -15456,7 +15614,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Above the table you get the pack in one line: "
+     "v": "Above the list you get the pack in one line: "
     },
     {
      "t": "strong",
@@ -15508,7 +15666,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Sort by "
+     "v": "Files opens in "
+    },
+    {
+     "t": "strong",
+     "v": "board order",
+     "children": [
+      {
+       "t": "text",
+       "v": "board order"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. Sort by "
     },
     {
      "t": "strong",
@@ -15578,7 +15750,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — plus "
+     "v": " instead — plus "
     },
     {
      "t": "strong",
@@ -15715,21 +15887,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "In "
+     "v": "In the "
     },
     {
      "t": "strong",
-     "v": "gallery",
+     "v": "grid",
      "children": [
       {
        "t": "text",
-       "v": "gallery"
+       "v": "grid"
       }
      ]
     },
     {
      "t": "text",
-     "v": " mode a loop's tile "
+     "v": " a loop's tile "
     },
     {
      "t": "em",
@@ -15877,7 +16049,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sits above the table whenever there is more than one file to take. It follows the search and the filters, so it reads "
+     "v": " sits above the files whenever there is more than one file to take. It follows the search and the filters, so it reads "
     },
     {
      "t": "em",
@@ -16156,7 +16328,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is the important one: it connects the two views, so finding something in list view puts you in front of it in context. It and "
+     "v": " is the important one: it connects the two views, so finding something in Files puts you in front of it in context. It and "
     },
     {
      "t": "strong",
@@ -16214,7 +16386,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Drag files into list view, or use "
+     "v": "Drag files into Files, or use "
     },
     {
      "t": "strong",
@@ -16249,7 +16421,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "List view shows who else is in the cluster, and what they have selected — the same "
+     "v": "Files shows who else is in the cluster, and what they have selected — the same "
     },
     {
      "t": "link",
@@ -16346,7 +16518,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Yes — list view, as a table or a gallery"
+       "v": "Yes — the Files view, as a grid or a list"
       }
      ]
     ],
@@ -17213,12 +17385,12 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "link",
-      "v": "list view",
+      "v": "Files",
       "href": "/docs/clusters/list-view",
       "children": [
        {
         "t": "text",
-        "v": "list view"
+        "v": "Files"
        }
       ]
      }
@@ -22151,12 +22323,12 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "link",
-      "v": "list view",
+      "v": "Files",
       "href": "/docs/clusters/list-view",
       "children": [
        {
         "t": "text",
-        "v": "list view"
+        "v": "Files"
        }
       ]
      }
@@ -24111,12 +24283,12 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "link",
-       "v": "List view",
+       "v": "Files view",
        "href": "/docs/clusters/list-view",
        "children": [
         {
          "t": "text",
-         "v": "List view"
+         "v": "Files view"
         }
        ]
       },
@@ -25784,16 +25956,16 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "[list view](/docs/clusters/list-view)",
+     "v": "[Files](/docs/clusters/list-view)",
      "children": [
       {
        "t": "link",
-       "v": "list view",
+       "v": "Files",
        "href": "/docs/clusters/list-view",
        "children": [
         {
          "t": "text",
-         "v": "list view"
+         "v": "Files"
         }
        ]
       }
@@ -25801,7 +25973,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " opens as a list here too, which is what you want for anything that is a collection rather than an arrangement: a sample pack, a stills selects, a reference library. Visitors get the search, the sorting and the audition-through, and can download what is on it."
+     "v": " opens in Files here too, which is what you want for anything that is a collection rather than an arrangement: a sample pack, a stills selects, a reference library. Visitors get the search, the sorting and the audition-through, and can download what is on it."
     }
    ]
   },
@@ -40659,7 +40831,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on it, which is what list view shows and what Download names the file. A path is cut to the basename, and a name a browser invents for a paste ("
+     "v": " on it, which is what the Files view shows and what Download names the file. A path is cut to the basename, and a name a browser invents for a paste ("
     },
     {
      "t": "code",

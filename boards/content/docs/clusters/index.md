@@ -65,7 +65,9 @@ to [Trash](/docs/clusters/trash-and-recovery).
   whole folders in order rather than a scatter of half-filled ones.
 
 Dropping a folder works on the canvas, on a desktop browser. A phone cannot
-drag a folder, and list view takes files rather than folders.
+drag a folder, and the Files view takes files rather than folders.
+Clusters made from a dropped folder open in [Files](/docs/clusters/list-view);
+press `F` for the canvas, where the cards are already laid out.
 
 ## Adding a cluster inside one
 

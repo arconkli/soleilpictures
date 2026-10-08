@@ -91,7 +91,7 @@ in a message or a doc.
 ## Titles
 
 Most cards have a title. Double-click it to edit. Titles are searchable in
-`⌘K` and they are what shows in [list view](/docs/clusters/list-view), so a card
+`⌘K` and they are what shows in [Files](/docs/clusters/list-view), so a card
 called "Untitled" is a card you will not find later.
 
 > **Note:** Shape cards are the exception — they have no title. If you need a

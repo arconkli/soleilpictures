@@ -1,8 +1,8 @@
 # Core concepts
 
-> Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as an infinite canvas or as a file list, and both views show the same contents.
+> Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as a board, an infinite canvas, or as files, a browsable grid or list, and both views show the same contents.
 
-_Source: https://clusters.soleilpictures.com/docs/concepts · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/concepts · Updated 2026-10-08_
 
 Four ideas, nested inside each other. Once these are straight, the rest of the
 product is discoverable.
@@ -55,8 +55,10 @@ unlimited.
 
 Every cluster has two views, and they are not two places:
 
-- **Canvas** — the infinite surface. Position matters. This is where you arrange, connect, draw and compare.
-- **List** — the same contents as a sortable, searchable file browser with table and gallery modes. This is where you find a specific thing.
+- **Board** — the infinite canvas. Position matters. This is where you arrange, connect, draw and compare.
+- **Files** — the same contents as a sortable, searchable file browser, as a grid of previews or a list. This is where you find a specific thing.
+
+Switch with **Board · Files** at the top of the screen, or press `F`.
 
 Switching views does not move or convert anything. A cluster is one set of
 contents with two ways to look at it, which is why the product describes every

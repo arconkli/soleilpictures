@@ -39,8 +39,8 @@ Uploads go straight to storage from your browser. Large batches run a few at a
 time so one enormous file cannot block the rest.
 
 Each image keeps the name its file had — `diner_ext_dusk_04.jpg` stays that in
-[list view](/docs/clusters/list-view) and comes back out of Download under it.
-Give a card a caption and the caption is what list view shows; the download
+[Files](/docs/clusters/list-view) and comes back out of Download under it.
+Give a card a caption and the caption is what Files shows; the download
 still uses the file's own name. A pasted image has no real name (browsers call
 every one `image.png`), so it is not given one.
 
