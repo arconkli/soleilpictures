@@ -547,3 +547,57 @@ test('a referral pays the referrer only for an aged friend who opened the app, a
   }
   assert.doesNotMatch(doc, /does not consume or produce referral/);
 });
+
+// ── 0378: where an abusive account came from outlives it ─────────────────────
+
+test('request origins are salted hashes of a browser\'s own network, server-only, kept at most a year', () => {
+  const origin = latestDefinition('_request_origin').body;
+  // Supabase's own API edge is a Worker, so every request says cf-worker:
+  // supabase.co (0379). A Worker acting for someone is recognised by
+  // Cloudflare's Workers egress range instead, a server runtime by its headers.
+  assert.doesNotMatch(origin, /\? 'cf-worker'/, 'every request through Supabase\'s edge carries cf-worker');
+  assert.match(origin, /if v_ip <<= '2a06:98c0::\/29'::inet then/, 'a Worker acting for someone carries the Worker\'s address');
+  assert.match(origin, /coalesce\(v_h->>'x-client-info', ''\) ~\* '\(deno\|node\)'/, 'so does a server runtime');
+  assert.match(origin, /coalesce\(v_h->>'user-agent', ''\) ~\* '\^\(deno\|node\)'/);
+  assert.match(origin, /v_h->>'cf-connecting-ip'/);
+  assert.doesNotMatch(origin, /->>'x-forwarded-for'/, 'its first entry is whatever the client sent');
+  assert.match(origin, /network\(set_masklen\(v_ip, 64\)\)/, 'an IPv6 network is its /64');
+  assert.match(origin, /vault\.decrypted_secrets s where s\.name = 'forensic_origin_salt'/);
+  assert.match(origin, /ip_hash := encode\(hmac\(v_net, v_salt, 'sha256'\), 'hex'\);/);
+  assert.match(origin, /ua_hash := encode\(hmac\(left\(coalesce\(v_h->>'user-agent', ''\), 512\), v_salt, 'sha256'\), 'hex'\);/);
+
+  const table = latestMatch(/create table if not exists public\.request_origins \(([\s\S]*?)\n\);/);
+  assert.ok(table, 'request_origins is defined');
+  assert.doesNotMatch(table.match[1], /\binet\b|ip_address|\bip\s+text/, 'no column holds a raw address');
+  assert.match(table.match[1], /user_id\s+uuid not null references auth\.users\(id\) on delete cascade/, 'deleted with the account');
+  assert.ok(latestMatch(/revoke all on table public\.request_origins from public, anon, authenticated;/));
+
+  const note = latestDefinition('_note_origin').body;
+  assert.match(note, /v_uid uuid := auth\.uid\(\);/, 'only the signed-in caller\'s own request is noted');
+  assert.match(note, /exception when others then\s+null;/, 'noting never fails what they were doing');
+  assert.match(latestDefinition('touch_presence').body, /perform public\._note_origin\('session'\);/);
+  for (const [tbl, kind] of [['pending_invites', 'invite'], ['public_share_links', 'share_link'], ['outbound_ledger', 'email']]) {
+    assert.ok(latestMatch(new RegExp(`create trigger ${tbl}_note_origin after insert on public\\.${tbl}\\s+` +
+      `for each statement execute function public\\._tg_note_origin\\('${kind}'\\);`)), `${tbl} notes where it was made from`);
+  }
+  for (const sig of ['_request_origin\\(\\)', '_note_origin\\(text\\)', '_tg_note_origin\\(\\)', 'purge_old_request_origins\\(integer\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
+  const retention = latestMatch(/cron\.schedule\('purge-request-origins', '[^']+', \$\$select public\.purge_old_request_origins\((\d+)\)\$\$\)/);
+  assert.ok(retention && Number(retention.match[1]) <= 365, 'kept at most a year');
+
+  // What it is for: an account action's evidence names the accounts sharing its
+  // networks, and a burst of new accounts on one network pages.
+  const ev = latestDefinition('_account_evidence').body;
+  assert.match(ev, /'networks',/);
+  assert.match(ev, /'related_accounts',/);
+  assert.match(ev, /'net', left\(x\.ip_hash, 10\)/, 'evidence shows a short prefix, not the whole hash');
+  const abuse = latestDefinition('check_abuse_signals').body;
+  assert.match(abuse, /c_fleet_accounts constant integer := \d+;/);
+  assert.match(abuse, /having count\(distinct o\.user_id\) >= c_fleet_accounts/);
+  assert.match(abuse, /ops_alert_raise\('signup_network',/);
+
+  const doc = read('../../content/docs/account/data-and-privacy.md');
+  assert.ok(doc.includes('{{fact:requestOriginRetentionDays}}'), 'the privacy page states the retention from code');
+  assert.match(doc, /never as the address itself/);
+});

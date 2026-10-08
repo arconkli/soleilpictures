@@ -2844,7 +2844,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-10-02",
+    "updated": "2026-10-07",
     "navLabel": "Data and privacy",
     "headings": [
       {
@@ -2870,6 +2870,10 @@ export const DOCS_PAGES = [
       {
         "id": "accounts-and-access",
         "text": "Accounts and access"
+      },
+      {
+        "id": "abuse-prevention",
+        "text": "Abuse prevention"
       },
       {
         "id": "error-reporting",

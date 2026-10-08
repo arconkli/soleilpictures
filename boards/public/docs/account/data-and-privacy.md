@@ -2,7 +2,7 @@
 
 > Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
-_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-07_
 
 ## Who can see a board
 
@@ -76,6 +76,21 @@ leaked.
 shown once and cannot be recovered. A token acts as you, reaching exactly what
 your account reaches under the same access rules the app uses, and can be
 revoked at any time with immediate effect.
+
+## Abuse prevention
+
+To stop one person running many throwaway accounts — the pattern behind
+invitation spam — Clusters notes where requests come from: the network and the
+browser of each signed-in session, once a day, and of each invitation, share
+link and email you send to someone. Both are stored only as salted one-way
+hashes, never as the address itself, along with the country.
+
+- They are kept for 365 days, and deleted with your account.
+- Only Clusters staff can read them, and only to spot and stop abuse — for
+  example, several new accounts appearing on one network in a day.
+- If an account is held or banned for abuse, a summary of where it connected
+  from, and which other accounts shared those networks, is kept with that
+  decision.
 
 ## Error reporting
 

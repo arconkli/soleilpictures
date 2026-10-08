@@ -194,6 +194,14 @@ if (!referralCards || !referralHours || !referralPer30 || !referralLinkDays) {
   throw new Error('gen-docs: the referral reward rules were not found — update the extractor');
 }
 
+// How long the hashed origins of requests are kept for abuse prevention
+// (purge_old_request_origins, scheduled by migration 0378).
+const originRetention = latestSqlDefining('purge_old_request_origins')
+  ?.match(/select public\.purge_old_request_origins\((\d+)\)\$\$/);
+if (!originRetention) {
+  throw new Error('gen-docs: the request-origin retention was not found — update the extractor');
+}
+
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // The cap accounts created before migration 0229 keep, permanently. The plans
@@ -268,6 +276,8 @@ export const FACTS = {
   referralMatureHours: referralHours[1],
   referralRewardsPer30Days: referralPer30[1],
   referralLinkJoinDays: referralLinkDays[1],
+  // Days a request's hashed network and browser are kept (0378).
+  requestOriginRetentionDays: originRetention[1],
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
   maxPartsPerCall: String(api.maxPartsPerCall),
