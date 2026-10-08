@@ -21,6 +21,7 @@ import { loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, saveBoardVer
 import { b64ToBytes, cardToYMap, yMapToCard } from './yhelpers.js';
 import { boardDoc } from './yboard.js';
 import { supabase } from './supabase.js';
+import { arrowsBetween } from './filesDrag.js';
 
 const PLACE_KEYS = ['x', 'y', 'w', 'h', 'z', 'groupId'];
 
@@ -31,7 +32,12 @@ function arrowEnds(a) {
   ];
 }
 
-function emitReset(boardId) {
+// After the snapshot is saved, reset the room so a warm one can't re-merge
+// stale state over it. A failed reset doesn't undo the save — at worst a warm
+// room puts the cards back in the source too (a duplicate, never a loss) — so
+// it warns rather than failing the move.
+async function resetRoom(boardId) {
+  try { await forceResetBoardRoom(boardId); } catch (err) { console.warn('[move-from-cluster] room reset failed', boardId, err); }
   try { window.__soleilEmitBoardReset?.(boardId); } catch (_) {}
 }
 
@@ -63,9 +69,13 @@ export async function openClusterForMove(sourceBoardId, ids, { userId = null, se
     return ym ? { ...yMapToCard(ym), id } : null;
   }).filter(Boolean);
   const originals = new Map(cards.map((c) => [c.id, Object.fromEntries(PLACE_KEYS.map((k) => [k, c[k]]))]));
+  const arrowList = () => { try { return doc.getArray('arrows').toArray(); } catch (_) { return []; } };
 
   return {
     cards,
+    // The source's arrows between cards that are moving, re-pointed at the
+    // new ids — they travel with the cards.
+    arrowsBetween: (idMap) => arrowsBetween(arrowList(), idMap),
     // Remove what landed (old id → new id) from the source and save it.
     async commit(idMap) {
       const gone = new Set(Object.keys(idMap || {}));
@@ -85,17 +95,17 @@ export async function openClusterForMove(sourceBoardId, ids, { userId = null, se
         }
       }, 'cross-board-move');
       await saveBoardSnapshot(sourceBoardId, doc);
-      await forceResetBoardRoom(sourceBoardId);
-      emitReset(sourceBoardId);
+      await resetRoom(sourceBoardId);
     },
     originals,
     close() { try { doc.destroy(); } catch (_) {} },
   };
 }
 
-// Undo: put cards back on the source under their original ids and places.
-// `entries` is [{ id (original), card (current content, from the live board) }].
-export async function returnToCluster(sourceBoardId, entries, originals) {
+// Undo: put cards back on the source under their original ids and places,
+// with the arrows between them. `entries` is [{ id (original), card (current
+// content, from the live board) }]; `arrows` already point at original ids.
+export async function returnToCluster(sourceBoardId, entries, originals, arrows = []) {
   const snap = await loadBoardSnapshot(sourceBoardId);
   if (!snap) throw new Error('source cluster state unavailable');
   const doc = boardDoc(sourceBoardId);
@@ -110,12 +120,14 @@ export async function returnToCluster(sourceBoardId, entries, originals) {
         for (const k of PLACE_KEYS) { if (place[k] !== undefined) back[k] = place[k]; else delete back[k]; }
         cm.set(id, cardToYMap(back));
       }
+      const ar = doc.getArray('arrows');
+      const ok = (arrows || []).filter((a) => { const [f, t] = arrowEnds(a); return cm.has(f) && cm.has(t); });
+      if (ok.length) ar.push(ok.map((a) => ({ ...a })));
     }, 'cross-board-move');
     await saveBoardSnapshot(sourceBoardId, doc);
   } finally {
     try { doc.destroy(); } catch (_) {}
   }
-  await forceResetBoardRoom(sourceBoardId);
-  emitReset(sourceBoardId);
+  await resetRoom(sourceBoardId);
 }
 

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as Y from 'yjs';
 import {
   COPYABLE_KINDS, canDragFromFiles, plainCardForCopy, fileKeyOf, onBoardIndex,
-  buildFilesPayload, parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop,
+  buildFilesPayload, parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop, arrowsBetween,
 } from './filesDrag.js';
 
 const img = (id, src, extra = {}) => ({ id, kind: 'image', src, x: 0, y: 0, w: 200, h: 100, ...extra });
@@ -113,4 +113,18 @@ test('the toast says what happened', () => {
   assert.equal(summarizeDrop({ copied: 1, sourceName: 'Refs' }), 'Linked 1 file from “Refs”');
   assert.equal(summarizeDrop({ copied: 3, moved: 1 }), 'Linked 3 files · moved 1 already on this board');
   assert.equal(summarizeDrop({ moved: 2 }), 'Moved 2 already on this board');
+});
+
+test('arrows travel only when both ends move, re-pointed at the new ids', () => {
+  const arrows = [
+    { from: 'a', to: 'b', label: 'x' },
+    { from: { cardId: 'a', side: 'r' }, to: { cardId: 'b' } },
+    { from: 'a', to: 'c' },
+  ];
+  const out = arrowsBetween(arrows, { a: 'A', b: 'B' });
+  assert.deepEqual(out, [
+    { from: 'A', to: 'B', label: 'x' },
+    { from: { cardId: 'A', side: 'r' }, to: { cardId: 'B' } },
+  ]);
+  assert.deepEqual(arrowsBetween(null, { a: 'A' }), []);
 });

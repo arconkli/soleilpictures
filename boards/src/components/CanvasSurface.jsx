@@ -71,7 +71,7 @@ import {
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop } from '../lib/filesDrag.js';
+import { parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
 import { yMapToCard } from '../lib/yhelpers.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
@@ -9289,29 +9289,53 @@ export function CanvasSurface({
     });
   };
 
-  // "Move here". When the source is open in a pane, its own canvas runs the
-  // move it already knows (moveCardsIntoBoard); otherwise lib/moveFromCluster
-  // moves the cards out of its saved snapshot: arrive here first, then remove
-  // from the source only what landed.
+  // Is this pane still showing the board (and live doc) a move started on? A
+  // "Move here" toast lives ten seconds, and the snapshot read is a network
+  // round trip: the pane may have moved on, and a destroyed Y.Doc accepts
+  // writes without saving them — cards added there would be on neither board.
+  const liveRef = useRef(null);
+  liveRef.current = { boardId: board?.id, ydoc };
+  const mountedRef = useRef(false);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  const stillOn = (boardId, doc) => {
+    const l = liveRef.current;
+    return mountedRef.current && !!l && l.boardId === boardId && l.ydoc === doc && !(doc && doc.isDestroyed);
+  };
+
+  // "Move here" — notes, docs and grids from another cluster. Arrive here
+  // first (off the undo stack: the toast is the move's undo), then remove from
+  // the source only what landed. When the source is open in a pane its canvas
+  // hands over its live cards; otherwise lib/moveFromCluster goes through the
+  // source's saved snapshot.
   const moveHereFromCluster = async (sourceBoardId, ids, at) => {
-    const ask = { sourceBoardId, targetBoardId: board.id, ids, at, handled: false };
+    const targetId = board.id;
+    const doc = ydoc;
+    if (!stillOn(targetId, doc)) return;
+    const ask = { sourceBoardId, targetBoardId: targetId, ids, at, handled: false, live: null };
     document.dispatchEvent(new CustomEvent('soleil-files-move-from', { detail: ask }));
-    if (ask.handled) return;
-    let src = null;
-    try {
-      src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
-    } catch (err) { console.error('[files-move-here] open failed', err); }
+    if (ask.handled && !ask.live) return;   // the local harness moved them itself
+    let src = ask.live;
     if (!src) {
-      feedback.toast({ type: 'error', message: 'Could not read that cluster — nothing was moved. Try again in a moment.' });
-      return;
+      try {
+        src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
+      } catch (err) { console.error('[files-move-here] open failed', err); }
+      if (!src) {
+        feedback.toast({ type: 'error', message: 'Could not read that cluster — nothing was moved. Try again in a moment.' });
+        return;
+      }
     }
     try {
+      if (!stillOn(targetId, doc)) {
+        feedback.toast({ type: 'info', message: 'Nothing was moved — this board changed before the move could finish.' });
+        return;
+      }
       const movable = src.cards.filter((c) => !isStillUploading(c) && c.kind !== 'board' && c.kind !== 'boardlink');
       if (!movable.length) return;
       const stamp = Date.now();
       const fresh = movable.map((c, i) => ({ ...c, id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`, groupId: null }));
+      const allIds = Object.fromEntries(movable.map((c, i) => [c.id, fresh[i].id]));
       const placed = layoutDrop(fresh.map((c) => ({ ...c, w: c.w || 240, h: c.h || 200 })), { at, layout: 'grid' });
-      const res = mutators.addCards?.(placed, { moveFrom: sourceBoardId });
+      const res = mutators.addCards?.(placed, { moveFrom: sourceBoardId, untracked: true, arrows: src.arrowsBetween(allIds) });
       const landed = new Set(res?.placedIds || []);
       const idMap = {};
       movable.forEach((c, i) => { if (landed.has(fresh[i].id)) idMap[c.id] = fresh[i].id; });
@@ -9323,36 +9347,60 @@ export function CanvasSurface({
         feedback.toast({ type: 'error', ttl: 9000, message: 'Moved here, but the originals could not be removed from their cluster — they are in both places for now.' });
         return;
       }
-      repointComments(sourceBoardId, board.id, idMap);
-      setSelected(new Set(Object.values(idMap)));
+      repointComments(sourceBoardId, targetId, idMap);
+      if (stillOn(targetId, doc)) setSelected(new Set(Object.values(idMap)));
+      const originals = src.originals;
       const n = Object.keys(idMap).length;
       undoToast(feedback, {
         type: 'success',
         message: n === 1 ? 'Moved 1 card here' : `Moved ${n} cards here`,
-        onUndo: async () => {
-          const cm = ydoc?.getMap?.('cards');
-          const back = Object.entries(idMap).map(([oldId, newId]) => {
-            const ym = cm?.get?.(newId);
-            return ym ? { id: oldId, card: yMapToCard(ym) } : null;
-          }).filter(Boolean);
-          try {
-            await returnToCluster(sourceBoardId, back, src.originals);
-          } catch (err) {
-            feedback.toast({ type: 'error', message: 'Undo failed — the cards stay here. ' + (err?.message || err) });
-            return;
-          }
-          mutators.deleteCardsForMove?.(back.map((b) => idMap[b.id]));
-          const inverse = Object.fromEntries(Object.entries(idMap).map(([o, n2]) => [n2, o]));
-          repointComments(board.id, sourceBoardId, inverse);
-        },
+        onUndo: () => undoMoveHere({ sourceBoardId, targetId, doc, idMap, originals }),
       });
     } finally {
       src.close();
     }
   };
 
-  // The source half of "Move here" when this canvas IS the source. Through a
-  // ref so the listener is added once and always sees this render's cards.
+  // The move's undo: the cards go back to their cluster (its open canvas if it
+  // has one, else its snapshot) carrying whatever was edited since, then leave
+  // this board. If this pane has moved on there's no live board to take them
+  // from, so it says so rather than half-undoing.
+  const undoMoveHere = async ({ sourceBoardId, targetId, doc, idMap, originals }) => {
+    if (!stillOn(targetId, doc)) {
+      feedback.toast({ type: 'info', message: 'Undo needs the board they were moved to — open it and drag them back from Files.' });
+      return;
+    }
+    const cm = doc?.getMap?.('cards');
+    const back = Object.entries(idMap).map(([oldId, newId]) => {
+      const ym = cm?.get?.(newId);
+      return ym ? { id: oldId, card: yMapToCard(ym) } : null;
+    }).filter(Boolean);
+    if (!back.length) {
+      feedback.toast({ type: 'info', message: 'Nothing to undo — those cards are no longer on this board.' });
+      return;
+    }
+    const inverse = Object.fromEntries(Object.entries(idMap).map(([o, n2]) => [n2, o]));
+    let arrowsBack = [];
+    try { arrowsBack = arrowsBetween(doc.getArray('arrows').toArray(), inverse); } catch (_) {}
+    const ret = { sourceBoardId, targetBoardId: targetId, entries: back, originals, arrows: arrowsBack, handled: false };
+    document.dispatchEvent(new CustomEvent('soleil-files-return-to', { detail: ret }));
+    if (!ret.handled) {
+      try {
+        await returnToCluster(sourceBoardId, back, originals, arrowsBack);
+      } catch (err) {
+        feedback.toast({ type: 'error', message: 'Undo failed — the cards stay here. ' + (err?.message || err) });
+        return;
+      }
+    }
+    // Back on the source; now off this board — only if it's still the same live
+    // board (otherwise they're in both places, never neither).
+    if (stillOn(targetId, doc)) mutators.deleteCardsForMove?.(back.map((b) => idMap[b.id]));
+    repointComments(targetId, sourceBoardId, inverse);
+  };
+
+  // The source half when this canvas IS the source of a "Move here", and the
+  // return half of its undo. Through refs so each listener is added once and
+  // always sees this render's cards and mutators.
   const moveFromAskRef = useRef(null);
   moveFromAskRef.current = (d) => {
     if (isPublic || !canEdit) return;
@@ -9360,13 +9408,45 @@ export function CanvasSurface({
     const idSet = new Set(d.ids || []);
     const moving = (cards || []).filter((c) => idSet.has(c.id));
     if (!moving.length) return;
+    const doc = ydoc;
     d.handled = true;
-    moveCardsIntoBoard(moving.map((c) => c.id), d.targetBoardId, moving, { via: 'files' });
+    d.live = {
+      cards: moving,
+      originals: new Map(moving.map((c) => [c.id, { x: c.x, y: c.y, w: c.w, h: c.h, z: c.z, groupId: c.groupId }])),
+      arrowsBetween: (idMap) => arrowsBetween(arrows || [], idMap),
+      // Let go of what landed — the untracked move-delete, so ⌘Z here can't
+      // bring back half a move.
+      commit: async (idMap) => {
+        const gone = Object.keys(idMap || {});
+        if (!gone.length) return;
+        if (!stillOn(d.sourceBoardId, doc)) throw new Error('the source board changed');
+        removeCommentsByAnchorIds(gone);
+        mutators.deleteCardsForMove?.(gone);
+      },
+      close: () => {},
+    };
+  };
+  const returnToAskRef = useRef(null);
+  returnToAskRef.current = (d) => {
+    if (isPublic || !canEdit) return;
+    if (d.handled || d.sourceBoardId !== board?.id) return;
+    d.handled = true;
+    const place = (id) => d.originals?.get?.(id) || {};
+    const cardsBack = (d.entries || []).map(({ id, card }) => {
+      const p = place(id);
+      return { ...card, id, x: p.x ?? card.x, y: p.y ?? card.y, w: p.w ?? card.w, h: p.h ?? card.h, groupId: p.groupId ?? null };
+    }).filter((c) => !(cards || []).some((x) => x.id === c.id));
+    mutators.addCards?.(cardsBack, { moveFrom: d.targetBoardId, untracked: true, arrows: d.arrows || [] });
   };
   useEffect(() => {
     const onAsk = (e) => moveFromAskRef.current?.(e.detail || {});
+    const onReturn = (e) => returnToAskRef.current?.(e.detail || {});
     document.addEventListener('soleil-files-move-from', onAsk);
-    return () => document.removeEventListener('soleil-files-move-from', onAsk);
+    document.addEventListener('soleil-files-return-to', onReturn);
+    return () => {
+      document.removeEventListener('soleil-files-move-from', onAsk);
+      document.removeEventListener('soleil-files-return-to', onReturn);
+    };
   }, []);
 
   // ── HTML5 drag-drop ───────────────────────────────────────────────────────

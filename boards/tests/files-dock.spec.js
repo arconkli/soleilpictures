@@ -198,3 +198,22 @@ test('the View menu closes when its button is pressed again', async ({ page }) =
   await view.click();
   await expect(panel(page).getByRole('menu')).toHaveCount(0);
 });
+
+test('"Move here" does nothing once the board has changed under it', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  const p = panel(page);
+  await p.locator('.ft', { hasText: 'Sundown Highway' }).dblclick();
+  await p.locator('[data-item-id="s-doc"]').dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 420, y: 560 } });
+  await expect(page.getByRole('button', { name: 'Move here' })).toBeVisible();
+  // The board moves to another cluster before the toast is acted on.
+  await page.locator('.sidebar, nav').getByText('Halcyon', { exact: true }).first().click();
+  await expect(page.locator('.crumb.here')).toContainText('Halcyon');
+  await expect(p).toBeVisible();
+  await page.getByRole('button', { name: 'Move here' }).click();
+  await expect(page.locator('[data-card-id="s-doc"]')).toHaveCount(0);
+  // Still in its own cluster: walk the panel back up to it.
+  await p.locator('.pb').getByRole('button', { name: 'Studio' }).click();
+  await p.locator('.ft', { hasText: 'Sundown Highway' }).dblclick();
+  await expect(p.locator('[data-item-id="s-doc"]')).toHaveCount(1);
+});

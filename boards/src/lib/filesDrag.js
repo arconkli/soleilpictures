@@ -156,3 +156,20 @@ export function summarizeDrop({ copied = 0, moved = 0, sourceName = '' }) {
   if (moved) parts.push(`${copied ? 'moved' : 'Moved'} ${moved} already on this board`);
   return parts.join(' · ');
 }
+
+// Arrows whose two ends are both in idMap (old id → new id), re-pointed at the
+// new ids — the arrows that travel with cards moved together.
+function arrowEnd(r) { return typeof r === 'string' ? r : r?.cardId; }
+export function arrowsBetween(arrows, idMap) {
+  const out = [];
+  for (const a of arrows || []) {
+    const f = arrowEnd(a?.from), t = arrowEnd(a?.to);
+    if (!idMap?.[f] || !idMap?.[t]) continue;
+    out.push({
+      ...a,
+      from: typeof a.from === 'string' ? idMap[f] : { ...a.from, cardId: idMap[f] },
+      to: typeof a.to === 'string' ? idMap[t] : { ...a.to, cardId: idMap[t] },
+    });
+  }
+  return out;
+}
