@@ -3,7 +3,6 @@
 // and the actions Open-on-canvas · Download · Copy link · Delete. A grid FAMILY
 // (group node) shows a family overview + a jumpable member list. Inline
 // <aside> in the split layout (modeled on EntityBacklinksPanel's frosted panel).
-import { useEffect } from 'react';
 import { CardPreview } from './CardPreview.jsx';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
@@ -30,12 +29,9 @@ function MetaRow({ label, value }) {
 export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onReveal, onDelete }) {
   const feedback = useFeedback();
 
-  // Esc closes.
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Esc closes it through ListSurface's keyboard handler (clearing the
+  // selection it shows), which already defers to an open dialog and to the
+  // pane that has the keyboard — its own window listener did neither.
 
   if (!target) return null;
 

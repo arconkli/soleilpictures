@@ -62,12 +62,22 @@ const SECTIONS = [
     ],
   },
   {
+    title: 'Files',
+    rows: [
+      [['←', '→', '↑', '↓'], 'Move through files'],
+      [['Enter'], 'Select the highlighted file'],
+      [[`${CMD}A`], 'Select every file showing'],
+      [['Esc'], 'Clear the selection'],
+      [['⌫'], 'Delete the selection'],
+      [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo'],
+    ],
+  },
+  {
     title: 'Audio',
     rows: [
       [['Enter'], 'Play · pause the selected clip'],
       [['L'], 'Loop the selected clip'],
-      [['Space'], 'Audition the highlighted row (Files, list layout)'],
-      [['↑', '↓'], 'Move through rows (Files, list layout)'],
+      [['Space'], 'Audition the highlighted file (Files)'],
     ],
   },
   {

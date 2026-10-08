@@ -379,8 +379,12 @@
       "rows": 8
     },
     {
+      "title": "Files",
+      "rows": 6
+    },
+    {
       "title": "Audio",
-      "rows": 4
+      "rows": 3
     },
     {
       "title": "Notes",

@@ -258,7 +258,7 @@ test('one unreadable file does not take the whole archive down with it', async (
   await expect(page.locator('.ct-row.is-selected')).toHaveCount(2);
 
   const download = page.waitForEvent('download');
-  await page.locator('.list-selbar-act').click();
+  await page.locator('.list-selbar').getByRole('button', { name: /^Download/ }).click();
 
   // The archive still arrives, holding the one file that could be read…
   const file = await download;
@@ -285,7 +285,7 @@ test('when storage hands back nothing, the error names the origin', async ({ pag
 
   await page.locator('.ct-row').nth(0).click();
   await page.locator('.ct-row').nth(1).click({ modifiers: ['ControlOrMeta'] });
-  await page.locator('.list-selbar-act').click();
+  await page.locator('.list-selbar').getByRole('button', { name: /^Download/ }).click();
 
   const toast = page.locator('.toast');
   await expect(toast).toContainText('Storage would not hand those files back');

@@ -21,6 +21,9 @@ export function JustifiedGallery({
   expandedGroups, selectedGroupId, onGroupClick,
   onDownload = null, onAudition = null, playingId = null, draggableItems = false, onBoardIds = null,
   tileSize = DEFAULT_TILE_SIZE,
+  // Keyboard cursor (ListSurface owns it): the tile it's on, a ref per tile so
+  // it can be scrolled into view, and the laid-out rows for ↑/↓.
+  activeId = null, registerRow = null, onLayout = null,
 }) {
   const ref = useRef(null);
   const [width, setWidth] = useState(0);
@@ -56,6 +59,8 @@ export function JustifiedGallery({
     () => layoutGallery(entries, { width, rowHeight: TILE_SIZES[tileSize] || TILE_SIZES[DEFAULT_TILE_SIZE] }),
     [entries, width, tileSize]);
 
+  useEffect(() => { onLayout?.({ tiles, ids: entries.map((e) => e.id) }); }, [tiles, entries, onLayout]);
+
   // Past VIRTUALIZE_ABOVE, mount only what's near the viewport of the list's
   // scroller (.list-wrap).
   const virtual = entries.length > VIRTUALIZE_ABOVE;
@@ -84,6 +89,20 @@ export function JustifiedGallery({
   }, [virtual, tiles]);
 
   const [start, end] = virtual ? range : [0, tiles.length];
+
+  // The cursor moving onto a tile that isn't mounted: scroll its row into view
+  // (a mounted tile is scrolled by ListSurface through its ref).
+  useEffect(() => {
+    if (!virtual || !activeId) return;
+    const i = entries.findIndex((e) => e.id === activeId);
+    if (i < 0 || (i >= start && i < end) || !tiles[i]) return;
+    const el = ref.current;
+    const scroller = el?.closest?.('.list-wrap');
+    if (!el || !scroller) return;
+    const offset = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    scroller.scrollTop = Math.max(0, offset + tiles[i].y - scroller.clientHeight / 3);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
   const shown = [];
   for (let i = start; i < end && i < tiles.length; i++) {
     const t = tiles[i];
@@ -94,7 +113,8 @@ export function JustifiedGallery({
       const expanded = expandedGroups?.has?.(g.id);
       shown.push(
         <div key={g.id} style={{ ...style, '--jg-h': `${t.previewH}px` }}
-             className={`ct-tile ct-group-tile${selectedGroupId === g.id ? ' is-selected' : ''}${expanded ? ' is-open' : ''}`}
+             ref={registerRow ? registerRow(g.id) : null} data-item-id={g.id}
+             className={`ct-tile ct-group-tile${activeId === g.id ? ' is-active' : ''}${selectedGroupId === g.id ? ' is-selected' : ''}${expanded ? ' is-open' : ''}`}
              onClick={(ev) => onGroupClick(ev, g.id)}>
           <div className="ct-tile-preview">
             <CardPreview item={g} size="tile" px={t.w} />
@@ -111,6 +131,7 @@ export function JustifiedGallery({
         <ClusterTile
           key={it.id} item={it} member={!!e.member}
           style={style} previewH={t.previewH} px={t.w}
+          active={activeId === it.id} tileRef={registerRow ? registerRow(it.id) : null}
           selected={selectedCards.has(it.id)}
           isNew={recentlyAddedIds?.has?.(it.id)}
           peers={peerMap?.get(it.id)}

@@ -85,3 +85,65 @@ test('Grid rows are justified, and the tile size is remembered on this device', 
   await openFullFiles(page);
   await expect(page.getByRole('button', { name: 'Small tiles' })).toHaveAttribute('aria-pressed', 'true');
 });
+
+async function goGrid(page) {
+  await page.goto('/?local=1&reset=1');
+  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  await openFullFiles(page);
+  await page.getByRole('button', { name: 'Grid layout' }).click();
+  await expect(page.locator('.ct-jg .ct-tile').first()).toBeVisible();
+}
+
+test('⌘A selects every file, Esc and a click on empty space clear it', async ({ page }) => {
+  await goGrid(page);
+  const tiles = page.locator('.ct-jg .ct-tile');
+  const n = await tiles.count();
+  await page.locator('.list-wrap').click({ position: { x: 6, y: 300 } });
+  await page.keyboard.press('ControlOrMeta+a');
+  await expect(page.locator('.ct-jg .ct-tile.is-selected')).toHaveCount(n);
+  await expect(page.locator('.list-selbar-count')).toHaveText(`${n} selected`);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ct-jg .ct-tile.is-selected')).toHaveCount(0);
+  await tiles.first().click();
+  await expect(page.locator('.ct-jg .ct-tile.is-selected')).toHaveCount(1);
+  await page.locator('.list-wrap').click({ position: { x: 6, y: 300 } });
+  await expect(page.locator('.ct-jg .ct-tile.is-selected')).toHaveCount(0);
+});
+
+test('arrow keys walk the grid and Enter selects', async ({ page }) => {
+  await goGrid(page);
+  await page.locator('.list-wrap').click({ position: { x: 6, y: 300 } });
+  await page.keyboard.press('ArrowRight');
+  const first = page.locator('.ct-jg .ct-tile').first();
+  await expect(first).toHaveClass(/is-active/);
+  await page.keyboard.press('ArrowRight');
+  await expect(first).not.toHaveClass(/is-active/);
+  await expect(page.locator('.ct-jg .ct-tile').nth(1)).toHaveClass(/is-active/);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.ct-jg .ct-tile').nth(1)).toHaveClass(/is-selected/);
+});
+
+test('the selection bar deletes with undo, and ⌘Z works in Files', async ({ page }) => {
+  await goGrid(page);
+  const tiles = page.locator('.ct-jg .ct-tile');
+  const n = await tiles.count();
+  await tiles.first().click();
+  await page.locator('.list-selbar').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(tiles).toHaveCount(n - 1);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(tiles).toHaveCount(n);
+});
+
+test('dragging a file onto a folder moves it into that cluster', async ({ page }) => {
+  await goGrid(page);
+  const tile = page.locator('.ct-jg .ct-tile').first();
+  const id = await tile.getAttribute('data-item-id');
+  const folder = page.locator('.ft', { hasText: 'Halcyon' });
+  await tile.dragTo(folder);
+  await expect(page.locator(`.ct-jg [data-item-id="${id}"]`)).toHaveCount(0);
+  await folder.dblclick();
+  await expect(page.locator('.crumb.here')).toContainText('Halcyon');
+  await expect(page.locator('.ct-jg .ct-tile')).not.toHaveCount(0);
+});
