@@ -25423,7 +25423,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Every email carries a "
+     "v": "Product tips, mentions, replies and schedule emails carry a "
     },
     {
      "t": "strong",
@@ -25437,7 +25437,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " that works without signing in. Unsubscribing from email does not turn off in-app notifications; those are separate."
+     "v": " that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate."
     }
    ]
   },

@@ -2317,10 +2317,10 @@ export const DOCS_PAGES = [
     "title": "Notifications — Soleil Clusters",
     "metaDescription": "Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, schedule changes and product tips — in Settings.",
     "h1": "Notifications",
-    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
+    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
     "section": "collaborate",
     "order": 5,
-    "updated": "2026-10-06",
+    "updated": "2026-10-07",
     "navLabel": "Notifications",
     "headings": [
       {
@@ -2364,7 +2364,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I unsubscribe without logging in?",
-        "a": "Every email has a one-click unsubscribe link that works logged out."
+        "a": "Product tips, mentions, replies and schedule emails have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications."
       },
       {
         "q": "Do I need to sign in again when I click a link in an email?",
