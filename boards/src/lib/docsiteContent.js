@@ -5978,7 +5978,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Cards you add without specifying a position are placed in free space, so a batch of twelve images arranges rather than stacking on top of what is already there."
+     "v": "Cards you add without specifying a position are placed in free space, so a batch of twelve images arranges rather than stacking on top of what is already there. Files you add in "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view#adding-files-here",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are the exception: they join the cluster but wait off the board until you place them."
     }
    ]
   },
@@ -16178,7 +16193,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file can be in a cluster without being on its board. Right-click a card on the board and choose "
+     "v": "A file can be in a cluster without being on its board. Files you add in Files start that way, and so does a card you take off: right-click it on the board and choose "
     },
     {
      "t": "strong",
@@ -16192,7 +16207,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": it leaves the canvas but stays in the cluster, waiting in Files with a "
+     "v": ". Either way it waits in Files with a "
     },
     {
      "t": "strong",
@@ -16229,7 +16244,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "To put one back, drag it onto the board, or right-click it in Files — or use the selection bar, or Quick look — and choose "
+     "v": "To put one on the board, drag it there, or right-click it in Files — or use the selection bar, or Quick look — and choose "
     },
     {
      "t": "strong",
@@ -17809,7 +17824,42 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the toolbar. They land on the cluster exactly as if dropped on the canvas, auto-placed in free space. An empty cluster offers "
+     "v": " in the toolbar. They join the cluster without going on its board: they wait in Files, marked "
+    },
+    {
+     "t": "link",
+     "v": "**Not on board**",
+     "href": "#not-on-board",
+     "children": [
+      {
+       "t": "strong",
+       "v": "Not on board",
+       "children": [
+        {
+         "t": "text",
+         "v": "Not on board"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", until you drag them onto the board or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". That holds beside the board and in full-screen Files alike — dropping on the canvas is how you put files straight on the board. An empty cluster offers "
     },
     {
      "t": "strong",

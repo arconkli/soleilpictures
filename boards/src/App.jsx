@@ -102,7 +102,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
-import { placedOf } from './lib/placement.js';
+import { placedOf, positionUnplaced } from './lib/placement.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
@@ -190,7 +190,6 @@ import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio,
 import { analyzeAudioFile, analyzable } from './lib/audioAnalysis.js';
 import { parseLoopMeta } from './lib/loopMeta.js';
 import { lowMemoryDevice } from './lib/device.js';
-import { arrangeInFreeSpace } from './lib/canvasGeom.js';
 import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from './lib/fileIngest.js';
 import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
@@ -1149,10 +1148,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   ));
   const canDockMain = mainRoom && !mobileShell;
   const mainFilesMode = filesModeOf({ view, dockOpen: dockPrefs.open, canDock: canDockMain });
-  // Read at call time by handlers that outlive this render: which board is on
-  // screen beside the Files panel (null when it isn't), and whether there's room.
-  const dockedBoardRef = useRef(null);
-  dockedBoardRef.current = mainFilesMode === 'panel' ? currentId : null;
+  // Read at call time by handlers that outlive this render: which board is in
+  // full Files (null when none is), and whether there's room beside it.
+  const fullFilesBoardRef = useRef(null);
+  fullFilesBoardRef.current = mainFilesMode === 'full' ? currentId : null;
   const canDockMainRef = useRef(canDockMain);
   canDockMainRef.current = canDockMain;
   // The switch, F and ⌘K describe the split pane when that's the one in hand —
@@ -2691,16 +2690,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       input.click();
     };
 
-    // List-view file drop / "Add files": ingest a FileList in LIST mode, which
-    // has NO canvas viewport to convert a drop point. Instead of a cursor
-    // anchor we auto-arrange the whole batch into a tidy uniform grid in
-    // guaranteed-free canvas space (below existing content) via
-    // arrangeInFreeSpace, so switching back to canvas shows them neatly laid
-    // out — answering "where did my files go?". Mirrors addImageAt/addPdfAt's
-    // optimistic template, but BATCHED: one addCards() = one undo step, and the
-    // async post-upload patches use updateCardSilent so a single Cmd+Z removes
-    // the whole batch cleanly. Type routing / caps are shared with the canvas
-    // via classifyDropFile so the two ingest paths can't drift.
+    // Files drop / "Add files": ingest a FileList into the cluster WITHOUT
+    // putting it on the board. The files wait in Files, marked Not on board,
+    // until they're dragged onto the canvas or Put on board (lib/placement.js).
+    // Each still gets a finite spot — a tidy grid in free space below every
+    // card, placed or not (positionUnplaced) — which is where a client that
+    // predates the flag draws it. Mirrors addImageAt/addPdfAt's optimistic
+    // template, but BATCHED: one addCards() = one undo step, and the async
+    // post-upload patches use updateCardSilent so a single Cmd+Z removes the
+    // whole batch cleanly. Type routing / caps are shared with the canvas via
+    // classifyDropFile so the two ingest paths can't drift.
     const ingestFilesArranged = async (fileList) => {
       const files = Array.from(fileList || []);
       if (!files.length) return;
@@ -2839,19 +2838,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (_) { /* keep fallback dims */ }
       }));
 
-      // 4) Arrange in free space (below existing content) + pre-generate ids.
+      // 4) Spots in free space below every card + pre-generate ids.
       const existing = [];
       const m0 = cardsMap();
       if (m0) m0.forEach(ym => {
         const x = ym.get('x'), y = ym.get('y');
         if (Number.isFinite(x) && Number.isFinite(y)) existing.push({ x, y, w: ym.get('w') || 0, h: ym.get('h') || 0 });
       });
-      const positioned = arrangeInFreeSpace(existing, accepted);
+      const positioned = positionUnplaced(existing, accepted);
       const stamp = Date.now();
       const prefixFor = (k) => (k === 'image' ? 'img' : k === 'pdf' ? 'pdf' : k === 'video' ? 'vid' : k === 'audio' ? 'aud' : 'file');
       const prepared = positioned.map((it, i) => {
         const id = `${prefixFor(it.kind)}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`;
-        const card = { id, kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, pending: true };
+        const card = { id, kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, pending: true, unplaced: true };
         // Images and videos keep the file's own name too (fileIngest), the same
         // as the canvas drop — so a folder's worth dropped in list view comes back
         // out of Download under the names it went in with.
@@ -2882,16 +2881,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const live = prepared.slice(0, res?.added ?? prepared.length);
       if (!live.length) return;
       const addedIds = live.map(p => p.id);
-      // Flash the new rows in the list; prime canvas framing on view switch.
+      // Flash the new rows in Files. The board doesn't move: they aren't on it.
       setRecentlyAdded({ boardId, ids: new Set(addedIds) });
-      setFocusRequest({ boardId, ids: addedIds, token: stamp });
       setTimeout(() => setRecentlyAdded(prev => (prev && prev.ids.has(addedIds[0]) ? null : prev)), 4000);
-      // Beside the board, the board is already on screen — no need to offer it.
-      const boardShowing = dockedBoardRef.current === boardId;
+      // Full Files with room for the board offers it back, so the files can be
+      // dragged on; beside the board it's already there.
+      const offerBoard = fullFilesBoardRef.current === boardId && canDockMainRef.current;
       feedback.toast({
         type: 'success',
-        message: `Added ${addedIds.length} ${addedIds.length === 1 ? 'file' : 'files'} — arranged on canvas.`,
-        ...(boardShowing ? {} : { action: { label: 'View on canvas', onClick: () => setView('canvas', 'toast') } }),
+        message: `Added ${addedIds.length} ${addedIds.length === 1 ? 'file' : 'files'} to Files — not on the board`,
+        ...(offerBoard ? { action: { label: 'Open beside board', onClick: () => applyFilesEventRef.current?.('shrink', 'toast') } } : {}),
       });
 
       // 6) Background uploads (bounded concurrency). Patch via updateCardSilent

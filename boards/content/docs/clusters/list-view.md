@@ -15,7 +15,7 @@ faq:
   - q: Can I drag files from Files onto the board?
     a: Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again.
   - q: Can I upload from Files?
-    a: Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas.
+    a: Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
   - q: Can I make Files the default?
     a: Yes, in Settings under Defaults. A cluster also remembers the view it was last left in, and a dropped folder opens in Files.
   - q: Can I use Clusters like Google Drive?
@@ -84,15 +84,17 @@ it.
 
 ## Not on board
 
-A file can be in a cluster without being on its board. Right-click a card on
-the board and choose **Remove from board**: it leaves the canvas but stays in
-the cluster, waiting in Files with a **Not on board** mark. **Not on board** in
-the View menu (or Filter, in full-screen Files) shows just those.
+A file can be in a cluster without being on its board. Files you add in Files
+start that way, and so does a card you take off: right-click it on the board
+and choose **Remove from board**. Either way it waits in Files with a **Not on
+board** mark. **Not on board** in the View menu (or Filter, in full-screen
+Files) shows just those.
 
-To put one back, drag it onto the board, or right-click it in Files — or use
-the selection bar, or Quick look — and choose **Put on board**, which places
-it in the clear space nearest the middle of where the board was last looking. A link or search result that points at a
-file that isn't on the board opens Files with it picked out instead.
+To put one on the board, drag it there, or right-click it in Files — or use
+the selection bar, or Quick look — and choose **Put on board**, which places it
+in the clear space nearest the middle of where the board was last looking. A
+link or search result that points at a file that isn't on the board opens Files
+with it picked out instead.
 
 Files waiting off the board are still cards: they count toward your plan's
 card limit, and anyone the cluster is shared with sees them in Files.
@@ -293,10 +295,13 @@ which is most of the reason to open it at all.
 
 ## Adding files here
 
-Drag files into Files, or use **Add files** in the toolbar. They land on the
-cluster exactly as if dropped on the canvas, auto-placed in free space. An
-empty cluster offers **Add files**, **New cluster** and **Link a cluster**
-right where its contents would be.
+Drag files into Files, or use **Add files** in the toolbar. They join the
+cluster without going on its board: they wait in Files, marked
+[**Not on board**](#not-on-board), until you drag them onto the board or choose
+**Put on board**. That holds beside the board and in full-screen Files alike —
+dropping on the canvas is how you put files straight on the board. An empty
+cluster offers **Add files**, **New cluster** and **Link a cluster** right
+where its contents would be.
 
 ## Presence
 

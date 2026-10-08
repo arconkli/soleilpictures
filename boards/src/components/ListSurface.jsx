@@ -4,7 +4,7 @@ import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readB
 import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
 import { gridNeighbor } from '../lib/justifiedGrid.js';
 import { canRename, cleanName, renamePatch } from '../lib/fileRename.js';
-import { planPutOnBoard } from '../lib/placement.js';
+import { planPutOnBoard, positionUnplaced } from '../lib/placement.js';
 import { getViewCenter } from '../lib/viewCenter.js';
 import { copyCardLink } from '../lib/cardLink.js';
 import { composeMenuSections } from '../lib/contextMenuSections.js';
@@ -83,7 +83,7 @@ export function ListSurface({
   // For nested list-mode previews — let inner BoardCards render
   // clickable peer dots in their preview rows.
   onJumpToPeer,
-  // Drop / picked OS files → auto-arranged on the canvas (list has no viewport).
+  // Drop / picked OS files → into the cluster, waiting in Files off the board.
   onDropFilesToCluster,
   // Set of card ids just added via a list drop — flashes those rows.
   recentlyAddedIds,
@@ -919,9 +919,9 @@ export function ListSurface({
       navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo,
       renamable, startRename]);
 
-  // Board order puts a fresh upload where it lands on the canvas — below
-  // everything — so bring the first new row or tile into view rather than
-  // leaving its flash and spinner below the fold.
+  // Board order puts a fresh upload last (it waits off the board, after
+  // everything on it), so bring the first new row or tile into view rather
+  // than leaving its flash and spinner below the fold.
   const listInnerRef = useRef(null);
   useEffect(() => {
     if (!recentlyAddedIds?.size) return undefined;
@@ -978,20 +978,21 @@ export function ListSurface({
       }));
       return;
     }
-    // Chat attachment → card (existing behavior).
+    // Chat attachment → a card that waits in Files, off the board, at a free
+    // spot below everything (lib/placement.js) — like a file dropped here.
     const raw = e.dataTransfer.getData(INBOX_MIME);
     if (raw) {
       let item;
       try { item = JSON.parse(raw); } catch (_) { return; }
       const card = inboxItemToCard(item, 0, 0);
       if (!card) return;
-      onDropInboxItem && onDropInboxItem(item.id, card);
+      const [spot] = positionUnplaced(cards, [card]);
+      onDropInboxItem && onDropInboxItem(item.id, { ...card, x: spot.x, y: spot.y, unplaced: true });
       return;
     }
-    // OS files (or a picked FileList) → route through the cluster's file-ingest
-    // mutator. List view has no viewport, so it auto-arranges the batch into a
-    // tidy grid in free canvas space (see App.ingestFilesArranged); switching to
-    // canvas shows them laid out. No longer refused.
+    // OS files (or a picked FileList) → the cluster's file-ingest mutator. They
+    // join the cluster but not its board: they wait here, marked Not on board,
+    // until dragged onto the canvas or Put on board (App.ingestFilesArranged).
     if (e.dataTransfer.files && e.dataTransfer.files.length) {
       try { logEvent(EV.LIST_ADD_FILES, { board_id: board.id, n: e.dataTransfer.files.length, via: 'drop' }); } catch (_) {}
       onDropFilesToCluster?.(e.dataTransfer.files, { boardId: board.id });

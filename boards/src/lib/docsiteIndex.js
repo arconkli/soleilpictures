@@ -1452,7 +1452,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I upload from Files?",
-        "a": "Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas."
+        "a": "Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board."
       },
       {
         "q": "Can I make Files the default?",

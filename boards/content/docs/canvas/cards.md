@@ -56,6 +56,8 @@ Four ways, in rough order of speed:
 
 Cards you add without specifying a position are placed in free space, so a batch
 of twelve images arranges rather than stacking on top of what is already there.
+Files you add in [Files](/docs/clusters/list-view#adding-files-here) are the
+exception: they join the cluster but wait off the board until you place them.
 
 ## What every card does
 
