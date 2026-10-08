@@ -25,8 +25,8 @@
 // case, and which events the endpoint is subscribed to is a Dashboard setting.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "npm:stripe@17";
+import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import Stripe from "npm:stripe@17.7.0";
 import { activateUserFromSubscription } from "../_shared/activate.ts";
 import { renderTrialEnding } from "../_shared/email/trialEnding.ts";
 

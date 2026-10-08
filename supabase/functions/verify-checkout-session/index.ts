@@ -11,8 +11,8 @@
 // to the caller's id so one user can't activate another's checkout.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "npm:stripe@17";
+import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import Stripe from "npm:stripe@17.7.0";
 import { activateUserFromSubscription } from "../_shared/activate.ts";
 import { emitCapi } from "../_shared/meta-capi.ts";
 

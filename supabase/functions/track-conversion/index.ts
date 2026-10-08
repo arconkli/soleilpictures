@@ -14,7 +14,7 @@
 // this with a valid session token.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { emitCapi, clientIpFromHeaders } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

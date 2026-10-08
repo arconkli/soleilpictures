@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { latestDefinition, latestPolicy, latestMatch, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
 import { safeLabel } from '../../../supabase/functions/_shared/email/safeLabel.mjs';
 
@@ -811,4 +811,25 @@ test('the Report-Only policy reports to an endpoint that keeps origins and paths
   assert.equal(cspReportRows({ 'csp-report': { 'effective-directive': 'script-src-elem', 'blocked-uri': 'https://evil.example/x.js', 'document-uri': 'https://clusters.soleilpictures.com/docs/api' } }, 'UA', 1_000_000 + 60_000).length, 0);
   // Reporting API batches are read too.
   assert.equal(cspReportRows([{ type: 'csp-violation', body: { effectiveDirective: 'img-src', blockedURL: 'https://x.example/i.png', documentURL: 'https://clusters.soleilpictures.com/pricing' } }], '', 2_000_000).length, 1);
+});
+
+// ── DEP-7: edge functions pin exact dependency versions ─────────────────────
+
+test('every npm: import in an edge function names an exact version', () => {
+  const root = new URL('../../../supabase/functions/', import.meta.url).pathname;
+  const files = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(d + e.name + '/');
+      else if (/\.(ts|mjs|js)$/.test(e.name)) files.push(d + e.name);
+    }
+  };
+  walk(root);
+  const floating = [];
+  for (const f of files) {
+    for (const m of readFileSync(f, 'utf8').matchAll(/['"]npm:((?:@[^/'"]+\/)?[^@'"]+)@([^'"/]+)/g)) {
+      if (!/^\d+\.\d+\.\d+$/.test(m[2])) floating.push(`${f.slice(root.length)}: ${m[1]}@${m[2]}`);
+    }
+  }
+  assert.deepEqual(floating, [], 'a floating range pulls whatever was published last into a runtime holding the service-role key');
 });

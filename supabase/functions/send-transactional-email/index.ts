@@ -18,7 +18,7 @@
 // fail a user-visible action.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { renderTemplate, TEMPLATE_NAMES, type TemplateName } from "../_shared/email/templates.ts";
 
 const RESEND_API_KEY    = Deno.env.get("RESEND_API_KEY") || "";
