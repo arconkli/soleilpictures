@@ -8,6 +8,7 @@ import * as Y from 'yjs';
 import {
   COPYABLE_KINDS, canDragFromFiles, plainCardForCopy, fileKeyOf, onBoardIndex,
   buildFilesPayload, parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop, arrowsBetween,
+  planPlaceAt, planSameClusterDrop,
 } from './filesDrag.js';
 
 const img = (id, src, extra = {}) => ({ id, kind: 'image', src, x: 0, y: 0, w: 200, h: 100, ...extra });
@@ -127,4 +128,35 @@ test('arrows travel only when both ends move, re-pointed at the new ids', () => 
     { from: { cardId: 'A', side: 'r' }, to: { cardId: 'B' } },
   ]);
   assert.deepEqual(arrowsBetween(null, { a: 'A' }), []);
+});
+
+test('a file waiting in Files is put on the board at the drop point', () => {
+  const live = new Map([
+    ['on', img('on', 'r2:1', { x: 0, y: 0 })],
+    ['off', img('off', 'r2:2', { x: 0, y: 5000, unplaced: true })],
+  ]);
+  // Only files on the board: they keep their arrangement and get no flag.
+  assert.deepEqual(planSameClusterDrop([{ id: 'on' }], { x: 100, y: 50 }, live), [{ id: 'on', patch: { x: 0, y: 0 } }]);
+  // One waiting: placed, centred on the point — not dragged 5000px by its spot.
+  const [p] = planSameClusterDrop([{ id: 'off' }], { x: 400, y: 300 }, live);
+  assert.deepEqual(p, { id: 'off', patch: { x: 300, y: 250, unplaced: false } });
+  // A mix: laid out fresh as one block; only the waiting one is flagged.
+  const both = planSameClusterDrop([{ id: 'on' }, { id: 'off' }], { x: 0, y: 0 }, live);
+  assert.equal(both.length, 2);
+  assert.equal(both.find((m) => m.id === 'off').patch.unplaced, false);
+  assert.equal('unplaced' in both.find((m) => m.id === 'on').patch, false);
+  for (const m of both) assert.ok(Math.abs(m.patch.y) < 400, `y=${m.patch.y}`);
+  assert.deepEqual(planPlaceAt([], { x: 0, y: 0 }), []);
+});
+
+test('from another cluster, a copy already waiting in this one is put on the board, not duplicated', () => {
+  const board = [img('waiting', 'r2:9', { x: 0, y: 4000, unplaced: true })];
+  const plan = planCrossDrop([img('src', 'r2:9')], { x: 200, y: 100 }, { sourceBoardId: 'S', boardCards: board });
+  assert.equal(plan.copies.length, 0);
+  assert.deepEqual(plan.moves, [{ id: 'waiting', patch: { x: 100, y: 50, unplaced: false } }]);
+});
+
+test('a linked copy is always on the board, whatever the original was', () => {
+  const { copies } = planCrossDrop([img('src', 'r2:5', { unplaced: true })], { x: 0, y: 0 }, { sourceBoardId: 'S' });
+  assert.equal('unplaced' in copies[0], false);
 });

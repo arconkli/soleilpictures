@@ -118,6 +118,29 @@ export function planMoveToPoint(cards, at, liveById = null) {
   return list.map((c) => ({ id: c.id, patch: { x: Math.round(num(c.x, 0) + dx), y: Math.round(num(c.y, 0) + dy) } }));
 }
 
+// Put cards at a drop point. Cards already on the board keep their
+// arrangement (planMoveToPoint). If any of them is waiting off the board
+// (lib/placement.js — its spot is far below the content), the set is laid out
+// fresh as one block instead, and those cards are placed: `unplaced: false`.
+export function planPlaceAt(cards, at) {
+  const list = (cards || []).filter(Boolean);
+  if (!list.length || !Number.isFinite(at?.x) || !Number.isFinite(at?.y)) return [];
+  if (!list.some((c) => c.unplaced === true)) return planMoveToPoint(list, at);
+  const off = new Set(list.filter((c) => c.unplaced === true).map((c) => c.id));
+  const laid = layoutDrop(list.map((c) => ({ ...c, w: num(c.w, 240), h: num(c.h, 200) })), { at, layout: 'grid' });
+  return laid.map((c) => ({
+    id: c.id,
+    patch: { x: Math.round(c.x), y: Math.round(c.y), ...(off.has(c.id) ? { unplaced: false } : {}) },
+  }));
+}
+
+// Same cluster: the board's own cards — on it, or waiting in Files — go to
+// the drop point. `liveById` is every card in the cluster, by id.
+export function planSameClusterDrop(payloadCards, at, liveById) {
+  const live = (payloadCards || []).map((c) => liveById?.get?.(c.id)).filter(Boolean);
+  return planPlaceAt(live, at);
+}
+
 // Another cluster: sort each dragged card into what the drop does with it.
 //   copies   new linked-copy cards, laid out as one block on the drop point
 //   moves    cards already on this board showing the same file → move here
@@ -146,8 +169,10 @@ export function planCrossDrop(cards, at, {
   // rows, anything mixed as a uniform grid, a single card at its own size.
   const allImages = sized.length > 1 && sized.every((c) => c.kind === 'image');
   const copies = sized.length ? layoutDrop(sized, { at, layout: allImages ? 'justified' : 'grid' }) : [];
+  // A copy already in this cluster is used — moved here, or put on the board if
+  // it was waiting in Files — rather than adding another.
   const liveById = new Map((boardCards || []).map((c) => [c.id, c]));
-  const moves = alreadyHere.length ? planMoveToPoint(alreadyHere.map((id) => liveById.get(id)).filter(Boolean), at) : [];
+  const moves = alreadyHere.length ? planPlaceAt(alreadyHere.map((id) => liveById.get(id)).filter(Boolean), at) : [];
   return { copies, moves, moveOnly };
 }
 

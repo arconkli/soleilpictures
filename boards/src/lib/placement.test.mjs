@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isUnplaced, placedOf, countUnplaced, canUnplace, positionUnplaced, planPutOnBoard, besideContent,
+  isUnplaced, placedOf, countUnplaced, canUnplace, positionUnplaced, planPutOnBoard, besideContent, nearestFreeSpot,
 } from './placement.js';
 
 const card = (id, extra = {}) => ({ id, kind: 'image', x: 0, y: 0, w: 100, h: 100, ...extra });
@@ -58,6 +58,20 @@ test('Put on board centres the block on the point, keeps sizes, and clears the f
   assert.ok(Math.abs((left + right) / 2 - 1000) <= 1);
   assert.ok(Math.abs((top + bottom) / 2 - 500) <= 1);
   assert.deepEqual(planPutOnBoard(all, ['on'], { x: 0, y: 0 }), []);
+});
+
+test('Put on board never lands on what is already there — it takes the nearest clear spot', () => {
+  const all = [
+    card('pal', { x: 900, y: 400, w: 300, h: 200 }),
+    card('u', { unplaced: true, x: 0, y: 2000, w: 200, h: 150 }),
+  ];
+  const [p] = planPutOnBoard(all, ['u'], { x: 1050, y: 500 });
+  const r = { x: p.patch.x, y: p.patch.y, w: 200, h: 150 };
+  const clear = r.x >= 1200 || r.x + r.w <= 900 || r.y >= 600 || r.y + r.h <= 400;
+  assert.ok(clear, `overlaps: ${JSON.stringify(r)}`);
+  // Nearest side of a 300×200 card from its own centre is above or below.
+  assert.ok(Math.hypot(r.x + 100 - 1050, r.y + 75 - 500) < 300, JSON.stringify(r));
+  assert.deepEqual(nearestFreeSpot([], { x: 5, y: 6 }, 10, 10), { x: 5, y: 6 });
 });
 
 test('with no point, Put on board goes just right of the board\'s content', () => {

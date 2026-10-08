@@ -17,6 +17,8 @@ curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/arrange \
 ```
 
 Omit `card_ids` to arrange the whole board, or pass a subset to tidy part of it.
+Cards that aren't on the board (`"unplaced": true`) are left alone and take no
+room in the layout.
 The same `layout` works on [adding cards](/docs/api/cards) and on
 [import](/docs/api/import), so a batch can land arranged instead of needing a
 second call.

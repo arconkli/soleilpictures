@@ -72,6 +72,15 @@ once. Moving cards doesn't change how many you have.
 **Copy link** — a deep link that opens the board with that card selected. Useful
 in a message or a doc.
 
+## Removing a card from the board
+
+Right-click a file — an image, video, audio clip, PDF, file, link, palette or
+note — and choose **Remove from board** to take it off the canvas without
+deleting it. It stays in the cluster, waiting in
+[Files](/docs/clusters/list-view) with a **Not on board** mark, until you drag
+it back onto the board or choose **Put on board** there. The toast that follows
+can undo it. `⌫` still deletes.
+
 ## Titles
 
 Most cards have a title. Double-click it to edit. Titles are searchable in
@@ -88,6 +97,8 @@ The free Demo plan allows **50 cards** in total across every
 cluster you create. Cards on clusters someone else owns do not count against
 you — if you are invited as an editor, you are spending their allowance, not
 yours.
+
+Files waiting in Files, not on the board, are still cards and count the same.
 
 Creator removes the limit entirely. See [Plans](/docs/account/plans).
 

@@ -6347,6 +6347,92 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Removing a card from the board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Removing a card from the board"
+    }
+   ],
+   "id": "removing-a-card-from-the-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-click a file — an image, video, audio clip, PDF, file, link, palette or note — and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Remove from board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove from board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to take it off the canvas without deleting it. It stays in the cluster, waiting in "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " with a "
+    },
+    {
+     "t": "strong",
+     "v": "Not on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " mark, until you drag it back onto the board or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " there. The toast that follows can undo it. "
+    },
+    {
+     "t": "code",
+     "v": "⌫"
+    },
+    {
+     "t": "text",
+     "v": " still deletes."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Titles",
    "inline": [
     {
@@ -6445,6 +6531,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " in total across every cluster you create. Cards on clusters someone else owns do not count against you — if you are invited as an editor, you are spending their allowance, not yours."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files waiting in Files, not on the board, are still cards and count the same."
     }
    ]
   },
@@ -15956,7 +16051,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Moves its card to where you dropped it — every file in a cluster is already on its board"
+       "v": "Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there"
       }
      ]
     ],
@@ -16063,6 +16158,101 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " instead. Moving takes it out of the other cluster, and the toast that follows can undo it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Not on board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Not on board"
+    }
+   ],
+   "id": "not-on-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file can be in a cluster without being on its board. Right-click a card on the board and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Remove from board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove from board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": it leaves the canvas but stays in the cluster, waiting in Files with a "
+    },
+    {
+     "t": "strong",
+     "v": "Not on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " mark. "
+    },
+    {
+     "t": "strong",
+     "v": "Not on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the View menu (or Filter, in full-screen Files) shows just those."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To put one back, drag it onto the board, or right-click it in Files — or use the selection bar, or Quick look — and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which places it in the clear space nearest the middle of where the board was last looking. A link or search result that points at a file that isn't on the board opens Files with it picked out instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files waiting off the board are still cards: they count toward your plan's card limit, and anyone the cluster is shared with sees them in Files."
     }
    ]
   },
@@ -39638,6 +39828,52 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "A card that is in the cluster but "
+    },
+    {
+     "t": "strong",
+     "v": "not on its board",
+     "children": [
+      {
+       "t": "text",
+       "v": "not on its board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — taken off the board with Remove from board, waiting in "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — carries "
+    },
+    {
+     "t": "code",
+     "v": "\"unplaced\": true"
+    },
+    {
+     "t": "text",
+     "v": ". It's listed like any card and still has a position (where it waits, below the board's content), but the canvas doesn't draw it. The field is only present when it's true, and it can't be written through the API."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Interior state the editor owns — grid layouts, adjustment settings, collaborative document structure — is deliberately not exposed. An API caller should not be able to write arbitrary internals into everyone's board."
     }
    ]
@@ -43822,7 +44058,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to arrange the whole board, or pass a subset to tidy part of it. The same "
+     "v": " to arrange the whole board, or pass a subset to tidy part of it. Cards that aren't on the board ("
+    },
+    {
+     "t": "code",
+     "v": "\"unplaced\": true"
+    },
+    {
+     "t": "text",
+     "v": ") are left alone and take no room in the layout. The same "
     },
     {
      "t": "code",

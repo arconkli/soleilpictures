@@ -71,7 +71,7 @@ import {
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
+import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
 import { yMapToCard } from '../lib/yhelpers.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
@@ -148,7 +148,8 @@ import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading } from '../lib/abandonedUploads.js';
-import { isUnplaced, countUnplaced } from '../lib/placement.js';
+import { isUnplaced, countUnplaced, canUnplace } from '../lib/placement.js';
+import { setViewCenter, trackViewCenter } from '../lib/viewCenter.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals, uprightLabelAngle,
@@ -2358,6 +2359,25 @@ export function CanvasSurface({
       { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }));
     return true;
   }, [cards, enableSmoothTransform, applyCamera]);
+
+  // Where this board's camera is looking (lib/viewCenter.js) — "Put on board"
+  // from Files places files there. The live reader follows the canvas as the
+  // Files panel narrows it; the effect below leaves the last answer behind for
+  // when the canvas unmounts (full Files).
+  const readViewCenter = useCallback(() => {
+    const r = wrapRef.current?.getBoundingClientRect?.();
+    const z = zoomRef.current, p = panRef.current;
+    if (!r || r.width < 50 || !(z > 0)) return null;
+    return { x: (r.width / 2 - p.x) / z, y: (r.height / 2 - p.y) / z };
+  }, []);
+  useEffect(() => {
+    if (isPublic || !board?.id) return undefined;
+    return trackViewCenter(board.id, readViewCenter);
+  }, [isPublic, board?.id, readViewCenter]);
+  useEffect(() => {
+    if (isPublic || !board?.id) return;
+    setViewCenter(board.id, readViewCenter());
+  }, [isPublic, board?.id, pan.x, pan.y, zoom, readViewCenter]);
 
   // Bring cards to the middle of the view at the current zoom (zooming out only
   // if they wouldn't fit) — Files beside the board's "find it on the board".
@@ -6700,6 +6720,25 @@ export function CanvasSurface({
   };
   const closeCardMenu = () => setCtx(c => ({ ...c, open: false }));
 
+  // Remove from board: the cards leave the canvas and wait in Files, one undo
+  // step. Their spot is kept — it's where an older client still draws them —
+  // and they leave any group, which is a thing on the board.
+  const removeFromBoard = (ids) => {
+    const list = (ids || []).filter((id) => canUnplace(cardByIdRef.current?.[id]));
+    if (!list.length) return;
+    const um = mutators.undoManager;
+    mutators.breakUndo?.();
+    mutators.updateCards?.(list.map((id) => ({ id, patch: { unplaced: true, groupId: null } })));
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    setSelected(new Set());
+    undoToast(feedback, {
+      message: list.length === 1 ? 'Removed from board — it\u2019s still in Files' : `${list.length} removed from board — still in Files`,
+      undoManager: um, stackItem: item,
+      onUndo: () => mutators.undo?.(),
+    });
+  };
+
   const buildMenu = (c) => {
     // Buckets → composeMenuSections keeps every card's menu grouped + ordered
     // the same: primary (open) · EDIT · ANNOTATE · ARRANGE · CLIPBOARD · meta
@@ -7258,6 +7297,13 @@ export function CanvasSurface({
     // single-select; the old audit-toast duplicate "Info" was removed here so the
     // menu never shows two "Info" rows.
 
+    // Off the board, still in the cluster: the file waits in Files
+    // (lib/placement.js). Offered only when every card in the selection can go.
+    const offIds = (multi ? [...selected] : [c.id]).filter((id) => canUnplace(cardById[id]));
+    if (offIds.length && offIds.length === (multi ? selected.size : 1)) {
+      metaItems.push({ id: 'unplace', label: offIds.length > 1 ? `Remove ${offIds.length} from board` : 'Remove from board',
+        run: () => removeFromBoard(offIds) });
+    }
     metaItems.push({ backlinks: true });
     metaItems.push({ id: 'delete', label: multi ? `Delete (${selected.size})` : 'Delete',
       shortcut: '⌫', danger: true,
@@ -9263,9 +9309,11 @@ export function CanvasSurface({
     if (!boards?.[payload.sourceBoardId]) return;
     const um = mutators.undoManager;
     const top = () => (um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null);
-    const live = new Map((cards || []).map((c) => [c.id, c]));
+    // Every card in the cluster: a file waiting in Files (lib/placement.js) is
+    // put on the board by dropping it here.
+    const live = new Map((everyCard || []).map((c) => [c.id, c]));
     if (payload.sourceBoardId === board.id) {
-      const plan = planMoveToPoint(payload.cards.filter((c) => live.has(c.id)), at, live);
+      const plan = planSameClusterDrop(payload.cards, at, live);
       if (!plan.length) return;
       mutators.breakUndo?.();
       mutators.updateCards?.(plan);
@@ -9274,7 +9322,7 @@ export function CanvasSurface({
       return;
     }
     const plan = planCrossDrop(payload.cards, at, {
-      sourceBoardId: payload.sourceBoardId, boardCards: cards || [], extraCopy,
+      sourceBoardId: payload.sourceBoardId, boardCards: everyCard || [], extraCopy,
     });
     let copiedIds = [];
     if (plan.copies.length) {

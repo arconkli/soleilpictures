@@ -436,6 +436,10 @@ export const DOCS_PAGES = [
         "text": "What every card does"
       },
       {
+        "id": "removing-a-card-from-the-board",
+        "text": "Removing a card from the board"
+      },
+      {
         "id": "titles",
         "text": "Titles"
       },
@@ -1366,6 +1370,10 @@ export const DOCS_PAGES = [
       {
         "id": "dragging-files-onto-the-board",
         "text": "Dragging files onto the board"
+      },
+      {
+        "id": "not-on-board",
+        "text": "Not on board"
       },
       {
         "id": "folders-and-the-path-bar",
