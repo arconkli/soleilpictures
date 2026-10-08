@@ -80,6 +80,28 @@ export async function handleTagsRoute(url, request, env) {
 // /api/tags/embed
 // Body: { cards: [{ id, text }] }
 // Returns: { embeddings: [{ id, vector }] }
+
+// Asks tags_embed_budget_take, as the caller, whether these characters fit
+// today's budget. Anything but an explicit yes is a no.
+async function embedBudgetOk(env, request, chars) {
+  try {
+    const r = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/tags_embed_budget_take`, {
+      method: 'POST',
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        authorization: request.headers.get('authorization') || '',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ p_chars: chars }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return false;
+    return (await r.json().catch(() => false)) === true;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function handleEmbed(request, env) {
   if (!env.OPENAI_API_KEY) return json({ error: 'openai key not configured' }, 500);
   const body = await request.json().catch(() => null);
@@ -99,6 +121,12 @@ async function handleEmbed(request, env) {
     ids.push(c.id);
     // Cap input length to keep token costs predictable.
     texts.push(c.text.slice(0, 8000));
+  }
+  // A daily budget, per account and for everyone (0381, audit SE-3): this route
+  // turns a signed-in request straight into OpenAI spend. Spend only on a yes.
+  const chars = texts.reduce((n, t) => n + t.length, 0);
+  if (!await embedBudgetOk(env, request, chars)) {
+    return json({ error: 'daily embedding budget reached' }, 429);
   }
   const r = await fetch('https://api.openai.com/v1/embeddings', {
     method: 'POST',

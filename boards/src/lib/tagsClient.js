@@ -15,6 +15,9 @@ import { supabase } from './supabase.js';
 // the first successful response, so when the outage ends we resume
 // immediately without manual intervention.
 const COOLDOWN_MS = 60_000;
+// A 429 from /api/tags/embed is the daily budget (migration 0381): retrying
+// within the hour cannot succeed, so stop asking for that long.
+const BUDGET_COOLDOWN_MS = 60 * 60_000;
 const _cooldownUntil = new Map(); // path -> Date.now() until which to skip
 
 async function authedFetch(path, body) {
@@ -38,6 +41,8 @@ async function authedFetch(path, body) {
       console.warn(`[tagsClient] ${path} ${r.status}:`, errText.slice(0, 200));
       if (r.status >= 500) {
         _cooldownUntil.set(path, Date.now() + COOLDOWN_MS);
+      } else if (r.status === 429) {
+        _cooldownUntil.set(path, Date.now() + BUDGET_COOLDOWN_MS);
       }
       return null;
     }

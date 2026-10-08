@@ -20786,6 +20786,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "It reads up to 2,000,000 characters of text per account a day, far more than a day's work produces. Past that, it pauses until the next day."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Nothing applied automatically is hidden. Open the tag, press "
     },
     {

@@ -202,6 +202,14 @@ if (!originRetention) {
   throw new Error('gen-docs: the request-origin retention was not found — update the extractor');
 }
 
+// How much text automatic tagging may send for embedding per account per day
+// (tags_embed_budget_take, migration 0381).
+const embedBudget = latestSqlDefining('tags_embed_budget_take')
+  ?.match(/c_user_day\s+constant\s+bigint\s*:=\s*(\d+)/);
+if (!embedBudget) {
+  throw new Error('gen-docs: the embedding budget was not found — update the extractor');
+}
+
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // The cap accounts created before migration 0229 keep, permanently. The plans
@@ -278,6 +286,8 @@ export const FACTS = {
   referralLinkJoinDays: referralLinkDays[1],
   // Days a request's hashed network and browser are kept (0378).
   requestOriginRetentionDays: originRetention[1],
+  // Characters of text automatic tagging reads per account per day (0381).
+  embedCharsPerDay: Number(embedBudget[1]).toLocaleString('en-US'),
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
   maxPartsPerCall: String(api.maxPartsPerCall),
