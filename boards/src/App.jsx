@@ -1816,6 +1816,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // opts.moveFrom: the board these cards are leaving (a cross-pane move).
       // opts.restore: cards put back for things that already exist (the tile
       // the reconcile effect places for a cluster with no card here).
+      // opts.untracked: off the undo stack ('cross-board-move' origin) — a move's
+      // arrival, whose undo is the move's own toast. ⌘Z stripping the arrival
+      // after the source had let go would leave the cards on neither board.
+      // opts.arrows: arrows to add in the same transaction (a move's arrows
+      // between cards that moved together).
       const requested = cardsToAdd?.length || 0;
       let capHit = false;
       const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit, placedIds: [] }; }
@@ -1855,7 +1860,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           m.set(c.id, cardToYMap(c));
           placedIds.push(c.id);
         }
-      }, 'local');
+        if (opts.arrows?.length) {
+          const landed = new Set(placedIds);
+          const endId = (r) => (typeof r === 'string' ? r : r?.cardId);
+          const ok = opts.arrows.filter((a) => landed.has(endId(a.from)) && landed.has(endId(a.to)));
+          if (ok.length) arrowsArr().push(ok.map((a) => ({ ...a })));
+        }
+      }, opts.untracked ? 'cross-board-move' : 'local');
       // A card moved in is existing work even when the move was gated: its
       // source deleted it the moment it landed here, so a refusal must keep it
       // (uncounted, retried) — taking it back would leave it on neither board.
