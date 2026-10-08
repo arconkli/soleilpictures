@@ -1868,7 +1868,7 @@ export const DOCS_PAGES = [
     "answer": "A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.",
     "section": "organize",
     "order": 0,
-    "updated": "2026-10-02",
+    "updated": "2026-10-07",
     "navLabel": "Tags",
     "headings": [
       {

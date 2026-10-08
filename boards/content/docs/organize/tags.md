@@ -5,7 +5,7 @@ h1: Tags and entities
 navLabel: Tags
 section: organize
 order: 0
-updated: 2026-10-02
+updated: 2026-10-07
 answer: A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.
 faq:
   - q: Do tags move things?
@@ -71,6 +71,9 @@ tags you have already made, so a workspace with no tags gets none.
   the diner can pick it up on its own.
 - **A looser match is only suggested.** It waits on the tag until you accept or
   dismiss it.
+
+It reads up to {{fact:embedCharsPerDay}} characters of text per account a day,
+far more than a day's work produces. Past that, it pauses until the next day.
 
 Nothing applied automatically is hidden. Open the tag, press **Manage** and
 filter to **Auto** to see everything it picked up on its own. Right-click any

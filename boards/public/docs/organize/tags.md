@@ -2,7 +2,7 @@
 
 > A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.
 
-_Source: https://clusters.soleilpictures.com/docs/organize/tags · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/organize/tags · Updated 2026-10-07_
 
 Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you
 everything that does not fit a hierarchy.
@@ -55,6 +55,9 @@ tags you have already made, so a workspace with no tags gets none.
   the diner can pick it up on its own.
 - **A looser match is only suggested.** It waits on the tag until you accept or
   dismiss it.
+
+It reads up to 2,000,000 characters of text per account a day,
+far more than a day's work produces. Past that, it pauses until the next day.
 
 Nothing applied automatically is hidden. Open the tag, press **Manage** and
 filter to **Auto** to see everything it picked up on its own. Right-click any

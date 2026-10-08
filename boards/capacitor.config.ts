@@ -35,7 +35,12 @@ const config: CapacitorConfig = {
     scrollEnabled: false,
   },
   android: {
-    allowMixedContent: true,
+    // OFF (audit CL-6, 2026-10-06). On, the WebView loads plain-HTTP content —
+    // scripts included — into the app's secure origin, where anyone on the
+    // network path can rewrite it. Nothing the app loads is HTTP; browsers
+    // already refuse the same mixed content; live reload is unaffected (its
+    // page is HTTP throughout, see `server` above).
+    allowMixedContent: false,
   },
   plugins: {
     SplashScreen: {

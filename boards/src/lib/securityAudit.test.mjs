@@ -637,3 +637,23 @@ test('the Scout waitlist needs a hashed connection, a bot check once configured,
   assert.match(fn, /ops_alert_raise\('scout_waitlist_full',/);
   assert.match(fn, /return query select 'full'::text, false, null::int;/);
 });
+
+// ── 0381: the embedding route spends against a budget ───────────────────────
+
+test('every embedding call asks the daily budget first, and spends only on a yes', () => {
+  const src = read('../worker-tags.js');
+  const handler = src.slice(src.indexOf('async function handleEmbed'), src.indexOf('// ───', src.indexOf('async function handleEmbed')));
+  const ask = handler.indexOf('if (!await embedBudgetOk(env, request, chars))');
+  assert.ok(ask > 0 && ask < handler.indexOf('api.openai.com/v1/embeddings'), 'the budget is asked before OpenAI is called');
+  assert.match(src, /if \(!r\.ok\) return false;\s+return \(await r\.json\(\)\.catch\(\(\) => false\)\) === true;/, 'anything but a yes is a no');
+
+  const fn = latestDefinition('tags_embed_budget_take').body;
+  assert.match(fn, /c_user_day\s+constant bigint := \d+;/);
+  assert.match(fn, /c_global_day constant bigint := \d+;/);
+  assert.match(fn, /if not public\._actor_active\(\) then/);
+  assert.match(fn, /pg_advisory_xact_lock\(hashtext\('embed_budget'\)\)/);
+  assert.match(fn, /ops_alert_raise\('embed_budget',/);
+  assert.ok(latestMatch(/revoke execute on function public\.tags_embed_budget_take\(integer\) from public, anon;/));
+  assert.ok(latestMatch(/revoke all on table public\.embed_usage from public, anon, authenticated;/));
+  assert.match(read('../../content/docs/organize/tags.md'), /\{\{fact:embedCharsPerDay\}\}/);
+});
