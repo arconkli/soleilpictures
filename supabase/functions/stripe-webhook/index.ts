@@ -11,8 +11,8 @@
 // the auth boundary — we verify it before doing anything.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "npm:stripe@17";
+import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import Stripe from "npm:stripe@17.7.0";
 import {
   activateUserFromSubscription,
   netMonthlyFromSubscription,

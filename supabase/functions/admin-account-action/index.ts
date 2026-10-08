@@ -27,8 +27,8 @@
 // so we never strand a subscription billing a blocked/removed account.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "npm:stripe@17";
+import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import Stripe from "npm:stripe@17.7.0";
 import {
   netMonthlyFromSubscription,
   periodEndFromSubscription,
