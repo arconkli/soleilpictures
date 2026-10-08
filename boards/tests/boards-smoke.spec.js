@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openFullFiles } from './files-helpers.js';
 
 test('default route keeps the sign-in interface intact', async ({ page }) => {
   await page.goto('/');
@@ -40,7 +41,7 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
   const newNote = page.locator('.card .note').last();
   await expect(newNote).toBeVisible();
 
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await openFullFiles(page);
   await expect(page.locator('.list-section-files')).toBeVisible();
   await expect(page.getByText('Empty note')).toBeVisible();
 

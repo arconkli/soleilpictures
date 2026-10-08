@@ -6,10 +6,12 @@ navLabel: Files view
 section: clusters
 order: 1
 updated: 2026-10-08
-answer: Every cluster has two views, Board and Files, switched at the top of the screen or with F. Files shows the same contents as a file browser — a grid of previews or a list — with sorting, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
+answer: Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
-  - q: Does switching to Files change my board?
-    a: No. It is a different view of the same contents. Positions on the canvas are untouched.
+  - q: Does opening Files change my board?
+    a: No. It is a different view of the same contents. Positions on the canvas are untouched, and opening Files beside the board never changes how anyone else sees the cluster.
+  - q: Can I see my files and my board at the same time?
+    a: Yes. Files opens as a panel beside the board. Drag its edge to make it wider, or press the expand button to fill the screen with it.
   - q: Can I upload from Files?
     a: Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas.
   - q: Can I make Files the default?
@@ -24,16 +26,37 @@ related:
 
 The board is for arranging. Files is for finding.
 
-Same cluster, same contents, different question being asked. Switch with
-**Board · Files** at the top of the screen — the Files side counts the cards
-inside, not counting nested clusters — or press `F` to flip between them.
-`⌘K` → "Switch to Files" does the same. On a phone the switch is the two icons
-in the top bar. In split view all three act on the pane you last worked in.
+Same cluster, same contents, different question being asked — and you can ask
+both at once.
+
+## Files beside the board
+
+Press `F`, or **Files** in **Board · Files** at the top of the screen, and Files
+opens as a panel on the right of the board. The board stays where it was and
+keeps working: you can pan, select and arrange while the panel is open. The
+Files side of the switch counts the cards inside, not counting nested clusters.
+
+| To do this | Do this |
+|---|---|
+| Open or close Files beside the board | `F`, or **Files** / **Board** at the top |
+| Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it |
+| Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across |
+| Put full-screen Files back beside the board | **Beside board** in its toolbar |
+| Find a file on the board | Double-click it in the panel — the board flies to it |
+
+`⌘K` → "Show Files" does the same as `F`. Whether the panel is open, and how
+wide, is remembered on your device; it never changes the cluster for anyone
+else. Full-screen Files is the cluster's own view, so a cluster you leave in
+Files opens in Files for everyone, and on shared and published links.
+
+The panel needs room: in a narrow window, and on phones and tablets, Files
+fills the screen instead. In split view, the switch and `F` act on the pane you
+last worked in, and Files there fills that pane.
 
 A cluster remembers which view it was left in. Clusters made from a folder you
 [drop in](/docs/clusters#dropping-a-folder) open in Files for you, because a
 dropped folder is files first; their cards are still laid out on each canvas,
-one `F` away, and on the parent board they keep their thumbnail.
+and on the parent board they keep their thumbnail.
 
 ## Grid and list
 

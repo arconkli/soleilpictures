@@ -10,6 +10,7 @@
 // only "96 bytes came back" would have passed against the old waveform, which
 // was a hash of the filename.
 import { expect, test } from '@playwright/test';
+import { openFullFiles } from './files-helpers.js';
 
 const isNoise = (t) => /ERR_NAME_NOT_RESOLVED|Failed to load resource|WebSocket connection/.test(t);
 
@@ -35,7 +36,7 @@ async function addAudio(page, n = 1) {
 }
 
 const goList = async (page) => {
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await openFullFiles(page);
   await expect(page.locator('.list-wrap')).toBeVisible();
 };
 

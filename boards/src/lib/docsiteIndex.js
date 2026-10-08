@@ -1349,12 +1349,16 @@ export const DOCS_PAGES = [
     "title": "Files View — Soleil Clusters",
     "metaDescription": "Every cluster in Soleil Clusters is also a drive. Files shows it as a grid or a list, with search, sort, type filters and a detail panel with previews.",
     "h1": "Files view",
-    "answer": "Every cluster has two views, Board and Files, switched at the top of the screen or with F. Files shows the same contents as a file browser — a grid of previews or a list — with sorting, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.",
+    "answer": "Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
     "updated": "2026-10-08",
     "navLabel": "Files view",
     "headings": [
+      {
+        "id": "files-beside-the-board",
+        "text": "Files beside the board"
+      },
       {
         "id": "grid-and-list",
         "text": "Grid and list"
@@ -1407,8 +1411,12 @@ export const DOCS_PAGES = [
     ],
     "faq": [
       {
-        "q": "Does switching to Files change my board?",
-        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched."
+        "q": "Does opening Files change my board?",
+        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched, and opening Files beside the board never changes how anyone else sees the cluster."
+      },
+      {
+        "q": "Can I see my files and my board at the same time?",
+        "a": "Yes. Files opens as a panel beside the board. Drag its edge to make it wider, or press the expand button to fill the screen with it."
       },
       {
         "q": "Can I upload from Files?",
