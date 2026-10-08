@@ -94,6 +94,11 @@ interface R2Env {
   secretAccessKey: string;
 }
 
+// Board thumbnails and progressive previews are WebP the client renders itself:
+// tens to hundreds of KB. They are not counted against the storage quota, so
+// their declared size is capped instead (0387).
+const DERIVED_MAX_BYTES = 8 * 1024 * 1024;
+
 interface PresignBody {
   fileExt?: string;
   contentType?: string;
@@ -474,10 +479,25 @@ export default class UploadParty implements Party.Server {
     // at all, and blocking core image drops on a transient RPC failure is the
     // worse trade.
     const isDerivedKey = isValidThumbKey(key) || key.startsWith(previewPrefix);
+
+    // THE BYTE COUNT IS BINDING (migration 0387, audit AC-5). It is signed into
+    // the PUT URL as Content-Length below, so R2 refuses a body of any other
+    // size, and a main upload's count becomes its upload intent before the key
+    // leaves this function — the images row then takes its size from that, not
+    // from the client. Before this the URL took any number of bytes and the
+    // row carried whatever size the client wrote, so the quota never filled.
+    const declared = Number(body.bytes);
+    if (!Number.isSafeInteger(declared) || declared < 0) {
+      return new Response("bytes required", { status: 400, headers: corsHeaders(origin) });
+    }
+    if (isDerivedKey && declared > DERIVED_MAX_BYTES) {
+      return new Response("Too large for a thumbnail or preview", { status: 413, headers: corsHeaders(origin) });
+    }
+
     if (body.boardId && !isDerivedKey) {
       const authRows = await supabaseRpc("authorize_image_upload", {
         p_board_id: body.boardId,
-        p_bytes: Math.max(0, Math.floor(Number(body.bytes) || 0)),
+        p_bytes: declared,
       }, accessToken);
       const auth = Array.isArray(authRows) ? authRows[0] : authRows;
       if (auth && auth.allow !== true && auth.reason === "over_quota") {
@@ -498,11 +518,27 @@ export default class UploadParty implements Party.Server {
     // aws4fetch has no `expiresIn` option (see signReadUrl above), so the old
     // `{ expiresIn: 300 }` was silently ignored and PUT URLs got the 86400s
     // (24h) SigV4 default instead of the intended 5 minutes.
+    if (!isDerivedKey) {
+      const recorded = await supabaseRpc("record_upload_intent", {
+        p_key: key, p_bytes: declared, p_kind: "put", p_board_id: body.boardId || null,
+      }, accessToken);
+      if (recorded !== true) {
+        return new Response("Could not reserve this upload", { status: 503, headers: corsHeaders(origin) });
+      }
+    }
+
     const r2Url = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}?X-Amz-Expires=300`;
+    // allHeaders: aws4fetch leaves Content-Length out of the signature by
+    // default. Only the length (and host) is signed — the browser's
+    // Content-Type stays free, as it always was. A URL whose signature does not
+    // cover the length is never handed out.
     const signed = await r2.sign(
-      new Request(r2Url, { method: "PUT", headers: { "Content-Type": contentType } }),
-      { aws: { signQuery: true } },
+      new Request(r2Url, { method: "PUT", headers: { "Content-Length": String(declared) } }),
+      { aws: { signQuery: true, allHeaders: true } },
     );
+    if (!/X-Amz-SignedHeaders=[^&]*content-length/i.test(signed.url)) {
+      return new Response("Could not sign this upload", { status: 500, headers: corsHeaders(origin) });
+    }
 
     return Response.json({ uploadUrl: signed.url, key }, {
       headers: corsHeaders(origin),
@@ -661,6 +697,15 @@ export default class UploadParty implements Party.Server {
     const r2 = this.mkR2Client(env);
     const uploadId = await this.createMultipart(r2, env, key, contentType);
     if (!uploadId) return new Response("Failed to start upload", { status: 502, headers: corsHeaders(origin) });
+    // The declared total is the upload intent (0387); /mpu/complete holds R2's
+    // count of the finished object to it.
+    const recorded = await supabaseRpc("record_upload_intent", {
+      p_key: key, p_bytes: Math.floor(totalBytes), p_kind: "multipart", p_board_id: boardId,
+    }, accessToken);
+    if (recorded !== true) {
+      await this.abortMultipart(r2, env, key, uploadId);
+      return new Response("Could not reserve this upload", { status: 503, headers: corsHeaders(origin) });
+    }
     const partSize = computePartSize(totalBytes);
     const partCount = Math.max(1, Math.ceil(totalBytes / partSize));
     return Response.json({ key, uploadId, partSize, partCount }, { headers: corsHeaders(origin) });
@@ -716,7 +761,22 @@ export default class UploadParty implements Party.Server {
     const result = await this.completeMultipart(r2, env, key, uploadId, parts);
     if (!result.ok)
       return new Response(`Complete failed: ${result.error || ""}`, { status: 502, headers: corsHeaders(origin) });
-    return Response.json({ key, bytes: result.bytes ?? null }, { headers: corsHeaders(origin) });
+    // Part URLs cannot carry a length, so the finished object is held to what
+    // was declared at /mpu/create (0387): R2's own count must fit the upload
+    // intent, or the object is deleted. An object whose size R2 would not
+    // report is deleted too — it cannot be checked.
+    const finalized = result.bytes == null
+      ? null
+      : await supabaseRpc("finalize_upload_intent", { p_key: key, p_bytes: result.bytes }, accessToken);
+    if (finalized !== true) {
+      try { await r2.fetch(this.r2ObjectUrl(env, key), { method: "DELETE" }); } catch (_) { /* swept later */ }
+      const verified = result.bytes != null;
+      return Response.json(
+        { error: verified ? "size_mismatch" : "unverified", reason: verified ? "size_mismatch" : "unverified" },
+        { status: verified ? 413 : 503, headers: corsHeaders(origin) },
+      );
+    }
+    return Response.json({ key, bytes: result.bytes }, { headers: corsHeaders(origin) });
   }
 
   // POST /mpu/abort — discard an in-flight session (user cancel / error).

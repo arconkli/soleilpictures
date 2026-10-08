@@ -725,3 +725,35 @@ test('no cron job carries its secret inline; one definer helper reads it from Va
   assert.match(latestDefinition('check_security_invariants').body,
     /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', 'check_security_invariants'\)/);
 });
+
+// ── 0387: storage counts what was actually stored ───────────────────────────
+
+test('an upload URL carries its size, and the images row takes that size, not the client\'s', () => {
+  const party = read('../../party/upload.ts');
+  const presign = party.slice(party.indexOf('async handlePresignPut'), party.indexOf('// POST /sign-reads'));
+  assert.match(presign, /new Request\(r2Url, \{ method: "PUT", headers: \{ "Content-Length": String\(declared\) \} \}\),\s+\{ aws: \{ signQuery: true, allHeaders: true \} \}/,
+    'the length is signed — R2 refuses a body of any other size');
+  assert.match(presign, /if \(!\/X-Amz-SignedHeaders=\[\^&\]\*content-length\/i\.test\(signed\.url\)\)/,
+    'a URL whose signature does not cover the length is never handed out');
+  const intentAt = presign.indexOf('"record_upload_intent"');
+  assert.ok(intentAt > 0 && intentAt < presign.indexOf('return Response.json({ uploadUrl'), 'the intent is recorded before the key leaves');
+  assert.match(party, /const DERIVED_MAX_BYTES = /);
+  assert.match(party, /"finalize_upload_intent", \{ p_key: key, p_bytes: result\.bytes \}/, 'a multipart object is held to its declaration');
+
+  const up = read('./uploads.js');
+  assert.match(up, /presignPreview\(\{ workspaceId, boardId, previewKey: requestedKey, bytes: dn\.blob\.size \}\)/);
+  assert.match(up, /presignPreview\(\{ workspaceId, boardId, previewKey: requestedSmKey, bytes: dnSm\.blob\.size \}\)/);
+  assert.match(up, /presignThumb\(\{ workspaceId, boardId, thumbKey: key, contentType: 'image\/webp', bytes: blob\.size \}\)/);
+
+  assert.match(latestDefinition('_tg_image_size_from_intent').body, /new\.size_bytes := v_bytes;/);
+  assert.ok(latestMatch(/create trigger images_size_from_intent\s+before insert on public\.images/));
+  for (const fn of ['authorize_upload', 'authorize_image_upload']) {
+    assert.match(latestDefinition(fn).body, /_storage_used_bytes\(v_owner\) \+ public\._storage_pending_bytes\(v_owner\)/,
+      `${fn} counts uploads in flight`);
+  }
+  assert.match(latestDefinition('_storage_quota_bytes').body, /else public\._storage_quota_free_bytes\(\)/, 'a free owner gets the free drive');
+  assert.ok(latestMatch(/add constraint images_size_bytes_nonnegative check \(size_bytes is null or size_bytes >= 0\)/));
+  for (const sig of ['_storage_quota_free_bytes\\(\\)', '_storage_pending_bytes\\(uuid\\)', 'purge_old_upload_intents\\(integer\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
+});

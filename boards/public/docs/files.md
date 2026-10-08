@@ -2,7 +2,7 @@
 
 > Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.
 
-_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-07_
 
 Drag a file onto the canvas. The type is detected and the right kind of card is
 created — you never pick "upload as image" from a menu.
@@ -57,8 +57,10 @@ behind it.
 
 ## Storage
 
-Uploads count against your account's storage quota. Creator accounts
-get 100GB. The meter is in **Settings → Plan & billing**.
+Uploads count against your account's storage quota: 5GB on the
+free plan, 100GB on Creator. The meter is in
+**Settings → Plan & billing**. When it is full, new uploads stop until you
+delete files or upgrade — nothing already there is touched.
 
 Storage is counted against the **owner of the cluster**, not the person who
 uploaded. If you are an editor on someone else's board, your uploads use their

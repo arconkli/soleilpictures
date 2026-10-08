@@ -5,7 +5,7 @@ h1: Video and audio
 navLabel: Video and audio
 section: files
 order: 2
-updated: 2026-10-02
+updated: 2026-10-07
 answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at {{fact:freeVideoCap}} and audio at {{fact:freeAudioCap}}; {{fact:planName}} removes both caps.
 faq:
   - q: Why does starting one audio card stop another?
@@ -143,5 +143,5 @@ video equivalent.
 ## Storage
 
 Media counts against your storage quota like everything else —
-{{fact:creatorStorage}} on {{fact:planName}}, with the meter in
+{{fact:freeStorage}} free, {{fact:creatorStorage}} on {{fact:planName}}, with the meter in
 **Settings → Plan & billing**. Video is usually what fills it.
