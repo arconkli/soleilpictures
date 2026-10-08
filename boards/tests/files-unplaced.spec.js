@@ -1,6 +1,7 @@
 // Files that are in a cluster but not on its board (src/lib/placement.js),
 // driven through the ?local=1 harness.
 import { expect, test } from '@playwright/test';
+import { openFullFiles } from './files-helpers.js';
 
 async function go(page, { width = 1440, height = 900 } = {}) {
   await page.setViewportSize({ width, height });
@@ -16,6 +17,12 @@ async function go(page, { width = 1440, height = 900 } = {}) {
 
 const panel = (page) => page.locator('.list-wrap.is-panel');
 const onCanvas = (page, id) => page.locator(`.canvas-wrap [data-card-id="${id}"]`);
+
+// A 1×1 PNG, enough for the harness (it never uploads).
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+const pngs = (...names) => names.map((name) => ({ name, mimeType: 'image/png', buffer: PNG }));
+const addFilesInput = (page) => page.locator('.list-wrap input[type="file"][multiple]');
+const canvasCount = (page) => page.locator('.canvas-wrap [data-card-id]').count();
 
 async function removeFromBoard(page, id) {
   await onCanvas(page, id).click({ button: 'right' });
@@ -80,4 +87,36 @@ test('the Not on board filter shows only files that are off the board, and click
   await panel(page).locator('[data-item-id="home-image"]').click();
   await page.waitForTimeout(400);
   expect(await page.locator('.cards-layer').evaluate((el) => getComputedStyle(el.parentElement).transform)).toBe(cam0);
+});
+
+test('files added in the panel join the cluster but stay off the board', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  await expect(panel(page)).toBeVisible();
+  const before = await canvasCount(page);
+  await addFilesInput(page).setInputFiles(pngs('moodboard-ref-a.png', 'moodboard-ref-b.png'));
+  await expect(page.getByText('Added 2 files to Files — not on the board')).toBeVisible();
+  // No "Open beside board" offer: the board is already beside it.
+  await expect(page.getByRole('button', { name: 'Open beside board' })).toHaveCount(0);
+  const added = panel(page).locator('[data-item-id]').filter({ has: page.locator('.ct-onboard.is-off') });
+  await expect(added).toHaveCount(2);
+  await page.waitForTimeout(300);
+  expect(await canvasCount(page)).toBe(before);
+  // Put on board puts them there.
+  await added.first().click({ button: 'right' });
+  await page.locator('.ctx-menu .ctx-item', { hasText: 'Put on board' }).click();
+  await expect.poll(() => canvasCount(page)).toBe(before + 1);
+});
+
+test('full Files: added files stay off the board, and the toast offers the board back', async ({ page }) => {
+  await go(page);
+  const before = await canvasCount(page);
+  await openFullFiles(page);
+  await addFilesInput(page).setInputFiles(pngs('still-01.png'));
+  await expect(page.getByText('Added 1 file to Files — not on the board')).toBeVisible();
+  await page.getByRole('button', { name: 'Open beside board' }).click();
+  await expect(panel(page)).toBeVisible();
+  await expect(panel(page).locator('.ct-onboard.is-off')).toHaveCount(1);
+  await page.waitForTimeout(300);
+  expect(await canvasCount(page)).toBe(before);
 });

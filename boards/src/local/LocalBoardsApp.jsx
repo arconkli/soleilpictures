@@ -48,7 +48,9 @@ import { ProjectsHome } from '../components/ProjectsHome.jsx';
 import { isTopLevelProject, spotBesideContent } from '../lib/projectsHome.js';
 import { ancestorPath } from '../lib/boardTree.js';
 import { layoutDrop } from '../lib/layoutEngine.js';
-import { placedOf } from '../lib/placement.js';
+import { placedOf, positionUnplaced } from '../lib/placement.js';
+import { classifyDropFile, fileMetaFor } from '../lib/fileIngest.js';
+import { useFeedback } from '../components/AppFeedback.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
@@ -1483,6 +1485,35 @@ export function LocalBoardsApp({ user, signOut }) {
     else setViewOverride((o) => ({ ...o, [currentId]: 'list' }));
     setFilesReveal({ boardId: currentId, ids: ids || [], token: Date.now() });
   };
+  // Files drops — App.ingestFilesArranged's twin, minus uploads: blob URLs,
+  // and the files wait in Files off the board at free spots below every card.
+  const feedback = useFeedback();
+  const [localRecentlyAdded, setLocalRecentlyAdded] = useState(null);   // { boardId, ids }
+  const ingestFilesLocal = (fileList) => {
+    const accepted = [];
+    for (const file of Array.from(fileList || [])) {
+      const c = classifyDropFile(file);
+      if (!c.kind || c.route === 'blocked' || c.route === 'screenplay') continue;
+      accepted.push({ file, kind: c.kind, w: c.w, h: c.h });
+    }
+    if (!accepted.length) return;
+    const made = positionUnplaced(currentState.cards, accepted).map((it) => {
+      const url = URL.createObjectURL(it.file);
+      const ext = (it.file.name.split('.').pop() || '').toLowerCase();
+      const base = { id: createId(it.kind), kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, unplaced: true };
+      if (it.kind === 'image' || it.kind === 'video') return { ...base, src: url, ...fileMetaFor(it.file) };
+      if (it.kind === 'audio') return { ...base, src: url, title: it.file.name, fileName: it.file.name, mime: it.file.type, ext, sizeBytes: it.file.size };
+      if (it.kind === 'pdf') return { ...base, src: url, pdfSrc: url, name: it.file.name };
+      return { ...base, fileSrc: url, fileName: it.file.name, mime: it.file.type, ext, sizeBytes: it.file.size };
+    });
+    addCards(made);
+    setLocalRecentlyAdded({ boardId: currentId, ids: new Set(made.map((c) => c.id)) });
+    feedback.toast({
+      type: 'success',
+      message: `Added ${made.length} ${made.length === 1 ? 'file' : 'files'} to Files — not on the board`,
+      ...(filesMode === 'full' && canDockHere ? { action: { label: 'Open beside board', onClick: () => applyFilesEventRef.current('shrink') } } : {}),
+    });
+  };
   const localDockControls = {
     canShrink: canDockHere,
     onExpand: () => applyFilesEvent('expand'),
@@ -1978,6 +2009,8 @@ export function LocalBoardsApp({ user, signOut }) {
                     onOpenBoard={openBoard}
                     onOpenPicker={() => openBoardLinkPicker()}
                     onDropInboxItem={dropInboxItem}
+                    onDropFilesToCluster={(files) => ingestFilesLocal(files)}
+                    recentlyAddedIds={localRecentlyAdded?.boardId === currentBoard?.id ? localRecentlyAdded.ids : null}
                     gridTemplates={currentTemplates}
                     getGridModel={(card) => readGridModel(card, null, currentTemplates)}
                     onRevealOnCanvas={() => { if (filesMode === 'full') applyFilesEvent(canDockHere ? 'shrink' : 'board'); }}
