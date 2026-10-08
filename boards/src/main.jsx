@@ -138,8 +138,9 @@ if (typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
 // Expose a small set of internals for end-to-end tests when running in
 // local QA mode (`?local=1`). Lets Playwright assert invariants like
 // "readCards anchors id to the Y.Map key" without needing a live
-// Supabase / PartyKit setup.
-if (typeof window !== 'undefined' &&
+// Supabase / PartyKit setup. Dev builds only (the house rule for QA
+// harnesses): the literal guard lets the bundler drop it from production.
+if (import.meta.env.DEV && typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).has('local')) {
   Promise.all([
     import('./lib/yhelpers.js'),

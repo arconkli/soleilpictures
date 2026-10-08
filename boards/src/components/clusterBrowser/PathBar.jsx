@@ -4,7 +4,7 @@
 // board — the topbar breadcrumb still says where the board is.
 
 import { Icon } from '../Icon.jsx';
-import { ChevronLeft, Search } from '../../lib/icons.js';
+import { ChevronLeft, Compass } from '../../lib/icons.js';
 import { collapsePath, ELLIPSIS } from '../../lib/filesDock.js';
 
 export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = false, onGoTo = null }) {
@@ -33,7 +33,7 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
       </ol>
       {onGoTo && (
         <button type="button" className="cbt-iconbtn pb-goto" onClick={onGoTo} aria-label="Go to cluster" title="Go to cluster…">
-          <Icon as={Search} size={14} />
+          <Icon as={Compass} size={14} />
         </button>
       )}
     </nav>
