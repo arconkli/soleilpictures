@@ -151,7 +151,18 @@ A selection gets a bar along the bottom:
 | **Delete** | Removes them, with undo |
 
 Dragging files onto one of the folders above them moves them into that
-cluster too. `⌘Z` and `⌘⇧Z` undo and redo in Files just as they do on the
+cluster too.
+
+**Right-click** a file, a folder or a selection for everything you can do
+with it — Quick look, Show on board, Rename, Download, Copy link, Move to…,
+Get info and Delete — or press `⇧F10` to open the same menu from the
+keyboard.
+
+**Rename** a file or folder with `F2`, or Rename in that menu: the name
+becomes editable in place, `Enter` saves and `Esc` puts it back. Renaming a
+file changes what it's called in the cluster, not the file — it still
+downloads under the name it was uploaded with. Notes are named by their text,
+so they don't rename. `⌘Z` and `⌘⇧Z` undo and redo in Files just as they do on the
 board.
 
 ## Auditioning audio

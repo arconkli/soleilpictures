@@ -64,7 +64,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
 
   const e = extOf(fileName, ext);
   const GlyphIcon = iconForFile(e, mime);
-  const label = fileName || title || 'File';
+  const label = title || fileName || 'File';   // a rename shows; the download keeps fileName
   const sizeText = humanSize(sizeBytes);
   const showTitle = !!title || editingTitle;
 

@@ -19,7 +19,7 @@ export function ClusterTable({
   onRowClick, onRowDoubleClick, recentlyAddedIds,
   expandedGroups, selectedGroupId, onGroupClick, onDownload = null,
   onAudition = null, onSeek = null, activeId = null, playingId = null, registerRow = null,
-  audioMode = false, draggableItems = false, onBoardIds = null,
+  audioMode = false, draggableItems = false, onBoardIds = null, renameFor = null,
 }) {
   const dateKey = sortKey === 'created' ? 'created' : 'updated';
   const th = (cls, col, label) => (
@@ -57,7 +57,7 @@ export function ClusterTable({
             onRowClick={onRowClick} onRowDoubleClick={onRowDoubleClick}
             onDownload={onDownload} onAudition={onAudition} onSeek={onSeek}
             activeId={activeId} playingId={playingId} registerRow={registerRow}
-            audioMode={audioMode} draggableItems={draggableItems} onBoardIds={onBoardIds}
+            audioMode={audioMode} draggableItems={draggableItems} onBoardIds={onBoardIds} renameFor={renameFor}
           />
         ) : (
           <ClusterRow
@@ -71,6 +71,7 @@ export function ClusterTable({
             active={activeId === it.id} playing={playingId === it.id}
             rowRef={registerRow ? registerRow(it.id) : null}
             audioMode={audioMode} draggable={draggableItems} onBoard={!!onBoardIds?.has?.(it.id)}
+            rename={renameFor ? renameFor(it.id) : null}
             onClick={(e) => onRowClick(e, it.id)}
             onDoubleClick={(e) => onRowDoubleClick(e, it.id)}
           />
@@ -113,7 +114,7 @@ function GroupBlock({
   group, expanded, selected, onGroupClick,
   selectedCards, peerMap, dateKey, recentlyAddedIds, onRowClick, onRowDoubleClick,
   onDownload = null, onAudition = null, onSeek = null, activeId = null, playingId = null, registerRow = null,
-  audioMode = false, draggableItems = false, onBoardIds = null,
+  audioMode = false, draggableItems = false, onBoardIds = null, renameFor = null,
 }) {
   return (
     <>
@@ -156,6 +157,7 @@ function GroupBlock({
           active={activeId === m.id} playing={playingId === m.id}
           rowRef={registerRow ? registerRow(m.id) : null}
           audioMode={audioMode} draggable={draggableItems} onBoard={!!onBoardIds?.has?.(m.id)}
+          rename={renameFor ? renameFor(m.id) : null}
           onClick={(e) => onRowClick(e, m.id)}
           onDoubleClick={(e) => onRowDoubleClick(e, m.id)}
         />

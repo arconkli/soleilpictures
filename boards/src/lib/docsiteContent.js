@@ -2638,6 +2638,50 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "F2"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rename the selected file or folder — "
+      },
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " saves, "
+      },
+      {
+       "t": "code",
+       "v": "Esc"
+      },
+      {
+       "t": "text",
+       "v": " cancels"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧F10"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The right-click menu, for the selection"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌘A"
       }
      ],
@@ -16739,7 +16783,77 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Dragging files onto one of the folders above them moves them into that cluster too. "
+     "v": "Dragging files onto one of the folders above them moves them into that cluster too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Right-click",
+     "children": [
+      {
+       "t": "text",
+       "v": "Right-click"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Get info and Delete — or press "
+    },
+    {
+     "t": "code",
+     "v": "⇧F10"
+    },
+    {
+     "t": "text",
+     "v": " to open the same menu from the keyboard."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Rename",
+     "children": [
+      {
+       "t": "text",
+       "v": "Rename"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a file or folder with "
+    },
+    {
+     "t": "code",
+     "v": "F2"
+    },
+    {
+     "t": "text",
+     "v": ", or Rename in that menu: the name becomes editable in place, "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " saves and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " puts it back. Renaming a file changes what it's called in the cluster, not the file — it still downloads under the name it was uploaded with. Notes are named by their text, so they don't rename. "
     },
     {
      "t": "code",

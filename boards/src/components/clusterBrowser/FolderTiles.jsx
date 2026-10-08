@@ -16,6 +16,7 @@ import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS, Avatar } from '../primitives.jsx';
 import { Folder, Link as LinkIcon } from '../../lib/icons.js';
+import { InlineRename } from './InlineRename.jsx';
 
 // Unknown (no card_count yet) says nothing rather than claiming "Empty".
 function countLabel(n) {
@@ -29,6 +30,7 @@ export const FolderTile = memo(function FolderTile({
   // Teammates inside this cluster right now ({ user } entries), shown as a
   // small stack — the presence the old board cards carried.
   peers = null,
+  rename = null,   // inline rename: { onCommit, onCancel }
   className = '', ...divProps
 }) {
   const people = [];
@@ -43,6 +45,7 @@ export const FolderTile = memo(function FolderTile({
   const label = name || board?.name || (linked ? 'Linked cluster' : 'Untitled cluster');
   return (
     <div {...divProps}
+         draggable={rename ? undefined : divProps.draggable}
          className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
          title={label}>
       <div className="ft-cover" style={{ '--ft-tint': tint }}>
@@ -55,7 +58,9 @@ export const FolderTile = memo(function FolderTile({
         {linked && <span className="ft-badge" aria-label="Linked cluster"><Icon as={LinkIcon} size={10} /></span>}
       </div>
       <div className="ft-text">
-        <div className="ft-name">{label}</div>
+        {rename
+          ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" />
+          : <div className="ft-name">{label}</div>}
         {(missing || Number.isFinite(board?.card_count)) && (
           <div className="ft-meta">{missing ? 'Not available' : countLabel(board.card_count)}</div>
         )}

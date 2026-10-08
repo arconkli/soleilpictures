@@ -22155,3 +22155,15 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   .ql-nav { display: none; }
   .ql .cb-detail.is-inline { display: none; }
 }
+
+/* ── Files: rename in place (InlineRename) ───────────────────────────────── */
+.ir-input {
+  width: 100%; min-width: 0; height: 24px;
+  padding: 0 6px; margin: 0 -6px;
+  border: 1px solid var(--soleil); border-radius: 5px;
+  background: var(--bg-1); color: var(--ink-0);
+  font: 500 12.5px/1 var(--font-sans);
+  outline: none;
+}
+.ct-row .ir-input { height: 26px; }
+.ft .ir-input, .ct-jg .ir-input { margin: 0; }

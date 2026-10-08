@@ -297,6 +297,8 @@ Key | Action
 Enter | Select the highlighted file
 Space or double-click | Quick look — ← / → step through the files, Space or Esc closes
 ⌘I | Info for the selected file — remembered on your device
+F2 | Rename the selected file or folder — Enter saves, Esc cancels
+⇧F10 | The right-click menu, for the selection
 ⌘A | Select every file showing — search and filters apply
 Esc | Clear the selection
 ⌫ or Del | Delete the selection, with undo
@@ -1915,7 +1917,11 @@ Download | The files, as a zip when there's more than one — see below
 Move to… | Pick another cluster; the cards leave this one and arrive there, with undo
 Delete | Removes them, with undo
 
-Dragging files onto one of the folders above them moves them into that cluster too. ⌘Z and ⌘⇧Z undo and redo in Files just as they do on the board.
+Dragging files onto one of the folders above them moves them into that cluster too.
+
+Right-click a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Get info and Delete — or press ⇧F10 to open the same menu from the keyboard.
+
+Rename a file or folder with F2, or Rename in that menu: the name becomes editable in place, Enter saves and Esc puts it back. Renaming a file changes what it's called in the cluster, not the file — it still downloads under the name it was uploaded with. Notes are named by their text, so they don't rename. ⌘Z and ⌘⇧Z undo and redo in Files just as they do on the board.
 
 Auditioning audio
 

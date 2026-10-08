@@ -141,7 +141,9 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       break;
     }
     case 'file':
-      item.name = card.fileName || card.title || 'File';
+      // A rename (title) shows over the uploaded name; downloads keep the
+      // uploaded name either way (lib/fileRename.js).
+      item.name = card.title || card.fileName || 'File';
       item.sub = card.ext ? String(card.ext).toUpperCase() : (card.mime || '');
       item.preview = { mode: 'file', ext: card.ext, mime: card.mime, kind };
       item.sizeBytes = card.sizeBytes ?? null;

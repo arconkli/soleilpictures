@@ -6,6 +6,7 @@ import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { Icon } from '../Icon.jsx';
 import { Download } from '../../lib/icons.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
+import { InlineRename } from './InlineRename.jsx';
 import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAnalysis.js';
 import { formatDuration, formatKey } from '../../lib/loopMeta.js';
 
@@ -59,6 +60,7 @@ export const ClusterRow = memo(function ClusterRow({
   item, selected, isNew, peers, dateKey = 'updated', onClick, onDoubleClick, member = false,
   onDownload = null, onAudition = null, onSeek = null, active = false, playing = false, rowRef = null,
   audioMode = false, draggable = false, onBoard = false,
+  rename = null,   // inline rename: { onCommit, onCancel }
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
@@ -76,7 +78,7 @@ export const ClusterRow = memo(function ClusterRow({
       data-item-id={item.id}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
       role="row"
-      draggable={draggable && !item.pending ? true : undefined}
+      draggable={draggable && !item.pending && !rename ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -103,7 +105,9 @@ export const ClusterRow = memo(function ClusterRow({
           )}
         </div>
         <div className="ct-name-wrap">
-          <div className="ct-name" title={item.name}>{item.name}</div>
+          {rename
+            ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-row-rename" />
+            : <div className="ct-name" title={item.name}>{item.name}</div>}
           {/* In loop-browser mode these same values have their own columns, so
               the folded line is hidden on a wide screen — and it is the only
               way to show them on a phone, where four mono columns truncate

@@ -105,6 +105,8 @@ the board, these keys go to whichever side the pointer was last over.
 | `Enter` | Select the highlighted file |
 | `Space` or double-click | Quick look — `←` / `→` step through the files, `Space` or `Esc` closes |
 | `⌘I` | Info for the selected file — remembered on your device |
+| `F2` | Rename the selected file or folder — `Enter` saves, `Esc` cancels |
+| `⇧F10` | The right-click menu, for the selection |
 | `⌘A` | Select every file showing — search and filters apply |
 | `Esc` | Clear the selection |
 | `⌫` or `Del` | Delete the selection, with undo |
