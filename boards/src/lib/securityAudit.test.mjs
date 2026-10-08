@@ -692,3 +692,18 @@ test('Messages shows an email address only to someone who shares a workspace wit
   assert.match(fn, /or \(mt\.user_id is not null and coalesce\(u\.email, ''\)\s+ilike/, 'nor may the search match one');
   assert.doesNotMatch(fn, /^\s+u\.email::text\s+as email,/m);
 });
+
+// ── 0385: an analytics row a client writes is about the client ──────────────
+
+test('a client analytics row names its own sender and a sane time, or is quarantined', () => {
+  const guard = latestDefinition('_tg_event_caller_guard').body;
+  assert.doesNotMatch(guard, /security definer/i, 'it must run as the caller, or current_user tells it nothing');
+  assert.match(guard, /if current_user not in \('anon', 'authenticated'\) then\s+return new;/,
+    'server-fired events legitimately name someone else');
+  assert.match(guard, /new\.user_id is distinct from auth\.uid\(\)/);
+  assert.match(guard, /new\.occurred_at > now\(\) \+ interval '5 minutes' then\s+new\.occurred_at := now\(\);/);
+  assert.ok(latestMatch(/create trigger analytics_events_a_caller_guard\s+before insert on public\.analytics_events/));
+  assert.ok('analytics_events_a_caller_guard' < 'analytics_events_divert_synthetic', 'the guard fires before the divert');
+  assert.match(latestDefinition('_tg_divert_synthetic_events').body,
+    /new\.props->>'synthetic_reason' in \('uid_mismatch', 'stale'\)/);
+});
