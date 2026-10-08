@@ -757,3 +757,19 @@ test('an upload URL carries its size, and the images row takes that size, not th
     assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
   }
 });
+
+// ── A ban reaches the open board sockets (AC-2) ─────────────────────────────
+
+test('a banned account is refused at connect and dropped from open boards within a minute', () => {
+  const auth = read('../../party/auth.ts');
+  assert.match(auth, /export async function bannedAmong\(serviceKey: string \| undefined, userIds: string\[\]\)/);
+  assert.match(auth, /profiles\?user_id=in\.\(\$\{ids\.join\(","\)\}\)&banned_at=not\.is\.null&select=user_id/,
+    'read with the service role — the banned token itself still passes PostgREST for up to an hour');
+  const board = read('../../party/board.ts');
+  assert.match(board, /static async onBeforeConnect\(req: Party\.Request, lobby: Party\.Lobby\)/);
+  assert.match(board, /if \(auth\.userId && banned\.has\(auth\.userId\)\) return new Response\("Account suspended", \{ status: 403 \}\);/);
+  assert.match(board, /conn\.setState\(\{ userId: ctx\.request\.headers\.get\("x-user-id"\) \|\| "" \}\);/);
+  assert.match(board, /await this\.armBanCheck\(\);/);
+  assert.match(board, /async onAlarm\(\) \{[\s\S]*?c\.close\(4403, "account suspended"\)/);
+  assert.match(board, /const BAN_CHECK_MS = 60_000;/);
+});

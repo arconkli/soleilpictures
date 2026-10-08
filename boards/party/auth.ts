@@ -191,6 +191,30 @@ async function canWriteBoardUncached(
   } catch (_) { return false; }
 }
 
+// Which of these users are banned (audit AC-2, 2026-10-06). A ban deletes the
+// account's sessions, but its access token keeps passing PostgREST — which
+// checks a JWT's signature and expiry, not whether its session still exists —
+// for up to an hour, and an open WebSocket was authorized once, at connect.
+// Read with the service role, so the answer does not depend on the banned
+// token at all. Fails OPEN: a lookup error must never drop everyone's socket.
+export async function bannedAmong(serviceKey: string | undefined, userIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  const ids = [...new Set(userIds)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 200);
+  if (!serviceKey || ids.length === 0) return out;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?user_id=in.(${ids.join(",")})&banned_at=not.is.null&select=user_id`,
+      {
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: "application/json" },
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
+    if (!res.ok) return out;
+    for (const row of (await res.json()) as Array<{ user_id: string }>) out.add(row.user_id);
+  } catch (_) { /* fail open */ }
+  return out;
+}
+
 // authAdmin — verify that the bearer is an authenticated user whose
 // profile carries tier='admin'. Used by the universe party to gate
 // every endpoint to platform admins. Returns { ok, userId } so the
