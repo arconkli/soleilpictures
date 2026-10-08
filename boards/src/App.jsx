@@ -101,7 +101,9 @@ import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
-import { filesCountOf, isViewSwitchKey, nextView } from './lib/viewSwitch.js';
+import { FilesDockLayout } from './components/FilesDock.jsx';
+import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
+import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
@@ -1158,12 +1160,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   ));
   const canDockMain = mainRoom && !mobileShell;
   const mainFilesMode = filesModeOf({ view, dockOpen: dockPrefs.open, canDock: canDockMain });
-  // Read at call time by handlers that outlive this render: which board is in
-  // full Files (null when none is), and whether there's room beside it.
-  const fullFilesBoardRef = useRef(null);
-  fullFilesBoardRef.current = mainFilesMode === 'full' ? currentId : null;
-  const canDockMainRef = useRef(canDockMain);
-  canDockMainRef.current = canDockMain;
   // The switch, F and ⌘K describe the split pane when that's the one in hand —
   // where Files is still the plain full view (no dock there).
   const switchMode = switchInSplit ? (splitView === 'list' ? 'full' : 'off') : mainFilesMode;
@@ -1405,9 +1401,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Only a real change reaches the board. A cluster opened in Files on this
     // device alone (folder drop, a folder opened from Files) is still stored as
     // canvas, so going back to the board must not write anything.
-    const stored = pendingViewRef.current[boardId] ?? (boards[boardId]?.view || 'canvas');
-    if (stored === v) return;
-    pendingViewRef.current[boardId] = v;
+    if ((boards[boardId]?.view || 'canvas') === v) return;
     updateBoardMeta(boardId, { view: v })
       .then(() => refreshBoards())
       .catch((e) => console.warn('persist board view failed', e));
@@ -6900,8 +6894,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const actions = {
       grids: engage(() => mainMutatorsRef.current?.addGrid?.(nearContent(), {})),
       group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent(), { via: 'power_reveal' })),
-      // Room is read when the toast is acted on, not when it was shown.
-      list_drive: engage(() => (canDockMainRef.current
+      list_drive: engage(() => (canDockMain
         ? applyFilesEventRef.current('files', 'power_reveal')
         : setView('list', 'power_reveal'))),
       docs: engage(() => mainMutatorsRef.current?.addDocCard?.(nearContent())),
@@ -8006,21 +7999,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // In split view it flips the pane the pointer last touched.
   const setViewRef = useRef(setView);
   setViewRef.current = setView;
+  const applyFilesEventRef = useRef(applyFilesEvent);
+  applyFilesEventRef.current = applyFilesEvent;
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
       if (isEditableTarget(e) || anyModalOpen()) return;
       if (currentSurface !== 'board' || openDocCard || paletteOpen) return;
       e.preventDefault();
-      if (splitId && !splitDoc && activePaneId === 'split') {
-        setViewRef.current(nextView(splitView), 'shortcut', splitId);
-      } else {
-        setViewRef.current(nextView(view), 'shortcut');
-      }
+      if (switchInSplit) setViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
+      else applyFilesEventRef.current('toggle', 'shortcut');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, splitView, splitId, splitDoc, activePaneId, currentSurface, openDocCard, paletteOpen]);
+  }, [switchInSplit, switchView, switchBoardId, splitDoc, splitDocFull, activePaneId, currentSurface, openDocCard,
+      paletteOpen, settingsOpen, pickerOpen, mobileNavOpen, tweak.showMessages]);
 
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
@@ -8045,11 +8038,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       keywords: ['gallery', 'surface', 'preview', 'popup', 'modal', 'screen', 'browse', 'design'],
       available: captureAllowed,
       run: () => openGallery() },
-    { id: 'view-switch', label: view === 'list' ? 'Switch to Board' : 'Switch to Files',
-      icon: view === 'list' ? BoundingBox : FilesIcon,
-      keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch'],
+    { id: 'view-switch', label: switchMode === 'off' ? 'Show Files' : 'Hide Files',
+      icon: switchMode === 'off' ? FilesIcon : BoundingBox,
+      keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch', 'panel'],
       available: currentSurface === 'board',
-      run: () => setView(nextView(view), 'palette') },
+      run: () => (switchInSplit
+        ? setView(nextView(switchView), 'palette', switchBoardId)
+        : applyFilesEventRef.current('toggle', 'palette')) },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
@@ -8315,24 +8310,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // keeps its keys until the pointer crosses into Files (lib/activePane.js).
     const basePaneId = paneId;
     const dockPanel = isMain && mainFilesMode === 'panel';
-    const dockControls = isMain ? {
-      canShrink: canDockMain,
-      onExpand: () => applyFilesEvent('expand', 'button'),
-      onShrink: () => applyFilesEvent('shrink', 'button'),
-      onClose: () => applyFilesEvent('close', 'button'),
-    } : null;
     const renderList = (listMode) => {
       const paneId = listMode === 'panel' ? 'files' : basePaneId;
       return (
-        <FilesPane mode={listMode} home={board} boards={boards}
-                   dockControls={dockControls}
-                   onOpenInFiles={(id) => openInFiles(id, basePaneId)}
-                   onPickCluster={requestClusterPick}
-                   onShowInCluster={isMain ? showInCluster : null}
-                   homeCards={canvasCards}
-                   revealRequest={filesReveal?.boardId === board.id && filesReveal.pane === (isMain ? 'main' : 'split') ? filesReveal : null}
-                   onLocate={(id) => setFocusRequest({ boardId: board.id, ids: [id], token: Date.now(), mode: 'center' })}
-                   render={(o) => (
           <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                        childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
                        onOpenBoard={openInPane}
@@ -8343,8 +8323,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        peersBelowByBoard={peersBelowByBoard}
                        onJumpToPeer={jumpToPeer}
                        onDropFilesToCluster={(files) => muts.ingestFilesArranged?.(files)}
-                       onRevealDone={(token) => setFilesReveal((r) => (r?.token === token ? null : r))}
-                       recentlyAddedIds={recentlyAdded?.boardId === board.id ? recentlyAdded.ids : null}
+                       recentlyAddedIds={focusRequest?.boardId === board.id ? recentlyAddedIds : null}
                        getAwareness={yh.getAwareness}
                        workspaceId={workspace.id}
                        selfId={user.id}
@@ -8365,23 +8344,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        // refusal that interrupted them, so it forces past the latch —
                        // the same distinction the chip and the cap wall already make.
                        onStorageUpsell={() => pitchStorageGate({ force: true })}
-                       onPickCluster={requestClusterPick}
                        paneId={paneId}
                        hasSplit={listMode === 'panel' || !!splitId}
                        mode={listMode}
-                       dockControls={dockControls}
-                       mutators={muts}
-                       // Kept when browsing replaces board/cards/mutators: a drag
-                       // that springs into another cluster moves files from here.
-                       homeSrc={{ boardId: board.id, cards, mutators: muts, canEdit: paneCanEdit }}
-                       {...o} />
-                   )} />
+                       dockControls={isMain ? {
+                         canShrink: canDockMain,
+                         onExpand: () => applyFilesEvent('expand', 'button'),
+                         onShrink: () => applyFilesEvent('shrink', 'button'),
+                         onClose: () => applyFilesEvent('close', 'button'),
+                       } : null}
+                       mutators={muts} />
       );
     };
     const renderCanvas = () => (
           <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
-            <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={canvasCards} allCards={cards} arrows={arrows} strokes={strokes} groups={groups}
-                           onRevealUnplaced={(ids) => revealInFiles(board.id, ids, isMain)}
+            <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
                            /* The empty panel waits for the Y.Doc (boardReady) and takes its
                               first-board shape from the server card count: no cards anywhere
                               means this is the first board (lib/firstBoardCopy). */
@@ -8880,7 +8857,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-center">
-            <ViewSwitch view={view} filesCount={filesCount} onSwitch={(v) => setView(v)} />
+            <ViewSwitch mode={switchMode} filesCount={switchFilesCount}
+                        onSegment={(seg) => (switchInSplit
+                          ? setView(seg === 'board' ? 'canvas' : 'list', 'topbar', switchBoardId)
+                          : applyFilesEvent(seg, 'topbar'))} />
           </div>
 
           <div className="tb-right">

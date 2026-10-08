@@ -9,7 +9,7 @@ position means something here, which is the whole point. Two images side by side
 are being compared; an image with a note under it is being annotated.
 
 If you want the same contents as a sortable file browser instead, every cluster
-also has a [Files view](/docs/clusters/list-view) — press `F`.
+also has a [Files view](/docs/clusters/list-view) — press `F` and it opens beside the board.
 
 ## Moving around
 

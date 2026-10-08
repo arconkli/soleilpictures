@@ -2,8 +2,7 @@ import { useId, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
-import { PathBar } from './PathBar.jsx';
-import { Search, List, LayoutGrid, Plus, X, ArrowsOutSimple, Check, SlidersHorizontal } from '../../lib/icons.js';
+import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X, Maximize2, Minimize2 } from '../../lib/icons.js';
 
 const SORT_OPTIONS = [
   // The canvas read like a page — the default, so Files opens on the same
@@ -85,13 +84,9 @@ export function ClusterBrowserToolbar({
   compact = false,
   clusterName = '',
   dockControls = null,
-  // The panel's location (FilesPane) — replaces the plain title when present.
-  pathBar = null,
-  readOnlyNote = '',
-  // While files are dragged over Files: { text, blocked } — said in the
-  // header, in place of the search row.
-  dropBanner = null,
 }) {
+  const [sortOpen, setSortOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const activeFilters = filters instanceof Set ? filters : new Set(filters || []);
   const activeCount = activeFilters.size + (unplacedOnly ? 1 : 0);
@@ -111,19 +106,9 @@ export function ClusterBrowserToolbar({
     dedupPeers.push(u);
   }
 
-  // Tile size for the Grid layout — S / M / L, remembered on this device.
-  const sizePill = (
-    <div className="view-pill cbt-sizepill" role="group" aria-label="Tile size">
-      {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
-        <button key={k} type="button" className={`view-pill-btn${tileSize === k ? ' on' : ''}`}
-                aria-label={`${label} tiles`} aria-pressed={tileSize === k} title={`${label} tiles`}
-                onClick={() => onTileSize?.(k)}>{k.toUpperCase()}</button>
-      ))}
-    </div>
-  );
   const searchBox = (
     <div className="cbt-search">
-      <Icon as={Search} size={16} weight="light" className="cbt-search-icon" />
+      <Icon as={Search} size={15} className="cbt-search-icon" />
       <input
         ref={searchRef}
         className="cbt-input"
@@ -136,7 +121,94 @@ export function ClusterBrowserToolbar({
       />
       {query && (
         <button className="cbt-clear" onClick={() => onQueryChange('')} aria-label="Clear search">
-          <Icon as={X} size={12} weight="light" />
+          <Icon as={X} size={13} />
+        </button>
+      )}
+    </div>
+  );
+
+  if (compact) {
+    const sortOptions = [...SORT_OPTIONS, ...(audioMode ? AUDIO_SORT_OPTIONS : [])];
+    return (
+      <div className="cbt cbt--compact">
+        <div className="cbt-titlerow">
+          <span className="cbt-title" title={clusterName}>{clusterName || 'Files'}</span>
+          {dockControls?.onExpand && (
+            <button type="button" className="cbt-iconbtn" onClick={dockControls.onExpand}
+                    aria-label="Expand Files to full screen" title="Full screen (or drag the edge all the way)">
+              <Icon as={Maximize2} size={14} />
+            </button>
+          )}
+          {dockControls?.onClose && (
+            <button type="button" className="cbt-iconbtn" onClick={dockControls.onClose}
+                    aria-label="Close Files" title="Close Files (F)">
+              <Icon as={X} size={15} />
+            </button>
+          )}
+        </div>
+        <div className="cbt-row">
+          {searchBox}
+          <div className="cbt-menuwrap">
+            <button className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeFilters.size ? ' has-active' : ''}`}
+                    onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
+              View{activeFilters.size ? ` · ${activeFilters.size}` : ''}<Icon as={ChevronDown} size={12} />
+            </button>
+            <Menu open={viewOpen} onClose={() => setViewOpen(false)}>
+              <div className="cbt-menu-label">Layout</div>
+              <button className={`ctx-item${viewMode === 'gallery' ? ' is-active' : ''}`} onClick={() => onViewMode('gallery')}>
+                <span>Grid</span>
+              </button>
+              <button className={`ctx-item${viewMode === 'table' ? ' is-active' : ''}`} onClick={() => onViewMode('table')}>
+                <span>List</span>
+              </button>
+              <div className="ctx-divider" />
+              <div className="cbt-menu-label">Sort by</div>
+              {sortOptions.map(o => (
+                <button key={o.key} className={`ctx-item${sortKey === o.key ? ' is-active' : ''}`} onClick={() => onSort(o.key)}>
+                  <span>{o.label}</span>
+                  {sortKey === o.key && <span className="cbt-caret">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                </button>
+              ))}
+              {availableBuckets.length > 0 && (
+                <>
+                  <div className="ctx-divider" />
+                  <div className="cbt-menu-label">Show only</div>
+                  {availableBuckets.map(b => (
+                    <button key={b.key} className={`ctx-item${activeFilters.has(b.key) ? ' is-active' : ''}`}
+                            onClick={() => onToggleFilter(b.key)}>
+                      <span>{b.label}</span>
+                      <span className="cbt-count">{b.count}</span>
+                    </button>
+                  ))}
+                  {activeFilters.size > 0 && (
+                    <button className="ctx-item" onClick={() => onClearFilters()}>Clear filters</button>
+                  )}
+                </>
+              )}
+            </Menu>
+          </div>
+          {canEdit && (
+            <button type="button" className="cbt-iconbtn cbt-add-ico" onClick={onAddFiles}
+                    aria-label="Add files" title="Add files">
+              <Icon as={Plus} size={15} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cbt">
+      {searchBox}
+
+      <div className="cbt-spacer" />
+
+      {/* Sort */}
+      <div className="cbt-menuwrap">
+        <button className={`cbt-btn${sortOpen ? ' is-open' : ''}`} onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }}
+                aria-haspopup="menu" aria-expanded={sortOpen}>
+          Sort<Icon as={ChevronDown} size={12} />
         </button>
       )}
     </div>
@@ -244,12 +316,25 @@ export function ClusterBrowserToolbar({
         <button className={`view-pill-btn${viewMode === 'table' ? ' on' : ''}`} onClick={() => onViewMode('table')}
                 aria-label="List layout" aria-pressed={viewMode === 'table'} title="List"><Icon as={List} size={14} /></button>
       </div>
-    );
-  }
-  return (
-    <div className="cbt cbt--full">
-      {searchBox}
-      <div className="cbt-spacer" />
+
+      {canEdit && (
+        <button className="cbt-btn cbt-add" onClick={onAddFiles}>
+          <Icon as={Plus} size={14} />Add files
+        </button>
+      )}
+      {canEdit && showUpsell && (
+        <button className="cbt-upsell" onClick={() => onUpsell?.()}>
+          Any file, any size — Creator
+        </button>
+      )}
+
+      {dockControls?.mode === 'full' && dockControls.canShrink && dockControls.onShrink && (
+        <button type="button" className="cbt-btn cbt-shrink" onClick={dockControls.onShrink}
+                title="Put Files beside the board">
+          <Icon as={Minimize2} size={13} />Beside board
+        </button>
+      )}
+
       {dedupPeers.length > 0 && (
         <div className="cbt-facepile" title={`${dedupPeers.length} here`}>
           {dedupPeers.slice(0, 4).map((u, i) => (

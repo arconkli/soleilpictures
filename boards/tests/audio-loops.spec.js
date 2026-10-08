@@ -36,7 +36,7 @@ async function addAudio(page, n = 1) {
 }
 
 const goList = async (page) => {
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await openFullFiles(page);
   await expect(page.locator('.list-wrap')).toBeVisible();
 };
 

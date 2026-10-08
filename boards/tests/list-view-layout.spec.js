@@ -53,8 +53,7 @@ async function boot(page, { width = 1440, height = 900 } = {}) {
     });
   }, PACK);
   await expect(page.locator('.ac').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
-  await expect(page.locator('.list-wrap')).toBeVisible();
+  await openFullFiles(page);
   await page.getByRole('button', { name: 'List layout' }).click();
   await expect(page.locator('.ct-row').first()).toBeVisible();
 }

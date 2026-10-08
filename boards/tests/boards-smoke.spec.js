@@ -41,7 +41,7 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
   const newNote = page.locator('.card .note').last();
   await expect(newNote).toBeVisible();
 
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await openFullFiles(page);
   await expect(page.locator('.list-section-files')).toBeVisible();
   await expect(page.getByText('Empty note')).toBeVisible();
 

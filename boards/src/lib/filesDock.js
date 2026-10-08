@@ -17,8 +17,6 @@ export const DOCK = Object.freeze({
   EXPAND_FRACTION: 0.7,  // dragging the divider past 70% of the pane expands
   CLOSE_BELOW: 180,      // releasing narrower than this closes the panel
   KEY_STEP: 32,          // ←/→ on the focused divider
-  EXPAND_PAST: 48,       // the expand point sits this far past the widest panel
-  CLICK_SLOP: 3,         // a divider press that moves less than this is a click
 });
 
 // Room to dock: a desktop pane wide enough for both a usable board and a
@@ -44,7 +42,6 @@ export function filesModeOf({ view, dockOpen, canDock: room }) {
 //   expand    —                       full             —         ⤢, divider
 //   shrink    —                       —                panel     ⤡ (room only)
 //   close     —                       off              —         ×, divider
-//   reveal    panel (full if no room) —                —         a file that isn't on the board
 export function planFilesEvent(mode, event, { canDock: room = true } = {}) {
   const open = room ? 'panel' : 'full';
   switch (event) {
@@ -56,8 +53,6 @@ export function planFilesEvent(mode, event, { canDock: room = true } = {}) {
     case 'expand': return { next: mode === 'panel' ? 'full' : mode };
     case 'shrink': return { next: mode === 'full' && room ? 'panel' : mode };
     case 'close':  return { next: mode === 'panel' ? 'off' : mode };
-    // Showing a file that's only in Files: open Files if it isn't already.
-    case 'reveal': return { next: mode === 'off' ? open : mode };
     default:       return { next: mode };
   }
 }
@@ -74,13 +69,10 @@ export function clampWidth(width, paneWidth) {
   return Math.round(Math.min(max, Math.max(DOCK.MIN, w)));
 }
 
-// While dragging the divider: what letting go here would do. The expand point
-// is always past the widest panel clampWidth allows, so a panel resting at its
-// maximum can't expand from a press that barely moved.
+// While dragging the divider: what letting go here would do.
 export function dragPreview(width, paneWidth) {
   if (!Number.isFinite(width) || !Number.isFinite(paneWidth) || paneWidth <= 0) return null;
-  const widest = Math.max(DOCK.MIN, paneWidth - DOCK.CANVAS_MIN);
-  const expandAt = Math.max(DOCK.EXPAND_FRACTION * paneWidth, widest + DOCK.EXPAND_PAST);
+  const expandAt = Math.max(DOCK.EXPAND_FRACTION * paneWidth, paneWidth - DOCK.CANVAS_MIN);
   if (width >= expandAt) return 'full';
   if (width < DOCK.CLOSE_BELOW) return 'close';
   return null;
@@ -126,41 +118,4 @@ export function dockHintSeen(storage) {
 }
 export function markDockHintSeen(storage) {
   try { store(storage)?.setItem(HINT_KEY, '1'); } catch (_) {}
-}
-
-// The panel's path bar: root, an ellipsis for anything that won't fit, then
-// the last few clusters down to where you are. ELLIPSIS marks the gap.
-export const ELLIPSIS = '…';
-export function collapsePath(ids, max = 3) {
-  const path = Array.isArray(ids) ? ids.filter((x) => x != null) : [];
-  if (path.length <= max || max < 2) return path;
-  return [path[0], ELLIPSIS, ...path.slice(path.length - (max - 1))];
-}
-
-// Folders in the panel are one-line rows in a grid of minmax(128px, 1fr)
-// columns with an 8px gap (`.ft-grid.is-panel` in styles.css — a test keeps
-// the two in step), and show at most two rows until you ask for all of them,
-// so the files, which are what the panel is for, start on the first screen.
-export const FOLDER_ROWS = Object.freeze({ MIN_W: 128, GAP: 8, ROWS: 2 });
-export function folderColumns(width) {
-  if (!(width > 0)) return 1;
-  return Math.max(1, Math.floor((width + FOLDER_ROWS.GAP) / (FOLDER_ROWS.MIN_W + FOLDER_ROWS.GAP)));
-}
-// How many to show collapsed: two rows' worth — or every one when only one
-// would be hidden, since the "Show all" row would take its place anyway.
-export function folderCap(count, width) {
-  const n = Math.max(0, Math.floor(Number(count) || 0));
-  const cap = folderColumns(width) * FOLDER_ROWS.ROWS;
-  return n <= cap + 1 ? n : cap;
-}
-// Show all / Show fewer, remembered on this device.
-const FOLDERS_KEY = 'soleil.files.folders.expanded';
-export function readFoldersExpanded(storage) {
-  try { return store(storage)?.getItem(FOLDERS_KEY) === '1'; } catch (_) { return false; }
-}
-export function writeFoldersExpanded(on, storage) {
-  try {
-    const s = store(storage);
-    if (on) s?.setItem(FOLDERS_KEY, '1'); else s?.removeItem(FOLDERS_KEY);
-  } catch (_) {}
 }

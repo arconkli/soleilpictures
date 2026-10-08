@@ -10,7 +10,9 @@ import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { ViewSwitch } from '../components/ViewSwitch.jsx';
-import { filesCountOf, isViewSwitchKey, nextView } from '../lib/viewSwitch.js';
+import { FilesDockLayout } from '../components/FilesDock.jsx';
+import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } from '../lib/filesDock.js';
+import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { scheduleCreationAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
@@ -1483,20 +1485,46 @@ export function LocalBoardsApp({ user, signOut }) {
       : prev);
   };
 
-  // F flips Board ↔ Files — parity with the real shell (App.jsx).
-  const setViewRef = useRef(setView);
-  setViewRef.current = setView;
+  // Files beside the board — parity with the real shell (App.jsx
+  // applyFilesEvent): F, the topbar and the dock's own controls all go
+  // through planFilesEvent; full Files is the board's stored view.
+  const [dockPrefs, setDockPrefs] = useState(() => readDockPrefs());
+  const [dockRoom, setDockRoom] = useState(() => (
+    typeof window !== 'undefined' && canDock(window.innerWidth - 240, { mobileShell })
+  ));
+  const canDockHere = dockRoom && !mobileShell;
+  const filesMode = filesModeOf({ view, dockOpen: dockPrefs.open, canDock: canDockHere });
+  const updateDockPrefs = (patch) => setDockPrefs((prev) => {
+    const next = { ...prev, ...patch };
+    writeDockPrefs(next);
+    return next;
+  });
+  const applyFilesEvent = (event) => {
+    const plan = planFilesEvent(filesMode, event, { canDock: canDockHere });
+    if (plan.focusSearch) {
+      try { document.dispatchEvent(new CustomEvent('soleil-files-focus-search')); } catch (_) {}
+    }
+    if (plan.next === filesMode) return;
+    if (plan.next === 'full') setView('list');
+    else if (filesMode === 'full') setView('canvas');
+    if (plan.next === 'panel') {
+      updateDockPrefs({ open: true });
+      if (filesMode === 'off') tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId: currentId });
+    } else if (plan.next === 'off') updateDockPrefs({ open: false });
+  };
+  const applyFilesEventRef = useRef(applyFilesEvent);
+  applyFilesEventRef.current = applyFilesEvent;
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
       if (isEditableTarget(e) || anyModalOpen()) return;
       if (currentSurface !== 'board' || paletteOpen) return;
       e.preventDefault();
-      setViewRef.current(nextView(view));
+      applyFilesEventRef.current('toggle');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, currentSurface, paletteOpen]);
+  }, [currentSurface, paletteOpen]);
 
   const openBoard = (id) => {
     if (boards[id]) { setStack(prev => [...prev, id]); recents.push(id); tourFireRef.current?.({ type: 'cluster_opened', boardId: id }); }
@@ -1849,7 +1877,8 @@ export function LocalBoardsApp({ user, signOut }) {
           </div>
 
           <div className="tb-center">
-            <ViewSwitch view={view} filesCount={filesCountOf(currentState.cards)} onSwitch={setView} />
+            <ViewSwitch mode={filesMode} filesCount={filesCountOf(currentState.cards)}
+                        onSegment={(seg) => applyFilesEvent(seg)} />
           </div>
 
           <div className="tb-right">
@@ -1922,11 +1951,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 onDismissJustAdded={() => setQaTemplate(null)}
                 board={currentBoard}
                 boards={boards}
-                cards={placedOf(framedState.cards)}
-                allCards={framedState.cards}
-                onRevealUnplaced={(ids) => revealInFilesLocal(ids)}
-                focusRequest={focusRequest?.boardId === currentBoard?.id ? focusRequest : null}
-                clearFocusRequest={() => setFocusRequest(null)}
+                cards={framedState.cards}
                 arrows={currentState.arrows}
                 strokes={currentState.strokes}
                 gridTemplates={currentTemplates}
@@ -1967,51 +1992,27 @@ export function LocalBoardsApp({ user, signOut }) {
               />
             ) : null}
             files={filesMode !== 'off' ? (
-              <FilesPane
-                mode={filesMode === 'panel' ? 'panel' : 'full'}
-                home={currentBoard}
+              <ListSurface
+                board={currentBoard}
                 boards={boards}
-                dockControls={localDockControls}
-                cardsFor={(id) => boardState[id]?.cards || []}
-                onOpenInFiles={(id) => {
-                  if (!boards[id]) return;
-                  setViewOverride(prev => ({ ...prev, [id]: 'list' }));
-                  setStack(ancestorPath(boards, id));
-                  recents.push(id);
+                cards={framedState.cards}
+                childBoards={childBoards}
+                onOpenBoard={openBoard}
+                onOpenPicker={() => openBoardLinkPicker()}
+                onDropInboxItem={dropInboxItem}
+                gridTemplates={currentTemplates}
+                getGridModel={(card) => readGridModel(card, null, currentTemplates)}
+                onRevealOnCanvas={() => { if (filesMode === 'full') applyFilesEvent(canDockHere ? 'shrink' : 'board'); }}
+                mode={filesMode === 'panel' ? 'panel' : 'full'}
+                paneId={filesMode === 'panel' ? 'files' : 'main'}
+                hasSplit={filesMode === 'panel'}
+                dockControls={{
+                  canShrink: canDockHere,
+                  onExpand: () => applyFilesEvent('expand'),
+                  onShrink: () => applyFilesEvent('shrink'),
+                  onClose: () => applyFilesEvent('close'),
                 }}
-                homeCards={placedOf(framedState.cards)}
-                revealRequest={filesReveal?.boardId === currentBoard?.id ? filesReveal : null}
-                onLocate={(id) => setFocusRequest({ boardId: currentBoard?.id, ids: [id], token: Date.now(), mode: 'center' })}
-                onShowInCluster={(id) => {
-                  if (!boards[id]) return;
-                  setViewOverride(prev => ({ ...prev, [id]: 'canvas' }));
-                  setStack(ancestorPath(boards, id));
-                  recents.push(id);
-                }}
-                render={(o) => (
-                  <ListSurface
-                    board={currentBoard}
-                    boards={boards}
-                    cards={framedState.cards}
-                    childBoards={childBoards}
-                    onOpenBoard={openBoard}
-                    onOpenPicker={() => openBoardLinkPicker()}
-                    onDropInboxItem={dropInboxItem}
-                    onDropFilesToCluster={(files) => ingestFilesLocal(files)}
-                    onRevealDone={(token) => setFilesReveal((r) => (r?.token === token ? null : r))}
-                    recentlyAddedIds={localRecentlyAdded?.boardId === currentBoard?.id ? localRecentlyAdded.ids : null}
-                    gridTemplates={currentTemplates}
-                    getGridModel={(card) => readGridModel(card, null, currentTemplates)}
-                    onRevealOnCanvas={() => { if (filesMode === 'full') applyFilesEvent(canDockHere ? 'shrink' : 'board'); }}
-                    mode={filesMode === 'panel' ? 'panel' : 'full'}
-                    paneId={filesMode === 'panel' ? 'files' : 'main'}
-                    hasSplit={filesMode === 'panel'}
-                    dockControls={localDockControls}
-                    mutators={surfaceMutators}
-                    homeSrc={currentBoard ? { boardId: currentBoard.id, cards: framedState.cards, mutators: surfaceMutators, canEdit: true } : null}
-                    {...o}
-                  />
-                )}
+                mutators={surfaceMutators}
               />
             ) : null}
           />
