@@ -257,6 +257,10 @@ export const DOCS_PAGES = [
         "text": "View"
       },
       {
+        "id": "files",
+        "text": "Files"
+      },
+      {
         "id": "audio",
         "text": "Audio"
       },
@@ -1378,6 +1382,10 @@ export const DOCS_PAGES = [
       {
         "id": "sorting-and-filtering",
         "text": "Sorting and filtering"
+      },
+      {
+        "id": "selecting-and-moving",
+        "text": "Selecting and moving"
       },
       {
         "id": "auditioning-audio",

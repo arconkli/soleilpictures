@@ -158,6 +158,24 @@ The combination is the answer to "where is that PDF someone dropped in here last
 week" — filter to PDFs, sort by date added, done. On the canvas that is a
 hunting expedition.
 
+## Selecting and moving
+
+Click a file to select it, `⌘`-click to add to the selection, `⇧`-click for a
+range, `⌘A` for everything showing. Click empty space or press `Esc` to clear
+it. The arrow keys move a highlight through the files and `Enter` selects it.
+
+A selection gets a bar along the bottom:
+
+| Action | What it does |
+|---|---|
+| **Download** | The files, as a zip when there's more than one — see below |
+| **Move to…** | Pick another cluster; the cards leave this one and arrive there, with undo |
+| **Delete** | Removes them, with undo |
+
+Dragging files onto one of the folders above them moves them into that
+cluster too. `⌘Z` and `⌘⇧Z` undo and redo in Files just as they do on the
+board.
+
 ## Auditioning audio
 
 An audio row's thumbnail is a play button. Press it and the clip plays in
@@ -170,8 +188,9 @@ room.
 In the **grid** a loop's tile *is* its waveform, so a pack reads as a wall
 of shapes rather than a wall of identical icons.
 
-For going through a lot of them, use the keyboard in the **list** layout: `↑`
-and `↓` move a highlight down the rows, `Space` plays whatever is highlighted, `Enter` selects it. **When
+For going through a lot of them, use the keyboard: `↑` and `↓` move a
+highlight down the rows (the arrows walk the tiles in the grid), `Space` plays
+whatever is highlighted, `Enter` selects it. **When
 a clip finishes, the next audio row starts on its own** and the highlight
 follows — so a pack of loops plays through while you keep your hands still. It
 stops at the end rather than wrapping.
@@ -233,7 +252,9 @@ which is most of the reason to open it at all.
 ## Adding files here
 
 Drag files into Files, or use **Add files** in the toolbar. They land on the
-cluster exactly as if dropped on the canvas, auto-placed in free space.
+cluster exactly as if dropped on the canvas, auto-placed in free space. An
+empty cluster offers **Add files**, **New cluster** and **Link a cluster**
+right where its contents would be.
 
 ## Presence
 

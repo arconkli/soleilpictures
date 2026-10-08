@@ -22088,3 +22088,13 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 /* Tile size: S / M / L, in the toolbar and the panel's View menu. */
 .cbt-sizepill .view-pill-btn { min-width: 26px; padding: 0 6px; font: 600 11px/1 var(--font-sans); }
 .cbt-sizes { padding: 2px 8px 6px; }
+
+/* ── Files: selection and actions ─────────────────────────────────────────── */
+.list-empty-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.list-empty-acts .tb-btn { display: inline-flex; align-items: center; gap: 6px; }
+.list-selbar-act.list-selbar-clear { padding: 4px 8px; margin-left: 6px; }
+.list-wrap.is-panel .list-selbar-act { margin-left: 6px; padding: 4px 9px; }
+/* The Grid's keyboard cursor: a thin ring on the preview (gold is focus). */
+.ct-jg .ct-tile.is-active .ct-tile-preview { outline: 1px solid var(--soleil); outline-offset: 2px; }
+.ct-jg .ct-tile.is-active.is-selected .ct-tile-preview { outline-width: 2px; outline-offset: 1px; }
+.cb-slimbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }

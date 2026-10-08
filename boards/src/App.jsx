@@ -8287,6 +8287,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        // refusal that interrupted them, so it forces past the latch —
                        // the same distinction the chip and the cap wall already make.
                        onStorageUpsell={() => pitchStorageGate({ force: true })}
+                       onPickCluster={requestClusterPick}
                        paneId={paneId}
                        hasSplit={listMode === 'panel' || !!splitId}
                        mode={listMode}

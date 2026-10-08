@@ -94,14 +94,27 @@ we picked for you.
 Pinching a trackpad zooms in either mode, and always will: a pinch reaches the
 browser as a `Ctrl`-scroll, so `Ctrl` means zoom whatever else is configured.
 
+## Files
+
+In [Files](/docs/clusters/list-view), beside the board or full screen. Beside
+the board, these keys go to whichever side the pointer was last over.
+
+| Key | Action |
+|---|---|
+| `←` `→` `↑` `↓` | Move through files — in the grid, `↑` / `↓` go to the nearest tile in the next row |
+| `Enter` | Select the highlighted file |
+| `⌘A` | Select every file showing — search and filters apply |
+| `Esc` | Clear the selection |
+| `⌫` or `Del` | Delete the selection, with undo |
+| `⌘Z` / `⌘⇧Z` | Undo · redo |
+
 ## Audio
 
 | Key | Action |
 |---|---|
 | `Enter` | Play · pause the selected clip |
 | `L` | Loop the selected clip |
-| `Space` | Audition the highlighted row (Files, list layout) |
-| `↑` / `↓` | Move through rows (Files, list layout) |
+| `Space` | Audition the highlighted file (Files) |
 
 `Enter` rather than `Space` on the canvas, because `Space` is already the pan
 modifier there and arrows already move cards. In [Files](/docs/clusters/list-view)

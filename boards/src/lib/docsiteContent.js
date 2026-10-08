@@ -2452,6 +2452,201 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Files",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files"
+    }
+   ],
+   "id": "files"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", beside the board or full screen. Beside the board, these keys go to whichever side the pointer was last over."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move through files — in the grid, "
+      },
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      },
+      {
+       "t": "text",
+       "v": " go to the nearest tile in the next row"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Select the highlighted file"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘A"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Select every file showing — search and filters apply"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Clear the selection"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌫"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Del"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Delete the selection, with undo"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘Z"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘⇧Z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Undo · redo"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Audio",
    "inline": [
     {
@@ -2516,29 +2711,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Audition the highlighted row (Files, list layout)"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "↑"
-      },
-      {
-       "t": "text",
-       "v": " / "
-      },
-      {
-       "t": "code",
-       "v": "↓"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Move through rows (Files, list layout)"
+       "v": "Audition the highlighted file (Files)"
       }
      ]
     ]
@@ -16351,6 +16524,180 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Selecting and moving",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Selecting and moving"
+    }
+   ],
+   "id": "selecting-and-moving"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click a file to select it, "
+    },
+    {
+     "t": "code",
+     "v": "⌘"
+    },
+    {
+     "t": "text",
+     "v": "-click to add to the selection, "
+    },
+    {
+     "t": "code",
+     "v": "⇧"
+    },
+    {
+     "t": "text",
+     "v": "-click for a range, "
+    },
+    {
+     "t": "code",
+     "v": "⌘A"
+    },
+    {
+     "t": "text",
+     "v": " for everything showing. Click empty space or press "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " to clear it. The arrow keys move a highlight through the files and "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " selects it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A selection gets a bar along the bottom:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Download",
+       "children": [
+        {
+         "t": "text",
+         "v": "Download"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The files, as a zip when there's more than one — see below"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Move to…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Move to…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Pick another cluster; the cards leave this one and arrive there, with undo"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Delete",
+       "children": [
+        {
+         "t": "text",
+         "v": "Delete"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Removes them, with undo"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dragging files onto one of the folders above them moves them into that cluster too. "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "⌘⇧Z"
+    },
+    {
+     "t": "text",
+     "v": " undo and redo in Files just as they do on the board."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Auditioning audio",
    "inline": [
     {
@@ -16425,21 +16772,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "For going through a lot of them, use the keyboard in the "
-    },
-    {
-     "t": "strong",
-     "v": "list",
-     "children": [
-      {
-       "t": "text",
-       "v": "list"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " layout: "
+     "v": "For going through a lot of them, use the keyboard: "
     },
     {
      "t": "code",
@@ -16455,7 +16788,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " move a highlight down the rows, "
+     "v": " move a highlight down the rows (the arrows walk the tiles in the grid), "
     },
     {
      "t": "code",
@@ -16915,7 +17248,49 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the toolbar. They land on the cluster exactly as if dropped on the canvas, auto-placed in free space."
+     "v": " in the toolbar. They land on the cluster exactly as if dropped on the canvas, auto-placed in free space. An empty cluster offers "
+    },
+    {
+     "t": "strong",
+     "v": "Add files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "New cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Link a cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Link a cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " right where its contents would be."
     }
    ]
   },

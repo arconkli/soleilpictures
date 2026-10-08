@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { canDragFromFiles, buildFilesPayload } from '../lib/filesDrag.js';
+import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
+import { gridNeighbor } from '../lib/justifiedGrid.js';
+import { isStillUploading } from '../lib/abandonedUploads.js';
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
@@ -25,7 +27,7 @@ import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download } from '../lib/icons.js';
+import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2 } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError,
@@ -78,6 +80,8 @@ export function ListSurface({
   onLocateOnBoard = null,
   // Browsing another cluster: ids of its files this board already shows.
   onBoardIds = null,
+  // ({ placeholder, excludeIds }) => Promise<board|null> — "Move to…".
+  onPickCluster = null,
   // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
   // owners; opens the storage upgrade modal. Off in the ?local harness.
   showStorageUpsell = false,
@@ -589,12 +593,94 @@ export function ListSurface({
     });
   }, [feedback, mutators]);
 
-  // Keyboard: move through rows, audition, delete.
+  // Delete what's selected — sub-clusters and cards — behind one confirm, with
+  // undo. The key, the selection bar and the detail panel all come here.
+  const deleteSelection = useCallback(async () => {
+    if (!canEdit) return;
+    const bIds = [...selectedBoards];
+    const cIds = [...selectedCards];
+    const total = bIds.length + cIds.length;
+    if (!total) return;
+    const bn = bIds.length;
+    const cn = cIds.length;
+    let msg;
+    if (bn > 0 && cn === 0) msg = bn === 1
+      ? `Delete board "${boards[bIds[0]]?.name || ''}" and all its content?\n\nYou can undo this — it's recoverable for 30 days.`
+      : `Delete ${bn} boards and all their content?\n\nYou can undo this — they're recoverable for 30 days.`;
+    else if (bn === 0 && cn > 0) msg = cn === 1 ? 'Delete this card?' : `Delete ${cn} cards?`;
+    else msg = `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''}?\n\nYou can undo this — anything deleted is recoverable for 30 days.`;
+    const ok = await feedback.confirm({
+      title: 'Delete selection',
+      message: msg,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    if (bIds.length) mutators.deleteBoardsById?.(bIds); // has its own Undo toast
+    if (cIds.length) {
+      const deleted = await mutators.deleteCards?.(cIds);
+      undoToast(feedback, {
+        message: cIds.length === 1 ? 'Card deleted' : `${cIds.length} cards deleted`,
+        undoManager: mutators.undoManager,
+        stackItem: deleted?.stackItem || null,
+        onUndo: () => mutators.undo?.(),
+      });
+    }
+    setSelectedBoards(new Set());
+    setSelectedCards(new Set());
+    setSelectedGroupId(null);
+  }, [canEdit, selectedBoards, selectedCards, boards, feedback, mutators]);
+
+  // Move cards out of this cluster into another one — "Move to…", and files
+  // dropped on a folder. The cross-board move App already runs for the canvas
+  // (its 'soleil-card-into-board-drop' listener) writes the target, then this
+  // side lets go of only what it saved; its toast undoes both sides.
+  const moveCardsTo = useCallback(async (ids, targetId) => {
+    if (!canEdit || !targetId || targetId === board.id) return;
+    const idSet = new Set(ids || []);
+    const all = (cards || []).filter((c) => idSet.has(c.id) && c.kind !== 'board' && c.kind !== 'boardlink');
+    const moving = all.filter((c) => !isStillUploading(c));
+    if (moving.length < all.length) {
+      feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
+    }
+    if (!moving.length) return;
+    try {
+      await new Promise((resolve, reject) => {
+        document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
+          detail: { sourceBoardId: board.id, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu' },
+        }));
+      });
+    } catch (_) { return; } // App said why; nothing left this cluster
+    mutators.deleteCardsForMove?.(moving.map((c) => c.id));
+    setSelectedCards(new Set());
+  }, [canEdit, board.id, cards, feedback, mutators]);
+
+  // "Move to…" for the selection: cards move as above, sub-clusters nest under
+  // the pick (the same reparent the sidebar's drag does).
+  const moveSelection = useCallback(async () => {
+    if (!onPickCluster) return;
+    const bIds = [...selectedBoards];
+    const cIds = [...selectedCards];
+    const picked = await onPickCluster({ placeholder: 'Move to cluster…', excludeIds: [board.id, ...bIds] });
+    if (!picked?.id) return;
+    if (bIds.length) {
+      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+        detail: { childIds: bIds, targetId: picked.id, sourceSurface: 'list' },
+      }));
+      setSelectedBoards(new Set());
+    }
+    if (cIds.length) await moveCardsTo(cIds, picked.id);
+  }, [onPickCluster, selectedBoards, selectedCards, board.id, moveCardsTo]);
+
+  // The Grid layout's rows, for ↑/↓ (JustifiedGallery reports them).
+  const galleryNavRef = useRef({ tiles: [], ids: [] });
+  const onGalleryLayout = useCallback((nav) => { galleryNavRef.current = nav; }, []);
+
+  // Keyboard: move through rows and tiles, audition, select all, undo, delete.
   //
-  // Extends the existing Delete handler rather than adding a second window
-  // listener, so the new keys inherit BOTH guards it already has — a modal
-  // owning the keyboard, and split-view's active-pane arbitration. A second
-  // listener would have fired in both panes on every arrow press.
+  // One window listener, so every key inherits both guards — a modal owning
+  // the keyboard, and split-view / Files-beside-the-board active-pane
+  // arbitration. A second listener would have fired in both panes.
   useEffect(() => {
     const onKey = async (e) => {
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
@@ -607,22 +693,61 @@ export function ListSurface({
       // gated: a button does nothing with them and moving the cursor is the
       // useful reading.
       const onControl = !!e.target.closest?.('button, a[href], [role="button"], select');
+      const mod = e.metaKey || e.ctrlKey;
 
-      // ↑/↓ move the cursor; Space auditions it; Enter selects it. List layout
-      // only: the grid draws no cursor, so there the keys keep their native
-      // jobs (scrolling) instead of driving a highlight nobody can see.
-      const cursorKeys = viewMode === 'table';
-      if (cursorKeys && navItems.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      // ⌘Z / ⇧⌘Z: the cluster's own undo, here as on the canvas.
+      if (mod && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        if (!canEdit) return;
         e.preventDefault();
-        const i = activeId ? navItems.findIndex(it => it.id === activeId) : -1;
-        const step = e.key === 'ArrowDown' ? 1 : -1;
-        const next = i < 0
-          ? (step > 0 ? 0 : navItems.length - 1)
-          : Math.max(0, Math.min(navItems.length - 1, i + step));
-        setActiveId(navItems[next].id);
+        if (e.shiftKey) mutators.redo?.(); else mutators.undo?.();
         return;
       }
-      if (cursorKeys && (e.key === ' ' || e.code === 'Space')) {
+      // ⌘A selects every file showing (search and filters apply).
+      if (mod && !e.altKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        setSelectedCards(new Set(visibleItems.map((it) => it.id)));
+        setSelectedBoards(new Set());
+        setSelectedGroupId(null);
+        return;
+      }
+      // Esc clears the selection (and with it the detail panel).
+      if (e.key === 'Escape') {
+        if (selectedCards.size || selectedBoards.size || selectedGroupId) {
+          e.preventDefault();
+          setSelectedCards(new Set());
+          setSelectedBoards(new Set());
+          setSelectedGroupId(null);
+        }
+        return;
+      }
+
+      // Arrows move the cursor: ↑/↓ down the List layout's rows; in the Grid,
+      // ←/→ through the tiles in order and ↑/↓ to the nearest tile in the next
+      // row. Space auditions it; Enter selects it.
+      const isTable = viewMode === 'table';
+      const arrow = e.key === 'ArrowDown' ? 'down' : e.key === 'ArrowUp' ? 'up'
+        : e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : null;
+      if (arrow && !mod && navItems.length) {
+        if (isTable) {
+          if (arrow !== 'down' && arrow !== 'up') return;
+          e.preventDefault();
+          const i = activeId ? navItems.findIndex(it => it.id === activeId) : -1;
+          const step = arrow === 'down' ? 1 : -1;
+          const next = i < 0
+            ? (step > 0 ? 0 : navItems.length - 1)
+            : Math.max(0, Math.min(navItems.length - 1, i + step));
+          setActiveId(navItems[next].id);
+        } else {
+          const { tiles, ids } = galleryNavRef.current;
+          if (!ids.length) return;
+          e.preventDefault();
+          const i = activeId ? ids.indexOf(activeId) : -1;
+          const next = i < 0 ? 0 : gridNeighbor(tiles, i, arrow);
+          setActiveId(ids[next]);
+        }
+        return;
+      }
+      if (e.key === ' ' || e.code === 'Space') {
         // Only claim Space when there is actually something to audition —
         // otherwise leave the page's own scroll behaviour alone.
         const target = activeId || (selectedCards.size === 1 ? [...selectedCards][0] : null);
@@ -634,8 +759,10 @@ export function ListSurface({
         }
         return;
       }
-      if (cursorKeys && e.key === 'Enter' && activeId && !onControl) {
+      if (e.key === 'Enter' && activeId && !onControl) {
         e.preventDefault();
+        const it = navItems.find((n) => n.id === activeId);
+        if (it?.isGroup) { onToggleGroup(it.id); setSelectedGroupId(it.id); return; }
         setSelectedCards(new Set([activeId]));
         setSelectedBoards(new Set());
         setSelectedGroupId(null);
@@ -646,47 +773,14 @@ export function ListSurface({
       // canEdit already hides every delete affordance; the KEY has to be
       // gated separately or Backspace on a shared link would try to delete.
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      if (!canEdit) return;
-      const total = selectedBoards.size + selectedCards.size;
-      if (total === 0) return;
+      if (!canEdit || !(selectedBoards.size + selectedCards.size)) return;
       e.preventDefault();
-      const bIds = [...selectedBoards];
-      const cIds = [...selectedCards];
-      // Build human prompt
-      const bn = bIds.length;
-      const cn = cIds.length;
-      let msg;
-      if (bn > 0 && cn === 0) msg = bn === 1
-        ? `Delete board "${boards[bIds[0]]?.name || ''}" and all its content?\n\nYou can undo this — it's recoverable for 30 days.`
-        : `Delete ${bn} boards and all their content?\n\nYou can undo this — they're recoverable for 30 days.`;
-      else if (bn === 0 && cn > 0) msg = cn === 1 ? 'Delete this card?' : `Delete ${cn} cards?`;
-      else msg = `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''}?\n\nYou can undo this — anything deleted is recoverable for 30 days.`;
-      if (msg) {
-        const ok = await feedback.confirm({
-          title: 'Delete selection',
-          message: msg,
-          confirmLabel: 'Delete',
-          danger: true,
-        });
-        if (!ok) return;
-      }
-      if (bIds.length) mutators.deleteBoardsById?.(bIds); // has its own Undo toast
-      if (cIds.length) {
-        const deleted = await mutators.deleteCards?.(cIds);
-        undoToast(feedback, {
-          message: cIds.length === 1 ? 'Card deleted' : `${cIds.length} cards deleted`,
-          undoManager: mutators.undoManager,
-          stackItem: deleted?.stackItem || null,
-          onUndo: () => mutators.undo?.(),
-        });
-      }
-      setSelectedBoards(new Set());
-      setSelectedCards(new Set());
+      deleteSelection();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [feedback, selectedBoards, selectedCards, boards, mutators, hasSplit, paneId,
-      navItems, activeId, auditionCard, canEdit, viewMode]);
+  }, [selectedBoards, selectedCards, selectedGroupId, mutators, hasSplit, paneId, visibleItems,
+      navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup]);
 
   // Board order puts a fresh upload where it lands on the canvas — below
   // everything — so bring the first new row or tile into view rather than
@@ -770,9 +864,11 @@ export function ListSurface({
   // so the column header (and the keyboard cursor's scroll margin) sit below
   // it rather than under it.
   const lpHeadRef = useRef(null);
-  // Full Files with only sub-clusters still shows the files toolbar when it can
-  // go back beside the board — that's where Beside board is.
-  const filesBlockShown = otherCards.length > 0 || isPanel || !!dockControls?.canShrink;
+  // Full Files with sub-clusters but no files still shows the files toolbar
+  // when it can go back beside the board — that's where Beside board is. A
+  // cluster with nothing in it gets the empty state and a slim bar instead.
+  const clusterEmpty = subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0;
+  const filesBlockShown = otherCards.length > 0 || isPanel || (!!dockControls?.canShrink && !clusterEmpty);
   useEffect(() => {
     const head = lpHeadRef.current;
     const wrap = head?.closest?.('.list-wrap');
@@ -946,6 +1042,16 @@ export function ListSurface({
     onDragEnd: () => { try { window.__soleilBoardDrag = null; } catch (_) {} setDropTileId(null); },
     onDragOver: (e) => {
       const t = e.dataTransfer.types;
+      // This cluster's files dropped on one of its folders move into it.
+      if (t.includes(FILES_DRAG_MIME)) {
+        const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
+        if (!canEdit || from !== board.id) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+        if (dropTileId !== b.id) setDropTileId(b.id);
+        return;
+      }
       if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
       const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
       const invalid = ids.length > 0 && (ids.includes(b.id) || ids.some(id => wouldCreateCycle(boards, id, b.id)));
@@ -958,6 +1064,15 @@ export function ListSurface({
     onDragLeave: (e) => { if (e.currentTarget.contains?.(e.relatedTarget)) return; setDropTileId(prev => (prev === b.id ? null : prev)); },
     onDrop: (e) => {
       setDropTileId(null);
+      if (e.dataTransfer.types.includes(FILES_DRAG_MIME)) {
+        const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
+        if (!payload || payload.sourceBoardId !== board.id) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try { window.__soleilFilesDrag = null; } catch (_) {}
+        moveCardsTo(payload.cards.map((c) => c.id), b.id);
+        return;
+      }
       const childIds = readBoardRefIds(e.dataTransfer);
       if (!childIds.length) return;
       e.preventDefault();
@@ -1001,14 +1116,34 @@ export function ListSurface({
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}
-         onClick={() => { setSelectedBoards(new Set()); setSelectedCards(new Set()); }}>
-      <div className="list-inner" ref={listInnerRef} onClick={(e) => e.stopPropagation()}>
+         onClick={(e) => {
+           // A click on empty floor clears the selection; one on a control,
+           // a tile or a menu is that thing's business.
+           if (e.target.closest?.('button, a, input, select, label, [role="menu"], [role="dialog"], .ct-tile, .ct-row, .ft, .cbt, .list-selbar, .cb-detail')) return;
+           setSelectedBoards(new Set()); setSelectedCards(new Set()); setSelectedGroupId(null);
+         }}>
+      <div className="list-inner" ref={listInnerRef}>
         {isPanel && <div className="lp-head" ref={lpHeadRef}>{toolbarJsx}</div>}
-        {!isPanel && subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
+        {!isPanel && clusterEmpty && dockControls?.canShrink && dockControls?.onShrink && (
+          <div className="cb-slimbar">
+            <button type="button" className="cbt-btn cbt-shrink" onClick={dockControls.onShrink} title="Put Files beside the board">
+              <Icon as={Minimize2} size={13} />Beside board
+            </button>
+          </div>
+        )}
+        {!isPanel && clusterEmpty && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
-            <div className="list-empty-sub">Add a sub-cluster, or link to one elsewhere.</div>
-            <button className="tb-btn" onClick={onOpenPicker}>Link a cluster</button>
+            <div className="list-empty-sub">
+              {canEdit ? 'Drop files anywhere here, or start with one of these.' : 'Nothing here yet.'}
+            </div>
+            {canEdit && (
+              <div className="list-empty-acts">
+                <button className="tb-btn" onClick={openAddPicker}><Icon as={Plus} size={13} /> Add files</button>
+                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard()}><Icon as={Folder} size={13} /> New cluster</button>}
+                {onOpenPicker && <button className="tb-btn" onClick={onOpenPicker}><Icon as={LinkIcon} size={13} /> Link a cluster</button>}
+              </div>
+            )}
           </div>
         )}
         {subBoards.length > 0 && (
@@ -1072,6 +1207,7 @@ export function ListSurface({
                   </div>
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <JustifiedGallery tileSize={tileSize}
+                    activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
                     items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
@@ -1143,11 +1279,24 @@ export function ListSurface({
                      : `Download ${downloadableSelected.length}`}</span>
               </button>
             )}
-            {/* A visitor on a shared link cannot delete — the key is gated on
-                canEdit — so do not offer them a shortcut that does nothing. */}
+            {/* A visitor on a shared link can't move or delete, so those
+                aren't offered. */}
+            {canEdit && onPickCluster && (
+              <button type="button" className="list-selbar-act" onClick={moveSelection}>
+                <Icon as={FolderOpen} size={13} /><span>Move to…</span>
+              </button>
+            )}
+            {canEdit && (
+              <button type="button" className="list-selbar-act" onClick={deleteSelection}>
+                <Icon as={Trash2} size={13} /><span>Delete</span>
+              </button>
+            )}
+            <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
+                    onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
+              <Icon as={X} size={13} />
+            </button>
             <span className="list-selbar-hint">
-              {canEdit ? `⌫ to delete · ${cmdKey}-click to multi-select`
-                       : `${cmdKey}-click to multi-select · ⇧-click for a range`}
+              {`${cmdKey}A selects all · ${cmdKey}-click to add · ⇧-click for a range`}
             </span>
           </div>
         )}
