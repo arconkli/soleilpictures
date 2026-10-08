@@ -59,6 +59,7 @@ import { PublicTopbar } from './PublicTopbar.jsx';
 import { supabase } from '../lib/supabase.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
+import { placedOf } from '../lib/placement.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
@@ -604,6 +605,9 @@ export function PublicBoardView({ token, slug }) {
     // CanvasSurface memos keyed on the cards array don't churn.
     return filtered.length === cards.length ? cards : filtered;
   }, [cur, boardsMap]);
+  // The board shows what's on it; the list shows the cluster, including
+  // files that aren't on the board (lib/placement.js).
+  const canvasCards = placedOf(visibleCards);
 
   // A cluster the owner set to LIST opens as a list here too — the same
   // `board.view` the signed-in app reads. Canvas stays the default, including
@@ -644,7 +648,7 @@ export function PublicBoardView({ token, slug }) {
   // aspect matches the hero, so CanvasSurface's center math top-anchors it.
   const initialFrame = useMemo(() => {
     if (!pageModel || stack.length > 1) return null;
-    const cs = visibleCards;
+    const cs = canvasCards;
     if (!cs || cs.length < 2) return null;
     let minX = Infinity, minY = Infinity, maxX = -Infinity;
     for (const c of cs) {
@@ -658,7 +662,7 @@ export function PublicBoardView({ token, slug }) {
     const heroW = window.innerWidth || 1280;
     const heroH = Math.min(920, Math.max(440, (window.innerHeight || 800) * 0.78));
     return { x: minX, y: minY, w, h: w * (heroH / heroW) };
-  }, [pageModel, stack.length, visibleCards]);
+  }, [pageModel, stack.length, canvasCards]);
   // "Interactive" affordance over the hero — gone after the first gesture.
   const [heroTouched, setHeroTouched] = useState(false);
 
@@ -817,7 +821,8 @@ export function PublicBoardView({ token, slug }) {
               initialFrame={initialFrame}
               board={board}
               boards={boardsMap}
-              cards={visibleCards}
+              cards={canvasCards}
+              allCards={visibleCards}
               arrows={cur?.arrows || EMPTY}
               strokes={cur?.strokes || EMPTY}
               groups={cur?.groups || EMPTY}

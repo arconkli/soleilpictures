@@ -23,6 +23,7 @@
 // in the app.
 import { useDeferredValue, useMemo } from 'react';
 import { reframeCards } from '../lib/reframeLayout.js';
+import { placedOf, isUnplaced } from '../lib/placement.js';
 
 export function useCaptureFrame(yb, { active, width, gap, rowHeight } = {}) {
   const cards = yb?.cards;
@@ -33,8 +34,13 @@ export function useCaptureFrame(yb, { active, width, gap, rowHeight } = {}) {
   const deferredWidth = useDeferredValue(width);
 
   const reframed = useMemo(() => {
-    if (!active || !Array.isArray(cards) || cards.length < 2) return null;
-    return reframeCards(cards, { width: deferredWidth, gap, rowHeight });
+    if (!active || !Array.isArray(cards)) return null;
+    // Only the board is reframed; files waiting in Files (lib/placement.js)
+    // ride along untouched.
+    const placed = placedOf(cards);
+    if (placed.length < 2) return null;
+    const out = reframeCards(placed, { width: deferredWidth, gap, rowHeight });
+    return placed === cards ? out : [...out, ...cards.filter(isUnplaced)];
   }, [active, cards, deferredWidth, gap, rowHeight]);
 
   // Identity is preserved when inactive, so the canvas cannot tell this hook is

@@ -48,6 +48,7 @@ import { ProjectsHome } from '../components/ProjectsHome.jsx';
 import { isTopLevelProject, spotBesideContent } from '../lib/projectsHome.js';
 import { ancestorPath } from '../lib/boardTree.js';
 import { layoutDrop } from '../lib/layoutEngine.js';
+import { placedOf } from '../lib/placement.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
@@ -446,7 +447,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const captureWidth = reframeOn
     ? (capState.width > 0
         ? capState.width
-        : widthForFrame(currentState.cards, aspectSpec(capState.aspect).cardsAcross ?? 2.4))
+        : widthForFrame(placedOf(currentState.cards), aspectSpec(capState.aspect).cardsAcross ?? 2.4))
     : 0;
   const framedState = useCaptureFrame(currentState, { active: reframeOn, width: captureWidth });
   const currentTemplates = gridTplState[currentId] || {};
@@ -1475,6 +1476,13 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const applyFilesEventRef = useRef(applyFilesEvent);
   applyFilesEventRef.current = applyFilesEvent;
+  // Same as App.revealInFiles: show files that aren't on the board in Files.
+  const [filesReveal, setFilesReveal] = useState(null);
+  const revealInFilesLocal = (ids) => {
+    if (canDockHere) applyFilesEventRef.current('reveal');
+    else setViewOverride((o) => ({ ...o, [currentId]: 'list' }));
+    setFilesReveal({ boardId: currentId, ids: ids || [], token: Date.now() });
+  };
   const localDockControls = {
     canShrink: canDockHere,
     onExpand: () => applyFilesEvent('expand'),
@@ -1895,7 +1903,9 @@ export function LocalBoardsApp({ user, signOut }) {
                 onDismissJustAdded={() => setQaTemplate(null)}
                 board={currentBoard}
                 boards={boards}
-                cards={framedState.cards}
+                cards={placedOf(framedState.cards)}
+                allCards={framedState.cards}
+                onRevealUnplaced={(ids) => revealInFilesLocal(ids)}
                 focusRequest={focusRequest?.boardId === currentBoard?.id ? focusRequest : null}
                 clearFocusRequest={() => setFocusRequest(null)}
                 arrows={currentState.arrows}
@@ -1950,7 +1960,8 @@ export function LocalBoardsApp({ user, signOut }) {
                   setStack(ancestorPath(boards, id));
                   recents.push(id);
                 }}
-                homeCards={framedState.cards}
+                homeCards={placedOf(framedState.cards)}
+                revealRequest={filesReveal?.boardId === currentBoard?.id ? filesReveal : null}
                 onLocate={(id) => setFocusRequest({ boardId: currentBoard?.id, ids: [id], token: Date.now(), mode: 'center' })}
                 onShowInCluster={(id) => {
                   if (!boards[id]) return;

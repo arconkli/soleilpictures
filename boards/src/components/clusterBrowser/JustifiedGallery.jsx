@@ -25,6 +25,7 @@ export function JustifiedGallery({
   // it can be scrolled into view, and the laid-out rows for ↑/↓.
   activeId = null, registerRow = null, onLayout = null,
   renameFor = null,   // (id) => { onCommit, onCancel } for the tile being renamed
+  markUnplaced = false,
 }) {
   const ref = useRef(null);
   const [width, setWidth] = useState(0);
@@ -134,6 +135,7 @@ export function JustifiedGallery({
           style={style} previewH={t.previewH} px={t.w}
           active={activeId === it.id} tileRef={registerRow ? registerRow(it.id) : null}
           rename={renameFor ? renameFor(it.id) : null}
+          markUnplaced={markUnplaced}
           selected={selectedCards.has(it.id)}
           isNew={recentlyAddedIds?.has?.(it.id)}
           peers={peerMap?.get(it.id)}

@@ -44,6 +44,8 @@ export function ClusterBrowserToolbar({
   filters, availableBuckets, onToggleFilter, onClearFilters,
   viewMode, onViewMode,
   tileSize = 'm', onTileSize = null,
+  // "Not on board" — files in the cluster that aren't on its board.
+  unplacedCount = 0, unplacedOnly = false, onToggleUnplaced = null,
   onAddFiles, canEdit = true,
   // Quiet storage upsell for free workspace owners (their generic uploads are
   // paid-gated) — muted text link, NOT gold (gold = active/selection only).
@@ -66,6 +68,13 @@ export function ClusterBrowserToolbar({
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const activeFilters = filters instanceof Set ? filters : new Set(filters || []);
+  const activeCount = activeFilters.size + (unplacedOnly ? 1 : 0);
+  const unplacedItem = unplacedCount > 0 && onToggleUnplaced ? (
+    <button className={`ctx-item${unplacedOnly ? ' is-active' : ''}`} onClick={() => onToggleUnplaced()}>
+      <span>Not on board</span>
+      <span className="cbt-count">{unplacedCount}</span>
+    </button>
+  ) : null;
   const dedupPeers = [];
   const seen = new Set();
   for (const p of facePeers) {
@@ -131,10 +140,10 @@ export function ClusterBrowserToolbar({
         <div className="cbt-row">
           {searchBox}
           <div className="cbt-menuwrap">
-            <button className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeFilters.size ? ' has-active' : ''}`}
+            <button className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeCount ? ' has-active' : ''}`}
                     data-menu-trigger="view"
                     onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
-              View{activeFilters.size ? ` · ${activeFilters.size}` : ''}<Icon as={ChevronDown} size={12} />
+              View{activeCount ? ` · ${activeCount}` : ''}<Icon as={ChevronDown} size={12} />
             </button>
             <Menu open={viewOpen} onClose={() => setViewOpen(false)} trigger="view">
               <div className="cbt-menu-label">Layout</div>
@@ -158,10 +167,11 @@ export function ClusterBrowserToolbar({
                   {sortKey === o.key && <span className="cbt-caret">{sortDir === 'asc' ? '↑' : '↓'}</span>}
                 </button>
               ))}
-              {availableBuckets.length > 0 && (
+              {(availableBuckets.length > 0 || unplacedItem) && (
                 <>
                   <div className="ctx-divider" />
                   <div className="cbt-menu-label">Show only</div>
+                  {unplacedItem}
                   {availableBuckets.map(b => (
                     <button key={b.key} className={`ctx-item${activeFilters.has(b.key) ? ' is-active' : ''}`}
                             onClick={() => onToggleFilter(b.key)}>
@@ -169,7 +179,7 @@ export function ClusterBrowserToolbar({
                       <span className="cbt-count">{b.count}</span>
                     </button>
                   ))}
-                  {activeFilters.size > 0 && (
+                  {activeCount > 0 && (
                     <button className="ctx-item" onClick={() => onClearFilters()}>Clear filters</button>
                   )}
                 </>
@@ -212,14 +222,16 @@ export function ClusterBrowserToolbar({
 
       {/* Filter */}
       <div className="cbt-menuwrap">
-        <button className={`cbt-btn${filterOpen ? ' is-open' : ''}${activeFilters.size ? ' has-active' : ''}`}
+        <button className={`cbt-btn${filterOpen ? ' is-open' : ''}${activeCount ? ' has-active' : ''}`}
                 data-menu-trigger="filter"
                 onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }}
                 aria-haspopup="menu" aria-expanded={filterOpen}>
-          <Icon as={Filter} size={13} />Filter{activeFilters.size ? ` · ${activeFilters.size}` : ''}
+          <Icon as={Filter} size={13} />Filter{activeCount ? ` · ${activeCount}` : ''}
         </button>
         <Menu open={filterOpen} onClose={() => setFilterOpen(false)} trigger="filter">
-          {availableBuckets.length === 0 && <div className="ctx-empty">Nothing to filter</div>}
+          {availableBuckets.length === 0 && !unplacedItem && <div className="ctx-empty">Nothing to filter</div>}
+          {unplacedItem}
+          {unplacedItem && availableBuckets.length > 0 && <div className="ctx-divider" />}
           {availableBuckets.map(b => (
             <button key={b.key} className={`ctx-item${activeFilters.has(b.key) ? ' is-active' : ''}`}
                     onClick={() => onToggleFilter(b.key)}>
@@ -227,7 +239,7 @@ export function ClusterBrowserToolbar({
               <span className="cbt-count">{b.count}</span>
             </button>
           ))}
-          {activeFilters.size > 0 && (
+          {activeCount > 0 && (
             <>
               <div className="ctx-divider" />
               <button className="ctx-item" onClick={() => { onClearFilters(); }}>Clear filters</button>

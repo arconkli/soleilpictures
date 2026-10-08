@@ -148,6 +148,7 @@ import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading } from '../lib/abandonedUploads.js';
+import { isUnplaced, countUnplaced } from '../lib/placement.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals, uprightLabelAngle,
@@ -532,7 +533,18 @@ export function CanvasSurface({
                            // drop, select + frame the newly-arranged cards once
                            // the user switches to canvas ("where did my files go?").
   clearFocusRequest = null,// () => void — consume the request after framing.
+  // Every card in the cluster, including files that aren't on the board
+  // (lib/placement.js) — `cards` is only what the board draws. Defaults to
+  // `cards` for callers that don't split them.
+  allCards = null,
+  onRevealUnplaced = null, // (ids) => void — show files that aren't on the board in Files
 }) {
+  const everyCard = allCards || cards;
+  const allCardsRef = useRef(everyCard);
+  allCardsRef.current = everyCard;
+  const onRevealUnplacedRef = useRef(onRevealUnplaced);
+  onRevealUnplacedRef.current = onRevealUnplaced;
+  const unplacedCount = useMemo(() => countUnplaced(everyCard), [everyCard]);
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
 
@@ -1585,7 +1597,7 @@ export function CanvasSurface({
   // person's populated board painted the empty panel for the first frames of
   // every visit — and logged empty_board_shown on boards holding dozens of cards.
   const emptyPanelVisible = canEdit && !isPublic && boardReady
-    && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length)));
+    && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length) && unplacedCount === 0));
   const firstLike = firstBoard || freshProject;
   const panelTiles = firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
   const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
@@ -2404,6 +2416,13 @@ export function CanvasSurface({
     const attempt = () => {
       const idSet = new Set(req.ids);
       const present = (cards || []).some(c => idSet.has(c.id));
+      // Asked to show files that aren't on the board: they're in Files.
+      if (!present && (allCardsRef.current || []).some((c) => idSet.has(c.id) && isUnplaced(c))) {
+        focusTokenRef.current = req.token;
+        clearFocusRequest?.();
+        onRevealUnplacedRef.current?.(req.ids);
+        return;
+      }
       if (present && (req.mode === 'center' ? centerCards(req.ids) : frameCards(req.ids))) {
         focusTokenRef.current = req.token;
         setSelected(new Set(req.ids));
@@ -3440,7 +3459,9 @@ export function CanvasSurface({
     const now = Date.now();
     if (sweepCheckedRef.current.boardId !== board.id) sweepCheckedRef.current = { boardId: board.id, at: new Map() };
     const checked = sweepCheckedRef.current.at;
-    const stale = cards.filter((c) => isAbandonedUpload((k) => c[k], now)
+    // Every card — an upload waiting in Files (not on the board) is swept and
+    // recovered the same as one on it.
+    const stale = everyCard.filter((c) => isAbandonedUpload((k) => c[k], now)
       && !localImagePreviewRef.current?.[c.id]
       && !(now - (checked.get(c.id) || 0) < SWEEP_RECHECK_MS));
     if (!stale.length) return undefined;
@@ -3464,7 +3485,7 @@ export function CanvasSurface({
       for (const id of ids) checked.set(id, at);
       // Judge each card as it is NOW, not as it was when the timer was set (or
       // before the query's await): one finished meanwhile is left alone.
-      const live = new Map((cardsRef.current || []).map((c) => [c.id, c]));
+      const live = new Map((allCardsRef.current || []).map((c) => [c.id, c]));
       const swept = ids
         .map((id) => live.get(id))
         .filter((c) => c && isAbandonedUpload((k) => c[k], at) && !localImagePreviewRef.current?.[c.id])
@@ -3487,7 +3508,7 @@ export function CanvasSurface({
       }
     }, 4000);
     return () => clearTimeout(t);
-  }, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);
+  }, [board?.id, everyCard, canEdit, isPublic, useLocalImages, boardSynced]);
 
   // Web images placed before copies were kept (lib/hotlinkBackfill.js): a
   // writer's open of the board copies a few, one at a time, once the board has
@@ -5075,7 +5096,9 @@ export function CanvasSurface({
         // RAFs), so undoing a delete CLEARED the selection instead of
         // restoring it: the just-revived ids weren't in cardsRef yet.
         const live = ydoc?.getMap ? ydoc.getMap('cards') : null;
-        const ids = (saved.cards || []).filter(id => !!live && live.has(id));
+        // Only cards on the board: a file waiting in Files can't be seen
+        // here, and a selection you can't see is one Delete would act on.
+        const ids = (saved.cards || []).filter(id => !!live && live.has(id) && live.get(id)?.get?.('unplaced') !== true);
         setSelected(new Set(ids));
       } catch (_) {}
     };
@@ -9950,6 +9973,11 @@ export function CanvasSurface({
       let tries = 0;
       const tick = () => {
         const card = (cardByIdRef.current || {})[cardId];
+        // Not on the board — it's in Files: show it there instead.
+        if (!card && (allCardsRef.current || []).some((c) => c.id === cardId && isUnplaced(c))) {
+          onRevealUnplacedRef.current?.([cardId]);
+          return;
+        }
         if (card) {
           setSelected(new Set([cardId]));
           const r = wrapRef.current?.getBoundingClientRect();
@@ -11622,7 +11650,17 @@ export function CanvasSurface({
           behind it look intentional. CSS fade-in is delayed ~500ms so board
           switches / first-run seeding never flash it. The friction-stuck signal
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
-      {canEdit && selectedTool === 'select' && (boardIsEmpty || firstCardPrompt) && (() => {
+      {/* An empty board whose cluster has files waiting in Files: say so,
+          rather than "Start your cluster" over a cluster that isn't empty. */}
+      {boardIsEmpty && !firstCardPrompt && unplacedCount > 0 && (
+        <div className="cnv-waiting" role="status">
+          <span>{unplacedCount === 1 ? '1 file is' : `${unplacedCount} files are`} in Files, not on the board yet.</span>
+          {onRevealUnplaced && (
+            <button type="button" className="tb-btn" onClick={() => onRevealUnplaced([])}>Open Files</button>
+          )}
+        </div>
+      )}
+      {canEdit && selectedTool === 'select' && ((boardIsEmpty && unplacedCount === 0) || firstCardPrompt) && (() => {
         // IMAGE-FIRST, but show the RANGE: adding an image drives activation, so
         // Image stays the hero — while the rotating headline + the tile row signal
         // that this is also where you write scripts, organize, and drop any asset.
