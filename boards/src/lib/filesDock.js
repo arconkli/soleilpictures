@@ -119,3 +119,12 @@ export function dockHintSeen(storage) {
 export function markDockHintSeen(storage) {
   try { store(storage)?.setItem(HINT_KEY, '1'); } catch (_) {}
 }
+
+// The panel's path bar: root, an ellipsis for anything that won't fit, then
+// the last few clusters down to where you are. ELLIPSIS marks the gap.
+export const ELLIPSIS = '…';
+export function collapsePath(ids, max = 3) {
+  const path = Array.isArray(ids) ? ids.filter((x) => x != null) : [];
+  if (path.length <= max || max < 2) return path;
+  return [path[0], ELLIPSIS, ...path.slice(path.length - (max - 1))];
+}

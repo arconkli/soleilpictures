@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   DOCK, canDock, filesModeOf, planFilesEvent, switchSegments,
   clampWidth, dragPreview, releaseDock, readDockPrefs, writeDockPrefs,
-  dockHintSeen, markDockHintSeen,
+  dockHintSeen, markDockHintSeen, collapsePath, ELLIPSIS,
 } from './filesDock.js';
 
 test('the panel needs a desktop pane wide enough for a board and a panel', () => {
@@ -101,4 +101,13 @@ test('the first-open hint shows once, and never when storage is broken', () => {
   markDockHintSeen(storage);
   assert.equal(dockHintSeen(storage), true);
   assert.equal(dockHintSeen({ getItem: () => { throw new Error('x'); } }), true);
+});
+
+test('the path bar keeps the root and the last steps, and elides the middle', () => {
+  assert.deepEqual(collapsePath(['a', 'b']), ['a', 'b']);
+  assert.deepEqual(collapsePath(['a', 'b', 'c']), ['a', 'b', 'c']);
+  assert.deepEqual(collapsePath(['a', 'b', 'c', 'd', 'e']), ['a', ELLIPSIS, 'd', 'e']);
+  assert.deepEqual(collapsePath(['a', 'b', 'c', 'd', 'e'], 4), ['a', ELLIPSIS, 'c', 'd', 'e']);
+  assert.deepEqual(collapsePath([null, 'a', undefined]), ['a']);
+  assert.deepEqual(collapsePath(null), []);
 });

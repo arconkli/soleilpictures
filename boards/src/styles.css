@@ -21967,3 +21967,40 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   background: var(--bg-1); color: var(--ink-2);
 }
 .list-wrap.is-panel .ft-grid { margin-bottom: 16px; }
+
+/* Files path bar (clusterBrowser/PathBar.jsx): where the panel is browsing. */
+.pb { display: flex; align-items: center; gap: 2px; min-width: 0; margin-right: auto; }
+.pb-list {
+  display: flex; align-items: center; min-width: 0;
+  list-style: none; margin: 0; padding: 0;
+  overflow: hidden;
+}
+.pb-step { display: flex; align-items: center; min-width: 0; }
+.pb-step + .pb-step::before, .pb-gap + .pb-step::before, .pb-step + .pb-gap::before {
+  content: '/'; margin: 0 5px; color: var(--ink-4);
+  font: 400 12px/1 var(--font-sans);
+}
+.pb-gap { color: var(--ink-3); font: 500 12px/1 var(--font-sans); flex: 0 0 auto; }
+.pb-name {
+  max-width: 160px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 500 12.5px/1.2 var(--font-sans);
+  color: var(--ink-2);
+  background: none; border: 0; padding: 3px 4px; border-radius: 5px;
+}
+.pb-step.is-here .pb-name { color: var(--ink-0); font-weight: 600; }
+.pb-link { cursor: pointer; }
+.pb-link:hover { color: var(--ink-0); background: var(--bg-3); }
+.pb-link:focus-visible { outline: 1px solid var(--soleil); outline-offset: 1px; }
+.cbt-note {
+  margin-top: -2px;
+  font: 400 11px/1.3 var(--font-sans); color: var(--ink-3);
+}
+
+/* Folder tiles in full Files: a little larger, with who's inside. */
+.ft-grid.is-full { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.ft-grid.is-full .ft { padding: 8px 12px 8px 8px; }
+.ft-grid.is-full .ft-cover { width: 52px; height: 52px; }
+.ft-grid.is-full .ft-name { font-size: 13px; }
+.ft-peers { margin-left: auto; display: flex; flex: 0 0 auto; }
+.ft-peers > * + * { margin-left: -5px; }

@@ -10,7 +10,7 @@ import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { ViewSwitch } from '../components/ViewSwitch.jsx';
-import { FilesDockLayout } from '../components/FilesDock.jsx';
+import { FilesDockLayout, FilesPane } from '../components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } from '../lib/filesDock.js';
 import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
@@ -1443,6 +1443,12 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const applyFilesEventRef = useRef(applyFilesEvent);
   applyFilesEventRef.current = applyFilesEvent;
+  const localDockControls = {
+    canShrink: canDockHere,
+    onExpand: () => applyFilesEvent('expand'),
+    onShrink: () => applyFilesEvent('shrink'),
+    onClose: () => applyFilesEvent('close'),
+  };
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
@@ -1898,27 +1904,44 @@ export function LocalBoardsApp({ user, signOut }) {
               />
             ) : null}
             files={filesMode !== 'off' ? (
-              <ListSurface
-                board={currentBoard}
-                boards={boards}
-                cards={framedState.cards}
-                childBoards={childBoards}
-                onOpenBoard={openBoard}
-                onOpenPicker={() => openBoardLinkPicker()}
-                onDropInboxItem={dropInboxItem}
-                gridTemplates={currentTemplates}
-                getGridModel={(card) => readGridModel(card, null, currentTemplates)}
-                onRevealOnCanvas={() => { if (filesMode === 'full') applyFilesEvent(canDockHere ? 'shrink' : 'board'); }}
+              <FilesPane
                 mode={filesMode === 'panel' ? 'panel' : 'full'}
-                paneId={filesMode === 'panel' ? 'files' : 'main'}
-                hasSplit={filesMode === 'panel'}
-                dockControls={{
-                  canShrink: canDockHere,
-                  onExpand: () => applyFilesEvent('expand'),
-                  onShrink: () => applyFilesEvent('shrink'),
-                  onClose: () => applyFilesEvent('close'),
+                home={currentBoard}
+                boards={boards}
+                dockControls={localDockControls}
+                cardsFor={(id) => boardState[id]?.cards || []}
+                onOpenInFiles={(id) => {
+                  if (!boards[id]) return;
+                  setViewOverride(prev => ({ ...prev, [id]: 'list' }));
+                  setStack(ancestorPath(boards, id));
+                  recents.push(id);
                 }}
-                mutators={surfaceMutators}
+                onShowInCluster={(id) => {
+                  if (!boards[id]) return;
+                  setViewOverride(prev => ({ ...prev, [id]: 'canvas' }));
+                  setStack(ancestorPath(boards, id));
+                  recents.push(id);
+                }}
+                render={(o) => (
+                  <ListSurface
+                    board={currentBoard}
+                    boards={boards}
+                    cards={framedState.cards}
+                    childBoards={childBoards}
+                    onOpenBoard={openBoard}
+                    onOpenPicker={() => openBoardLinkPicker()}
+                    onDropInboxItem={dropInboxItem}
+                    gridTemplates={currentTemplates}
+                    getGridModel={(card) => readGridModel(card, null, currentTemplates)}
+                    onRevealOnCanvas={() => { if (filesMode === 'full') applyFilesEvent(canDockHere ? 'shrink' : 'board'); }}
+                    mode={filesMode === 'panel' ? 'panel' : 'full'}
+                    paneId={filesMode === 'panel' ? 'files' : 'main'}
+                    hasSplit={filesMode === 'panel'}
+                    dockControls={localDockControls}
+                    mutators={surfaceMutators}
+                    {...o}
+                  />
+                )}
               />
             ) : null}
           />

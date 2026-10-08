@@ -58,6 +58,23 @@ A cluster remembers which view it was left in. Clusters made from a folder you
 dropped folder is files first; their cards are still laid out on each canvas,
 and on the parent board they keep their thumbnail.
 
+## Folders and the path bar
+
+A cluster's nested clusters are its folders. They sit first, as compact tiles —
+a cover, the name and how many items are inside — with the files after them.
+
+In the panel, **double-click a folder to step into it**. The path bar at the top
+shows where the panel is; click any step to go back up, or use the back arrow
+to retrace where you have been. The search button beside it jumps to any
+cluster in the workspace. **The board doesn't move** while you browse — the
+breadcrumb at the top of the screen still says where it is.
+
+Another cluster's files are read-only from the panel: browse, preview and
+download, but edits happen in that cluster. Double-click one of its files and
+the board goes there and flies to it. Expanding the panel while you are
+browsing takes you to that cluster, in Files. In full-screen Files, opening a
+folder goes there and stays in Files.
+
 ## Grid and list
 
 **Grid** — a tile per item with a real preview. The default, because most of

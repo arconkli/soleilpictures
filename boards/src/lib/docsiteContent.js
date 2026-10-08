@@ -15616,6 +15616,73 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Folders and the path bar",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Folders and the path bar"
+    }
+   ],
+   "id": "folders-and-the-path-bar"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cluster's nested clusters are its folders. They sit first, as compact tiles — a cover, the name and how many items are inside — with the files after them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In the panel, "
+    },
+    {
+     "t": "strong",
+     "v": "double-click a folder to step into it",
+     "children": [
+      {
+       "t": "text",
+       "v": "double-click a folder to step into it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The path bar at the top shows where the panel is; click any step to go back up, or use the back arrow to retrace where you have been. The search button beside it jumps to any cluster in the workspace. "
+    },
+    {
+     "t": "strong",
+     "v": "The board doesn't move",
+     "children": [
+      {
+       "t": "text",
+       "v": "The board doesn't move"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " while you browse — the breadcrumb at the top of the screen still says where it is."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Grid and list",
    "inline": [
     {

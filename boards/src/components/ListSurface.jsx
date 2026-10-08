@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { BoardCard, BoardLinkCard } from './cards.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
@@ -88,6 +87,12 @@ export function ListSurface({
   // { canShrink, onExpand, onShrink, onClose } — the ⤢ ⤡ × controls of the
   // dock, from the shell that owns the mode. Null in the split pane / harness.
   dockControls = null,
+  // The panel's path bar (FilesPane): { path, boards, onNavigate, onBack,
+  // canBack, onGoTo }. Absent in full Files, where the topbar breadcrumb rules.
+  pathBar = null,
+  // Set when the panel is browsing a cluster other than the board's own (a
+  // read-only snapshot) — the board it came from.
+  browsingFrom = null,
 }) {
   const feedback = useFeedback();
   const isPanel = mode === 'panel';
@@ -920,6 +925,8 @@ export function ListSurface({
       searchRef={searchRef}
       compact={isPanel}
       clusterName={board?.name}
+      pathBar={isPanel ? pathBar : null}
+      readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
       dockControls={dockControls ? { ...dockControls, mode } : null}
     />
   );
@@ -942,57 +949,31 @@ export function ListSurface({
         {subBoards.length > 0 && (
           <>
             <div className="list-section">Clusters</div>
-            {isPanel ? (
-              <div className="ft-grid">
-                {subBoards.map(b => (
-                  <FolderTile key={b.id} board={b}
-                              selected={selectedBoards.has(b.id)}
-                              dropTarget={dropTileId === b.id}
-                              draggable={canEdit}
-                              {...folderProps(b)} />
-                ))}
-              </div>
-            ) : (
-            <div className="list-grid">
+            <div className={`ft-grid${isPanel ? '' : ' is-full'}`}>
               {subBoards.map(b => (
-                <div key={b.id}
-                     className={`list-tile ${selectedBoards.has(b.id) ? 'is-selected' : ''} ${dropTileId === b.id ? 'is-drop-target' : ''}`}
-                     draggable={canEdit}
-                     {...folderProps(b)}>
-                  <BoardCard board={b} boards={boards} teammates={TEAMMATES}
-                             peersHere={peersHereByBoard?.get?.(b.id) || []}
-                             peersBelow={peersBelowByBoard?.get?.(b.id) || []}
-                             peersHereByBoard={peersHereByBoard}
-                             peersBelowByBoard={peersBelowByBoard}
-                             onJumpToPeer={onJumpToPeer}
-                             onRename={canEdit
-                               // Passing this unconditionally is what made
-                               // BoardCard render an EditableText for a
-                               // signed-out visitor on a published page —
-                               // it only checks that the prop is truthy.
-                               ? ((name) => mutators.renameBoardById?.(b.id, name))
-                               : undefined} />
-                </div>
+                <FolderTile key={b.id} board={b}
+                            selected={selectedBoards.has(b.id)}
+                            dropTarget={dropTileId === b.id}
+                            peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
+                            draggable={canEdit}
+                            {...folderProps(b)} />
               ))}
             </div>
-            )}
           </>
         )}
         {linkedCards.length > 0 && (
           <>
             <div className="list-section">Linked</div>
-            <div className="list-grid">
+            <div className={`ft-grid${isPanel ? '' : ' is-full'}`}>
               {linkedCards.map(c => {
                 const t = boards[c.target];
                 return (
-                  <div key={c.id}
-                       className={`list-tile ${selectedCards.has(c.id) ? 'is-selected' : ''}`}
-                       onClick={(e) => onTileClick(e, 'boardlink', c.id)}
-                       onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)}>
-                    {(!t && !boardsReady)
-                      ? <div className="blc blc-loading" aria-hidden="true" />
-                      : <BoardLinkCard targetBoard={t} note={c.note} onOpen={() => {}} />}
-                  </div>
+                  <FolderTile key={c.id} board={t} linked
+                              name={t?.name || c.name}
+                              missing={!t && boardsReady}
+                              selected={selectedCards.has(c.id)}
+                              onClick={(e) => onTileClick(e, 'boardlink', c.id)}
+                              onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)} />
                 );
               })}
             </div>

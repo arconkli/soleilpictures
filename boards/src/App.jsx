@@ -100,7 +100,7 @@ import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
-import { FilesDockLayout } from './components/FilesDock.jsx';
+import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen } from './lib/modalGuard.js';
@@ -1218,6 +1218,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tourFireRef.current?.({ type: 'cluster_opened', boardId: id });
   };
   const goTo = (i) => setStack(s => s.slice(0, i + 1));
+
+  // Open a cluster in Files from Files: a folder double-clicked in full Files,
+  // or the cluster the panel was browsing when it expanded. The view is this
+  // device's override only — never boards.view — the same one a folder drop
+  // sets, so nobody else's cluster changes because you browsed into it.
+  const openInFiles = (id, pane = 'main') => {
+    if (!id || !boards[id]) return;
+    setViewOverride(o => ({ ...o, [id]: 'list' }));
+    if (pane === 'split') { openSplitBoard(id); return; }
+    if (boards[id].parent_board_id === stack[stack.length - 1]) { openBoard(id); return; }
+    setStack(ancestorPath(boards, id));
+    recents.push(id);
+  };
+
+  // Show a file from another cluster where it lives: the board goes there, on
+  // the canvas, and flies to the card. Files beside the board double-clicking
+  // into a cluster it is only browsing.
+  const showInCluster = (id, ids) => {
+    if (!id || !boards[id]) return;
+    setViewOverride(o => ({ ...o, [id]: 'canvas' }));
+    setStack(ancestorPath(boards, id));
+    recents.push(id);
+    if (ids?.length) setFocusRequest({ boardId: id, ids, token: Date.now() });
+  };
+
+  // A cluster picker that answers with a promise — "Go to cluster…" in the
+  // Files panel (and, later, Move to…). Pick mode closes itself before it
+  // reports the pick, so the close settles null a microtask later and the pick
+  // always wins.
+  const [clusterPick, setClusterPick] = useState(null); // { placeholder, excludeIds, resolve }
+  const requestClusterPick = useCallback(({ placeholder = 'Go to cluster…', excludeIds = [] } = {}) => (
+    new Promise((resolve) => setClusterPick({ placeholder, excludeIds, resolve }))
+  ), []);
 
   // The same two verbs for the split pane. renderSurface hands each pane its
   // own opener, so which stack moves is decided by which side you clicked —
@@ -8165,9 +8198,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // keeps its keys until the pointer crosses into Files (lib/activePane.js).
     const basePaneId = paneId;
     const dockPanel = isMain && mainFilesMode === 'panel';
+    const dockControls = isMain ? {
+      canShrink: canDockMain,
+      onExpand: () => applyFilesEvent('expand', 'button'),
+      onShrink: () => applyFilesEvent('shrink', 'button'),
+      onClose: () => applyFilesEvent('close', 'button'),
+    } : null;
     const renderList = (listMode) => {
       const paneId = listMode === 'panel' ? 'files' : basePaneId;
       return (
+        <FilesPane mode={listMode} home={board} boards={boards}
+                   dockControls={dockControls}
+                   onOpenInFiles={(id) => openInFiles(id, basePaneId)}
+                   onPickCluster={requestClusterPick}
+                   onShowInCluster={isMain ? showInCluster : null}
+                   render={(o) => (
           <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                        childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
                        onOpenBoard={openInPane}
@@ -8202,13 +8247,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        paneId={paneId}
                        hasSplit={listMode === 'panel' || !!splitId}
                        mode={listMode}
-                       dockControls={isMain ? {
-                         canShrink: canDockMain,
-                         onExpand: () => applyFilesEvent('expand', 'button'),
-                         onShrink: () => applyFilesEvent('shrink', 'button'),
-                         onClose: () => applyFilesEvent('close', 'button'),
-                       } : null}
-                       mutators={muts} />
+                       dockControls={dockControls}
+                       mutators={muts}
+                       {...o} />
+                   )} />
       );
     };
     const renderCanvas = () => (
@@ -8944,6 +8986,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         mobileShell={mobileShell}
         placeholder="Open a board in split view…"
         onPickBoard={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
+      />
+
+      {/* Promise-backed cluster picker (requestClusterPick). */}
+      <CommandPalette
+        mode="pick"
+        open={!!clusterPick}
+        onClose={() => {
+          const pending = clusterPick;
+          setClusterPick(null);
+          if (pending) queueMicrotask(() => pending.resolve(null));
+        }}
+        excludeIds={clusterPick?.excludeIds || []}
+        workspaceId={workspace.id}
+        boards={boards}
+        rootId={rootBoard.id}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder={clusterPick?.placeholder || 'Go to cluster…'}
+        onPickBoard={(b) => { const pending = clusterPick; setClusterPick(null); pending?.resolve(b); }}
       />
 
       <CommandPalette
