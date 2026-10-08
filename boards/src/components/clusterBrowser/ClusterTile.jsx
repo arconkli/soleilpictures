@@ -20,6 +20,7 @@ export const ClusterTile = memo(function ClusterTile({
   active = false, tileRef = null,
   // Inline rename: when set, the name is a field ({ onCommit, onCancel }).
   rename = null,
+  markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
 }) {
   const peer = peers && peers[0];
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
@@ -38,6 +39,7 @@ export const ClusterTile = memo(function ClusterTile({
         <CardPreview item={item} size="tile" px={px} />
         {item.pending && <span className="ct-thumb-spin ct-tile-spin" aria-hidden="true" />}
         {onBoard && <span className="ct-onboard ct-tile-onboard" title="A copy of this file is already on the board">On board</span>}
+        {markUnplaced && item.unplaced && <span className="ct-onboard ct-tile-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
         {canAudition && (
           <button type="button" className="ct-tile-play"
                   aria-label={playing ? `Pause ${item.name}` : `Play ${item.name}`}

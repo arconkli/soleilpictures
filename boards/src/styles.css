@@ -22167,3 +22167,17 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 }
 .ct-row .ir-input { height: 26px; }
 .ft .ir-input, .ct-jg .ir-input { margin: 0; }
+
+/* ── Files not on the board (lib/placement.js) ───────────────────────────── */
+/* Neutral, like "On board": a fact about the file, never a selection. */
+.ct-onboard.is-off { border-style: dashed; }
+.ct-tile-onboard.is-off { border: 1px dashed rgba(255, 255, 255, 0.45); }
+/* An empty board whose cluster has files waiting in Files. */
+.cnv-waiting {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 22px 26px; border-radius: var(--radius-lg);
+  border: 1px dashed var(--line-2); background: var(--bg-2);
+  font: 400 13.5px/1.4 var(--font-sans); color: var(--ink-1); text-align: center;
+}

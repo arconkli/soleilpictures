@@ -61,6 +61,7 @@ export const ClusterRow = memo(function ClusterRow({
   onDownload = null, onAudition = null, onSeek = null, active = false, playing = false, rowRef = null,
   audioMode = false, draggable = false, onBoard = false,
   rename = null,   // inline rename: { onCommit, onCancel }
+  markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
@@ -116,6 +117,7 @@ export const ClusterRow = memo(function ClusterRow({
           {item.sub && <div className={`ct-sub${audioMode ? ' ct-sub-folded' : ''}`}>{item.sub}</div>}
         </div>
         {onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
+        {markUnplaced && item.unplaced && <span className="ct-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
         {item.kind === 'audio' && (
           // Scrubbing is live only while THIS row is the one sounding. The
           // waveform is 240px of a 620px name cell, so making it a transport

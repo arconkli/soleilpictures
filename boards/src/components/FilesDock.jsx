@@ -179,11 +179,13 @@ export function FilesPane({
   homeCards = null,     // the board's own cards — what is already on it
   onLocate = null,      // (cardId) => fly the board to one of its cards
   cardsFor = null,      // (id) => cards — the local harness's in-memory boards
+  revealRequest = null, // { ids, token } — show files of the home cluster
 }) {
   const homeId = home?.id || null;
   const [hist, setHist] = useState(() => [homeId]);
-  // A new home (the board navigated) starts the panel over from there.
-  useEffect(() => { setHist([homeId]); }, [homeId]);
+  // A new home (the board navigated) starts the panel over from there — and
+  // so does a request to show one of its files.
+  useEffect(() => { setHist([homeId]); }, [homeId, revealRequest?.token]);
 
   const top = hist[hist.length - 1];
   const browseId = mode === 'panel' && top && boards?.[top] ? top : homeId;
@@ -213,7 +215,7 @@ export function FilesPane({
   const back = () => setHist((h) => (h.length > 1 ? h.slice(0, -1) : h));
 
   if (mode !== 'panel') {
-    return render({ onOpenBoard: (id) => onOpenInFiles?.(id) });
+    return render({ onOpenBoard: (id) => onOpenInFiles?.(id), revealRequest });
   }
 
   const pathBar = {
@@ -239,6 +241,7 @@ export function FilesPane({
     pathBar,
     dockControls: controls,
     onLocateOnBoard: onLocate,
+    revealRequest: browsing ? null : revealRequest,
     ...(browsing ? {
       board: boards[browseId],
       cards: browseCards,

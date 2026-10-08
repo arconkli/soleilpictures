@@ -102,6 +102,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
+import { placedOf } from './lib/placement.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
@@ -1254,6 +1255,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setStack(ancestorPath(boards, id));
     recents.push(id);
     if (ids?.length) setFocusRequest({ boardId: id, ids, token: Date.now() });
+  };
+
+  // Show files that are in the cluster but not on its board (lib/placement.js)
+  // — a link, a search hit, a backlink or Show on board aimed at one lands
+  // here instead of at a canvas that can't show it. Main pane: Files opens
+  // beside the board (or full when there's no room) with those files picked
+  // out. The split pane has no panel; it says where they are.
+  const [filesReveal, setFilesReveal] = useState(null);   // { boardId, ids, token }
+  const revealInFiles = (boardId, ids, isMainPane = true) => {
+    if (!isMainPane) {
+      feedback.toast({ type: 'info', message: 'That file isn\u2019t on the board — it\u2019s in Files.' });
+      return;
+    }
+    // With room, Files opens beside the board. Without, full Files — this
+    // device's override only, so revealing a file never changes the cluster's
+    // view for anyone else.
+    if (canDockMainRef.current) applyFilesEventRef.current?.('reveal', 'reveal');
+    else setViewOverride((o) => ({ ...o, [boardId]: 'list' }));
+    setFilesReveal({ boardId, ids: ids || [], token: Date.now() });
   };
 
   // A cluster picker that answers with a promise — "Go to cluster…" in the
@@ -4841,7 +4861,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const reframeWidth = useMemo(() => {
     if (!reframeOn) return 0;
     if (capture.width > 0) return capture.width;
-    return widthForFrame(yb.cards, aspectSpec(capture.aspect).cardsAcross ?? 2.4);
+    return widthForFrame(placedOf(yb.cards), aspectSpec(capture.aspect).cardsAcross ?? 2.4);
   }, [reframeOn, capture.width, capture.aspect, yb.cards]);
   const ybFramed = useCaptureFrame(yb, { active: reframeOn, width: reframeWidth });
   // Owner-pays (0187): capacity of the current/split board's OWNER, for boards
@@ -8221,6 +8241,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       : rawCards.filter(c =>
           !isOrphanRef(c) &&
           !(c.kind === 'board' && pendingReparent.get(c.id) === board.id));
+    // The board draws only what's on it; Files lists every card, including
+    // files waiting off the board (lib/placement.js).
+    const canvasCards = placedOf(cards);
     const arrows = ready ? yh.arrows : [];
     const strokes = ready ? yh.strokes : [];
     const groups = ready ? (yh.groups || []) : [];
@@ -8253,7 +8276,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                    onOpenInFiles={(id) => openInFiles(id, basePaneId)}
                    onPickCluster={requestClusterPick}
                    onShowInCluster={isMain ? showInCluster : null}
-                   homeCards={cards}
+                   homeCards={canvasCards}
+                   revealRequest={isMain && filesReveal?.boardId === board.id ? filesReveal : null}
                    onLocate={(id) => setFocusRequest({ boardId: board.id, ids: [id], token: Date.now(), mode: 'center' })}
                    render={(o) => (
           <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
@@ -8299,7 +8323,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const renderCanvas = () => (
           <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
-            <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
+            <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={canvasCards} allCards={cards} arrows={arrows} strokes={strokes} groups={groups}
+                           onRevealUnplaced={(ids) => revealInFiles(board.id, ids, isMain)}
                            /* The empty panel waits for the Y.Doc (boardReady) and takes its
                               first-board shape from the server card count: no cards anywhere
                               means this is the first board (lib/firstBoardCopy). */

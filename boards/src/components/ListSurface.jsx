@@ -100,6 +100,8 @@ export function ListSurface({
   onBoardIds = null,
   // ({ placeholder, excludeIds }) => Promise<board|null> — "Move to…".
   onPickCluster = null,
+  // { ids, token } — pick out files that aren't on the board (App.revealInFiles).
+  revealRequest = null,
   // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
   // owners; opens the storage upgrade modal. Off in the ?local harness.
   showStorageUpsell = false,
@@ -140,7 +142,9 @@ export function ListSurface({
   const [filters, setFilters] = useState(() => new Set());
   // A search or filter belongs to the cluster it was typed in — stepping into a
   // folder used to carry it along and could hide every file there.
-  useEffect(() => { setQuery(''); setFilters(new Set()); }, [board?.id]);
+  // "Not on board": files in the cluster that aren't on its board yet.
+  const [unplacedOnly, setUnplacedOnly] = useState(false);
+  useEffect(() => { setQuery(''); setFilters(new Set()); setUnplacedOnly(false); }, [board?.id]);
   // Which linked-grid families are expanded (collapsed by default). Persisted.
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(prefs0.expandedGroups || []));
   // A grid family selected for the detail popout (family view). Card selection
@@ -206,9 +210,11 @@ export function ListSurface({
 
   // Search → filter → sort pipeline (all pure).
   const visibleItems = useMemo(
-    () => sortItems(filterItems(matchItems(items, query), filters), sortKey, sortDir),
-    [items, query, filters, sortKey, sortDir]
+    () => sortItems(filterItems(matchItems(items, query), filters, { unplacedOnly }), sortKey, sortDir),
+    [items, query, filters, unplacedOnly, sortKey, sortDir]
   );
+  const unplacedTotal = useMemo(() => items.filter((it) => it.unplaced).length, [items]);
+  useEffect(() => { if (unplacedOnly && !unplacedTotal) setUnplacedOnly(false); }, [unplacedOnly, unplacedTotal]);
 
   // Collapse linked-grid families into expandable group nodes (tens of grids →
   // a few rows). Pure; members render only when their family is expanded.
@@ -302,6 +308,23 @@ export function ListSurface({
   useEffect(() => { setRenamingId(null); setCtxMenu(null); }, [board.id]);
   const [infoOpen, setInfoOpen] = useState(() => readInfoPref());
   const toggleInfo = useCallback(() => setInfoOpen((v) => { writeInfoPref(!v); return !v; }), []);
+
+  // Asked to show files that aren't on the board (a link, a search hit, Show
+  // on board): clear whatever would hide them, select them and bring the
+  // first into view. No ids = just Files, filtered to what's not on the board.
+  useEffect(() => {
+    if (!revealRequest?.token) return;
+    const ids = (revealRequest.ids || []).filter((id) => items.some((it) => it.id === id));
+    setQuery('');
+    setFilters(new Set());
+    if (!ids.length) { setUnplacedOnly(items.some((it) => it.unplaced)); return; }
+    setUnplacedOnly(false);
+    setSelectedCards(new Set(ids));
+    setSelectedBoards(new Set());
+    setSelectedGroupId(null);
+    setActiveId(ids[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealRequest?.token]);
 
   // Re-sorting or filtering strands the cursor on a row that has moved or gone.
   useEffect(() => {
@@ -487,7 +510,7 @@ export function ListSurface({
   const onToggleFilter = useCallback((bucket) => {
     setFilters(prev => { const next = new Set(prev); if (next.has(bucket)) next.delete(bucket); else next.add(bucket); return next; });
   }, []);
-  const onClearFilters = useCallback(() => setFilters(new Set()), []);
+  const onClearFilters = useCallback(() => { setFilters(new Set()); setUnplacedOnly(false); }, []);
   const openAddPicker = useCallback(() => addInputRef.current?.click(), []);
 
   // Descendant search: when the user types a query, also surface matches from
@@ -576,7 +599,8 @@ export function ListSurface({
       if (additive) toggle(selectedCards, setSelectedCards, id, true);
       else {
         setSelectedCards(new Set([id])); setSelectedBoards(new Set());
-        if (kind === 'file') onLocateOnBoard?.(id);
+        // Find it on the board — unless it isn't on the board.
+        if (kind === 'file' && !items.find((it) => it.id === id)?.unplaced) onLocateOnBoard?.(id);
       }
     }
     // A plain or additive click moves the anchor; a range-select does not, so
@@ -1115,7 +1139,7 @@ export function ListSurface({
   const downloadableVisible = useMemo(
     () => visibleItems.filter(it => DOWNLOADABLE.has(it.kind)),
     [visibleItems]);
-  const narrowed = !!query || filters.size > 0;
+  const narrowed = !!query || filters.size > 0 || unplacedOnly;
   const canDownloadAll = downloadableVisible.length > 1 && bulkDownloadSupported();
   const downloadAll = useCallback(
     () => downloadMany(downloadableVisible), [downloadMany, downloadableVisible]);
@@ -1191,6 +1215,8 @@ export function ListSurface({
       onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
       viewMode={viewMode} onViewMode={onViewMode}
       tileSize={tileSize} onTileSize={onTileSize}
+      unplacedCount={browsingFrom ? 0 : unplacedTotal} unplacedOnly={unplacedOnly}
+      onToggleUnplaced={() => setUnplacedOnly((v) => !v)}
       onAddFiles={openAddPicker} canEdit={canEdit}
       showUpsell={!isPanel && showStorageUpsell && !!onStorageUpsell}
       onUpsell={() => {
@@ -1255,7 +1281,7 @@ export function ListSurface({
       return composeMenuSections([
         { items: [
           { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
-          onRevealOnCanvas && { id: 'show', label: browsingFrom ? 'Show in cluster' : 'Show on board', run: () => onRevealOnCanvas([item.id]) },
+          onRevealOnCanvas && !item.unplaced && { id: 'show', label: browsingFrom ? 'Show in cluster' : 'Show on board', run: () => onRevealOnCanvas([item.id]) },
         ] },
         { items: [
           renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
@@ -1377,13 +1403,13 @@ export function ListSurface({
                    onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
                 {visibleItems.length === 0 && descHits.length === 0 ? (
                   <div className="cluster-browser-empty">
-                    {query || filters.size ? 'No files match your search.'
+                    {query || filters.size || unplacedOnly ? 'No files match your search.'
                       : isPanel && canEdit ? 'No files here yet — drop some in.' : 'No files yet.'}
                   </div>
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <JustifiedGallery tileSize={tileSize}
                     activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
-                    renameFor={renameFor}
+                    renameFor={renameFor} markUnplaced={!browsingFrom}
                     items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
@@ -1407,6 +1433,7 @@ export function ListSurface({
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
                     audioMode={audioMode}
                     draggableItems={filesDraggable} onBoardIds={onBoardIds} renameFor={renameFor}
+                    markUnplaced={!browsingFrom}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}
@@ -1444,7 +1471,7 @@ export function ListSurface({
               items={quickItems} index={quickIndex}
               onIndex={(i) => { const it = quickItems[i]; if (it) { setQuickId(it.id); setActiveId(it.id); } }}
               onClose={() => setQuickId(null)}
-              onShowOnBoard={onRevealOnCanvas ? (it) => { setQuickId(null); onRevealOnCanvas([it.id]); } : null}
+              onShowOnBoard={onRevealOnCanvas && !quickItems[quickIndex]?.unplaced ? (it) => { setQuickId(null); onRevealOnCanvas([it.id]); } : null}
               showLabel={browsingFrom ? 'Show in cluster' : 'Show on board'}
               onDownload={downloadOne}
               infoOpen={infoOpen} onToggleInfo={toggleInfo}
