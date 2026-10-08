@@ -55,6 +55,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 

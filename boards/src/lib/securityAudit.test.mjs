@@ -676,4 +676,84 @@ test('workspace mates read member_profiles, never the whole profiles row', () =>
   assert.doesNotMatch(byIds, /\.from\('profiles'\)/);
   assert.match(read('./userProfiles.js'), /table: 'member_profiles'/);
   assert.doesNotMatch(read('./userProfiles.js'), /table: 'profiles'/);
+  // 0383: and the policy that let workspace mates read whole rows is gone.
+  assert.ok(latestMatch(/drop policy if exists "ws-mate read profile" on public\.profiles;/));
+  const later = latestPolicy('ws-mate read profile');
+  assert.ok(!later || Number(later.file.slice(0, 4)) < 383, `${later?.file} re-creates the ws-mate policy on profiles`);
+});
+
+// ── 0384: joining one cluster does not hand you everyone's address ──────────
+
+test('Messages shows an email address only to someone who shares a workspace with its owner', () => {
+  const fn = latestDefinition('list_messageable_users').body;
+  assert.match(fn, /case when mt\.user_id is not null then u\.email::text end\s+as email,/);
+  assert.match(fn, /case when mt\.user_id is not null then u\.email::text end\)::text\s+as name,/,
+    'the name fallback must not be an address either');
+  assert.match(fn, /or \(mt\.user_id is not null and coalesce\(u\.email, ''\)\s+ilike/, 'nor may the search match one');
+  assert.doesNotMatch(fn, /^\s+u\.email::text\s+as email,/m);
+});
+
+// ── 0385: an analytics row a client writes is about the client ──────────────
+
+test('a client analytics row names its own sender and a sane time, or is quarantined', () => {
+  const guard = latestDefinition('_tg_event_caller_guard').body;
+  assert.doesNotMatch(guard, /security definer/i, 'it must run as the caller, or current_user tells it nothing');
+  assert.match(guard, /if current_user not in \('anon', 'authenticated'\) then\s+return new;/,
+    'server-fired events legitimately name someone else');
+  assert.match(guard, /new\.user_id is distinct from auth\.uid\(\)/);
+  assert.match(guard, /new\.occurred_at > now\(\) \+ interval '5 minutes' then\s+new\.occurred_at := now\(\);/);
+  assert.ok(latestMatch(/create trigger analytics_events_a_caller_guard\s+before insert on public\.analytics_events/));
+  assert.ok('analytics_events_a_caller_guard' < 'analytics_events_divert_synthetic', 'the guard fires before the divert');
+  assert.match(latestDefinition('_tg_divert_synthetic_events').body,
+    /new\.props->>'synthetic_reason' in \('uid_mismatch', 'stale'\)/);
+});
+
+// ── 0386: the cron secret lives in Vault ────────────────────────────────────
+
+test('no cron job carries its secret inline; one definer helper reads it from Vault', () => {
+  for (const f of migrationFiles().filter((f) => Number(f.slice(0, 4)) >= 386)) {
+    const sql = readFileSync(MIGRATIONS_DIR + f, 'utf8');
+    assert.doesNotMatch(sql, /'x-cron-secret'\s*,\s*'[A-Za-z0-9_\-+/=]{16,}'/, `${f} writes a cron secret inline`);
+  }
+  const helper = latestDefinition('_cron_edge_post').body;
+  assert.match(helper, /from vault\.decrypted_secrets where name = 'cron_edge_secret'/);
+  assert.match(helper, /if p_function is null or p_function !~ '\^\[a-z0-9-\]\+\$' then/);
+  assert.ok(latestMatch(/revoke execute on function public\._cron_edge_post\(text, jsonb\) from public, anon, authenticated;/));
+  for (const job of ['billing-reconcile-daily', 'gsc-sync-daily', 'lifecycle-email-hourly', 'seo-health-every-6h', 'waitlist-accept-every-10-min']) {
+    assert.ok(latestMatch(new RegExp(`cron\\.schedule\\('${job}',\\s+'[^']+',\\s+\\$\\$select public\\._cron_edge_post\\(`)), job);
+  }
+  assert.match(latestDefinition('check_security_invariants').body,
+    /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', 'check_security_invariants'\)/);
+});
+
+// ── 0387: storage counts what was actually stored ───────────────────────────
+
+test('an upload URL carries its size, and the images row takes that size, not the client\'s', () => {
+  const party = read('../../party/upload.ts');
+  const presign = party.slice(party.indexOf('async handlePresignPut'), party.indexOf('// POST /sign-reads'));
+  assert.match(presign, /new Request\(r2Url, \{ method: "PUT", headers: \{ "Content-Length": String\(declared\) \} \}\),\s+\{ aws: \{ signQuery: true, allHeaders: true \} \}/,
+    'the length is signed — R2 refuses a body of any other size');
+  assert.match(presign, /if \(!\/X-Amz-SignedHeaders=\[\^&\]\*content-length\/i\.test\(signed\.url\)\)/,
+    'a URL whose signature does not cover the length is never handed out');
+  const intentAt = presign.indexOf('"record_upload_intent"');
+  assert.ok(intentAt > 0 && intentAt < presign.indexOf('return Response.json({ uploadUrl'), 'the intent is recorded before the key leaves');
+  assert.match(party, /const DERIVED_MAX_BYTES = /);
+  assert.match(party, /"finalize_upload_intent", \{ p_key: key, p_bytes: result\.bytes \}/, 'a multipart object is held to its declaration');
+
+  const up = read('./uploads.js');
+  assert.match(up, /presignPreview\(\{ workspaceId, boardId, previewKey: requestedKey, bytes: dn\.blob\.size \}\)/);
+  assert.match(up, /presignPreview\(\{ workspaceId, boardId, previewKey: requestedSmKey, bytes: dnSm\.blob\.size \}\)/);
+  assert.match(up, /presignThumb\(\{ workspaceId, boardId, thumbKey: key, contentType: 'image\/webp', bytes: blob\.size \}\)/);
+
+  assert.match(latestDefinition('_tg_image_size_from_intent').body, /new\.size_bytes := v_bytes;/);
+  assert.ok(latestMatch(/create trigger images_size_from_intent\s+before insert on public\.images/));
+  for (const fn of ['authorize_upload', 'authorize_image_upload']) {
+    assert.match(latestDefinition(fn).body, /_storage_used_bytes\(v_owner\) \+ public\._storage_pending_bytes\(v_owner\)/,
+      `${fn} counts uploads in flight`);
+  }
+  assert.match(latestDefinition('_storage_quota_bytes').body, /else public\._storage_quota_free_bytes\(\)/, 'a free owner gets the free drive');
+  assert.ok(latestMatch(/add constraint images_size_bytes_nonnegative check \(size_bytes is null or size_bytes >= 0\)/));
+  for (const sig of ['_storage_quota_free_bytes\\(\\)', '_storage_pending_bytes\\(uuid\\)', 'purge_old_upload_intents\\(integer\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
 });

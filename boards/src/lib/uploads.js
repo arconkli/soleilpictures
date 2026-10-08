@@ -110,9 +110,9 @@ async function presign({ workspaceId, boardId, file }) {
         fileExt: ext,
         contentType: file.type || 'application/octet-stream',
         boardId: boardId || null,
-        // Owner-pays byte ceiling (0187): the party checks the board OWNER's
-        // aggregate against the storage quota before presigning. Old parties
-        // ignore the field.
+        // Owner-pays byte ceiling (0187), and since 0387 binding: the party
+        // signs it into the PUT URL as Content-Length and records it as the
+        // upload's size. It must be the size of exactly the file that is PUT.
         bytes: file.size || 0,
       }),
     });
@@ -147,7 +147,7 @@ async function presign({ workspaceId, boardId, file }) {
 // overwrites in place rather than orphaning UUID-keyed objects. The upload
 // party only honors thumbKey when it matches that canonical, board-scoped
 // shape (and after a can_write_board check).
-async function presignThumb({ workspaceId, boardId, thumbKey, contentType = 'image/webp' }) {
+async function presignThumb({ workspaceId, boardId, thumbKey, contentType = 'image/webp', bytes }) {
   const token = await getAccessToken();
   if (!token) throw new Error('Not signed in');
   const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}`;
@@ -158,7 +158,9 @@ async function presignThumb({ workspaceId, boardId, thumbKey, contentType = 'ima
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ boardId, thumbKey, contentType, fileExt: 'webp' }),
+      // bytes is signed into the PUT URL as Content-Length (party/upload.ts,
+      // 0387): it must be the exact size of the blob that is PUT.
+      body: JSON.stringify({ boardId, thumbKey, contentType, fileExt: 'webp', bytes }),
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => res.statusText);
@@ -172,7 +174,7 @@ async function presignThumb({ workspaceId, boardId, thumbKey, contentType = 'ima
 // key is <ws>/previews/<uuid>.webp (per-image, not per-board). The upload party
 // only honors previewKey when it matches that prefix-locked shape and the
 // caller passes the original image's boardId (so can_write_board gates it).
-async function presignPreview({ workspaceId, boardId, previewKey }) {
+async function presignPreview({ workspaceId, boardId, previewKey, bytes }) {
   const token = await getAccessToken();
   if (!token) throw new Error('Not signed in');
   const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}`;
@@ -183,7 +185,7 @@ async function presignPreview({ workspaceId, boardId, previewKey }) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ boardId: boardId || null, previewKey, contentType: 'image/webp', fileExt: 'webp' }),
+      body: JSON.stringify({ boardId: boardId || null, previewKey, contentType: 'image/webp', fileExt: 'webp', bytes }),
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => res.statusText);
@@ -392,7 +394,7 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       // random UUID key instead — either way the PUT and the recorded
       // preview_path must agree, so trust the returned key. This decouples the
       // client from the party-deploy ordering.
-      const presigned = await presignPreview({ workspaceId, boardId, previewKey: requestedKey });
+      const presigned = await presignPreview({ workspaceId, boardId, previewKey: requestedKey, bytes: dn.blob.size });
       previewKey = presigned.key || requestedKey;
       previewW = dn.w; previewH = dn.h;
       await putWithProgress(presigned.uploadUrl, dn.blob, {});
@@ -406,7 +408,7 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
         const dnSm = await downscaleDrawableToWebp(d, PREVIEW_SM_LONGEST_EDGE, PREVIEW_SM_QUALITY);
         if (dnSm && dnSm.blob) {
           const requestedSmKey = `${workspaceId}/previews/${crypto.randomUUID()}.webp`;
-          const presignedSm = await presignPreview({ workspaceId, boardId, previewKey: requestedSmKey });
+          const presignedSm = await presignPreview({ workspaceId, boardId, previewKey: requestedSmKey, bytes: dnSm.blob.size });
           previewSmKey = presignedSm.key || requestedSmKey;
           previewSmW = dnSm.w; previewSmH = dnSm.h;
           await putWithProgress(presignedSm.uploadUrl, dnSm.blob, {});
@@ -558,7 +560,7 @@ export async function uploadBoardThumbnail({ workspaceId, boardId, blob, userId 
   const key = versioned
     ? `${workspaceId}/thumbs/${boardId}-c${Date.now()}.webp`
     : `${workspaceId}/thumbs/${boardId}.webp`;
-  const { uploadUrl } = await presignThumb({ workspaceId, boardId, thumbKey: key, contentType: 'image/webp' });
+  const { uploadUrl } = await presignThumb({ workspaceId, boardId, thumbKey: key, contentType: 'image/webp', bytes: blob.size });
   // putWithProgress reads .type for the Content-Type header; the WebP blob's
   // type is image/webp, matching the presigned signature.
   await putWithProgress(uploadUrl, blob, {});

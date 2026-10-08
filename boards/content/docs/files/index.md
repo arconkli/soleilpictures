@@ -5,7 +5,7 @@ h1: Files and uploads
 navLabel: Overview
 section: files
 order: 0
-updated: 2026-10-01
+updated: 2026-10-07
 answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a {{fact:creatorStorage}} drive.
 faq:
   - q: What file types can I upload on the free plan?
@@ -79,8 +79,10 @@ behind it.
 
 ## Storage
 
-Uploads count against your account's storage quota. {{fact:planName}} accounts
-get {{fact:creatorStorage}}. The meter is in **Settings → Plan & billing**.
+Uploads count against your account's storage quota: {{fact:freeStorage}} on the
+free plan, {{fact:creatorStorage}} on {{fact:planName}}. The meter is in
+**Settings → Plan & billing**. When it is full, new uploads stop until you
+delete files or upgrade — nothing already there is touched.
 
 Storage is counted against the **owner of the cluster**, not the person who
 uploaded. If you are an editor on someone else's board, your uploads use their

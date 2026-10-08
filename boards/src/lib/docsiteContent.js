@@ -6812,7 +6812,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Plan & billing."
+     "v": "Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing."
     }
    ]
   },
@@ -12946,7 +12946,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Uploads count against your account's storage quota. Creator accounts get 100GB. The meter is in "
+     "v": "Uploads count against your account's storage quota: 5GB on the free plan, 100GB on Creator. The meter is in "
     },
     {
      "t": "strong",
@@ -12960,7 +12960,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched."
     }
    ]
   },
@@ -14142,7 +14142,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Media counts against your storage quota like everything else — 100GB on Creator, with the meter in "
+     "v": "Media counts against your storage quota like everything else — 5GB free, 100GB on Creator, with the meter in "
     },
     {
      "t": "strong",
@@ -28574,7 +28574,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else. The "
+     "v": "Two plans. The difference between them is deliberately small and deliberately honest — four enforced limits, listed below, and nothing else. The "
     },
     {
      "t": "link",
@@ -28693,6 +28693,26 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": "Any file type, up to 50 MB each — images are never capped"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A "
+     },
+     {
+      "t": "strong",
+      "v": "5GB",
+      "children": [
+       {
+        "t": "text",
+        "v": "5GB"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " drive for your files"
      }
     ]
    ]
@@ -28851,7 +28871,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Exactly two things, and a third row that is the same thing said per file:"
+     "v": "Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:"
     }
    ]
   },
@@ -28973,6 +28993,32 @@ export const DOCS_CONTENT = {
        "v": "No limit"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Storage",
+       "children": [
+        {
+         "t": "text",
+         "v": "Storage"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "5GB"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "100GB"
+      }
+     ]
     ]
    ]
   },
@@ -29026,7 +29072,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Those three limits are charged to "
+     "v": "Those limits are charged to "
     },
     {
      "t": "strong",
@@ -31622,7 +31668,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "People you share a workspace with see your name, your colour and your picture — nothing else from your account: not your settings, your plan, or where you signed up from."
+     "v": "People you share a workspace with see your name, your colour and your picture — nothing else from your account: not your settings, your plan, or where you signed up from. In Messages, someone who shares only a cluster with you, not a workspace, sees your name but not your email address."
     }
    ]
   },
