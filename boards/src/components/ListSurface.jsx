@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { TEAMMATES } from '../data.js';
-import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
+import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
+import { canDragFromFiles, buildFilesPayload } from '../lib/filesDrag.js';
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
@@ -72,6 +73,10 @@ export function ListSurface({
   getGridModel = null,
   // Reveal a card on the canvas (selects + frames it), used by the detail popout.
   onRevealOnCanvas = null,
+  // Files beside the board: a plain click on a file finds it on the board.
+  onLocateOnBoard = null,
+  // Browsing another cluster: ids of its files this board already shows.
+  onBoardIds = null,
   // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
   // owners; opens the storage upgrade modal. Off in the ?local harness.
   showStorageUpsell = false,
@@ -526,7 +531,10 @@ export function ListSurface({
         return;
       }
       if (additive) toggle(selectedCards, setSelectedCards, id, true);
-      else { setSelectedCards(new Set([id])); setSelectedBoards(new Set()); }
+      else {
+        setSelectedCards(new Set([id])); setSelectedBoards(new Set());
+        if (kind === 'file') onLocateOnBoard?.(id);
+      }
     }
     // A plain or additive click moves the anchor; a range-select does not, so
     // you can keep widening the same range.
@@ -752,6 +760,39 @@ export function ListSurface({
     // URLs / plain text still have no home in list view — nudge to canvas.
     feedback?.toast?.({ type: 'info', message: 'Switch to Board to drop links or text onto a cluster.' });
   };
+
+  // Files → board. A tile or row drags the selection it belongs to (or just
+  // itself); the board it lands on decides what the drop means (lib/filesDrag).
+  // Beside the board it always can — browsing another cluster included, where
+  // dragging in is how a file gets onto this board. Full Files drags when
+  // there's a board to drop on: an editable cluster, or a split pane.
+  const filesDraggable = !!board?.id && (isPanel || canEdit || hasSplit);
+  const onFilesDragStart = (e) => {
+    const el = e.target?.closest?.('[data-item-id]');
+    const id = el?.getAttribute?.('data-item-id');
+    if (!id) return;
+    const ids = selectedCards.has(id) && selectedCards.size > 1 ? [...selectedCards] : [id];
+    const byId = new Map((cards || []).map((c) => [c.id, c]));
+    const list = ids.map((i) => byId.get(i)).filter(canDragFromFiles);
+    const raw = buildFilesPayload({ sourceBoardId: board.id, sourceName: board.name || '', cards: list });
+    if (!raw) { e.preventDefault(); return; }
+    try {
+      e.dataTransfer.setData(FILES_DRAG_MIME, raw);
+      e.dataTransfer.effectAllowed = 'copyMove';
+    } catch (_) {}
+    // dragover can only see types, not data: the board reads where the drag
+    // came from here, to show move vs copy before the drop.
+    try { window.__soleilFilesDrag = { sourceBoardId: board.id, n: list.length }; } catch (_) {}
+    if (list.length > 1) {
+      const ghost = document.createElement('div');
+      ghost.className = 'files-drag-ghost';
+      ghost.textContent = `${list.length} files`;
+      document.body.appendChild(ghost);
+      try { e.dataTransfer.setDragImage(ghost, 16, 16); } catch (_) {}
+      setTimeout(() => ghost.remove(), 0);
+    }
+  };
+  const onFilesDragEnd = () => { try { window.__soleilFilesDrag = null; } catch (_) {} };
 
   const totalSel = selectedBoards.size + selectedCards.size;
   const cmdKey = isMac ? '⌘' : 'Ctrl';
@@ -997,7 +1038,9 @@ export function ListSurface({
             )}
             {!isPanel && toolbarJsx}
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
-              <div className="cb-main">
+              <div className="cb-main"
+                   onDragStart={filesDraggable ? onFilesDragStart : undefined}
+                   onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
                 {visibleItems.length === 0 && descHits.length === 0 ? (
                   <div className="cluster-browser-empty">
                     {query || filters.size ? 'No files match your search.'
@@ -1012,6 +1055,7 @@ export function ListSurface({
                     onDownload={downloadOne}
                     onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
                     playingId={playingId}
+                    draggableItems={filesDraggable} onBoardIds={onBoardIds}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 ) : (
@@ -1026,6 +1070,7 @@ export function ListSurface({
                     onSeek={seekCard}
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
                     audioMode={audioMode}
+                    draggableItems={filesDraggable} onBoardIds={onBoardIds}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}

@@ -8212,6 +8212,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                    onOpenInFiles={(id) => openInFiles(id, basePaneId)}
                    onPickCluster={requestClusterPick}
                    onShowInCluster={isMain ? showInCluster : null}
+                   homeCards={cards}
+                   onLocate={(id) => setFocusRequest({ boardId: board.id, ids: [id], token: Date.now(), mode: 'center' })}
                    render={(o) => (
           <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                        childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}

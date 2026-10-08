@@ -46,6 +46,23 @@ export function solveFit(rect, viewport, { margin = 80, zoomMin = 0.1, zoomMax =
   };
 }
 
+/**
+ * Bring `rect` to the centre of `viewport` without zooming in: the camera keeps
+ * its zoom unless the rect wouldn't fit, and then zooms out just enough. What
+ * "find this on the board" wants — clicking through files in Files beside the
+ * board shouldn't lurch the zoom on every click.
+ */
+export function solveCenter(rect, viewport, zoom, opts = {}) {
+  const fit = solveFit(rect, viewport, opts);
+  const z0 = Number.isFinite(zoom) && zoom > 0 ? zoom : fit.zoom;
+  const z = Math.max(opts.zoomMin ?? 0.1, Math.min(z0, fit.zoom));
+  const vw = Number(viewport?.w) || 0;
+  const vh = Number(viewport?.h) || 0;
+  const cx = (Number(rect?.x) || 0) + Math.max(1, Number(rect?.w) || 1) / 2;
+  const cy = (Number(rect?.y) || 0) + Math.max(1, Number(rect?.h) || 1) / 2;
+  return { zoom: z, pan: { x: vw / 2 - cx * z, y: vh / 2 - cy * z } };
+}
+
 // ── Margins ────────────────────────────────────────────────────────────────
 //
 // How much air to leave around what you are framing, in VIEWPORT pixels. They

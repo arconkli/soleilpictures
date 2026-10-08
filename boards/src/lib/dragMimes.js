@@ -94,3 +94,7 @@ export function inboxItemToCard(item, x, y) {
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
 }
+
+// Items dragged out of Files (lib/filesDrag.js). Payload is JSON
+// { v: 1, sourceBoardId, sourceName, cards: [plain card] }.
+export const FILES_DRAG_MIME = 'application/x-soleil-files';

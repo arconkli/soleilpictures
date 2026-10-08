@@ -15545,7 +15545,21 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Double-click it in the panel — the board flies to it"
+       "v": "Click it in the panel — the board brings it into view and selects it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Put a file somewhere on the board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Drag it from the panel onto the board"
       }
      ]
     ]
@@ -15610,6 +15624,164 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, and on the parent board they keep their thumbnail."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Dragging files onto the board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dragging files onto the board"
+    }
+   ],
+   "id": "dragging-files-onto-the-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drag anything from the panel onto the board and it lands where you let go. Select several first and they travel together."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Where the file is"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What the drop does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "This cluster"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Moves its card to where you dropped it — every file in a cluster is already on its board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Another cluster"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Adds a "
+      },
+      {
+       "t": "strong",
+       "v": "linked copy",
+       "children": [
+        {
+         "t": "text",
+         "v": "linked copy"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ": a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Another cluster, and already copied here"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Moves the copy that's already on the board instead of adding a second one. Hold "
+      },
+      {
+       "t": "code",
+       "v": "⌥"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "Alt"
+      },
+      {
+       "t": "text",
+       "v": ") while you drop to add another"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A linked copy is its own card: retitling or captioning it leaves the original alone, and deleting either one leaves the other. While you browse another cluster in the panel, its files that already have a copy on this board are marked "
+    },
+    {
+     "t": "strong",
+     "v": "On board",
+     "children": [
+      {
+       "t": "text",
+       "v": "On board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and clicking one finds that copy."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notes, docs and grids can't be copied this way — their content lives in their cluster — so dropping one from another cluster offers "
+    },
+    {
+     "t": "strong",
+     "v": "Move here",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move here"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " instead. Moving takes it out of the other cluster, and the toast that follows can undo it."
     }
    ]
   },

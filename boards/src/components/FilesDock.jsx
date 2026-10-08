@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DOCK, canDock, clampWidth, dragPreview, releaseDock } from '../lib/filesDock.js';
 import { getActivePane, setActivePane } from '../lib/activePane.js';
 import { ancestorPath } from '../lib/boardTree.js';
+import { onBoardIndex, fileKeyOf } from '../lib/filesDrag.js';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
 
 export function FilesDockLayout({
@@ -148,6 +149,8 @@ export function FilesPane({
   onOpenInFiles,        // (id) => open a cluster in the app, staying in Files
   onPickCluster = null, // ({ excludeIds }) => Promise<board|null>
   onShowInCluster = null, // (boardId, cardIds) => take the board to a browsed file
+  homeCards = null,     // the board's own cards — what is already on it
+  onLocate = null,      // (cardId) => fly the board to one of its cards
   cardsFor = null,      // (id) => cards — the local harness's in-memory boards
 }) {
   const homeId = home?.id || null;
@@ -159,6 +162,17 @@ export function FilesPane({
   const browseId = mode === 'panel' && top && boards?.[top] ? top : homeId;
   const browsing = !!browseId && browseId !== homeId;
   const preview = useBoardPreview(browsing && !cardsFor ? browseId : null, browsing && !cardsFor);
+
+  const browseCards = browsing ? ((cardsFor ? cardsFor(browseId) : preview?.cards) || []) : null;
+  // Browsing another cluster: which of its files this board already shows (a
+  // linked copy dropped in earlier), and the card here that shows each one.
+  const hereByFile = useMemo(() => (browsing ? onBoardIndex(homeCards || []) : null), [browsing, homeCards]);
+  const onBoardIds = useMemo(() => {
+    if (!browseCards || !hereByFile?.size) return null;
+    const ids = new Set();
+    for (const c of browseCards) { const k = fileKeyOf(c); if (k && hereByFile.has(k)) ids.add(c.id); }
+    return ids;
+  }, [browseCards, hereByFile]);
 
   const childBoards = useMemo(
     () => (browsing ? Object.values(boards || {}).filter((b) => b && b.parent_board_id === browseId) : null),
@@ -197,9 +211,17 @@ export function FilesPane({
     onOpenBoard: go,
     pathBar,
     dockControls: controls,
+    onLocateOnBoard: onLocate,
     ...(browsing ? {
       board: boards[browseId],
-      cards: (cardsFor ? cardsFor(browseId) : preview?.cards) || [],
+      cards: browseCards,
+      onBoardIds,
+      // A file with a copy here: the click finds that copy.
+      onLocateOnBoard: onLocate ? (id) => {
+        const c = browseCards.find((x) => x.id === id);
+        const here = c ? hereByFile?.get(fileKeyOf(c)) : null;
+        if (here) onLocate(here);
+      } : null,
       childBoards: childBoards || [],
       canEdit: false,
       mutators: {},

@@ -22004,3 +22004,31 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 .ft-grid.is-full .ft-name { font-size: 13px; }
 .ft-peers { margin-left: auto; display: flex; flex: 0 0 auto; }
 .ft-peers > * + * { margin-left: -5px; }
+
+/* ── Files → board ───────────────────────────────────────────────────────
+   A file already on the board, seen from another cluster (lib/filesDrag.js).
+   Neutral, never gold: it is a fact about the file, not a selection. */
+.ct-onboard {
+  flex: none; align-self: center;
+  margin-left: 8px; padding: 1px 6px;
+  border: 1px solid var(--line-2); border-radius: 999px;
+  font: 500 10px/1.5 var(--font-sans); color: var(--ink-3);
+  white-space: nowrap;
+}
+.ct-tile-onboard {
+  position: absolute; left: 6px; bottom: 6px; margin: 0;
+  border-color: transparent;
+  background: rgba(10, 10, 12, 0.62); backdrop-filter: blur(6px);
+  color: #fff;
+}
+.ct-tile[draggable="true"], .ct-row[draggable="true"] { -webkit-user-drag: element; }
+/* The drag image for a multi-file drag — rendered off-screen for one frame. */
+.files-drag-ghost {
+  position: fixed; top: -100px; left: -100px;
+  padding: 6px 10px; border-radius: 8px;
+  background: var(--bg-4); color: var(--ink-0);
+  border: 1px solid var(--line-3);
+  font: 600 12px/1.2 var(--font-sans);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}

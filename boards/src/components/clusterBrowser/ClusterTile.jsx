@@ -13,7 +13,7 @@ import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 // table rows have — the transport sits over the preview rather than beside it.
 export const ClusterTile = memo(function ClusterTile({
   item, selected, isNew, peers, onClick, onDoubleClick, member = false,
-  onDownload = null, onAudition = null, playing = false,
+  onDownload = null, onAudition = null, playing = false, draggable = false, onBoard = false,
 }) {
   const peer = peers && peers[0];
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
@@ -23,12 +23,14 @@ export const ClusterTile = memo(function ClusterTile({
       className={`ct-tile${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}`}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
       data-item-id={item.id}
+      draggable={draggable && !item.pending ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
       <div className="ct-tile-preview">
         <CardPreview item={item} size="tile" />
         {item.pending && <span className="ct-thumb-spin ct-tile-spin" aria-hidden="true" />}
+        {onBoard && <span className="ct-onboard ct-tile-onboard" title="A copy of this file is already on the board">On board</span>}
         {canAudition && (
           <button type="button" className="ct-tile-play"
                   aria-label={playing ? `Pause ${item.name}` : `Play ${item.name}`}
