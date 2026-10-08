@@ -707,3 +707,21 @@ test('a client analytics row names its own sender and a sane time, or is quarant
   assert.match(latestDefinition('_tg_divert_synthetic_events').body,
     /new\.props->>'synthetic_reason' in \('uid_mismatch', 'stale'\)/);
 });
+
+// ── 0386: the cron secret lives in Vault ────────────────────────────────────
+
+test('no cron job carries its secret inline; one definer helper reads it from Vault', () => {
+  for (const f of migrationFiles().filter((f) => Number(f.slice(0, 4)) >= 386)) {
+    const sql = readFileSync(MIGRATIONS_DIR + f, 'utf8');
+    assert.doesNotMatch(sql, /'x-cron-secret'\s*,\s*'[A-Za-z0-9_\-+/=]{16,}'/, `${f} writes a cron secret inline`);
+  }
+  const helper = latestDefinition('_cron_edge_post').body;
+  assert.match(helper, /from vault\.decrypted_secrets where name = 'cron_edge_secret'/);
+  assert.match(helper, /if p_function is null or p_function !~ '\^\[a-z0-9-\]\+\$' then/);
+  assert.ok(latestMatch(/revoke execute on function public\._cron_edge_post\(text, jsonb\) from public, anon, authenticated;/));
+  for (const job of ['billing-reconcile-daily', 'gsc-sync-daily', 'lifecycle-email-hourly', 'seo-health-every-6h', 'waitlist-accept-every-10-min']) {
+    assert.ok(latestMatch(new RegExp(`cron\\.schedule\\('${job}',\\s+'[^']+',\\s+\\$\\$select public\\._cron_edge_post\\(`)), job);
+  }
+  assert.match(latestDefinition('check_security_invariants').body,
+    /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', 'check_security_invariants'\)/);
+});
