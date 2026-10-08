@@ -833,3 +833,17 @@ test('every npm: import in an edge function names an exact version', () => {
   }
   assert.deepEqual(floating, [], 'a floating range pulls whatever was published last into a runtime holding the service-role key');
 });
+
+// ── 0389: a card's weight follows its kind ──────────────────────────────────
+
+test('the server weighs a card the way cardWeight does, except the grid it cannot see', async () => {
+  const fn = latestDefinition('_tg_card_weight_by_kind').body;
+  assert.match(fn, /if coalesce\(new\.kind, 'note'\) = 'grid' then\s+return new;/);
+  assert.match(fn, /elsif new\.kind = 'schedule' then\s+new\.weight := greatest\(1, coalesce\(new\.weight, 1\)\);/);
+  assert.match(fn, /else\s+new\.weight := 1;/);
+  assert.ok(latestMatch(/create trigger card_index_weight_by_kind\s+before insert or update of weight, kind on public\.card_index/));
+  // The rule the trigger mirrors: anything but a grid or a schedule weighs 1.
+  const { cardWeight } = await import('./gridCount.js');
+  for (const kind of ['note', 'image', 'video', 'link', 'board', 'doc']) assert.equal(cardWeight(kind, []), 1, kind);
+  assert.equal(cardWeight('schedule', []), 1);
+});
