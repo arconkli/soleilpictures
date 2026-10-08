@@ -7,8 +7,11 @@ async function goList(page) {
   await page.goto('/?local=1&reset=1');
   await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
   await expect(page.locator('.rail-brand')).toBeVisible();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await expect(page.locator('.list-wrap')).toBeVisible();
+  // Files opens in Grid for a cluster that isn't mostly audio; these specs
+  // drive the table, so pick the List layout.
+  await page.getByRole('button', { name: 'List layout' }).click();
 }
 
 test('list view renders the cluster browser toolbar + a table without JS errors', async ({ page }) => {
@@ -34,13 +37,13 @@ test('list view renders the cluster browser toolbar + a table without JS errors'
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('Table ⇄ Gallery toggle swaps the view', async ({ page }) => {
+test('Grid ⇄ List layout toggle swaps the view', async ({ page }) => {
   await goList(page);
   await expect(page.locator('.ct-table')).toBeVisible();
-  await page.getByRole('button', { name: 'Gallery view' }).click();
+  await page.getByRole('button', { name: 'Grid layout' }).click();
   await expect(page.locator('.ct-gallery')).toBeVisible();
   await expect(page.locator('.ct-tile').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Table view' }).click();
+  await page.getByRole('button', { name: 'List layout' }).click();
   await expect(page.locator('.ct-table')).toBeVisible();
 });
 

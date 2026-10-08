@@ -2,7 +2,7 @@
   { "id": "start",        "label": "Getting started",  "blurb": "What Clusters is, the vocabulary, and your first board." },
   { "id": "canvas",       "label": "The canvas",       "blurb": "The infinite surface and everything you can put on it." },
   { "id": "files",        "label": "Files and media",  "blurb": "Uploading, what's supported, and where the limits are." },
-  { "id": "clusters",     "label": "Clusters",         "blurb": "Organizing boards, the list view, and getting work back." },
+  { "id": "clusters",     "label": "Clusters",         "blurb": "Organizing boards, the Files view, and getting work back." },
   { "id": "documents",    "label": "Documents",        "blurb": "Long-form writing, screenplays, and exports." },
   { "id": "organize",     "label": "Organize and find","blurb": "Tags, links, mentions and search across everything." },
   { "id": "collaborate",  "label": "Collaborate",      "blurb": "Sharing, roles, presence, comments and messages." },

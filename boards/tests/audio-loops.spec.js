@@ -35,7 +35,7 @@ async function addAudio(page, n = 1) {
 }
 
 const goList = async (page) => {
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await expect(page.locator('.list-wrap')).toBeVisible();
 };
 
@@ -213,7 +213,7 @@ test('gallery tiles audition and download too', async ({ page }) => {
   await boot(page);
   await addAudio(page, 2);
   await goList(page);
-  await page.getByRole('button', { name: 'Gallery view' }).click();
+  await page.getByRole('button', { name: 'Grid layout' }).click();
   await expect(page.locator('.ct-gallery')).toBeVisible();
   await expect(page.locator('.ct-tile-dl')).toHaveCount(2);
   await page.locator('.ct-tile-play').first().click();

@@ -108,8 +108,8 @@ export const TOUR_STEPS = [
     ackEvent: { type: 'list_ack' },
     copy: {
       title: 'Every cluster is also a drive',
-      body: 'Flip to List to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
-      touch: 'Tap List to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
+      body: 'Switch to Files to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
+      touch: 'Tap Files to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
     },
     accepts: (e) => (e?.type === 'view_switched' && e.view === 'list') || e?.type === 'list_ack',
   },

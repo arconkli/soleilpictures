@@ -1,19 +1,19 @@
 ---
-title: List View — Soleil Clusters
-metaDescription: Every cluster in Soleil Clusters is also a drive. List view gives you table and gallery modes, search, sort, type filters and a detail panel with previews.
-h1: List view
-navLabel: List view
+title: Files View — Soleil Clusters
+metaDescription: Every cluster in Soleil Clusters is also a drive. Files shows it as a grid or a list, with search, sort, type filters and a detail panel with previews.
+h1: Files view
+navLabel: Files view
 section: clusters
 order: 1
-updated: 2026-10-02
-answer: Every cluster has a list view as well as a canvas — the same contents as a sortable, searchable file browser. It has table and gallery modes, sorting by name, type, size or date, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
+updated: 2026-10-08
+answer: Every cluster has two views, Board and Files, switched at the top of the screen or with F. Files shows the same contents as a file browser — a grid of previews or a list — with sorting, filters by content type, and a detail panel with a large preview and metadata. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
-  - q: Does switching to list view change my board?
+  - q: Does switching to Files change my board?
     a: No. It is a different view of the same contents. Positions on the canvas are untouched.
-  - q: Can I upload from list view?
+  - q: Can I upload from Files?
     a: Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas.
-  - q: Can I make list the default?
-    a: Yes, in Settings under Defaults. You can also set the view per cluster.
+  - q: Can I make Files the default?
+    a: Yes, in Settings under Defaults. A cluster also remembers the view it was last left in, and a dropped folder opens in Files.
   - q: Can I use Clusters like Google Drive?
     a: For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that.
 related:
@@ -22,22 +22,33 @@ related:
   - /docs/organize/search
 ---
 
-The canvas is for arranging. List view is for finding.
+The board is for arranging. Files is for finding.
 
-Same cluster, same contents, different question being asked. Switch with the
-view control in the cluster header.
+Same cluster, same contents, different question being asked. Switch with
+**Board · Files** at the top of the screen — the Files side shows how many
+things are inside — or press `F` to flip between them. `⌘K` → "Switch to
+Files" does the same.
 
-## Table and gallery
+A cluster remembers which view it was left in. Folders you
+[drop in](/docs/clusters#dropping-a-folder) open in Files, because a dropped
+folder is files first; their cards are still laid out on each canvas, one `F`
+away.
 
-**Table** — a row per item, with type, size and dates. Dense, scannable, sortable.
+## Grid and list
 
-**Gallery** — a tile per item with a real preview. Better when you are looking
-for something you would recognise by sight; for audio the preview is the
-waveform, so no two loops look the same.
+**Grid** — a tile per item with a real preview. The default, because most of
+what you are looking for you would recognise by sight; for audio the preview is
+the waveform, so no two loops look the same.
+
+**List** — a row per item, with type, size and dates. Dense, scannable,
+sortable. A cluster that is mostly audio opens in the list, for the columns
+below.
+
+Your choice is remembered per cluster on the device you made it on.
 
 ## When a cluster is mostly audio
 
-The table swaps its columns. **Type** and **Size** give way to **Time**,
+The list swaps its columns. **Type** and **Size** give way to **Time**,
 **BPM**, **Key** and **Format**, and each one sorts — so a folder of samples
 becomes something you can order by tempo or by key.
 
@@ -52,7 +63,7 @@ other rather than A, B, C.
 Tempo and key come from the filename as the file uploads, and are editable on
 the card — see [video and audio](/docs/files/video-and-audio).
 
-Above the table you get the pack in one line: **how many audio files, the tempo
+Above the list you get the pack in one line: **how many audio files, the tempo
 range they span, and how much material there is in total**. It follows the
 search and the filters, so narrowing to `128` re-reads the selection you are
 actually looking at.
@@ -64,8 +75,11 @@ filename. The name is the last thing to give up room.
 
 ## Sorting and filtering
 
-Sort by **name**, **type**, **size**, **date modified** or **date added** — plus
-**length**, **tempo**, **key** and **format** when the cluster is mostly audio.
+Files opens in **board order**: the canvas read like a page, top row first and
+each row left to right, so what you see is the board you just left, lined up.
+Sort by **name**, **type**, **size**, **date modified** or **date added**
+instead — plus **length**, **tempo**, **key** and **format** when the cluster is
+mostly audio.
 
 Filter to a single content type: Images, PDFs, Video, Audio, Files, Notes,
 Links, Docs, Palettes, Other.
@@ -85,7 +99,7 @@ jump there — the fastest way to the part of a long sample you actually want. A
 line fills along the bottom of the row as well, for when the waveform has no
 room.
 
-In **gallery** mode a loop's tile *is* its waveform, so a pack reads as a wall
+In the **grid** a loop's tile *is* its waveform, so a pack reads as a wall
 of shapes rather than a wall of identical icons.
 
 For going through a lot of them, use the keyboard: `↑` and `↓` move a highlight
@@ -107,7 +121,7 @@ extension. Images and videos uploaded before they started keeping names come
 down under the card's title, or a generic name if it has none. A name a browser invents for a pasted image — `image.png` — is
 not kept.
 
-**Download all** sits above the table whenever there is more than one file to
+**Download all** sits above the files whenever there is more than one file to
 take. It follows the search and the filters, so it reads *Download 14* once you
 have narrowed to fourteen. Select particular rows instead and the selection bar
 offers **Download** for just those.
@@ -141,7 +155,7 @@ dates, and where it lives. From there:
 | **Delete** | Removes it, with undo |
 
 **Open on canvas** is the important one: it connects the two views, so finding
-something in list view puts you in front of it in context. It and **Copy link**
+something in Files puts you in front of it in context. It and **Copy link**
 are app actions, so they are not offered to a signed-out visitor on a shared
 link — there is no canvas for them to open, and the deep link would not resolve.
 
@@ -150,12 +164,12 @@ which is most of the reason to open it at all.
 
 ## Adding files here
 
-Drag files into list view, or use **Add files** in the toolbar. They land on the
+Drag files into Files, or use **Add files** in the toolbar. They land on the
 cluster exactly as if dropped on the canvas, auto-placed in free space.
 
 ## Presence
 
-List view shows who else is in the cluster, and what they have selected — the
+Files shows who else is in the cluster, and what they have selected — the
 same [presence](/docs/collaborate/presence) information the canvas shows, so
 switching views does not mean losing sight of your collaborators.
 
@@ -177,7 +191,7 @@ what a drive is really for, no. Here is the line:
 
 | Like a drive | In Clusters |
 |---|---|
-| Browse a folder's contents | Yes — list view, as a table or a gallery |
+| Browse a folder's contents | Yes — the Files view, as a grid or a list |
 | Sort and filter | Yes — by name, type, size and dates, filtered to one kind of content |
 | Search | Yes — [⌘K](/docs/organize/search) finds files by name, card text and the words inside documents. It does not read text inside images or PDFs |
 | Preview without opening | Yes — every item has a real preview, and the detail panel a large one |

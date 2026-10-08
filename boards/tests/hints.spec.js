@@ -19,7 +19,7 @@ test('a search that finds nothing explains what search can see, and offers the l
   await expect(help).toContainText('captions');
   await help.locator('.cmdk-empty-btn').click();
   await expect(page.locator('.cmdk')).toBeHidden();
-  await expect(page.locator('.view-pill-btn[title="List view"]')).toHaveClass(/\bon\b/);
+  await expect(page.locator('.view-pill--primary [data-tour="view-toggle"]')).toHaveClass(/\bon\b/);
 });
 
 test('one or two characters get "keep typing", not the explanation', async ({ page }) => {

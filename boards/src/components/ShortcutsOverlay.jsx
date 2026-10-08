@@ -51,6 +51,7 @@ const SECTIONS = [
   {
     title: 'View',
     rows: [
+      [['F'], 'Switch between Board and Files'],
       [[`${CMD}0`], 'Reset zoom'],
       [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],
       [['⇧1'], 'Fit everything'],
@@ -65,8 +66,8 @@ const SECTIONS = [
     rows: [
       [['Enter'], 'Play · pause the selected clip'],
       [['L'], 'Loop the selected clip'],
-      [['Space'], 'Audition the highlighted row (list view)'],
-      [['↑', '↓'], 'Move through rows (list view)'],
+      [['Space'], 'Audition the highlighted row (Files)'],
+      [['↑', '↓'], 'Move through rows (Files)'],
     ],
   },
   {

@@ -106,5 +106,5 @@ phone, Home is the panel alone, and the graph is never loaded.
 ## When to use something else
 
 - Looking for one specific thing you can name — [`⌘K`](/docs/organize/search)
-- Browsing the contents of one cluster — [list view](/docs/clusters/list-view)
+- Browsing the contents of one cluster — [Files](/docs/clusters/list-view)
 - Finding everything on a theme — [tags](/docs/organize/tags)

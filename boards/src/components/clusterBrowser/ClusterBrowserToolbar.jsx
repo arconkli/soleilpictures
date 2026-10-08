@@ -5,6 +5,9 @@ import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X } from '../../lib/icons.js';
 
 const SORT_OPTIONS = [
+  // The canvas read like a page — the default, so Files opens on the same
+  // board, lined up (lib/listItem.js boardOrder).
+  { key: 'board', label: 'Board order' },
   { key: 'name', label: 'Name' },
   { key: 'type', label: 'Type' },
   { key: 'size', label: 'Size' },
@@ -30,7 +33,7 @@ function Menu({ open, onClose, children }) {
 }
 
 // The single shared toolbar for the cluster browser: search + sort + filter +
-// Table/Gallery toggle + Add-files + presence facepile. Holds only menu-open UI
+// Grid/List toggle + Add-files + presence facepile. Holds only menu-open UI
 // state; all data lives in the orchestrator and flows back through callbacks.
 export function ClusterBrowserToolbar({
   query, onQueryChange,
@@ -122,12 +125,13 @@ export function ClusterBrowserToolbar({
         </Menu>
       </div>
 
-      {/* Table / Gallery toggle */}
-      <div className="view-pill cbt-viewtoggle">
-        <button className={`view-pill-btn${viewMode === 'table' ? ' on' : ''}`} onClick={() => onViewMode('table')}
-                aria-label="Table view"><Icon as={List} size={14} /></button>
+      {/* Grid / List layout (internally 'gallery' / 'table'). Grid first: it is
+          the default for any cluster that is not mostly audio. */}
+      <div className="view-pill cbt-viewtoggle" role="group" aria-label="Layout">
         <button className={`view-pill-btn${viewMode === 'gallery' ? ' on' : ''}`} onClick={() => onViewMode('gallery')}
-                aria-label="Gallery view"><Icon as={LayoutGrid} size={14} /></button>
+                aria-label="Grid layout" aria-pressed={viewMode === 'gallery'} title="Grid"><Icon as={LayoutGrid} size={14} /></button>
+        <button className={`view-pill-btn${viewMode === 'table' ? ' on' : ''}`} onClick={() => onViewMode('table')}
+                aria-label="List layout" aria-pressed={viewMode === 'table'} title="List"><Icon as={List} size={14} /></button>
       </div>
 
       {canEdit && (

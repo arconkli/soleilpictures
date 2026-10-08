@@ -27,8 +27,11 @@ test.describe('guided tour wiring', () => {
     }
   });
 
-  test('App tags the List toggle as the list-step anchor', () => {
-    expect(app()).toContain('data-tour="view-toggle"');
+  test('the topbar Files switch is the list-step anchor', () => {
+    // The anchor lives on the Files segment of the shared Board · Files switch,
+    // which App mounts in its topbar.
+    expect(app()).toMatch(/<ViewSwitch\b/);
+    expect(read('src/components/ViewSwitch.jsx')).toContain('data-tour="view-toggle"');
   });
 
   test('the intent event carries variant + board context', () => {

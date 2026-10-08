@@ -5,10 +5,13 @@ import { CommandPalette } from '../components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, List as ListIcon, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote, Question } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote, Question } from '../lib/icons.js';
 import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { ViewSwitch } from '../components/ViewSwitch.jsx';
+import { filesCountOf, isViewSwitchKey, nextView } from '../lib/viewSwitch.js';
+import { anyModalOpen } from '../lib/modalGuard.js';
 import { scheduleCreationAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
@@ -1409,6 +1412,21 @@ export function LocalBoardsApp({ user, signOut }) {
       : prev);
   };
 
+  // F flips Board ↔ Files — parity with the real shell (App.jsx).
+  const setViewRef = useRef(setView);
+  setViewRef.current = setView;
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!isViewSwitchKey(e)) return;
+      if (isEditableTarget(e) || anyModalOpen()) return;
+      if (currentSurface !== 'board' || paletteOpen) return;
+      e.preventDefault();
+      setViewRef.current(nextView(view));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, currentSurface, paletteOpen]);
+
   const openBoard = (id) => {
     if (boards[id]) { setStack(prev => [...prev, id]); recents.push(id); tourFireRef.current?.({ type: 'cluster_opened', boardId: id }); }
   };
@@ -1737,14 +1755,7 @@ export function LocalBoardsApp({ user, signOut }) {
           </div>
 
           <div className="tb-center">
-            <div className="view-pill">
-              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')} title="Canvas view">
-                <span className="vp-ico" aria-hidden="true"><Icon as={LayoutGrid} size={14} /></span><span className="vp-lbl">Canvas</span>
-              </button>
-              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')} title="List view" data-tour="view-toggle">
-                <span className="vp-ico" aria-hidden="true"><Icon as={ListIcon} size={14} /></span><span className="vp-lbl">List</span>
-              </button>
-            </div>
+            <ViewSwitch view={view} filesCount={filesCountOf(currentState.cards)} onSwitch={setView} />
           </div>
 
           <div className="tb-right">

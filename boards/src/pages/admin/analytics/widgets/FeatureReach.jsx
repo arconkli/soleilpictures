@@ -25,7 +25,7 @@ const LABEL = {
   writing: 'Writing (note / doc)',
   cluster: 'A cluster',
   second_cluster: 'A second cluster',
-  list_view: 'List view',
+  list_view: 'Files view',
   grid: 'A grid',
   doc: 'A doc',
   files_links: 'Files & links',

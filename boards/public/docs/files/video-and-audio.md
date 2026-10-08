@@ -67,7 +67,7 @@ The file comes back under its **original name**, not the card's title. Renaming
 a card to something readable never costs you the extension, which is what makes
 the file openable.
 
-To take several at once, switch to [list view](/docs/clusters/list-view),
+To take several at once, switch to [Files](/docs/clusters/list-view),
 select the ones you want and press **Download** — one zip, original names
 intact. Zips are capped at **500 files** or
 **500 MB**, whichever comes first; past either, download in
@@ -79,7 +79,7 @@ Sample and loop packs are named by machine — `SFL_120_Gmin_Loop_Piano.wav`,
 `Cymatics - Orchid Kick 3 - 140 BPM.wav` — so the tempo and key are usually
 already written down. Clusters reads them out of the filename as the file
 uploads and puts them on the card, where you can sort and filter by them in
-[list view](/docs/clusters/list-view).
+[Files](/docs/clusters/list-view).
 
 Both fields are editable: click the tempo or the key under the waveform and
 type. What you type wins permanently and is never overwritten.

@@ -106,7 +106,7 @@ function EmptySearchHelp({ q, emptyHelp, onClose }) {
               : ' Images are found by their caption or file name.'}
           </p>
           {emptyHelp.onBrowseList && (
-            <button type="button" className="cmdk-empty-btn" onClick={browse}>Browse this cluster in List view</button>
+            <button type="button" className="cmdk-empty-btn" onClick={browse}>Browse this cluster in Files</button>
           )}
         </>
       )}

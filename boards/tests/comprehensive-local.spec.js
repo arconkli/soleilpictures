@@ -269,11 +269,11 @@ test.describe('Canvas interaction', () => {
 // ═══════════════ LIST SURFACE ═══════════════
 
 test.describe('List view', () => {
-  test('switches between Canvas and List view', async ({ page }) => {
+  test('switches between Board and Files', async ({ page }) => {
     await go(page);
-    await page.getByRole('button', { name: 'List' }).click();
+    await page.getByRole('button', { name: 'Files', exact: true }).click();
     await expect(page.locator('.list-wrap')).toBeVisible();
-    await page.getByRole('button', { name: 'Canvas' }).click();
+    await page.getByRole('button', { name: 'Board', exact: true }).click();
     await expect(page.locator('.canvas-wrap')).toBeVisible();
   });
 });

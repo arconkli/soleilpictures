@@ -8,8 +8,8 @@ The canvas is the default view of every cluster. It is an unbounded surface —
 position means something here, which is the whole point. Two images side by side
 are being compared; an image with a note under it is being annotated.
 
-If you want the same contents as a sortable file list instead, every cluster
-also has a [list view](/docs/clusters/list-view).
+If you want the same contents as a sortable file browser instead, every cluster
+also has a [Files view](/docs/clusters/list-view) — press `F`.
 
 ## Moving around
 

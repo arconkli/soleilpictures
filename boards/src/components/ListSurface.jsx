@@ -10,6 +10,7 @@ import { undoToast } from '../lib/undoToast.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.js';
+import { defaultFilesLayout, readFilesLayout, writeFilesLayout } from '../lib/filesLayout.js';
 import { formatDuration } from '../lib/loopMeta.js';
 import { searchEntities } from '../lib/entitySearch.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
@@ -87,10 +88,13 @@ export function ListSurface({
 
   // ── Cluster browser state (persisted per session) ──────────────────────────
   const prefs0 = readBrowserPrefs();
-  const [viewMode, setViewMode] = useState(prefs0.viewMode === 'gallery' ? 'gallery' : 'table');
+  // Grid / List chosen this session, per cluster (the component is not keyed
+  // by board, so the choice is looked up by id rather than held as one value).
+  const [layoutChoice, setLayoutChoice] = useState({});
   const [query, setQuery] = useState('');
-  const [sortKey, setSortKey] = useState(prefs0.sortKey || 'updated');
-  const [sortDir, setSortDir] = useState(prefs0.sortDir || 'desc');
+  // Board order (the canvas, read like a page) until someone picks a sort.
+  const [sortKey, setSortKey] = useState(prefs0.sortKey || 'board');
+  const [sortDir, setSortDir] = useState(prefs0.sortKey ? (prefs0.sortDir || 'desc') : 'asc');
   const [filters, setFilters] = useState(() => new Set());
   // Which linked-grid families are expanded (collapsed by default). Persisted.
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(prefs0.expandedGroups || []));
@@ -132,6 +136,11 @@ export function ListSurface({
     }).filter(Boolean),
     [otherCards, boards, board.id, gridTemplates, getGridModel]
   );
+
+  // Grid or List: this session's pick for the cluster, else what this device
+  // remembers for it, else Grid (List for a mostly-audio pack).
+  const savedLayout = useMemo(() => readFilesLayout(board?.id), [board?.id, layoutChoice]);
+  const viewMode = layoutChoice[board?.id] || savedLayout || defaultFilesLayout(items);
 
   // Available filter buckets (with counts) present in this cluster.
   const availableBuckets = useMemo(() => {
@@ -177,9 +186,9 @@ export function ListSurface({
   // the table sorts by a column nobody can see.
   useEffect(() => {
     if (!audioMode && ['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
-      setSortKey('updated');
-      setSortDir('desc');
-      writeBrowserPrefs({ sortKey: 'updated', sortDir: 'desc' });
+      setSortKey('board');
+      setSortDir('asc');
+      writeBrowserPrefs({ sortKey: 'board', sortDir: 'asc' });
     }
   }, [audioMode, sortKey]);
 
@@ -391,14 +400,19 @@ export function ListSurface({
         setSortDir(d => { const nd = d === 'asc' ? 'desc' : 'asc'; writeBrowserPrefs({ sortDir: nd }); return nd; });
         return prev;
       }
-      // New key: sensible default direction — name/type asc, size/date desc.
-      const nd = (key === 'name' || key === 'type') ? 'asc' : 'desc';
+      // New key: sensible default direction — board order/name/type asc,
+      // size/date desc.
+      const nd = (key === 'board' || key === 'name' || key === 'type') ? 'asc' : 'desc';
       setSortDir(nd);
       writeBrowserPrefs({ sortKey: key, sortDir: nd });
       return key;
     });
   }, []);
-  const onViewMode = useCallback((m) => { setViewMode(m); writeBrowserPrefs({ viewMode: m }); }, []);
+  const onViewMode = useCallback((m) => {
+    if (!board?.id) return;
+    setLayoutChoice(prev => ({ ...prev, [board.id]: m }));
+    writeFilesLayout(board.id, m);
+  }, [board?.id]);
   const onToggleFilter = useCallback((bucket) => {
     setFilters(prev => { const next = new Set(prev); if (next.has(bucket)) next.delete(bucket); else next.add(bucket); return next; });
   }, []);
