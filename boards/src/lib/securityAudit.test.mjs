@@ -773,3 +773,19 @@ test('a banned account is refused at connect and dropped from open boards within
   assert.match(board, /async onAlarm\(\) \{[\s\S]*?c\.close\(4403, "account suspended"\)/);
   assert.match(board, /const BAN_CHECK_MS = 60_000;/);
 });
+
+// ── 0388: a deleted account's workspace goes to someone who can edit it ──────
+
+test('a deleted account\'s shared workspace passes to an editor, who becomes its owner', () => {
+  const heir = latestDefinition('_deletion_heir').body;
+  assert.match(heir, /m\.role in \('owner', 'admin', 'editor'\)/, 'never a viewer or a service account');
+  assert.match(heir, /not public\._user_banned\(m\.user_id\)/);
+  assert.match(heir, /order by m\.created_at asc, m\.user_id asc\s+limit 1/, 'one deterministic heir');
+  const prep = latestDefinition('prepare_account_deletion').body;
+  assert.match(prep, /public\._deletion_heir\(w\.id, p_user_id\)/);
+  assert.match(prep, /update workspace_members set role = 'owner' where workspace_id = r\.id and user_id = r\.to_user;/);
+  assert.match(prep, /if public\._user_banned\(p_user_id\) then/, '0371\'s refusal survives');
+  assert.match(latestDefinition('my_deletion_impact').body, /public\._deletion_heir\(w\.id, \(select uid from me\)\)/,
+    'the confirmation screen names the same heir');
+  assert.match(read('../../content/docs/account/data-and-privacy.md'), /A viewer never\s+inherits a workspace\./);
+});

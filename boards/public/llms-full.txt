@@ -3790,8 +3790,8 @@ Deleting your account
 
 Settings → Profile → Delete account. Before it asks you to confirm, it tells you what will actually happen to your account — how many clusters go, and what becomes of anything you share:
 
-Workspaces only you are in are deleted, with every cluster, card, comment, tag and uploaded file in them.
-Workspaces you created that other people are in are not deleted. Ownership passes to the longest-standing other member, who is named on the confirmation screen. Their work is never destroyed by your leaving.
+Workspaces only you are in are deleted, with every cluster, card, comment, tag and uploaded file in them — and so is a workspace where everyone else can only view.
+Workspaces you created where someone else can edit are not deleted. Ownership passes to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving.
 Workspaces you were only a member of simply lose you.
 Comments, tags and votes you left on other people's clusters stay where they are, with your name removed — deleting them would take away context that belongs to someone else.
 Any subscription is canceled as part of the deletion, so nothing bills a removed account.
