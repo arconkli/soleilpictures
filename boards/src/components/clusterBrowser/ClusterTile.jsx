@@ -14,6 +14,8 @@ import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 export const ClusterTile = memo(function ClusterTile({
   item, selected, isNew, peers, onClick, onDoubleClick, member = false,
   onDownload = null, onAudition = null, playing = false, draggable = false, onBoard = false,
+  // Justified grid: where the tile sits and how tall its preview is.
+  style = null, previewH = null, px = null,
 }) {
   const peer = peers && peers[0];
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
@@ -21,14 +23,14 @@ export const ClusterTile = memo(function ClusterTile({
   return (
     <div
       className={`ct-tile${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}`}
-      style={peer ? { '--peer-color': peer.user.color } : undefined}
+      style={peer || style || previewH ? { ...(style || {}), ...(previewH ? { '--jg-h': `${previewH}px` } : {}), ...(peer ? { '--peer-color': peer.user.color } : {}) } : undefined}
       data-item-id={item.id}
       draggable={draggable && !item.pending ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
       <div className="ct-tile-preview">
-        <CardPreview item={item} size="tile" />
+        <CardPreview item={item} size="tile" px={px} />
         {item.pending && <span className="ct-thumb-spin ct-tile-spin" aria-hidden="true" />}
         {onBoard && <span className="ct-onboard ct-tile-onboard" title="A copy of this file is already on the board">On board</span>}
         {canAudition && (

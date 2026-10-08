@@ -43,6 +43,7 @@ export function ClusterBrowserToolbar({
   sortKey, sortDir, onSort,
   filters, availableBuckets, onToggleFilter, onClearFilters,
   viewMode, onViewMode,
+  tileSize = 'm', onTileSize = null,
   onAddFiles, canEdit = true,
   // Quiet storage upsell for free workspace owners (their generic uploads are
   // paid-gated) — muted text link, NOT gold (gold = active/selection only).
@@ -74,6 +75,16 @@ export function ClusterBrowserToolbar({
     dedupPeers.push(u);
   }
 
+  // Tile size for the Grid layout — S / M / L, remembered on this device.
+  const sizePill = (
+    <div className="view-pill cbt-sizepill" role="group" aria-label="Tile size">
+      {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
+        <button key={k} type="button" className={`view-pill-btn${tileSize === k ? ' on' : ''}`}
+                aria-label={`${label} tiles`} aria-pressed={tileSize === k} title={`${label} tiles`}
+                onClick={() => onTileSize?.(k)}>{k.toUpperCase()}</button>
+      ))}
+    </div>
+  );
   const searchBox = (
     <div className="cbt-search">
       <Icon as={Search} size={15} className="cbt-search-icon" />
@@ -133,6 +144,12 @@ export function ClusterBrowserToolbar({
               <button className={`ctx-item${viewMode === 'table' ? ' is-active' : ''}`} onClick={() => onViewMode('table')}>
                 <span>List</span>
               </button>
+              {viewMode === 'gallery' && onTileSize && (
+                <>
+                  <div className="cbt-menu-label">Size</div>
+                  <div className="cbt-sizes">{sizePill}</div>
+                </>
+              )}
               <div className="ctx-divider" />
               <div className="cbt-menu-label">Sort by</div>
               {sortOptions.map(o => (
@@ -218,6 +235,8 @@ export function ClusterBrowserToolbar({
           )}
         </Menu>
       </div>
+
+      {viewMode === 'gallery' && onTileSize && sizePill}
 
       {/* Grid / List layout (internally 'gallery' / 'table'). Grid first: it is
           the default for any cluster that is not mostly audio. */}

@@ -18,7 +18,8 @@ import { usePeerSelections } from '../hooks/usePeerSelections.js';
 import { ClusterBrowserToolbar } from './clusterBrowser/ClusterBrowserToolbar.jsx';
 import { FolderTile } from './clusterBrowser/FolderTiles.jsx';
 import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
-import { ClusterGallery } from './clusterBrowser/ClusterGallery.jsx';
+import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
+import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
@@ -167,6 +168,9 @@ export function ListSurface({
   }
   const viewMode = layoutChoice[board?.id] || savedLayout
     || openedLayoutRef.current[board?.id] || defaultFilesLayout(items);
+  // Grid tile size — this device's, for every cluster.
+  const [tileSize, setTileSize] = useState(() => readTileSize());
+  const onTileSize = useCallback((k) => { setTileSize(k); writeTileSize(k); }, []);
 
   // Available filter buckets (with counts) present in this cluster.
   const availableBuckets = useMemo(() => {
@@ -761,10 +765,14 @@ export function ListSurface({
     feedback?.toast?.({ type: 'info', message: 'Switch to Board to drop links or text onto a cluster.' });
   };
 
-  // The panel's header is sticky, and so is the List layout's column header
-  // under it: publish the panel header's height so the column header (and the
-  // keyboard cursor's scroll margin) sit below it rather than under it.
+  // The toolbar is sticky (the panel's whole header beside the board), and so
+  // is the List layout's column header under it: publish the toolbar's height
+  // so the column header (and the keyboard cursor's scroll margin) sit below
+  // it rather than under it.
   const lpHeadRef = useRef(null);
+  // Full Files with only sub-clusters still shows the files toolbar when it can
+  // go back beside the board — that's where Beside board is.
+  const filesBlockShown = otherCards.length > 0 || isPanel || !!dockControls?.canShrink;
   useEffect(() => {
     const head = lpHeadRef.current;
     const wrap = head?.closest?.('.list-wrap');
@@ -774,7 +782,7 @@ export function ListSurface({
     const ro = new ResizeObserver(set);
     ro.observe(head);
     return () => { ro.disconnect(); wrap.style.removeProperty('--lp-head-h'); };
-  }, [isPanel]);
+  }, [isPanel, filesBlockShown]);
 
   // Files → board. A tile or row drags the selection it belongs to (or just
   // itself); the board it lands on decides what the drop means (lib/filesDrag).
@@ -971,6 +979,7 @@ export function ListSurface({
       filters={filters} availableBuckets={availableBuckets}
       onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
       viewMode={viewMode} onViewMode={onViewMode}
+      tileSize={tileSize} onTileSize={onTileSize}
       onAddFiles={openAddPicker} canEdit={canEdit}
       showUpsell={!isPanel && showStorageUpsell && !!onStorageUpsell}
       onUpsell={() => {
@@ -1035,9 +1044,7 @@ export function ListSurface({
             </div>
           </>
         )}
-        {/* Full Files with only sub-clusters still shows the files toolbar
-            when it can go back beside the board — that's where Beside board is. */}
-        {(otherCards.length > 0 || isPanel || !!dockControls?.canShrink) && (
+        {filesBlockShown && (
           <div className="cluster-browser">
             {!isPanel && (
             <div className="list-section list-section-files">
@@ -1053,7 +1060,7 @@ export function ListSurface({
               )}
             </div>
             )}
-            {!isPanel && toolbarJsx}
+            {!isPanel && <div className="cb-head" ref={lpHeadRef}>{toolbarJsx}</div>}
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
               <div className="cb-main"
                    onDragStart={filesDraggable ? onFilesDragStart : undefined}
@@ -1064,7 +1071,7 @@ export function ListSurface({
                       : isPanel && canEdit ? 'No files here yet — drop some in.' : 'No files yet.'}
                   </div>
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
-                  <ClusterGallery
+                  <JustifiedGallery tileSize={tileSize}
                     items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}

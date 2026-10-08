@@ -65,3 +65,23 @@ test('search narrows the list', async ({ page }) => {
   await page.locator('.cbt-input').fill('');
   await expect(page.locator('.ct-row')).toHaveCount(before);
 });
+
+test('Grid rows are justified, and the tile size is remembered on this device', async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await page.evaluate(() => { try { localStorage.removeItem('soleil.files.tileSize'); } catch (_) {} window.history.replaceState(null, '', '/?local=1'); });
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  await openFullFiles(page);
+  await page.getByRole('button', { name: 'Grid layout' }).click();
+  const tiles = page.locator('.ct-jg .ct-tile');
+  await expect(tiles.first()).toBeVisible();
+  const previewH = () => tiles.first().locator('.ct-tile-preview').evaluate((el) => Math.round(el.getBoundingClientRect().height));
+  const medium = await previewH();
+  await page.getByRole('button', { name: 'Large tiles' }).click();
+  await expect.poll(previewH).toBeGreaterThan(medium);
+  await page.getByRole('button', { name: 'Small tiles' }).click();
+  await expect.poll(previewH).toBeLessThan(medium);
+  await page.reload();
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  await openFullFiles(page);
+  await expect(page.getByRole('button', { name: 'Small tiles' })).toHaveAttribute('aria-pressed', 'true');
+});

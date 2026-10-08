@@ -114,14 +114,16 @@ test('the column header stays pinned to the top of the list while it scrolls', a
   await boot(page, { width: 1280, height: 480 });
   await page.locator('.list-wrap').evaluate(el => { el.scrollTop = el.scrollHeight; });
   await page.waitForTimeout(200);
-  const offset = await page.locator('.ct-head').evaluate((el) => {
+  const { offset, toolbar } = await page.locator('.ct-head').evaluate((el) => {
     const wrap = document.querySelector('.list-wrap').getBoundingClientRect();
-    return Math.round(el.getBoundingClientRect().top - wrap.top);
+    const head = document.querySelector('.cb-head').getBoundingClientRect();
+    return { offset: Math.round(el.getBoundingClientRect().top - wrap.top), toolbar: Math.round(head.bottom - wrap.top) };
   });
-  // Flush, not 32px down with a strip of rows sliding past above it: a scroll
-  // container's own padding insets the rectangle its sticky children are held
-  // in, which is why the vertical padding lives on .list-inner.
-  expect(offset).toBe(0);
+  // Flush under the sticky toolbar, not further down with a strip of rows
+  // sliding past above it: a scroll container's own padding insets the
+  // rectangle its sticky children are held in, which is why the vertical
+  // padding lives on .list-inner.
+  expect(Math.abs(offset - toolbar)).toBeLessThanOrEqual(1);
 });
 
 test('the selection action bar floats above the list instead of scrolling off the top', async ({ page }) => {
@@ -307,8 +309,16 @@ test('a gallery of a loop pack shows the sound, not a wall of one icon', async (
   await expect(page.locator('.cbp-audio-wave')).toHaveCount(12);
   await expect(page.locator('.ct-tile .cbp-glyph')).toHaveCount(0);
 
-  // Every tile the same height, or the grid goes ragged on one long meta line.
-  const heights = await page.locator('.ct-tile').evaluateAll(
-    els => [...new Set(els.map(e => Math.round(e.getBoundingClientRect().height)))]);
-  expect(heights).toHaveLength(1);
+  // Every tile in a row the same height, or the grid goes ragged on one long
+  // meta line. (Rows are justified, so the rows themselves may differ.)
+  const ragged = await page.locator('.ct-tile').evaluateAll((els) => {
+    const rows = new Map();
+    for (const e of els) {
+      const r = e.getBoundingClientRect();
+      const top = Math.round(r.top);
+      rows.set(top, new Set([...(rows.get(top) || []), Math.round(r.height)]));
+    }
+    return [...rows.values()].filter((h) => h.size > 1).length;
+  });
+  expect(ragged).toBe(0);
 });
