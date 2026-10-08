@@ -58,7 +58,7 @@ function RowWave({ peaks: peaksB64, onSeek }) {
 export const ClusterRow = memo(function ClusterRow({
   item, selected, isNew, peers, dateKey = 'updated', onClick, onDoubleClick, member = false,
   onDownload = null, onAudition = null, onSeek = null, active = false, playing = false, rowRef = null,
-  audioMode = false,
+  audioMode = false, draggable = false, onBoard = false,
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
@@ -76,6 +76,7 @@ export const ClusterRow = memo(function ClusterRow({
       data-item-id={item.id}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
       role="row"
+      draggable={draggable && !item.pending ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -110,6 +111,7 @@ export const ClusterRow = memo(function ClusterRow({
               given width; the markup carries both. */}
           {item.sub && <div className={`ct-sub${audioMode ? ' ct-sub-folded' : ''}`}>{item.sub}</div>}
         </div>
+        {onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
         {item.kind === 'audio' && (
           // Scrubbing is live only while THIS row is the one sounding. The
           // waveform is 240px of a 620px name cell, so making it a transport

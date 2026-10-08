@@ -47,6 +47,7 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { ProjectsHome } from '../components/ProjectsHome.jsx';
 import { isTopLevelProject, spotBesideContent } from '../lib/projectsHome.js';
 import { ancestorPath } from '../lib/boardTree.js';
+import { layoutDrop } from '../lib/layoutEngine.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
@@ -325,6 +326,37 @@ export function LocalBoardsApp({ user, signOut }) {
   // and placing behave exactly as they do in the signed-in shell.
   const [qaTemplate, setQaTemplate] = useState(TPL_QA_ROW);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
+  // Files beside the board's "find it on the board" (CanvasSurface consumes it).
+  const [focusRequest, setFocusRequest] = useState(null);
+  // "Move here" from a cluster that isn't open: in memory, the source's cards
+  // simply change boards. (The signed-in shell goes through its saved
+  // snapshot — lib/moveFromCluster.js.)
+  useEffect(() => {
+    const onAsk = (e) => {
+      const d = e.detail || {};
+      if (d.handled || !d.sourceBoardId || !d.targetBoardId || d.sourceBoardId === d.targetBoardId) return;
+      d.handled = true;
+      const ids = new Set(d.ids || []);
+      setLocalState((prev) => {
+        const src = prev.boardState?.[d.sourceBoardId];
+        const dst = prev.boardState?.[d.targetBoardId];
+        if (!src || !dst) return prev;
+        const moving = src.cards.filter((c) => ids.has(c.id));
+        if (!moving.length) return prev;
+        const placed = layoutDrop(moving, { at: d.at, layout: 'grid' });
+        return {
+          ...prev,
+          boardState: {
+            ...prev.boardState,
+            [d.sourceBoardId]: { ...src, cards: src.cards.filter((c) => !ids.has(c.id)) },
+            [d.targetBoardId]: { ...dst, cards: [...dst.cards, ...placed] },
+          },
+        };
+      });
+    };
+    document.addEventListener('soleil-files-move-from', onAsk);
+    return () => document.removeEventListener('soleil-files-move-from', onAsk);
+  }, []);
   // Shared Grid layout templates (global sync), keyed by boardId → { tplId: {id,name,layout} }.
   // Kept separate from boardState (whose updater only threads cards/arrows/strokes).
   const [gridTplState, setGridTplState] = useState({});
@@ -1864,6 +1896,8 @@ export function LocalBoardsApp({ user, signOut }) {
                 board={currentBoard}
                 boards={boards}
                 cards={framedState.cards}
+                focusRequest={focusRequest?.boardId === currentBoard?.id ? focusRequest : null}
+                clearFocusRequest={() => setFocusRequest(null)}
                 arrows={currentState.arrows}
                 strokes={currentState.strokes}
                 gridTemplates={currentTemplates}
@@ -1916,6 +1950,8 @@ export function LocalBoardsApp({ user, signOut }) {
                   setStack(ancestorPath(boards, id));
                   recents.push(id);
                 }}
+                homeCards={framedState.cards}
+                onLocate={(id) => setFocusRequest({ boardId: currentBoard?.id, ids: [id], token: Date.now(), mode: 'center' })}
                 onShowInCluster={(id) => {
                   if (!boards[id]) return;
                   setViewOverride(prev => ({ ...prev, [id]: 'canvas' }));

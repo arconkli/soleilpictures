@@ -1360,6 +1360,10 @@ export const DOCS_PAGES = [
         "text": "Files beside the board"
       },
       {
+        "id": "dragging-files-onto-the-board",
+        "text": "Dragging files onto the board"
+      },
+      {
         "id": "folders-and-the-path-bar",
         "text": "Folders and the path bar"
       },
@@ -1421,6 +1425,10 @@ export const DOCS_PAGES = [
       {
         "q": "Can I see my files and my board at the same time?",
         "a": "Yes. Files opens as a panel beside the board. Drag its edge to make it wider, or press the expand button to fill the screen with it."
+      },
+      {
+        "q": "Can I drag files from Files onto the board?",
+        "a": "Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again."
       },
       {
         "q": "Can I upload from Files?",

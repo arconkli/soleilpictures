@@ -22,7 +22,8 @@ Files side of the switch counts the cards inside, not counting nested clusters.
 | Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it |
 | Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across |
 | Put full-screen Files back beside the board | **Beside board** in its toolbar |
-| Find a file on the board | Double-click it in the panel — the board flies to it |
+| Find a file on the board | Click it in the panel — the board brings it into view and selects it |
+| Put a file somewhere on the board | Drag it from the panel onto the board |
 
 `⌘K` → "Show Files" does the same as `F`. Whether the panel is open, and how
 wide, is remembered on your device; it never changes the cluster for anyone
@@ -37,6 +38,27 @@ A cluster remembers which view it was left in. Clusters made from a folder you
 [drop in](/docs/clusters#dropping-a-folder) open in Files for you, because a
 dropped folder is files first; their cards are still laid out on each canvas,
 and on the parent board they keep their thumbnail.
+
+## Dragging files onto the board
+
+Drag anything from the panel onto the board and it lands where you let go.
+Select several first and they travel together.
+
+| Where the file is | What the drop does |
+|---|---|
+| This cluster | Moves its card to where you dropped it — every file in a cluster is already on its board |
+| Another cluster | Adds a **linked copy**: a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit |
+| Another cluster, and already copied here | Moves the copy that's already on the board instead of adding a second one. Hold `⌥` (`Alt`) while you drop to add another |
+
+A linked copy is its own card: retitling or captioning it leaves the original
+alone, and deleting either one leaves the other. While you browse another
+cluster in the panel, its files that already have a copy on this board are
+marked **On board**, and clicking one finds that copy.
+
+Notes, docs and grids can't be copied this way — their content lives in their
+cluster — so dropping one from another cluster offers **Move here** instead.
+Moving takes it out of the other cluster, and the toast that follows can undo
+it.
 
 ## Folders and the path bar
 

@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { solveFit, easeInOutCubic, sampleTween, fitMargin, selectionMargin } from './captureCamera.js';
+import { solveFit, solveCenter, easeInOutCubic, sampleTween, fitMargin, selectionMargin } from './captureCamera.js';
 
 const VP = { x: 0, y: 0, w: 1200, h: 800 };
 
@@ -185,4 +185,17 @@ test('the margin clamp inside solveFit still protects a tiny viewport', () => {
   const s = solveFit({ x: 0, y: 0, w: 500, h: 500 }, { w: 390, h: 40 },
                      { margin: selectionMargin(vp(390)) });
   assert.ok(Number.isFinite(s.zoom) && s.zoom > 0, `got ${s.zoom}`);
+});
+
+test('solveCenter centres without zooming in, and zooms out only to fit', () => {
+  const vp = { w: 1000, h: 800 };
+  const small = { x: 100, y: 100, w: 50, h: 50 };
+  const a = solveCenter(small, vp, 0.5);
+  assert.equal(a.zoom, 0.5);
+  assert.equal(a.pan.x + 125 * 0.5, 500);
+  assert.equal(a.pan.y + 125 * 0.5, 400);
+  const huge = { x: 0, y: 0, w: 4000, h: 4000 };
+  const b = solveCenter(huge, vp, 1, { margin: 0 });
+  assert.equal(b.zoom, 0.2);
+  assert.equal(solveCenter(small, vp, 0.01, { zoomMin: 0.1 }).zoom, 0.1);
 });

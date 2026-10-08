@@ -125,3 +125,53 @@ test('the panel browses into a folder and back without moving the board', async 
   await expect(fullFiles(page)).toBeVisible();
   await expect(page.locator('.crumb.here')).toContainText('Features');
 });
+
+test('dragging this cluster\'s file from the panel moves its card to the drop point', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  const tile = panel(page).locator('[data-item-id="home-note"]');
+  await expect(tile).toHaveAttribute('draggable', 'true');
+  // An untouched board re-fits itself when its content changes, so check the
+  // card's board position against the camera as it was at the drop.
+  const cam = await page.locator('.cards-layer').evaluate((el) => {
+    const m = new DOMMatrix(getComputedStyle(el.parentElement).transform);
+    return { z: m.a, x: m.e, y: m.f };
+  });
+  await tile.dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 260, y: 520 } });
+  const at = { x: (260 - cam.x) / cam.z, y: (520 - cam.y) / cam.z };
+  const card = page.locator('[data-card-id="home-note"]');
+  await expect.poll(async () => {
+    const st = await card.evaluate((el) => ({ l: parseFloat(el.style.left), t: parseFloat(el.style.top), w: parseFloat(el.style.width), h: parseFloat(el.style.height) }));
+    return Math.round(Math.hypot(st.l + st.w / 2 - at.x, st.t + st.h / 2 - at.y));
+  }).toBeLessThan(3);
+});
+
+test('another cluster\'s file drags in as a linked copy; a doc is offered as a move', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  const p = panel(page);
+  await p.locator('.ft', { hasText: 'Sundown Highway' }).dblclick();
+  await expect(p.locator('[data-item-id="s-img1"]')).toBeVisible();
+  const cards = page.locator('[data-card-id]');
+  const n0 = await cards.count();
+  await p.locator('[data-item-id="s-img1"]').dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 320, y: 300 } });
+  await expect(cards).toHaveCount(n0 + 1);
+  await expect(page.getByText('Linked 1 file from “Sundown Highway”')).toBeVisible();
+  // The original stays where it was.
+  await expect(p.locator('[data-item-id="s-img1"]')).toBeVisible();
+
+  await p.locator('[data-item-id="s-doc"]').dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 420, y: 560 } });
+  await expect(cards).toHaveCount(n0 + 1);
+  await page.getByRole('button', { name: 'Move here' }).click();
+  await expect(page.locator('[data-card-id="s-doc"]')).toHaveCount(1);
+  await expect(p.locator('[data-item-id="s-doc"]')).toHaveCount(0);
+});
+
+test('a plain click on a file in the panel selects it on the board', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  const tile = panel(page).locator('.ct-tile, .ct-row').nth(1);
+  const id = await tile.getAttribute('data-item-id');
+  await tile.click();
+  await expect(page.locator(`[data-card-id="${id}"].selected, [data-card-id="${id}"].is-selected`)).toHaveCount(1);
+});

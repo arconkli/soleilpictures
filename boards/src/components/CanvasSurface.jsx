@@ -70,7 +70,10 @@ import {
 } from '../lib/gridLayoutsApi.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
-import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
+import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
+import { parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop } from '../lib/filesDrag.js';
+import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
+import { yMapToCard } from '../lib/yhelpers.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
@@ -154,7 +157,7 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
-import { solveFit, sampleTween, easingFor, fitMargin, selectionMargin, CAMERA_MS } from '../lib/captureCamera.js';
+import { solveFit, solveCenter, sampleTween, easingFor, fitMargin, selectionMargin, CAMERA_MS } from '../lib/captureCamera.js';
 import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
@@ -2344,6 +2347,23 @@ export function CanvasSurface({
     return true;
   }, [cards, enableSmoothTransform, applyCamera]);
 
+  // Bring cards to the middle of the view at the current zoom (zooming out only
+  // if they wouldn't fit) — Files beside the board's "find it on the board".
+  const centerCards = useCallback((ids) => {
+    if (!wrapRef.current || !ids?.length) return false;
+    const idSet = new Set(ids);
+    const sel = (cards || []).filter(c => idSet.has(c.id));
+    if (!sel.length) return false;
+    const r = wrapRef.current.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return false;
+    const b = boundsOfCards(sel);
+    if (!b) return false;
+    enableSmoothTransform();
+    applyCamera(solveCenter(b, { w: r.width, h: r.height }, zoom,
+      { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }));
+    return true;
+  }, [cards, zoom, enableSmoothTransform, applyCamera]);
+
   // Capture Mode's cinematic camera. Driven by a CustomEvent rather than a
   // prop: the HUD lives at the top of the tree and the camera lives at the
   // bottom, and threading a ref through App → SplitContainer → renderSurface
@@ -2384,7 +2404,7 @@ export function CanvasSurface({
     const attempt = () => {
       const idSet = new Set(req.ids);
       const present = (cards || []).some(c => idSet.has(c.id));
-      if (present && frameCards(req.ids)) {
+      if (present && (req.mode === 'center' ? centerCards(req.ids) : frameCards(req.ids))) {
         focusTokenRef.current = req.token;
         setSelected(new Set(req.ids));
         clearFocusRequest?.();
@@ -2394,7 +2414,7 @@ export function CanvasSurface({
     };
     raf = requestAnimationFrame(attempt);
     return () => { if (raf) cancelAnimationFrame(raf); };
-  }, [focusRequest, cards, frameCards, clearFocusRequest]);
+  }, [focusRequest, cards, frameCards, centerCards, clearFocusRequest]);
 
   // Arrange the current selection in z-order (keyboard [ / ] shortcuts). Mirrors
   // the context-menu arrangeRun for the 'forward'/'backward' ops.
@@ -9209,6 +9229,146 @@ export function CanvasSurface({
     );
   };
 
+  // ── Files → board ────────────────────────────────────────────────────────
+  // A drop from Files beside the board (lib/filesDrag.js). This cluster's own
+  // files are already cards here: they move to the drop point. Another
+  // cluster's files arrive as linked copies; notes, docs and grids, which
+  // can't be copied, are offered as a move.
+  const dropFromFiles = (payload, at, { extraCopy = false } = {}) => {
+    // Only from a cluster this person can see — a drag from another page can
+    // carry our MIME type too.
+    if (!boards?.[payload.sourceBoardId]) return;
+    const um = mutators.undoManager;
+    const top = () => (um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null);
+    const live = new Map((cards || []).map((c) => [c.id, c]));
+    if (payload.sourceBoardId === board.id) {
+      const plan = planMoveToPoint(payload.cards.filter((c) => live.has(c.id)), at, live);
+      if (!plan.length) return;
+      mutators.breakUndo?.();
+      mutators.updateCards?.(plan);
+      mutators.breakUndo?.();
+      setSelected(new Set(plan.map((p) => p.id)));
+      return;
+    }
+    const plan = planCrossDrop(payload.cards, at, {
+      sourceBoardId: payload.sourceBoardId, boardCards: cards || [], extraCopy,
+    });
+    let copiedIds = [];
+    if (plan.copies.length) {
+      // addCards charges the cap and may keep only what fits.
+      const res = mutators.addCards?.(plan.copies);
+      copiedIds = res?.placedIds || [];
+    }
+    if (plan.moves.length) mutators.updateCards?.(plan.moves);
+    const done = [...copiedIds, ...plan.moves.map((m) => m.id)];
+    if (done.length) {
+      const item = top();
+      mutators.breakUndo?.();
+      setSelected(new Set(done));
+      undoToast(feedback, {
+        type: 'success',
+        message: summarizeDrop({ copied: copiedIds.length, moved: plan.moves.length, sourceName: payload.sourceName }),
+        undoManager: um, stackItem: item,
+        onUndo: () => mutators.undo?.(),
+      });
+    }
+    if (plan.moveOnly.length) offerMoveHere(payload, plan.moveOnly, at);
+  };
+
+  const offerMoveHere = (payload, list, at) => {
+    const KIND_NOUN = { note: 'A note', doc: 'A doc', grid: 'A grid', schedule: 'A schedule', shape: 'A shape' };
+    const n = list.length;
+    const from = payload.sourceName ? ` from “${payload.sourceName}”` : '';
+    feedback.toast({
+      type: 'info',
+      ttl: 10000,
+      message: n === 1
+        ? `${KIND_NOUN[list[0].kind] || 'This card'} lives in one cluster — it can be moved here${from}, not copied.`
+        : `${n} notes, docs or grids live in one cluster — they can be moved here${from}, not copied.`,
+      action: { label: 'Move here', onClick: () => { moveHereFromCluster(payload.sourceBoardId, list.map((c) => c.id), at); } },
+    });
+  };
+
+  // "Move here". When the source is open in a pane, its own canvas runs the
+  // move it already knows (moveCardsIntoBoard); otherwise lib/moveFromCluster
+  // moves the cards out of its saved snapshot: arrive here first, then remove
+  // from the source only what landed.
+  const moveHereFromCluster = async (sourceBoardId, ids, at) => {
+    const ask = { sourceBoardId, targetBoardId: board.id, ids, at, handled: false };
+    document.dispatchEvent(new CustomEvent('soleil-files-move-from', { detail: ask }));
+    if (ask.handled) return;
+    let src = null;
+    try {
+      src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
+    } catch (err) { console.error('[files-move-here] open failed', err); }
+    if (!src) {
+      feedback.toast({ type: 'error', message: 'Could not read that cluster — nothing was moved. Try again in a moment.' });
+      return;
+    }
+    try {
+      const movable = src.cards.filter((c) => !isStillUploading(c) && c.kind !== 'board' && c.kind !== 'boardlink');
+      if (!movable.length) return;
+      const stamp = Date.now();
+      const fresh = movable.map((c, i) => ({ ...c, id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`, groupId: null }));
+      const placed = layoutDrop(fresh.map((c) => ({ ...c, w: c.w || 240, h: c.h || 200 })), { at, layout: 'grid' });
+      const res = mutators.addCards?.(placed, { moveFrom: sourceBoardId });
+      const landed = new Set(res?.placedIds || []);
+      const idMap = {};
+      movable.forEach((c, i) => { if (landed.has(fresh[i].id)) idMap[c.id] = fresh[i].id; });
+      if (!Object.keys(idMap).length) return;
+      try {
+        await src.commit(idMap);
+      } catch (err) {
+        console.error('[files-move-here] source update failed — copies kept', err);
+        feedback.toast({ type: 'error', ttl: 9000, message: 'Moved here, but the originals could not be removed from their cluster — they are in both places for now.' });
+        return;
+      }
+      repointComments(sourceBoardId, board.id, idMap);
+      setSelected(new Set(Object.values(idMap)));
+      const n = Object.keys(idMap).length;
+      undoToast(feedback, {
+        type: 'success',
+        message: n === 1 ? 'Moved 1 card here' : `Moved ${n} cards here`,
+        onUndo: async () => {
+          const cm = ydoc?.getMap?.('cards');
+          const back = Object.entries(idMap).map(([oldId, newId]) => {
+            const ym = cm?.get?.(newId);
+            return ym ? { id: oldId, card: yMapToCard(ym) } : null;
+          }).filter(Boolean);
+          try {
+            await returnToCluster(sourceBoardId, back, src.originals);
+          } catch (err) {
+            feedback.toast({ type: 'error', message: 'Undo failed — the cards stay here. ' + (err?.message || err) });
+            return;
+          }
+          mutators.deleteCardsForMove?.(back.map((b) => idMap[b.id]));
+          const inverse = Object.fromEntries(Object.entries(idMap).map(([o, n2]) => [n2, o]));
+          repointComments(board.id, sourceBoardId, inverse);
+        },
+      });
+    } finally {
+      src.close();
+    }
+  };
+
+  // The source half of "Move here" when this canvas IS the source. Through a
+  // ref so the listener is added once and always sees this render's cards.
+  const moveFromAskRef = useRef(null);
+  moveFromAskRef.current = (d) => {
+    if (isPublic || !canEdit) return;
+    if (d.handled || d.sourceBoardId !== board?.id || d.targetBoardId === board?.id) return;
+    const idSet = new Set(d.ids || []);
+    const moving = (cards || []).filter((c) => idSet.has(c.id));
+    if (!moving.length) return;
+    d.handled = true;
+    moveCardsIntoBoard(moving.map((c) => c.id), d.targetBoardId, moving, { via: 'files' });
+  };
+  useEffect(() => {
+    const onAsk = (e) => moveFromAskRef.current?.(e.detail || {});
+    document.addEventListener('soleil-files-move-from', onAsk);
+    return () => document.removeEventListener('soleil-files-move-from', onAsk);
+  }, []);
+
   // ── HTML5 drag-drop ───────────────────────────────────────────────────────
   // Tag drop highlight: when a tag is being dragged over the canvas,
   // show the hovered card / board in the tag's color so the user can
@@ -9222,6 +9382,7 @@ export function CanvasSurface({
         !types.includes(BOARD_REF_MIME) &&
         !types.includes(BOARD_REF_LIST_MIME) &&
         !types.includes(CARD_TRANSFER_MIME) &&
+        !types.includes(FILES_DRAG_MIME) &&
         !types.includes(ENTITY_REF_MIME) &&
         !types.includes(ENTITY_REF_LIST_MIME) &&
         !types.includes('application/x-soleil-doc-page') &&
@@ -9238,6 +9399,10 @@ export function CanvasSurface({
     // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl to copy.
     if (types.includes(CARD_TRANSFER_MIME)) {
       e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey) ? 'copy' : 'move';
+    } else if (types.includes(FILES_DRAG_MIME)) {
+      // From Files: this board's own files move; another cluster's are copied.
+      const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
+      e.dataTransfer.dropEffect = from === board?.id ? 'move' : 'copy';
     } else {
       e.dataTransfer.dropEffect = 'copy';
     }
@@ -9279,6 +9444,16 @@ export function CanvasSurface({
     // A FOLDER has to be read off the drop before this handler's first await:
     // Chrome empties dataTransfer.items the moment it yields (lib/folderWalk).
     const dropEntries = types && types.includes && types.includes('Files') ? captureDropEntries(e.dataTransfer) : [];
+
+    // Dragged out of Files (lib/filesDrag.js). Before everything else: the
+    // payload is ours and nothing else in this drag means anything.
+    if (types.includes(FILES_DRAG_MIME)) {
+      e.preventDefault();
+      try { window.__soleilFilesDrag = null; } catch (_) {}
+      const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
+      if (payload) dropFromFiles(payload, { x: cx, y: cy }, { extraCopy: e.altKey });
+      return;
+    }
 
     // Universal entity-ref drop: any EntityLink chip / picker row /
     // canvas card dragged here materializes as a 'link' chip card

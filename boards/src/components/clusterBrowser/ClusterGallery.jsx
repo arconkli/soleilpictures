@@ -8,7 +8,7 @@ import { CardPreview } from './CardPreview.jsx';
 export function ClusterGallery({
   items, selectedCards, peerMap, onRowClick, onRowDoubleClick, recentlyAddedIds,
   expandedGroups, selectedGroupId, onGroupClick,
-  onDownload = null, onAudition = null, playingId = null,
+  onDownload = null, onAudition = null, playingId = null, draggableItems = false, onBoardIds = null,
 }) {
   return (
     <div className="ct-gallery">
@@ -21,6 +21,7 @@ export function ClusterGallery({
           selectedCards={selectedCards} peerMap={peerMap} recentlyAddedIds={recentlyAddedIds}
           onRowClick={onRowClick} onRowDoubleClick={onRowDoubleClick}
           onDownload={onDownload} onAudition={onAudition} playingId={playingId}
+          draggableItems={draggableItems} onBoardIds={onBoardIds}
         />
       ) : (
         <ClusterTile
@@ -30,6 +31,7 @@ export function ClusterGallery({
           isNew={recentlyAddedIds?.has?.(it.id)}
           peers={peerMap?.get(it.id)}
           onDownload={onDownload} onAudition={onAudition} playing={playingId === it.id}
+          draggable={draggableItems} onBoard={!!onBoardIds?.has?.(it.id)}
           onClick={(e) => onRowClick(e, it.id)}
           onDoubleClick={(e) => onRowDoubleClick(e, it.id)}
         />
@@ -41,7 +43,7 @@ export function ClusterGallery({
 function GroupTiles({
   group, expanded, selected, onGroupClick,
   selectedCards, peerMap, recentlyAddedIds, onRowClick, onRowDoubleClick,
-  onDownload = null, onAudition = null, playingId = null,
+  onDownload = null, onAudition = null, playingId = null, draggableItems = false, onBoardIds = null,
 }) {
   return (
     <>
@@ -63,6 +65,7 @@ function GroupTiles({
           isNew={recentlyAddedIds?.has?.(m.id)}
           peers={peerMap?.get(m.id)}
           onDownload={onDownload} onAudition={onAudition} playing={playingId === m.id}
+          draggable={draggableItems} onBoard={!!onBoardIds?.has?.(m.id)}
           onClick={(e) => onRowClick(e, m.id)}
           onDoubleClick={(e) => onRowDoubleClick(e, m.id)}
         />
