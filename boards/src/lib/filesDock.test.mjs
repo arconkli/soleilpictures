@@ -120,3 +120,10 @@ test('a panel at its widest never expands on a release that barely moved', () =>
     }
   }
 });
+
+test('reveal opens Files for a file that is not on the board, and leaves an open Files alone', () => {
+  assert.equal(planFilesEvent('off', 'reveal').next, 'panel');
+  assert.equal(planFilesEvent('off', 'reveal', { canDock: false }).next, 'full');
+  assert.equal(planFilesEvent('panel', 'reveal').next, 'panel');
+  assert.equal(planFilesEvent('full', 'reveal').next, 'full');
+});

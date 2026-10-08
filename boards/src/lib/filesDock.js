@@ -44,6 +44,7 @@ export function filesModeOf({ view, dockOpen, canDock: room }) {
 //   expand    —                       full             —         ⤢, divider
 //   shrink    —                       —                panel     ⤡ (room only)
 //   close     —                       off              —         ×, divider
+//   reveal    panel (full if no room) —                —         a file that isn't on the board
 export function planFilesEvent(mode, event, { canDock: room = true } = {}) {
   const open = room ? 'panel' : 'full';
   switch (event) {
@@ -55,6 +56,8 @@ export function planFilesEvent(mode, event, { canDock: room = true } = {}) {
     case 'expand': return { next: mode === 'panel' ? 'full' : mode };
     case 'shrink': return { next: mode === 'full' && room ? 'panel' : mode };
     case 'close':  return { next: mode === 'panel' ? 'off' : mode };
+    // Showing a file that's only in Files: open Files if it isn't already.
+    case 'reveal': return { next: mode === 'off' ? open : mode };
     default:       return { next: mode };
   }
 }

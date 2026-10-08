@@ -44,7 +44,8 @@ export const STARTER_DOCS = Object.freeze({
 // beside them, top-aligned, rather than on top of the first one. A centre, as
 // addStarterDoc takes it (it subtracts half the card). Null on an empty board.
 export function starterDocSpot(cards, { w = 320, h = 240, gap = 80 } = {}) {
-  const live = (cards || []).filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y));
+  // Files not on the board (lib/placement.js) aren't content to sit beside.
+  const live = (cards || []).filter((c) => c && c.unplaced !== true && Number.isFinite(c.x) && Number.isFinite(c.y));
   if (!live.length) return null;
   const right = Math.max(...live.map((c) => c.x + (Number.isFinite(c.w) ? c.w : 0)));
   const top = Math.min(...live.map((c) => c.y));

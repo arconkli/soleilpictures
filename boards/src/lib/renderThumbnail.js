@@ -1095,6 +1095,9 @@ function drawGenericInterior(ctx, c, x, y, w, h, boards) {
 // Build the actual draw plan synchronously (bounds + per-card ops) so we
 // can do the async image loading in parallel up front, then draw in z-order.
 function buildDrawPlan(cards, strokes, arrows, boards) {
+  // A cluster's thumbnail is its board: files waiting in Files aren't on it
+  // (lib/placement.js). Its card_count still counts them — that's the callers'.
+  cards = (cards || []).filter((c) => c?.unplaced !== true);
   if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) return null;
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
