@@ -7,6 +7,7 @@ import {
   DOCK, canDock, filesModeOf, planFilesEvent, switchSegments,
   clampWidth, dragPreview, releaseDock, readDockPrefs, writeDockPrefs,
   dockHintSeen, markDockHintSeen, collapsePath, ELLIPSIS,
+  FOLDER_ROWS, folderColumns, folderCap, readFoldersExpanded, writeFoldersExpanded,
 } from './filesDock.js';
 
 test('the panel needs a desktop pane wide enough for a board and a panel', () => {
@@ -126,4 +127,30 @@ test('reveal opens Files for a file that is not on the board, and leaves an open
   assert.equal(planFilesEvent('off', 'reveal', { canDock: false }).next, 'full');
   assert.equal(planFilesEvent('panel', 'reveal').next, 'panel');
   assert.equal(planFilesEvent('full', 'reveal').next, 'full');
+});
+
+test('panel folders: two rows of columns, unless only one would be hidden', () => {
+  assert.equal(folderColumns(0), 1);
+  assert.equal(folderColumns(FOLDER_ROWS.MIN_W), 1);
+  assert.equal(folderColumns(FOLDER_ROWS.MIN_W * 2 + FOLDER_ROWS.GAP), 2);
+  assert.equal(folderColumns(376), 2);            // a 400px panel, less its gutters
+  assert.equal(folderCap(3, 376), 3);
+  assert.equal(folderCap(4, 376), 4);
+  assert.equal(folderCap(5, 376), 5);             // hiding one buys nothing
+  assert.equal(folderCap(6, 376), 4);
+  assert.equal(folderCap(40, 900), 10);
+  assert.equal(folderCap(-1, 376), 0);
+  assert.equal(folderCap('x', 376), 0);
+});
+
+test('Show all folders is remembered per device, and broken storage reads collapsed', () => {
+  const mem = new Map();
+  const storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+  assert.equal(readFoldersExpanded(storage), false);
+  writeFoldersExpanded(true, storage);
+  assert.equal(readFoldersExpanded(storage), true);
+  writeFoldersExpanded(false, storage);
+  assert.equal(readFoldersExpanded(storage), false);
+  const broken = { getItem: () => { throw new Error('denied'); } };
+  assert.equal(readFoldersExpanded(broken), false);
 });

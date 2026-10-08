@@ -136,3 +136,30 @@ export function collapsePath(ids, max = 3) {
   if (path.length <= max || max < 2) return path;
   return [path[0], ELLIPSIS, ...path.slice(path.length - (max - 1))];
 }
+
+// Folders in the panel are one-line rows in a grid of minmax(168px, 1fr)
+// columns, and show at most two rows until you ask for all of them — so the
+// files, which are what the panel is for, start on the first screen.
+export const FOLDER_ROWS = Object.freeze({ MIN_W: 168, GAP: 4, ROWS: 2 });
+export function folderColumns(width) {
+  if (!(width > 0)) return 1;
+  return Math.max(1, Math.floor((width + FOLDER_ROWS.GAP) / (FOLDER_ROWS.MIN_W + FOLDER_ROWS.GAP)));
+}
+// How many to show collapsed: two rows' worth — or every one when only one
+// would be hidden, since the "Show all" row would take its place anyway.
+export function folderCap(count, width) {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  const cap = folderColumns(width) * FOLDER_ROWS.ROWS;
+  return n <= cap + 1 ? n : cap;
+}
+// Show all / Show fewer, remembered on this device.
+const FOLDERS_KEY = 'soleil.files.folders.expanded';
+export function readFoldersExpanded(storage) {
+  try { return store(storage)?.getItem(FOLDERS_KEY) === '1'; } catch (_) { return false; }
+}
+export function writeFoldersExpanded(on, storage) {
+  try {
+    const s = store(storage);
+    if (on) s?.setItem(FOLDERS_KEY, '1'); else s?.removeItem(FOLDERS_KEY);
+  } catch (_) {}
+}
