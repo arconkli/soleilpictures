@@ -69,6 +69,10 @@ is free to sign up again from scratch.
 
 ## Accounts and access
 
+People you share a workspace with see your name, your colour and your picture —
+nothing else from your account: not your settings, your plan, or where you
+signed up from.
+
 Sign-in is a one-time emailed code. There is no password to be reused or
 leaked.
 

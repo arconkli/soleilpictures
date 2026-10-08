@@ -198,10 +198,13 @@ async function flushPending() {
   }
 }
 
-// Open a single realtime channel on public.profiles so any peer
-// changing their display_name / color shows up here within ~1s. The
-// table is already in supabase_realtime (migration 0030). Returns an
+// Open a single realtime channel on public.member_profiles so any peer
+// changing their display_name / color shows up here within ~1s. Returns an
 // unsubscribe.
+//
+// member_profiles, not profiles (migration 0382): a peer may read only the
+// presentational columns. The old subscription on profiles delivered every
+// column of every change to everyone who shared a workspace.
 //
 // SCALING CAVEAT: this subscription is unfiltered, so every profile change
 // anywhere fans out to every connected client. `profiles` has no
@@ -215,7 +218,7 @@ async function flushPending() {
 export function subscribeToProfileChanges() {
   const chan = supabase.channel(`profiles-cache:${Math.random().toString(36).slice(2, 9)}`)
     .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'profiles',
+      event: '*', schema: 'public', table: 'member_profiles',
     }, (payload) => {
       const row = payload?.new || payload?.old;
       const uid = row?.user_id;

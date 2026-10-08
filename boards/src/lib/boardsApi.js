@@ -229,12 +229,13 @@ export async function saveOwnProfile({ userId, displayName, color, avatarUrl }) 
   if (error) throw error;
 }
 
-// Read profiles for the given user ids — workspace-mate RLS lets you read
-// any profile of someone in a shared workspace. Returns a Map<uid,row>.
+// Read the name, colour and picture of the given user ids — yours and anyone
+// you share a workspace with. member_profiles (migration 0382) holds only
+// those columns; the rest of someone's profile is theirs. Returns a Map<uid,row>.
 export async function getProfilesByIds(userIds) {
   if (!userIds || userIds.length === 0) return new Map();
   const { data, error } = await supabase
-    .from('profiles')
+    .from('member_profiles')
     .select('user_id, display_name, color, avatar_url')
     .in('user_id', userIds);
   if (error) throw error;
