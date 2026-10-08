@@ -26,9 +26,11 @@ const AUDIO_SORT_OPTIONS = [
 ];
 
 // Small frosted popover anchored under its trigger. Closes on outside tap/esc.
-function Menu({ open, onClose, children }) {
+// Its own trigger doesn't count as outside — otherwise pressing it to close
+// the menu closed it on pointerdown and the click opened it again.
+function Menu({ open, onClose, trigger = null, children }) {
   const ref = useRef(null);
-  useDismissOnOutside(ref, open, onClose);
+  useDismissOnOutside(ref, open, onClose, { ignore: trigger ? `[data-menu-trigger="${trigger}"]` : null });
   if (!open) return null;
   return <div className="cbt-menu" ref={ref} role="menu">{children}</div>;
 }
@@ -119,10 +121,11 @@ export function ClusterBrowserToolbar({
           {searchBox}
           <div className="cbt-menuwrap">
             <button className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeFilters.size ? ' has-active' : ''}`}
+                    data-menu-trigger="view"
                     onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
               View{activeFilters.size ? ` · ${activeFilters.size}` : ''}<Icon as={ChevronDown} size={12} />
             </button>
-            <Menu open={viewOpen} onClose={() => setViewOpen(false)}>
+            <Menu open={viewOpen} onClose={() => setViewOpen(false)} trigger="view">
               <div className="cbt-menu-label">Layout</div>
               <button className={`ctx-item${viewMode === 'gallery' ? ' is-active' : ''}`} onClick={() => onViewMode('gallery')}>
                 <span>Grid</span>
@@ -175,11 +178,11 @@ export function ClusterBrowserToolbar({
 
       {/* Sort */}
       <div className="cbt-menuwrap">
-        <button className={`cbt-btn${sortOpen ? ' is-open' : ''}`} onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }}
+        <button className={`cbt-btn${sortOpen ? ' is-open' : ''}`} data-menu-trigger="sort" onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }}
                 aria-haspopup="menu" aria-expanded={sortOpen}>
           Sort<Icon as={ChevronDown} size={12} />
         </button>
-        <Menu open={sortOpen} onClose={() => setSortOpen(false)}>
+        <Menu open={sortOpen} onClose={() => setSortOpen(false)} trigger="sort">
           {[...SORT_OPTIONS, ...(audioMode ? AUDIO_SORT_OPTIONS : [])].map(o => (
             <button key={o.key} className={`ctx-item${sortKey === o.key ? ' is-active' : ''}`}
                     onClick={() => { onSort(o.key); setSortOpen(false); }}>
@@ -193,11 +196,12 @@ export function ClusterBrowserToolbar({
       {/* Filter */}
       <div className="cbt-menuwrap">
         <button className={`cbt-btn${filterOpen ? ' is-open' : ''}${activeFilters.size ? ' has-active' : ''}`}
+                data-menu-trigger="filter"
                 onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }}
                 aria-haspopup="menu" aria-expanded={filterOpen}>
           <Icon as={Filter} size={13} />Filter{activeFilters.size ? ` · ${activeFilters.size}` : ''}
         </button>
-        <Menu open={filterOpen} onClose={() => setFilterOpen(false)}>
+        <Menu open={filterOpen} onClose={() => setFilterOpen(false)} trigger="filter">
           {availableBuckets.length === 0 && <div className="ctx-empty">Nothing to filter</div>}
           {availableBuckets.map(b => (
             <button key={b.key} className={`ctx-item${activeFilters.has(b.key) ? ' is-active' : ''}`}

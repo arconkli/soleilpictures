@@ -22032,3 +22032,10 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
   pointer-events: none;
 }
+
+/* Beside the board the panel header is sticky too: the List layout's column
+   header and the keyboard cursor's scroll margin sit below it. */
+.list-wrap.is-panel .ct-head { top: var(--lp-head-h, 0px); }
+.list-wrap.is-panel .ct-row { scroll-margin-top: calc(var(--lp-head-h, 0px) + 40px); }
+/* The selection bar's keyboard hint doesn't fit a panel. */
+.list-wrap.is-panel .list-selbar-hint { display: none; }

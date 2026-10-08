@@ -70,8 +70,8 @@ test('dragging the divider far enough expands; narrow enough closes', () => {
   const pane = 1000;
   assert.equal(dragPreview(700, pane), 'full');        // 70% of a 1000px pane
   assert.equal(dragPreview(650, pane), null);
-  assert.equal(dragPreview(1040, 1400), 'full');       // wide pane: pane − CANVAS_MIN wins over 70%
-  assert.equal(dragPreview(1000, 1400), null);
+  assert.equal(dragPreview(1088, 1400), 'full');       // wide pane: past the widest panel wins over 70%
+  assert.equal(dragPreview(1087, 1400), null);
   assert.equal(dragPreview(DOCK.CLOSE_BELOW - 1, pane), 'close');
   assert.equal(dragPreview(400, 0), null);
   assert.deepEqual(releaseDock(800, pane), { action: 'expand' });
@@ -110,4 +110,13 @@ test('the path bar keeps the root and the last steps, and elides the middle', ()
   assert.deepEqual(collapsePath(['a', 'b', 'c', 'd', 'e'], 4), ['a', ELLIPSIS, 'c', 'd', 'e']);
   assert.deepEqual(collapsePath([null, 'a', undefined]), ['a']);
   assert.deepEqual(collapsePath(null), []);
+});
+
+test('a panel at its widest never expands on a release that barely moved', () => {
+  for (const pane of [700, 1000, 1200, 1300, 1600, 2400]) {
+    const widest = clampWidth(1e6, pane);
+    for (const w of [widest - 3, widest, widest + 4, widest + DOCK.CLICK_SLOP]) {
+      assert.notEqual(releaseDock(w, pane).action, 'expand', `pane ${pane}, w ${w}`);
+    }
+  }
 });
