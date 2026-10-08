@@ -68,6 +68,8 @@ const SECTIONS = [
       [['Enter'], 'Select the highlighted file'],
       [['Space'], 'Quick look — ← → step through, Space or Esc closes'],
       [[`${CMD}I`], 'Info for the selected file'],
+      [['F2'], 'Rename'],
+      [['⇧F10'], 'The right-click menu'],
       [[`${CMD}A`], 'Select every file showing'],
       [['Esc'], 'Clear the selection'],
       [['⌫'], 'Delete the selection'],

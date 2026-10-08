@@ -182,3 +182,50 @@ test('Info is opt-in: ⌘I shows it, and the choice is remembered', async ({ pag
   await page.locator('.ct-jg .ct-tile').first().click();
   await expect(page.locator('.cb-detail')).toBeVisible();
 });
+
+test('right-click a file: the menu acts on it, and Rename edits the name in place', async ({ page }) => {
+  await goGrid(page);
+  const tile = page.locator('.ct-jg .ct-tile', { hasText: 'KEY ART' }).first();
+  const id = await tile.getAttribute('data-item-id');
+  await tile.click({ button: 'right' });
+  const menu = page.locator('.ctx-menu');
+  await expect(menu).toBeVisible();
+  for (const label of ['Quick look', 'Rename', 'Delete']) {
+    await expect(menu.locator('.ctx-item', { hasText: label })).toBeVisible();
+  }
+  await menu.locator('.ctx-item', { hasText: 'Rename' }).click();
+  const field = page.locator(`.ct-jg [data-item-id="${id}"] .ir-input`);
+  await expect(field).toBeFocused();
+  await field.fill('Hero frame');
+  await field.press('Enter');
+  await expect(page.locator(`.ct-jg [data-item-id="${id}"] .ct-tile-name`)).toHaveText('Hero frame');
+  // ⌘Z puts the old name back.
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.locator(`.ct-jg [data-item-id="${id}"] .ct-tile-name`)).not.toHaveText('Hero frame');
+});
+
+test('F2 renames a folder; Esc leaves it as it was', async ({ page }) => {
+  await goGrid(page);
+  const fid = await page.locator('.ft', { hasText: 'Halcyon' }).getAttribute('data-folder-id');
+  const folder = page.locator(`.ft[data-folder-id="${fid}"]`);
+  await folder.click();
+  await page.keyboard.press('F2');
+  const field = folder.locator('.ir-input');
+  await expect(field).toBeFocused();
+  await field.fill('Nope');
+  await field.press('Escape');
+  await expect(folder.locator('.ft-name')).toHaveText('Halcyon');
+  await page.keyboard.press('F2');
+  await folder.locator('.ir-input').fill('Halcyon MV');
+  await folder.locator('.ir-input').press('Enter');
+  await expect(folder.locator('.ft-name')).toHaveText('Halcyon MV');
+});
+
+test('⇧F10 opens the right-click menu for the selection', async ({ page }) => {
+  await goGrid(page);
+  await page.locator('.ct-jg .ct-tile').first().click();
+  await page.keyboard.press('Shift+F10');
+  await expect(page.locator('.ctx-menu')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ctx-menu')).toHaveCount(0);
+});

@@ -4,6 +4,7 @@ import { Avatar } from '../primitives.jsx';
 import { Icon } from '../Icon.jsx';
 import { Download } from '../../lib/icons.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
+import { InlineRename } from './InlineRename.jsx';
 
 // One gallery tile: a large preview, name + type badge, and a live presence
 // overlay (peer color border + avatar) when a teammate has this card open.
@@ -17,6 +18,8 @@ export const ClusterTile = memo(function ClusterTile({
   // Justified grid: where the tile sits and how tall its preview is.
   style = null, previewH = null, px = null,
   active = false, tileRef = null,
+  // Inline rename: when set, the name is a field ({ onCommit, onCancel }).
+  rename = null,
 }) {
   const peer = peers && peers[0];
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
@@ -27,7 +30,7 @@ export const ClusterTile = memo(function ClusterTile({
       className={`ct-tile${member ? ' ct-member' : ''}${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}`}
       style={peer || style || previewH ? { ...(style || {}), ...(previewH ? { '--jg-h': `${previewH}px` } : {}), ...(peer ? { '--peer-color': peer.user.color } : {}) } : undefined}
       data-item-id={item.id}
-      draggable={draggable && !item.pending ? true : undefined}
+      draggable={draggable && !item.pending && !rename ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -68,7 +71,9 @@ export const ClusterTile = memo(function ClusterTile({
         )}
       </div>
       <div className="ct-tile-meta">
-        <div className="ct-tile-name" title={item.name}>{item.name}</div>
+        {rename
+          ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
+          : <div className="ct-tile-name" title={item.name}>{item.name}</div>}
         <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
       </div>
     </div>

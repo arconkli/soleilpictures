@@ -4,6 +4,7 @@
 // (group node) shows a family overview + a jumpable member list. Inline
 // <aside> in the split layout (modeled on EntityBacklinksPanel's frosted panel).
 import { CardPreview } from './CardPreview.jsx';
+import { copyCardLink } from '../../lib/cardLink.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
 import { X, Download, Trash2 as TrashIcon, Maximize2, Link as LinkIcon } from '../../lib/icons.js';
@@ -36,15 +37,7 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
 
   if (!target) return null;
 
-  const copyLink = async (cardId, boardId) => {
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('board', boardId || '');
-      url.searchParams.set('card', cardId);
-      await navigator.clipboard.writeText(`${url.origin}${url.pathname}?${url.searchParams.toString()}`);
-      feedback?.toast?.({ type: 'success', message: 'Link copied' });
-    } catch (_) { feedback?.toast?.({ type: 'error', message: 'Could not copy link' }); }
-  };
+  const copyLink = (cardId, boardId) => copyCardLink(cardId, boardId, feedback);
 
   // ── Grid family view ────────────────────────────────────────────────────────
   if (target.type === 'group') {

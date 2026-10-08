@@ -3,6 +3,11 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
 import { gridNeighbor } from '../lib/justifiedGrid.js';
+import { canRename, cleanName, renamePatch } from '../lib/fileRename.js';
+import { copyCardLink } from '../lib/cardLink.js';
+import { composeMenuSections } from '../lib/contextMenuSections.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { createPortal } from 'react-dom';
 import { isStillUploading } from '../lib/abandonedUploads.js';
 import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -287,6 +292,11 @@ export function ListSurface({
   const quickIndex = quickId ? quickItems.findIndex((it) => it.id === quickId) : -1;
   useEffect(() => { if (quickId && quickIndex < 0) setQuickId(null); }, [quickId, quickIndex]);
   useEffect(() => { setQuickId(null); }, [board.id]);
+  // Inline rename: the file or folder whose name is a field right now.
+  const [renamingId, setRenamingId] = useState(null);
+  // Right-click menu: { x, y } — it acts on the selection.
+  const [ctxMenu, setCtxMenu] = useState(null);
+  useEffect(() => { setRenamingId(null); setCtxMenu(null); }, [board.id]);
   const [infoOpen, setInfoOpen] = useState(() => readInfoPref());
   const toggleInfo = useCallback(() => setInfoOpen((v) => { writeInfoPref(!v); return !v; }), []);
 
@@ -697,6 +707,32 @@ export function ListSurface({
     if (cIds.length) await moveCardsTo(cIds, picked.id);
   }, [onPickCluster, selectedBoards, selectedCards, board.id, moveCardsTo]);
 
+  // Rename in place (F2, the right-click menu). Files rename the field their
+  // name shows from (lib/fileRename.js) — downloads keep the original name;
+  // folders rename the cluster.
+  const renamable = useCallback((id) => {
+    if (!canEdit || !id) return false;
+    if (subBoards.some((b) => b.id === id)) return !!mutators.renameBoardById;
+    const c = (cards || []).find((x) => x.id === id);
+    return canRename(c);
+  }, [canEdit, subBoards, cards, mutators]);
+  const startRename = useCallback((id) => { if (renamable(id)) setRenamingId(id); }, [renamable]);
+  const commitRename = useCallback((id, value) => {
+    setRenamingId(null);
+    if (subBoards.some((b) => b.id === id)) {
+      const name = cleanName(value);
+      if (name && name !== boards[id]?.name) mutators.renameBoardById?.(id, name);
+      return;
+    }
+    const c = (cards || []).find((x) => x.id === id);
+    const shown = items.find((it) => it.id === id)?.name || '';
+    const patch = renamePatch(c, value, shown);
+    if (patch) mutators.updateCard?.(id, patch);
+  }, [subBoards, boards, cards, items, mutators]);
+  const renameFor = useCallback((id) => (id === renamingId
+    ? { onCommit: (v) => commitRename(id, v), onCancel: () => setRenamingId(null) }
+    : null), [renamingId, commitRename]);
+
   // The Grid layout's rows, for ↑/↓ (JustifiedGallery reports them).
   const galleryNavRef = useRef({ tiles: [], ids: [] });
   const onGalleryLayout = useCallback((nav) => { galleryNavRef.current = nav; }, []);
@@ -709,6 +745,7 @@ export function ListSurface({
   useEffect(() => {
     const onKey = async (e) => {
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
+      if (document.querySelector('.ctx-menu')) return; // so does an open right-click menu
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       // A focused control owns Enter and Space. Without this the window
@@ -720,6 +757,23 @@ export function ListSurface({
       const onControl = !!e.target.closest?.('button, a[href], [role="button"], select');
       const mod = e.metaKey || e.ctrlKey;
 
+      // F2 renames the one selected file or folder.
+      if (e.key === 'F2') {
+        const one = selectedCards.size + selectedBoards.size === 1 ? [...selectedCards, ...selectedBoards][0] : null;
+        if (one && renamable(one)) { e.preventDefault(); startRename(one); }
+        return;
+      }
+      // ⇧F10 / the menu key: the right-click menu, from the keyboard.
+      if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') {
+        let ids = [...selectedCards, ...selectedBoards];
+        if (!ids.length && activeId) { setSelectedCards(new Set([activeId])); ids = [activeId]; }
+        if (!ids.length) return;
+        e.preventDefault();
+        const el = document.querySelector(`[data-item-id="${CSS.escape(ids[0])}"], [data-folder-id="${CSS.escape(ids[0])}"]`);
+        const r = el?.getBoundingClientRect?.();
+        setCtxMenu({ x: r ? r.left + 16 : 200, y: r ? r.top + 16 : 200 });
+        return;
+      }
       // ⌘Z / ⇧⌘Z: the cluster's own undo, here as on the canvas.
       if (mod && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
         if (!canEdit) return;
@@ -812,7 +866,8 @@ export function ListSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedBoards, selectedCards, selectedGroupId, mutators, hasSplit, paneId, visibleItems,
-      navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo]);
+      navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo,
+      renamable, startRename]);
 
   // Board order puts a fresh upload where it lands on the canvas — below
   // everything — so bring the first new row or tile into view rather than
@@ -1060,6 +1115,7 @@ export function ListSurface({
   // Click, double-click, drag (reparent) and drop handlers for one sub-cluster
   // tile — shared by the full-mode cluster cards and the panel's folder tiles.
   const folderProps = (b) => ({
+    'data-folder-id': b.id,
     onClick: (e) => onTileClick(e, 'board', b.id),
     onDoubleClick: (e) => onTileDoubleClick(e, 'board', b.id),
     onDragStart: (e) => {
@@ -1143,6 +1199,83 @@ export function ListSurface({
     />
   );
 
+  // ── Right-click menu ──────────────────────────────────────────────────────
+  // It acts on the selection; right-clicking something outside the selection
+  // selects just that first, as Finder does. ⇧F10 opens it from the keyboard.
+  const onListContextMenu = (e) => {
+    if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
+    const fileId = e.target.closest?.('[data-item-id]')?.getAttribute('data-item-id')
+      || e.target.closest?.('[data-link-id]')?.getAttribute('data-link-id');
+    const folderId = e.target.closest?.('[data-folder-id]')?.getAttribute('data-folder-id');
+    if (!fileId && !folderId) return;   // empty floor keeps the browser's menu
+    if (fileId && navItems.find((n) => n.id === fileId)?.isGroup) return;
+    e.preventDefault();
+    if (folderId) {
+      if (!selectedBoards.has(folderId)) { setSelectedBoards(new Set([folderId])); setSelectedCards(new Set()); }
+    } else if (!selectedCards.has(fileId)) {
+      setSelectedCards(new Set([fileId])); setSelectedBoards(new Set());
+    }
+    setSelectedGroupId(null);
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  };
+  const menuItems = () => {
+    const cIds = [...selectedCards];
+    const bIds = [...selectedBoards];
+    const n = cIds.length + bIds.length;
+    const canMove = canEdit && !!onPickCluster;
+    const del = canEdit && { id: 'del', label: n > 1 ? `Delete ${n}` : 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
+    if (n === 1 && bIds.length) {
+      const id = bIds[0];
+      return composeMenuSections([
+        { items: [{ id: 'open', label: 'Open', run: () => onOpenBoard(id) }] },
+        { items: [
+          renamable(id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(id) },
+          canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+        ] },
+        { items: [del] },
+      ]);
+    }
+    const card = n === 1 ? (cards || []).find((c) => c.id === cIds[0]) : null;
+    if (card?.kind === 'boardlink') {
+      return composeMenuSections([
+        { items: [boards[card.target] && { id: 'open', label: 'Open', run: () => onOpenBoard(card.target) }] },
+        { items: [canEdit && { id: 'unlink', label: 'Remove link', danger: true, run: deleteSelection }] },
+      ]);
+    }
+    const item = card ? items.find((it) => it.id === card.id) : null;
+    if (item) {
+      return composeMenuSections([
+        { items: [
+          { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
+          onRevealOnCanvas && { id: 'show', label: browsingFrom ? 'Show in cluster' : 'Show on board', run: () => onRevealOnCanvas([item.id]) },
+        ] },
+        { items: [
+          renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
+          DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: 'Download', run: () => downloadOne(item) },
+          // An app action: a signed-out visitor's link wouldn't resolve.
+          onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
+          canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          !isPanel && { id: 'info', label: infoOpen ? 'Hide info' : 'Get info', shortcut: `${cmdKey}I`, run: toggleInfo },
+        ] },
+        // "Linked from N places" — placed, so Delete stays last and the menu's
+        // height (it keeps itself on screen) counts the row.
+        { items: [onRevealOnCanvas && { id: 'bl', backlinks: true }, del] },
+      ]);
+    }
+    return composeMenuSections([
+      { header: `${n} selected`, items: [
+        downloadableSelected.length > 0 && {
+          id: 'dl', label: downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`, run: downloadSelected,
+        },
+        canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+      ] },
+      { items: [del] },
+    ]);
+  };
+  const menuCard = ctxMenu && onRevealOnCanvas && selectedCards.size === 1 && !selectedBoards.size
+    ? (cards || []).find((c) => c.id === [...selectedCards][0] && c.kind !== 'boardlink') || null
+    : null;
+
   return (
     <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
@@ -1154,7 +1287,7 @@ export function ListSurface({
            if (e.target.closest?.('button, a, input, select, label, [role="menu"], [role="dialog"], .ct-tile, .ct-row, .ft, .cbt, .list-selbar, .cb-detail')) return;
            setSelectedBoards(new Set()); setSelectedCards(new Set()); setSelectedGroupId(null);
          }}>
-      <div className="list-inner" ref={listInnerRef}>
+      <div className="list-inner" ref={listInnerRef} onContextMenu={onListContextMenu}>
         {isPanel && <div className="lp-head" ref={lpHeadRef}>{toolbarJsx}</div>}
         {!isPanel && clusterEmpty && dockControls?.canShrink && dockControls?.onShrink && (
           <div className="cb-slimbar">
@@ -1188,6 +1321,7 @@ export function ListSurface({
                             dropTarget={dropTileId === b.id}
                             peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
                             draggable={canEdit}
+                            rename={renameFor(b.id)}
                             {...folderProps(b)} />
               ))}
             </div>
@@ -1204,6 +1338,7 @@ export function ListSurface({
                               name={t?.name || c.name}
                               missing={!t && boardsReady}
                               selected={selectedCards.has(c.id)}
+                              data-link-id={c.id}
                               onClick={(e) => onTileClick(e, 'boardlink', c.id)}
                               onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)} />
                 );
@@ -1240,6 +1375,7 @@ export function ListSurface({
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <JustifiedGallery tileSize={tileSize}
                     activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
+                    renameFor={renameFor}
                     items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
@@ -1262,7 +1398,7 @@ export function ListSurface({
                     onSeek={seekCard}
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
                     audioMode={audioMode}
-                    draggableItems={filesDraggable} onBoardIds={onBoardIds}
+                    draggableItems={filesDraggable} onBoardIds={onBoardIds} renameFor={renameFor}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}
@@ -1287,6 +1423,12 @@ export function ListSurface({
               )}
             </div>
           </div>
+        )}
+        {ctxMenu && createPortal(
+          <CardContextMenu open x={ctxMenu.x} y={ctxMenu.y} items={menuItems()}
+                           onClose={() => setCtxMenu(null)}
+                           workspaceId={menuCard ? workspaceId : null} boardId={menuCard ? board.id : null} card={menuCard} />,
+          document.body,
         )}
         {quickIndex >= 0 && (
           <Suspense fallback={null}>
