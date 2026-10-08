@@ -136,7 +136,7 @@ range they span, and how much material there is in total**. It follows the
 search and the filters, so narrowing to `128` re-reads the selection you are
 actually looking at.
 
-On a narrow window, in a split pane, or with the detail panel open, columns
+On a narrow window, in a split pane, or with Info open, columns
 drop in order of how much they matter — the waveform first, then Format and the
 date — and on a phone the remaining values fold onto a second line under the
 filename. The name is the last thing to give up room.
@@ -229,10 +229,26 @@ themselves; [grids](/docs/canvas/grids), [docs](/docs/documents),
 [schedules](/docs/canvas/schedule), shapes, notes and links get schematic marks
 that indicate their shape and content.
 
-## The detail panel
+## Quick look
 
-Select an item for a large preview plus its metadata — type, size, dimensions,
-dates, and where it lives. From there:
+Double-click a file, or highlight it and press `Space`, to see it big without
+leaving Files. Pictures open fitted — click to see them at full size and drag
+to look around — video and audio play, PDFs page through with `↑` / `↓`, and
+everything else shows its preview large. `←` / `→` step to the previous and
+next file, in the order Files is showing them. `Space` or `Esc` closes it.
+
+Along the top: **Show on board** (or **Show in cluster**, for a file you're
+browsing in another cluster), **Download**, and **Info**.
+
+On an audio row in the List layout, `Space` still auditions it in place, so a
+pack plays through with `↓` and `Space`.
+
+## Info
+
+**Info** — `⌘I`, or the button in Quick look and on the selection bar — shows
+a selected item's large preview and metadata: type, size, dimensions, dates,
+and where it lives. Whether it's open is remembered on your device; it no
+longer opens on every click. From there:
 
 | Action | What it does |
 |---|---|
@@ -283,7 +299,7 @@ what a drive is really for, no. Here is the line:
 | Browse a folder's contents | Yes — the Files view, as a grid or a list |
 | Sort and filter | Yes — by name, type, size and dates, filtered to one kind of content |
 | Search | Yes — [⌘K](/docs/organize/search) finds files by name, card text and the words inside documents. It does not read text inside images or PDFs |
-| Preview without opening | Yes — every item has a real preview, and the detail panel a large one |
+| Preview without opening | Yes — every item has a real preview, and Quick look shows it full size |
 | Download | Yes — one file, or a selection as a zip of up to {{fact:zipMaxFiles}} files or {{fact:zipMaxSize}} |
 | Folders inside folders | Yes — nested clusters, as deep as you like |
 | Upload a whole folder | Yes — [drop it on a canvas](/docs/clusters#dropping-a-folder) and its folders become nested clusters |

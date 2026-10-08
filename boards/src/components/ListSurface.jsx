@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { lazy, Suspense, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
@@ -23,11 +23,24 @@ import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
 import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
+
+// Quick look ships in its own chunk: most visits to Files never open it.
+const QuickLook = lazy(() => import('./clusterBrowser/QuickLook.jsx'));
+
+// Info (the detail panel) is opt-in — ⌘I or Info — and the choice is this
+// device's. It used to open on every single-item selection.
+const INFO_KEY = 'soleil.files.info';
+function readInfoPref() {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(INFO_KEY) === '1'; } catch (_) { return false; }
+}
+function writeInfoPref(on) {
+  try { localStorage.setItem(INFO_KEY, on ? '1' : '0'); } catch (_) {}
+}
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2 } from '../lib/icons.js';
+import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError,
@@ -267,6 +280,15 @@ export function ListSurface({
   // to clear.
   const [activeId, setActiveId] = useState(null);
   const [playingId, setPlayingId] = useState(null);
+  // Quick look: the file it's showing (null when closed), over the files in
+  // the order Files shows them.
+  const [quickId, setQuickId] = useState(null);
+  const quickItems = useMemo(() => navItems.filter((it) => !it.isGroup), [navItems]);
+  const quickIndex = quickId ? quickItems.findIndex((it) => it.id === quickId) : -1;
+  useEffect(() => { if (quickId && quickIndex < 0) setQuickId(null); }, [quickId, quickIndex]);
+  useEffect(() => { setQuickId(null); }, [board.id]);
+  const [infoOpen, setInfoOpen] = useState(() => readInfoPref());
+  const toggleInfo = useCallback(() => setInfoOpen((v) => { writeInfoPref(!v); return !v; }), []);
 
   // Re-sorting or filtering strands the cursor on a row that has moved or gone.
   useEffect(() => {
@@ -556,8 +578,9 @@ export function ListSurface({
       const c = (cards || []).find(c => c.id === id);
       if (c && boards[c.target]) onOpenBoard(c.target);
     } else {
-      // A file/card: jump to it on the canvas (files had no dbl-click action).
-      onRevealOnCanvas?.([id]);
+      // A file: Quick look. (Finding it on the board is a single click beside
+      // the board, and Quick look's Show on board.)
+      setQuickId(id);
     }
   };
 
@@ -571,15 +594,16 @@ export function ListSurface({
     setSelectedBoards(new Set());
   }, [onToggleGroup]);
 
-  // Delete from the detail popout — same undo-safe confirm as Backspace.
+  // Delete from Info or Quick look — same undo-safe confirm as Backspace.
+  // True when it deleted.
   const onDeleteItems = useCallback(async (ids) => {
     const list = (ids || []).filter(Boolean);
-    if (!list.length) return;
+    if (!list.length) return false;
     const ok = await feedback.confirm({
       title: 'Delete', danger: true, confirmLabel: 'Delete',
       message: list.length === 1 ? 'Delete this card?' : `Delete ${list.length} cards?`,
     });
-    if (!ok) return;
+    if (!ok) return false;
     const deleted = await mutators.deleteCards?.(list);
     setSelectedCards(new Set());
     setSelectedGroupId(null);
@@ -591,6 +615,7 @@ export function ListSurface({
       stackItem: deleted?.stackItem || null,
       onUndo: () => mutators.undo?.(),
     });
+    return true;
   }, [feedback, mutators]);
 
   // Delete what's selected — sub-clusters and cards — behind one confirm, with
@@ -748,15 +773,22 @@ export function ListSurface({
         return;
       }
       if (e.key === ' ' || e.code === 'Space') {
-        // Only claim Space when there is actually something to audition —
-        // otherwise leave the page's own scroll behaviour alone.
+        // Space is Quick look on the highlighted (or the one selected) file —
+        // except on an audio row in the List layout, where it auditions, so a
+        // pack still plays through with ↓ and Space. Nothing to act on leaves
+        // the page's own scroll behaviour alone.
         const target = activeId || (selectedCards.size === 1 ? [...selectedCards][0] : null);
         const it = target && navItems.find(n => n.id === target);
-        if (it && it.kind === 'audio' && !onControl) {
-          e.preventDefault();
-          setActiveId(it.id);
-          auditionCard(it.id);
-        }
+        if (!it || it.isGroup || onControl) return;
+        e.preventDefault();
+        if (it.kind === 'audio' && isTable) { setActiveId(it.id); auditionCard(it.id); return; }
+        setQuickId(it.id);
+        return;
+      }
+      // ⌘I: Info for the selection.
+      if (mod && !e.altKey && (e.key === 'i' || e.key === 'I')) {
+        e.preventDefault();
+        toggleInfo();
         return;
       }
       if (e.key === 'Enter' && activeId && !onControl) {
@@ -780,7 +812,7 @@ export function ListSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedBoards, selectedCards, selectedGroupId, mutators, hasSplit, paneId, visibleItems,
-      navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup]);
+      navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo]);
 
   // Board order puts a fresh upload where it lands on the canvas — below
   // everything — so bring the first new row or tile into view rather than
@@ -919,7 +951,7 @@ export function ListSurface({
   // What the right-side detail popout shows: a single selected card, or a
   // selected grid family. Nothing selected (or multi-select) → no popout.
   const detailTarget = useMemo(() => {
-    if (isPanel) return null;
+    if (isPanel || !infoOpen) return null;
     if (selectedGroupId) {
       const g = displayItems.find(d => d.isGroup && d.id === selectedGroupId);
       if (g) return { type: 'group', group: g };
@@ -930,7 +962,7 @@ export function ListSurface({
       if (it) return { type: 'card', item: it };
     }
     return null;
-  }, [isPanel, selectedGroupId, selectedCards, displayItems, items]);
+  }, [isPanel, infoOpen, selectedGroupId, selectedCards, displayItems, items]);
 
   // The topbar's Files button, pressed while Files is already open beside the
   // board, asks for its search box (App applyFilesEvent → focusSearch).
@@ -1249,12 +1281,30 @@ export function ListSurface({
               {detailTarget && (
                 <DetailPanel
                   target={detailTarget} boards={boards} canEdit={canEdit}
-                  onClose={() => { setSelectedCards(new Set()); setSelectedGroupId(null); }}
+                  onClose={toggleInfo}
                   onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
                   onDelete={onDeleteItems} />
               )}
             </div>
           </div>
+        )}
+        {quickIndex >= 0 && (
+          <Suspense fallback={null}>
+            <QuickLook
+              items={quickItems} index={quickIndex}
+              onIndex={(i) => { const it = quickItems[i]; if (it) { setQuickId(it.id); setActiveId(it.id); } }}
+              onClose={() => setQuickId(null)}
+              onShowOnBoard={onRevealOnCanvas ? (it) => { setQuickId(null); onRevealOnCanvas([it.id]); } : null}
+              showLabel={browsingFrom ? 'Show in cluster' : 'Show on board'}
+              onDownload={downloadOne}
+              infoOpen={infoOpen} onToggleInfo={toggleInfo}
+              boards={boards} canEdit={canEdit}
+              onDelete={async (ids) => {
+                const next = quickItems[quickIndex + 1] || quickItems[quickIndex - 1] || null;
+                if (!(await onDeleteItems(ids))) return;
+                setQuickId(next && !ids.includes(next.id) ? next.id : null);
+              }} />
+          </Suspense>
         )}
         {/* Hidden picker for the toolbar "Add files" button (touch-friendly). */}
         <input ref={addInputRef} type="file" multiple style={{ display: 'none' }}
@@ -1289,6 +1339,12 @@ export function ListSurface({
             {canEdit && (
               <button type="button" className="list-selbar-act" onClick={deleteSelection}>
                 <Icon as={Trash2} size={13} /><span>Delete</span>
+              </button>
+            )}
+            {!isPanel && totalSel === 1 && selectedCards.size === 1 && (
+              <button type="button" className={`list-selbar-act${infoOpen ? ' is-on' : ''}`} onClick={toggleInfo}
+                      aria-pressed={infoOpen} title={`Info (${cmdKey}I)`}>
+                <Icon as={Info} size={13} /><span>Info</span>
               </button>
             )}
             <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"

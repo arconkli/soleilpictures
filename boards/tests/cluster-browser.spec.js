@@ -147,3 +147,38 @@ test('dragging a file onto a folder moves it into that cluster', async ({ page }
   await expect(page.locator('.crumb.here')).toContainText('Halcyon');
   await expect(page.locator('.ct-jg .ct-tile')).not.toHaveCount(0);
 });
+
+test('Quick look: double-click opens it, ←/→ step, Esc closes; Space opens the highlighted file', async ({ page }) => {
+  await goGrid(page);
+  const tiles = page.locator('.ct-jg .ct-tile');
+  const firstName = await tiles.first().locator('.ct-tile-name').getAttribute('title');
+  const secondName = await tiles.nth(1).locator('.ct-tile-name').getAttribute('title');
+  await tiles.first().dblclick();
+  const ql = page.getByRole('dialog', { name: /^Quick look/ });
+  await expect(ql).toHaveAttribute('aria-label', `Quick look: ${firstName}`);
+  await page.keyboard.press('ArrowRight');
+  await expect(ql).toHaveAttribute('aria-label', `Quick look: ${secondName}`);
+  await page.keyboard.press('Escape');
+  await expect(ql).toHaveCount(0);
+  // The Files cursor followed Quick look, and Files' keys are live again:
+  // Space opens the file it was left on.
+  await page.keyboard.press(' ');
+  await expect(ql).toHaveAttribute('aria-label', `Quick look: ${secondName}`);
+  await page.keyboard.press(' ');
+  await expect(ql).toHaveCount(0);
+});
+
+test('Info is opt-in: ⌘I shows it, and the choice is remembered', async ({ page }) => {
+  await goGrid(page);
+  await page.evaluate(() => { try { localStorage.removeItem('soleil.files.info'); } catch (_) {} });
+  await page.locator('.ct-jg .ct-tile').first().click();
+  await expect(page.locator('.cb-detail')).toHaveCount(0);
+  await page.keyboard.press('ControlOrMeta+i');
+  await expect(page.locator('.cb-detail')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  await openFullFiles(page);
+  await page.getByRole('button', { name: 'Grid layout' }).click();
+  await page.locator('.ct-jg .ct-tile').first().click();
+  await expect(page.locator('.cb-detail')).toBeVisible();
+});

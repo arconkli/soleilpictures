@@ -66,6 +66,8 @@ const SECTIONS = [
     rows: [
       [['←', '→', '↑', '↓'], 'Move through files'],
       [['Enter'], 'Select the highlighted file'],
+      [['Space'], 'Quick look — ← → step through, Space or Esc closes'],
+      [[`${CMD}I`], 'Info for the selected file'],
       [[`${CMD}A`], 'Select every file showing'],
       [['Esc'], 'Clear the selection'],
       [['⌫'], 'Delete the selection'],
@@ -77,7 +79,7 @@ const SECTIONS = [
     rows: [
       [['Enter'], 'Play · pause the selected clip'],
       [['L'], 'Loop the selected clip'],
-      [['Space'], 'Audition the highlighted file (Files)'],
+      [['Space'], 'Audition the highlighted row (Files, list layout)'],
     ],
   },
   {

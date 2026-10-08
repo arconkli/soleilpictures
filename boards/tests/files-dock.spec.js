@@ -217,3 +217,16 @@ test('"Move here" does nothing once the board has changed under it', async ({ pa
   await p.locator('.ft', { hasText: 'Sundown Highway' }).dblclick();
   await expect(p.locator('[data-item-id="s-doc"]')).toHaveCount(1);
 });
+
+test('Quick look from the panel: Show on board closes it and selects the card', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  const tile = panel(page).locator('.ct-tile').filter({ hasText: 'KEY ART' }).first();
+  const id = await tile.getAttribute('data-item-id');
+  await tile.dblclick();
+  const ql = page.getByRole('dialog', { name: /^Quick look/ });
+  await expect(ql).toBeVisible();
+  await ql.getByRole('button', { name: 'Show on board' }).click();
+  await expect(ql).toHaveCount(0);
+  await expect(page.locator(`[data-card-id="${id}"].selected, [data-card-id="${id}"].is-selected`)).toHaveCount(1);
+});
