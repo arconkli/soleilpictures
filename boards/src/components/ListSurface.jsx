@@ -4,6 +4,8 @@ import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readB
 import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
 import { gridNeighbor } from '../lib/justifiedGrid.js';
 import { canRename, cleanName, renamePatch } from '../lib/fileRename.js';
+import { planPutOnBoard } from '../lib/placement.js';
+import { getViewCenter } from '../lib/viewCenter.js';
 import { copyCardLink } from '../lib/cardLink.js';
 import { composeMenuSections } from '../lib/contextMenuSections.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
@@ -45,7 +47,7 @@ import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info } from '../lib/icons.js';
+import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError,
@@ -717,6 +719,27 @@ export function ListSurface({
     setSelectedCards(new Set());
   }, [canEdit, board.id, cards, feedback, mutators]);
 
+  // Put on board: files waiting in Files go onto the board as one block where
+  // its canvas was last looking (lib/viewCenter.js), or beside its content.
+  // One undo step. Beside the board, the board then brings them into view.
+  const putOnBoard = useCallback((ids) => {
+    if (!canEdit) return;
+    const plan = planPutOnBoard(cards, ids, getViewCenter(board.id));
+    if (!plan.length) return;
+    const um = mutators.undoManager;
+    mutators.breakUndo?.();
+    mutators.updateCards?.(plan);
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    undoToast(feedback, {
+      type: 'success',
+      message: plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`,
+      undoManager: um, stackItem: item,
+      onUndo: () => mutators.undo?.(),
+    });
+    if (isPanel) onLocateOnBoard?.(plan[0].id);
+  }, [canEdit, cards, board.id, mutators, feedback, isPanel, onLocateOnBoard]);
+
   // "Move to…" for the selection: cards move as above, sub-clusters nest under
   // the pick (the same reparent the sidebar's drag does).
   const moveSelection = useCallback(async () => {
@@ -1033,6 +1056,9 @@ export function ListSurface({
   const onFilesDragEnd = () => { try { window.__soleilFilesDrag = null; } catch (_) {} };
 
   const totalSel = selectedBoards.size + selectedCards.size;
+  const selectedUnplaced = useMemo(
+    () => (browsingFrom ? [] : [...selectedCards].filter((id) => items.find((it) => it.id === id)?.unplaced)),
+    [browsingFrom, selectedCards, items]);
   const cmdKey = isMac ? '⌘' : 'Ctrl';
 
   // What the right-side detail popout shows: a single selected card, or a
@@ -1282,6 +1308,7 @@ export function ListSurface({
         { items: [
           { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
           onRevealOnCanvas && !item.unplaced && { id: 'show', label: browsingFrom ? 'Show in cluster' : 'Show on board', run: () => onRevealOnCanvas([item.id]) },
+          canEdit && item.unplaced && { id: 'put', label: 'Put on board', run: () => putOnBoard([item.id]) },
         ] },
         { items: [
           renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
@@ -1296,8 +1323,10 @@ export function ListSurface({
         { items: [onRevealOnCanvas && { id: 'bl', backlinks: true }, del] },
       ]);
     }
+    const offSel = cIds.filter((id) => items.find((it) => it.id === id)?.unplaced);
     return composeMenuSections([
       { header: `${n} selected`, items: [
+        canEdit && offSel.length > 0 && { id: 'put', label: offSel.length === 1 ? 'Put 1 on board' : `Put ${offSel.length} on board`, run: () => putOnBoard(offSel) },
         downloadableSelected.length > 0 && {
           id: 'dl', label: downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`, run: downloadSelected,
         },
@@ -1474,6 +1503,7 @@ export function ListSurface({
               onShowOnBoard={onRevealOnCanvas && !quickItems[quickIndex]?.unplaced ? (it) => { setQuickId(null); onRevealOnCanvas([it.id]); } : null}
               showLabel={browsingFrom ? 'Show in cluster' : 'Show on board'}
               onDownload={downloadOne}
+              onPutOnBoard={canEdit && !browsingFrom ? (it) => { setQuickId(null); putOnBoard([it.id]); } : null}
               infoOpen={infoOpen} onToggleInfo={toggleInfo}
               boards={boards} canEdit={canEdit}
               onDelete={async (ids) => {
@@ -1508,6 +1538,12 @@ export function ListSurface({
             )}
             {/* A visitor on a shared link can't move or delete, so those
                 aren't offered. */}
+            {canEdit && selectedUnplaced.length > 0 && (
+              <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
+                      title="Put on the board">
+                <Icon as={BoundingBox} size={13} /><span>Put on board</span>
+              </button>
+            )}
             {canEdit && onPickCluster && (
               <button type="button" className="list-selbar-act" onClick={moveSelection}>
                 <Icon as={FolderOpen} size={13} /><span>Move to…</span>

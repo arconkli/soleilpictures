@@ -39,6 +39,12 @@ related:
 }
 ```
 
+A card that is in the cluster but **not on its board** — taken off the board
+with Remove from board, waiting in [Files](/docs/clusters/list-view) — carries
+`"unplaced": true`. It's listed like any card and still has a position (where
+it waits, below the board's content), but the canvas doesn't draw it. The field
+is only present when it's true, and it can't be written through the API.
+
 Interior state the editor owns — grid layouts, adjustment settings,
 collaborative document structure — is deliberately not exposed. An API caller
 should not be able to write arbitrary internals into everyone's board.

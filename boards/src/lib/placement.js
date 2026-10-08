@@ -17,6 +17,7 @@
 
 import { arrangeInFreeSpace } from './canvasGeom.js';
 import { layoutDrop } from './layoutEngine.js';
+import { withGeometry } from './moodboard.js';
 
 export function isUnplaced(card) {
   return card?.unplaced === true;
@@ -56,23 +57,47 @@ export function positionUnplaced(allCards, items, opts = {}) {
   return arrangeInFreeSpace(allCards, items, opts);
 }
 
-// Put on board: lay the unplaced cards among `ids` out as one block centred on
-// `at` (or beside the board's content when there's no point), keeping their
-// sizes. Returns [{ id, patch: { x, y, unplaced: false } }].
-export function planPutOnBoard(allCards, ids, at = null) {
+// Put on board: lay the unplaced cards among `ids` out as one block in the
+// free space nearest `at` (or beside the board's content when there's no
+// point), keeping their sizes. Unlike a drop, nobody pointed at a spot, so the
+// block never lands on what's already there. Returns
+// [{ id, patch: { x, y, unplaced: false } }].
+export function planPutOnBoard(allCards, ids, at = null, gap = 24) {
   const idSet = new Set(ids || []);
   const moving = (allCards || []).filter((c) => idSet.has(c?.id) && isUnplaced(c));
   if (!moving.length) return [];
-  let target = at;
-  if (!Number.isFinite(target?.x) || !Number.isFinite(target?.y)) {
-    const block = layoutDrop(moving, { at: { x: 0, y: 0 }, layout: 'grid' });
-    const w = Math.max(...block.map((c) => c.x + c.w)) - Math.min(...block.map((c) => c.x));
-    const h = Math.max(...block.map((c) => c.y + c.h)) - Math.min(...block.map((c) => c.y));
-    const spot = besideContent(placedOf(allCards));
-    target = { x: spot.x + w / 2, y: spot.y + h / 2 };
+  const solid = withGeometry(allCards);
+  const block = layoutDrop(moving, { at: { x: 0, y: 0 }, layout: 'grid' });
+  const left = Math.min(...block.map((c) => c.x)), top = Math.min(...block.map((c) => c.y));
+  const w = Math.max(...block.map((c) => c.x + c.w)) - left;
+  const h = Math.max(...block.map((c) => c.y + c.h)) - top;
+  const want = Number.isFinite(at?.x) && Number.isFinite(at?.y)
+    ? { x: at.x - w / 2, y: at.y - h / 2 }
+    : besideContent(solid, gap + 16);
+  const spot = nearestFreeSpot(solid, want, w, h, gap) || besideContent(solid, gap + 16);
+  return block.map((c) => ({
+    id: c.id,
+    patch: { x: Math.round(c.x - left + spot.x), y: Math.round(c.y - top + spot.y), unplaced: false },
+  }));
+}
+
+// The top-left nearest `want` where a w×h block clears every card by `gap`.
+// Candidates are `want` itself and the four sides of each card (lined up with
+// `want` or with the card), so the answer hugs the content instead of
+// wandering a search grid. Null when nothing fits — besideContent always does.
+export function nearestFreeSpot(solid, want, w, h, gap = 24) {
+  const hits = (x, y) => solid.some((e) => (
+    x < e.x + e.w + gap && x + w + gap > e.x && y < e.y + e.h + gap && y + h + gap > e.y
+  ));
+  if (!hits(want.x, want.y)) return want;
+  const cands = [];
+  for (const e of solid) {
+    for (const x of [e.x + e.w + gap, e.x - w - gap]) cands.push({ x, y: want.y }, { x, y: e.y });
+    for (const y of [e.y + e.h + gap, e.y - h - gap]) cands.push({ x: want.x, y }, { x: e.x, y });
   }
-  const laid = layoutDrop(moving, { at: target, layout: 'grid' });
-  return laid.map((c) => ({ id: c.id, patch: { x: c.x, y: c.y, unplaced: false } }));
+  const d = (p) => Math.hypot(p.x - want.x, p.y - want.y);
+  cands.sort((a, b) => d(a) - d(b));
+  return cands.find((p) => !hits(p.x, p.y)) || null;
 }
 
 // The top-left of a spot just right of everything on the board.

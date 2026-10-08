@@ -246,6 +246,9 @@ export function publicCard(c) {
   // cards are not rotated and belong to no group.
   if (Number.isFinite(c.rotation) && c.rotation !== 0) out.rotation = c.rotation;
   if (c.groupId) out.group_id = c.groupId;
+  // In the cluster but not on its board (a file added in Files, or removed
+  // from the board): listed, but not drawn on the canvas. Only when true.
+  if (c.unplaced === true) out.unplaced = true;
   if (c.sectionHeader) {
     out.section_header = true;
     if (c.sub) out.sub = c.sub;

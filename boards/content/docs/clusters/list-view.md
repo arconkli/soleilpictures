@@ -68,7 +68,7 @@ Select several first and they travel together.
 
 | Where the file is | What the drop does |
 |---|---|
-| This cluster | Moves its card to where you dropped it — every file in a cluster is already on its board |
+| This cluster | Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there |
 | Another cluster | Adds a **linked copy**: a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit |
 | Another cluster, and already copied here | Moves the copy that's already on the board instead of adding a second one. Hold `⌥` (`Alt`) while you drop to add another |
 
@@ -81,6 +81,21 @@ Notes, docs and grids can't be copied this way — their content lives in their
 cluster — so dropping one from another cluster offers **Move here** instead.
 Moving takes it out of the other cluster, and the toast that follows can undo
 it.
+
+## Not on board
+
+A file can be in a cluster without being on its board. Right-click a card on
+the board and choose **Remove from board**: it leaves the canvas but stays in
+the cluster, waiting in Files with a **Not on board** mark. **Not on board** in
+the View menu (or Filter, in full-screen Files) shows just those.
+
+To put one back, drag it onto the board, or right-click it in Files — or use
+the selection bar, or Quick look — and choose **Put on board**, which places
+it in the clear space nearest the middle of where the board was last looking. A link or search result that points at a
+file that isn't on the board opens Files with it picked out instead.
+
+Files waiting off the board are still cards: they count toward your plan's
+card limit, and anyone the cluster is shared with sees them in Files.
 
 ## Folders and the path bar
 

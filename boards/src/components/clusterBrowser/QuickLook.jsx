@@ -101,6 +101,7 @@ export default function QuickLook({
   items, index, onIndex, onClose,
   onShowOnBoard = null, showLabel = 'Show on board',
   onDownload = null,
+  onPutOnBoard = null,   // (item) => put a file that's waiting in Files on the board
   infoOpen = false, onToggleInfo = null,
   boards = {}, canEdit = false, onDelete = null,
 }) {
@@ -178,6 +179,11 @@ export default function QuickLook({
         {onShowOnBoard && (
           <button type="button" className="ql-btn" onClick={() => onShowOnBoard(item)} title={showLabel}>
             <Icon as={BoundingBox} size={14} /><span>{showLabel}</span>
+          </button>
+        )}
+        {onPutOnBoard && item.unplaced && (
+          <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
+            <Icon as={BoundingBox} size={14} /><span>Put on board</span>
           </button>
         )}
         {canDownload && (
