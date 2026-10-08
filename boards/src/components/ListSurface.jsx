@@ -138,6 +138,9 @@ export function ListSurface({
   const [sortKey, setSortKey] = useState(prefs0.sortKey || 'board');
   const [sortDir, setSortDir] = useState(prefs0.sortKey ? (prefs0.sortDir || 'desc') : 'asc');
   const [filters, setFilters] = useState(() => new Set());
+  // A search or filter belongs to the cluster it was typed in — stepping into a
+  // folder used to carry it along and could hide every file there.
+  useEffect(() => { setQuery(''); setFilters(new Set()); }, [board?.id]);
   // Which linked-grid families are expanded (collapsed by default). Persisted.
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(prefs0.expandedGroups || []));
   // A grid family selected for the detail popout (family view). Card selection
@@ -640,10 +643,10 @@ export function ListSurface({
     const cn = cIds.length;
     let msg;
     if (bn > 0 && cn === 0) msg = bn === 1
-      ? `Delete board "${boards[bIds[0]]?.name || ''}" and all its content?\n\nYou can undo this — it's recoverable for 30 days.`
-      : `Delete ${bn} boards and all their content?\n\nYou can undo this — they're recoverable for 30 days.`;
+      ? `Delete cluster "${boards[bIds[0]]?.name || ''}" and all its content?\n\nYou can undo this — it's recoverable for 30 days.`
+      : `Delete ${bn} clusters and all their content?\n\nYou can undo this — they're recoverable for 30 days.`;
     else if (bn === 0 && cn > 0) msg = cn === 1 ? 'Delete this card?' : `Delete ${cn} cards?`;
-    else msg = `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''}?\n\nYou can undo this — anything deleted is recoverable for 30 days.`;
+    else msg = `Delete ${total} items, including ${bn} cluster${bn > 1 ? 's' : ''}?\n\nYou can undo this — anything deleted is recoverable for 30 days.`;
     const ok = await feedback.confirm({
       title: 'Delete selection',
       message: msg,
@@ -911,7 +914,12 @@ export function ListSurface({
     if (!isRecognizedDrag(t)) return;
     e.preventDefault(); // swallow so the browser never navigates
     if (!canEdit) {
-      feedback?.toast?.({ type: 'info', message: 'This cluster is view-only — drops are disabled.' });
+      feedback?.toast?.({
+        type: 'info',
+        message: browsingFrom
+          ? 'Open this cluster to add files to it.'
+          : 'This cluster is view-only — drops are disabled.',
+      });
       return;
     }
     // Board(s) dropped here → nest under this board (reparent). See the
