@@ -31622,6 +31622,51 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Abuse prevention",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Abuse prevention"
+    }
+   ],
+   "id": "abuse-prevention"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To stop one person running many throwaway accounts — the pattern behind invitation spam — Clusters notes where requests come from: the network and the browser of each signed-in session, once a day, and of each invitation, share link and email you send to someone. Both are stored only as salted one-way hashes, never as the address itself, along with the country."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "They are kept for 365 days, and deleted with your account."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Only Clusters staff can read them, and only to spot and stop abuse — for example, several new accounts appearing on one network in a day."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "If an account is held or banned for abuse, a summary of where it connected from, and which other accounts shared those networks, is kept with that decision."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Error reporting",
    "inline": [
     {
