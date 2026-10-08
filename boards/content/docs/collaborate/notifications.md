@@ -5,8 +5,8 @@ h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-10-06
-answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+updated: 2026-10-07
+answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
     a: Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
@@ -15,7 +15,7 @@ faq:
   - q: Do I get browser notifications?
     a: Only if you grant permission. Nothing is requested until there is a reason.
   - q: How do I unsubscribe without logging in?
-    a: Every email has a one-click unsubscribe link that works logged out.
+    a: Product tips, mentions, replies and schedule emails have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications.
   - q: Do I need to sign in again when I click a link in an email?
     a: No. The button in a product email opens a resume link that signs you in on one press and takes you to the board it mentions. It works once and expires after seven days; after that you sign in normally.
 related:
@@ -73,9 +73,11 @@ you do, and a link that signed you in on load would be spent by a robot.
 
 ## Unsubscribing
 
-Every email carries a **one-click unsubscribe** that works without signing in.
-Unsubscribing from email does not turn off in-app notifications; those are
-separate.
+Product tips, mentions, replies and schedule emails carry a **one-click
+unsubscribe** that works without signing in. Invitation, share and
+accepted-invite emails are each sent once, for one thing someone did; switch
+those off in Settings under Notifications. Unsubscribing from email does not
+turn off in-app notifications; those are separate.
 
 ## Mentions
 

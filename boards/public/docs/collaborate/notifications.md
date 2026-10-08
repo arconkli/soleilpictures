@@ -1,8 +1,8 @@
 # Notifications
 
-> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-10-06_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-10-07_
 
 Seven categories, seven independent switches, in **Settings → Notifications**.
 
@@ -53,9 +53,11 @@ you do, and a link that signed you in on load would be spent by a robot.
 
 ## Unsubscribing
 
-Every email carries a **one-click unsubscribe** that works without signing in.
-Unsubscribing from email does not turn off in-app notifications; those are
-separate.
+Product tips, mentions, replies and schedule emails carry a **one-click
+unsubscribe** that works without signing in. Invitation, share and
+accepted-invite emails are each sent once, for one thing someone did; switch
+those off in Settings under Notifications. Unsubscribing from email does not
+turn off in-app notifications; those are separate.
 
 ## Mentions
 

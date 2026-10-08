@@ -757,3 +757,58 @@ test('an upload URL carries its size, and the images row takes that size, not th
     assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
   }
 });
+
+// ── A ban reaches the open board sockets (AC-2) ─────────────────────────────
+
+test('a banned account is refused at connect and dropped from open boards within a minute', () => {
+  const auth = read('../../party/auth.ts');
+  assert.match(auth, /export async function bannedAmong\(serviceKey: string \| undefined, userIds: string\[\]\)/);
+  assert.match(auth, /profiles\?user_id=in\.\(\$\{ids\.join\(","\)\}\)&banned_at=not\.is\.null&select=user_id/,
+    'read with the service role — the banned token itself still passes PostgREST for up to an hour');
+  const board = read('../../party/board.ts');
+  assert.match(board, /static async onBeforeConnect\(req: Party\.Request, lobby: Party\.Lobby\)/);
+  assert.match(board, /if \(auth\.userId && banned\.has\(auth\.userId\)\) return new Response\("Account suspended", \{ status: 403 \}\);/);
+  assert.match(board, /conn\.setState\(\{ userId: ctx\.request\.headers\.get\("x-user-id"\) \|\| "" \}\);/);
+  assert.match(board, /await this\.armBanCheck\(\);/);
+  assert.match(board, /async onAlarm\(\) \{[\s\S]*?c\.close\(4403, "account suspended"\)/);
+  assert.match(board, /const BAN_CHECK_MS = 60_000;/);
+});
+
+// ── 0388: a deleted account's workspace goes to someone who can edit it ──────
+
+test('a deleted account\'s shared workspace passes to an editor, who becomes its owner', () => {
+  const heir = latestDefinition('_deletion_heir').body;
+  assert.match(heir, /m\.role in \('owner', 'admin', 'editor'\)/, 'never a viewer or a service account');
+  assert.match(heir, /not public\._user_banned\(m\.user_id\)/);
+  assert.match(heir, /order by m\.created_at asc, m\.user_id asc\s+limit 1/, 'one deterministic heir');
+  const prep = latestDefinition('prepare_account_deletion').body;
+  assert.match(prep, /public\._deletion_heir\(w\.id, p_user_id\)/);
+  assert.match(prep, /update workspace_members set role = 'owner' where workspace_id = r\.id and user_id = r\.to_user;/);
+  assert.match(prep, /if public\._user_banned\(p_user_id\) then/, '0371\'s refusal survives');
+  assert.match(latestDefinition('my_deletion_impact').body, /public\._deletion_heir\(w\.id, \(select uid from me\)\)/,
+    'the confirmation screen names the same heir');
+  assert.match(read('../../content/docs/account/data-and-privacy.md'), /A viewer never\s+inherits a workspace\./);
+});
+
+// ── Phase 5: the CSP dry run reports somewhere ──────────────────────────────
+
+test('the Report-Only policy reports to an endpoint that keeps origins and paths only', async () => {
+  const src = read('../worker.js');
+  assert.match(src, /'report-uri \/api\/csp-report',/);
+  assert.match(src, /if \(url\.pathname === '\/api\/csp-report'\) \{/);
+  const { cspReportRows } = await import('../worker.js');
+  const rows = cspReportRows({ 'csp-report': {
+    'effective-directive': 'script-src-elem',
+    'blocked-uri': 'https://evil.example/x.js?token=secret',
+    'document-uri': 'https://clusters.soleilpictures.com/docs/api?session=abc',
+    'source-file': 'https://clusters.soleilpictures.com/assets/a.js?v=1', 'line-number': 12,
+  } }, 'UA', 1_000_000);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, 'csp_violation');
+  assert.equal(rows[0].path, '/docs/api', 'never a query string');
+  assert.doesNotMatch(JSON.stringify(rows[0]), /secret|session=|v=1/);
+  // The same violation on the same page is recorded once per ten minutes.
+  assert.equal(cspReportRows({ 'csp-report': { 'effective-directive': 'script-src-elem', 'blocked-uri': 'https://evil.example/x.js', 'document-uri': 'https://clusters.soleilpictures.com/docs/api' } }, 'UA', 1_000_000 + 60_000).length, 0);
+  // Reporting API batches are read too.
+  assert.equal(cspReportRows([{ type: 'csp-violation', body: { effectiveDirective: 'img-src', blockedURL: 'https://x.example/i.png', documentURL: 'https://clusters.soleilpictures.com/pricing' } }], '', 2_000_000).length, 1);
+});

@@ -3026,9 +3026,9 @@ A: Unread count. An @ prefix means at least one of them mentions you directly.
 ========================================================================
 # Notifications
 URL: https://clusters.soleilpictures.com/docs/collaborate/notifications
-Updated: 2026-10-06
+Updated: 2026-10-07
 
-Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
 Seven categories, seven independent switches, in Settings → Notifications.
 
@@ -3063,7 +3063,7 @@ It only signs you in when you press the button. Loading the page does nothing �
 
 Unsubscribing
 
-Every email carries a one-click unsubscribe that works without signing in. Unsubscribing from email does not turn off in-app notifications; those are separate.
+Product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate.
 
 Mentions
 
@@ -3089,7 +3089,7 @@ Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.
 
 Q: How do I unsubscribe without logging in?
-A: Every email has a one-click unsubscribe link that works logged out.
+A: Product tips, mentions, replies and schedule emails have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications.
 
 Q: Do I need to sign in again when I click a link in an email?
 A: No. The button in a product email opens a resume link that signs you in on one press and takes you to the board it mentions. It works once and expires after seven days; after that you sign in normally.
@@ -3790,8 +3790,8 @@ Deleting your account
 
 Settings → Profile → Delete account. Before it asks you to confirm, it tells you what will actually happen to your account — how many clusters go, and what becomes of anything you share:
 
-Workspaces only you are in are deleted, with every cluster, card, comment, tag and uploaded file in them.
-Workspaces you created that other people are in are not deleted. Ownership passes to the longest-standing other member, who is named on the confirmation screen. Their work is never destroyed by your leaving.
+Workspaces only you are in are deleted, with every cluster, card, comment, tag and uploaded file in them — and so is a workspace where everyone else can only view.
+Workspaces you created where someone else can edit are not deleted. Ownership passes to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving.
 Workspaces you were only a member of simply lose you.
 Comments, tags and votes you left on other people's clusters stay where they are, with your name removed — deleting them would take away context that belongs to someone else.
 Any subscription is canceled as part of the deletion, so nothing bills a removed account.

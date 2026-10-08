@@ -25423,7 +25423,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Every email carries a "
+     "v": "Product tips, mentions, replies and schedule emails carry a "
     },
     {
      "t": "strong",
@@ -25437,7 +25437,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " that works without signing in. Unsubscribing from email does not turn off in-app notifications; those are separate."
+     "v": " that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate."
     }
    ]
   },
@@ -31535,17 +31535,17 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " are deleted, with every cluster, card, comment, tag and uploaded file in them."
+      "v": " are deleted, with every cluster, card, comment, tag and uploaded file in them — and so is a workspace where everyone else can only view."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Workspaces you created that other people are in",
+      "v": "Workspaces you created where someone else can edit",
       "children": [
        {
         "t": "text",
-        "v": "Workspaces you created that other people are in"
+        "v": "Workspaces you created where someone else can edit"
        }
       ]
      },
@@ -31565,7 +31565,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " deleted. Ownership passes to the longest-standing other member, who is named on the confirmation screen. Their work is never destroyed by your leaving."
+      "v": " deleted. Ownership passes to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving."
      }
     ],
     [
