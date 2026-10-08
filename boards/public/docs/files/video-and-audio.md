@@ -2,7 +2,7 @@
 
 > Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
 
-_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-07_
 
 Both play in place on the canvas. No lightbox, no separate player window — the
 clip is a card among the reference stills it belongs with.
@@ -125,5 +125,5 @@ video equivalent.
 ## Storage
 
 Media counts against your storage quota like everything else —
-100GB on Creator, with the meter in
+5GB free, 100GB on Creator, with the meter in
 **Settings → Plan & billing**. Video is usually what fills it.

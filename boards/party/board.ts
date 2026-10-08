@@ -8,12 +8,19 @@
 // Auth: every connection must include ?access_token=<supabase JWT>.
 // We verify membership against Supabase RLS before allowing the join.
 // Unauthorized connections are closed with code 4401.
+//
+// A banned account is refused at connect, and every minute while anyone is
+// connected the room closes the sockets of users banned since (4403). Without
+// the minute check an account banned mid-session kept editing — the room
+// persists its updates with the service role — until it chose to disconnect.
 
 import type * as Party from "partykit/server";
 import { onConnect, unstable_getYDoc } from "y-partykit";
-import { authBoard, canWriteBoard } from "./auth";
+import { authBoard, bannedAmong, canWriteBoard } from "./auth";
 import { installOpLogCapture } from "./opLog";
 import { boardStateSync } from "../src/lib/boardStateSync.js";
+
+const BAN_CHECK_MS = 60_000;
 
 export default class BoardParty implements Party.Server {
   constructor(readonly room: Party.Room) {}
@@ -25,7 +32,7 @@ export default class BoardParty implements Party.Server {
   // messages from them (the actual write enforcement at the protocol
   // level — without this, viewers could broadcast Y.js updates that
   // ephemerally render in other connected tabs).
-  static async onBeforeConnect(req: Party.Request) {
+  static async onBeforeConnect(req: Party.Request, lobby: Party.Lobby) {
     const url = new URL(req.url);
     const token = url.searchParams.get("access_token");
     if (!token) return new Response("Missing access_token", { status: 401 });
@@ -37,6 +44,8 @@ export default class BoardParty implements Party.Server {
       canWriteBoard(token, boardId),
     ]);
     if (!auth.ok) return new Response(auth.reason ?? "Unauthorized", { status: 401 });
+    const banned = await bannedAmong((lobby.env as any)?.SUPABASE_SERVICE_ROLE_KEY, [auth.userId ?? ""]);
+    if (auth.userId && banned.has(auth.userId)) return new Response("Account suspended", { status: 403 });
     req.headers.set("x-user-id", auth.userId ?? "");
     req.headers.set("x-user-email", auth.email ?? "");
     req.headers.set("x-workspace-id", auth.workspaceId ?? "");
@@ -47,6 +56,9 @@ export default class BoardParty implements Party.Server {
   async onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     const canWrite = ctx.request.headers.get("x-can-write") === "1";
     const roomEnv = this.room.env as any;
+    // Who this socket is, for the minute ban check (onAlarm).
+    conn.setState({ userId: ctx.request.headers.get("x-user-id") || "" });
+    await this.armBanCheck();
 
     // load + callback make this room the writer of board_state (stateFlush.ts).
     // They have to be in the object handed to onConnect, because y-partykit
@@ -90,6 +102,31 @@ export default class BoardParty implements Party.Server {
     } catch (e) {
       console.warn(`[board ${this.room.id}] opLog install failed`, e);
     }
+  }
+
+  // One alarm per room, re-armed only while someone is connected.
+  async armBanCheck() {
+    try {
+      if ((await this.room.storage.getAlarm()) == null) {
+        await this.room.storage.setAlarm(Date.now() + BAN_CHECK_MS);
+      }
+    } catch (e) {
+      console.warn(`[board ${this.room.id}] could not arm the ban check`, e);
+    }
+  }
+
+  async onAlarm() {
+    const conns = [...this.room.getConnections()];
+    if (conns.length === 0) return;   // an empty room lets the alarm lapse
+    const ids = conns.map((c) => ((c.state as { userId?: string } | null)?.userId) || "");
+    const banned = await bannedAmong((this.room.env as any)?.SUPABASE_SERVICE_ROLE_KEY, ids);
+    for (const c of conns) {
+      const uid = (c.state as { userId?: string } | null)?.userId;
+      if (uid && banned.has(uid)) {
+        try { c.close(4403, "account suspended"); } catch (_) { /* already gone */ }
+      }
+    }
+    try { await this.room.storage.setAlarm(Date.now() + BAN_CHECK_MS); } catch (_) { /* next connect re-arms */ }
   }
 
   // Admin POST that nukes the room's Durable Object storage and kicks

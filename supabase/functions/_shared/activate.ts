@@ -9,8 +9,8 @@
 // in activateCore.mjs so `node --test` can cover it from boards/ — this file
 // keeps only the Deno-specific parts: env access and the supabase writes.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "npm:stripe@17";
+import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import Stripe from "npm:stripe@17.7.0";
 import {
   activationDecision,
   netMonthlyFromSubscription as netMonthlyCore,

@@ -1,11 +1,11 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and the size limits go: no per-file size or length limits, and a 100GB drive instead of 5GB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 _Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-07_
 
 Two plans. The difference between them is deliberately small and deliberately
-honest — three enforced limits, listed below, and nothing else. The
+honest — four enforced limits, listed below, and nothing else. The
 [pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
 is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
 
@@ -21,6 +21,7 @@ page, drops it.
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
 - Any file type, up to 50 MB each — images are never capped
+- A **5GB** drive for your files
 
 ## Creator
 
@@ -38,13 +39,14 @@ page, drops it.
 
 ## What is genuinely limited
 
-Exactly two things, and a third row that is the same thing said per file:
+Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:
 
 | | Demo | Creator |
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | 50 | Unlimited |
 | **[File types](/docs/files)** | Any — up to 50 MB each | Any, at any size |
 | **Per-file size and length** | Video 30 MB or 60 seconds · audio 50 MB · PDF and any other file 50 MB · images never | No limit |
+| **Storage** | 5GB | 100GB |
 
 Everything else is the same on both plans.
 
@@ -54,7 +56,7 @@ it costs no cards.
 
 ## One plan covers the workspace
 
-Those three limits are charged to **whoever owns the workspace**, never to the
+Those limits are charged to **whoever owns the workspace**, never to the
 person doing the work. So a single Creator plan lifts them for
 everyone in that workspace: invite whoever you like, and they build at your
 limits without a plan of their own. There are no per-seat charges on any plan.

@@ -60,7 +60,7 @@ import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js'
 import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
-import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
+import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS,
          AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_FILE_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
@@ -210,6 +210,14 @@ if (!embedBudget) {
   throw new Error('gen-docs: the embedding budget was not found — update the extractor');
 }
 
+// The free drive must equal the enforced free quota: the default in
+// _storage_quota_free_bytes(), migration 0387.
+const freeQuota = latestSqlDefining('_storage_quota_free_bytes')
+  ?.match(/key = 'storage_quota_free_bytes'\),\s*(\d+)\)/);
+if (!freeQuota || `${Number(freeQuota[1]) / (1024 ** 3)}GB` !== FREE_STORAGE_LABEL) {
+  throw new Error(`gen-docs: FREE_STORAGE_LABEL '${FREE_STORAGE_LABEL}' does not match the free quota in the migration defining _storage_quota_free_bytes`);
+}
+
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // The cap accounts created before migration 0229 keep, permanently. The plans
@@ -222,6 +230,8 @@ export const FACTS = {
   priceAnnualPerMonth: PRICING.annual.perMonthLabel,
   annualSavings: PRICING.annual.savings,
   creatorStorage: CREATOR_STORAGE_LABEL,
+  // The free plan's drive (0387). A free owner's uploads stop at it.
+  freeStorage: FREE_STORAGE_LABEL,
   // How long a signed-out "Get Creator" on /pricing is remembered through
   // sign-in (creatorIntent.js reads it back and expires it).
   creatorIntentHours: String(CREATOR_INTENT_MAX_AGE_MS / (60 * 60 * 1000)),

@@ -129,6 +129,12 @@ export function planBilling(plan) {
 // that migration literal at build time.
 export const CREATOR_STORAGE_LABEL = '100GB';
 
+// The free drive (owner decision 2026-10-06): app_config 'storage_quota_free_bytes'
+// = 5368709120 (5 GiB), seeded in migration 0387 and read by
+// _storage_quota_free_bytes() whenever the owner is not on a paid plan.
+// gen-docs.mjs cross-checks this label against that migration literal too.
+export const FREE_STORAGE_LABEL = '5GB';
+
 // ── Each claim, and what it actually means ─────────────────────────────────
 //
 // This was four bare claims for most of the product's life, and across every
@@ -246,6 +252,7 @@ export const DEMO_FEATURES = [
   `**${DEMO_CARD_LIMIT} cards** to build with`,
   'No separate limit on clusters — each one counts as one of your cards',
   'Free collaboration — invite editors to any cluster',
+  `A **${FREE_STORAGE_LABEL}** drive for your files`,
 ];
 
 // The Creator trial. Fourteen days, card required, offered ONLY in-product to
@@ -478,7 +485,7 @@ export const PLAN_COMPARISON = [
     // stated. A free owner refused a 20 MB, 90-second clip had been told by
     // this very table that 30 MB was the wall.
     label: 'Per-file size and length',
-    demo: `Video ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS}s · audio ${mb(FREE_AUDIO_CAP)} · PDF ${mb(FREE_PDF_CAP)}`,
+    demo: `Video ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS}s · audio ${mb(FREE_AUDIO_CAP)} · PDF ${mb(FREE_PDF_CAP)}, on a ${FREE_STORAGE_LABEL} drive`,
     creator: `No limit, on a ${CREATOR_STORAGE_LABEL} drive`,
   },
 ];

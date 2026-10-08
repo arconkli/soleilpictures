@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { latestDefinition, latestPolicy, latestMatch, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
 import { safeLabel } from '../../../supabase/functions/_shared/email/safeLabel.mjs';
 
@@ -724,4 +724,126 @@ test('no cron job carries its secret inline; one definer helper reads it from Va
   }
   assert.match(latestDefinition('check_security_invariants').body,
     /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', 'check_security_invariants'\)/);
+});
+
+// ── 0387: storage counts what was actually stored ───────────────────────────
+
+test('an upload URL carries its size, and the images row takes that size, not the client\'s', () => {
+  const party = read('../../party/upload.ts');
+  const presign = party.slice(party.indexOf('async handlePresignPut'), party.indexOf('// POST /sign-reads'));
+  assert.match(presign, /new Request\(r2Url, \{ method: "PUT", headers: \{ "Content-Length": String\(declared\) \} \}\),\s+\{ aws: \{ signQuery: true, allHeaders: true \} \}/,
+    'the length is signed — R2 refuses a body of any other size');
+  assert.match(presign, /if \(!\/X-Amz-SignedHeaders=\[\^&\]\*content-length\/i\.test\(signed\.url\)\)/,
+    'a URL whose signature does not cover the length is never handed out');
+  const intentAt = presign.indexOf('"record_upload_intent"');
+  assert.ok(intentAt > 0 && intentAt < presign.indexOf('return Response.json({ uploadUrl'), 'the intent is recorded before the key leaves');
+  assert.match(party, /const DERIVED_MAX_BYTES = /);
+  assert.match(party, /"finalize_upload_intent", \{ p_key: key, p_bytes: result\.bytes \}/, 'a multipart object is held to its declaration');
+
+  const up = read('./uploads.js');
+  assert.match(up, /presignPreview\(\{ workspaceId, boardId, previewKey: requestedKey, bytes: dn\.blob\.size \}\)/);
+  assert.match(up, /presignPreview\(\{ workspaceId, boardId, previewKey: requestedSmKey, bytes: dnSm\.blob\.size \}\)/);
+  assert.match(up, /presignThumb\(\{ workspaceId, boardId, thumbKey: key, contentType: 'image\/webp', bytes: blob\.size \}\)/);
+
+  assert.match(latestDefinition('_tg_image_size_from_intent').body, /new\.size_bytes := v_bytes;/);
+  assert.ok(latestMatch(/create trigger images_size_from_intent\s+before insert on public\.images/));
+  for (const fn of ['authorize_upload', 'authorize_image_upload']) {
+    assert.match(latestDefinition(fn).body, /_storage_used_bytes\(v_owner\) \+ public\._storage_pending_bytes\(v_owner\)/,
+      `${fn} counts uploads in flight`);
+  }
+  assert.match(latestDefinition('_storage_quota_bytes').body, /else public\._storage_quota_free_bytes\(\)/, 'a free owner gets the free drive');
+  assert.ok(latestMatch(/add constraint images_size_bytes_nonnegative check \(size_bytes is null or size_bytes >= 0\)/));
+  for (const sig of ['_storage_quota_free_bytes\\(\\)', '_storage_pending_bytes\\(uuid\\)', 'purge_old_upload_intents\\(integer\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
+});
+
+// ── A ban reaches the open board sockets (AC-2) ─────────────────────────────
+
+test('a banned account is refused at connect and dropped from open boards within a minute', () => {
+  const auth = read('../../party/auth.ts');
+  assert.match(auth, /export async function bannedAmong\(serviceKey: string \| undefined, userIds: string\[\]\)/);
+  assert.match(auth, /profiles\?user_id=in\.\(\$\{ids\.join\(","\)\}\)&banned_at=not\.is\.null&select=user_id/,
+    'read with the service role — the banned token itself still passes PostgREST for up to an hour');
+  const board = read('../../party/board.ts');
+  assert.match(board, /static async onBeforeConnect\(req: Party\.Request, lobby: Party\.Lobby\)/);
+  assert.match(board, /if \(auth\.userId && banned\.has\(auth\.userId\)\) return new Response\("Account suspended", \{ status: 403 \}\);/);
+  assert.match(board, /conn\.setState\(\{ userId: ctx\.request\.headers\.get\("x-user-id"\) \|\| "" \}\);/);
+  assert.match(board, /await this\.armBanCheck\(\);/);
+  assert.match(board, /async onAlarm\(\) \{[\s\S]*?c\.close\(4403, "account suspended"\)/);
+  assert.match(board, /const BAN_CHECK_MS = 60_000;/);
+});
+
+// ── 0388: a deleted account's workspace goes to someone who can edit it ──────
+
+test('a deleted account\'s shared workspace passes to an editor, who becomes its owner', () => {
+  const heir = latestDefinition('_deletion_heir').body;
+  assert.match(heir, /m\.role in \('owner', 'admin', 'editor'\)/, 'never a viewer or a service account');
+  assert.match(heir, /not public\._user_banned\(m\.user_id\)/);
+  assert.match(heir, /order by m\.created_at asc, m\.user_id asc\s+limit 1/, 'one deterministic heir');
+  const prep = latestDefinition('prepare_account_deletion').body;
+  assert.match(prep, /public\._deletion_heir\(w\.id, p_user_id\)/);
+  assert.match(prep, /update workspace_members set role = 'owner' where workspace_id = r\.id and user_id = r\.to_user;/);
+  assert.match(prep, /if public\._user_banned\(p_user_id\) then/, '0371\'s refusal survives');
+  assert.match(latestDefinition('my_deletion_impact').body, /public\._deletion_heir\(w\.id, \(select uid from me\)\)/,
+    'the confirmation screen names the same heir');
+  assert.match(read('../../content/docs/account/data-and-privacy.md'), /A viewer never\s+inherits a workspace\./);
+});
+
+// ── Phase 5: the CSP dry run reports somewhere ──────────────────────────────
+
+test('the Report-Only policy reports to an endpoint that keeps origins and paths only', async () => {
+  const src = read('../worker.js');
+  assert.match(src, /'report-uri \/api\/csp-report',/);
+  assert.match(src, /if \(url\.pathname === '\/api\/csp-report'\) \{/);
+  const { cspReportRows } = await import('../worker.js');
+  const rows = cspReportRows({ 'csp-report': {
+    'effective-directive': 'script-src-elem',
+    'blocked-uri': 'https://evil.example/x.js?token=secret',
+    'document-uri': 'https://clusters.soleilpictures.com/docs/api?session=abc',
+    'source-file': 'https://clusters.soleilpictures.com/assets/a.js?v=1', 'line-number': 12,
+  } }, 'UA', 1_000_000);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, 'csp_violation');
+  assert.equal(rows[0].path, '/docs/api', 'never a query string');
+  assert.doesNotMatch(JSON.stringify(rows[0]), /secret|session=|v=1/);
+  // The same violation on the same page is recorded once per ten minutes.
+  assert.equal(cspReportRows({ 'csp-report': { 'effective-directive': 'script-src-elem', 'blocked-uri': 'https://evil.example/x.js', 'document-uri': 'https://clusters.soleilpictures.com/docs/api' } }, 'UA', 1_000_000 + 60_000).length, 0);
+  // Reporting API batches are read too.
+  assert.equal(cspReportRows([{ type: 'csp-violation', body: { effectiveDirective: 'img-src', blockedURL: 'https://x.example/i.png', documentURL: 'https://clusters.soleilpictures.com/pricing' } }], '', 2_000_000).length, 1);
+});
+
+// ── DEP-7: edge functions pin exact dependency versions ─────────────────────
+
+test('every npm: import in an edge function names an exact version', () => {
+  const root = new URL('../../../supabase/functions/', import.meta.url).pathname;
+  const files = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(d + e.name + '/');
+      else if (/\.(ts|mjs|js)$/.test(e.name)) files.push(d + e.name);
+    }
+  };
+  walk(root);
+  const floating = [];
+  for (const f of files) {
+    for (const m of readFileSync(f, 'utf8').matchAll(/['"]npm:((?:@[^/'"]+\/)?[^@'"]+)@([^'"/]+)/g)) {
+      if (!/^\d+\.\d+\.\d+$/.test(m[2])) floating.push(`${f.slice(root.length)}: ${m[1]}@${m[2]}`);
+    }
+  }
+  assert.deepEqual(floating, [], 'a floating range pulls whatever was published last into a runtime holding the service-role key');
+});
+
+// ── 0389: a card's weight follows its kind ──────────────────────────────────
+
+test('the server weighs a card the way cardWeight does, except the grid it cannot see', async () => {
+  const fn = latestDefinition('_tg_card_weight_by_kind').body;
+  assert.match(fn, /if coalesce\(new\.kind, 'note'\) = 'grid' then\s+return new;/);
+  assert.match(fn, /elsif new\.kind = 'schedule' then\s+new\.weight := greatest\(1, coalesce\(new\.weight, 1\)\);/);
+  assert.match(fn, /else\s+new\.weight := 1;/);
+  assert.ok(latestMatch(/create trigger card_index_weight_by_kind\s+before insert or update of weight, kind on public\.card_index/));
+  // The rule the trigger mirrors: anything but a grid or a schedule weighs 1.
+  const { cardWeight } = await import('./gridCount.js');
+  for (const kind of ['note', 'image', 'video', 'link', 'board', 'doc']) assert.equal(cardWeight(kind, []), 1, kind);
+  assert.equal(cardWeight('schedule', []), 1);
 });

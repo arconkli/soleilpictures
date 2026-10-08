@@ -621,7 +621,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-02
+Updated: 2026-10-07
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -687,7 +687,7 @@ Limits
 
 Images are not size-capped on any plan. The caps that exist are on video, audio and PDF for free accounts.
 
-Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Plan & billing.
+Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing.
 
 Building a reference wall specifically? The mood board maker guide walks the whole workflow.
 
@@ -1461,7 +1461,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-01
+Updated: 2026-10-07
 
 Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.
 
@@ -1508,7 +1508,7 @@ Batches upload a few at a time so one huge file does not block eleven small ones
 
 Storage
 
-Uploads count against your account's storage quota. Creator accounts get 100GB. The meter is in Settings → Plan & billing.
+Uploads count against your account's storage quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched.
 
 Storage is counted against the owner of the cluster, not the person who uploaded. If you are an editor on someone else's board, your uploads use their quota — which is the same rule that governs the card cap.
 
@@ -1603,7 +1603,7 @@ A: Not automatically. Export the pages you want from your PDF tool and drop them
 ========================================================================
 # Video and audio
 URL: https://clusters.soleilpictures.com/docs/files/video-and-audio
-Updated: 2026-10-02
+Updated: 2026-10-07
 
 Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
 
@@ -1679,7 +1679,7 @@ The photo adjustments available on image cards have no video equivalent.
 
 Storage
 
-Media counts against your storage quota like everything else — 100GB on Creator, with the meter in Settings → Plan & billing. Video is usually what fills it.
+Media counts against your storage quota like everything else — 5GB free, 100GB on Creator, with the meter in Settings → Plan & billing. Video is usually what fills it.
 
 ## Frequently asked questions
 
@@ -3033,9 +3033,9 @@ A: Unread count. An @ prefix means at least one of them mentions you directly.
 ========================================================================
 # Notifications
 URL: https://clusters.soleilpictures.com/docs/collaborate/notifications
-Updated: 2026-10-06
+Updated: 2026-10-07
 
-Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and every email carries a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
 Seven categories, seven independent switches, in Settings → Notifications.
 
@@ -3070,7 +3070,7 @@ It only signs you in when you press the button. Loading the page does nothing �
 
 Unsubscribing
 
-Every email carries a one-click unsubscribe that works without signing in. Unsubscribing from email does not turn off in-app notifications; those are separate.
+Product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate.
 
 Mentions
 
@@ -3096,7 +3096,7 @@ Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.
 
 Q: How do I unsubscribe without logging in?
-A: Every email has a one-click unsubscribe link that works logged out.
+A: Product tips, mentions, replies and schedule emails have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications.
 
 Q: Do I need to sign in again when I click a link in an email?
 A: No. The button in a product email opens a resume link that signs you in on one press and takes you to the board it mentions. It works once and expires after seven days; after that you sign in normally.
@@ -3434,9 +3434,9 @@ A: Under Connections, alongside any apps you have approved. Tokens are shown onc
 URL: https://clusters.soleilpictures.com/docs/account/plans
 Updated: 2026-10-07
 
-The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a 100GB drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and the size limits go: no per-file size or length limits, and a 100GB drive instead of 5GB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
-Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else. The pricing page puts the two side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
+Two plans. The difference between them is deliberately small and deliberately honest — four enforced limits, listed below, and nothing else. The pricing page puts the two side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
 
 Pressing Get Creator there before you have an account signs you in first, then opens the Creator offer in the app with the plan you picked — monthly or annual — rather than leaving you to find it. The choice is kept on that device for 24 hours. Pressing Start free instead, there or on any other page, drops it.
 
@@ -3446,6 +3446,7 @@ Demo — free
 No separate limit on clusters — each one counts as one of your cards
 Free collaboration — invite editors to any cluster
 Any file type, up to 50 MB each — images are never capped
+A 5GB drive for your files
 
 Creator
 
@@ -3457,12 +3458,13 @@ Covers your whole workspace — everyone you invite builds at your limits, and t
 
 What is genuinely limited
 
-Exactly two things, and a third row that is the same thing said per file:
+Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:
 
  | Demo | Creator
 Total cards | 50 | Unlimited
 File types | Any — up to 50 MB each | Any, at any size
 Per-file size and length | Video 30 MB or 60 seconds · audio 50 MB · PDF and any other file 50 MB · images never | No limit
+Storage | 5GB | 100GB
 
 Everything else is the same on both plans.
 
@@ -3470,7 +3472,7 @@ A grid counts the boxes you have filled, one card each, and an empty grid counts
 
 One plan covers the workspace
 
-Those three limits are charged to whoever owns the workspace, never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite whoever you like, and they build at your limits without a plan of their own. There are no per-seat charges on any plan.
+Those limits are charged to whoever owns the workspace, never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite whoever you like, and they build at your limits without a plan of their own. There are no per-seat charges on any plan.
 
 The same rule is why a free workspace stays limited no matter who is working in it — a collaborator's own plan never applies to someone else's workspace. If you work across several, the one that matters is the workspace the cluster lives in.
 
@@ -3795,8 +3797,8 @@ Deleting your account
 
 Settings → Profile → Delete account. Before it asks you to confirm, it tells you what will actually happen to your account — how many clusters go, and what becomes of anything you share:
 
-Workspaces only you are in are deleted, with every cluster, card, comment, tag and uploaded file in them.
-Workspaces you created that other people are in are not deleted. Ownership passes to the longest-standing other member, who is named on the confirmation screen. Their work is never destroyed by your leaving.
+Workspaces only you are in are deleted, with every cluster, card, comment, tag and uploaded file in them — and so is a workspace where everyone else can only view.
+Workspaces you created where someone else can edit are not deleted. Ownership passes to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving.
 Workspaces you were only a member of simply lose you.
 Comments, tags and votes you left on other people's clusters stay where they are, with your name removed — deleting them would take away context that belongs to someone else.
 Any subscription is canceled as part of the deletion, so nothing bills a removed account.
@@ -6873,6 +6875,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -6972,6 +6975,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7068,6 +7072,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7156,6 +7161,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7248,6 +7254,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7352,6 +7359,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7485,6 +7493,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7595,6 +7604,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7698,6 +7708,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -7947,6 +7958,7 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
@@ -9873,6 +9885,7 @@ No card, no clock, no expiry.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 ## Creator — $25/mo
 
@@ -9891,7 +9904,7 @@ Three differences, and nothing else. Everything absent from this table is on bot
 |---|---|---|
 | Cards | 50 | Unlimited |
 | File types | Any file up to 50 MB (images never capped) | Any file, any size — .psd, .fig, .zip, anything |
-| Per-file size and length | Video 30 MB or 60s · audio 50 MB · PDF 50 MB | No limit, on a 100GB drive |
+| Per-file size and length | Video 30 MB or 60s · audio 50 MB · PDF 50 MB, on a 5GB drive | No limit, on a 100GB drive |
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 

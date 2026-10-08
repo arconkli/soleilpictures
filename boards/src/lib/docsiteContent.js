@@ -6876,7 +6876,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Storage is counted against your account quota — Creator accounts get 100GB. The meter is in Settings → Plan & billing."
+     "v": "Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing."
     }
    ]
   },
@@ -13010,7 +13010,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Uploads count against your account's storage quota. Creator accounts get 100GB. The meter is in "
+     "v": "Uploads count against your account's storage quota: 5GB on the free plan, 100GB on Creator. The meter is in "
     },
     {
      "t": "strong",
@@ -13024,7 +13024,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched."
     }
    ]
   },
@@ -14206,7 +14206,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Media counts against your storage quota like everything else — 100GB on Creator, with the meter in "
+     "v": "Media counts against your storage quota like everything else — 5GB free, 100GB on Creator, with the meter in "
     },
     {
      "t": "strong",
@@ -25631,7 +25631,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Every email carries a "
+     "v": "Product tips, mentions, replies and schedule emails carry a "
     },
     {
      "t": "strong",
@@ -25645,7 +25645,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " that works without signing in. Unsubscribing from email does not turn off in-app notifications; those are separate."
+     "v": " that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate."
     }
    ]
   },
@@ -28782,7 +28782,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two plans. The difference between them is deliberately small and deliberately honest — three enforced limits, listed below, and nothing else. The "
+     "v": "Two plans. The difference between them is deliberately small and deliberately honest — four enforced limits, listed below, and nothing else. The "
     },
     {
      "t": "link",
@@ -28901,6 +28901,26 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": "Any file type, up to 50 MB each — images are never capped"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A "
+     },
+     {
+      "t": "strong",
+      "v": "5GB",
+      "children": [
+       {
+        "t": "text",
+        "v": "5GB"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " drive for your files"
      }
     ]
    ]
@@ -29059,7 +29079,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Exactly two things, and a third row that is the same thing said per file:"
+     "v": "Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:"
     }
    ]
   },
@@ -29181,6 +29201,32 @@ export const DOCS_CONTENT = {
        "v": "No limit"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Storage",
+       "children": [
+        {
+         "t": "text",
+         "v": "Storage"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "5GB"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "100GB"
+      }
+     ]
     ]
    ]
   },
@@ -29234,7 +29280,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Those three limits are charged to "
+     "v": "Those limits are charged to "
     },
     {
      "t": "strong",
@@ -31697,17 +31743,17 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " are deleted, with every cluster, card, comment, tag and uploaded file in them."
+      "v": " are deleted, with every cluster, card, comment, tag and uploaded file in them — and so is a workspace where everyone else can only view."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Workspaces you created that other people are in",
+      "v": "Workspaces you created where someone else can edit",
       "children": [
        {
         "t": "text",
-        "v": "Workspaces you created that other people are in"
+        "v": "Workspaces you created where someone else can edit"
        }
       ]
      },
@@ -31727,7 +31773,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " deleted. Ownership passes to the longest-standing other member, who is named on the confirmation screen. Their work is never destroyed by your leaving."
+      "v": " deleted. Ownership passes to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving."
      }
     ],
     [

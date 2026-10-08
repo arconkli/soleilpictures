@@ -6,7 +6,7 @@ navLabel: Plans and pricing
 section: account
 order: 1
 updated: 2026-10-07
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards — each cluster counts as one — unlimited free collaborators, and any file type up to {{fact:freeFileCap}}. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and per-file size and length limits are gone, on a {{fact:creatorStorage}} drive. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards — each cluster counts as one — unlimited free collaborators, and any file type up to {{fact:freeFileCap}}. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and the size limits go: no per-file size or length limits, and a {{fact:creatorStorage}} drive instead of {{fact:freeStorage}}. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
     a: Two things and only two — total cards, and how big or long a single file can be (video stops at {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio at {{fact:freeAudioCap}}, PDFs and any other file at {{fact:freeFileCap}}; images are never capped). Any file type is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
@@ -31,7 +31,7 @@ related:
 ---
 
 Two plans. The difference between them is deliberately small and deliberately
-honest — three enforced limits, listed below, and nothing else. The
+honest — four enforced limits, listed below, and nothing else. The
 [pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
 is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
 
@@ -47,6 +47,7 @@ page, drops it.
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
 - Any file type, up to {{fact:freeFileCap}} each — images are never capped
+- A **{{fact:freeStorage}}** drive for your files
 
 ## {{fact:planName}}
 
@@ -64,13 +65,14 @@ page, drops it.
 
 ## What is genuinely limited
 
-Exactly two things, and a third row that is the same thing said per file:
+Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:
 
 | | Demo | {{fact:planName}} |
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | {{fact:demoCardLimit}} | Unlimited |
 | **[File types](/docs/files)** | Any — up to {{fact:freeFileCap}} each | Any, at any size |
 | **Per-file size and length** | Video {{fact:freeVideoCap}} or {{fact:freeVideoSec}} · audio {{fact:freeAudioCap}} · PDF and any other file {{fact:freeFileCap}} · images never | No limit |
+| **Storage** | {{fact:freeStorage}} | {{fact:creatorStorage}} |
 
 Everything else is the same on both plans.
 
@@ -80,7 +82,7 @@ it costs no cards.
 
 ## One plan covers the workspace
 
-Those three limits are charged to **whoever owns the workspace**, never to the
+Those limits are charged to **whoever owns the workspace**, never to the
 person doing the work. So a single {{fact:planName}} plan lifts them for
 everyone in that workspace: invite whoever you like, and they build at your
 limits without a plan of their own. There are no per-seat charges on any plan.

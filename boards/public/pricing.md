@@ -13,6 +13,7 @@ No card, no clock, no expiry.
 - **50 cards** to build with
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
+- A **5GB** drive for your files
 
 ## Creator — $25/mo
 
@@ -31,7 +32,7 @@ Three differences, and nothing else. Everything absent from this table is on bot
 |---|---|---|
 | Cards | 50 | Unlimited |
 | File types | Any file up to 50 MB (images never capped) | Any file, any size — .psd, .fig, .zip, anything |
-| Per-file size and length | Video 30 MB or 60s · audio 50 MB · PDF 50 MB | No limit, on a 100GB drive |
+| Per-file size and length | Video 30 MB or 60s · audio 50 MB · PDF 50 MB, on a 5GB drive | No limit, on a 100GB drive |
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 

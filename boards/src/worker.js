@@ -239,6 +239,9 @@ function cspReportOnlyFor(nonce) {
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "object-src 'none'",
+    // Without a reporting endpoint the Report-Only window collected nothing:
+    // violations showed in each visitor's console and nowhere else.
+    'report-uri /api/csp-report',
   ].join('; ');
 }
 class NonceStamp {
@@ -583,6 +586,9 @@ const worker = {
         return await handleOAuthRoute(url, request, env);
       }
 
+      if (url.pathname === '/api/csp-report') {
+        return await handleCspReport(request, env, ctx);
+      }
       if (url.pathname === '/api/og') {
         // Anyone may ask, so the fetch it does for them is bounded per
         // address (2026-10-06 audit: it was an open proxy, unthrottled).
@@ -2706,6 +2712,68 @@ function ogTargetIsAllowed(u) {
 // Per isolate, per address: it bounds a loop, not a determined crowd (the same
 // trade worker-media's limiter makes), and needs no storage of its own.
 const ogAllow = makeRateLimiter({ perMinute: 60 });
+
+// ── CSP violation reports (Phase 5 of the 2026-10-06 audit) ──────────────────
+// The Report-Only policy (cspReportOnlyFor) is the dry run for enforcing
+// script-src, and enforcing waits on a clean window of reports — which nothing
+// was collecting. Reports land in client_errors as kind 'csp_violation', where
+// the admin errors view already looks, reduced to origins and paths (never a
+// query string), rate-limited per address and deduplicated per isolate so one
+// noisy page cannot flood the table.
+const cspAllow = makeRateLimiter({ perMinute: 20 });
+const cspSeen = new Map();   // directive|blocked|page → when it was last recorded
+
+export function cspReportRows(body, userAgent = '', now = Date.now()) {
+  const reports = Array.isArray(body)
+    ? body.filter((r) => r?.type === 'csp-violation').map((r) => r.body).filter(Boolean)
+    : (body && typeof body === 'object' && body['csp-report']) ? [body['csp-report']] : [];
+  const bare = (u) => {
+    try { const x = new URL(u); return `${x.origin}${x.pathname}`.slice(0, 200); }
+    catch (_) { return String(u || '').slice(0, 40); }
+  };
+  const rows = [];
+  for (const r of reports.slice(0, 5)) {
+    const directive = String(r['effective-directive'] || r.effectiveDirective || r['violated-directive'] || '').slice(0, 60);
+    const blocked = bare(r['blocked-uri'] || r.blockedURL || '');
+    let page = null;
+    try { page = new URL(r['document-uri'] || r.documentURL).pathname.slice(0, 200); } catch (_) { /* no page */ }
+    const file = r['source-file'] || r.sourceFile;
+    const key = `${directive}|${blocked}|${page}`;
+    if ((cspSeen.get(key) || 0) > now - 10 * 60_000) continue;
+    if (cspSeen.size > 2000) cspSeen.clear();
+    cspSeen.set(key, now);
+    rows.push({
+      kind: 'csp_violation',
+      name: directive || null,
+      message: `${blocked || 'inline'} blocked by ${directive || 'the policy'}`.slice(0, 300),
+      stack: file ? `${bare(file)}:${Number(r['line-number'] || r.lineNumber) || 0}` : null,
+      path: page,
+      user_agent: String(userAgent || '').slice(0, 300),
+    });
+  }
+  return rows;
+}
+
+async function handleCspReport(request, env, ctx) {
+  if (request.method !== 'POST') return new Response(null, { status: 405 });
+  if (!cspAllow(request.headers.get('cf-connecting-ip') || 'unknown')) return new Response(null, { status: 204 });
+  let body = null;
+  try { body = JSON.parse((await request.text()).slice(0, 20_000)); } catch (_) { return new Response(null, { status: 204 }); }
+  const rows = cspReportRows(body, request.headers.get('user-agent') || '');
+  if (rows.length && env.SUPABASE_SERVICE_ROLE_KEY) {
+    ctx.waitUntil(fetch(`${env.SUPABASE_URL}/rest/v1/client_errors`, {
+      method: 'POST',
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'content-type': 'application/json',
+        prefer: 'return=minimal',
+      },
+      body: JSON.stringify(rows),
+    }).catch(() => {}));
+  }
+  return new Response(null, { status: 204 });
+}
 
 async function handleOg(url, request) {
   const target = url.searchParams.get('url');
