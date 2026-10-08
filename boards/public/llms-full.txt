@@ -1861,7 +1861,7 @@ Another cluster's files are read-only from the panel: browse, preview and downlo
 
 Grid and list
 
-Grid — a tile per item with a real preview. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same.
+Grid — a tile per item with a real preview, laid out in rows that fill the width. Pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same. S, M and L set the tile size, remembered on your device.
 
 List — a row per item, with type, size and dates. Dense, scannable, sortable. A cluster that is mostly audio opens in the list, for the columns below.
 

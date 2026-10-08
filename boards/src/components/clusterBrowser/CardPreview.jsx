@@ -12,7 +12,10 @@
 //   • link       → favicon + domain (LinkMark)
 //   • placeholder→ ImagePlaceholder (pending / missing src)
 //   • icon       → typed KindIcon fallback
+import { useEffect, useState } from 'react';
 import { R2Image } from '../R2Image.jsx';
+import { getMeta, subscribeMeta } from '../../lib/imageMeta.js';
+import { tileImageSrc } from '../../lib/justifiedGrid.js';
 import { ImagePlaceholder } from '../primitives.jsx';
 import { KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
@@ -20,16 +23,33 @@ import { iconForFile } from '../cards/FileCard.jsx';
 import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark, AudioMark } from './marks.jsx';
 import { GridContentPreview } from './GridContentPreview.jsx';
 
+// The stored image's metadata (its preview sizes), re-rendering when it lands.
+function useImageMeta(src) {
+  const key = typeof src === 'string' && src.startsWith('r2:') ? src.slice(3) : null;
+  const [, bump] = useState(0);
+  useEffect(() => (key ? subscribeMeta(key, () => bump((n) => n + 1)) : undefined), [key]);
+  return key ? getMeta(key) : null;
+}
+
 // `size`: 'row' (40px thumb) or 'tile' (large gallery preview). Controls the
-// R2Image displayed-px hint + glyph size.
-export function CardPreview({ item, size = 'row' }) {
+// R2Image displayed-px hint + glyph size. `px`: the tile's real width, when the
+// caller knows it (the justified grid does).
+export function CardPreview({ item, size = 'row', px = null }) {
   const p = item?.preview || { mode: 'icon', kind: item?.kind };
   const glyphSize = size === 'tile' ? 40 : 22;
-  const displayPx = size === 'tile' ? 320 : 48;
+  const displayPx = px || (size === 'tile' ? 320 : 48);
+  const meta = useImageMeta(p.mode === 'r2' ? p.src : null);
+  // A preview that won't load falls back to the original, once.
+  const [originalOnly, setOriginalOnly] = useState(false);
 
   if (p.mode === 'r2' && p.src) {
-    return <R2Image src={p.src} alt="" className="cbp-img" draggable="false"
-                    w={displayPx} h={displayPx} />;
+    // The smallest stored size that covers the tile on this screen — a grid of
+    // originals is tens of megabytes for thumbnails.
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    const src = originalOnly ? p.src : tileImageSrc(p.src, meta, displayPx * dpr);
+    return <R2Image key={src} src={src} alt="" className="cbp-img" draggable="false"
+                    w={displayPx} h={displayPx}
+                    onError={src !== p.src ? () => setOriginalOnly(true) : undefined} />;
   }
   if (p.mode === 'file') {
     const GlyphIcon = iconForFile(p.ext, p.mime);

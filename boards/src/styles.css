@@ -3884,7 +3884,9 @@ body {
   padding: 0 clamp(14px, 4vw, 40px);
 }
 .list-inner {
-  max-width: 1100px;
+  /* Wide enough to use a wide screen: the grid fills rows to the width, so a
+     cap only left a margin of empty floor either side. */
+  max-width: 1600px;
   margin: 0 auto;
   padding-block: clamp(20px, 3vw, 32px);
 }
@@ -8745,12 +8747,12 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 }
 .cbt-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
 .cbt-btn.is-open, .cbt-btn.has-active { border-color: var(--soleil); color: var(--ink-0); }
-.cbt-add { background: var(--soleil-soft); border-color: transparent; color: var(--soleil); }
-.cbt-add:hover { color: var(--soleil); filter: brightness(1.12); }
+.cbt-add { background: var(--bg-4); border-color: transparent; color: var(--ink-0); }
+.cbt-add:hover { background: var(--bg-act); color: var(--ink-0); }
 /* #ffa500 on a 10%-gold wash over #ededf0 is about 1.8:1. Same gold, darkened
    until it reads, so the button keeps its identity in both themes. */
-[data-theme='light'] .cbt-add { color: #8a5600; }
-[data-theme='light'] .cbt-add:hover { color: #6e4400; filter: none; background: rgba(255,165,0,.18); }
+[data-theme='light'] .cbt-add { color: var(--ink-0); }
+[data-theme='light'] .cbt-add:hover { color: var(--ink-0); background: var(--bg-act); }
 /* Quiet storage upsell next to Add files (free workspace owners only) —
    muted ink, not gold: gold stays reserved for active/selection. */
 .cbt-upsell {
@@ -9111,7 +9113,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile.is-selected { border-color: var(--soleil); box-shadow: 0 0 0 1px var(--soleil); }
 .ct-tile-preview { position: relative; aspect-ratio: 4 / 3; background: var(--bg-2); display: grid; place-items: center; overflow: hidden; }
 .ct-tile-preview .cbp-glyph, .ct-tile-preview .cbp-file, .ct-tile-preview .cbp-note { color: var(--ink-3); }
-.ct-tile-spin { right: 6px; bottom: 6px; }
+.ct-tile-spin { left: 6px; top: 6px; right: auto; bottom: auto; }
 /* Gallery transport. Centred over the preview rather than beside the name —
    with cover art being read off the files, the tile IS the artwork and the
    play button belongs on it. */
@@ -22033,9 +22035,56 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   pointer-events: none;
 }
 
-/* Beside the board the panel header is sticky too: the List layout's column
-   header and the keyboard cursor's scroll margin sit below it. */
-.list-wrap.is-panel .ct-head { top: var(--lp-head-h, 0px); }
-.list-wrap.is-panel .ct-row { scroll-margin-top: calc(var(--lp-head-h, 0px) + 40px); }
+/* The toolbar is sticky (beside the board, the panel's whole header): the
+   List layout's column header and the keyboard cursor's scroll margin sit
+   below it. */
+.list-wrap .ct-head { top: var(--lp-head-h, 0px); }
+.list-wrap .ct-row { scroll-margin-top: calc(var(--lp-head-h, 0px) + 40px); }
+.cb-head {
+  position: sticky; top: 0; z-index: 8;
+  margin: 0 -8px; padding: 8px 8px 10px;
+  background: var(--bg-2);
+}
 /* The selection bar's keyboard hint doesn't fit a panel. */
 .list-wrap.is-panel .list-selbar-hint { display: none; }
+
+/* ── Files grid: justified rows (JustifiedGallery) ────────────────────────
+   Pictures keep their shape; tiles are the preview with the name under it.
+   The radius matches cards on the canvas, so the two read as one set of
+   things. Gold only on selection. */
+.ct-gallery.ct-jg { display: block; position: relative; }
+.ct-jg .ct-tile {
+  display: flex; flex-direction: column;
+  border: 0; border-radius: 0; background: none; overflow: visible;
+}
+.ct-jg .ct-tile-preview {
+  aspect-ratio: auto; height: var(--jg-h); flex: none;
+  border-radius: var(--radius-md);
+  background: var(--bg-3);
+  outline: 1px solid var(--line-1); outline-offset: -1px;
+  transition: transform var(--dur-quick) var(--ease), box-shadow var(--dur-quick) var(--ease);
+}
+.ct-jg .ct-tile:hover .ct-tile-preview { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
+.ct-jg .ct-tile.is-selected { box-shadow: none; }
+.ct-jg .ct-tile.is-selected .ct-tile-preview { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.ct-jg .ct-tile.is-peer .ct-tile-preview { outline: 2px solid var(--peer-color); outline-offset: 1px; }
+.ct-jg .ct-tile-meta { flex: 1; min-height: 0; display: flex; align-items: center; padding: 0 2px; }
+.ct-jg .ct-tile-type { display: none; }
+.ct-jg .ct-tile-name { font-size: 12px; color: var(--ink-1); }
+.ct-jg .ct-tile.is-selected .ct-tile-name { color: var(--ink-0); }
+.ct-jg .ct-group-tile .ct-tile-preview { box-shadow: 3px 3px 0 -1px var(--bg-4), 3px 3px 0 0 var(--line-2); }
+/* A new arrival: a ring that fades, rather than a wash over the picture. */
+.ct-jg .ct-tile.is-new { animation: none; }
+.ct-jg .ct-tile.is-new .ct-tile-preview { animation: jg-new-ring 1400ms var(--ease); }
+@keyframes jg-new-ring {
+  0%   { box-shadow: 0 0 0 3px var(--soleil-soft); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ct-jg .ct-tile-preview { transition: none; }
+  .ct-jg .ct-tile:hover .ct-tile-preview { transform: none; }
+  .ct-jg .ct-tile.is-new .ct-tile-preview { animation: none; }
+}
+/* Tile size: S / M / L, in the toolbar and the panel's View menu. */
+.cbt-sizepill .view-pill-btn { min-width: 26px; padding: 0 6px; font: 600 11px/1 var(--font-sans); }
+.cbt-sizes { padding: 2px 8px 6px; }

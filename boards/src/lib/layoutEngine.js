@@ -93,7 +93,12 @@ export function naturalWidth(items, rowHeight = TARGET_ROW_HEIGHT) {
  * has OVERFLOWED, every solved height is ≤ the target — rows shrink to fit and
  * never grow, so nothing ever exceeds the container.
  */
-export function justifiedRows(items, { width, gap = LAYOUT_GAP, rowHeight = TARGET_ROW_HEIGHT } = {}) {
+export function justifiedRows(items, {
+  width, gap = LAYOUT_GAP, rowHeight = TARGET_ROW_HEIGHT,
+  // How far the last, unfilled row may grow past rowHeight. A canvas drop
+  // allows a little; a gallery keeps its last row at the target size.
+  lastRowMaxStretch = LAST_ROW_MAX_STRETCH,
+} = {}) {
   const list = items || [];
   if (!list.length) return [];
 
@@ -126,7 +131,7 @@ export function justifiedRows(items, { width, gap = LAYOUT_GAP, rowHeight = TARG
     const available = W - (indices.length - 1) * gap;
     let h = available / sumAspect;
     // The last row is left as it falls rather than stretched to the edge.
-    if (ri === rows.length - 1) h = Math.min(h, rowHeight * LAST_ROW_MAX_STRETCH);
+    if (ri === rows.length - 1) h = Math.min(h, rowHeight * lastRowMaxStretch);
     h = Math.max(1, h);
 
     const top = Math.round(y);

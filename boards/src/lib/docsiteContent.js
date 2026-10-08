@@ -15879,7 +15879,49 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a tile per item with a real preview. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same."
+     "v": " — a tile per item with a real preview, laid out in rows that fill the width. Pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same. "
+    },
+    {
+     "t": "strong",
+     "v": "S",
+     "children": [
+      {
+       "t": "text",
+       "v": "S"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "M",
+     "children": [
+      {
+       "t": "text",
+       "v": "M"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "L",
+     "children": [
+      {
+       "t": "text",
+       "v": "L"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " set the tile size, remembered on your device."
     }
    ]
   },
