@@ -2436,7 +2436,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Scout is a text-message ingest bot. You text photos, clips, voice notes, PDFs or links and they land arranged on a Soleil Clusters canvas, grouped by what you said about them. No app, and no signup — an account and a board are created behind you the first time you text, and voice notes are transcribed so you can search them. Scout is invite-only for now, so /scout puts you on the list; the canvas is open today and the number you leave connects to the account you make.",
     "section": "scout",
     "order": 0,
-    "updated": "2026-08-11",
+    "updated": "2026-10-07",
     "navLabel": "Soleil Scout",
     "headings": [
       {

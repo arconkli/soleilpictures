@@ -20,7 +20,7 @@
 // is a third ingest surface and calls the same function, so a .mov texted to the
 // bot and a .mov dragged onto the canvas can never disagree about what it is.
 
-import { heifToJpeg } from 'heif2jpeg';
+import decodeHeic from 'heic-decode';
 import sharp from 'sharp';
 import exifReader from 'exif-reader';
 import { rgbaToThumbHash } from 'thumbhash';
@@ -42,6 +42,10 @@ const HASH_EDGE = 96;
 const COLOR_EDGE = 8;
 
 const HEIC_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence']);
+// A 48MP iPhone frame is well inside this. A HEIC claiming more is refused
+// before it is decoded: the decode allocates width × height × 4 bytes up front,
+// so a crafted header is otherwise a one-message way to exhaust the machine.
+const MAX_HEIC_PIXELS = 100_000_000;
 
 export function makeUploader(cfg) {
   const r2 = makeR2({
@@ -134,13 +138,31 @@ export function readExif(exifBuffer) {
 // Convert HEIC/HEIF to JPEG. Anything else passes through untouched — we do NOT
 // re-encode JPEGs, because a scout photo re-compressed for no reason is a
 // quality loss the user can see and we gain nothing.
+//
+// The decoder is libheif compiled to WebAssembly (heic-decode), not a native
+// module (audit IN-3, 2026-10-06). libheif keeps shipping memory-safety fixes,
+// and this process holds the service-role key: a crafted HEIC that corrupts
+// memory inside WebAssembly stays inside WebAssembly. sharp's prebuilt binaries
+// read a HEIC's container — its size and EXIF, below — but cannot decode HEVC,
+// which is the only reason a second decoder exists.
+//
+// The JPEG is built from raw pixels, so it carries no EXIF. Capture time and
+// place are read off the HEIC first and returned beside it as `exif`.
 export async function normalizeImage(bytes, mimeType, name) {
   const m = String(mimeType || '').toLowerCase();
   if (!HEIC_TYPES.has(m) && !/\.hei[cf]$/i.test(name || '')) {
-    return { bytes, mimeType: m || 'application/octet-stream', ext: extFor(m, name) };
+    return { bytes, mimeType: m || 'application/octet-stream', ext: extFor(m, name), exif: null };
   }
-  const jpeg = await heifToJpeg(Buffer.from(bytes), { quality: 88 });
-  return { bytes: jpeg, mimeType: 'image/jpeg', ext: 'jpg' };
+  const src = Buffer.from(bytes);
+  const meta = await sharp(src).metadata().catch(() => null);
+  if (!meta?.width || !meta?.height || meta.width * meta.height > MAX_HEIC_PIXELS) {
+    throw new Error('HEIC unreadable or too large to convert');
+  }
+  const { width, height, data } = await decodeHeic({ buffer: src });
+  const jpeg = await sharp(Buffer.from(data.buffer, data.byteOffset, data.byteLength), {
+    raw: { width, height, channels: 4 },
+  }).jpeg({ quality: 88 }).toBuffer();
+  return { bytes: jpeg, mimeType: 'image/jpeg', ext: 'jpg', exif: meta.exif || null };
 }
 
 function extFor(mime, name) {
@@ -234,7 +256,7 @@ export function orientedSize(meta) {
   };
 }
 
-async function analyzeImage(bytes) {
+async function analyzeImage(bytes, sourceExif = null) {
   const base = sharp(Buffer.from(bytes), { failOn: 'none' }).rotate();
   const meta = await base.metadata();
   const { width, height } = orientedSize(meta);
@@ -261,8 +283,9 @@ async function analyzeImage(bytes) {
     preview,
     previewSm,
     // Read from the SOURCE metadata, before .rotate() consumed the orientation
-    // tag — every other EXIF field survives that call untouched.
-    ...readExif(meta.exif),
+    // tag — every other EXIF field survives that call untouched. A converted
+    // HEIC has none of its own; its original's comes in as sourceExif.
+    ...readExif(sourceExif || meta.exif),
   };
 }
 
@@ -291,7 +314,7 @@ export async function uploadImage(cfg, r2, {
   // the end of the moodboard.
   let info = null;
   try {
-    info = await analyzeImage(norm.bytes);
+    info = await analyzeImage(norm.bytes, norm.exif);
   } catch (e) {
     console.error('[scout] image analyze failed', e?.message);
   }

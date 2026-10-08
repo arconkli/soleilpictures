@@ -16,6 +16,25 @@
 // loses photos. Every key therefore keeps an in-flight promise chain, and a
 // later burst awaits its predecessor instead of racing it.
 
+// WHO A BURST BELONGS TO (audit, 2026-10-06). A burst is filed to one
+// person's account — the sender of its first message. Keyed by conversation
+// alone, a group chat's burst belonged to whoever spoke first, so everyone
+// else's photos landed on that person's canvas, under their name. Scout is a
+// 1:1 service: group chats are not read at all, and the key carries the sender
+// too, so a burst can never mix two people even if a group slipped through.
+//
+// iMessage marks a group's chat GUID with ";+;" and a 1:1 chat's with ";-;"
+// (the provider's own chatTypeFromGuid); the space's `type` says the same thing
+// when the provider sets it. Either one saying "group" is enough to skip.
+export function isDirectChat(space) {
+  const id = String(space?.id || '');
+  return id !== '' && space?.type !== 'group' && !id.includes(';+;');
+}
+
+export function burstKey(platform, space, handle) {
+  return `${platform}:${space?.id}:${handle}`;
+}
+
 export function makeBatcher({ waitMs = 20_000, maxWaitMs = 90_000, onFlush }) {
   const pending = new Map();   // key → { burst, timer, firstAt }
   const chains = new Map();    // key → Promise of the last flush for that key

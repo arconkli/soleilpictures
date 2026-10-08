@@ -1,7 +1,8 @@
 # Soleil Scout ingest service.
 #
-# Debian-based (not Alpine) on purpose: heif2jpeg ships prebuilt native binaries
-# built against glibc, and musl would force a source build of libheif/libde265.
+# Debian-based (not Alpine) on purpose: sharp ships prebuilt binaries built
+# against glibc. HEIC is decoded by libheif compiled to WebAssembly
+# (heic-decode), never a native build — see normalizeImage in src/media.js.
 FROM node:22-slim
 
 WORKDIR /app

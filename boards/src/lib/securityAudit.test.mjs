@@ -601,3 +601,39 @@ test('request origins are salted hashes of a browser\'s own network, server-only
   assert.ok(doc.includes('{{fact:requestOriginRetentionDays}}'), 'the privacy page states the retention from code');
   assert.match(doc, /never as the address itself/);
 });
+
+// ── Scout, before it ever launches (OM-7, AC-11) ─────────────────────────────
+
+test('a Scout shell account adopts an address only by confirming it, and the route names nobody', () => {
+  const src = read('../worker-scout.js');
+  const claim = src.slice(src.indexOf('export async function handleScoutClaim'),
+    src.indexOf('export async function handleScoutSessionMint'));
+  // The USER endpoint holds the change until the new address confirms it; the
+  // admin endpoint applied it at once.
+  assert.match(claim, /fetch\(`\$\{env\.SUPABASE_URL\}\/auth\/v1\/user`, \{\s+method: 'PUT',/);
+  assert.match(claim, /apikey: env\.SUPABASE_ANON_KEY,\s+authorization: request\.headers\.get\('authorization'\)/);
+  assert.doesNotMatch(claim, /\/auth\/v1\/admin\/users/, 'the admin endpoint sets an address unconfirmed and says who is registered');
+  assert.doesNotMatch(claim, /conflict: true/);
+  assert.match(claim, /return jsonRes\(\{ status: 'confirm_sent' \}, 200\);/);
+  assert.doesNotMatch(read('../components/ScoutClaimBanner.jsx'), /'conflict'/);
+});
+
+test('the Scout waitlist needs a hashed connection, a bot check once configured, and has a ceiling', () => {
+  const src = read('../worker-scout.js');
+  assert.match(src, /if \(!hashed\) return jsonRes\(/, 'no hash, no signup');
+  assert.match(src, /if \(!await turnstileOk\(env, body\.turnstileToken, request\.headers\.get\('cf-connecting-ip'\)\)\)/);
+  assert.match(src, /if \(!env\.TURNSTILE_SECRET_KEY\) return true;/, 'dormant until the secret is set');
+  assert.match(src, /if \(row\.status === 'full'\)/);
+  assert.match(read('../components/ScoutSignupBox.jsx'),
+    /challenge = captchaEnabled\(\) \? await captchaToken\(captchaRef\.current\) : '';/);
+
+  const fn = latestDefinition('scout_request_invite').body;
+  assert.match(fn, /if p_ip_hash is null or length\(p_ip_hash\) < 16 then/);
+  assert.match(fn, /pg_advisory_xact_lock\(hashtext\('scout_waitlist'\)\)/, 'caps are not raced');
+  for (const c of ['c_ip_hour', 'c_ip_day', 'c_pending_max']) {
+    assert.match(fn, new RegExp(`${c}\\s+constant int := \\d+;`), c);
+  }
+  assert.match(fn, /if v_ip_hour >= c_ip_hour or v_ip_day >= c_ip_day then/);
+  assert.match(fn, /ops_alert_raise\('scout_waitlist_full',/);
+  assert.match(fn, /return query select 'full'::text, false, null::int;/);
+});

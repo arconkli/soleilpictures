@@ -47,6 +47,18 @@ const TRANSCODE_TIMEOUT_MS = Number(process.env.SCOUT_TRANSCODE_TIMEOUT_MS || 8 
 // Codecs no non-Safari browser will decode. The whole reason this module exists.
 const NEEDS_TRANSCODE = new Set(['hevc', 'h265', 'prores', 'mpeg4', 'vp6f']);
 
+// EVERY INPUT IS A FILE A STRANGER TEXTED US (audit IN-2, 2026-10-06). ffmpeg
+// picks a demuxer from a file's CONTENT, not its name, and some demuxers follow
+// references: an HLS playlist or a concat list saved as "clip.mov" can name
+// local paths or URLs, which on this host means reading its files — the
+// service-role key lives in its environment — or reaching its network, then
+// handing the result back inside a video. So an input may only be the local
+// file we wrote, and only in a real audio or video container.
+export const INPUT_GUARD = Object.freeze([
+  '-protocol_whitelist', 'file',
+  '-format_whitelist', 'mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,avi,mpegts,ogg,wav,mp3,aac,flac,caf,amr,flv,asf',
+]);
+
 function run(bin, args, { timeoutMs, capture = 'stdout' } = {}) {
   return new Promise((resolve, reject) => {
     let child;
@@ -134,7 +146,7 @@ export async function probeMedia(bytes, ext) {
   try {
     return await withTempFile(bytes, ext, async (path) => {
       const raw = await run('ffprobe', [
-        '-v', 'error', '-print_format', 'json',
+        '-v', 'error', ...INPUT_GUARD, '-print_format', 'json',
         '-show_format', '-show_streams', path,
       ], { timeoutMs: PROBE_TIMEOUT_MS });
       const j = JSON.parse(raw.toString());
@@ -186,7 +198,7 @@ export async function posterFrame(bytes, ext, durationSec) {
   try {
     return await withTempFile(bytes, ext, async (path) => {
       const out = await run('ffmpeg', [
-        '-v', 'error',
+        '-v', 'error', ...INPUT_GUARD,
         // -ss BEFORE -i seeks by keyframe without decoding everything up to it.
         '-ss', String(at), '-i', path,
         '-frames:v', '1',
@@ -225,7 +237,7 @@ export async function toTranscriptionAudio(bytes, ext) {
     return await withTempFile(bytes, ext, async (path, dir) => {
       const out = join(dir, 'out.mp3');
       await run('ffmpeg', [
-        '-v', 'error', '-i', path,
+        '-v', 'error', ...INPUT_GUARD, '-i', path,
         '-vn', '-ac', '1', '-ar', '16000', '-b:a', '64k',
         '-y', out,
       ], { timeoutMs: TRANSCODE_TIMEOUT_MS });
@@ -258,7 +270,7 @@ export async function transcodeToH264(bytes, ext, probe) {
     return await withTempFile(bytes, ext, async (path, dir) => {
       const out = join(dir, 'out.mp4');
       await run('ffmpeg', [
-        '-v', 'error', '-i', path,
+        '-v', 'error', ...INPUT_GUARD, '-i', path,
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24',
         // yuv420p, or Safari and most hardware decoders refuse the result —
         // an "everyone can play this" transcode that Safari cannot play would

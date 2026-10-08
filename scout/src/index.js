@@ -12,7 +12,7 @@ import { Spectrum, attachment } from 'spectrum-ts';
 import { imessage } from 'spectrum-ts/providers/imessage';
 import { loadConfig } from './config.js';
 import { makeUploader } from './media.js';
-import { makeBatcher } from './batcher.js';
+import { makeBatcher, isDirectChat, burstKey } from './batcher.js';
 import { makeProgress } from './progress.js';
 import { runBurst } from './pipeline.js';
 import { startInviteLoop } from './invites.js';
@@ -211,6 +211,10 @@ async function main() {
   for await (const [space, message] of app.messages) {
     try {
       const platform = String(message.platform || 'imessage').toLowerCase();
+      // 1:1 chats only, and only what the other person sent. The provider
+      // already drops our own messages; `direction` is checked again because a
+      // reply of ours fed back into the pipeline would loop. See batcher.js.
+      if (!isDirectChat(space) || message?.direction === 'outbound') continue;
       const handle = senderHandle(message, space);
       if (!handle) continue;
 
@@ -221,7 +225,7 @@ async function main() {
       }).catch(() => true);   // log unavailable → prefer delivering over dropping
       if (fresh === false) continue;
 
-      const key = `${platform}:${space.id}`;
+      const key = burstKey(platform, space, handle);
       const parsed = await readContent(message.content);
       if (parsed.kind === 'ignored') continue;
       if (parsed.kind === 'unknown') {
