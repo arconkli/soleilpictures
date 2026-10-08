@@ -681,3 +681,14 @@ test('workspace mates read member_profiles, never the whole profiles row', () =>
   const later = latestPolicy('ws-mate read profile');
   assert.ok(!later || Number(later.file.slice(0, 4)) < 383, `${later?.file} re-creates the ws-mate policy on profiles`);
 });
+
+// ── 0384: joining one cluster does not hand you everyone's address ──────────
+
+test('Messages shows an email address only to someone who shares a workspace with its owner', () => {
+  const fn = latestDefinition('list_messageable_users').body;
+  assert.match(fn, /case when mt\.user_id is not null then u\.email::text end\s+as email,/);
+  assert.match(fn, /case when mt\.user_id is not null then u\.email::text end\)::text\s+as name,/,
+    'the name fallback must not be an address either');
+  assert.match(fn, /or \(mt\.user_id is not null and coalesce\(u\.email, ''\)\s+ilike/, 'nor may the search match one');
+  assert.doesNotMatch(fn, /^\s+u\.email::text\s+as email,/m);
+});

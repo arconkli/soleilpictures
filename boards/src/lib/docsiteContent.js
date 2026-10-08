@@ -31622,7 +31622,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "People you share a workspace with see your name, your colour and your picture — nothing else from your account: not your settings, your plan, or where you signed up from."
+     "v": "People you share a workspace with see your name, your colour and your picture — nothing else from your account: not your settings, your plan, or where you signed up from. In Messages, someone who shares only a cluster with you, not a workspace, sees your name but not your email address."
     }
    ]
   },
