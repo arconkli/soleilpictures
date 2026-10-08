@@ -72,7 +72,9 @@ function PdfPage({ doc, pageNum, scale, base, dpr, onRef }) {
   );
 }
 
-export function PdfViewer({ src, name, onClose }) {
+// `embedded`: drawn inside another viewer (Files' Quick look) — no overlay of
+// its own, no close button, and Escape belongs to the host. ↑/↓ still page.
+export function PdfViewer({ src, name, onClose, embedded = false }) {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [doc, setDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -178,7 +180,7 @@ export function PdfViewer({ src, name, onClose }) {
   // them — otherwise Escape would clear a selected card instead of closing.
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return; }
+      if (e.key === 'Escape') { if (embedded) return; e.stopPropagation(); onClose?.(); return; }
       if (status !== 'ready') return;
       if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); e.stopPropagation(); scrollToPage(current + 1); }
       else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); e.stopPropagation(); scrollToPage(current - 1); }
@@ -187,7 +189,7 @@ export function PdfViewer({ src, name, onClose }) {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [status, current, scrollToPage, onClose]);
+  }, [status, current, scrollToPage, onClose, embedded]);
 
   const filename = useCallback(() => {
     let b = (name || 'document').toString().trim().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
@@ -209,8 +211,9 @@ export function PdfViewer({ src, name, onClose }) {
   }, [src, downloading, filename]);
 
   return (
-    <div className="pdfv" role="dialog" aria-label={name || 'PDF preview'}
-         onClick={() => onClose?.()}>
+    <div className={`pdfv${embedded ? ' pdfv--embedded' : ''}`}
+         role={embedded ? undefined : 'dialog'} aria-label={name || 'PDF preview'}
+         onClick={embedded ? undefined : () => onClose?.()}>
       <div className="pdfv-bar" onClick={(e) => e.stopPropagation()}>
         <span className="pdfv-title" title={name || ''}>{name || 'PDF'}</span>
         <span className="pdfv-spacer" />
@@ -232,15 +235,19 @@ export function PdfViewer({ src, name, onClose }) {
                     onClick={() => setScale((z) => clampZoom(z + ZOOM_STEP))}>+</button>
           </span>
         )}
-        <button className="pdfv-btn" aria-label="Download" title="Download"
-                disabled={downloading} onClick={onDownload}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-               stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8 2 V11 M4 8 L8 12 L12 8 M3 14 H13" />
-          </svg>
-        </button>
-        <button className="pdfv-btn pdfv-x" aria-label="Close" title="Close"
-                onClick={(e) => { e.stopPropagation(); onClose?.(); }}>×</button>
+        {!embedded && (
+          <button className="pdfv-btn" aria-label="Download" title="Download"
+                  disabled={downloading} onClick={onDownload}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+                 stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 2 V11 M4 8 L8 12 L12 8 M3 14 H13" />
+            </svg>
+          </button>
+        )}
+        {!embedded && (
+          <button className="pdfv-btn pdfv-x" aria-label="Close" title="Close"
+                  onClick={(e) => { e.stopPropagation(); onClose?.(); }}>×</button>
+        )}
       </div>
 
       <div className="pdfv-scroll" ref={scrollRef} onClick={(e) => e.stopPropagation()}>

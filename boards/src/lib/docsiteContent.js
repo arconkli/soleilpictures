@@ -2574,6 +2574,70 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "Space"
+      },
+      {
+       "t": "text",
+       "v": " or double-click"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Quick look — "
+      },
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " step through the files, "
+      },
+      {
+       "t": "code",
+       "v": "Space"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Esc"
+      },
+      {
+       "t": "text",
+       "v": " closes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘I"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Info for the selected file — remembered on your device"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌘A"
       }
      ],
@@ -2711,7 +2775,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Audition the highlighted file (Files)"
+       "v": "Audition the highlighted row (Files, list layout)"
       }
      ]
     ]
@@ -16319,7 +16383,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "On a narrow window, in a split pane, or with the detail panel open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room."
+     "v": "On a narrow window, in a split pane, or with Info open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room."
     }
    ]
   },
@@ -17044,21 +17108,214 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "The detail panel",
+   "text": "Quick look",
    "inline": [
     {
      "t": "text",
-     "v": "The detail panel"
+     "v": "Quick look"
     }
    ],
-   "id": "the-detail-panel"
+   "id": "quick-look"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Select an item for a large preview plus its metadata — type, size, dimensions, dates, and where it lives. From there:"
+     "v": "Double-click a file, or highlight it and press "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": ", to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with "
+    },
+    {
+     "t": "code",
+     "v": "↑"
+    },
+    {
+     "t": "text",
+     "v": " / "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": ", and everything else shows its preview large. "
+    },
+    {
+     "t": "code",
+     "v": "←"
+    },
+    {
+     "t": "text",
+     "v": " / "
+    },
+    {
+     "t": "code",
+     "v": "→"
+    },
+    {
+     "t": "text",
+     "v": " step to the previous and next file, in the order Files is showing them. "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " closes it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Along the top: "
+    },
+    {
+     "t": "strong",
+     "v": "Show on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Show on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (or "
+    },
+    {
+     "t": "strong",
+     "v": "Show in cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Show in cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", for a file you're browsing in another cluster), "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and "
+    },
+    {
+     "t": "strong",
+     "v": "Info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On an audio row in the List layout, "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " still auditions it in place, so a pack plays through with "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Info",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Info"
+    }
+   ],
+   "id": "info"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "code",
+     "v": "⌘I"
+    },
+    {
+     "t": "text",
+     "v": ", or the button in Quick look and on the selection bar — shows a selected item's large preview and metadata: type, size, dimensions, dates, and where it lives. Whether it's open is remembered on your device; it no longer opens on every click. From there:"
     }
    ]
   },
@@ -17465,7 +17722,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Yes — every item has a real preview, and the detail panel a large one"
+       "v": "Yes — every item has a real preview, and Quick look shows it full size"
       }
      ]
     ],

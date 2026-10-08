@@ -9,9 +9,10 @@ import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
 import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 
-// `downloadName` — the uploaded file's own name, when the card kept one; the
-// download uses it over the display title (cardDownload's rule).
-export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null }) {
+// The zoomable image itself — fit to the space by default; click for actual
+// size with drag-to-pan; pinch on touch. Shared by the lightbox and Files'
+// Quick look. `onModeChange` tells the host 'fit' | 'actual'.
+export function ImageZoomStage({ src, alt = '', adjust, cardId, onModeChange = null }) {
   // 'fit'    → contained inside the viewport (default)
   // 'actual' → natural size, pannable
   // Touch: pinch-zoom interpolates continuously between fit and 4× scale,
@@ -21,13 +22,10 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
   const [touchScale, setTouchScale] = useState(1);
   const stageRef = useRef(null);
   const dragRef = useRef(null);
-  const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useEffect(() => { onModeChange?.(mode); }, [mode, onModeChange]);
+  // A new picture starts fitted.
+  useEffect(() => { setMode('fit'); }, [src]);
 
   // Reset pan when switching back to fit mode so the next 'actual' switch
   // starts centered.
@@ -87,6 +85,60 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
     dragRef.current = null;
   };
 
+  // Reflect photo adjustments in the viewer. `filter` is a separate CSS
+  // property from `transform`, so it never collides with the pan/zoom
+  // transform; the flip transform is appended to whatever transform the
+  // pan/zoom logic produces.
+  const adjFilter = buildFilterRef(adjust, cardId);
+  const adjFlip = buildTransform(adjust);
+
+  return (
+    <div className={`lightbox-stage lightbox-mode-${mode}`}
+         ref={stageRef}
+         style={{ touchAction: 'manipulation' }}
+         onPointerDown={onPanStart}
+         onPointerMove={onPanMove}
+         onPointerUp={onPanEnd}
+         onPointerCancel={onPanEnd}>
+      <R2Image className="lightbox-img"
+               src={src}
+               alt={alt}
+               eager
+               draggable="false"
+               onClick={onImgClick}
+               style={(() => {
+                 // Touch pinch wins while active (touchScale != 1),
+                 // otherwise fall back to the mouse fit/actual modes. The
+                 // flip transform (if any) is appended; the color filter is
+                 // a separate property.
+                 let transform = '';
+                 if (touchScale !== 1) {
+                   transform = `scale(${touchScale}) translate(${pan.x / touchScale}px, ${pan.y / touchScale}px)`;
+                 } else if (mode === 'actual') {
+                   transform = `translate(${pan.x}px, ${pan.y}px)`;
+                 }
+                 if (adjFlip) transform = `${transform} ${adjFlip}`.trim();
+                 const style = {};
+                 if (transform) style.transform = transform;
+                 if (adjFilter) style.filter = adjFilter;
+                 return Object.keys(style).length ? style : undefined;
+               })()} />
+    </div>
+  );
+}
+
+// `downloadName` — the uploaded file's own name, when the card kept one; the
+// download uses it over the display title (cardDownload's rule).
+export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null }) {
+  const [mode, setMode] = useState('fit');
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const onDownload = async (e) => {
     e.stopPropagation();
     if (downloading) return;
@@ -96,13 +148,6 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
     try { await downloadImage({ src, title: downloadName || title, adjust }); }
     finally { setDownloading(false); }
   };
-
-  // Reflect photo adjustments in the viewer. `filter` is a separate CSS
-  // property from `transform`, so it never collides with the pan/zoom
-  // transform; the flip transform is appended to whatever transform the
-  // pan/zoom logic produces.
-  const adjFilter = buildFilterRef(adjust, cardId);
-  const adjFlip = buildTransform(adjust);
 
   return (
     <div className={`lightbox lightbox-mode-${mode}`}
@@ -121,37 +166,7 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
           <path d="M8 2 V11 M4 8 L8 12 L12 8 M3 14 H13" />
         </svg>
       </button>
-      <div className="lightbox-stage"
-           ref={stageRef}
-           style={{ touchAction: 'manipulation' }}
-           onPointerDown={onPanStart}
-           onPointerMove={onPanMove}
-           onPointerUp={onPanEnd}
-           onPointerCancel={onPanEnd}>
-        <R2Image className="lightbox-img"
-                 src={src}
-                 alt={alt || title || ''}
-                 eager
-                 draggable="false"
-                 onClick={onImgClick}
-                 style={(() => {
-                   // Touch pinch wins while active (touchScale != 1),
-                   // otherwise fall back to the mouse fit/actual modes. The
-                   // flip transform (if any) is appended; the color filter is
-                   // a separate property.
-                   let transform = '';
-                   if (touchScale !== 1) {
-                     transform = `scale(${touchScale}) translate(${pan.x / touchScale}px, ${pan.y / touchScale}px)`;
-                   } else if (mode === 'actual') {
-                     transform = `translate(${pan.x}px, ${pan.y}px)`;
-                   }
-                   if (adjFlip) transform = `${transform} ${adjFlip}`.trim();
-                   const style = {};
-                   if (transform) style.transform = transform;
-                   if (adjFilter) style.filter = adjFilter;
-                   return Object.keys(style).length ? style : undefined;
-                 })()} />
-      </div>
+      <ImageZoomStage src={src} alt={alt || title || ''} adjust={adjust} cardId={cardId} onModeChange={setMode} />
       {title && <div className="lightbox-cap">{title}</div>}
     </div>
   );

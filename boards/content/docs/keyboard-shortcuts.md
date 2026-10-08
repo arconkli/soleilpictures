@@ -103,6 +103,8 @@ the board, these keys go to whichever side the pointer was last over.
 |---|---|
 | `←` `→` `↑` `↓` | Move through files — in the grid, `↑` / `↓` go to the nearest tile in the next row |
 | `Enter` | Select the highlighted file |
+| `Space` or double-click | Quick look — `←` / `→` step through the files, `Space` or `Esc` closes |
+| `⌘I` | Info for the selected file — remembered on your device |
 | `⌘A` | Select every file showing — search and filters apply |
 | `Esc` | Clear the selection |
 | `⌫` or `Del` | Delete the selection, with undo |
@@ -114,7 +116,7 @@ the board, these keys go to whichever side the pointer was last over.
 |---|---|
 | `Enter` | Play · pause the selected clip |
 | `L` | Loop the selected clip |
-| `Space` | Audition the highlighted file (Files) |
+| `Space` | Audition the highlighted row (Files, list layout) |
 
 `Enter` rather than `Space` on the canvas, because `Space` is already the pan
 modifier there and arrows already move cards. In [Files](/docs/clusters/list-view)

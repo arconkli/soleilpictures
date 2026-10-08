@@ -26,7 +26,8 @@ function MetaRow({ label, value }) {
 }
 
 
-export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onReveal, onDelete }) {
+// `inline`: Info beside Quick look, which is already showing the preview.
+export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false }) {
   const feedback = useFeedback();
 
   // Esc closes it through ListSurface's keyboard handler (clearing the
@@ -95,13 +96,13 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
   const location = boards[item.boardId]?.name || null;
 
   return (
-    <aside className="cb-detail surface-frosted">
+    <aside className={`cb-detail surface-frosted${inline ? ' is-inline' : ''}`} aria-label="Info">
       <div className="cbd-head">
         <span className="cbd-title" title={item.name}>{item.name}</span>
-        <button className="cbd-close" onClick={onClose} aria-label="Close"><Icon as={X} size={16} /></button>
+        <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} /></button>
       </div>
       <div className="cbd-body">
-        <div className="cbd-preview"><CardPreview item={item} size="tile" /></div>
+        {!inline && <div className="cbd-preview"><CardPreview item={item} size="tile" /></div>}
         <MetaRow label="Type" value={item.typeLabel} />
         {/* For a loop these four ARE the metadata. Without them the panel a
             producer taps on a published pack reported type, size and two

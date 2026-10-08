@@ -1400,8 +1400,12 @@ export const DOCS_PAGES = [
         "text": "Previews"
       },
       {
-        "id": "the-detail-panel",
-        "text": "The detail panel"
+        "id": "quick-look",
+        "text": "Quick look"
+      },
+      {
+        "id": "info",
+        "text": "Info"
       },
       {
         "id": "adding-files-here",

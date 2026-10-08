@@ -295,6 +295,8 @@ In Files, beside the board or full screen. Beside the board, these keys go to wh
 Key | Action
 ← → ↑ ↓ | Move through files — in the grid, ↑ / ↓ go to the nearest tile in the next row
 Enter | Select the highlighted file
+Space or double-click | Quick look — ← / → step through the files, Space or Esc closes
+⌘I | Info for the selected file — remembered on your device
 ⌘A | Select every file showing — search and filters apply
 Esc | Clear the selection
 ⌫ or Del | Delete the selection, with undo
@@ -305,7 +307,7 @@ Audio
 Key | Action
 Enter | Play · pause the selected clip
 L | Loop the selected clip
-Space | Audition the highlighted file (Files)
+Space | Audition the highlighted row (Files, list layout)
 
 Enter rather than Space on the canvas, because Space is already the pan modifier there and arrows already move cards. In Files neither is taken, so auditioning a pack is ↓ and Space — and when a clip finishes, the next one starts on its own.
 
@@ -1890,7 +1892,7 @@ Tempo and key come from the filename as the file uploads, and are editable on th
 
 Above the list you get the pack in one line: how many audio files, the tempo range they span, and how much material there is in total. It follows the search and the filters, so narrowing to 128 re-reads the selection you are actually looking at.
 
-On a narrow window, in a split pane, or with the detail panel open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room.
+On a narrow window, in a split pane, or with Info open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room.
 
 Sorting and filtering
 
@@ -1939,9 +1941,17 @@ Previews
 
 Everything gets a real preview, not a generic icon. Images and video show themselves; grids, docs, schedules, shapes, notes and links get schematic marks that indicate their shape and content.
 
-The detail panel
+Quick look
 
-Select an item for a large preview plus its metadata — type, size, dimensions, dates, and where it lives. From there:
+Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it.
+
+Along the top: Show on board (or Show in cluster, for a file you're browsing in another cluster), Download, and Info.
+
+On an audio row in the List layout, Space still auditions it in place, so a pack plays through with ↓ and Space.
+
+Info
+
+Info — ⌘I, or the button in Quick look and on the selection bar — shows a selected item's large preview and metadata: type, size, dimensions, dates, and where it lives. Whether it's open is remembered on your device; it no longer opens on every click. From there:
 
 Action | What it does
 Open on canvas | Jumps to the card, selected, on the canvas
@@ -1975,7 +1985,7 @@ Like a drive | In Clusters
 Browse a folder's contents | Yes — the Files view, as a grid or a list
 Sort and filter | Yes — by name, type, size and dates, filtered to one kind of content
 Search | Yes — ⌘K finds files by name, card text and the words inside documents. It does not read text inside images or PDFs
-Preview without opening | Yes — every item has a real preview, and the detail panel a large one
+Preview without opening | Yes — every item has a real preview, and Quick look shows it full size
 Download | Yes — one file, or a selection as a zip of up to 500 files or 500 MB
 Folders inside folders | Yes — nested clusters, as deep as you like
 Upload a whole folder | Yes — drop it on a canvas and its folders become nested clusters

@@ -149,10 +149,11 @@ test('columns yield to the PANE, not the viewport', async ({ page }) => {
   expect(wide.waveShown).toBe(true);
   expect(wide.overflow).toBe(0);
 
-  // Opening the detail popout takes 336px out of the pane with the viewport
-  // untouched — the case a viewport media query cannot see at all. Before the
-  // container query the name column was left about 26px here.
+  // Opening Info takes 336px out of the pane with the viewport untouched —
+  // the case a viewport media query cannot see at all. Before the container
+  // query the name column was left about 26px here.
   await page.locator('.ct-row').nth(2).click();
+  await page.keyboard.press('ControlOrMeta+i');
   await expect(page.locator('.cb-detail')).toBeVisible();
   await page.waitForTimeout(200);
   const narrow = await rowMetrics(page);
@@ -263,9 +264,10 @@ test('the waveform scrubs the row that is sounding, and only that one', async ({
   await expect(row).toHaveClass(/is-selected/);
   await expect(page.locator('.ct-row.is-playing')).toHaveCount(0);
 
-  // Selecting opens the 320px popout, which takes the pane to ~784px. The
-  // waveform has to survive that, or a pack loses every waveform on the first
-  // click anyone makes.
+  // Info (⌘I) opens the 320px popout, which takes the pane to ~784px. The
+  // waveform has to survive that, or a pack loses every waveform the moment
+  // anyone opens it.
+  await page.keyboard.press('ControlOrMeta+i');
   await expect(page.locator('.cb-detail')).toBeVisible();
   await expect(row.locator('.ct-wave')).toBeVisible();
 
