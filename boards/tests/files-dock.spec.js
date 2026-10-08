@@ -175,3 +175,26 @@ test('a plain click on a file in the panel selects it on the board', async ({ pa
   await tile.click();
   await expect(page.locator(`[data-card-id="${id}"].selected, [data-card-id="${id}"].is-selected`)).toHaveCount(1);
 });
+
+test('a click on the divider of a panel at its widest leaves it beside the board', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  const divider = page.getByRole('separator', { name: 'Resize Files' });
+  await divider.focus();
+  for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowLeft');
+  const box = await divider.boundingBox();
+  // Left half of the 7px divider — reads as at or past the panel's edge.
+  await page.mouse.click(box.x + 1, box.y + box.height / 2);
+  await expect(panel(page)).toBeVisible();
+  await expect(fullFiles(page)).toHaveCount(0);
+});
+
+test('the View menu closes when its button is pressed again', async ({ page }) => {
+  await go(page);
+  await page.keyboard.press('f');
+  const view = panel(page).getByRole('button', { name: /^View/ });
+  await view.click();
+  await expect(panel(page).getByRole('menu')).toBeVisible();
+  await view.click();
+  await expect(panel(page).getByRole('menu')).toHaveCount(0);
+});

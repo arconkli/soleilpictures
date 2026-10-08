@@ -761,6 +761,21 @@ export function ListSurface({
     feedback?.toast?.({ type: 'info', message: 'Switch to Board to drop links or text onto a cluster.' });
   };
 
+  // The panel's header is sticky, and so is the List layout's column header
+  // under it: publish the panel header's height so the column header (and the
+  // keyboard cursor's scroll margin) sit below it rather than under it.
+  const lpHeadRef = useRef(null);
+  useEffect(() => {
+    const head = lpHeadRef.current;
+    const wrap = head?.closest?.('.list-wrap');
+    if (!head || !wrap || typeof ResizeObserver === 'undefined') return undefined;
+    const set = () => wrap.style.setProperty('--lp-head-h', `${Math.round(head.getBoundingClientRect().height)}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(head);
+    return () => { ro.disconnect(); wrap.style.removeProperty('--lp-head-h'); };
+  }, [isPanel]);
+
   // Files → board. A tile or row drags the selection it belongs to (or just
   // itself); the board it lands on decides what the drop means (lib/filesDrag).
   // Beside the board it always can — browsing another cluster included, where
@@ -979,7 +994,7 @@ export function ListSurface({
          onPointerEnter={() => setActivePane(paneId)}
          onClick={() => { setSelectedBoards(new Set()); setSelectedCards(new Set()); }}>
       <div className="list-inner" ref={listInnerRef} onClick={(e) => e.stopPropagation()}>
-        {isPanel && <div className="lp-head">{toolbarJsx}</div>}
+        {isPanel && <div className="lp-head" ref={lpHeadRef}>{toolbarJsx}</div>}
         {!isPanel && subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
@@ -1020,7 +1035,9 @@ export function ListSurface({
             </div>
           </>
         )}
-        {(otherCards.length > 0 || isPanel) && (
+        {/* Full Files with only sub-clusters still shows the files toolbar
+            when it can go back beside the board — that's where Beside board is. */}
+        {(otherCards.length > 0 || isPanel || !!dockControls?.canShrink) && (
           <div className="cluster-browser">
             {!isPanel && (
             <div className="list-section list-section-files">
@@ -1044,7 +1061,7 @@ export function ListSurface({
                 {visibleItems.length === 0 && descHits.length === 0 ? (
                   <div className="cluster-browser-empty">
                     {query || filters.size ? 'No files match your search.'
-                      : isPanel ? 'No files here yet — drop some in.' : 'No files yet.'}
+                      : isPanel && canEdit ? 'No files here yet — drop some in.' : 'No files yet.'}
                   </div>
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <ClusterGallery
