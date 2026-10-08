@@ -50,8 +50,8 @@ to [Trash](/docs/clusters/trash-and-recovery).
 
 Dropping a folder works on the canvas, on a desktop browser. A phone cannot
 drag a folder, and the Files view takes files rather than folders.
-Clusters made from a dropped folder open in [Files](/docs/clusters/list-view);
-press `F` for the canvas, where the cards are already laid out.
+Clusters made from a dropped folder open in [Files](/docs/clusters/list-view)
+for you; press `F` for the canvas, where the cards are already laid out.
 
 ## Adding a cluster inside one
 
@@ -130,11 +130,13 @@ silently overwrite the image you chose.
 
 Every cluster has two views of the same contents:
 
-- **[Canvas](/docs/canvas)** — the infinite surface, where position means something
-- **[List](/docs/clusters/list-view)** — a sortable, searchable file browser
+- **[Board](/docs/canvas)** — the infinite canvas, where position means something
+- **[Files](/docs/clusters/list-view)** — a sortable, searchable file browser, as a grid or a list
 
-Switching does not convert anything. Settings → **Card defaults** sets which view new
-clusters open in.
+Switch with **Board · Files** at the top of the screen, or press `F`. Switching
+does not convert anything. Settings → **Card defaults** sets which view new
+clusters open in; clusters made from a dropped folder open in Files for the
+person who dropped them.
 
 ## Finding clusters
 

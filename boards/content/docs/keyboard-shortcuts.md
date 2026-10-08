@@ -100,8 +100,8 @@ browser as a `Ctrl`-scroll, so `Ctrl` means zoom whatever else is configured.
 |---|---|
 | `Enter` | Play · pause the selected clip |
 | `L` | Loop the selected clip |
-| `Space` | Audition the highlighted row (Files) |
-| `↑` / `↓` | Move through rows (Files) |
+| `Space` | Audition the highlighted row (Files, list layout) |
+| `↑` / `↓` | Move through rows (Files, list layout) |
 
 `Enter` rather than `Space` on the canvas, because `Space` is already the pan
 modifier there and arrows already move cards. In [Files](/docs/clusters/list-view)

@@ -141,3 +141,12 @@ test('cards with no position go last in board order, in z order', () => {
   ];
   assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['p', 'u1', 'u2']);
 });
+
+test('a tall hero beside a 2x2 of thumbnails reads the thumbnails row by row', () => {
+  const items = [
+    placed('A', 0, 0, 600),
+    placed('B', 200, 0), placed('C', 400, 0),
+    placed('D', 200, 300), placed('E', 400, 300),
+  ];
+  assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['A', 'B', 'C', 'D', 'E']);
+});

@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { VIEW_LABELS, nextView, filesCountOf, formatFilesCount, isViewSwitchKey } from './viewSwitch.js';
+import { VIEW_LABELS, nextView, filesCountOf, formatFilesCount, isViewSwitchKey, overlayOpen, OVERLAY_SELECTOR } from './viewSwitch.js';
 
 test('the interface names the stored views Board and Files', () => {
   assert.equal(VIEW_LABELS.canvas, 'Board');
@@ -45,4 +45,15 @@ test('F switches only bare, and never on key repeat', () => {
   }
   assert.equal(isViewSwitchKey({ key: 'g' }), false);
   assert.equal(isViewSwitchKey(null), false);
+});
+
+test('an open viewer, menu, modal or Settings blocks the switch key', () => {
+  const docWith = (hit) => ({ querySelector: (sel) => (sel === OVERLAY_SELECTOR && hit ? {} : null) });
+  assert.equal(overlayOpen(docWith(true)), true);
+  assert.equal(overlayOpen(docWith(false)), false);
+  assert.equal(overlayOpen(null), false);
+  assert.equal(overlayOpen({ querySelector: () => { throw new Error('x'); } }), false);
+  for (const s of ['[role="dialog"]', '[role="menu"]', '[aria-modal="true"]', '.settings-bg']) {
+    assert.ok(OVERLAY_SELECTOR.includes(s), s);
+  }
 });

@@ -100,7 +100,7 @@ import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
-import { filesCountOf, isViewSwitchKey, nextView } from './lib/viewSwitch.js';
+import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
@@ -1125,6 +1125,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // overlay without giving up the pane that keeps its board loaded.
   const [splitDoc, setSplitDoc] = useState(null);
   const [splitDocFull, setSplitDocFull] = useState(false);
+  // The pane Board · Files acts on — the topbar switch, its count, F and the
+  // ⌘K command all agree on it. Same rule as the breadcrumb (toolbarPane,
+  // below): the split pane once you have touched it, unless a document is
+  // docked there, which has no view of its own to switch.
+  const switchInSplit = activePaneId === 'split' && !!splitId && !splitDoc;
+  const switchView = switchInSplit ? splitView : view;
+  const switchBoardId = switchInSplit ? splitId : currentId;
+  const switchFilesCount = useMemo(() => {
+    if (!switchInSplit) return filesCount;
+    return splitYb.ready && splitYb.boardId === splitId ? filesCountOf(splitYb.cards) : 0;
+  }, [switchInSplit, filesCount, splitYb.ready, splitYb.boardId, splitYb.cards, splitId]);
   const dockDocCard = ({ cardId, boardId }) => {
     if (!cardId || !boardId) return;
     setSplitStack([boardId]);
@@ -2815,7 +2826,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const view = opts.view || d.view || 'canvas';
       // opts.name = caller-supplied name (the project_first intent seed) — a
       // pre-named cluster also skips the rename autofocus below.
-      const defaultName = opts.name || (view === 'list' ? 'Untitled list' : 'Untitled cluster');
+      const defaultName = opts.name || 'Untitled cluster';
       // Ask the cap before the cluster exists, the way addNewProject does: its
       // card on this canvas costs one. Asked only by addCard below, the refusal
       // came after createBoard — a cluster with no card, logged as created,
@@ -2903,7 +2914,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const b = await createBoard({
           workspaceId: workspace.id,
           parentBoardId: rootBoard.id,
-          name: name || (view === 'list' ? 'Untitled list' : 'Untitled cluster'),
+          name: name || 'Untitled cluster',
           view, userId: user.id,
           cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
         });
@@ -3907,7 +3918,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const b = await createBoard({
         workspaceId: parent.workspace_id,
         parentBoardId: parentId,
-        name: view === 'list' ? 'Untitled list' : 'Untitled cluster',
+        name: 'Untitled cluster',
         view, userId: user.id,
         cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
       });
@@ -5187,10 +5198,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try {
       res = await runFolderImport(nodes, {
         parentBoardId: targetBoardId, at,
-        // A dropped folder is files first, so its clusters open in Files
-        // (the cards are still laid out on each canvas — Board is one F away).
+        // A dropped folder is files first, so its clusters open in Files for
+        // the person who dropped it (this device's override). The shared view
+        // stays canvas: a Files-mode cluster draws on its parent as a list of
+        // names, and a folder of pictures should keep its thumbnail there.
         createCluster: async ({ parentBoardId, name }) => {
-          const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'list', userId: user.id });
+          const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'canvas', userId: user.id });
+          setViewOverride(o => ({ ...o, [b.id]: 'list' }));
           return b.id;
         },
         deleteCluster, removeTopCard,
@@ -7769,26 +7783,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // F — flip a cluster between Board and Files. App-level rather than in
   // CanvasSurface's keymap because it has to work from the Files view too.
-  // Same guards as the canvas tool keys (V/H/N…): never while typing, never
-  // under a dialog, an open doc or the palette, and only on a board surface.
-  // In split view it flips the pane the pointer last touched.
+  // It persists a shared value (boards.view), so it stands down harder than
+  // the canvas tool keys: never while typing, never under anything open on
+  // top of the board — a dialog, a viewer, a menu, Settings, Messages, the
+  // palette, an open doc — and only on a board surface. A doc docked in the
+  // split pane is the exception: with the pointer on the board beside it, F
+  // flips that board. Otherwise it acts on the pane the switch describes.
   const setViewRef = useRef(setView);
   setViewRef.current = setView;
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
-      if (isEditableTarget(e) || anyModalOpen()) return;
-      if (currentSurface !== 'board' || openDocCard || paletteOpen) return;
+      if (isEditableTarget(e) || anyModalOpen() || overlayOpen()) return;
+      if (currentSurface !== 'board' || paletteOpen || settingsOpen || pickerOpen
+          || mobileNavOpen || tweak.showMessages) return;
+      const dockedDoc = !!openDocCard && !!splitDoc && openDocCard.cardId === splitDoc.cardId && !splitDocFull;
+      if (openDocCard && !dockedDoc) return;
+      if (dockedDoc && activePaneId === 'split') return;
       e.preventDefault();
-      if (splitId && !splitDoc && activePaneId === 'split') {
-        setViewRef.current(nextView(splitView), 'shortcut', splitId);
-      } else {
-        setViewRef.current(nextView(view), 'shortcut');
-      }
+      setViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, splitView, splitId, splitDoc, activePaneId, currentSurface, openDocCard, paletteOpen]);
+  }, [switchView, switchBoardId, splitDoc, splitDocFull, activePaneId, currentSurface, openDocCard,
+      paletteOpen, settingsOpen, pickerOpen, mobileNavOpen, tweak.showMessages]);
 
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
@@ -7813,11 +7831,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       keywords: ['gallery', 'surface', 'preview', 'popup', 'modal', 'screen', 'browse', 'design'],
       available: captureAllowed,
       run: () => openGallery() },
-    { id: 'view-switch', label: view === 'list' ? 'Switch to Board' : 'Switch to Files',
-      icon: view === 'list' ? BoundingBox : FilesIcon,
+    { id: 'view-switch', label: switchView === 'list' ? 'Switch to Board' : 'Switch to Files',
+      icon: switchView === 'list' ? BoundingBox : FilesIcon,
       keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch'],
       available: currentSurface === 'board',
-      run: () => setView(nextView(view), 'palette') },
+      run: () => setView(nextView(switchView), 'palette', switchBoardId) },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
@@ -8591,7 +8609,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-center">
-            <ViewSwitch view={view} filesCount={filesCount} onSwitch={(v) => setView(v)} />
+            <ViewSwitch view={switchView} filesCount={switchFilesCount}
+                        onSwitch={(v) => setView(v, 'topbar', switchBoardId)} />
           </div>
 
           <div className="tb-right">

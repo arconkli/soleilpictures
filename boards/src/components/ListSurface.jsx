@@ -139,8 +139,15 @@ export function ListSurface({
 
   // Grid or List: this session's pick for the cluster, else what this device
   // remembers for it, else Grid (List for a mostly-audio pack).
+  // The default is decided once per cluster, the first time it has contents,
+  // so a card added or deleted later never swaps the layout under you.
   const savedLayout = useMemo(() => readFilesLayout(board?.id), [board?.id, layoutChoice]);
-  const viewMode = layoutChoice[board?.id] || savedLayout || defaultFilesLayout(items);
+  const openedLayoutRef = useRef({});
+  if (board?.id && items.length && !openedLayoutRef.current[board.id]) {
+    openedLayoutRef.current[board.id] = defaultFilesLayout(items);
+  }
+  const viewMode = layoutChoice[board?.id] || savedLayout
+    || openedLayoutRef.current[board?.id] || defaultFilesLayout(items);
 
   // Available filter buckets (with counts) present in this cluster.
   const availableBuckets = useMemo(() => {
@@ -397,7 +404,9 @@ export function ListSurface({
   const onSort = useCallback((key) => {
     setSortKey(prev => {
       if (prev === key) {
-        setSortDir(d => { const nd = d === 'asc' ? 'desc' : 'asc'; writeBrowserPrefs({ sortDir: nd }); return nd; });
+        // Write the key too: the default (board order) is never written on
+        // its own, and a direction without a key is ignored on remount.
+        setSortDir(d => { const nd = d === 'asc' ? 'desc' : 'asc'; writeBrowserPrefs({ sortKey: prev, sortDir: nd }); return nd; });
         return prev;
       }
       // New key: sensible default direction — board order/name/type asc,
@@ -573,8 +582,11 @@ export function ListSurface({
       // useful reading.
       const onControl = !!e.target.closest?.('button, a[href], [role="button"], select');
 
-      // ↑/↓ move the cursor; Space auditions it; Enter selects it.
-      if (navItems.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      // ↑/↓ move the cursor; Space auditions it; Enter selects it. List layout
+      // only: the grid draws no cursor, so there the keys keep their native
+      // jobs (scrolling) instead of driving a highlight nobody can see.
+      const cursorKeys = viewMode === 'table';
+      if (cursorKeys && navItems.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
         const i = activeId ? navItems.findIndex(it => it.id === activeId) : -1;
         const step = e.key === 'ArrowDown' ? 1 : -1;
@@ -584,7 +596,7 @@ export function ListSurface({
         setActiveId(navItems[next].id);
         return;
       }
-      if (e.key === ' ' || e.code === 'Space') {
+      if (cursorKeys && (e.key === ' ' || e.code === 'Space')) {
         // Only claim Space when there is actually something to audition —
         // otherwise leave the page's own scroll behaviour alone.
         const target = activeId || (selectedCards.size === 1 ? [...selectedCards][0] : null);
@@ -596,7 +608,7 @@ export function ListSurface({
         }
         return;
       }
-      if (e.key === 'Enter' && activeId && !onControl) {
+      if (cursorKeys && e.key === 'Enter' && activeId && !onControl) {
         e.preventDefault();
         setSelectedCards(new Set([activeId]));
         setSelectedBoards(new Set());
@@ -648,7 +660,23 @@ export function ListSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [feedback, selectedBoards, selectedCards, boards, mutators, hasSplit, paneId,
-      navItems, activeId, auditionCard, canEdit]);
+      navItems, activeId, auditionCard, canEdit, viewMode]);
+
+  // Board order puts a fresh upload where it lands on the canvas — below
+  // everything — so bring the first new row or tile into view rather than
+  // leaving its flash and spinner below the fold.
+  const listInnerRef = useRef(null);
+  useEffect(() => {
+    if (!recentlyAddedIds?.size) return undefined;
+    const raf = requestAnimationFrame(() => {
+      const root = listInnerRef.current;
+      if (!root) return;
+      const first = [...root.querySelectorAll('[data-item-id]')]
+        .find(el => recentlyAddedIds.has(el.getAttribute('data-item-id')));
+      first?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [recentlyAddedIds]);
 
   const [dragOver, setDragOver] = useState(false);
   // Board tile currently highlighted as a reparent drop target.
@@ -708,7 +736,7 @@ export function ListSurface({
       return;
     }
     // URLs / plain text still have no home in list view — nudge to canvas.
-    feedback?.toast?.({ type: 'info', message: 'Switch to canvas view to drop links or text onto a cluster.' });
+    feedback?.toast?.({ type: 'info', message: 'Switch to Board to drop links or text onto a cluster.' });
   };
 
   const totalSel = selectedBoards.size + selectedCards.size;
@@ -818,7 +846,7 @@ export function ListSurface({
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}
          onClick={() => { setSelectedBoards(new Set()); setSelectedCards(new Set()); }}>
-      <div className="list-inner" onClick={(e) => e.stopPropagation()}>
+      <div className="list-inner" ref={listInnerRef} onClick={(e) => e.stopPropagation()}>
         {subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>

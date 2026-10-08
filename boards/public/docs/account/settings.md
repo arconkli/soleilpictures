@@ -111,8 +111,8 @@ What new cards *start as*, so you are not restyling every one. Existing cards
 are never changed.
 
 - **Notes** — background, text colour, font, size
-- **Clusters** — whether new clusters open as
-  [canvas or list](/docs/clusters/list-view)
+- **Clusters** — whether new clusters open as a board or in
+  [Files](/docs/clusters/list-view)
 - **Docs** — font
 - **Shapes** — shape, stroke colour, fill colour, stroke width, line style
 

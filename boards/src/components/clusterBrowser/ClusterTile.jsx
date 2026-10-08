@@ -22,6 +22,7 @@ export const ClusterTile = memo(function ClusterTile({
     <div
       className={`ct-tile${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}`}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
+      data-item-id={item.id}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >

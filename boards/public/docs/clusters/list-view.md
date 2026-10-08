@@ -7,14 +7,15 @@ _Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 
 The board is for arranging. Files is for finding.
 
 Same cluster, same contents, different question being asked. Switch with
-**Board · Files** at the top of the screen — the Files side shows how many
-things are inside — or press `F` to flip between them. `⌘K` → "Switch to
-Files" does the same.
+**Board · Files** at the top of the screen — the Files side counts the cards
+inside, not counting nested clusters — or press `F` to flip between them.
+`⌘K` → "Switch to Files" does the same. On a phone the switch is the two icons
+in the top bar. In split view all three act on the pane you last worked in.
 
-A cluster remembers which view it was left in. Folders you
-[drop in](/docs/clusters#dropping-a-folder) open in Files, because a dropped
-folder is files first; their cards are still laid out on each canvas, one `F`
-away.
+A cluster remembers which view it was left in. Clusters made from a folder you
+[drop in](/docs/clusters#dropping-a-folder) open in Files for you, because a
+dropped folder is files first; their cards are still laid out on each canvas,
+one `F` away, and on the parent board they keep their thumbnail.
 
 ## Grid and list
 
@@ -84,8 +85,8 @@ room.
 In the **grid** a loop's tile *is* its waveform, so a pack reads as a wall
 of shapes rather than a wall of identical icons.
 
-For going through a lot of them, use the keyboard: `↑` and `↓` move a highlight
-down the rows, `Space` plays whatever is highlighted, `Enter` selects it. **When
+For going through a lot of them, use the keyboard in the **list** layout: `↑`
+and `↓` move a highlight down the rows, `Space` plays whatever is highlighted, `Enter` selects it. **When
 a clip finishes, the next audio row starts on its own** and the highlight
 follows — so a pack of loops plays through while you keep your hands still. It
 stops at the end rather than wrapping.

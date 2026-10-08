@@ -163,7 +163,7 @@ A: Only if you invite them as an editor. A public link is view-only. Editors do 
 URL: https://clusters.soleilpictures.com/docs/concepts
 Updated: 2026-10-08
 
-Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster can be viewed as a board, an infinite canvas, or as files, a browsable grid or list, and both views show the same contents.
+Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.
 
 Four ideas, nested inside each other. Once these are straight, the rest of the product is discoverable.
 
@@ -293,8 +293,8 @@ Audio
 Key | Action
 Enter | Play · pause the selected clip
 L | Loop the selected clip
-Space | Audition the highlighted row (Files)
-↑ / ↓ | Move through rows (Files)
+Space | Audition the highlighted row (Files, list layout)
+↑ / ↓ | Move through rows (Files, list layout)
 
 Enter rather than Space on the canvas, because Space is already the pan modifier there and arrows already move cards. In Files neither is taken, so auditioning a pack is ↓ and Space — and when a clip finishes, the next one starts on its own.
 
@@ -432,9 +432,9 @@ A: Files, and screenplays. Everything else is a rebuild — which is why this pa
 URL: https://clusters.soleilpictures.com/docs/canvas
 Updated: 2026-10-02
 
-Every cluster opens as an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
+A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 
-The canvas is the default view of every cluster. It is an unbounded surface — position means something here, which is the whole point. Two images side by side are being compared; an image with a note under it is being annotated.
+The canvas is a cluster's Board view, and where a new cluster opens. It is an unbounded surface — position means something here, which is the whole point. Two images side by side are being compared; an image with a note under it is being annotated.
 
 If you want the same contents as a sortable file browser instead, every cluster also has a Files view — press F.
 
@@ -1726,7 +1726,7 @@ Folders nested more than 6 levels deep are merged into the deepest cluster rathe
 The things a computer keeps in folders that are not yours to look at — .DS_Store, hidden files, app and project bundles such as a .logicx session or a Photos library — are left out, and so are files iCloud has not downloaded yet. The message counts them.
 On the free plan the folder is counted before anything uploads: one card for each file and one for each cluster it becomes. If it will not all fit, you are asked first, and Add what fits takes whole folders in order rather than a scatter of half-filled ones.
 
-Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and the Files view takes files rather than folders. Clusters made from a dropped folder open in Files; press F for the canvas, where the cards are already laid out.
+Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and the Files view takes files rather than folders. Clusters made from a dropped folder open in Files for you; press F for the canvas, where the cards are already laid out.
 
 Adding a cluster inside one
 
@@ -1780,10 +1780,10 @@ Views
 
 Every cluster has two views of the same contents:
 
-Canvas — the infinite surface, where position means something
-List — a sortable, searchable file browser
+Board — the infinite canvas, where position means something
+Files — a sortable, searchable file browser, as a grid or a list
 
-Switching does not convert anything. Settings → Card defaults sets which view new clusters open in.
+Switch with Board · Files at the top of the screen, or press F. Switching does not convert anything. Settings → Card defaults sets which view new clusters open in; clusters made from a dropped folder open in Files for the person who dropped them.
 
 Finding clusters
 
@@ -1818,9 +1818,9 @@ Every cluster has two views, Board and Files, switched at the top of the screen 
 
 The board is for arranging. Files is for finding.
 
-Same cluster, same contents, different question being asked. Switch with Board · Files at the top of the screen — the Files side shows how many things are inside — or press F to flip between them. ⌘K → "Switch to Files" does the same.
+Same cluster, same contents, different question being asked. Switch with Board · Files at the top of the screen — the Files side counts the cards inside, not counting nested clusters — or press F to flip between them. ⌘K → "Switch to Files" does the same. On a phone the switch is the two icons in the top bar. In split view all three act on the pane you last worked in.
 
-A cluster remembers which view it was left in. Folders you drop in open in Files, because a dropped folder is files first; their cards are still laid out on each canvas, one F away.
+A cluster remembers which view it was left in. Clusters made from a folder you drop in open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, one F away, and on the parent board they keep their thumbnail.
 
 Grid and list
 
@@ -1860,7 +1860,7 @@ An audio row's thumbnail is a play button. Press it and the clip plays in place.
 
 In the grid a loop's tile is its waveform, so a pack reads as a wall of shapes rather than a wall of identical icons.
 
-For going through a lot of them, use the keyboard: ↑ and ↓ move a highlight down the rows, Space plays whatever is highlighted, Enter selects it. When a clip finishes, the next audio row starts on its own and the highlight follows — so a pack of loops plays through while you keep your hands still. It stops at the end rather than wrapping.
+For going through a lot of them, use the keyboard in the list layout: ↑ and ↓ move a highlight down the rows, Space plays whatever is highlighted, Enter selects it. When a clip finishes, the next audio row starts on its own and the highlight follows — so a pack of loops plays through while you keep your hands still. It stops at the end rather than wrapping.
 
 Only one thing plays at a time, everywhere: starting a row stops a clip playing on the canvas, and vice versa. Sorting by tempo or key and then holding ↓ is the fastest way through a folder of samples.
 
@@ -3383,7 +3383,7 @@ Card defaults
 What new cards start as, so you are not restyling every one. Existing cards are never changed.
 
 Notes — background, text colour, font, size
-Clusters — whether new clusters open as canvas or list
+Clusters — whether new clusters open as a board or in Files
 Docs — font
 Shapes — shape, stroke colour, fill colour, stroke width, line style
 
@@ -3548,7 +3548,7 @@ A: Nothing you made is deleted. Every cluster and card stays where it is, and yo
 URL: https://clusters.soleilpictures.com/docs/account/theme-and-defaults
 Updated: 2026-08-26
 
-Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
+Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 
 Appearance
 
@@ -3589,7 +3589,7 @@ Default | Applies to
 Background, text colour, font, size | Every new note
 Shape, stroke colour, fill colour, stroke width, line style | Every new shape
 Font | Every new document
-Default view | Whether clusters open as canvas or list
+Default view | Whether new clusters open as a board or in Files
 
 Unlike Appearance, these belong to the workspace, not to you — so a workspace can have a consistent look without anyone enforcing it by hand. Editors and owners can change them; viewers see them read-only.
 

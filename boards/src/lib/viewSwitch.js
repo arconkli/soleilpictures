@@ -41,3 +41,13 @@ export function isViewSwitchKey(e) {
   if (e.repeat) return false;
   return true;
 }
+
+// Something open on top of the board that owns the keyboard: a viewer (image
+// lightbox, PDF viewer, photo editor, thumbnail crop — all role="dialog"), a
+// context or toolbar menu, a modal, or Settings. Most of these never register
+// with lib/modalGuard, and F is the one bare key here that persists a shared
+// value (boards.view), so it checks the DOM as well.
+export const OVERLAY_SELECTOR = '[role="dialog"], [role="menu"], [aria-modal="true"], .settings-bg';
+export function overlayOpen(doc = typeof document !== 'undefined' ? document : null) {
+  try { return !!doc?.querySelector?.(OVERLAY_SELECTOR); } catch (_) { return false; }
+}

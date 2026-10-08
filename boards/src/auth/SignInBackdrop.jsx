@@ -566,7 +566,7 @@ export function SignInBackdrop({ children, exploreHref }) {
                 <span className="sb-chrome-crumb">›</span>
                 <span className="sb-chrome-crumb sb-here">Lost Time · writers room</span>
               </div>
-              <div className="sb-chrome-pill"><span className="sb-on">Canvas</span><span>List</span></div>
+              <div className="sb-chrome-pill"><span className="sb-on">Board</span><span>Files</span></div>
               <div className="sb-chrome-presence">
                 <span className="sb-av" style={{ background:'#ffa500' }}>A</span>
                 <span className="sb-av" style={{ background:'#6b9088' }}>T</span>

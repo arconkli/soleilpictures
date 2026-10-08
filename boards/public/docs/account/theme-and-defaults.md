@@ -1,6 +1,6 @@
 # Theme and defaults
 
-> Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether clusters open as a canvas or a list. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
+> Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 
 _Source: https://clusters.soleilpictures.com/docs/account/theme-and-defaults · Updated 2026-08-26_
 
@@ -65,7 +65,7 @@ every one. Existing cards are never changed.
 | Background, text colour, font, size | Every new [note](/docs/canvas/notes) |
 | Shape, stroke colour, fill colour, stroke width, line style | Every new [shape](/docs/canvas/shapes-and-drawing) |
 | Font | Every new [document](/docs/documents) |
-| Default view | Whether clusters open as [canvas or list](/docs/clusters/list-view) |
+| Default view | Whether new clusters open as a board or in [Files](/docs/clusters/list-view) |
 
 Unlike Appearance, these belong to the **workspace**, not to you — so a
 workspace can have a consistent look without anyone enforcing it by hand.

@@ -513,7 +513,7 @@ export const TOOLS = [
           url: str('For kind=link'),
           image_key: str('From upload_image. For kind=image'),
           file_key: str('From upload_file. For kind=video, audio, pdf or file'),
-          file_name: str('The file’s own name. For kind=image and video it is what list view shows and what Download names the file; for kind=file, its name'),
+          file_name: str('The file’s own name. For kind=image and video it is what the Files view shows and what Download names the file; for kind=file, its name'),
           mime: str('For kind=file'),
           alt: str('Alt text, for kind=image'),
           color: str('A colour for the card'),
