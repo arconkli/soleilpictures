@@ -789,3 +789,26 @@ test('a deleted account\'s shared workspace passes to an editor, who becomes its
     'the confirmation screen names the same heir');
   assert.match(read('../../content/docs/account/data-and-privacy.md'), /A viewer never\s+inherits a workspace\./);
 });
+
+// ── Phase 5: the CSP dry run reports somewhere ──────────────────────────────
+
+test('the Report-Only policy reports to an endpoint that keeps origins and paths only', async () => {
+  const src = read('../worker.js');
+  assert.match(src, /'report-uri \/api\/csp-report',/);
+  assert.match(src, /if \(url\.pathname === '\/api\/csp-report'\) \{/);
+  const { cspReportRows } = await import('../worker.js');
+  const rows = cspReportRows({ 'csp-report': {
+    'effective-directive': 'script-src-elem',
+    'blocked-uri': 'https://evil.example/x.js?token=secret',
+    'document-uri': 'https://clusters.soleilpictures.com/docs/api?session=abc',
+    'source-file': 'https://clusters.soleilpictures.com/assets/a.js?v=1', 'line-number': 12,
+  } }, 'UA', 1_000_000);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, 'csp_violation');
+  assert.equal(rows[0].path, '/docs/api', 'never a query string');
+  assert.doesNotMatch(JSON.stringify(rows[0]), /secret|session=|v=1/);
+  // The same violation on the same page is recorded once per ten minutes.
+  assert.equal(cspReportRows({ 'csp-report': { 'effective-directive': 'script-src-elem', 'blocked-uri': 'https://evil.example/x.js', 'document-uri': 'https://clusters.soleilpictures.com/docs/api' } }, 'UA', 1_000_000 + 60_000).length, 0);
+  // Reporting API batches are read too.
+  assert.equal(cspReportRows([{ type: 'csp-violation', body: { effectiveDirective: 'img-src', blockedURL: 'https://x.example/i.png', documentURL: 'https://clusters.soleilpictures.com/pricing' } }], '', 2_000_000).length, 1);
+});
