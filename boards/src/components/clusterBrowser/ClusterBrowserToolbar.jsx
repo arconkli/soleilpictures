@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { PathBar } from './PathBar.jsx';
 import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X, Maximize2, Minimize2 } from '../../lib/icons.js';
 
 const SORT_OPTIONS = [
@@ -54,6 +55,9 @@ export function ClusterBrowserToolbar({
   compact = false,
   clusterName = '',
   dockControls = null,
+  // The panel's location (FilesPane) — replaces the plain title when present.
+  pathBar = null,
+  readOnlyNote = '',
 }) {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -94,7 +98,9 @@ export function ClusterBrowserToolbar({
     return (
       <div className="cbt cbt--compact">
         <div className="cbt-titlerow">
-          <span className="cbt-title" title={clusterName}>{clusterName || 'Files'}</span>
+          {pathBar
+            ? <PathBar {...pathBar} />
+            : <span className="cbt-title" title={clusterName}>{clusterName || 'Files'}</span>}
           {dockControls?.onExpand && (
             <button type="button" className="cbt-iconbtn" onClick={dockControls.onExpand}
                     aria-label="Expand Files to full screen" title="Full screen (or drag the edge all the way)">
@@ -108,6 +114,7 @@ export function ClusterBrowserToolbar({
             </button>
           )}
         </div>
+        {readOnlyNote && <div className="cbt-note">{readOnlyNote}</div>}
         <div className="cbt-row">
           {searchBox}
           <div className="cbt-menuwrap">

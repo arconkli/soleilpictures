@@ -104,3 +104,24 @@ test('double-clicking a file in the panel keeps the board and the panel open', a
   await expect(panel(page)).toBeVisible();
   await expect(page.locator('.canvas-wrap')).toBeVisible();
 });
+
+test('the panel browses into a folder and back without moving the board', async ({ page }) => {
+  await go(page);
+  const crumb = await page.locator('.crumb.here').innerText();
+  await page.keyboard.press('f');
+  const p = panel(page);
+  await p.locator('.ft', { hasText: 'Features' }).dblclick();
+  await expect(p.locator('.pb .pb-step.is-here')).toContainText('Features');
+  await expect(p.locator('.cbt-note')).toBeVisible();
+  // The board hasn't gone anywhere.
+  await expect(page.locator('.crumb.here')).toHaveText(crumb);
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await p.getByRole('button', { name: 'Back' }).click();
+  await expect(p.locator('.pb .pb-step.is-here')).toHaveText(crumb);
+  await expect(p.locator('.cbt-note')).toHaveCount(0);
+  // Expanding while browsing takes the app there, in Files.
+  await p.locator('.ft', { hasText: 'Features' }).dblclick();
+  await page.getByRole('button', { name: 'Expand Files to full screen' }).click();
+  await expect(fullFiles(page)).toBeVisible();
+  await expect(page.locator('.crumb.here')).toContainText('Features');
+});

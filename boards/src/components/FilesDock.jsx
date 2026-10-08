@@ -12,9 +12,11 @@
 // the pane, narrow enough closes it (releaseDock). It is a focusable separator:
 // ←/→ resize, Enter expands, double-click resets the width.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DOCK, canDock, clampWidth, dragPreview, releaseDock } from '../lib/filesDock.js';
 import { getActivePane, setActivePane } from '../lib/activePane.js';
+import { ancestorPath } from '../lib/boardTree.js';
+import { useBoardPreview } from '../hooks/useBoardPreview.js';
 
 export function FilesDockLayout({
   mode,                 // 'off' | 'panel' | 'full'
@@ -124,4 +126,91 @@ export function FilesDockLayout({
       ) : null}
     </div>
   );
+}
+
+// FilesPane — Files with somewhere of its own to be.
+//
+// Beside the board, Files browses independently: double-click a folder and the
+// panel steps into it, the path bar walks back up, "Go to cluster…" jumps
+// anywhere in the workspace — and the board doesn't move. Another cluster's
+// files come from its saved snapshot (useBoardPreview) and are read-only here;
+// the board's own cluster stays live. In full Files there is no separate
+// location: opening a folder navigates the app, staying in Files.
+//
+// It renders the caller's ListSurface through `render(overrides)`, so the one
+// ListSurface element keeps its place — and its state — across panel ↔ full.
+export function FilesPane({
+  mode,                 // 'panel' | 'full'
+  home,                 // the board this pane belongs to
+  boards,
+  render,               // (overrides) => <ListSurface …/>
+  dockControls = null,  // the shell's ⤢ ⤡ × (expand is redirected while browsing)
+  onOpenInFiles,        // (id) => open a cluster in the app, staying in Files
+  onPickCluster = null, // ({ excludeIds }) => Promise<board|null>
+  onShowInCluster = null, // (boardId, cardIds) => take the board to a browsed file
+  cardsFor = null,      // (id) => cards — the local harness's in-memory boards
+}) {
+  const homeId = home?.id || null;
+  const [hist, setHist] = useState(() => [homeId]);
+  // A new home (the board navigated) starts the panel over from there.
+  useEffect(() => { setHist([homeId]); }, [homeId]);
+
+  const top = hist[hist.length - 1];
+  const browseId = mode === 'panel' && top && boards?.[top] ? top : homeId;
+  const browsing = !!browseId && browseId !== homeId;
+  const preview = useBoardPreview(browsing && !cardsFor ? browseId : null, browsing && !cardsFor);
+
+  const childBoards = useMemo(
+    () => (browsing ? Object.values(boards || {}).filter((b) => b && b.parent_board_id === browseId) : null),
+    [browsing, boards, browseId]
+  );
+
+  const go = (id) => {
+    if (!id) return;
+    setHist((h) => (h[h.length - 1] === id ? h : [...h, id]));
+  };
+  const back = () => setHist((h) => (h.length > 1 ? h.slice(0, -1) : h));
+
+  if (mode !== 'panel') {
+    return render({ onOpenBoard: (id) => onOpenInFiles?.(id) });
+  }
+
+  const pathBar = {
+    path: ancestorPath(boards, browseId),
+    boards,
+    onNavigate: go,
+    onBack: back,
+    canBack: hist.length > 1,
+    onGoTo: onPickCluster
+      ? async () => {
+          const picked = await onPickCluster({ excludeIds: [browseId] });
+          if (picked?.id) go(picked.id);
+        }
+      : null,
+  };
+  // Expanding while browsing another cluster takes the app there, in Files.
+  const controls = dockControls && browsing
+    ? { ...dockControls, onExpand: () => onOpenInFiles?.(browseId) }
+    : dockControls;
+
+  return render({
+    onOpenBoard: go,
+    pathBar,
+    dockControls: controls,
+    ...(browsing ? {
+      board: boards[browseId],
+      cards: (cardsFor ? cardsFor(browseId) : preview?.cards) || [],
+      childBoards: childBoards || [],
+      canEdit: false,
+      mutators: {},
+      onDropFilesToCluster: undefined,
+      onDropInboxItem: undefined,
+      getAwareness: null,
+      recentlyAddedIds: null,
+      getGridModel: null,
+      // The file isn't on this board: double-click shows it where it lives.
+      onRevealOnCanvas: onShowInCluster ? (ids) => onShowInCluster(browseId, ids) : null,
+      browsingFrom: home,
+    } : {}),
+  });
 }

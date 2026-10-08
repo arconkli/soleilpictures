@@ -1360,6 +1360,10 @@ export const DOCS_PAGES = [
         "text": "Files beside the board"
       },
       {
+        "id": "folders-and-the-path-bar",
+        "text": "Folders and the path bar"
+      },
+      {
         "id": "grid-and-list",
         "text": "Grid and list"
       },
