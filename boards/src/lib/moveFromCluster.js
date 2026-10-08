@@ -23,7 +23,7 @@ import { boardDoc } from './yboard.js';
 import { supabase } from './supabase.js';
 import { arrowsBetween } from './filesDrag.js';
 
-const PLACE_KEYS = ['x', 'y', 'w', 'h', 'z', 'groupId'];
+const PLACE_KEYS = ['x', 'y', 'w', 'h', 'z', 'groupId', 'unplaced'];
 
 function arrowEnds(a) {
   return [

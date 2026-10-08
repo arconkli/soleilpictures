@@ -33,9 +33,11 @@ export const COPYABLE_KINDS = new Set(['image', 'video', 'audio', 'pdf', 'file',
 const NEVER_DRAGGED = new Set(['board', 'boardlink']);
 
 // Fields that belong to the card's place on its own board, not to the file.
+// `unplaced` too: a linked copy is made by dropping it on a board, so it's on
+// that board whatever the original's state (lib/placement.js).
 const PLACE_FIELDS = new Set([
   'id', 'z', 'groupId', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy',
-  'sourceRef', 'locked', 'lockedBy',
+  'sourceRef', 'locked', 'lockedBy', 'unplaced',
 ]);
 
 function isPlainValue(v) {

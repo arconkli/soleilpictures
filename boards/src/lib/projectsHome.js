@@ -112,6 +112,7 @@ export function projectOfferDue({ count, limit, threshold = PROJECT_OFFER_FRAC }
 export function spotBesideContent(cards, { gap = 40 } = {}) {
   let right = -Infinity, top = Infinity;
   for (const c of Array.isArray(cards) ? cards : []) {
+    if (c?.unplaced === true) continue;   // not on the board (lib/placement.js)
     const x = Number(c?.x), y = Number(c?.y), w = Number(c?.w) || 0;
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     right = Math.max(right, x + w);

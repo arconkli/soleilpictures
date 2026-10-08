@@ -150,3 +150,17 @@ test('a tall hero beside a 2x2 of thumbnails reads the thumbnails row by row', (
   ];
   assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['A', 'B', 'C', 'D', 'E']);
 });
+
+test('files not on the board read after the board, and "Not on board" narrows the filters', async () => {
+  const { boardOrder, filterItems, toListItem } = await import('./listItem.js');
+  const mk = (id, extra) => toListItem({ id, kind: 'image', src: 'r2:' + id, x: 0, y: 0, w: 100, h: 100, ...extra }, {});
+  const a = mk('a', { x: 0, y: 0 });
+  const u = mk('u', { x: 0, y: -500, unplaced: true });     // its waiting spot is above, but it's not on the board
+  const b = mk('b', { x: 200, y: 0 });
+  assert.equal(u.unplaced, true);
+  assert.equal(a.unplaced, false);
+  assert.deepEqual(boardOrder([u, b, a]).map((it) => it.id), ['a', 'b', 'u']);
+  assert.deepEqual(filterItems([a, u, b], new Set(), { unplacedOnly: true }).map((it) => it.id), ['u']);
+  assert.deepEqual(filterItems([a, u, b], new Set(['image']), { unplacedOnly: true }).map((it) => it.id), ['u']);
+  assert.deepEqual(filterItems([a, u, b], new Set(['pdf']), { unplacedOnly: true }).map((it) => it.id), []);
+});

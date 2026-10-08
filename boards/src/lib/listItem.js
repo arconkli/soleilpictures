@@ -93,6 +93,8 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
     updatedAt: card.updatedAt || card.createdAt || null,
     z: card.z || 0,
     pending: !!card.pending,
+    // In the cluster but not on its board (lib/placement.js).
+    unplaced: card.unplaced === true,
   };
 
   switch (kind) {
@@ -234,7 +236,9 @@ export function boardOrder(items, dir = 'asc') {
   const unplaced = [];
   for (const it of items || []) {
     const c = it?.card;
-    if (c && Number.isFinite(c.x) && Number.isFinite(c.y)) placed.push(it);
+    // Files waiting off the board keep a spot below its content; they still
+    // read after everything on it.
+    if (c && c.unplaced !== true && Number.isFinite(c.x) && Number.isFinite(c.y)) placed.push(it);
     else unplaced.push(it);
   }
   const rawH = (it) => (Number.isFinite(it.card.h) && it.card.h > 0 ? it.card.h : BOARD_ORDER_DEFAULT_SIZE);
@@ -302,10 +306,13 @@ export function sortItems(items, key = 'updated', dir = 'desc') {
 }
 
 // buckets: Set/array of active typeBucket keys. Empty → no filtering.
-export function filterItems(items, buckets) {
+// Type buckets combine with OR; `unplacedOnly` ("Not on board") narrows them.
+export function filterItems(items, buckets, { unplacedOnly = false } = {}) {
   const set = buckets instanceof Set ? buckets : new Set(buckets || []);
-  if (!set.size) return items || [];
-  return (items || []).filter(it => set.has(it.typeBucket));
+  let out = items || [];
+  if (set.size) out = out.filter(it => set.has(it.typeBucket));
+  if (unplacedOnly) out = out.filter(it => it.unplaced);
+  return out;
 }
 
 // Case-insensitive substring match over name + sub + typeLabel + ext.

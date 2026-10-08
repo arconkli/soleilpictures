@@ -25,7 +25,9 @@
 // one-line, obvious change, which is the point.
 
 // Written by a gesture, meaningless once the layout underneath is synthetic.
-const GEOMETRY_KEYS = ['x', 'y', 'w', 'h', 'rotation'];
+// `unplaced` is a place too (lib/placement.js): putting a file on the board or
+// taking it off mid-capture would commit against the synthetic layout.
+const GEOMETRY_KEYS = ['x', 'y', 'w', 'h', 'rotation', 'unplaced'];
 
 // Take a patch, keep everything that isn't geometry.
 function stripGeometry(patch) {

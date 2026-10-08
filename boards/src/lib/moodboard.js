@@ -32,9 +32,14 @@ const overlaps = (a, b) =>
 // Only cards with real, finite geometry can participate in collision math. A
 // card carrying NaN or a missing width would poison boundsOfCards() and make
 // every subsequent placement garbage — and such a card can't render anyway.
+//
+// Files that aren't on the board (lib/placement.js — `unplaced: true`) take no
+// space on it either, so layout never steers around them. Checked inline: this
+// module sits under layoutEngine, which placement.js imports.
 export function withGeometry(cards) {
   return (cards || []).filter((c) => (
-    Number.isFinite(c?.x) && Number.isFinite(c?.y)
+    c?.unplaced !== true
+    && Number.isFinite(c?.x) && Number.isFinite(c?.y)
     && Number.isFinite(c?.w) && Number.isFinite(c?.h)
     && c.w > 0 && c.h > 0
   ));
