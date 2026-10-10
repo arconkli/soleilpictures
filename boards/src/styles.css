@@ -22282,6 +22282,39 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .ct-jg .ct-tile.is-active.is-selected .ct-tile-preview { outline-width: 2px; outline-offset: 2px; }
 .cb-slimbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 
+/* ── Full Files: the cluster's name, then the toolbar ─────────────────── */
+.cb-pagehead { display: flex; align-items: baseline; gap: 12px; min-width: 0; margin: 0 0 12px; }
+.cb-pagehead-title {
+  margin: 0; min-width: 0;
+  font: 600 22px/1.25 var(--font-sans); letter-spacing: -0.01em; color: var(--ink-0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cb-pagehead-meta { font: 400 12px/1.4 var(--font-sans); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cb-pagehead > .list-section-act, .cb-pagehead > .cbt-shrink { margin-left: auto; align-self: center; }
+.cb-pagehead > .list-section-act + .cbt-shrink { margin-left: 0; }
+.cb-pagehead-dl { height: var(--ctl-h); box-sizing: border-box; padding: 0 11px; border-radius: var(--radius-md); font-size: 12px; }
+.cb-head + .list-section, .cb-head + .list-empty { margin-top: 18px; }
+/* Segmented controls in the Files toolbar: the control height, one radius. */
+.cbt .view-pill { height: var(--ctl-h); box-sizing: border-box; padding: 2px; border-radius: var(--radius-md); align-items: stretch; }
+.cbt .view-pill-btn { height: 22px; box-sizing: border-box; border-radius: 6px; padding: 0 10px; }
+.cbt .cbt-viewtoggle .view-pill-btn { padding: 0 9px; }
+.cbt-sizepill.view-pill { height: 28px; }
+.cbt-sizepill .view-pill-btn { min-width: 28px; padding: 0 8px; }
+/* Light: the on segment was a shade LIGHTER than its track and vanished. */
+[data-theme='light'] .cbt .view-pill, [data-theme='light'] .cbt-menu .view-pill { background: var(--bg-2); }
+[data-theme='light'] .cbt .view-pill-btn.on, [data-theme='light'] .cbt-menu .view-pill-btn.on {
+  background: var(--bg-3); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), inset 0 0 0 1px var(--line-2);
+}
+[data-theme='light'] .cbt-add { background: var(--bg-3); border-color: var(--line-2); box-shadow: var(--shadow-1); }
+
+/* List beside the board: rows on the panel floor, not a table in a card. */
+.list-wrap.is-panel .ct-table { border: 0; border-radius: 0; background: none; margin: 0 -4px; }
+.list-wrap.is-panel .ct-head { display: none; }
+.list-wrap.is-panel .ct-cell { padding: 5px 8px; }
+.list-wrap.is-panel .ct-thumb { width: 28px; height: 28px; border-radius: 5px; }
+.list-wrap.is-panel .ct-row { border-bottom-color: transparent; border-radius: var(--radius-md); }
+.list-wrap:not(.is-panel) .ct-sub-meta { display: none; }
+
 /* ── Quick look (clusterBrowser/QuickLook.jsx) ──────────────────────────── */
 .ql {
   position: fixed; inset: 0; z-index: 1090; /* under the toast stack (1100), so an undo toast stays visible */

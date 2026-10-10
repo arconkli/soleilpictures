@@ -24,10 +24,10 @@ test('list view renders the cluster browser toolbar + a table without JS errors'
 
   await goList(page);
 
-  // Toolbar present (search + Sort + Filter + view toggle).
+  // Toolbar present (search + View + layout toggle).
   await expect(page.locator('.cbt')).toBeVisible();
   await expect(page.locator('.cbt-input')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sort', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^View/ })).toBeVisible();
 
   // The demo seed has non-board cards → a table of rows renders (no "·" fallback).
   await expect(page.locator('.ct-table')).toBeVisible();
@@ -47,12 +47,14 @@ test('Grid ⇄ List layout toggle swaps the view', async ({ page }) => {
   await expect(page.locator('.ct-table')).toBeVisible();
 });
 
-test('Sort menu opens and picking a key re-sorts', async ({ page }) => {
+test('the View menu sorts: picking a key re-sorts and checks it', async ({ page }) => {
   await goList(page);
-  await page.getByRole('button', { name: 'Sort', exact: true }).click();
+  await page.getByRole('button', { name: /^View/ }).click();
   await expect(page.locator('.cbt-menu')).toBeVisible();
-  await page.locator('.cbt-menu .ctx-item', { hasText: 'Name' }).click();
-  // Menu closes after choosing; table still present + re-sorted.
+  await page.locator('.cbt-menu .ctx-item', { hasText: /^Name/ }).click();
+  // The menu stays open for the next adjustment, with the new sort checked.
+  await expect(page.locator('.cbt-menu .ctx-item.is-active', { hasText: /^Name/ })).toHaveCount(1);
+  await page.keyboard.press('Escape');
   await expect(page.locator('.cbt-menu')).toHaveCount(0);
   await expect(page.locator('.ct-table')).toBeVisible();
 });
@@ -76,6 +78,8 @@ test('Grid rows are justified, and the tile size is remembered on this device', 
   await expect(tiles.first()).toBeVisible();
   const previewH = () => tiles.first().locator('.ct-tile-preview').evaluate((el) => Math.round(el.getBoundingClientRect().height));
   const medium = await previewH();
+  // Tile size lives in the View menu.
+  await page.getByRole('button', { name: /^View/ }).click();
   await page.getByRole('button', { name: 'Large tiles' }).click();
   await expect.poll(previewH).toBeGreaterThan(medium);
   await page.getByRole('button', { name: 'Small tiles' }).click();
@@ -83,6 +87,7 @@ test('Grid rows are justified, and the tile size is remembered on this device', 
   await page.reload();
   await expect(page.locator('.rail-brand')).toBeVisible();
   await openFullFiles(page);
+  await page.getByRole('button', { name: /^View/ }).click();
   await expect(page.getByRole('button', { name: 'Small tiles' })).toHaveAttribute('aria-pressed', 'true');
 });
 
