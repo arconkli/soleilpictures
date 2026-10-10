@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
@@ -6,6 +6,7 @@ import { gridNeighbor } from '../lib/justifiedGrid.js';
 import { canRename, cleanName, renamePatch } from '../lib/fileRename.js';
 import { planPutOnBoard, positionUnplaced } from '../lib/placement.js';
 import { getViewCenter } from '../lib/viewCenter.js';
+import { folderCap, readFoldersExpanded, writeFoldersExpanded } from '../lib/filesDock.js';
 import { copyCardLink } from '../lib/cardLink.js';
 import { composeMenuSections } from '../lib/contextMenuSections.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
@@ -47,7 +48,7 @@ import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox } from '../lib/icons.js';
+import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox, ChevronDown, ChevronUp } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError,
@@ -131,6 +132,34 @@ export function ListSurface({
   const subBoards = childBoards || [];
   const linkedCards = (cards || []).filter(c => c.kind === 'boardlink');
   const otherCards = (cards || []).filter(c => c.kind !== 'board' && c.kind !== 'boardlink');
+
+  // Folders beside the board: one section (sub-clusters, then linked ones),
+  // two rows of them until Show all — the files are what the panel is for, so
+  // they start on the first screen (lib/filesDock.js folderCap).
+  const ftGridRef = useRef(null);
+  const [ftWidth, setFtWidth] = useState(0);
+  const [foldersOpen, setFoldersOpen] = useState(() => readFoldersExpanded());
+  const folderCount = subBoards.length + linkedCards.length;
+  const hasFolders = folderCount > 0;
+  useLayoutEffect(() => {
+    const el = ftGridRef.current;
+    if (!isPanel || !el) return undefined;
+    setFtWidth(el.getBoundingClientRect().width);
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver((es) => {
+      const w = es[0]?.contentRect?.width;
+      if (Number.isFinite(w)) setFtWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isPanel, hasFolders]);
+  const folderCapN = folderCap(folderCount, ftWidth);
+  const folderShown = isPanel && !foldersOpen ? folderCapN : folderCount;
+  const toggleFolders = () => setFoldersOpen((v) => { writeFoldersExpanded(!v); return !v; });
+
+  // The sticky header gets its edge only once something has scrolled under it.
+  const headSentinelRef = useRef(null);
+  const [headStuck, setHeadStuck] = useState(false);
 
   // ── Cluster browser state (persisted per session) ──────────────────────────
   const prefs0 = readBrowserPrefs();
@@ -1022,6 +1051,14 @@ export function ListSurface({
     ro.observe(head);
     return () => { ro.disconnect(); wrap.style.removeProperty('--lp-head-h'); };
   }, [isPanel, filesBlockShown]);
+  useEffect(() => {
+    const el = headSentinelRef.current;
+    const root = el?.closest?.('.list-wrap');
+    if (!el || !root || typeof IntersectionObserver === 'undefined') { setHeadStuck(false); return undefined; }
+    const io = new IntersectionObserver(([e]) => setHeadStuck(!e.isIntersecting), { root, threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [isPanel, filesBlockShown]);
 
   // Files → board. A tile or row drags the selection it belongs to (or just
   // itself); the board it lands on decides what the drop means (lib/filesDrag).
@@ -1230,6 +1267,28 @@ export function ListSurface({
     },
   });
 
+  const renderSubFolder = (b) => (
+    <FolderTile key={b.id} board={b} compact={isPanel}
+                selected={selectedBoards.has(b.id)}
+                dropTarget={dropTileId === b.id}
+                peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
+                draggable={canEdit}
+                rename={renameFor(b.id)}
+                {...folderProps(b)} />
+  );
+  const renderLinkedFolder = (c) => {
+    const t = boards[c.target];
+    return (
+      <FolderTile key={c.id} board={t} linked compact={isPanel}
+                  name={t?.name || c.name}
+                  missing={!t && boardsReady}
+                  selected={selectedCards.has(c.id)}
+                  data-link-id={c.id}
+                  onClick={(e) => onTileClick(e, 'boardlink', c.id)}
+                  onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)} />
+    );
+  };
+
   // One toolbar, two placements: in full Files it sits under the Files label;
   // beside the board it is the panel's header — compact, always present (it
   // carries the dock's ⤢ and ×), and first in the panel.
@@ -1352,7 +1411,8 @@ export function ListSurface({
            setSelectedBoards(new Set()); setSelectedCards(new Set()); setSelectedGroupId(null);
          }}>
       <div className="list-inner" ref={listInnerRef} onContextMenu={onListContextMenu}>
-        {isPanel && <div className="lp-head" ref={lpHeadRef}>{toolbarJsx}</div>}
+        {isPanel && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {isPanel && <div className={`lp-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
         {!isPanel && clusterEmpty && dockControls?.canShrink && dockControls?.onShrink && (
           <div className="cb-slimbar">
             <button type="button" className="cbt-btn cbt-shrink" onClick={dockControls.onShrink} title="Put Files beside the board">
@@ -1375,39 +1435,37 @@ export function ListSurface({
             )}
           </div>
         )}
-        {subBoards.length > 0 && (
+        {isPanel && hasFolders && (
           <>
-            <div className="list-section">Clusters</div>
-            <div className={`ft-grid${isPanel ? '' : ' is-full'}`}>
-              {subBoards.map(b => (
-                <FolderTile key={b.id} board={b}
-                            selected={selectedBoards.has(b.id)}
-                            dropTarget={dropTileId === b.id}
-                            peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
-                            draggable={canEdit}
-                            rename={renameFor(b.id)}
-                            {...folderProps(b)} />
-              ))}
+            <div className="list-section">
+              <span>Clusters</span><span className="list-section-count">{folderCount}</span>
             </div>
+            <div className="ft-grid is-panel" ref={ftGridRef}>
+              {subBoards.slice(0, folderShown).map(renderSubFolder)}
+              {linkedCards.slice(0, Math.max(0, folderShown - subBoards.length)).map(renderLinkedFolder)}
+            </div>
+            {folderCount > folderCapN && (
+              <button type="button" className="ft-more" onClick={toggleFolders} aria-expanded={foldersOpen}>
+                {foldersOpen ? 'Show fewer' : `Show all ${folderCount}`}
+                <Icon as={foldersOpen ? ChevronUp : ChevronDown} size={11} />
+              </button>
+            )}
           </>
         )}
-        {linkedCards.length > 0 && (
+        {!isPanel && subBoards.length > 0 && (
           <>
-            <div className="list-section">Linked</div>
-            <div className={`ft-grid${isPanel ? '' : ' is-full'}`}>
-              {linkedCards.map(c => {
-                const t = boards[c.target];
-                return (
-                  <FolderTile key={c.id} board={t} linked
-                              name={t?.name || c.name}
-                              missing={!t && boardsReady}
-                              selected={selectedCards.has(c.id)}
-                              data-link-id={c.id}
-                              onClick={(e) => onTileClick(e, 'boardlink', c.id)}
-                              onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)} />
-                );
-              })}
+            <div className="list-section">
+              <span>Clusters</span><span className="list-section-count">{subBoards.length}</span>
             </div>
+            <div className="ft-grid is-full">{subBoards.map(renderSubFolder)}</div>
+          </>
+        )}
+        {!isPanel && linkedCards.length > 0 && (
+          <>
+            <div className="list-section">
+              <span>Linked</span><span className="list-section-count">{linkedCards.length}</span>
+            </div>
+            <div className="ft-grid is-full">{linkedCards.map(renderLinkedFolder)}</div>
           </>
         )}
         {filesBlockShown && (
@@ -1426,7 +1484,14 @@ export function ListSurface({
               )}
             </div>
             )}
-            {!isPanel && <div className="cb-head" ref={lpHeadRef}>{toolbarJsx}</div>}
+            {isPanel && hasFolders && (
+              <div className="list-section list-section-files">
+                <span>Files</span>
+                <span className="list-section-count">{narrowed ? `${visibleItems.length} of ${otherCards.length}` : otherCards.length}</span>
+              </div>
+            )}
+            {!isPanel && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+            {!isPanel && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
               <div className="cb-main"
                    onDragStart={filesDraggable ? onFilesDragStart : undefined}

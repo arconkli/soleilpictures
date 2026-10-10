@@ -112,13 +112,13 @@ test('the panel browses into a folder and back without moving the board', async 
   const p = panel(page);
   await p.locator('.ft', { hasText: 'Features' }).dblclick();
   await expect(p.locator('.pb .pb-step.is-here')).toContainText('Features');
-  await expect(p.locator('.cbt-note')).toBeVisible();
+  await expect(p.locator('.cbt-ro')).toHaveText('View only');
   // The board hasn't gone anywhere.
   await expect(page.locator('.crumb.here')).toHaveText(crumb);
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   await p.getByRole('button', { name: 'Back' }).click();
   await expect(p.locator('.pb .pb-step.is-here')).toHaveText(crumb);
-  await expect(p.locator('.cbt-note')).toHaveCount(0);
+  await expect(p.locator('.cbt-ro')).toHaveCount(0);
   // Expanding while browsing takes the app there, in Files.
   await p.locator('.ft', { hasText: 'Features' }).dblclick();
   await page.getByRole('button', { name: 'Expand Files to full screen' }).click();
