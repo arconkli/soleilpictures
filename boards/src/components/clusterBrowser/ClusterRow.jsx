@@ -114,7 +114,15 @@ export const ClusterRow = memo(function ClusterRow({
               way to show them on a phone, where four mono columns truncate
               "F♯ min" to "F♯ m…". CSS decides which of the two survives at a
               given width; the markup carries both. */}
-          {item.sub && <div className={`ct-sub${audioMode ? ' ct-sub-folded' : ''}`}>{item.sub}</div>}
+          {item.sub
+            ? <div className={`ct-sub${audioMode ? ' ct-sub-folded' : ''}`}>{item.sub}</div>
+            : !audioMode && (
+              // Beside the board the Type and Size columns don't fit; this
+              // carries them under the name there (and only there).
+              <div className="ct-sub ct-sub-meta">
+                {[item.typeLabel, Number.isFinite(item.sizeBytes) && item.sizeBytes > 0 ? humanSize(item.sizeBytes) : null].filter(Boolean).join(' · ')}
+              </div>
+            )}
         </div>
         {onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
         {markUnplaced && item.unplaced && <span className="ct-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}

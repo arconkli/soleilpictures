@@ -43,7 +43,7 @@ Files side of the switch counts the cards inside, not counting nested clusters.
 | Open or close Files beside the board | `F`, or **Files** / **Board** at the top |
 | Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it |
 | Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across |
-| Put full-screen Files back beside the board | **Beside board** in its toolbar |
+| Put full-screen Files back beside the board | The shrink button at the right of its toolbar |
 | Find a file on the board | Click it in the panel — the board brings it into view and selects it |
 | Put a file somewhere on the board | Drag it from the panel onto the board |
 
@@ -87,8 +87,7 @@ it.
 A file can be in a cluster without being on its board. Files you add in Files
 start that way, and so does a card you take off: right-click it on the board
 and choose **Remove from board**. Either way it waits in Files with a **Not on
-board** mark. **Not on board** in the View menu (or Filter, in full-screen
-Files) shows just those.
+board** mark. **Not on board** in the **View** menu shows just those.
 
 To put one on the board, drag it there, or right-click it in Files — or use
 the selection bar, or Quick look — and choose **Put on board**, which places it
@@ -160,14 +159,16 @@ filename. The name is the last thing to give up room.
 
 ## Sorting and filtering
 
+Both live in the **View** menu, beside the search field.
+
 Files opens in **board order**: the canvas read like a page, top row first and
 each row left to right, so what you see is the board you just left, lined up.
 Sort by **name**, **type**, **size**, **date modified** or **date added**
 instead — plus **length**, **tempo**, **key** and **format** when the cluster is
 mostly audio.
 
-Filter to a single content type: Images, PDFs, Video, Audio, Files, Notes,
-Links, Docs, Palettes, Other.
+**Show only** narrows to a content type: Images, PDFs, Video, Audio, Files,
+Notes, Links, Docs, Palettes, Other — or to files that are **Not on board**.
 
 **Search** filters as you type, against names and content.
 

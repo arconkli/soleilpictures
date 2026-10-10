@@ -1205,6 +1205,12 @@ export function ListSurface({
     [visibleItems]);
   const narrowed = !!query || filters.size > 0 || unplacedOnly;
   const canDownloadAll = downloadableVisible.length > 1 && bulkDownloadSupported();
+  // Full Files' page header: what's in the cluster, in one line.
+  const pageMeta = [
+    `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
+    subBoards.length ? `${subBoards.length} ${subBoards.length === 1 ? 'cluster' : 'clusters'}` : null,
+    !browsingFrom && unplacedTotal ? `${unplacedTotal} not on board` : null,
+  ].filter(Boolean).join(' · ');
   const downloadAll = useCallback(
     () => downloadMany(downloadableVisible), [downloadMany, downloadableVisible]);
 
@@ -1413,13 +1419,30 @@ export function ListSurface({
       <div className="list-inner" ref={listInnerRef} onContextMenu={onListContextMenu}>
         {isPanel && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
         {isPanel && <div className={`lp-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
-        {!isPanel && clusterEmpty && dockControls?.canShrink && dockControls?.onShrink && (
-          <div className="cb-slimbar">
-            <button type="button" className="cbt-btn cbt-shrink" onClick={dockControls.onShrink} title="Put Files beside the board">
-              <Icon as={Minimize2} size={13} />Beside board
-            </button>
-          </div>
+        {/* Full Files opens on the cluster's name and what's in it — then the
+            toolbar, sticky, above everything it searches and sorts. */}
+        {!isPanel && (
+          <header className="cb-pagehead">
+            <h1 className="cb-pagehead-title">{board?.name || 'Untitled cluster'}</h1>
+            <span className="cb-pagehead-meta">{pageMeta}</span>
+            {canDownloadAll && (
+              <button type="button" className="list-section-act cb-pagehead-dl" onClick={downloadAll} disabled={zipping}>
+                <Icon as={Download} size={13} />
+                <span>{zipping ? 'Preparing…'
+                     : narrowed ? `Download ${downloadableVisible.length}`
+                     : 'Download all'}</span>
+              </button>
+            )}
+            {!filesBlockShown && dockControls?.canShrink && dockControls?.onShrink && (
+              <button type="button" className="cbt-iconbtn cbt-shrink" onClick={dockControls.onShrink}
+                      aria-label="Beside board" title="Put Files beside the board">
+                <Icon as={Minimize2} size={14} />
+              </button>
+            )}
+          </header>
         )}
+        {!isPanel && filesBlockShown && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {!isPanel && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
         {!isPanel && clusterEmpty && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
@@ -1470,28 +1493,13 @@ export function ListSurface({
         )}
         {filesBlockShown && (
           <div className="cluster-browser">
-            {!isPanel && (
-            <div className="list-section list-section-files">
-              <span>Files</span>
-              {packSummary && <span className="list-section-meta">{packSummary}</span>}
-              {canDownloadAll && (
-                <button type="button" className="list-section-act" onClick={downloadAll} disabled={zipping}>
-                  <Icon as={Download} size={12} />
-                  <span>{zipping ? 'Preparing…'
-                       : narrowed ? `Download ${downloadableVisible.length}`
-                       : 'Download all'}</span>
-                </button>
-              )}
-            </div>
-            )}
-            {isPanel && hasFolders && (
+            {(hasFolders || (!isPanel && packSummary)) && (
               <div className="list-section list-section-files">
                 <span>Files</span>
                 <span className="list-section-count">{narrowed ? `${visibleItems.length} of ${otherCards.length}` : otherCards.length}</span>
+                {!isPanel && packSummary && <span className="list-section-meta">{packSummary}</span>}
               </div>
             )}
-            {!isPanel && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
-            {!isPanel && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
               <div className="cb-main"
                    onDragStart={filesDraggable ? onFilesDragStart : undefined}

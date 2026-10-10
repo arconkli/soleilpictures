@@ -15911,18 +15911,8 @@ export const DOCS_CONTENT = {
      ],
      [
       {
-       "t": "strong",
-       "v": "Beside board",
-       "children": [
-        {
-         "t": "text",
-         "v": "Beside board"
-        }
-       ]
-      },
-      {
        "t": "text",
-       "v": " in its toolbar"
+       "v": "The shrink button at the right of its toolbar"
       }
      ]
     ],
@@ -16235,7 +16225,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the View menu (or Filter, in full-screen Files) shows just those."
+     "v": " in the "
+    },
+    {
+     "t": "strong",
+     "v": "View",
+     "children": [
+      {
+       "t": "text",
+       "v": "View"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu shows just those."
     }
    ]
   },
@@ -16653,6 +16657,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Both live in the "
+    },
+    {
+     "t": "strong",
+     "v": "View",
+     "children": [
+      {
+       "t": "text",
+       "v": "View"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu, beside the search field."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Files opens in "
     },
     {
@@ -16801,8 +16828,32 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Show only",
+     "children": [
+      {
+       "t": "text",
+       "v": "Show only"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "Filter to a single content type: Images, PDFs, Video, Audio, Files, Notes, Links, Docs, Palettes, Other."
+     "v": " narrows to a content type: Images, PDFs, Video, Audio, Files, Notes, Links, Docs, Palettes, Other — or to files that are "
+    },
+    {
+     "t": "strong",
+     "v": "Not on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
