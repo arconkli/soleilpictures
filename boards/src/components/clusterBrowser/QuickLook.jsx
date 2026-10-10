@@ -17,6 +17,7 @@ import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { ImageZoomStage } from '../ImageLightbox.jsx';
 import { PdfViewer } from '../PdfViewer.jsx';
 import { CardPreview } from './CardPreview.jsx';
+import { LinkMark } from './marks.jsx';
 import { DetailPanel } from './DetailPanel.jsx';
 import { Icon } from '../Icon.jsx';
 import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareOut } from '../../lib/icons.js';
@@ -83,14 +84,31 @@ function Stage({ item }) {
   if (item.kind === 'pdf' && card.pdfSrc) {
     return <div className="ql-pdf"><PdfViewer embedded src={card.pdfSrc} name={name} /></div>;
   }
+  if (item.kind === 'link') {
+    // A link gets a card of its own: its picture if it has one, the site's
+    // mark, the title, the address, and an Open link that always works — a
+    // bare domain is opened over https.
+    const raw = card.url || card.link || card.source || '';
+    const href = raw ? (/^https?:\/\//i.test(raw) ? raw : `https://${raw}`) : null;
+    return (
+      <div className="ql-link">
+        {card.image && <div className="ql-link-og"><CardPreview item={item} size="tile" px={520} /></div>}
+        <div className="ql-link-body">
+          <span className="ql-link-chip"><LinkMark favicon={card.favicon || null} source={raw} size="row" /></span>
+          <div className="ql-link-title">{name}</div>
+          {raw && <div className="ql-link-url" title={raw}>{raw}</div>}
+          {href && (
+            <a className="cbt-btn ql-open" href={href} target="_blank" rel="noopener noreferrer">
+              <Icon as={ArrowSquareOut} size={13} />Open link
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="ql-card">
       <div className="ql-card-preview"><CardPreview item={item} size="tile" px={640} /></div>
-      {item.kind === 'link' && /^https?:\/\//i.test(card.url || card.link || '') && (
-        <a className="cbt-btn ql-open" href={card.url || card.link} target="_blank" rel="noopener noreferrer">
-          <Icon as={ArrowSquareOut} size={13} />Open link
-        </a>
-      )}
     </div>
   );
 }

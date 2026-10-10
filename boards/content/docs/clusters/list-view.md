@@ -281,12 +281,12 @@ longer opens on every click. From there:
 
 | Action | What it does |
 |---|---|
-| **Open on canvas** | Jumps to the card, selected, on the canvas |
+| **Show on board** | Jumps to the card, selected, on the canvas — or **Put on board** for a file that's waiting in Files |
 | **Download** | The original file |
 | **Copy link** | A deep link that opens the board with the card selected |
 | **Delete** | Removes it, with undo |
 
-**Open on canvas** is the important one: it connects the two views, so finding
+**Show on board** is the important one: it connects the two views, so finding
 something in Files puts you in front of it in context. It and **Copy link**
 are app actions, so they are not offered to a signed-out visitor on a shared
 link — there is no canvas for them to open, and the deep link would not resolve.

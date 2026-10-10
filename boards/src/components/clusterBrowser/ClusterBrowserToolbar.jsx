@@ -74,6 +74,9 @@ export function ClusterBrowserToolbar({
   // The panel's location (FilesPane) — replaces the plain title when present.
   pathBar = null,
   readOnlyNote = '',
+  // While files are dragged over Files: { text, blocked } — said in the
+  // header, where the eye already is, in place of the search row.
+  dropBanner = null,
 }) {
   const [viewOpen, setViewOpen] = useState(false);
   const activeFilters = filters instanceof Set ? filters : new Set(filters || []);
@@ -199,6 +202,9 @@ export function ClusterBrowserToolbar({
             </button>
           )}
         </div>
+        {dropBanner ? (
+          <div className={`lp-drop${dropBanner.blocked ? ' is-blocked' : ''}`} role="status">{dropBanner.text}</div>
+        ) : (
         <div className="cbt-row">
           {searchBox}
           {viewMenu(true)}
@@ -209,12 +215,20 @@ export function ClusterBrowserToolbar({
             </button>
           )}
         </div>
+        )}
       </div>
     );
   }
 
   // Full Files: search, then one quiet group — View, Grid/List — and the one
   // filled button, Add files. ⤡ mirrors the panel's ⤢.
+  if (dropBanner) {
+    return (
+      <div className="cbt cbt--full">
+        <div className={`lp-drop${dropBanner.blocked ? ' is-blocked' : ''}`} role="status">{dropBanner.text}</div>
+      </div>
+    );
+  }
   return (
     <div className="cbt cbt--full">
       {searchBox}

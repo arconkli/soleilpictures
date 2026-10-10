@@ -17710,11 +17710,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Open on canvas",
+       "v": "Show on board",
        "children": [
         {
          "t": "text",
-         "v": "Open on canvas"
+         "v": "Show on board"
         }
        ]
       }
@@ -17722,7 +17722,21 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Jumps to the card, selected, on the canvas"
+       "v": "Jumps to the card, selected, on the canvas — or "
+      },
+      {
+       "t": "strong",
+       "v": "Put on board",
+       "children": [
+        {
+         "t": "text",
+         "v": "Put on board"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " for a file that's waiting in Files"
       }
      ]
     ],
@@ -17793,11 +17807,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Open on canvas",
+     "v": "Show on board",
      "children": [
       {
        "t": "text",
-       "v": "Open on canvas"
+       "v": "Show on board"
       }
      ]
     },
