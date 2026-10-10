@@ -9044,8 +9044,25 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-glyph, .cbp-file, .cbp-note { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-2); }
 .cbp-file { position: relative; }
 .cbp-ext { position: absolute; bottom: 1px; right: 1px; font-family: var(--font-mono); font-size: 7px; font-weight: 700; background: var(--bg-4); color: var(--ink-1); padding: 0 2px; border-radius: 2px; }
-.cbp-swatches { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; }
-.cbp-sw { width: 100%; height: 100%; }
+/* A palette as the canvas draws one: vertical bands, hex where it fits. */
+.cbp-swatches { display: flex; width: 100%; height: 100%; }
+.cbp-sw { flex: 1 1 0; min-width: 0; height: 100%; position: relative; container-type: inline-size; }
+.cbp-sw-hex { position: absolute; left: 6px; bottom: 6px; font: 500 9.5px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+@container (max-width: 44px) { .cbp-sw-hex { display: none; } }
+.cbp-sw-more { flex: 0 0 auto; display: grid; place-items: center; padding: 0 6px; background: var(--bg-4); color: var(--ink-2); font: 500 10px/1 var(--font-sans); }
+/* A file with no picture: its glyph, its format, its size. */
+.cbp-file-tile { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.cbp-file-glyph { display: grid; color: var(--ink-2); }
+.cbp-ext-chip {
+  font: 600 10px/1 var(--font-sans); letter-spacing: .08em;
+  padding: 4px 7px; border-radius: var(--radius);
+  color: var(--ext-ink, var(--ink-1));
+  background: color-mix(in srgb, var(--ext-ink, var(--ink-2)) 14%, transparent);
+}
+.cbp-file-meta { font: 400 11px/1 var(--font-sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.cbp-file-tile[data-tone='pdf'] { --ext-ink: var(--ink-error); }
+.cbp-file-tile[data-tone='sheet'] { --ext-ink: var(--msg-ok); }
+.cbp-file-tile[data-tone='audio'] { --ext-ink: var(--msg-info); }
 
 /* Schematic marks — grid/doc/schedule/shape (SVG) + note/link (HTML). Each
    fills the preview box and scales cleanly at both the row thumb and tile. */
@@ -9088,18 +9105,31 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-shape-mark { display: grid; place-items: center; padding: 20%; box-sizing: border-box; }
 
 /* Note — real text on the tint */
-.cbp-note-mark { display: flex; align-items: flex-start; overflow: hidden; background: var(--bg-2); color: var(--ink-1); box-sizing: border-box; }
+.cbp-note-mark { display: flex; align-items: flex-start; overflow: hidden; background: transparent; color: var(--ink-1); box-sizing: border-box; }
 .cbp-note-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
-.cbp-note-row { padding: 5px 6px; }
-.cbp-note-row .cbp-note-text { -webkit-line-clamp: 2; font-size: 7.5px; line-height: 1.25; }
-.cbp-note-tile { padding: 11% 12%; }
-.cbp-note-tile .cbp-note-text { -webkit-line-clamp: 6; font-size: 12px; line-height: 1.4; }
+.cbp-note-row { display: grid; place-items: center; color: var(--ink-2); }
+/* Title over body, as the canvas shows a note; the overflow fades out. */
+.cbp-note-tile {
+  /* The top-left corner is the select check's. */
+  flex-direction: column; gap: 6px; padding: 34px 14px 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+}
+.cbp-note-title { flex: none; font: 600 13px/1.3 var(--font-sans); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.cbp-note-tile .cbp-note-text { -webkit-line-clamp: 8; font: 400 12px/1.45 var(--font-sans); opacity: .78; }
 
 /* Link — favicon (+ domain at tile) */
 .cbp-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--ink-2); }
-.cbp-link-favicon { width: 46%; max-width: 40px; height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 3px; }
+/* Never stretched: a favicon shows at its own size or smaller. */
+.cbp-link-favicon { width: 20px; height: 20px; object-fit: contain; border-radius: 3px; display: block; }
+.cbp-link-favicon.is-tiny { width: 16px; height: 16px; }
+.cbp-link-chip { display: grid; place-items: center; color: var(--ink-1); }
+.cbp-link-tile { position: relative; display: block; }
+.cbp-link-tile .cbp-link-chip { position: absolute; left: 12px; bottom: 34px; width: 32px; height: 32px; border-radius: 8px; background: var(--bg-4); }
+.cbp-link-out { position: absolute; right: 10px; top: 10px; color: var(--ink-3); }
 .ct-thumb .cbp-link-favicon { width: 20px; }
-.cbp-link-domain { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cbp-link-domain { font: 500 11.5px/1.2 var(--font-sans); color: var(--ink-2); max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cbp-link-tile .cbp-link-domain { position: absolute; left: 12px; right: 12px; bottom: 12px; max-width: none; }
 
 /* Live presence highlight (the row's rail is set with the other row states) */
 .ct-tile.is-peer { border-color: var(--peer-color, var(--soleil)); box-shadow: 0 0 0 1px var(--peer-color, var(--soleil)); }
@@ -9126,6 +9156,36 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile-preview { position: relative; aspect-ratio: 4 / 3; background: var(--bg-2); display: grid; place-items: center; overflow: hidden; }
 .ct-tile-preview .cbp-glyph, .ct-tile-preview .cbp-file, .ct-tile-preview .cbp-note { color: var(--ink-3); }
 .ct-tile-spin { left: 6px; top: 6px; right: auto; bottom: auto; }
+.ct-jg .ct-tile-spin { left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; }
+.ct-jg .ct-tile.is-pending .ct-tile-preview::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--ink-0) 7%, transparent) 50%, transparent 70%) 0 0 / 200% 100%;
+  animation: jg-shimmer 1.2s linear infinite;
+}
+@keyframes jg-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .ct-jg .ct-tile.is-pending .ct-tile-preview::after { animation: none; } }
+.ct-jg .ct-tile.is-pending .ct-tile-type { display: block; flex: none; margin: 0 0 0 auto; font-size: 11px; color: var(--ink-2); }
+/* Not on board (dashed) / a copy on board (solid): a mark by the name. */
+.ct-tile-flag { flex: none; width: 7px; height: 7px; margin-top: 4px; box-sizing: border-box; border-radius: 50%; border: 1.25px dashed var(--ink-2); }
+.ct-tile-flag.is-on { border-style: solid; border-color: var(--ink-3); background: var(--ink-3); }
+.cbt-flag { margin: 0 2px 0 0; }
+/* Select without a modifier key: a round check, top-left, on hover — and on
+   every tile once something is selected. Gold only when it's selected. */
+.ct-tile-check {
+  position: absolute; left: 8px; top: 8px; z-index: 2;
+  width: 20px; height: 20px; padding: 0; box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  background: rgba(10, 10, 12, 0.32);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  color: transparent; cursor: pointer;
+  opacity: 0; transition: opacity var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);
+}
+.ct-tile:hover .ct-tile-check, .ct-jg:has(.ct-tile.is-selected) .ct-tile-check, .ct-tile-check:focus-visible { opacity: 1; }
+.ct-tile-check:hover { background: rgba(10, 10, 12, 0.5); color: rgba(255, 255, 255, 0.85); }
+.ct-tile.is-selected .ct-tile-check { background: var(--select); border-color: var(--select); color: #0a0a0c; }
+.ct-tile-check:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 /* Gallery transport. Centred over the preview rather than beside the name —
    with cover art being read off the files, the tile IS the artwork and the
    play button belongs on it. */
@@ -9289,9 +9349,10 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 }
 
 /* ── Real grid mini-preview (actual cell content) ─────────────────────────── */
-.cbg { position: relative; width: 100%; height: 100%; background: var(--bg-2); }
-.cbg-cell { position: absolute; overflow: hidden; display: grid; place-items: center; box-shadow: inset 0 0 0 0.5px var(--line-2); background: var(--bg-1); }
-.cbg-empty { background: var(--bg-2); }
+.cbg { position: relative; width: 100%; height: 100%; background: transparent; }
+.cbg-cell { position: absolute; overflow: hidden; display: grid; place-items: center; border-radius: 3px; background: var(--bg-4); }
+/* An empty slot reads as a slot, like the canvas grid's "Drop an image here". */
+.cbg-empty { background: transparent; outline: 1px dashed var(--line-2); outline-offset: -1px; }
 .cbg-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cbg-favicon { width: 46%; max-width: 22px; aspect-ratio: 1; object-fit: contain; }
 .cbg-glyph { color: var(--ink-3); display: grid; place-items: center; }
@@ -22001,6 +22062,8 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   background: color-mix(in srgb, var(--ft-tint, var(--ink-3)) 12%, var(--bg-3));
 }
 .ft-cover[data-cover='neutral'] { background: color-mix(in srgb, var(--ink-0) 6%, var(--bg-3)); color: var(--ink-2); }
+/* Even capped, the gold cover echoed the sidebar's active row: sand in Files. */
+.ft-cover[data-cover='sun'] { --ft-tint: #c9a577; }
 .ft-thumb, .ft-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ft-text { min-width: 0; }
 .ft-name {
@@ -22146,6 +22209,9 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   transition: transform var(--dur-quick) var(--ease), box-shadow var(--dur-quick) var(--ease);
 }
 .ct-jg .ct-tile { content-visibility: visible; contain-intrinsic-size: none; }
+/* One paper and one visible edge for every kind of preview, photo or not. */
+.ct-jg .ct-tile-preview { outline-color: color-mix(in srgb, var(--ink-0) 10%, transparent); }
+[data-theme='light'] .ct-jg .ct-tile-preview { box-shadow: var(--shadow-1); }
 .ct-jg .ct-tile:hover .ct-tile-preview { outline-color: var(--line-3); box-shadow: var(--shadow-2); }
 .ct-jg .ct-tile.is-selected { box-shadow: none; }
 .ct-jg .ct-tile.is-selected .ct-tile-preview {
@@ -22155,16 +22221,18 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .list-wrap.is-panel .ct-tile[draggable='true'] { cursor: grab; }
 .list-wrap.is-panel .ct-tile[draggable='true']:active { cursor: grabbing; }
 .ct-jg .ct-tile.is-peer .ct-tile-preview { outline: 2px solid var(--peer-color); outline-offset: 1px; }
-.ct-jg .ct-tile-meta { flex: 1; min-height: 0; display: flex; align-items: center; padding: 0 2px; }
+.ct-jg .ct-tile-meta { flex: 1; min-height: 0; display: flex; align-items: flex-start; gap: 6px; padding: 6px 2px 0; }
 .ct-jg .ct-tile-type { display: none; }
-.ct-jg .ct-tile-name { font-size: 12px; color: var(--ink-1); }
-.ct-jg .ct-tile.is-selected .ct-tile-name { color: var(--ink-0); }
+/* The caption is quieter than the picture it names. */
+.ct-jg .ct-tile-name { font: 400 12px/1.3 var(--font-sans); color: var(--ink-2); min-width: 0; }
+.ct-jg .ct-tile:hover .ct-tile-name { color: var(--ink-1); }
+.ct-jg .ct-tile.is-selected .ct-tile-name { color: var(--ink-0); font-weight: 500; }
 .ct-jg .ct-group-tile .ct-tile-preview { box-shadow: 3px 3px 0 -1px var(--bg-4), 3px 3px 0 0 var(--line-2); }
 /* A new arrival: a ring that fades, rather than a wash over the picture. */
 .ct-jg .ct-tile.is-new { animation: none; }
 .ct-jg .ct-tile.is-new .ct-tile-preview { animation: jg-new-ring 1400ms var(--ease); }
 @keyframes jg-new-ring {
-  0%   { box-shadow: 0 0 0 3px var(--soleil-soft); }
+  0%   { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-0) 18%, transparent); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 @media (prefers-reduced-motion: reduce) {

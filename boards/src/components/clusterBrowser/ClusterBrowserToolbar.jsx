@@ -82,6 +82,7 @@ export function ClusterBrowserToolbar({
   const activeCount = activeFilters.size + (unplacedOnly ? 1 : 0);
   const unplacedItem = unplacedCount > 0 && onToggleUnplaced ? (
     <Item active={unplacedOnly} onClick={() => onToggleUnplaced()}>
+      <span className="ct-tile-flag is-off cbt-flag" aria-hidden="true" />
       <span>Not on board</span>
       <span className="cbt-count">{unplacedCount}</span>
     </Item>

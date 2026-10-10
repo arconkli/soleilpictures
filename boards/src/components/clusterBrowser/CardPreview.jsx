@@ -19,8 +19,8 @@ import { tileImageSrc } from '../../lib/justifiedGrid.js';
 import { ImagePlaceholder } from '../primitives.jsx';
 import { KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
-import { iconForFile } from '../cards/FileCard.jsx';
-import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark, AudioMark } from './marks.jsx';
+import { iconForFile, humanSize } from '../cards/FileCard.jsx';
+import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark, AudioMark, inkOn } from './marks.jsx';
 import { GridContentPreview } from './GridContentPreview.jsx';
 
 // The stored image's metadata (its preview sizes), re-rendering when it lands.
@@ -53,6 +53,7 @@ export function CardPreview({ item, size = 'row', px = null }) {
   }
   if (p.mode === 'file') {
     const GlyphIcon = iconForFile(p.ext, p.mime);
+    if (size === 'tile') return <FileFace glyph={<Icon as={GlyphIcon} size={34} weight="light" />} ext={p.ext} item={item} />;
     return (
       <div className="cbp-file">
         <Icon as={GlyphIcon} size={glyphSize} />
@@ -61,11 +62,19 @@ export function CardPreview({ item, size = 'row', px = null }) {
     );
   }
   if (p.mode === 'swatches') {
-    const sw = (p.swatches || []).slice(0, 4);
+    // Vertical bands, as the canvas card draws a palette — every colour, up
+    // to eight, with its hex where a band is wide enough to hold it.
+    const all = p.swatches || [];
+    const sw = all.slice(0, 8);
     if (sw.length) {
       return (
-        <div className="cbp-swatches">
-          {sw.map((hex, i) => <div key={i} className="cbp-sw" style={{ background: hex }} />)}
+        <div className={`cbp-swatches cbp-swatches-${size}`}>
+          {sw.map((hex, i) => (
+            <div key={i} className="cbp-sw" style={{ background: hex }}>
+              {size === 'tile' && <span className="cbp-sw-hex" style={{ color: inkOn(hex) || undefined }}>{String(hex).replace('#', '').toUpperCase()}</span>}
+            </div>
+          ))}
+          {all.length > sw.length && <div className="cbp-sw cbp-sw-more">+{all.length - sw.length}</div>}
         </div>
       );
     }
@@ -83,7 +92,7 @@ export function CardPreview({ item, size = 'row', px = null }) {
   if (p.mode === 'shape') return <ShapeMark shape={p.shape} fill={p.fill} stroke={p.stroke} dash={p.dash} />;
   if (p.mode === 'note') {
     const text = (p.text || '').trim();
-    if (text) return <NoteMark text={text} tone={p.tone} size={size} />;
+    if (text || p.title) return <NoteMark title={p.title || ''} text={text} tone={p.tone} size={size} />;
     return <div className="cbp-note" style={p.tone ? { background: p.tone } : undefined}><KindIcon kind="note" /></div>;
   }
   if (p.mode === 'link') return <LinkMark favicon={p.favicon} source={p.source} size={size} />;
@@ -97,6 +106,29 @@ export function CardPreview({ item, size = 'row', px = null }) {
     return <AudioMark peaks={item.card.peaks} />;
   }
   // icon fallback. audio/video used to be special-cased here because KindIcon
-  // had no case for them; it does now, so there is one glyph table again.
+  // had no case for them; it does now, so there is one glyph table again. At
+  // tile size a file-like kind gets the same face as a generic file: glyph,
+  // format, size.
+  if (size === 'tile' && (p.kind === 'audio' || p.kind === 'video' || p.kind === 'pdf')) {
+    return <FileFace glyph={<KindIcon kind={p.kind} size={34} />} ext={item?.format || item?.ext} item={item} />;
+  }
   return <div className="cbp-glyph"><KindIcon kind={p.kind} size={glyphSize} /></div>;
+}
+
+// A file with no picture of its own, at tile size: its glyph, its format as a
+// chip, and how big it is (or how long, for sound).
+const EXT_TONE = { pdf: 'pdf', xls: 'sheet', xlsx: 'sheet', csv: 'sheet', numbers: 'sheet', wav: 'audio', mp3: 'audio', aif: 'audio', aiff: 'audio', flac: 'audio', m4a: 'audio' };
+function FileFace({ glyph, ext, item }) {
+  const e = String(ext || '').toLowerCase();
+  const dur = Number.isFinite(item?.durationSec) && item.durationSec > 0
+    ? `${Math.floor(item.durationSec / 60)}:${String(Math.round(item.durationSec % 60)).padStart(2, '0')}` : '';
+  const size = Number.isFinite(item?.sizeBytes) && item.sizeBytes > 0 ? humanSize(item.sizeBytes) : '';
+  const meta = [dur, size].filter(Boolean).join(' · ');
+  return (
+    <div className="cbp-file-tile" data-tone={EXT_TONE[e] || undefined}>
+      <span className="cbp-file-glyph">{glyph}</span>
+      {e && <span className="cbp-ext-chip">{e.toUpperCase().slice(0, 5)}</span>}
+      {meta && <span className="cbp-file-meta">{meta}</span>}
+    </div>
+  );
 }

@@ -52,6 +52,47 @@ function stripTags(html, max = 90) {
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
 
+// A note's first block is its title, the rest its body — the canvas shows
+// them that way, so Files shouldn't run them into one line. Blocks end at
+// headings, paragraphs, line breaks, list items and divs.
+export function noteParts(html, body = '') {
+  const src = String(html || '');
+  if (!src.trim()) {
+    // Plain text: the first line is the title.
+    const lines = String(body || '').split(/\n+/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    if (!lines.length) return { title: '', body: '' };
+    const [first, ...rest] = lines;
+    const title = first.length > 60 ? `${first.slice(0, 59).trimEnd()}…` : first;
+    return { title, body: rest.join(' ') || (first.length > 60 ? first : '') };
+  }
+  const blocks = src
+    .split(/<\/(?:h[1-6]|p|li|div|blockquote)>|<br\s*\/?>/i)
+    .map((b) => stripTags(b, 400))
+    .filter(Boolean);
+  if (!blocks.length) return { title: '', body: '' };
+  const [first, ...rest] = blocks;
+  const title = first.length > 60 ? `${first.slice(0, 59).trimEnd()}…` : first;
+  return { title, body: rest.join(' ') || (first.length > 60 ? first : '') };
+}
+
+// The name a tile shows: the file's own extension dropped ("wardrobe-ref",
+// not "wardrobe-ref.webp") — but only when it IS the file's extension, so a
+// typed title like "v1.2" keeps its dot. The full name stays in the tooltip,
+// List, Info, rename and downloads.
+const EXT_RE = /\.([a-z0-9]{2,5})$/i;
+export function captionOf(name, ext) {
+  const n = String(name || '');
+  const e = String(ext || '').toLowerCase();
+  if (!e) return n;
+  const m = n.match(EXT_RE);
+  if (!m || m[1].toLowerCase() !== e || m.index === 0) return n;
+  return n.slice(0, m.index);
+}
+function extOf(name) {
+  const m = String(name || '').match(EXT_RE);
+  return m ? m[1].toLowerCase() : '';
+}
+
 // Resolve a media card's byte size from the primed image metadata (media bytes
 // live in the images table, not the Y.Doc; file cards carry sizeBytes directly).
 function mediaSizeFrom(getMeta, src) {
@@ -95,6 +136,7 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
     pending: !!card.pending,
     // In the cluster but not on its board (lib/placement.js).
     unplaced: card.unplaced === true,
+    ext: '',   // the file's own extension, when it has one (captionOf)
   };
 
   switch (kind) {
@@ -102,12 +144,14 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       // A caption someone typed, then the file's own name (fileIngest, 2026-10),
       // then the generic word — which every photo in a cluster used to share.
       item.name = card.title || card.label || card.fileName || 'Image';
+      item.ext = extOf(card.fileName);
       item.sub = card.caption || '';
       item.preview = card.src ? { mode: 'r2', src: card.src, kind } : { mode: 'placeholder', tone: card.tone, kind };
       item.sizeBytes = mediaSizeFrom(getMeta, card.src);
       break;
     case 'pdf':
       item.name = card.name || card.title || 'PDF';
+      item.ext = 'pdf';
       item.sub = Number.isFinite(card.pageCount) && card.pageCount > 0
         ? `${card.pageCount} ${card.pageCount === 1 ? 'page' : 'pages'}` : '';
       item.preview = card.src ? { mode: 'r2', src: card.src, kind } : { mode: 'icon', kind };
@@ -115,11 +159,13 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       break;
     case 'video':
       item.name = card.title || card.fileName || 'Video';
+      item.ext = extOf(card.fileName);
       item.preview = card.poster ? { mode: 'r2', src: card.poster, kind } : { mode: 'icon', kind };
       item.sizeBytes = mediaSizeFrom(getMeta, card.src);
       break;
     case 'audio': {
       item.name = card.title || card.fileName || 'Audio';
+      item.ext = String(card.ext || extOf(card.fileName)).toLowerCase();
       item.preview = card.cover ? { mode: 'r2', src: card.cover, kind } : { mode: 'icon', kind };
       // Audio cards now carry sizeBytes from the File itself; the images-table
       // lookup stays as the fallback for cards that predate that.
@@ -146,15 +192,18 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       // A rename (title) shows over the uploaded name; downloads keep the
       // uploaded name either way (lib/fileRename.js).
       item.name = card.title || card.fileName || 'File';
+      item.ext = String(card.ext || extOf(card.fileName)).toLowerCase();
       item.sub = card.ext ? String(card.ext).toUpperCase() : (card.mime || '');
       item.preview = { mode: 'file', ext: card.ext, mime: card.mime, kind };
       item.sizeBytes = card.sizeBytes ?? null;
       break;
     case 'note': {
-      const noteText = stripTags(card.html, 120) || String(card.body || '').slice(0, 120);
-      item.name = noteText.slice(0, 90) || 'Empty note';
+      // Title and body, as the canvas shows them: the caption is the title,
+      // so it no longer repeats the preview word for word.
+      const { title, body } = noteParts(card.html, card.body);
+      item.name = title || 'Empty note';
       // Show the real text on the tint — far more readable than a glyph.
-      item.preview = { mode: 'note', text: noteText, tone: card.bgColor, kind };
+      item.preview = { mode: 'note', title, text: body, tone: card.bgColor, kind };
       break;
     }
     case 'link':
@@ -322,7 +371,9 @@ export function matchItems(items, query) {
   return (items || []).filter(it => {
     // `sub` already carries the assembled tempo/key/format line for audio, so
     // typing "128", "amin" or "wav" filters a pack without a query syntax.
-    const hay = `${it.name || ''} ${it.sub || ''} ${it.typeLabel || ''} ${it.preview?.ext || ''}`.toLowerCase();
+    // A note's body counts too — its name is only its first line.
+    const body = it.kind === 'note' ? it.preview?.text || '' : '';
+    const hay = `${it.name || ''} ${it.sub || ''} ${body} ${it.typeLabel || ''} ${it.preview?.ext || ''}`.toLowerCase();
     return hay.includes(q);
   });
 }

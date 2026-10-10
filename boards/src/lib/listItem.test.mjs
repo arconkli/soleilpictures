@@ -164,3 +164,34 @@ test('files not on the board read after the board, and "Not on board" narrows th
   assert.deepEqual(filterItems([a, u, b], new Set(['image']), { unplacedOnly: true }).map((it) => it.id), ['u']);
   assert.deepEqual(filterItems([a, u, b], new Set(['pdf']), { unplacedOnly: true }).map((it) => it.id), []);
 });
+
+test('a note reads as title over body, and search still finds its body', async () => {
+  const { noteParts, matchItems } = await import('./listItem.js');
+  assert.deepEqual(noteParts('<h2>Studio inbox</h2><p>Drop projects here.</p>'), { title: 'Studio inbox', body: 'Drop projects here.' });
+  assert.deepEqual(noteParts('<p>hi</p>'), { title: 'hi', body: '' });
+  assert.equal(noteParts('', 'plain').title, 'plain');
+  const n = toListItem({ id: 'n', kind: 'note', html: '<p>Shot list</p><p>Day two exteriors</p>' });
+  assert.equal(n.name, 'Shot list');
+  assert.equal(n.preview.title, 'Shot list');
+  assert.equal(n.preview.text, 'Day two exteriors');
+  assert.deepEqual(matchItems([n], 'exteriors').map((x) => x.id), ['n']);
+});
+
+test('tile captions drop the file\'s own extension, and only that', async () => {
+  const { captionOf } = await import('./listItem.js');
+  assert.equal(captionOf('wardrobe-ref.webp', 'webp'), 'wardrobe-ref');
+  assert.equal(captionOf('Treatment.PDF', 'pdf'), 'Treatment');
+  assert.equal(captionOf('v1.2', 'webp'), 'v1.2');
+  assert.equal(captionOf('.webp', 'webp'), '.webp');
+  assert.equal(captionOf('notes', ''), 'notes');
+  const img = toListItem({ id: 'i', kind: 'image', fileName: 'grade-ref.webp', src: 'r2:x' });
+  assert.equal(img.ext, 'webp');
+  assert.equal(captionOf(img.name, img.ext), 'grade-ref');
+  const typed = toListItem({ id: 'j', kind: 'image', title: 'Final v1.2', fileName: 'a.jpg', src: 'r2:x' });
+  assert.equal(captionOf(typed.name, typed.ext), 'Final v1.2');
+});
+
+test('a plain-text note: the first line is its title', async () => {
+  const { noteParts } = await import('./listItem.js');
+  assert.deepEqual(noteParts('', 'Studio inbox\n\nDrop projects here.'), { title: 'Studio inbox', body: 'Drop projects here.' });
+});

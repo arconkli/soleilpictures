@@ -7,8 +7,8 @@
 import { useMemo, useState } from 'react';
 import { ShapeGlyph, KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
-import { Link as LinkIcon } from '../../lib/icons.js';
-import { contrastRatio } from '../../lib/readableColor.js';
+import { Link as LinkIcon, StickyNote as NoteIcon, ArrowSquareOut } from '../../lib/icons.js';
+import { contrastRatio, parseColor } from '../../lib/readableColor.js';
 import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAnalysis.js';
 
 // ── Audio ───────────────────────────────────────────────────────────────────
@@ -124,19 +124,32 @@ export function ShapeMark({ shape = 'rect', fill = 'transparent', stroke = null,
 // ── Note ────────────────────────────────────────────────────────────────────
 // Its real text on the note's tint. Empty notes are handled upstream. The ink is
 // chosen for contrast against the (literal) tint so it stays legible either way.
-function inkOn(tone) {
-  if (!tone) return null;
-  try { return contrastRatio('#17171b', tone) >= contrastRatio('#f5f5f7', tone) ? '#17171b' : '#f5f5f7'; }
-  catch { return null; }
+// contrastRatio takes parsed {r,g,b}; handed raw strings it compared NaN with
+// NaN and always chose light ink — invisible on a pale note or swatch.
+const DARK_INK = parseColor('#17171b');
+const LIGHT_INK = parseColor('#f5f5f7');
+export function inkOn(tone) {
+  const bg = tone ? parseColor(tone) : null;
+  if (!bg) return null;
+  return contrastRatio(DARK_INK, bg) >= contrastRatio(LIGHT_INK, bg) ? '#17171b' : '#f5f5f7';
 }
-export function NoteMark({ text = '', tone = null, size = 'row' }) {
+export function NoteMark({ title = '', text = '', tone = null, size = 'row' }) {
   const ink = inkOn(tone);
   const style = {};
   if (tone) style.background = tone;
   if (ink) style.color = ink;
+  // At row size, a glyph: a note's words at 7px are a smudge.
+  if (size !== 'tile') {
+    return (
+      <div className={`cbp-mark cbp-note-mark cbp-note-${size}`} style={style}>
+        <Icon as={NoteIcon} size={16} />
+      </div>
+    );
+  }
   return (
     <div className={`cbp-mark cbp-note-mark cbp-note-${size}`} style={style}>
-      <span className="cbp-note-text">{text}</span>
+      {title && <b className="cbp-note-title">{title}</b>}
+      {text && <span className="cbp-note-text">{text}</span>}
     </div>
   );
 }
@@ -154,14 +167,26 @@ function domainOf(source) {
 }
 export function LinkMark({ favicon = null, source = '', size = 'row' }) {
   const [broken, setBroken] = useState(false);
+  // A favicon is drawn at its own size or smaller, never stretched; and the
+  // s2 service's stand-in globe (16px, for a domain it doesn't know) is no
+  // better than our own link glyph.
+  const [tiny, setTiny] = useState(false);
   const domain = domainOf(source);
+  const fromS2 = !favicon;
   const src = favicon || (domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : null);
+  const glyph = <Icon as={LinkIcon} size={size === 'tile' ? 16 : 14} weight="regular" />;
+  const icon = src && !broken && !(fromS2 && tiny)
+    ? <img className={`cbp-link-favicon${tiny ? ' is-tiny' : ''}`} src={src} alt="" draggable="false"
+           onLoad={(e) => setTiny(e.currentTarget.naturalWidth < 32)}
+           onError={() => setBroken(true)} />
+    : glyph;
+  if (size !== 'tile') return <div className="cbp-mark cbp-link" aria-hidden="true"><span className="cbp-link-chip">{icon}</span></div>;
+  // A bookmark: the site's mark in a chip, an out-arrow, the domain.
   return (
-    <div className="cbp-mark cbp-link" aria-hidden="true">
-      {src && !broken
-        ? <img className="cbp-link-favicon" src={src} alt="" draggable="false" onError={() => setBroken(true)} />
-        : <Icon as={LinkIcon} size={size === 'tile' ? 34 : 20} />}
-      {size === 'tile' && domain && <span className="cbp-link-domain">{domain}</span>}
+    <div className="cbp-mark cbp-link cbp-link-tile" aria-hidden="true">
+      <span className="cbp-link-chip">{icon}</span>
+      <span className="cbp-link-out"><Icon as={ArrowSquareOut} size={13} /></span>
+      {domain && <span className="cbp-link-domain">{domain}</span>}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { justifiedRows } from './layoutEngine.js';
 export const TILE_SIZES = Object.freeze({ s: 120, m: 170, l: 240 });
 export const DEFAULT_TILE_SIZE = 'm';
 export const GALLERY_GAP = 10;
-export const CAPTION_H = 30;
+export const CAPTION_H = 26;
 
 // A tile narrower than half its height, or wider than 2.4×, stops reading as
 // the picture: clamp so one panorama can't flatten a row.
