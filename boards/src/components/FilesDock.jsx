@@ -14,7 +14,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DOCK, canDock, clampWidth, dragPreview, releaseDock } from '../lib/filesDock.js';
-import { getActivePane, setActivePane } from '../lib/activePane.js';
+import { getActivePane, setActivePane, subscribeActivePane } from '../lib/activePane.js';
 import { ancestorPath } from '../lib/boardTree.js';
 import { onBoardIndex, fileKeyOf } from '../lib/filesDrag.js';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
@@ -79,6 +79,11 @@ export function FilesDockLayout({
   useEffect(() => () => dragEndRef.current?.(), []);
 
   const panelW = drag ? drag.w : clampWidth(width, paneW);
+
+  // Which side has the keyboard, for the styles: the other side's selection
+  // shows in ink rather than gold (styles.css, "Two panes, one keyboard").
+  const [activePane, setActivePaneState] = useState(() => getActivePane());
+  useEffect(() => subscribeActivePane(setActivePaneState), []);
 
   // Toasts stack top-right. While the panel is docked against the window's
   // right edge they'd sit on its ⤢ and ×, so publish its width for
@@ -145,7 +150,7 @@ export function FilesDockLayout({
   };
 
   return (
-    <div className={`fdl fdl-${mode}`} ref={rootRef}>
+    <div className={`fdl fdl-${mode}`} ref={rootRef} data-active-pane={mode === 'panel' ? activePane : undefined}>
       <div className="fdl-canvas">{canvas}</div>
       {mode === 'panel' ? (
         <div className={`fdl-divider${drag ? ' is-dragging' : ''}`}

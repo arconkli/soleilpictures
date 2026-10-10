@@ -129,3 +129,43 @@ test('the round check on a tile adds it to the selection without a modifier key'
   await tiles(page).nth(3).locator('.ct-tile-check').click();
   await expect(tiles(page).nth(3)).not.toHaveClass(/is-selected/);
 });
+
+async function dragFilesOver(page) {
+  await page.evaluate(() => {
+    const el = document.querySelector('.list-wrap.is-panel');
+    const dt = new DataTransfer();
+    dt.items.add(new File(['x'], 'a.png', { type: 'image/png' }));
+    el.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }));
+    el.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  });
+}
+
+test('dragging files over the panel says where they go — and, browsing, that they can\'t', async ({ page }) => {
+  await go(page);
+  await dragFilesOver(page);
+  await expect(panel(page).locator('.lp-drop')).toContainText('Drop to add to');
+  await expect(panel(page).locator('.lp-drop')).toContainText('off the board');
+  await page.evaluate(() => document.querySelector('.list-wrap.is-panel').dispatchEvent(new DragEvent('dragleave', { bubbles: true, relatedTarget: document.body })));
+  await expect(panel(page).locator('.lp-drop')).toHaveCount(0);
+  // Browsing another cluster: read-only here.
+  await panel(page).locator('[data-folder-id]').first().dblclick();
+  await expect(panel(page).locator('.cbt-ro')).toBeVisible();
+  await dragFilesOver(page);
+  await expect(panel(page).locator('.lp-drop.is-blocked')).toContainText('to add files');
+});
+
+test('a cluster with no files says so and offers the one thing to do', async ({ page }) => {
+  await go(page);
+  await panel(page).locator('[data-folder-id]').first().dblclick();
+  const empty = panel(page).locator('.list-empty.is-compact');
+  await expect(empty).toBeVisible();
+  await expect(empty.locator('.list-empty-title')).toContainText('No files in');
+});
+
+test('Quick look gives a link its own card with an Open link that works for a bare domain', async ({ page }) => {
+  await go(page);
+  await panel(page).locator('[data-item-id="home-link"]').dblclick();
+  const open = page.locator('.ql .ql-link a.ql-open');
+  await expect(open).toBeVisible();
+  await expect(open).toHaveAttribute('href', 'https://docs.soleil');
+});

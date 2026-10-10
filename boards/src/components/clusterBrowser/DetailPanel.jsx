@@ -91,12 +91,14 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
   return (
     <aside className={`cb-detail surface-frosted${inline ? ' is-inline' : ''}`} aria-label="Info">
       <div className="cbd-head">
-        <span className="cbd-title" title={item.name}>{item.name}</span>
+        <div className="cbd-titles">
+          <span className="cbd-title" title={item.name}>{item.name}</span>
+          <span className="cbd-sub">{[item.typeLabel, item.sub || (item.sizeBytes != null ? humanSize(item.sizeBytes) : null)].filter(Boolean).join(' · ')}</span>
+        </div>
         <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} /></button>
       </div>
       <div className="cbd-body">
         {!inline && <div className="cbd-preview"><CardPreview item={item} size="tile" /></div>}
-        <MetaRow label="Type" value={item.typeLabel} />
         {/* For a loop these four ARE the metadata. Without them the panel a
             producer taps on a published pack reported type, size and two
             dates, and not one of the things they opened it to find out. */}
@@ -120,27 +122,27 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
         {/* A file waiting in Files has no spot on the canvas to open to —
             it can be put there instead. */}
         {item.unplaced ? (onPutOnBoard && (
-          <button className="cbd-act" onClick={() => onPutOnBoard(item.id)}>
+          <button className="cbd-act is-primary" onClick={() => onPutOnBoard(item.id)}>
             <Icon as={BoundingBox} size={15} /><span>Put on board</span>
           </button>
         )) : onReveal && (
-          <button className="cbd-act" onClick={() => onReveal(item.id)}>
-            <Icon as={Maximize2} size={15} /><span>Open on canvas</span>
+          <button className="cbd-act is-primary" onClick={() => onReveal(item.id)}>
+            <Icon as={BoundingBox} size={15} /><span>Show on board</span>
           </button>
         )}
         {downloadable && (
-          <button className="cbd-act" onClick={() => doDownload()}>
-            <Icon as={Download} size={15} /><span>Download</span>
+          <button className="cbt-iconbtn cbd-icon" onClick={() => doDownload()} aria-label="Download" title="Download">
+            <Icon as={Download} size={15} />
           </button>
         )}
         {!isPublicSurface() && (
-          <button className="cbd-act" onClick={() => copyLink(item.id, item.boardId)}>
-            <Icon as={LinkIcon} size={15} /><span>Copy link</span>
+          <button className="cbt-iconbtn cbd-icon" onClick={() => copyLink(item.id, item.boardId)} aria-label="Copy link" title="Copy link">
+            <Icon as={LinkIcon} size={15} />
           </button>
         )}
         {canEdit && (
           <button className="cbd-act cbd-act-danger" onClick={() => onDelete?.([item.id])}>
-            <Icon as={TrashIcon} size={15} /><span>Delete</span>
+            <span>Delete</span>
           </button>
         )}
       </div>

@@ -48,7 +48,7 @@ import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox, ChevronDown, ChevronUp } from '../lib/icons.js';
+import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Eye } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError,
@@ -981,19 +981,33 @@ export function ListSurface({
   const isRecognizedDrag = (t) =>
     t.includes(INBOX_MIME) || t.includes(BOARD_REF_MIME) || t.includes(BOARD_REF_LIST_MIME) ||
     t.includes('Files') || t.includes('text/uri-list') || t.includes('text/plain') || t.includes('text/html');
+  // What the header says while files are dragged over: where they'll go, or
+  // — browsing another cluster — that this one isn't the place.
+  const [dragNote, setDragNote] = useState(null);   // 'files' | 'blocked' | null
   const handleDragOver = (e) => {
-    if (!isRecognizedDrag(e.dataTransfer.types)) return;
+    const types = e.dataTransfer.types;
+    if (!isRecognizedDrag(types)) return;
     e.preventDefault();
-    if (!canEdit) { e.dataTransfer.dropEffect = 'none'; return; }
+    const files = types.includes('Files');
+    if (!canEdit) {
+      e.dataTransfer.dropEffect = 'none';
+      const note = files ? 'blocked' : null;
+      if (note !== dragNote) setDragNote(note);
+      return;
+    }
     e.dataTransfer.dropEffect = 'copy';
     if (!dragOver) setDragOver(true);
+    const note = files ? 'files' : null;
+    if (note !== dragNote) setDragNote(note);
   };
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     setDragOver(false);
+    setDragNote(null);
   };
   const handleDrop = (e) => {
     setDragOver(false);
+    setDragNote(null);
     const t = e.dataTransfer.types;
     if (!isRecognizedDrag(t)) return;
     e.preventDefault(); // swallow so the browser never navigates
@@ -1107,6 +1121,16 @@ export function ListSurface({
     () => (browsingFrom ? [] : [...selectedCards].filter((id) => unplacedIds.has(id))),
     [browsingFrom, selectedCards, unplacedIds]);
   const cmdKey = isMac ? '⌘' : 'Ctrl';
+  // The selection bar teaches the keys until someone has made a selection of
+  // more than one (the hover check shows the rest); then it gets out of the way.
+  const [multiHintSeen, setMultiHintSeen] = useState(() => {
+    try { return localStorage.getItem('soleil.files.multiSelected') === '1'; } catch (_) { return true; }
+  });
+  useEffect(() => {
+    if (multiHintSeen || totalSel < 2) return;
+    setMultiHintSeen(true);
+    try { localStorage.setItem('soleil.files.multiSelected', '1'); } catch (_) {}
+  }, [totalSel, multiHintSeen]);
 
   // What the right-side detail popout shows: a single selected card, or a
   // selected grid family. Nothing selected (or multi-select) → no popout.
@@ -1330,6 +1354,9 @@ export function ListSurface({
       clusterName={board?.name}
       pathBar={isPanel ? pathBar : null}
       readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
+      dropBanner={dragNote === 'files'
+        ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
+        : dragNote === 'blocked' ? { text: `Open ${board?.name || 'this cluster'} to add files`, blocked: true } : null}
       dockControls={dockControls ? { ...dockControls, mode } : null}
     />
   );
@@ -1358,7 +1385,8 @@ export function ListSurface({
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
     const canMove = canEdit && !!onPickCluster;
-    const del = canEdit && { id: 'del', label: n > 1 ? `Delete ${n}` : 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
+    // The menu's header already says how many; Delete needn't repeat it.
+    const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
     if (n === 1 && bIds.length) {
       const id = bIds[0];
       return composeMenuSections([
@@ -1403,7 +1431,8 @@ export function ListSurface({
       { header: `${n} selected`, items: [
         canEdit && offSel.length > 0 && { id: 'put', label: offSel.length === 1 ? 'Put 1 on board' : `Put ${offSel.length} on board`, run: () => putOnBoard(offSel) },
         downloadableSelected.length > 0 && {
-          id: 'dl', label: downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`, run: downloadSelected,
+          // "Download" when it's all of them; else say which part can go.
+          id: 'dl', label: downloadableSelected.length === n ? 'Download' : `Download ${downloadableSelected.length} of ${n}`, run: downloadSelected,
         },
         canMove && { id: 'move', label: 'Move to…', run: moveSelection },
       ] },
@@ -1514,10 +1543,27 @@ export function ListSurface({
                    onDragStart={filesDraggable ? onFilesDragStart : undefined}
                    onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
                 {visibleItems.length === 0 && descHits.length === 0 ? (
-                  <div className="cluster-browser-empty">
-                    {query || filters.size || unplacedOnly ? 'No files match your search.'
-                      : isPanel && canEdit ? 'No files here yet — drop some in.' : 'No files yet.'}
-                  </div>
+                  query || filters.size || unplacedOnly ? (
+                    <div className="cluster-browser-empty">
+                      <div>No files match.</div>
+                      <button type="button" className="cbt-btn cb-empty-clear"
+                              onClick={() => { setQuery(''); onClearFilters(); }}>Clear filters</button>
+                    </div>
+                  ) : (
+                    <div className="list-empty is-compact">
+                      <span className="list-empty-ico"><Icon as={canEdit ? Upload : Eye} size={16} /></span>
+                      <div className="list-empty-title">No files in {board?.name || 'this cluster'}</div>
+                      <div className="list-empty-sub">
+                        {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
+                          : browsingFrom ? `Open ${board?.name || 'it'} to add files.` : 'Nothing here yet.'}
+                      </div>
+                      {canEdit ? (
+                        <button type="button" className="cbt-btn" onClick={openAddPicker}><Icon as={Plus} size={13} />Add files</button>
+                      ) : browsingFrom && dockControls?.onExpand ? (
+                        <button type="button" className="cbt-btn" onClick={dockControls.onExpand}>Open {board?.name || 'cluster'}</button>
+                      ) : null}
+                    </div>
+                  )
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <JustifiedGallery tileSize={tileSize}
                     activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
@@ -1611,7 +1657,8 @@ export function ListSurface({
             you have scrolled past the rows you made it from. */}
         {totalSel > 0 && (
           <div className="list-selbar">
-            <span className="list-selbar-count" aria-live="polite">{totalSel} selected</span>
+            <span className="list-selbar-count" aria-live="polite"
+                  title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel} selected</span>
             {downloadableSelected.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
                       title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
@@ -1649,9 +1696,11 @@ export function ListSurface({
                     onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
               <Icon as={X} size={13} />
             </button>
-            <span className="list-selbar-hint">
-              {`${cmdKey}A selects all · ${cmdKey}-click to add · ⇧-click for a range`}
-            </span>
+            {!isPanel && !multiHintSeen && (
+              <span className="list-selbar-hint">
+                <kbd>{isMac ? '⌘A' : 'Ctrl+A'}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{isMac ? '⇧' : 'Shift'}</kbd>-click range
+              </span>
+            )}
           </div>
         )}
       </div>
