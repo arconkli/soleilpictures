@@ -75,3 +75,37 @@ test('toasts move clear of the docked panel', async ({ page }) => {
   const f = await page.locator('.fdl-files').boundingBox();
   expect(t.x + t.width).toBeLessThanOrEqual(f.x + 1);
 });
+
+test('the title row navigates: ▾ on the current cluster lists the clusters inside it', async ({ page }) => {
+  await go(page);
+  const here = panel(page).locator('.pb-step.is-here button.pb-here');
+  await expect(here).toHaveAttribute('aria-haspopup', 'menu');
+  await here.click();
+  const menu = page.locator('.pb-menu');
+  // The seed's home has sub-clusters only (no linked ones), so the menu lists
+  // exactly what CLUSTERS counts.
+  const n = Number(await panel(page).locator('.list-section-count').first().textContent());
+  expect(n).toBeGreaterThan(0);
+  await expect(menu.locator('.pb-menu-item')).toHaveCount(n);
+  await menu.locator('.pb-menu-item', { hasText: 'Features' }).click();
+  await expect(panel(page).locator('.pb-step.is-here')).toContainText('Features');
+  await expect(panel(page).locator('.cbt-ro')).toHaveText('View only');
+});
+
+test('panel folders: two rows until Show all, remembered on this device', async ({ page }) => {
+  await go(page);
+  await narrow(page);   // two columns → four folders shown of the seed's five… unless only one is hidden
+  const folders = panel(page).locator('.ft-grid.is-panel [data-folder-id]');
+  const total = await panel(page).locator('.list-section-count').first().textContent();
+  const more = panel(page).getByRole('button', { name: /^Show all/ });
+  if (await more.count()) {
+    expect(await folders.count()).toBeLessThan(Number(total));
+    await more.click();
+    await expect(folders).toHaveCount(Number(total));
+    await page.reload();
+    await expect(page.locator('.rail-brand')).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: 'Show fewer' })).toBeVisible();
+  } else {
+    await expect(folders).toHaveCount(Number(total));
+  }
+});

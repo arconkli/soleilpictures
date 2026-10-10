@@ -132,7 +132,7 @@ export function ClusterBrowserToolbar({
       <div className="cbt cbt--compact">
         <div className="cbt-titlerow">
           {pathBar
-            ? <PathBar {...pathBar} />
+            ? <PathBar {...pathBar} readOnly={!!readOnlyNote} />
             : <span className="cbt-title" title={clusterName}>{clusterName || 'Files'}</span>}
           {dockControls?.onExpand && (
             <button type="button" className="cbt-iconbtn" onClick={dockControls.onExpand}
@@ -147,7 +147,6 @@ export function ClusterBrowserToolbar({
             </button>
           )}
         </div>
-        {readOnlyNote && <div className="cbt-note">{readOnlyNote}</div>}
         <div className="cbt-row">
           {searchBox}
           <div className="cbt-menuwrap">

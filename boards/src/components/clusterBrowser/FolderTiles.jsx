@@ -31,6 +31,7 @@ export const FolderTile = memo(function FolderTile({
   // small stack — the presence the old board cards carried.
   peers = null,
   rename = null,   // inline rename: { onCommit, onCancel }
+  compact = false, // the panel's one-line rows: a smaller cover and glyph
   className = '', ...divProps
 }) {
   const people = [];
@@ -53,9 +54,9 @@ export const FolderTile = memo(function FolderTile({
           <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
                    bust={board.thumb_updated_at} className="ft-thumb" alt="" draggable={false} />
         ) : (
-          <span className="ft-glyph" aria-hidden="true"><Icon as={Folder} size={20} /></span>
+          <span className="ft-glyph" aria-hidden="true"><Icon as={Folder} size={compact ? 16 : 20} weight="duotone" /></span>
         )}
-        {linked && <span className="ft-badge" aria-label="Linked cluster"><Icon as={LinkIcon} size={10} /></span>}
+        {linked && <span className="ft-badge" aria-label="Linked cluster"><Icon as={LinkIcon} size={compact ? 9 : 10} /></span>}
       </div>
       <div className="ft-text">
         {rename
