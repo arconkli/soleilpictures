@@ -197,7 +197,8 @@ export function FilesPane({
   const [hist, setHist] = useState(() => [homeId]);
   // A new home (the board navigated) starts the panel over from there — and
   // so does a request to show one of its files.
-  useEffect(() => { setHist([homeId]); }, [homeId, revealRequest?.token]);
+  useEffect(() => { setHist([homeId]); }, [homeId]);
+  useEffect(() => { if (revealRequest?.token) setHist([homeId]); }, [revealRequest?.token]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const top = hist[hist.length - 1];
   const browseId = mode === 'panel' && top && boards?.[top] ? top : homeId;

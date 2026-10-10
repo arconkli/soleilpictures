@@ -1261,19 +1261,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // — a link, a search hit, a backlink or Show on board aimed at one lands
   // here instead of at a canvas that can't show it. Main pane: Files opens
   // beside the board (or full when there's no room) with those files picked
-  // out. The split pane has no panel; it says where they are.
-  const [filesReveal, setFilesReveal] = useState(null);   // { boardId, ids, token }
+  // out. The split pane has no panel: it switches to Files. Either way only
+  // this device's override, so a reveal never changes the cluster's view for
+  // anyone else. Files consumes the request once it has shown it.
+  const [filesReveal, setFilesReveal] = useState(null);   // { boardId, ids, token, pane }
   const revealInFiles = (boardId, ids, isMainPane = true) => {
-    if (!isMainPane) {
-      feedback.toast({ type: 'info', message: 'That file isn\u2019t on the board — it\u2019s in Files.' });
-      return;
-    }
-    // With room, Files opens beside the board. Without, full Files — this
-    // device's override only, so revealing a file never changes the cluster's
-    // view for anyone else.
-    if (canDockMainRef.current) applyFilesEventRef.current?.('reveal', 'reveal');
+    if (isMainPane && canDockMainRef.current) applyFilesEventRef.current?.('reveal', 'reveal');
     else setViewOverride((o) => ({ ...o, [boardId]: 'list' }));
-    setFilesReveal({ boardId, ids: ids || [], token: Date.now() });
+    setFilesReveal({ boardId, ids: ids || [], token: Date.now(), pane: isMainPane ? 'main' : 'split' });
   };
 
   // A cluster picker that answers with a promise — "Go to cluster…" in the
@@ -2891,7 +2886,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({
         type: 'success',
         message: `Added ${addedIds.length} ${addedIds.length === 1 ? 'file' : 'files'} to Files — not on the board`,
-        ...(offerBoard ? { action: { label: 'Open beside board', onClick: () => applyFilesEventRef.current?.('shrink', 'toast') } } : {}),
+        // Only while that cluster is still the one in full Files.
+        ...(offerBoard ? { action: { label: 'Open beside board', onClick: () => { if (fullFilesBoardRef.current === boardId) applyFilesEventRef.current?.('shrink', 'toast'); } } } : {}),
       });
 
       // 6) Background uploads (bounded concurrency). Patch via updateCardSilent
@@ -8313,7 +8309,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                    onPickCluster={requestClusterPick}
                    onShowInCluster={isMain ? showInCluster : null}
                    homeCards={canvasCards}
-                   revealRequest={isMain && filesReveal?.boardId === board.id ? filesReveal : null}
+                   revealRequest={filesReveal?.boardId === board.id && filesReveal.pane === (isMain ? 'main' : 'split') ? filesReveal : null}
                    onLocate={(id) => setFocusRequest({ boardId: board.id, ids: [id], token: Date.now(), mode: 'center' })}
                    render={(o) => (
           <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
@@ -8326,6 +8322,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        peersBelowByBoard={peersBelowByBoard}
                        onJumpToPeer={jumpToPeer}
                        onDropFilesToCluster={(files) => muts.ingestFilesArranged?.(files)}
+                       onRevealDone={(token) => setFilesReveal((r) => (r?.token === token ? null : r))}
                        recentlyAddedIds={recentlyAdded?.boardId === board.id ? recentlyAdded.ids : null}
                        getAwareness={yh.getAwareness}
                        workspaceId={workspace.id}

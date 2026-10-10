@@ -101,6 +101,9 @@ export function guardCaptureMutators(mutators) {
 
     out[name] = () => undefined;
   }
+  // Lets an action that is all geometry (Remove from board, Put on board)
+  // stand down instead of half-applying and reporting success.
+  out.captureGuarded = true;
   return out;
 }
 

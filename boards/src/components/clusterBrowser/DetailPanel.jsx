@@ -7,7 +7,7 @@ import { CardPreview } from './CardPreview.jsx';
 import { copyCardLink } from '../../lib/cardLink.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
-import { X, Download, Trash2 as TrashIcon, Maximize2, Link as LinkIcon } from '../../lib/icons.js';
+import { X, Download, Trash2 as TrashIcon, Maximize2, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
 import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { getMeta } from '../../lib/imageMeta.js';
@@ -28,7 +28,7 @@ function MetaRow({ label, value }) {
 
 
 // `inline`: Info beside Quick look, which is already showing the preview.
-export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false }) {
+export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false, onPutOnBoard = null }) {
   const feedback = useFeedback();
 
   // Esc closes it through ListSurface's keyboard handler (clearing the
@@ -117,7 +117,13 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
             ?board=&card= link copyLink builds is only read by the signed-in
             app. The first action a visitor tried was the one that did
             nothing. */}
-        {onReveal && (
+        {/* A file waiting in Files has no spot on the canvas to open to —
+            it can be put there instead. */}
+        {item.unplaced ? (onPutOnBoard && (
+          <button className="cbd-act" onClick={() => onPutOnBoard(item.id)}>
+            <Icon as={BoundingBox} size={15} /><span>Put on board</span>
+          </button>
+        )) : onReveal && (
           <button className="cbd-act" onClick={() => onReveal(item.id)}>
             <Icon as={Maximize2} size={15} /><span>Open on canvas</span>
           </button>

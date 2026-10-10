@@ -2534,6 +2534,29 @@ export function CanvasSurface({
     for (const k of Object.keys(m)) { if (!seen.has(k)) delete m[k]; }
   }
 
+  // A selected card that leaves the board — Remove from board here or by a
+  // collaborator, a delete elsewhere — leaves the selection too, or Delete,
+  // Duplicate and Group would act on something no one can see. Only ids that
+  // WERE drawn and now aren't: a card being added may be selected a render
+  // before it arrives.
+  const placedIdsRef = useRef(null);
+  useEffect(() => {
+    const before = placedIdsRef.current;
+    const now = new Set((cards || []).map((c) => c.id));
+    placedIdsRef.current = now;
+    if (!before) return;
+    setSelected((sel) => {
+      if (!sel.size) return sel;
+      let changed = false;
+      const next = new Set();
+      for (const id of sel) {
+        if (before.has(id) && !now.has(id)) changed = true;
+        else next.add(id);
+      }
+      return changed ? next : sel;
+    });
+  }, [cards]);
+
   // ── Templates panel ────────────────────────────────────────────────────────
   // Built-ins are a module constant, so the panel always has something to show:
   // offline, signed out, and under ?local=1 (which has no supabase client at
@@ -6724,6 +6747,7 @@ export function CanvasSurface({
   // step. Their spot is kept — it's where an older client still draws them —
   // and they leave any group, which is a thing on the board.
   const removeFromBoard = (ids) => {
+    if (mutators.captureGuarded) return;   // capture reframe: geometry is frozen
     const list = (ids || []).filter((id) => canUnplace(cardByIdRef.current?.[id]));
     if (!list.length) return;
     const um = mutators.undoManager;
@@ -7300,7 +7324,7 @@ export function CanvasSurface({
     // Off the board, still in the cluster: the file waits in Files
     // (lib/placement.js). Offered only when every card in the selection can go.
     const offIds = (multi ? [...selected] : [c.id]).filter((id) => canUnplace(cardById[id]));
-    if (offIds.length && offIds.length === (multi ? selected.size : 1)) {
+    if (!mutators.captureGuarded && offIds.length && offIds.length === (multi ? selected.size : 1)) {
       metaItems.push({ id: 'unplace', label: offIds.length > 1 ? `Remove ${offIds.length} from board` : 'Remove from board',
         run: () => removeFromBoard(offIds) });
     }
@@ -8448,6 +8472,13 @@ export function CanvasSurface({
   // Inline-draft state. When the user picks "Add comment" from a
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.
+  // A comment pinned to a card that's waiting in Files (lib/placement.js) has
+  // nothing on the canvas to sit by — it isn't drawn until the card is placed.
+  const commentsOnBoard = useMemo(() => {
+    if (!unplacedCount || !comments?.length) return comments;
+    const off = new Set((everyCard || []).filter(isUnplaced).map((c) => c.id));
+    return comments.filter((c) => !(c?.anchor_kind === 'card' && off.has(c.anchor_id)));
+  }, [comments, everyCard, unplacedCount]);
   const [commentDraft, setCommentDraft] = useState(null);
   // Master comments-visibility toggle. Default ON — when the user
   // turns it off, the entire comment layer disappears from the canvas.
@@ -9307,6 +9338,9 @@ export function CanvasSurface({
     // Only from a cluster this person can see — a drag from another page can
     // carry our MIME type too.
     if (!boards?.[payload.sourceBoardId]) return;
+    // The drop point was chosen: on an empty board, the first file placed
+    // stays where it was dropped rather than the camera zooming in on it.
+    markViewSettled();
     const um = mutators.undoManager;
     const top = () => (um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null);
     // Every card in the cluster: a file waiting in Files (lib/placement.js) is
@@ -9403,7 +9437,9 @@ export function CanvasSurface({
       const movable = src.cards.filter((c) => !isStillUploading(c) && c.kind !== 'board' && c.kind !== 'boardlink');
       if (!movable.length) return;
       const stamp = Date.now();
-      const fresh = movable.map((c, i) => ({ ...c, id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`, groupId: null }));
+      // Dropped on this canvas, so it's on this board — even a note that was
+      // waiting in the other cluster's Files (lib/placement.js).
+      const fresh = movable.map((c, i) => ({ ...c, id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`, groupId: null, unplaced: false }));
       const allIds = Object.fromEntries(movable.map((c, i) => [c.id, fresh[i].id]));
       const placed = layoutDrop(fresh.map((c) => ({ ...c, w: c.w || 240, h: c.h || 200 })), { at, layout: 'grid' });
       const res = mutators.addCards?.(placed, { moveFrom: sourceBoardId, untracked: true, arrows: src.arrowsBetween(allIds) });
@@ -9477,13 +9513,14 @@ export function CanvasSurface({
     if (isPublic || !canEdit) return;
     if (d.handled || d.sourceBoardId !== board?.id || d.targetBoardId === board?.id) return;
     const idSet = new Set(d.ids || []);
-    const moving = (cards || []).filter((c) => idSet.has(c.id));
+    // Every card in the cluster — one waiting in Files moves out too, live.
+    const moving = (everyCard || []).filter((c) => idSet.has(c.id));
     if (!moving.length) return;
     const doc = ydoc;
     d.handled = true;
     d.live = {
       cards: moving,
-      originals: new Map(moving.map((c) => [c.id, { x: c.x, y: c.y, w: c.w, h: c.h, z: c.z, groupId: c.groupId }])),
+      originals: new Map(moving.map((c) => [c.id, { x: c.x, y: c.y, w: c.w, h: c.h, z: c.z, groupId: c.groupId, unplaced: c.unplaced === true }])),
       arrowsBetween: (idMap) => arrowsBetween(arrows || [], idMap),
       // Let go of what landed — the untracked move-delete, so ⌘Z here can't
       // bring back half a move.
@@ -9505,8 +9542,12 @@ export function CanvasSurface({
     const place = (id) => d.originals?.get?.(id) || {};
     const cardsBack = (d.entries || []).map(({ id, card }) => {
       const p = place(id);
-      return { ...card, id, x: p.x ?? card.x, y: p.y ?? card.y, w: p.w ?? card.w, h: p.h ?? card.h, groupId: p.groupId ?? null };
-    }).filter((c) => !(cards || []).some((x) => x.id === c.id));
+      return {
+        ...card, id, x: p.x ?? card.x, y: p.y ?? card.y, w: p.w ?? card.w, h: p.h ?? card.h, groupId: p.groupId ?? null,
+        // Undo puts a file that was waiting in Files back there, not on the board.
+        unplaced: p.unplaced === true,
+      };
+    }).filter((c) => !(everyCard || []).some((x) => x.id === c.id));
     mutators.addCards?.(cardsBack, { moveFrom: d.targetBoardId, untracked: true, arrows: d.arrows || [] });
   };
   useEffect(() => {
@@ -11380,7 +11421,7 @@ export function CanvasSurface({
             content; the connector line + anchor dot show users exactly
             which card / group / point each comment is attached to. */}
         <CanvasCommentLayer
-          comments={comments}
+          comments={commentsOnBoard}
           boardId={board?.id}
           workspaceId={workspaceId}
           userId={userId}
@@ -11700,12 +11741,11 @@ export function CanvasSurface({
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
       {/* An empty board whose cluster has files waiting in Files: say so,
           rather than "Start your cluster" over a cluster that isn't empty. */}
-      {boardIsEmpty && !firstCardPrompt && unplacedCount > 0 && (
+      {/* Only where there's a Files to open: a public link's canvas has none. */}
+      {boardIsEmpty && !firstCardPrompt && unplacedCount > 0 && onRevealUnplaced && (
         <div className="cnv-waiting" role="status">
           <span>{unplacedCount === 1 ? '1 file is' : `${unplacedCount} files are`} in Files, not on the board yet.</span>
-          {onRevealUnplaced && (
-            <button type="button" className="tb-btn" onClick={() => onRevealUnplaced([])}>Open Files</button>
-          )}
+          <button type="button" className="tb-btn" onClick={() => onRevealUnplaced([])}>Open Files</button>
         </div>
       )}
       {canEdit && selectedTool === 'select' && ((boardIsEmpty && unplacedCount === 0) || firstCardPrompt) && (() => {

@@ -99,7 +99,9 @@ function labelForCard(c, boards) {
 function quickHashCards(cards, strokes) {
   let h = `${cards?.length || 0}|${strokes?.length || 0}|`;
   for (const c of (cards || [])) {
-    h += `${c.id || ''}:${c.x || 0},${c.y || 0},${c.w || 0},${c.h || 0},${c.kind || ''},${c.title || ''},${c.src || ''}|`;
+    // `u`: off the board (lib/placement.js) — drawn or not, so Remove from
+    // board and Put on board both change the hash and re-render the thumb.
+    h += `${c.id || ''}:${c.x || 0},${c.y || 0},${c.w || 0},${c.h || 0},${c.kind || ''},${c.title || ''},${c.src || ''}${c.unplaced === true ? ',u' : ''}|`;
   }
   for (let i = 0; i < (strokes || []).length; i++) {
     const s = strokes[i];

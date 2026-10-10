@@ -160,12 +160,16 @@ test('non-function values pass through by reference', () => {
 test('the wrapper covers the whole surface — no key goes missing', () => {
   const s = spyMutators();
   const g = guardCaptureMutators(s.api);
-  assert.deepEqual(Object.keys(g).sort(), Object.keys(s.api).sort(),
+  assert.deepEqual(Object.keys(g).filter((k) => k !== 'captureGuarded').sort(), Object.keys(s.api).sort(),
     'a missing key reads as undefined at the call site and throws');
+  // …plus one flag, so an action that is all geometry can stand down instead
+  // of half-applying (Remove from board, Put on board).
+  assert.equal(g.captureGuarded, true);
+  assert.equal(s.api.captureGuarded, undefined);
 });
 
 test('junk input is returned unchanged rather than crashing the canvas', () => {
   assert.equal(guardCaptureMutators(null), null);
   assert.equal(guardCaptureMutators(undefined), undefined);
-  assert.deepEqual(guardCaptureMutators({}), {});
+  assert.deepEqual(guardCaptureMutators({}), { captureGuarded: true });
 });

@@ -157,6 +157,8 @@ async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, 
 // Synchronously read the live board's visual data; skip if throttled,
 // unchanged, or empty; otherwise render+upload+stamp. Safe to call from an
 // idle callback.
+const isDrawn = (c) => c?.unplaced !== true;
+
 function maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId }) {
   if (!workspaceId || !boardId || ydoc.isDestroyed) return;
   const now = Date.now();
@@ -169,7 +171,9 @@ function maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId }) {
   } catch (_) { return; }
   const hash = quickVisualHash(cards, strokes, arrows);
   if (_lastThumbHash.get(boardId) === hash) return;          // nothing visual changed this session
-  if (cards.length === 0 && strokes.length === 0) {          // empty board — nothing to render
+  // Empty board — nothing to render. Files waiting off the board aren't drawn
+  // (lib/placement.js), so a board holding only those is empty too.
+  if (!cards.some(isDrawn) && strokes.length === 0) {
     _lastThumbHash.set(boardId, hash);
     return;
   }
@@ -191,7 +195,7 @@ export function forceBoardThumbnail(boardId, ydoc, { workspaceId, userId } = {})
     arrows = ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a);
     strokes = ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s);
   } catch (_) { return; }
-  if (cards.length === 0 && strokes.length === 0) return;   // nothing to render
+  if (!cards.some(isDrawn) && strokes.length === 0) return;   // nothing to render
   const hash = quickVisualHash(cards, strokes, arrows);
   _lastThumbAttempt.set(boardId, Date.now());
   void _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, workspaceId, userId });
@@ -591,7 +595,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
             const arrows = ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a);
             const strokes = ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s);
             const hash = quickVisualHash(cards, strokes, arrows);
-            if (_lastThumbHash.get(boardId) !== hash && (cards.length || strokes.length)) {
+            if (_lastThumbHash.get(boardId) !== hash && (cards.some(isDrawn) || strokes.length)) {
               void _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, workspaceId, userId });
             }
           } catch (_) { /* never block teardown */ }

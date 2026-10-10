@@ -120,3 +120,24 @@ test('full Files: added files stay off the board, and the toast offers the board
   await page.waitForTimeout(300);
   expect(await canvasCount(page)).toBe(before);
 });
+
+// What a ?card= link, a search hit or a backlink does on arrival.
+const flash = (page, cardId) => page.evaluate((id) => {
+  document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId: 'root', cardId: id } }));
+}, cardId);
+
+test('a link to a file that is not on the board opens Files with it selected — and only once', async ({ page }) => {
+  await go(page);
+  await removeFromBoard(page, 'home-image');
+  await expect(panel(page)).toHaveCount(0);   // Files is closed
+  await flash(page, 'home-image');
+  const tile = panel(page).locator('[data-item-id="home-image"]');
+  await expect(tile).toHaveClass(/is-selected/);
+  // Close and reopen Files: the request was used up, not replayed.
+  await page.locator('.canvas-wrap').click({ position: { x: 30, y: 300 } });
+  await page.keyboard.press('f');
+  await expect(panel(page)).toHaveCount(0);
+  await page.keyboard.press('f');
+  await expect(panel(page)).toBeVisible();
+  await expect(panel(page).locator('[data-item-id="home-image"]')).not.toHaveClass(/is-selected/);
+});
