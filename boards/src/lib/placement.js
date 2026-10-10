@@ -97,7 +97,10 @@ export function nearestFreeSpot(solid, want, w, h, gap = 24) {
   }
   const d = (p) => Math.hypot(p.x - want.x, p.y - want.y);
   cands.sort((a, b) => d(a) - d(b));
-  return cands.find((p) => !hits(p.x, p.y)) || null;
+  // Nearest first, and only so many: on a dense board the far candidates
+  // aren't "near the view" anyway, and besideContent always fits.
+  for (let i = 0; i < cands.length && i < 600; i++) if (!hits(cands[i].x, cands[i].y)) return cands[i];
+  return null;
 }
 
 // The top-left of a spot just right of everything on the board.

@@ -105,6 +105,7 @@ export function ListSurface({
   onPickCluster = null,
   // { ids, token } — pick out files that aren't on the board (App.revealInFiles).
   revealRequest = null,
+  onRevealDone = null,   // (token) => the shell forgets the request once shown
   // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
   // owners; opens the storage upgrade modal. Off in the ?local harness.
   showStorageUpsell = false,
@@ -340,23 +341,6 @@ export function ListSurface({
   const [infoOpen, setInfoOpen] = useState(() => readInfoPref());
   const toggleInfo = useCallback(() => setInfoOpen((v) => { writeInfoPref(!v); return !v; }), []);
 
-  // Asked to show files that aren't on the board (a link, a search hit, Show
-  // on board): clear whatever would hide them, select them and bring the
-  // first into view. No ids = just Files, filtered to what's not on the board.
-  useEffect(() => {
-    if (!revealRequest?.token) return;
-    const ids = (revealRequest.ids || []).filter((id) => items.some((it) => it.id === id));
-    setQuery('');
-    setFilters(new Set());
-    if (!ids.length) { setUnplacedOnly(items.some((it) => it.unplaced)); return; }
-    setUnplacedOnly(false);
-    setSelectedCards(new Set(ids));
-    setSelectedBoards(new Set());
-    setSelectedGroupId(null);
-    setActiveId(ids[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealRequest?.token]);
-
   // Re-sorting or filtering strands the cursor on a row that has moved or gone.
   useEffect(() => {
     if (activeId && !navItems.some(it => it.id === activeId)) setActiveId(null);
@@ -581,6 +565,30 @@ export function ListSurface({
     setSelectedGroupId(null);
   }, [board.id]);
 
+  // Asked to show files that aren't on the board (a link, a search hit, Show
+  // on board): clear whatever would hide them, select them and bring the
+  // first into view. No ids = just Files, filtered to what's not on the board.
+  // Declared AFTER the board-change resets on purpose: when Files opens (or
+  // steps home) for the request, those run in the same pass and would wipe
+  // the selection this makes. Reported done, so it isn't replayed when Files
+  // comes back.
+  useEffect(() => {
+    if (!revealRequest?.token) return;
+    const ids = (revealRequest.ids || []).filter((id) => items.some((it) => it.id === id));
+    setQuery('');
+    setFilters(new Set());
+    if (!ids.length) setUnplacedOnly(items.some((it) => it.unplaced));
+    else {
+      setUnplacedOnly(false);
+      setSelectedCards(new Set(ids));
+      setSelectedBoards(new Set());
+      setSelectedGroupId(null);
+      setActiveId(ids[0]);
+    }
+    onRevealDone?.(revealRequest.token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealRequest?.token]);
+
   const toggle = useCallback((set, setSet, id, multi) => {
     setSet(prev => {
       if (multi) {
@@ -752,7 +760,7 @@ export function ListSurface({
   // its canvas was last looking (lib/viewCenter.js), or beside its content.
   // One undo step. Beside the board, the board then brings them into view.
   const putOnBoard = useCallback((ids) => {
-    if (!canEdit) return;
+    if (!canEdit || mutators.captureGuarded) return;
     const plan = planPutOnBoard(cards, ids, getViewCenter(board.id));
     if (!plan.length) return;
     const um = mutators.undoManager;
@@ -1094,9 +1102,10 @@ export function ListSurface({
   const onFilesDragEnd = () => { try { window.__soleilFilesDrag = null; } catch (_) {} };
 
   const totalSel = selectedBoards.size + selectedCards.size;
+  const unplacedIds = useMemo(() => new Set(items.filter((it) => it.unplaced).map((it) => it.id)), [items]);
   const selectedUnplaced = useMemo(
-    () => (browsingFrom ? [] : [...selectedCards].filter((id) => items.find((it) => it.id === id)?.unplaced)),
-    [browsingFrom, selectedCards, items]);
+    () => (browsingFrom ? [] : [...selectedCards].filter((id) => unplacedIds.has(id))),
+    [browsingFrom, selectedCards, unplacedIds]);
   const cmdKey = isMac ? '⌘' : 'Ctrl';
 
   // What the right-side detail popout shows: a single selected card, or a
@@ -1557,6 +1566,7 @@ export function ListSurface({
                   target={detailTarget} boards={boards} canEdit={canEdit}
                   onClose={toggleInfo}
                   onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
+                  onPutOnBoard={canEdit && !browsingFrom ? (id) => putOnBoard([id]) : null}
                   onDelete={onDeleteItems} />
               )}
             </div>

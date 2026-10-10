@@ -2010,6 +2010,7 @@ export function LocalBoardsApp({ user, signOut }) {
                     onOpenPicker={() => openBoardLinkPicker()}
                     onDropInboxItem={dropInboxItem}
                     onDropFilesToCluster={(files) => ingestFilesLocal(files)}
+                    onRevealDone={(token) => setFilesReveal((r) => (r?.token === token ? null : r))}
                     recentlyAddedIds={localRecentlyAdded?.boardId === currentBoard?.id ? localRecentlyAdded.ids : null}
                     gridTemplates={currentTemplates}
                     getGridModel={(card) => readGridModel(card, null, currentTemplates)}
