@@ -300,7 +300,9 @@ test('alerts go only to the owner, from the alerts address, and the sender check
   assert.match(sender, /if \(await overHourlyCeiling\(body\.template\)\)/, 'the backstop ceiling runs before sending');
   assert.match(sender, /from\("ops_alerts"\)\.update\(\{ paged_at:/, 'a delivered alert is stamped, so it is not resent');
   assert.match(sender, /actor_id:\s+opts\.actorId \?\? null/, 'who caused an email is logged with it');
-  assert.ok(caseBlock('ops_alert').includes('replace(/[\\r\\n\\t]+/g, " ")'), 'an alert title is one line');
+  const alertCase = caseBlock('ops_alert');
+  assert.ok(alertCase.includes('opsLine(data.title, 160)') && alertCase.includes('opsLines(data.body)'),
+    'every line of an alert is made inert (0390)');
 });
 
 test('one-click unsubscribe covers mentions and replies, and its three allowlists agree', () => {
@@ -723,7 +725,7 @@ test('no cron job carries its secret inline; one definer helper reads it from Va
     assert.ok(latestMatch(new RegExp(`cron\\.schedule\\('${job}',\\s+'[^']+',\\s+\\$\\$select public\\._cron_edge_post\\(`)), job);
   }
   assert.match(latestDefinition('check_security_invariants').body,
-    /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', 'check_security_invariants'\)/);
+    /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', '_ops_hc_ping', 'check_security_invariants'\)/);
 });
 
 // ── 0387: storage counts what was actually stored ───────────────────────────
@@ -846,4 +848,88 @@ test('the server weighs a card the way cardWeight does, except the grid it canno
   const { cardWeight } = await import('./gridCount.js');
   for (const kind of ['note', 'image', 'video', 'link', 'board', 'doc']) assert.equal(cardWeight(kind, []), 1, kind);
   assert.equal(cardWeight('schedule', []), 1);
+});
+
+// ── 0390: an alert reaches the inbox, and one nobody saw is raised ───────────
+
+test('an alert email is plain text with a fixed subject, and nothing in it an attacker chose is live', async () => {
+  const { renderTemplate } = await import('../../../supabase/functions/_shared/email/templates.ts');
+  const zw = String.fromCodePoint(0x200b);
+  const hold = renderTemplate('ops_alert', {
+    alertId: 21, kind: 'hold', createdAt: '2026-10-08T14:03:12.123456+00:00',
+    title: 'Sharing paused for scammer@paypal-security-check.example',
+    body: 'Lure: verify at https://secure-login.example/x or www.evil.example\n\n\n'
+      + 'Accounts: a@x.example, b@ｙ．example, c@z' + zw + '.example',
+  });
+  assert.equal(hold.subject, 'Clusters monitor #21: sharing paused for one account', 'the subject never carries the title');
+  assert.equal(hold.html, undefined, 'no HTML: no logo, button, hidden preview text or rewritten link');
+  assert.doesNotMatch(hold.text, /@/, 'an address becomes a count; the Security tab has it in full');
+  assert.match(hold.text, /^Sharing paused for an account \(address in the Security tab\)\n\n/);
+  assert.match(hold.text, /Accounts: 3 accounts \(addresses in the Security tab\)/);
+  assert.match(hold.text, /https\[:\]\/\/secure-login\[\.\]example\/x or www\[\.\]evil\[\.\]example/, 'a lure is defanged, still readable');
+  assert.doesNotMatch(hold.text, /\n\n\n/, 'runs of blank lines collapse');
+  // The only live link is ours, written out as itself.
+  assert.deepEqual(hold.text.match(/https?:\/\/\S+|www\.\S+|\b[\w-]+\.(?:example|com)\b/g),
+    ['https://clusters.soleilpictures.com/?settings=security']);
+  assert.match(hold.text, /\nAlert #21, 2026-10-08 14:03 UTC\.\n/);
+
+  const forged = renderTemplate('ops_alert', { alertId: '4; drop', kind: 'constructor', title: 'x\r\nBcc: v@example.com' });
+  assert.equal(forged.subject, 'Clusters monitor #?: constructor', 'a kind cannot reach Object.prototype');
+  assert.doesNotMatch(forged.text.split('\n')[0], /[\r\n]|@/);
+  assert.equal(renderTemplate('ops_alert', { alertId: 9, kind: 'some_new_kind', title: 't' }).subject,
+    'Clusters monitor #9: some new kind');
+  assert.equal(renderTemplate('ops_alert', { alertId: 40, kind: 'heartbeat', title: 't', createdAt: '2026-10-12T13:05:00Z' }).subject,
+    'Clusters monitor: weekly report for 2026-10-12');
+
+  const tpl = templates.slice(templates.indexOf('function opsAlertTpl'), templates.indexOf('export function renderTemplate'));
+  assert.doesNotMatch(tpl, /renderEmail|renderPlainNote|html:/, 'no branded layout');
+  assert.doesNotMatch(tpl.slice(tpl.indexOf('subject:'), tpl.indexOf('text: [')), /d\.(title|body)/,
+    'the subject is built from the kind alone');
+});
+
+test('an alert goes without Reply-To or an unsubscribe header, marked as machine-sent', () => {
+  const sender = read('../../../supabase/functions/send-transactional-email/index.ts');
+  assert.match(sender, /const isAlert = body\.template === "ops_alert";/);
+  assert.match(sender, /\.\.\.\(rendered\.html \? \{ html: rendered\.html \} : \{\}\),/, 'text-only when the template has no HTML');
+  assert.match(sender, /\.\.\.\(isAlert \? \{\} : \{ reply_to: REPLY_TO \}\),/, 'the From is the only address in an alert');
+  assert.match(sender, /headers:\s+isAlert \? \{ "Auto-Submitted": "auto-generated" \}/);
+  const listed = sender.match(/const LIST_UNSUB_TEMPLATES = new Set\(\[([^\]]+)\]\)/)[1];
+  assert.ok(!listed.includes('"ops_alert"'), 'nobody can unsubscribe from alerts');
+  assert.doesNotMatch(sender, /"(?:Precedence|X-Priority|Importance)"/);
+});
+
+test('an outside check hears from the database every ten minutes, and hears why when an alert went unseen', () => {
+  const ping = latestDefinition('_ops_hc_ping').body;
+  assert.match(ping, /'https:\/\/hc-ping\.com\/' \|\| v_check \|\| case when coalesce\(p_ok, false\) then '' else '\/fail' end/,
+    'the host is fixed in code; Vault holds only the check\'s UUID');
+  assert.match(ping, /from vault\.decrypted_secrets where name = 'ops_deadman_check'/);
+  assert.match(ping, /if v_check is null then\s+return null;/, 'no check configured, no call');
+  assert.match(ping, /body\s+:= jsonb_build_object\('why', coalesce\(p_why, /, 'reason codes only, never alert text');
+
+  const dead = latestDefinition('_ops_deadman').body;
+  for (const why of ['unpaged', 'unseen', 'report_unseen', 'dispatch_off', 'dispatch_stalled', 'token_missing', 'schedule_missing']) {
+    assert.ok(dead.includes(`'${why}'::text`), `the dead-man lost its ${why} check`);
+  }
+  assert.match(dead, /a\.paged_at is not null and a\.acked_at is null/, 'sent is not seen');
+  assert.doesNotMatch(dead, /net\.http/, 'only _ops_hc_ping calls out');
+  assert.match(dead, /perform public\._ops_hc_ping\(cardinality\(v_why\) = 0, v_why\);/);
+  assert.ok(latestMatch(/cron\.schedule\('ops-deadman', '\*\/10 \* \* \* \*', \$\$select public\._ops_deadman\(\)\$\$\)/));
+  for (const sig of ['_ops_hc_ping\\(boolean, text\\[\\]\\)', '_ops_deadman\\(\\)']) {
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${sig} from public, anon, authenticated`)), sig);
+  }
+
+  // The daily invariants watch the dead-man's schedule, and any call out.
+  const inv = latestDefinition('check_security_invariants').body;
+  assert.match(inv, /p\.prosrc ilike '%net\.http%'/, 'check 1 sees any net.http call, not only http_post');
+  const watched = (src) => src.match(/unnest\(array\[([^\]]+)\]\) j/)[1].match(/'[\w-]+'/g).sort();
+  assert.deepEqual(watched(inv), watched(dead), 'the dead-man and the invariant watch the same jobs');
+  assert.ok(watched(inv).includes("'ops-deadman'"));
+
+  assert.match(latestDefinition('admin_ops_alert_test').body, /Mark it Seen there to finish the check/);
+  assert.doesNotMatch(latestDefinition('ops_heartbeat').body, /ever stops arriving/, 'a report in Spam has still arrived');
+
+  const tab = read('../components/settings/SecurityTab.jsx');
+  assert.match(tab, /a\.paged_at \? 'accepted by Resend' : 'sending'/, 'Resend taking it is all paged_at knows');
+  assert.match(tab, /' · not seen'/);
+  assert.match(tab, /Check your inbox and Spam within two minutes, then click Seen here\./);
 });
