@@ -48,7 +48,7 @@ export const FolderTile = memo(function FolderTile({
          draggable={rename ? undefined : divProps.draggable}
          className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
          title={label}>
-      <div className="ft-cover" style={{ '--ft-tint': tint }}>
+      <div className="ft-cover" data-cover={board?.cover || 'neutral'} style={{ '--ft-tint': tint }}>
         {board?.thumb_key ? (
           <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
                    bust={board.thumb_updated_at} className="ft-thumb" alt="" draggable={false} />
