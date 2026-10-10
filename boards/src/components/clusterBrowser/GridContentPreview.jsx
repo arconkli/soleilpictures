@@ -60,7 +60,12 @@ export function GridContentPreview({ model, size = 'row' }) {
     <div className="cbg" aria-hidden="true">
       {rects.map((r, i) => (
         <div key={r.id || i} className={`cbg-cell cbg-${(cells[r.id] && cells[r.id].type) || 'empty'}`}
-             style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}>
+             style={{
+               // A 3px gutter between cells, so the grid reads as cells rather
+               // than as one half-loaded picture.
+               left: `calc(${r.x * 100}% + 1.5px)`, top: `calc(${r.y * 100}% + 1.5px)`,
+               width: `calc(${r.w * 100}% - 3px)`, height: `calc(${r.h * 100}% - 3px)`,
+             }}>
           <CellContent cell={cells[r.id]} rect={r} basePx={basePx} size={size} />
         </div>
       ))}

@@ -109,3 +109,23 @@ test('panel folders: two rows until Show all, remembered on this device', async 
     await expect(folders).toHaveCount(Number(total));
   }
 });
+
+test('captions drop the file extension; the tooltip keeps the full name', async ({ page }) => {
+  await go(page);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  await panel(page).locator('input[type="file"][multiple]').setInputFiles([{ name: 'grade-ref.png', mimeType: 'image/png', buffer: png }]);
+  const name = panel(page).locator('.ct-tile-name[title="grade-ref.png"]');
+  await expect(name).toHaveText('grade-ref');
+});
+
+test('the round check on a tile adds it to the selection without a modifier key', async ({ page }) => {
+  await go(page);
+  await tiles(page).nth(1).click();
+  await tiles(page).nth(3).hover();
+  await tiles(page).nth(3).locator('.ct-tile-check').click();
+  await expect(tiles(page).nth(1)).toHaveClass(/is-selected/);
+  await expect(tiles(page).nth(3)).toHaveClass(/is-selected/);
+  await expect(panel(page).locator('.list-selbar-count')).toHaveText('2 selected');
+  await tiles(page).nth(3).locator('.ct-tile-check').click();
+  await expect(tiles(page).nth(3)).not.toHaveClass(/is-selected/);
+});

@@ -37,10 +37,10 @@ test('Remove from board takes a card off the canvas and keeps it in Files, marke
   await page.keyboard.press('f');
   const tile = panel(page).locator('[data-item-id="home-image"]');
   await expect(tile).toBeVisible();
-  await expect(tile.locator('.ct-onboard.is-off')).toHaveText('Not on board');
+  await expect(tile.locator('.ct-tile-flag.is-off')).toHaveAttribute('aria-label', 'Not on board');
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(onCanvas(page, 'home-image')).toHaveCount(1);
-  await expect(tile.locator('.ct-onboard.is-off')).toHaveCount(0);
+  await expect(tile.locator('.ct-tile-flag.is-off')).toHaveCount(0);
 });
 
 test('Put on board from Files places it again; ⌫ on the board still deletes', async ({ page }) => {
@@ -98,7 +98,7 @@ test('files added in the panel join the cluster but stay off the board', async (
   await expect(page.getByText('Added 2 files to Files — not on the board')).toBeVisible();
   // No "Open beside board" offer: the board is already beside it.
   await expect(page.getByRole('button', { name: 'Open beside board' })).toHaveCount(0);
-  const added = panel(page).locator('[data-item-id]').filter({ has: page.locator('.ct-onboard.is-off') });
+  const added = panel(page).locator('[data-item-id]').filter({ has: page.locator('.ct-tile-flag.is-off') });
   await expect(added).toHaveCount(2);
   await page.waitForTimeout(300);
   expect(await canvasCount(page)).toBe(before);
@@ -116,7 +116,7 @@ test('full Files: added files stay off the board, and the toast offers the board
   await expect(page.getByText('Added 1 file to Files — not on the board')).toBeVisible();
   await page.getByRole('button', { name: 'Open beside board' }).click();
   await expect(panel(page)).toBeVisible();
-  await expect(panel(page).locator('.ct-onboard.is-off')).toHaveCount(1);
+  await expect(panel(page).locator('.ct-tile-flag.is-off')).toHaveCount(1);
   await page.waitForTimeout(300);
   expect(await canvasCount(page)).toBe(before);
 });

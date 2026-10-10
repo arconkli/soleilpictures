@@ -2,9 +2,10 @@ import { memo } from 'react';
 import { CardPreview } from './CardPreview.jsx';
 import { Avatar } from '../primitives.jsx';
 import { Icon } from '../Icon.jsx';
-import { Download } from '../../lib/icons.js';
+import { Download, Check } from '../../lib/icons.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { InlineRename } from './InlineRename.jsx';
+import { captionOf } from '../../lib/listItem.js';
 
 // One gallery tile: a large preview, name + type badge, and a live presence
 // overlay (peer color border + avatar) when a teammate has this card open.
@@ -23,6 +24,14 @@ export const ClusterTile = memo(function ClusterTile({
   markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
 }) {
   const peer = peers && peers[0];
+  const caption = captionOf(item.name, item.ext);
+  // Where the file stands with the board, as a mark by its name — never on the
+  // picture: once most tiles carry it, anything on the art repeats across the
+  // whole grid. Dashed: in the cluster, not on its board. Solid: a copy is on
+  // this board (seen while browsing another cluster).
+  const flag = markUnplaced && item.unplaced
+    ? { cls: 'is-off', label: 'Not on board', title: 'Not on board — in this cluster, not placed on its board' }
+    : onBoard ? { cls: 'is-on', label: 'On board', title: 'A copy of this file is already on the board' } : null;
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
   const canAudition = !!onAudition && item.kind === 'audio' && !item.pending;
   return (
@@ -38,8 +47,18 @@ export const ClusterTile = memo(function ClusterTile({
       <div className="ct-tile-preview">
         <CardPreview item={item} size="tile" px={px} />
         {item.pending && <span className="ct-thumb-spin ct-tile-spin" aria-hidden="true" />}
-        {onBoard && <span className="ct-onboard ct-tile-onboard" title="A copy of this file is already on the board">On board</span>}
-        {markUnplaced && item.unplaced && <span className="ct-onboard ct-tile-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
+        {/* Add to (or take out of) the selection without a modifier key —
+            the way to multi-select on a trackpad or a touchscreen. */}
+        <button type="button" className="ct-tile-check" tabIndex={-1}
+                aria-label={selected ? `Deselect ${item.name}` : `Select ${item.name}`}
+                aria-pressed={!!selected}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick?.({ target: e.currentTarget, metaKey: true, ctrlKey: true, shiftKey: e.shiftKey, stopPropagation() {} });
+                }}
+                onDoubleClick={(e) => e.stopPropagation()}>
+          <Icon as={Check} size={11} weight="bold" />
+        </button>
         {canAudition && (
           <button type="button" className="ct-tile-play"
                   aria-label={playing ? `Pause ${item.name}` : `Play ${item.name}`}
@@ -73,9 +92,10 @@ export const ClusterTile = memo(function ClusterTile({
         )}
       </div>
       <div className="ct-tile-meta">
+        {flag && !rename && <span className={`ct-tile-flag ${flag.cls}`} role="img" aria-label={flag.label} title={flag.title} />}
         {rename
           ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
-          : <div className="ct-tile-name" title={item.name}>{item.name}</div>}
+          : <div className="ct-tile-name" title={item.name}>{caption}</div>}
         <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
       </div>
     </div>
