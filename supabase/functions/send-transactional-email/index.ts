@@ -250,6 +250,10 @@ Deno.serve(async (req) => {
   }
 
   const rendered = renderTemplate(body.template as TemplateName, body.data || {});
+  // An alert (0390) is plain text with no Reply-To, so its From is the only
+  // address in it, and it says it was machine-sent (RFC 3834). Never a
+  // List-Unsubscribe: nobody can opt out of these.
+  const isAlert = body.template === "ops_alert";
 
   const resendRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -262,10 +266,11 @@ Deno.serve(async (req) => {
       from:     fromAddress(body.template as TemplateName),
       to:       [to],
       subject:  rendered.subject,
-      html:     rendered.html,
+      ...(rendered.html ? { html: rendered.html } : {}),
       text:     rendered.text,
-      reply_to: REPLY_TO,
-      headers:  listUnsubHeaders(body.template as TemplateName, body.data || {}),
+      ...(isAlert ? {} : { reply_to: REPLY_TO }),
+      headers:  isAlert ? { "Auto-Submitted": "auto-generated" }
+                        : listUnsubHeaders(body.template as TemplateName, body.data || {}),
     }),
   });
 
@@ -282,10 +287,11 @@ Deno.serve(async (req) => {
   }
 
   await logEmailSend({ template: body.template, to, ok: true, resendId: resendBody.id, actorId });
-  // An alert counts as delivered once Resend has it; until then the
-  // dispatcher retries it (0369).
+  // Resend has it; until then the dispatcher retries it (0369). That is not
+  // the same as a person seeing it, which only Seen in the Security tab
+  // records, and which _ops_deadman (0390) watches for.
   const alertId = Number((body.data || {}).alertId);
-  if (body.template === "ops_alert" && logDb && Number.isSafeInteger(alertId) && alertId > 0) {
+  if (isAlert && logDb && Number.isSafeInteger(alertId) && alertId > 0) {
     const { error } = await logDb.from("ops_alerts").update({ paged_at: new Date().toISOString() })
       .eq("id", alertId).is("paged_at", null);
     if (error) console.warn("ops_alerts paged_at stamp failed", error.message);

@@ -264,7 +264,7 @@ export function SecurityTab() {
         </ul>
       </SettingsCategory>
 
-      <SettingsCategory title="Recent alerts" desc="The last 50. Emailed ones say so.">
+      <SettingsCategory title="Recent alerts" desc="The last 50. Seen is the only sign anyone read one.">
         {data && alerts.length === 0 && <div className="settings-empty">No alerts yet.</div>}
         <ul className="settings-member-list">
           {alerts.map((a) => (
@@ -274,9 +274,11 @@ export function SecurityTab() {
                       onClick={() => setOpenAlert(openAlert === a.id ? null : a.id)}>
                 {a.title}
               </button>
+              {/* paged_at means Resend took it, not that it reached an inbox: the
+                  first test alert was "emailed" and sat in Spam (0390). */}
               <span className="settings-member-role">
-                {when(a.created_at)} · {a.page ? (a.paged_at ? 'emailed' : 'sending') : 'here only'}
-                {a.acked_at ? ' · seen' : ''}
+                {when(a.created_at)} · {a.page ? (a.paged_at ? 'accepted by Resend' : 'sending') : 'here only'}
+                {a.acked_at ? ' · seen' : (a.page && a.paged_at ? ' · not seen' : '')}
               </span>
               {!a.acked_at && (
                 <span className="settings-member-actions">
@@ -299,7 +301,7 @@ export function SecurityTab() {
           <button type="button" className="settings-btn" disabled={busy || loading} onClick={() => load()}>Refresh</button>
           <span style={{ flex: 1 }} />
           <button type="button" className="settings-btn" disabled={busy}
-                  onClick={() => act(sendTestAlert, 'Test alert queued. It should arrive within two minutes.')}>
+                  onClick={() => act(sendTestAlert, 'Test alert queued. Check your inbox and Spam within two minutes, then click Seen here.')}>
             Send a test alert
           </button>
         </div>
