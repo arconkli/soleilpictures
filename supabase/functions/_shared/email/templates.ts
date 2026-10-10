@@ -55,7 +55,8 @@ export const TEMPLATE_NAMES: TemplateName[] = [
 
 export interface RenderedEmail {
   subject: string;
-  html: string;
+  // Absent only for ops_alert, which goes as plain text (0390).
+  html?: string;
   text: string;
 }
 
@@ -1386,43 +1387,112 @@ Unsubscribe: ${unsub}`,
   };
 }
 
-// ── Ops alerts (migration 0369) ─────────────────────────────────────────────
-// How the outbound breaker and the email-health checks reach a person. It only
-// ever goes to OPS_ALERT_TO — send-transactional-email ignores the request's
-// `to` for this template — and from the alerts@ address, never the bulk
-// domain. Everything in it is escaped: an alert can quote an abuser's address
-// or a reason someone typed.
+// ── Ops alerts (migrations 0369, 0390) ──────────────────────────────────────
+// How the outbound breaker and the health checks reach a person. It only ever
+// goes to OPS_ALERT_TO — send-transactional-email ignores the request's `to`
+// for this template — from the alerts@ address, never the bulk domain.
+//
+// Plain text, and nothing in it an attacker chose (0390). The first test alert
+// went out in the branded layout and landed in Spam: a first message from a
+// new address, with a gold "Alert" label, a button to a security page and
+// "security alerts reach you", reads like the phish it exists to report. A
+// real alert is worse, because it quotes the abuser: their address, their lure
+// domain. So:
+//   - the subject is a fixed phrase per kind, never the title
+//   - addresses become a count; the Security tab shows them in full
+//   - anything else shaped like a link is defanged: "https[:]//", "name[.]tld"
+//   - the only live link is ours, written out as itself
+//   - no HTML: no logo, button, hidden preview text or rewritten link
 interface OpsAlertData {
   alertId?: string;
   kind: string;
   title: string;
-  body: string;
+  body: string[];
   createdAt?: string;
 }
 
 const SECURITY_URL = "https://clusters.soleilpictures.com/?settings=security";
 
+// The subject for each kind of alert. A hold or budget title names the
+// account, and an abuser's address in a subject line is how an alert gets
+// filed as phishing.
+const OPS_SUBJECT: Record<string, string> = {
+  test:                "test message, nothing to do",
+  hold:                "sharing paused for one account",
+  breaker:             "invitation emails are on hold",
+  budget:              "an account used its invitation budget",
+  volume:              "invitation volume is high",
+  member_volume:       "notification emails are held",
+  held_reminder:       "held emails are waiting",
+  signups:             "sign-ups are unusually high",
+  signup_network:      "new accounts share one network",
+  edge_ceiling:        "the email sender refused mail",
+  email_health:        "an email health check fired",
+  invariant:           "a database check failed",
+  embed_budget:        "the embedding budget is used up",
+  scout_waitlist_full: "the Scout waitlist is full",
+};
+
+// Written as code points, not escapes, for the reason safeLabel.mjs gives.
+const OPS_LOOKALIKE_DOTS = new RegExp(`[${String.fromCodePoint(0x3002, 0xff61, 0x2024, 0x2027)}]`, "gu");
+// After NFKC, so a full-width "＠" or "．" is already plain. Unicode letters
+// count: "x@яндекс.рф" is an address too.
+const OPS_ADDRESS = "[\\p{L}\\p{N}._%+-]+@[\\p{L}\\p{N}-]+(?:\\.[\\p{L}\\p{N}-]+)*\\.\\p{L}{2,}";
+const OPS_ADDRESS_RUN = new RegExp(`${OPS_ADDRESS}(?:[\\s,;]+${OPS_ADDRESS})*`, "gu");
+
+// One line of alert text, made inert. Invisible characters go first, so a
+// split domain closes up and is caught; then addresses, then link shapes;
+// safeLabel last, for controls, whitespace and length. Its own link stripping
+// finds nothing left to strip, so what the owner reads is defanged, not gone.
+function opsLine(v: unknown, max: number): string {
+  const s = String(v ?? "").normalize("NFKC")
+    .replace(/\p{Default_Ignorable_Code_Point}/gu, "")
+    .replace(OPS_LOOKALIKE_DOTS, ".")
+    .replace(OPS_ADDRESS_RUN, (run) => {
+      const n = run.match(new RegExp(OPS_ADDRESS, "gu"))?.length ?? 1;
+      return n === 1 ? "an account (address in the Security tab)" : `${n} accounts (addresses in the Security tab)`;
+    })
+    .replace(/:\/\//g, "[:]//")
+    .replace(/(?<=[\p{L}\p{N}_-])\.(?=\p{L})/gu, "[.]");
+  return safeLabel(s, max);
+}
+
+// The body, line by line: at most 40 lines, single blank lines kept.
+function opsLines(v: unknown): string[] {
+  const out: string[] = [];
+  for (const raw of String(v ?? "").slice(0, 4000).split(/\r\n|\r|\n/).slice(0, 40)) {
+    const line = opsLine(raw, 300);
+    if (line || (out.length > 0 && out[out.length - 1] !== "")) out.push(line);
+  }
+  while (out.length > 0 && out[out.length - 1] === "") out.pop();
+  return out;
+}
+
+function opsWhen(iso?: string): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) ? `${new Date(t).toISOString().slice(0, 16).replace("T", " ")} UTC` : "";
+}
+
 function opsAlertTpl(d: OpsAlertData): RenderedEmail {
-  const ref = `Alert #${d.alertId ?? "?"}${d.createdAt ? ` · ${d.createdAt}` : ""}`;
-  const bodyHtml = `<div style="font:400 14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#f5f5f7; text-align:left;">${escapeHtml(d.body).replace(/\n/g, "<br>")}</div>`;
+  const id = d.alertId ?? "?";
+  const when = opsWhen(d.createdAt);
+  const weekly = d.kind === "heartbeat";
+  const phrase = Object.prototype.hasOwnProperty.call(OPS_SUBJECT, d.kind) ? OPS_SUBJECT[d.kind] : d.kind.replace(/_/g, " ");
   return {
-    subject: `[Clusters alert] ${d.title}`,
-    html: renderEmail({
-      preheader: d.body.slice(0, 140),
-      eyebrow: `Alert · ${d.kind}`,
-      headline: d.title,
-      subtitle: ref,
-      bodyHtml,
-      cta: { label: "Open the Security tab", url: SECURITY_URL },
-    }),
-    text: plain([
-      `[Clusters alert] ${d.title}`,
+    subject: weekly
+      ? `Clusters monitor: weekly report${when ? ` for ${when.slice(0, 10)}` : ""}`
+      : `Clusters monitor #${id}: ${phrase}`,
+    text: [
+      d.title,
       "",
-      d.body,
+      ...d.body,
+      ...(d.body.length ? [""] : []),
+      `${weekly ? "Report" : "Alert"} #${id}${when ? `, ${when}` : ""}.`,
+      "Details are in Clusters under Settings > Security:",
+      SECURITY_URL,
       "",
-      ref,
-      "Security tab: " + SECURITY_URL,
-    ]),
+      "Sent automatically by the Clusters monitor.",
+    ].join("\n"),
   };
 }
 
@@ -1607,14 +1677,15 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       });
     }
     case "ops_alert":
-      // Server-written (ops_alert_raise), but it can quote an abuser's address
-      // or an admin's typed reason: one line for the subject, a cap on all of it.
+      // Server-written (ops_alert_raise), but it can quote an abuser's address,
+      // a cluster's name or an admin's typed reason: every line is made inert,
+      // and the subject is built from the kind alone.
       return opsAlertTpl({
-        alertId:   data.alertId != null ? String(data.alertId).slice(0, 20) : undefined,
-        kind:      String(data.kind ?? "").replace(/[^a-z_]/gi, "").slice(0, 40) || "alert",
-        title:     String(data.title ?? "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 160) || "Alert",
-        body:      String(data.body ?? "").slice(0, 4000),
-        createdAt: data.createdAt != null ? String(data.createdAt).replace(/[\r\n]/g, "").slice(0, 40) : undefined,
+        alertId:   /^\d{1,19}$/.test(String(data.alertId ?? "")) ? String(data.alertId) : undefined,
+        kind:      String(data.kind ?? "").toLowerCase().replace(/[^a-z_]/g, "").slice(0, 40) || "alert",
+        title:     opsLine(data.title, 160) || "A check needs a look",
+        body:      opsLines(data.body),
+        createdAt: data.createdAt != null ? String(data.createdAt).slice(0, 40) : undefined,
       });
   }
 }
