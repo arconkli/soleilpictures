@@ -3,7 +3,7 @@ import { Icon } from '../Icon.jsx';
 import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { PathBar } from './PathBar.jsx';
-import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X, Maximize2, Minimize2 } from '../../lib/icons.js';
+import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X, Maximize2, Minimize2, Check, SlidersHorizontal } from '../../lib/icons.js';
 
 const SORT_OPTIONS = [
   // The canvas read like a page — the default, so Files opens on the same
@@ -33,6 +33,17 @@ function Menu({ open, onClose, trigger = null, children }) {
   useDismissOnOutside(ref, open, onClose, { ignore: trigger ? `[data-menu-trigger="${trigger}"]` : null });
   if (!open) return null;
   return <div className="cbt-menu" ref={ref} role="menu">{children}</div>;
+}
+
+// A menu row. The check in its gutter is what says which layout, sort or
+// filter is on — the class alone drew nothing.
+function Item({ active = false, onClick, children }) {
+  return (
+    <button className={`ctx-item${active ? ' is-active' : ''}`} onClick={onClick} aria-pressed={active}>
+      {active && <Icon as={Check} size={12} weight="bold" className="cbt-check" />}
+      {children}
+    </button>
+  );
 }
 
 // The single shared toolbar for the cluster browser: search + sort + filter +
@@ -70,10 +81,10 @@ export function ClusterBrowserToolbar({
   const activeFilters = filters instanceof Set ? filters : new Set(filters || []);
   const activeCount = activeFilters.size + (unplacedOnly ? 1 : 0);
   const unplacedItem = unplacedCount > 0 && onToggleUnplaced ? (
-    <button className={`ctx-item${unplacedOnly ? ' is-active' : ''}`} onClick={() => onToggleUnplaced()}>
+    <Item active={unplacedOnly} onClick={() => onToggleUnplaced()}>
       <span>Not on board</span>
       <span className="cbt-count">{unplacedCount}</span>
-    </button>
+    </Item>
   ) : null;
   const dedupPeers = [];
   const seen = new Set();
@@ -143,16 +154,14 @@ export function ClusterBrowserToolbar({
             <button className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeCount ? ' has-active' : ''}`}
                     data-menu-trigger="view"
                     onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
-              View{activeCount ? ` · ${activeCount}` : ''}<Icon as={ChevronDown} size={12} />
+              <Icon as={SlidersHorizontal} size={14} className="cbt-btn-ico" />
+              <span className="cbt-btn-label">View{activeCount ? ` · ${activeCount}` : ''}</span>
+              <span className="cbt-btn-chev"><Icon as={ChevronDown} size={12} /></span>
             </button>
             <Menu open={viewOpen} onClose={() => setViewOpen(false)} trigger="view">
               <div className="cbt-menu-label">Layout</div>
-              <button className={`ctx-item${viewMode === 'gallery' ? ' is-active' : ''}`} onClick={() => onViewMode('gallery')}>
-                <span>Grid</span>
-              </button>
-              <button className={`ctx-item${viewMode === 'table' ? ' is-active' : ''}`} onClick={() => onViewMode('table')}>
-                <span>List</span>
-              </button>
+              <Item active={viewMode === 'gallery'} onClick={() => onViewMode('gallery')}><span>Grid</span></Item>
+              <Item active={viewMode === 'table'} onClick={() => onViewMode('table')}><span>List</span></Item>
               {viewMode === 'gallery' && onTileSize && (
                 <>
                   <div className="cbt-menu-label">Size</div>
@@ -162,10 +171,10 @@ export function ClusterBrowserToolbar({
               <div className="ctx-divider" />
               <div className="cbt-menu-label">Sort by</div>
               {sortOptions.map(o => (
-                <button key={o.key} className={`ctx-item${sortKey === o.key ? ' is-active' : ''}`} onClick={() => onSort(o.key)}>
+                <Item key={o.key} active={sortKey === o.key} onClick={() => onSort(o.key)}>
                   <span>{o.label}</span>
                   {sortKey === o.key && <span className="cbt-caret">{sortDir === 'asc' ? '↑' : '↓'}</span>}
-                </button>
+                </Item>
               ))}
               {(availableBuckets.length > 0 || unplacedItem) && (
                 <>
@@ -173,11 +182,10 @@ export function ClusterBrowserToolbar({
                   <div className="cbt-menu-label">Show only</div>
                   {unplacedItem}
                   {availableBuckets.map(b => (
-                    <button key={b.key} className={`ctx-item${activeFilters.has(b.key) ? ' is-active' : ''}`}
-                            onClick={() => onToggleFilter(b.key)}>
+                    <Item key={b.key} active={activeFilters.has(b.key)} onClick={() => onToggleFilter(b.key)}>
                       <span>{b.label}</span>
                       <span className="cbt-count">{b.count}</span>
-                    </button>
+                    </Item>
                   ))}
                   {activeCount > 0 && (
                     <button className="ctx-item" onClick={() => onClearFilters()}>Clear filters</button>
@@ -211,11 +219,10 @@ export function ClusterBrowserToolbar({
         </button>
         <Menu open={sortOpen} onClose={() => setSortOpen(false)} trigger="sort">
           {[...SORT_OPTIONS, ...(audioMode ? AUDIO_SORT_OPTIONS : [])].map(o => (
-            <button key={o.key} className={`ctx-item${sortKey === o.key ? ' is-active' : ''}`}
-                    onClick={() => { onSort(o.key); setSortOpen(false); }}>
+            <Item key={o.key} active={sortKey === o.key} onClick={() => { onSort(o.key); setSortOpen(false); }}>
               <span>{o.label}</span>
               {sortKey === o.key && <span className="cbt-caret">{sortDir === 'asc' ? '↑' : '↓'}</span>}
-            </button>
+            </Item>
           ))}
         </Menu>
       </div>
@@ -233,11 +240,10 @@ export function ClusterBrowserToolbar({
           {unplacedItem}
           {unplacedItem && availableBuckets.length > 0 && <div className="ctx-divider" />}
           {availableBuckets.map(b => (
-            <button key={b.key} className={`ctx-item${activeFilters.has(b.key) ? ' is-active' : ''}`}
-                    onClick={() => onToggleFilter(b.key)}>
+            <Item key={b.key} active={activeFilters.has(b.key)} onClick={() => onToggleFilter(b.key)}>
               <span>{b.label}</span>
               <span className="cbt-count">{b.count}</span>
-            </button>
+            </Item>
           ))}
           {activeCount > 0 && (
             <>

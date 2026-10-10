@@ -1530,7 +1530,8 @@ export function ListSurface({
           <div className="list-selbar">
             <span className="list-selbar-count" aria-live="polite">{totalSel} selected</span>
             {downloadableSelected.length > 0 && (
-              <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}>
+              <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
+                      title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
                 <Icon as={Download} size={13} />
                 <span>{zipping ? 'Preparing…'
                      : downloadableSelected.length === 1 ? 'Download'
@@ -1546,12 +1547,12 @@ export function ListSurface({
               </button>
             )}
             {canEdit && onPickCluster && (
-              <button type="button" className="list-selbar-act" onClick={moveSelection}>
+              <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…">
                 <Icon as={FolderOpen} size={13} /><span>Move to…</span>
               </button>
             )}
             {canEdit && (
-              <button type="button" className="list-selbar-act" onClick={deleteSelection}>
+              <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete">
                 <Icon as={Trash2} size={13} /><span>Delete</span>
               </button>
             )}

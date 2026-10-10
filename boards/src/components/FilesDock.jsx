@@ -80,6 +80,18 @@ export function FilesDockLayout({
 
   const panelW = drag ? drag.w : clampWidth(width, paneW);
 
+  // Toasts stack top-right. While the panel is docked against the window's
+  // right edge they'd sit on its ⤢ and ×, so publish its width for
+  // .toast-stack to move over by (styles.css). Cleared whenever it isn't.
+  const filesRef = useRef(null);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const r = mode === 'panel' ? filesRef.current?.getBoundingClientRect?.() : null;
+    if (r && window.innerWidth - r.right < 24) root.style.setProperty('--files-dock-w', `${Math.round(r.width)}px`);
+    else root.style.removeProperty('--files-dock-w');
+  }, [mode, panelW, paneW]);
+  useEffect(() => () => document.documentElement.style.removeProperty('--files-dock-w'), []);
+
   const onDividerDown = (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -146,7 +158,7 @@ export function FilesDockLayout({
           <span className="fdl-grip" aria-hidden="true" />
         </div>
       ) : null}
-      <div className="fdl-files" style={mode === 'panel' ? { width: panelW } : undefined}>{files}</div>
+      <div className="fdl-files" ref={filesRef} style={mode === 'panel' ? { width: panelW } : undefined}>{files}</div>
       {drag?.preview ? (
         <div className={`fdl-preview is-${drag.preview}`} aria-hidden="true">
           {drag.preview === 'full' ? 'Release for full-screen Files' : 'Release to close Files'}

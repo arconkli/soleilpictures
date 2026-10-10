@@ -22,6 +22,7 @@ export {
   ArrowsIn as Minimize2,
   MagnifyingGlass as Search,
   Funnel as Filter,
+  SlidersHorizontal,
   GearSix as Settings,
   ShareNetwork as Share2,
   Tray as Inbox,
