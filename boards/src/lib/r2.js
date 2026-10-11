@@ -232,6 +232,33 @@ async function flush() {
   schedulePersist();
 }
 
+// A one-off signed URL for `key` that R2 serves with Content-Disposition:
+// attachment and `filename`, so the browser's own download manager can stream
+// a large file with progress instead of the app buffering it into a Blob
+// (MEDIA-09). Never cached: it is used once, right now. Resolves null when it
+// cannot be had — signed out, the public viewer (static bundle URLs), or a
+// party that predates the `download` field (its response has no `downloads`),
+// and the caller then takes the Blob path as before.
+export async function getDownloadUrl(key, filename) {
+  if (!key || typeof key !== 'string' || !filename || _override) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token || '';
+    if (!token) return null;
+    const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/default/sign-reads`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ keys: [key], download: { [key]: filename } }),
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return (body && body.downloads && body.downloads[key]) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // Public: resolve a key to a signed URL (cached). Returns null if
 // the user isn't permitted to read this key, isn't signed in, or
 // network failed.

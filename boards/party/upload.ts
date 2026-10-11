@@ -41,6 +41,7 @@
 
 import type * as Party from "partykit/server";
 import { AwsClient } from "aws4fetch";
+import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
@@ -119,7 +120,12 @@ interface PresignBody {
   bytes?: number;
 }
 
-interface SignReadsBody { keys?: string[] }
+// `download` (optional): key → filename. Those keys are ALSO signed with a
+// Content-Disposition: attachment override and returned under `downloads`, so
+// the browser's own download manager can stream a big file with progress
+// instead of the app buffering it into a Blob (MEDIA-09). Clients that do not
+// send it get exactly the old response.
+interface SignReadsBody { keys?: string[]; download?: Record<string, string> }
 interface ShareBundleBody { token?: string; boardId?: string }
 interface PublicBundleBody { slug?: string; boardId?: string }
 
@@ -185,7 +191,7 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
 // is a SIGNED query param — it must be on the URL before signing, or R2 rejects
 // the signature. Shared by /sign-reads and /share-bundle so both paths produce
 // identical, cacheable, persistable URLs.
-async function signReadUrl(r2: AwsClient, env: R2Env, key: string): Promise<string> {
+async function signReadUrl(r2: AwsClient, env: R2Env, key: string, disposition: string | null = null): Promise<string> {
   const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
   // X-Amz-Expires MUST be a signed query param ON THE URL before signing.
   // aws4fetch has no `expiresIn` option — if X-Amz-Expires is absent it forces
@@ -193,6 +199,7 @@ async function signReadUrl(r2: AwsClient, env: R2Env, key: string): Promise<stri
   // dies in a day (the client then serves a dead URL → 403 → the "locked" image).
   // Setting it here makes aws4fetch sign + keep our 7-day value.
   const r2Url = `${base}?response-cache-control=${encodeURIComponent(READ_RESPONSE_CACHE_CONTROL)}`
+    + (disposition ? `&response-content-disposition=${encodeURIComponent(disposition)}` : "")
     + `&X-Amz-Expires=${READ_URL_TTL_SECONDS}`;
   const signed = await r2.sign(
     new Request(r2Url, { method: "GET" }),
@@ -584,13 +591,17 @@ export default class UploadParty implements Party.Server {
       region: "auto",
     });
     const out: Record<string, string> = {};
+    const downloads: Record<string, string> = {};
+    const wanted = (body.download && typeof body.download === "object") ? body.download : null;
     await Promise.all(requested.map(async (key) => {
       if (!allowedKeys.has(key)) return;
       out[key] = await signReadUrl(r2, env, key);
+      const disposition = wanted && typeof wanted[key] === "string" ? attachmentDisposition(wanted[key]) : null;
+      if (disposition) downloads[key] = await signReadUrl(r2, env, key, disposition);
     }));
 
     return Response.json(
-      { urls: out, ttl: READ_URL_TTL_SECONDS },
+      wanted ? { urls: out, downloads, ttl: READ_URL_TTL_SECONDS } : { urls: out, ttl: READ_URL_TTL_SECONDS },
       { headers: corsHeaders(origin) },
     );
   }

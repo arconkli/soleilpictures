@@ -140,6 +140,19 @@ export class ZipLimitError extends Error {
   }
 }
 
+// Throw the size refusal when `bytes` is over the cap. Shared by
+// createStoreZip (the exact total) and cardDownload's checks BEFORE and
+// DURING the fetch, which exist so a 1.2 GB selection is refused up front
+// instead of after every byte has been downloaded (MEDIA-08). `atLeast` says
+// the figure is a floor (the fetch stopped counting once it passed the cap).
+export function assertZipFits(bytes, { entries = 0, atLeast = false } = {}) {
+  if (!(bytes > ZIP_MAX_BYTES)) return;
+  const mb = Math.round(bytes / 1024 / 1024);
+  throw new ZipLimitError(
+    `That is ${atLeast ? 'over ' : ''}${mb} MB — zip downloads are capped at ${Math.round(ZIP_MAX_BYTES / 1024 / 1024)} MB.`,
+    { entries, bytes });
+}
+
 // Build a zip from [{ name, blob }]. Returns a Blob.
 //
 // onProgress({ done, total, name }) fires as each entry's CRC completes, which
@@ -153,11 +166,7 @@ export async function createStoreZip(entries, { onProgress = null, date = null }
       { entries: list.length });
   }
   const total = list.reduce((n, e) => n + (e.blob.size || 0), 0);
-  if (total > ZIP_MAX_BYTES) {
-    throw new ZipLimitError(
-      `That is ${Math.round(total / 1024 / 1024)} MB — zip downloads are capped at ${Math.round(ZIP_MAX_BYTES / 1024 / 1024)} MB.`,
-      { entries: list.length, bytes: total });
-  }
+  assertZipFits(total, { entries: list.length });
 
   const { time, date: dosDate } = dosDateTime(date || new Date());
   const seen = new Set();

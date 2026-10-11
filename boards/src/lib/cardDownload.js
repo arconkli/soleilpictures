@@ -20,16 +20,17 @@
 // Filename resolution is the interesting part and lives in assetFilename,
 // which is pure and tested.
 
-import { resolveSrc, getSignedUrl } from './r2.js';
+import { resolveSrc, getSignedUrl, getDownloadUrl } from './r2.js';
 import { deliverFile } from './exportDelivery.js';
 import { downloadImage } from './imageExport.js';
-import { createStoreZip, ZipLimitError, ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from './zipStore.js';
+import { createStoreZip, assertZipFits, ZipLimitError, ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from './zipStore.js';
 import { makeLimiter } from './asyncPool.js';
+import { wantsDirectDownload, knownBytes, DIRECT_DOWNLOAD_MIN_BYTES } from './downloadPlan.js';
 import { DOWNLOADABLE, assetSrcFor, assetFilename } from './cardAssetName.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 
-export { ZipLimitError, ZIP_MAX_BYTES, ZIP_MAX_ENTRIES };
+export { ZipLimitError, ZIP_MAX_BYTES, ZIP_MAX_ENTRIES, DIRECT_DOWNLOAD_MIN_BYTES };
 
 export {
   DOWNLOADABLE, assetSrcFor, assetFilename, zipNameFor,
@@ -75,22 +76,24 @@ export class AssetFetchError extends Error {
   }
 }
 
-async function fetchBlob(url) {
-  const res = await fetch(url);
+async function fetchBlob(url, signal) {
+  const res = await fetch(url, signal ? { signal } : undefined);
   if (!res.ok) throw new AssetFetchError(`Storage returned ${res.status}`, { unreachable: false });
   return res.blob();
 }
 
 // Fetch the bytes behind a card as a Blob. Blob, never arrayBuffer — the zip
-// path depends on these staying out of the JS heap.
-export async function fetchCardBlob(card, kind) {
+// path depends on these staying out of the JS heap. `signal` lets the zip
+// path abandon the rest of a selection once it is known to be over the cap.
+export async function fetchCardBlob(card, kind, { signal = null } = {}) {
   const src = assetSrcFor(card, kind);
   if (!src) return null;
   const url = await resolveSrc(src);
   if (!url) return null;
   try {
-    return await fetchBlob(url);
+    return await fetchBlob(url, signal);
   } catch (err) {
+    if (signal?.aborted) throw err;
     if (err instanceof AssetFetchError && !err.unreachable) throw err;
     // Re-sign and try once. The signed-URL cache holds a string for six days
     // against a seven-day signature, so the common cause of a dead URL is a
@@ -102,7 +105,7 @@ export async function fetchCardBlob(card, kind) {
       if (src.startsWith('r2:')) fresh = await getSignedUrl(src.slice(3), { force: true });
     } catch (_) { /* fall through to the error below */ }
     if (fresh && fresh !== url) {
-      try { return await fetchBlob(fresh); } catch (_) { /* fall through */ }
+      try { return await fetchBlob(fresh, signal); } catch (_) { /* fall through */ }
     }
     throw new AssetFetchError('Could not read the file from storage', {
       cause: err, unreachable: true,
@@ -110,12 +113,56 @@ export async function fetchCardBlob(card, kind) {
   }
 }
 
+// Hand a signed attachment URL to the browser. Returns false whenever it
+// cannot, so the caller falls back to the Blob path: no attachment URL (the
+// public viewer, an older party), or a probe that says the object is not
+// readable (R2 errors carry no CORS header, so a failure here is a TypeError,
+// and the Blob path's re-sign + honest error handles it). The probe is one
+// byte, so a dead URL never reaches the hidden frame, where its XML error
+// would vanish without a word.
+async function handToBrowser(src, name) {
+  if (typeof src !== 'string' || !src.startsWith('r2:')) return false;
+  const url = await getDownloadUrl(src.slice(3), name);
+  if (!url) return false;
+  try {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const res = await fetch(url, { headers: { Range: 'bytes=0-0' }, signal: ctl?.signal });
+    // A server that ignores Range answers 200 with the whole file: stop it.
+    try { ctl?.abort(); } catch (_) {}
+    if (!res.ok) return false;
+  } catch (_) {
+    return false;
+  }
+  // A hidden frame, not a link click or location change: an attachment
+  // response there starts a download without navigating the app (no
+  // beforeunload, no lost state), on every desktop and mobile browser.
+  const frame = document.createElement('iframe');
+  frame.style.display = 'none';
+  frame.src = url;
+  document.body.appendChild(frame);
+  setTimeout(() => { try { frame.remove(); } catch (_) {} }, 60_000);
+  return true;
+}
+
+// Repeat clicks on the same card while its download is still being prepared
+// join the one already running instead of starting another full download.
+const inFlight = new Map();
+
 // Download ONE card.
 //
 // Images keep going through imageExport.downloadImage because it bakes photo
 // adjustments into the file so what you get matches what is on the board; that
 // behaviour has to survive this consolidation.
-export async function downloadCardAsset(card, kind, { surface = null } = {}) {
+export function downloadCardAsset(card, kind, opts = {}) {
+  const key = `${kind}:${assetSrcFor(card, kind) || card?.src || ''}`;
+  const running = inFlight.get(key);
+  if (running) return running;
+  const job = downloadCardAssetNow(card, kind, opts).finally(() => inFlight.delete(key));
+  inFlight.set(key, job);
+  return job;
+}
+
+async function downloadCardAssetNow(card, kind, { surface = null } = {}) {
   if (kind === 'image' && card?.src) {
     // The uploaded file's own name first, the same rule assetFilename applies to
     // every other kind: a card titled "Diner, dusk" still downloads as the
@@ -127,6 +174,11 @@ export async function downloadCardAsset(card, kind, { surface = null } = {}) {
   const src = assetSrcFor(card, kind);
   if (!src) return false;
   const name = assetFilename(card, kind);
+  if (wantsDirectDownload(card, kind, { native: !bulkDownloadSupported() })
+      && await handToBrowser(src, name)) {
+    logEvent(EV.FILE_DOWNLOAD, { kind, is_public: isPublicSurface(), surface, bulk: false, direct: true });
+    return true;
+  }
   try {
     const blob = await fetchCardBlob(card, kind);
     if (!blob) return false;
@@ -185,6 +237,10 @@ export async function downloadCardAssets(cards, { zipName = 'download.zip', onPr
       `That is ${items.length} files — zip downloads are capped at ${ZIP_MAX_ENTRIES}.`,
       { entries: items.length });
   }
+  // The size cap, up front, from the sizes the cards already carry (file and
+  // audio cards record sizeBytes). Without it a 1.2 GB selection downloaded
+  // every byte before createStoreZip refused it (MEDIA-08).
+  assertZipFits(knownBytes(items), { entries: items.length, atLeast: true });
 
   // Note: images in a bulk zip are the ORIGINAL bytes, not the adjusted bake
   // that downloadCardAsset produces for a single image. Baking N images on the
@@ -198,21 +254,34 @@ export async function downloadCardAssets(cards, { zipName = 'download.zip', onPr
   const failures = [];
   const limit = makeLimiter(FETCH_CONCURRENCY);
   let fetched = 0;
+  // Cards with no recorded size (images, older videos) are only measured as
+  // they arrive: the moment the running total passes the cap, the requests
+  // still in flight are aborted and nothing further is fetched.
+  let fetchedBytes = 0;
+  let over = false;
+  const abort = typeof AbortController === 'function' ? new AbortController() : null;
   await Promise.all(items.map((it, i) => limit(async () => {
+    if (over) return;
     // Per item, NOT one Promise.all that rejects on the first throw. That was
     // the old shape, and it meant a single unreadable object — one expired
     // signature, one key deleted out from under a card — turned "download
     // these forty loops" into one toast and no archive at all. The nineteen
     // that were already in hand were thrown away with it.
     try {
-      const blob = await fetchCardBlob(it.card, it.kind);
-      if (blob) slots[i] = { name: assetFilename(it.card, it.kind, { fallback: `file-${i + 1}` }), blob };
+      const blob = await fetchCardBlob(it.card, it.kind, { signal: abort?.signal });
+      if (blob) {
+        slots[i] = { name: assetFilename(it.card, it.kind, { fallback: `file-${i + 1}` }), blob };
+        fetchedBytes += blob.size || 0;
+        if (fetchedBytes > ZIP_MAX_BYTES && !over) { over = true; try { abort?.abort(); } catch (_) {} }
+      }
     } catch (err) {
-      failures.push({ name: assetFilename(it.card, it.kind), err });
+      if (!over) failures.push({ name: assetFilename(it.card, it.kind), err });
     }
     fetched++;
     onProgress?.({ phase: 'fetch', done: fetched, total: items.length });
   })));
+
+  if (over) assertZipFits(fetchedBytes, { entries: items.length, atLeast: true });
 
   const entries = slots.filter(Boolean);
   if (!entries.length) {
@@ -237,3 +306,4 @@ export async function downloadCardAssets(cards, { zipName = 'download.zip', onPr
   await deliverFile(zip, zipName);
   return { count: entries.length, skipped, failed: failures.length };
 }
+
