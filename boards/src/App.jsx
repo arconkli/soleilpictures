@@ -118,6 +118,7 @@ import { useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
 import { useWorkspace } from './hooks/useWorkspace.js';
 import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
+import { invitedStartWorkspace } from './lib/startWorkspace.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
@@ -352,7 +353,7 @@ export function App() {
   if (isLocalQaMode() || !isSupabaseConfigured) return <Suspense fallback={null}><LocalBoardsApp user={user} signOut={signOut} /></Suspense>;
 
   const { loading: wsLoading, workspace: personalWorkspace, rootBoard: personalRoot, error: wsError } = useWorkspace();
-  const { workspaces, refresh: refreshWorkspaces } = useAllWorkspaces(user);
+  const { workspaces, loading: wsListLoading, refresh: refreshWorkspaces } = useAllWorkspaces(user);
 
   // First-signup race: useAllWorkspaces fetches workspace_members for the
   // user in parallel with useWorkspace's bootstrap RPC. For brand-new
@@ -381,8 +382,14 @@ export function App() {
   const workspaceSessionKey = `${SESSION_PREFIX}${user.id}.workspace`;
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => readSession(workspaceSessionKey)?.activeWorkspaceId || null);
   useEffect(() => {
-    if (!activeWorkspaceId && personalWorkspace) setActiveWorkspaceId(personalWorkspace.id);
-  }, [personalWorkspace, activeWorkspaceId]);
+    if (activeWorkspaceId || !personalWorkspace) return;
+    // Someone who signed up from a workspace invite starts in that workspace,
+    // not in the empty one of their own that 0400 now gives them.
+    const invited = invitedStartWorkspace(workspaces, user);
+    if (invited) { setActiveWorkspaceId(invited.id); return; }
+    if (wsListLoading) return;
+    setActiveWorkspaceId(personalWorkspace.id);
+  }, [personalWorkspace, activeWorkspaceId, workspaces, wsListLoading, user]);
   useEffect(() => {
     if (activeWorkspaceId) writeSession(workspaceSessionKey, { activeWorkspaceId });
   }, [workspaceSessionKey, activeWorkspaceId]);
@@ -458,7 +465,7 @@ export function App() {
   // useYBoard paint the previous workspace's root cards until the stack
   // filter effect corrects it. Better to show LoadingShell for that
   // tick than to flash the wrong canvas.
-  if (wsLoading || !activeWorkspace || !activeRoot || activeRoot.workspace_id !== activeWorkspace.id) return <LoadingShell />;
+  if (wsLoading || (!activeWorkspaceId && wsListLoading) || !activeWorkspace || !activeRoot || activeRoot.workspace_id !== activeWorkspace.id) return <LoadingShell />;
 
   return (
     <Workspace
