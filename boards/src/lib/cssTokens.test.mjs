@@ -95,3 +95,17 @@ test('the scan catches a typo it is meant to catch', () => {
   assert.ok(defined.has('--bg-3') && !defined.has('--bg3'));
   assert.ok(defined.has('--line-2') && !defined.has('--line2'));
 });
+
+test('the theme blocks declare color-scheme, so native controls follow the theme', () => {
+  // Without it a date field in dark theme draws a black calendar icon on a
+  // #16161a fill and opens a white picker; selects and checkboxes stay light
+  // (VIS-11). The scheme rides on the same blocks as the tokens.
+  const css = stripComments(readFileSync(join(SRC, 'styles.css'), 'utf8'), true);
+  const block = (sel) => {
+    const at = css.indexOf(`${sel} {`);
+    assert.ok(at >= 0, `${sel} block not found in styles.css`);
+    return css.slice(at, css.indexOf('}', at));
+  };
+  assert.match(block(':root'), /color-scheme:\s*dark/);
+  assert.match(block("[data-theme='light']"), /color-scheme:\s*light/);
+});
