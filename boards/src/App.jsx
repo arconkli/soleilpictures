@@ -9443,7 +9443,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       })()}
       {backlinksRef && (
         <EntityBacklinksPanel
-          ref={backlinksRef}
+          target={backlinksRef}
           onClose={() => setBacklinksRef(null)}
         />
       )}
