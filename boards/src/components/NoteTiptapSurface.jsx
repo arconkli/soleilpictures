@@ -344,21 +344,68 @@ export function NoteTiptapSurface({
   // a popover, or the @-mention picker is open (clicking a row blurs the editor).
   const mentionOpenRef = useRef(false);
   mentionOpenRef.current = !!mention;
+  // The comment composer and the thread popover belong to this editing
+  // session: both portal to <body>, and both take focus (the composer focuses
+  // its textarea on mount). Treating that as "left the note" unmounted this
+  // surface and the composer with it, so a note comment could never be
+  // written (NOTES-03). While either is open, a blur never exits.
+  const commentUiOpen = !!addComment.node || !!openThread;
+  const commentUiOpenRef = useRef(false);
+  commentUiOpenRef.current = commentUiOpen;
+  const exitEdit = () => {
+    if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
+    try { writeTextCache(); } catch (_) {}
+    onExitRef.current?.();
+  };
   useEffect(() => {
     if (!editor) return undefined;
     const onBlur = ({ event }) => {
       const next = event?.relatedTarget;
-      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker') || next.closest?.('.cand-pop'))) {
+      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker') || next.closest?.('.cand-pop')
+          || next.closest?.('.inline-composer') || next.closest?.('.comment-inline-pop'))) {
         return;
       }
-      if (mentionOpenRef.current) return;
-      if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
-      try { writeTextCache(); } catch (_) {}
-      onExitRef.current?.();
+      if (mentionOpenRef.current || commentUiOpenRef.current) return;
+      exitEdit();
     };
     editor.on('blur', onBlur);
     return () => editor.off('blur', onBlur);
   }, [editor, fragment]);
+
+  // When the comment UI closes the editor no longer has focus, so the blur
+  // that normally ends editing will never come. A click somewhere else on the
+  // page (what closes the thread popover) was the user leaving the note: exit.
+  // Posting, cancelling or Escape hands the caret back to the note instead.
+  const clickedAwayRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  useEffect(() => {
+    if (!commentUiOpen) return undefined;
+    clickedAwayRef.current = false;
+    const onDown = (e) => {
+      const t = e.target;
+      clickedAwayRef.current = !(
+        t?.closest?.('.inline-composer') || t?.closest?.('.comment-inline-pop')
+        || t?.closest?.('.entity-picker') || t?.closest?.('.feedback-bg')
+        || (editor?.view?.dom && editor.view.dom.contains(t))
+      );
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      if (!editor || editor.isDestroyed) return;
+      // Let the closing click land first: it may itself focus the editor.
+      setTimeout(() => {
+        if (!mountedRef.current || editor.isDestroyed || editor.isFocused || commentUiOpenRef.current) return;
+        if (clickedAwayRef.current) exitEdit();
+        else editor.commands.focus();
+      }, 0);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commentUiOpen, editor]);
 
   // Escape exits edit mode (collaborative edits are already shared — there is
   // no "revert" like the legacy note had).
