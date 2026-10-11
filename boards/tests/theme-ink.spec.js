@@ -73,7 +73,7 @@ test('resting icons and labels are not gold', async ({ page }) => {
     expect(await computed(page, html, sel, prop), `${sel} ${prop} at rest`).not.toBe(GOLD);
   }
   // The play button still lights up while its card is playing.
-  expect(await computed(page, '<button class="ac-play" aria-label="Pause"></button>', '.ac-play', 'backgroundColor')).toBe(GOLD);
+  expect(await computed(page, '<button class="ac-play is-playing" aria-label="Pause"></button>', '.ac-play', 'backgroundColor')).toBe(GOLD);
 });
 
 // UNREAD-BADGE-NEUTRAL: unread counts share one inverse-ink pill, never gold,

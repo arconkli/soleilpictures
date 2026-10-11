@@ -11234,7 +11234,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   flex-shrink: 0;
   transition: transform var(--dur-fast) var(--ease), filter var(--dur-fast) var(--ease);
 }
-.ac-play[aria-label='Pause'] {
+/* A class, not the aria-label: the label is copy, and keying the active
+   state on it would drop the gold the moment the wording changed. Not
+   aria-pressed either, since the label already flips Play/Pause. */
+.ac-play.is-playing {
   background: var(--soleil);
   color: var(--on-soleil);
   box-shadow: var(--soleil-glow, 0 0 12px rgba(255,165,0,0.18));
