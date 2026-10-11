@@ -168,7 +168,11 @@ async function downloadCardAssetNow(card, kind, { surface = null } = {}) {
     // every other kind: a card titled "Diner, dusk" still downloads as the
     // diner_ext_dusk_04.jpg it was dropped as. Older cards have no fileName and
     // fall back to the title, as before.
-    await downloadImage({ src: card.src, title: card.fileName || card.title || card.label || '', adjust: card.adjust });
+    const ok = await downloadImage({ src: card.src, title: card.fileName || card.title || card.label || '', adjust: card.adjust });
+    // downloadImage never throws (some of its callers have no catch); here
+    // the caller toasts, so say what happened in the same terms as every
+    // other kind.
+    if (!ok) throw new AssetFetchError('Could not read the image from storage', { unreachable: true });
     return true;
   }
   const src = assetSrcFor(card, kind);
