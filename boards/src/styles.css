@@ -21809,3 +21809,8 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .cnv-hint-btn:hover, .cnv-hint-btn:focus-visible { background: var(--bg-hov); outline: none; }
 /* The hero's hint line after a cancelled picker: the other ways in, a touch brighter. */
 .cnv-empty-tile-hero-hint.is-alt { color: var(--ink-0); }
+
+/* Clear-formatting glyph (doc toolbar + note bar): a "Tx", the convention from
+   Docs/Word, sized to sit with the B / I / U / S letter buttons. */
+.tb-clear-fmt { font-size: 12px; line-height: 1; letter-spacing: 0; }
+.tb-clear-fmt sub { font-size: 8px; vertical-align: -2px; margin-left: 1px; }

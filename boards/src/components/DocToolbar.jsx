@@ -263,6 +263,8 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
              onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
         <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
              onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
+        <Btn title="Clear formatting (⌘\)" disabled={disabled}
+             onClick={() => editor.chain().focus().clearFormatting().run()}><span className="tb-clear-fmt">T<sub>x</sub></span></Btn>
 
         <span className="doc-tb-sep" aria-hidden="true" />
 

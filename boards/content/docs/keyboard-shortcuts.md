@@ -117,6 +117,7 @@ they fall through to whatever else is listening.
 | Double-click | Edit a note or a title |
 | `⌘Z` / `⌘⇧Z` | Undo · redo text — history survives closing the note |
 | `⌘B` / `⌘I` / `⌘U` | Bold · italic · underline |
+| `⌘\` | Clear formatting — links and comments stay |
 | `@` | Mention a board, doc, or card |
 
 ## Document
@@ -129,6 +130,7 @@ These apply inside a [document](/docs/documents), not on the canvas.
 | `⌘⌥1` / `⌘⌥0` | Heading 1 · body |
 | `⌘⇧7` / `⌘⇧8` / `⌘⇧9` | Numbered · bullet · task list |
 | `⌘⇧H` / `⌘E` | Highlight · inline code |
+| `⌘\` | Clear formatting — links and comments stay |
 | `⌘⇧L` / `⌘⇧E` / `⌘⇧R` | Align left · center · right |
 | `⌘K` / `⌘⌥M` | Link · comment |
 | `⌘F` | Find and replace |

@@ -9,6 +9,7 @@
 // on every edit. So the fragment is the collaborative source of truth and
 // card.html is its cache.
 
+import { scrubPastedHtml } from '../lib/pasteScrub.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
@@ -198,6 +199,9 @@ export function NoteTiptapSurface({
     autofocus: 'end',
     editable: true,
     editorProps: {
+      // Foreign pastes lose their typography so the note's own font + size
+      // hold. See pasteScrub.
+      transformPastedHTML: scrubPastedHtml,
       attributes: {
         // The measurer (cardHeightForBody) and the note CSS both key off
         // .note-body — Tiptap must render INTO it.

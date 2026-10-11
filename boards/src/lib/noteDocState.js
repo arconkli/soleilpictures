@@ -139,6 +139,14 @@ export function stripNoteChromeForSeed(html) {
   const root = document.createElement('div');
   root.innerHTML = html;
   root.querySelectorAll('.note-link-preview, .note-preview-hidden').forEach((el) => el.remove());
+  // The note schema stops at h3. Without this an h4–h6 (from a doc, a paste,
+  // or an older note) parsed as a plain paragraph, so a note visibly lost its
+  // sub-headings the first time it was opened for editing.
+  root.querySelectorAll('h4, h5, h6').forEach((el) => {
+    const h3 = document.createElement('h3');
+    while (el.firstChild) h3.appendChild(el.firstChild);
+    el.replaceWith(h3);
+  });
   return root.innerHTML;
 }
 

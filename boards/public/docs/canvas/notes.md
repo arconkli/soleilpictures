@@ -20,7 +20,13 @@ survives closing and reopening it.
 
 Formatting works as you would expect: `⌘B`, `⌘I`, `⌘U` for bold, italic and
 underline. A toolbar appears at the bottom of the canvas while a note is
-focused, carrying colour, size, font and alignment.
+focused, carrying colour, size, font and alignment, and **Tx** — clear
+formatting (`⌘\`), which strips the selection back to the note's own font and
+size while keeping links and comments.
+
+Pasting from Google Docs, Word or a web page brings the words, structure and
+emphasis but not the source's font, size or background, so pasted text matches
+the rest of the note.
 
 > **Note:** With the caret merely placed in a note and nothing selected,
 > formatting applies to the **whole note** rather than doing nothing. This is

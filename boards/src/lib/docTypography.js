@@ -38,16 +38,18 @@ export const docPrintCSS = `
     color: #0a0a0c; line-height: 1.18; letter-spacing: -0.018em;
     margin: 1.5em 0 .4em; page-break-after: avoid; break-after: avoid;
   }
-  h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-top: 1.6em; }
-  h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.022em; }
-  h3 { font-size: 20px; font-weight: 600; }
-  h4 { font-size: 18px; font-weight: 600; }
-  h5 { font-size: 16px; font-weight: 700; }
-  h6 { font-size: 16px; font-weight: 600; color: #4a4a52; }
+  /* Margins match the editor's .tt-editor h1–h6 (styles.css) so a printed /
+     exported doc is spaced like the one on screen. */
+  h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin: 1.6em 0 .4em; }
+  h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.022em; margin: 1.5em 0 .4em; }
+  h3 { font-size: 20px; font-weight: 600; margin: 1.4em 0 .35em; }
+  h4 { font-size: 18px; font-weight: 600; margin: 1.3em 0 .35em; }
+  h5 { font-size: 16px; font-weight: 700; margin: 1.2em 0 .3em; }
+  h6 { font-size: 16px; font-weight: 600; color: #4a4a52; margin: 1.1em 0 .3em; }
   h1 + h2, h2 + h3, h3 + h4 { margin-top: .6em; }
   body > :first-child { margin-top: 0; }
-  p { margin: .6em 0; }
-  ul, ol { margin: .6em 0; padding-left: 26px; }
+  p { margin: .55em 0; }
+  ul, ol { margin: .55em 0; padding-left: 26px; }
   li { margin: .2em 0; }
   li > p { margin: 0; }
   blockquote {

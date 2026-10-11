@@ -58,6 +58,7 @@ import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
+import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -929,6 +930,10 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // a theme flip. The live editing surface uses the ReadableColors plugin.
   const display = html || (body ? `<div>${body}</div>` : '');
   const safeDisplay = useMemo(() => remapHtmlColors(display, effBg), [display, effBg]);
+  // A note that uses a Google font only loaded it when opened for editing, so
+  // on a fresh load its text sat in the fallback face until someone clicked
+  // in — the chosen font appeared to "revert". Load whatever it names.
+  useEffect(() => { try { ensureFontsFromHtml(display); } catch (_) {} }, [display]);
 
   if (editing) {
     return (
@@ -1051,6 +1056,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   const roEffBg = roHasBg ? bgColor : (roTheme === 'light' ? '#f5f5f7' : '#0a0a0c');
   const roDisplay = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
   const roSafeDisplay = useMemo(() => remapHtmlColors(roDisplay, roEffBg), [roDisplay, roEffBg]);
+  useEffect(() => { try { ensureFontsFromHtml(roDisplay); } catch (_) {} }, [roDisplay]);
   if (!onUpdate) {
     // Same surface-tone + readable-color treatment as the editable paths, so
     // the read-only render (share, list, off-screen) matches what editing shows.
