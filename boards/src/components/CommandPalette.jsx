@@ -10,6 +10,7 @@ import { tagFallbackColor } from '../lib/tagColor.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
 
 // Global search + ⌘K command palette.
 //
@@ -408,6 +409,17 @@ export function CommandPalette({
     onSelect: activateAt,
     resetKey: query,
   });
+
+  // A layer in lib/modalGuard while open: the canvas shortcuts stand down
+  // behind it (Backspace with focus on a result row no longer reaches the
+  // board), and Escape reaching the window closes it — the search box's own
+  // handler claims the key first when it has focus.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!open) return undefined;
+    return registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } });
+  }, [open]);
 
   if (!open) return null;
 

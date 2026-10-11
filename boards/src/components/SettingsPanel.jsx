@@ -19,9 +19,10 @@
 //
 // Settings persist via the merge_*_settings RPCs, which do an atomic
 // jsonb || patch so two clients can save different keys at once.
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { registerModalOpen, registerBackLayer } from '../lib/modalGuard.js';
 import { X, ChevronLeft, ChevronRight } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -166,6 +167,31 @@ export function SettingsPanel({
       else if (fresh) setDetail(false);
     }
   }
+
+  // A layer in lib/modalGuard while open. Unregistered, the canvas behind
+  // kept its window shortcuts: once focus left a field (Enter blurs the
+  // display name), Backspace deleted the selected cards under the dimmed
+  // panel. Escape closes the panel (it used to clear the canvas selection
+  // instead), unless a colour picker inside a tab is open — that closes
+  // first. Back on a phone closes it too, or returns from a tab to the list.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!open) return undefined;
+    const unregister = registerModalOpen({
+      onEscape: () => {
+        if (document.querySelector('.cp-pop')) return false;
+        onCloseRef.current?.();
+        return true;
+      },
+    });
+    const unBack = registerBackLayer(() => onCloseRef.current?.());
+    return () => { unregister(); unBack(); };
+  }, [open]);
+  useEffect(() => {
+    if (!open || !stacked || !detail) return undefined;
+    return registerBackLayer(() => setDetail(false));
+  }, [open, stacked, detail]);
 
   if (!open) return null;
 

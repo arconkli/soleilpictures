@@ -5,16 +5,17 @@
 // ARIA (role/aria-modal/label). Visual chrome stays with the caller via
 // `className`, so each modal keeps its own look while sharing behavior.
 //
-// Nesting-safe: Tab/Escape are only handled while focus is inside *this*
-// panel. So a feedback confirm/prompt opened on top of a modal (e.g. from
-// ShareModal's "remove collaborator") behaves correctly without the modal
-// underneath stealing the keystroke.
+// Nesting-safe: Tab/Escape are only handled while this modal is the TOP layer
+// in lib/modalGuard. So a feedback confirm/prompt opened on top of a modal
+// (e.g. from ShareModal's "remove collaborator") behaves correctly without the
+// modal underneath stealing the keystroke. Escape also works when focus fell
+// back to <body> — Trash's Restore removes the very row whose button had it.
 
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
-import { registerModalOpen } from '../lib/modalGuard.js';
+import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
 
 const FOCUSABLE = [
   'a[href]',
@@ -64,6 +65,7 @@ export function Modal({
 }) {
   const panelRef = useRef(null);
   const triggerRef = useRef(null);
+  const guardRef = useRef(null);
 
   // Capture trigger, set initial focus, lock scroll; restore focus + unlock
   // on close. Keyed on `open` only — callbacks are read via refs/closures so
@@ -75,6 +77,7 @@ export function Modal({
     // an "editable target", so Backspace in the Trash modal used to delete
     // the selected cards on the board behind it.
     const unregister = registerModalOpen();
+    guardRef.current = unregister;
     triggerRef.current = returnFocusRef?.current || document.activeElement;
     lockScroll();
 
@@ -87,6 +90,7 @@ export function Modal({
 
     return () => {
       unregister();
+      guardRef.current = null;
       cancelAnimationFrame(raf);
       unlockScroll();
       const t = triggerRef.current;
@@ -97,13 +101,17 @@ export function Modal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Trap Tab + handle Escape, but only while focus is inside this panel so a
-  // dialog stacked on top of us keeps control of the keyboard.
+  // Trap Tab + handle Escape, but only while we are the top layer and focus
+  // is inside this panel (or nowhere — on <body>), so a dialog stacked on top
+  // of us, or a popover portaled outside us, keeps control of the keyboard.
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
       const panel = panelRef.current;
-      if (!panel || !panel.contains(document.activeElement)) return;
+      if (!panel || !isTopModal(guardRef.current)) return;
+      const active = document.activeElement;
+      const focusLost = !active || active === document.body;
+      if (!focusLost && !panel.contains(active)) return;
 
       if (e.key === 'Escape' && closeOnEscape) {
         e.stopPropagation();
@@ -111,6 +119,7 @@ export function Modal({
         return;
       }
       if (e.key === 'Tab') {
+        if (focusLost) { e.preventDefault(); (focusables(panel)[0] || panel).focus?.(); return; }
         const nodes = focusables(panel);
         if (nodes.length === 0) { e.preventDefault(); panel.focus?.(); return; }
         const first = nodes[0];

@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { lockScroll, unlockScroll } from './Modal.jsx';
+import { registerModalOpen } from '../lib/modalGuard.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
@@ -250,13 +251,15 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // Escape-to-close + body scroll-lock. This modal keeps its own
   // upgrade-backdrop DOM (its z-index can't move onto <Modal> without a CSS
   // reshuffle), so it shares Modal's ref-counted scroll lock directly.
+  // It registers as a layer (lib/modalGuard): the canvas shortcuts stand down
+  // behind it, and Escape closes only this — opened from Settings > Billing,
+  // its own window listener used to close Settings in the same keypress.
   const handleCloseRef = useRef(handleClose);
   handleCloseRef.current = handleClose;
   useEffect(() => {
     lockScroll();
-    const onKey = (e) => { if (e.key === 'Escape') handleCloseRef.current('esc'); };
-    window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('keydown', onKey); unlockScroll(); };
+    const unregister = registerModalOpen({ onEscape: () => { handleCloseRef.current('esc'); return true; } });
+    return () => { unregister(); unlockScroll(); };
   }, []);
 
   return createPortal(

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { registerModalOpen, registerBackLayer } from '../../lib/modalGuard.js';
 
 // Slide-in left drawer for phone width. Wraps existing sidebar
 // content (workspace switcher, board tree, tags, footer) without
@@ -20,12 +21,18 @@ export function MobileDrawer({ open, onClose, children }) {
   // True for the ~200ms after a released drag while the drawer eases home.
   const [snapping, setSnapping] = useState(false);
 
+  // A layer in lib/modalGuard while open: Escape closes only the top layer
+  // (a sheet opened from the drawer goes first), the canvas shortcuts stand
+  // down behind it, and the phone's Back closes the drawer instead of
+  // leaving the app.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    if (!open) return undefined;
+    const unregister = registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } });
+    const unBack = registerBackLayer(() => onCloseRef.current?.());
+    return () => { unregister(); unBack(); };
+  }, [open]);
 
   useEffect(() => {
     if (!open) { setDragX(0); setSnapping(false); }
