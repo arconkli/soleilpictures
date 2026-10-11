@@ -3887,7 +3887,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // restore: these clusters already exist, so their cards are put back, not
     // added — never gated, never charged (their creators charged). The count
     // is re-read once the cards reach the index, so it can't stay one short.
-    mainMutators.addCards?.(newCards, { restore: true });
+    // untracked: the tile is bookkeeping, not a user step. Tracked, it sat on
+    // top of the delete that caused it, so the delete toast's Undo saw "the
+    // board changed since" and every ⌘Z stripped the tile only for this effect
+    // to put it straight back — the user's own step was never reachable.
+    mainMutators.addCards?.(newCards, { restore: true, untracked: true });
     expectIndexChange();
   }, [currentYDoc, yb.cards, boards, currentId, boardsLoading, mainMutators]);
 
