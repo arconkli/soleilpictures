@@ -101,6 +101,27 @@ test('FILES-LIST-02: opening a folder stops the loop that was playing', async ({
   })).toBe(true);
 });
 
+test('FILES-LIST-03: a search that matches nothing does not wipe the Tempo sort', async ({ page }) => {
+  // A blank board, so the three loops are the whole cluster: an audio pack.
+  await go(page, { blank: true });
+  await page.waitForFunction(() => !!window.__soleilAudioLive);
+  await page.evaluate(() => {
+    for (let i = 0; i < 3; i++) window.__soleilAudioLive.addAudio({ x: 900 + i * 40, y: 500 + i * 40 });
+  });
+  await openFullFiles(page);
+  await page.getByRole('button', { name: 'List layout' }).click();
+  const tempo = full(page).getByRole('columnheader').filter({ has: page.getByRole('button', { name: 'BPM' }) });
+  await tempo.getByRole('button').click();
+  await expect(tempo).not.toHaveAttribute('aria-sort', 'none');
+  const search = full(page).getByRole('searchbox', { name: 'Search files in this cluster' })
+    .or(full(page).getByLabel('Search files in this cluster'));
+  await search.fill('zzzz-nothing-matches');
+  await expect(full(page).locator('.ct-play')).toHaveCount(0);
+  await search.fill('');
+  await expect(full(page).locator('.ct-play')).toHaveCount(3);
+  await expect(tempo).not.toHaveAttribute('aria-sort', 'none');
+});
+
 test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
   await go(page, { width: 390, height: 844 });
   await openFull(page);
