@@ -26,7 +26,7 @@ export function ClusterTable({
     <SortTh cls={cls} col={col} label={label} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
   );
   return (
-    <div className="ct-table" role="grid" aria-multiselectable="true" aria-label="Files" data-cols={audioMode ? 'audio' : undefined}>
+    <div className="ct-table" role="table" aria-label="Files" data-cols={audioMode ? 'audio' : undefined}>
       <div className="ct-head" role="row">
         {th('ct-c-name', 'name', 'Name')}
         {audioMode ? (
@@ -43,7 +43,7 @@ export function ClusterTable({
           </>
         )}
         {th('ct-c-date', dateKey, dateKey === 'created' ? 'Added' : 'Modified')}
-        <div className="ct-th ct-c-presence" />
+        <div className="ct-th ct-c-presence" role="columnheader" />
       </div>
       <div className="ct-body" role="rowgroup">
         {items.map(it => it.isGroup ? (
@@ -90,22 +90,22 @@ export function ClusterTable({
 // tells a screen reader that the arrow means anything.
 function SortTh({ cls, col, label, sortKey, sortDir, onSort }) {
   const sorted = sortKey === col;
-  // Deliberately NOT role="columnheader". The W3C pattern for a sortable
-  // column is a columnheader element WRAPPING a button, and collapsing the two
-  // onto one element trades the button role — the thing that tells a screen
-  // reader user this is pressable — for the sort semantics. The state goes in
-  // the accessible name instead, which costs nothing and reads correctly.
+  // The W3C pattern for a sortable column: a columnheader WRAPPING a button,
+  // so the header keeps its sort state (aria-sort) and the button stays a
+  // button. The wrapper is display: contents — the button is still the grid
+  // item every `.ct-th.ct-c-*` rule lays out.
   return (
-    <button
-      type="button"
-      aria-label={`${label}${sorted ? (sortDir === 'asc' ? ', sorted ascending' : ', sorted descending') : ''}`}
-      title={`Sort by ${label.toLowerCase()}`}
-      className={`ct-th ${cls}${sorted ? ' is-sorted' : ''}`}
-      onClick={() => onSort(col)}
-    >
-      <span>{label}</span>
-      <span className="ct-th-caret" aria-hidden="true">{sorted && sortDir === 'asc' ? '↑' : '↓'}</span>
-    </button>
+    <div className="ct-thw" role="columnheader" aria-sort={sorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        title={`Sort by ${label.toLowerCase()}`}
+        className={`ct-th ${cls}${sorted ? ' is-sorted' : ''}`}
+        onClick={() => onSort(col)}
+      >
+        <span>{label}</span>
+        <span className="ct-th-caret" aria-hidden="true">{sorted && sortDir === 'asc' ? '↑' : '↓'}</span>
+      </button>
+    </div>
   );
 }
 
@@ -123,7 +123,7 @@ function GroupBlock({
            role="row" aria-expanded={!!expanded}
            ref={registerRow ? registerRow(group.id) : null}
            onClick={(e) => onGroupClick(e, group.id)}>
-        <div role="gridcell" className="ct-cell ct-c-name">
+        <div role="cell" className="ct-cell ct-c-name">
           <span className={`ct-group-caret${expanded ? ' is-open' : ''}`} aria-hidden="true"><Icon as={ChevronRight} size={13} /></span>
           <div className="ct-thumb"><CardPreview item={group} size="row" /></div>
           <div className="ct-name-wrap">
@@ -133,19 +133,19 @@ function GroupBlock({
         </div>
         {audioMode ? (
           <>
-            <div role="gridcell" className="ct-cell ct-c-dur" />
-            <div role="gridcell" className="ct-cell ct-c-bpm" />
-            <div role="gridcell" className="ct-cell ct-c-key" />
-            <div role="gridcell" className="ct-cell ct-c-fmt">Grid family</div>
+            <div role="cell" className="ct-cell ct-c-dur" />
+            <div role="cell" className="ct-cell ct-c-bpm" />
+            <div role="cell" className="ct-cell ct-c-key" />
+            <div role="cell" className="ct-cell ct-c-fmt">Grid family</div>
           </>
         ) : (
           <>
-            <div role="gridcell" className="ct-cell ct-c-type">Grid family</div>
-            <div role="gridcell" className="ct-cell ct-c-size" />
+            <div role="cell" className="ct-cell ct-c-type">Grid family</div>
+            <div role="cell" className="ct-cell ct-c-size" />
           </>
         )}
-        <div role="gridcell" className="ct-cell ct-c-date" />
-        <div role="gridcell" className="ct-cell ct-c-presence" />
+        <div role="cell" className="ct-cell ct-c-date" />
+        <div role="cell" className="ct-cell ct-c-presence" />
       </div>
       {expanded && group.members.map(m => (
         <ClusterRow

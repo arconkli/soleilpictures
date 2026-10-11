@@ -49,7 +49,7 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
           <button className="cbd-close" onClick={onClose} aria-label="Close"><Icon as={X} size={16} /></button>
         </div>
         <div className="cbd-body">
-          <div className="cbd-preview"><CardPreview item={g} size="tile" /></div>
+          <div className="cbd-preview"><CardPreview key={g.id} item={g} size="tile" /></div>
           <MetaRow label="Type" value="Grid family" />
           <MetaRow label="Grids" value={`${g.count}`} />
           <div className="cbd-members">
@@ -98,7 +98,7 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
         <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} /></button>
       </div>
       <div className="cbd-body">
-        {!inline && <div className="cbd-preview"><CardPreview item={item} size="tile" /></div>}
+        {!inline && <div className="cbd-preview"><CardPreview key={item.id} item={item} size="tile" /></div>}
         {/* For a loop these four ARE the metadata. Without them the panel a
             producer taps on a published pack reported type, size and two
             dates, and not one of the things they opened it to find out. */}

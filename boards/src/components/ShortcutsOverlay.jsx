@@ -66,6 +66,7 @@ const SECTIONS = [
     rows: [
       [['←', '→', '↑', '↓'], 'Move through files'],
       [['Enter'], 'Select the highlighted file'],
+      [['⇧Space'], 'Add the highlighted file to the selection · take it out'],
       [['Space'], 'Quick look — ← → step through, Space or Esc closes'],
       [[`${CMD}I`], 'Info for the selected file'],
       [['F2'], 'Rename'],

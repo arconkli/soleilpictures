@@ -3,6 +3,7 @@
 // width, a View menu that can't show what's on, toasts over the panel.
 // Driven through the ?local=1 harness.
 import { expect, test } from '@playwright/test';
+import { openFullFiles } from './files-helpers.js';
 
 async function go(page, { width = 1440, height = 900 } = {}) {
   await page.setViewportSize({ width, height });
@@ -199,14 +200,118 @@ test('Back returns Files to where it was scrolled; a folder opens at its top', a
   await expect.poll(() => p.evaluate((el) => el.scrollTop)).toBe(at);
 });
 
-test('the List layout is a grid whose rows say whether they are selected', async ({ page }) => {
+test('the List layout is a table whose sortable columns say how they sort', async ({ page }) => {
   await go(page);
   await panel(page).getByRole('button', { name: /^View/ }).click();
   await page.locator('.cbt-menu .ctx-item', { hasText: /^List$/ }).click();
   await page.keyboard.press('Escape');
-  await expect(panel(page).locator('.ct-table')).toHaveAttribute('role', 'grid');
-  const row = panel(page).locator('.ct-row').first();
-  await expect(row).toHaveAttribute('aria-selected', 'false');
-  await row.click();
-  await expect(row).toHaveAttribute('aria-selected', 'true');
+  await panel(page).getByRole('button', { name: 'Expand Files to full screen' }).click();
+  const table = page.locator('.list-wrap:not(.is-panel) .ct-table');
+  await expect(table).toHaveAttribute('role', 'table');
+  await expect(table.locator('[aria-selected]')).toHaveCount(0);
+  const name = table.getByRole('columnheader').filter({ hasText: 'Name' });
+  await expect(name).toHaveAttribute('aria-sort', 'none');
+  await name.getByRole('button').click();
+  await expect(name).toHaveAttribute('aria-sort', /ascending|descending/);
+});
+
+test('the View menu speaks in radios and checkboxes, grouped by heading', async ({ page }) => {
+  await go(page);
+  await panel(page).getByRole('button', { name: /^View/ }).click();
+  const menu = page.locator('.cbt-menu');
+  await expect(menu.getByRole('group', { name: 'Sort by' })).toBeVisible();
+  await expect(menu.getByRole('menuitemradio', { name: 'Grid' })).toHaveAttribute('aria-checked', 'true');
+  await expect(menu.getByRole('menuitemradio', { name: 'List' })).toHaveAttribute('aria-checked', 'false');
+});
+
+test('Escape on an open View menu closes the menu and keeps the selection', async ({ page }) => {
+  await go(page);
+  await tiles(page).nth(1).click();
+  await panel(page).getByRole('button', { name: /^View/ }).click();
+  await expect(page.locator('.cbt-menu')).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cbt-menu')).toHaveCount(0);
+  await expect(tiles(page).nth(1)).toHaveClass(/is-selected/);
+  await expect(panel(page).locator('.ct-tile.is-active')).toHaveCount(0);
+});
+
+test('Shift+Space adds the highlighted file to the selection, and takes it out again', async ({ page }) => {
+  await go(page);
+  await tiles(page).nth(3).click();
+  await page.keyboard.press('ArrowRight');       // the highlight starts on the first tile
+  await expect(tiles(page).first()).toHaveClass(/is-active/);
+  await page.keyboard.press('Shift+Space');
+  await expect(panel(page).locator('.list-selbar-count')).toHaveText('2 selected');
+  await expect(tiles(page).first()).toHaveClass(/is-selected/);
+  await expect(tiles(page).nth(3)).toHaveClass(/is-selected/);
+  await expect(page.locator('.ql')).toHaveCount(0);
+  await page.keyboard.press('Shift+Space');
+  await expect(tiles(page).first()).not.toHaveClass(/is-selected/);
+});
+
+test('the round check does not take focus: Space after it still opens Quick look', async ({ page }) => {
+  await go(page);
+  const t = tiles(page).nth(1);
+  await t.hover();
+  await t.locator('.ct-tile-check').click();
+  await expect(t).toHaveClass(/is-selected/);
+  await page.keyboard.press('Space');
+  await expect(page.locator('.ql')).toBeVisible();
+});
+
+test('the path ▾ menu works from the keyboard and Escape hands focus back', async ({ page }) => {
+  await go(page);
+  const here = panel(page).locator('.pb-step.is-here button.pb-here');
+  await here.focus();
+  await page.keyboard.press('Enter');
+  const items = page.locator('.pb-menu .pb-menu-item');
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.nth(1)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(items.last()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.pb-menu')).toHaveCount(0);
+  await expect(here).toBeFocused();
+});
+
+test('at phone width full Files keeps the cluster name and the View menu on screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto('/?local=1&reset=1');
+  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
+  await page.reload();
+  // No room for a panel at this width: Files opens full.
+  await page.getByRole('button', { name: /^Files/ }).first().click();
+  await expect(page.locator('.list-wrap:not(.is-panel)')).toBeVisible();
+  const title = page.locator('.cb-pagehead-title');
+  await expect(title).toBeVisible();
+  expect((await title.boundingBox()).width).toBeGreaterThan(80);
+  expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await page.locator('.list-wrap:not(.is-panel)').getByRole('button', { name: /^View/ }).click();
+  const m = await page.locator('.cbt-menu').boundingBox();
+  expect(m.x).toBeGreaterThanOrEqual(0);
+  expect(m.x + m.width).toBeLessThanOrEqual(390);
+});
+
+test('full Files: coming back from a folder returns to where the list was scrolled', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 420 });
+  await page.goto('/?local=1&reset=1');
+  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
+  await page.reload();
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  await openFullFiles(page);
+  const wrap = page.locator('.list-wrap:not(.is-panel)');
+  const home = (await page.locator('.cb-pagehead-title').textContent()).trim();
+  await wrap.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await expect.poll(() => wrap.evaluate((el) => el.scrollTop)).toBeGreaterThan(30);
+  const at = await wrap.evaluate((el) => el.scrollTop);
+  await page.waitForTimeout(100);
+  await wrap.locator('[data-folder-id]').first().dblclick();
+  await expect(page.locator('.cb-pagehead-title')).not.toHaveText(home);
+  await page.locator('.crumbs .crumb', { hasText: home }).first().click();   // up one, in the topbar
+  await expect(page.locator('.cb-pagehead-title')).toHaveText(home);
+  await expect.poll(() => wrap.evaluate((el) => el.scrollTop)).toBe(at);
 });

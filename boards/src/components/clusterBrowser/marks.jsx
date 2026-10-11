@@ -148,8 +148,10 @@ export function NoteMark({ title = '', text = '', tone = null, size = 'row' }) {
   }
   return (
     <div className={`cbp-mark cbp-note-mark cbp-note-${size}`} style={style}>
-      {title && <b className="cbp-note-title">{title}</b>}
-      {text && <span className="cbp-note-text">{text}</span>}
+      <div className="cbp-note-inner">
+        {title && <b className="cbp-note-title">{title}</b>}
+        {text && <span className="cbp-note-text">{text}</span>}
+      </div>
     </div>
   );
 }
@@ -166,19 +168,19 @@ function domainOf(source) {
   } catch { return String(source).replace(/^https?:\/\//, '').split('/')[0]; }
 }
 export function LinkMark({ favicon = null, source = '', size = 'row' }) {
-  const [broken, setBroken] = useState(false);
-  // A favicon is drawn at its own size or smaller, never stretched; and the
-  // s2 service's stand-in globe (16px, for a domain it doesn't know) is no
-  // better than our own link glyph.
-  const [tiny, setTiny] = useState(false);
+  // A favicon is drawn at its own size or smaller, never stretched: a 16px
+  // icon (a site's real one, or the s2 service's stand-in) stays 16px. Only a
+  // favicon that fails to load becomes our link glyph. Both facts belong to
+  // one src — a preview reused for the next link starts over.
   const domain = domainOf(source);
-  const fromS2 = !favicon;
   const src = favicon || (domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : null);
+  const [seen, setSeen] = useState({ src, broken: false, tiny: false });
+  const state = seen.src === src ? seen : { src, broken: false, tiny: false };
   const glyph = <Icon as={LinkIcon} size={size === 'tile' ? 16 : 14} weight="regular" />;
-  const icon = src && !broken && !(fromS2 && tiny)
-    ? <img className={`cbp-link-favicon${tiny ? ' is-tiny' : ''}`} src={src} alt="" draggable="false"
-           onLoad={(e) => setTiny(e.currentTarget.naturalWidth < 32)}
-           onError={() => setBroken(true)} />
+  const icon = src && !state.broken
+    ? <img key={src} className={`cbp-link-favicon${state.tiny ? ' is-tiny' : ''}`} src={src} alt="" draggable="false"
+           onLoad={(e) => { const tiny = e.currentTarget.naturalWidth < 32; setSeen({ src, broken: false, tiny }); }}
+           onError={() => setSeen({ src, broken: true, tiny: false })} />
     : glyph;
   if (size !== 'tile') return <div className="cbp-mark cbp-link" aria-hidden="true"><span className="cbp-link-chip">{icon}</span></div>;
   // A bookmark: the site's mark in a chip, an out-arrow, the domain.

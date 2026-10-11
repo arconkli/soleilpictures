@@ -88,6 +88,7 @@ the board, these keys go to whichever side the pointer was last over.
 |---|---|
 | `←` `→` `↑` `↓` | Move through files — in the grid, `↑` / `↓` go to the nearest tile in the next row |
 | `Enter` | Select the highlighted file |
+| `⇧Space` | Add the highlighted file to the selection, or take it out — the keyboard version of a tile's round check |
 | `Space` or double-click | Quick look — `←` / `→` step through the files, `Space` or `Esc` closes |
 | `⌘I` | Info for the selected file — remembered on your device |
 | `F2` | Rename the selected file or folder — `Enter` saves, `Esc` cancels |

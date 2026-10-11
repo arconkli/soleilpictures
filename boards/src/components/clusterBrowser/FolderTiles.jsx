@@ -42,14 +42,18 @@ export const FolderTile = memo(function FolderTile({
     seen.add(u.id);
     people.push(u);
   }
-  const tint = COVER_TINTS[board?.cover || 'neutral'] || COVER_TINTS.neutral;
+  // "sun" IS the brand gold: in Files a resting folder in it read as the
+  // selected one, so it shows as sand here (the canvas keeps the person's
+  // choice). Mapped in JS — the inline custom property beats any stylesheet.
+  const cover = board?.cover === 'sun' ? 'sand' : (board?.cover || 'neutral');
+  const tint = COVER_TINTS[cover] || COVER_TINTS.neutral;
   const label = name || board?.name || (linked ? 'Linked cluster' : 'Untitled cluster');
   return (
     <div {...divProps}
          draggable={rename ? undefined : divProps.draggable}
          className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
          title={label}>
-      <div className="ft-cover" data-cover={board?.cover || 'neutral'} style={{ '--ft-tint': tint }}>
+      <div className="ft-cover" data-cover={cover} style={{ '--ft-tint': tint }}>
         {board?.thumb_key ? (
           <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
                    bust={board.thumb_updated_at} className="ft-thumb" alt="" draggable={false} />

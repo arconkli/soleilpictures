@@ -4,7 +4,7 @@
 // "Go to cluster…" to jump anywhere. Browsing here never moves the board —
 // the topbar breadcrumb still says where the board is.
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { ChevronLeft, ChevronDown, Compass, Folder, Eye } from '../../lib/icons.js';
 import { collapsePath, ELLIPSIS } from '../../lib/filesDock.js';
@@ -17,7 +17,28 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
   const last = path[path.length - 1];
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
+  const triggerRef = useRef(null);
   useDismissOnOutside(menuRef, open, () => setOpen(false), { ignore: '[data-menu-trigger="path"]' });
+  // Somewhere else now (Back, a step, Go to cluster): the old list is stale.
+  useEffect(() => { setOpen(false); }, [last]);
+  // Opened, focus goes into the list, so ↑ ↓ and Enter work straight away.
+  useEffect(() => {
+    if (open) menuRef.current?.querySelector('[role="menuitem"]')?.focus();
+  }, [open]);
+  const onMenuKey = (e) => {
+    const items = [...(menuRef.current?.querySelectorAll('[role="menuitem"]') || [])];
+    const i = items.indexOf(document.activeElement);
+    const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
+    if (to !== undefined && items.length) {
+      e.preventDefault();
+      items[(to + items.length) % items.length].focus();
+    } else if (e.key === 'Escape') {
+      triggerRef.current?.focus();
+      setOpen(false);
+    } else if (e.key === 'Tab') {
+      setOpen(false);
+    }
+  };
   const inside = useMemo(
     () => Object.values(boards || {}).filter((b) => b && b.parent_board_id === last).sort(byName),
     [boards, last],
@@ -38,21 +59,36 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
           return (
             <li key={id} className={`pb-step${here ? ' is-here' : ''}`}>
               {!here ? (
-                <button type="button" className="pb-name pb-link" onClick={() => onNavigate?.(id)} title={name}>{name}</button>
+                <button type="button" className="pb-name pb-link" onClick={() => onNavigate?.(id)} title={name}><span className="pb-text">{name}</span></button>
               ) : inside.length ? (
-                <button type="button" className="pb-name pb-here" data-menu-trigger="path"
+                <button type="button" className="pb-name pb-here" data-menu-trigger="path" ref={triggerRef}
                         aria-current="location" aria-haspopup="menu" aria-expanded={open}
                         title={`Clusters in ${name}`} onClick={() => setOpen((o) => !o)}>
                   <span className="pb-here-text">{name}</span>
                   <span className="pb-caret" aria-hidden="true"><Icon as={ChevronDown} size={11} /></span>
                 </button>
               ) : (
-                <span className="pb-name pb-here" aria-current="location" title={name}>{name}</span>
+                <span className="pb-name pb-here" aria-current="location" title={name}><span className="pb-text">{name}</span></span>
               )}
             </li>
           );
         })}
       </ol>
+      {/* Straight after the path, so it's next in reading order to its ▾. */}
+      {open && (
+        <div className="cbt-menu pb-menu" ref={menuRef} role="menu" aria-label={`Clusters in ${hereName}`}
+             onKeyDown={onMenuKey}>
+          <div className="cbt-menu-label">In {hereName}</div>
+          {inside.map((b) => (
+            <button key={b.id} type="button" role="menuitem" tabIndex={-1} className="ctx-item pb-menu-item"
+                    onClick={() => { setOpen(false); onNavigate?.(b.id); }}>
+              <span className="pb-menu-ico" aria-hidden="true"><Icon as={Folder} size={14} /></span>
+              <span className="pb-menu-name">{b.name || 'Untitled cluster'}</span>
+              {Number.isFinite(b.card_count) && <span className="cbt-count">{b.card_count}</span>}
+            </button>
+          ))}
+        </div>
+      )}
       {readOnly && (
         <span className="cbt-ro" title="Open this cluster to add or change files">
           <Icon as={Eye} size={11} />View only
@@ -62,19 +98,6 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
         <button type="button" className="cbt-iconbtn pb-goto" onClick={onGoTo} aria-label="Go to cluster" title="Go to cluster…">
           <Icon as={Compass} size={14} />
         </button>
-      )}
-      {open && (
-        <div className="cbt-menu pb-menu" ref={menuRef} role="menu" aria-label={`Clusters in ${hereName}`}>
-          <div className="cbt-menu-label">In {hereName}</div>
-          {inside.map((b) => (
-            <button key={b.id} type="button" role="menuitem" className="ctx-item pb-menu-item"
-                    onClick={() => { setOpen(false); onNavigate?.(b.id); }}>
-              <span className="pb-menu-ico" aria-hidden="true"><Icon as={Folder} size={14} /></span>
-              <span className="pb-menu-name">{b.name || 'Untitled cluster'}</span>
-              {Number.isFinite(b.card_count) && <span className="cbt-count">{b.card_count}</span>}
-            </button>
-          ))}
-        </div>
       )}
     </nav>
   );

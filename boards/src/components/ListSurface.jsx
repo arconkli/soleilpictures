@@ -130,6 +130,8 @@ export function ListSurface({
   // Set when the panel is browsing a cluster other than the board's own (a
   // read-only snapshot) — the board it came from.
   browsingFrom = null,
+  // A browsed cluster whose snapshot hasn't arrived — not "no files" yet.
+  loading = false,
 }) {
   const feedback = useFeedback();
   const isPanel = mode === 'panel';
@@ -164,30 +166,42 @@ export function ListSurface({
   // Where each cluster's Files was scrolled to, this session: Back, or coming
   // back to a cluster, returns to the same place; a cluster seen for the
   // first time starts at the top. A reveal does its own scrolling.
+  //
+  // The list may still be filling in when we arrive (a browsed cluster's
+  // snapshot, images finding their height), so the target is held and
+  // re-applied as the content grows — until it's reached, or the person
+  // scrolls themselves. Positions are only remembered once nothing is
+  // pending, so a half-laid-out list can't overwrite the real place.
   const listWrapRef = useRef(null);
+  const listInnerRef = useRef(null);
   const scrollKey = `${isPanel ? 'p' : 'f'}:${board?.id}`;
   useLayoutEffect(() => {
     const el = listWrapRef.current;
     if (!el) return undefined;
-    const saved = SCROLL_MEMORY.get(scrollKey) || 0;
-    const save = () => SCROLL_MEMORY.set(scrollKey, el.scrollTop);
-    let raf = 0;
-    let listening = false;
-    const listen = () => { if (!listening) { listening = true; el.addEventListener('scroll', save, { passive: true }); } };
-    if (revealRequest?.token) listen();
-    else if (saved > 0) {
-      // Now, and again once the grid has its width and height — listening only
-      // after, so a position clamped by a half-laid-out list isn't remembered.
+    const saved = revealRequest?.token ? 0 : (SCROLL_MEMORY.get(scrollKey) || 0);
+    let pending = saved > 0;
+    if (!revealRequest?.token) el.scrollTop = saved;
+    const settle = () => { pending = false; };
+    const apply = () => {
+      if (!pending) return;
       el.scrollTop = saved;
-      raf = requestAnimationFrame(() => {
-        el.scrollTop = saved;
-        raf = requestAnimationFrame(listen);
-      });
-    } else {
-      el.scrollTop = 0;
-      listen();
-    }
-    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', save); };
+      if (Math.abs(el.scrollTop - saved) < 2) settle();
+    };
+    const onScroll = () => { if (!pending) SCROLL_MEMORY.set(scrollKey, el.scrollTop); };
+    const userInput = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+    el.addEventListener('scroll', onScroll, { passive: true });
+    userInput.forEach((t) => el.addEventListener(t, settle, { passive: true }));
+    const ro = typeof ResizeObserver !== 'undefined' && listInnerRef.current ? new ResizeObserver(apply) : null;
+    if (ro) ro.observe(listInnerRef.current);
+    const raf = requestAnimationFrame(apply);
+    const give = setTimeout(settle, 4000);   // a list that never gets tall enough
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(give);
+      ro?.disconnect();
+      el.removeEventListener('scroll', onScroll);
+      userInput.forEach((t) => el.removeEventListener(t, settle));
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollKey]);
 
@@ -610,8 +624,10 @@ export function ListSurface({
     const ids = (revealRequest.ids || []).filter((id) => items.some((it) => it.id === id));
     setQuery('');
     setFilters(new Set());
-    if (!ids.length) setUnplacedOnly(items.some((it) => it.unplaced));
-    else {
+    if (!ids.length) {
+      setUnplacedOnly(items.some((it) => it.unplaced));
+      if (listWrapRef.current) listWrapRef.current.scrollTop = 0;
+    } else {
       setUnplacedOnly(false);
       setSelectedCards(new Set(ids));
       setSelectedBoards(new Set());
@@ -865,7 +881,9 @@ export function ListSurface({
   useEffect(() => {
     const onKey = async (e) => {
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
-      if (document.querySelector('.ctx-menu')) return; // so does an open right-click menu
+      // So does an open menu — right-click, View, the path ▾, sort: Escape
+      // closes the menu alone and arrows stay in it.
+      if (document.querySelector('.ctx-menu, .cbt-menu')) return;
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       // A focused control owns Enter and Space. Without this the window
@@ -946,6 +964,19 @@ export function ListSurface({
         }
         return;
       }
+      // ⇧Space adds the highlighted file to the selection, or takes it out —
+      // the keyboard twin of a tile's round check, so ↑↓←→ then ⇧Space builds
+      // a selection without a mouse. (⌘Space is Spotlight on a Mac.)
+      if ((e.key === ' ' || e.code === 'Space') && e.shiftKey && !mod) {
+        const it = activeId && navItems.find((n) => n.id === activeId);
+        if (!it || it.isGroup || onControl) return;
+        e.preventDefault();
+        toggle(selectedCards, setSelectedCards, it.id, true);
+        setSelectedBoards(new Set());
+        setSelectedGroupId(null);
+        anchorRef.current = { kind: 'file', id: it.id };
+        return;
+      }
       if (e.key === ' ' || e.code === 'Space') {
         // Space is Quick look on the highlighted (or the one selected) file —
         // except on an audio row in the List layout, where it auditions, so a
@@ -992,7 +1023,6 @@ export function ListSurface({
   // Board order puts a fresh upload last (it waits off the board, after
   // everything on it), so bring the first new row or tile into view rather
   // than leaving its flash and spinner below the fold.
-  const listInnerRef = useRef(null);
   useEffect(() => {
     if (!recentlyAddedIds?.size) return undefined;
     const raf = requestAnimationFrame(() => {
@@ -1389,7 +1419,9 @@ export function ListSurface({
       readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
       dropBanner={dragNote === 'files'
         ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
-        : dragNote === 'blocked' ? { text: `Open ${board?.name || 'this cluster'} to add files`, blocked: true } : null}
+        : dragNote === 'blocked'
+          ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
+          : null}
       dockControls={dockControls ? { ...dockControls, mode } : null}
     />
   );
@@ -1567,7 +1599,7 @@ export function ListSurface({
             {(hasFolders || (!isPanel && packSummary)) && (
               <div className="list-section list-section-files">
                 <span>Files</span>
-                <span className="list-section-count">{narrowed ? `${visibleItems.length} of ${otherCards.length}` : otherCards.length}</span>
+                <span className="list-section-count">{loading ? '…' : narrowed ? `${visibleItems.length} of ${otherCards.length}` : otherCards.length}</span>
                 {!isPanel && packSummary && <span className="list-section-meta">{packSummary}</span>}
               </div>
             )}
@@ -1576,7 +1608,9 @@ export function ListSurface({
                    onDragStart={filesDraggable ? onFilesDragStart : undefined}
                    onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
                 {visibleItems.length === 0 && descHits.length === 0 ? (
-                  query || filters.size || unplacedOnly ? (
+                  loading ? (
+                    <div className="list-loading" role="status">Loading files…</div>
+                  ) : query || filters.size || unplacedOnly ? (
                     <div className="cluster-browser-empty">
                       <div>No files match.</div>
                       <button type="button" className="cbt-btn cb-empty-clear"

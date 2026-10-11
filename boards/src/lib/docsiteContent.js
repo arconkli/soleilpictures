@@ -2574,6 +2574,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⇧Space"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Add the highlighted file to the selection, or take it out — the keyboard version of a tile's round check"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "Space"
       },
       {
@@ -16985,7 +16999,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for everything showing. Click empty space or press "
+     "v": " for everything showing. In the grid, the round check that appears in a tile's corner on hover adds it without a modifier key. Click empty space or press "
     },
     {
      "t": "code",
@@ -16993,7 +17007,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to clear it. The arrow keys move a highlight through the files and "
+     "v": " to clear it. The arrow keys move a highlight through the files, "
     },
     {
      "t": "code",
@@ -17001,7 +17015,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " selects it."
+     "v": " selects it and "
+    },
+    {
+     "t": "code",
+     "v": "⇧Space"
+    },
+    {
+     "t": "text",
+     "v": " adds it to the selection."
     }
    ]
   },
