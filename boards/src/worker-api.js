@@ -716,6 +716,32 @@ function paginate(rows, limit, offset) {
   return { items: has_more ? rows.slice(0, limit) : rows, limit, offset, has_more };
 }
 
+// Remove, from `matches`, card identifiers on OTHER boards whose card is no
+// longer on that board, and purge those rows so the (scope, value) is free.
+//
+// The document is the truth, not card_index: a card past its owner's cap can be
+// on the canvas with no index row, and treating that as gone would strip a live
+// card of its identifiers. One document read per distinct foreign board, and
+// only when an item matched something elsewhere — the rare case, which until
+// now always ended in a 409.
+async function dropStaleForeignMatches(env, token, matches, boardId) {
+  const byBoard = new Map();
+  for (const [key, row] of matches) {
+    if (String(row.board_id) === String(boardId)) continue;
+    if (!byBoard.has(row.board_id)) byBoard.set(row.board_id, []);
+    byBoard.get(row.board_id).push([key, row]);
+  }
+  for (const [bid, entries] of byBoard) {
+    const live = new Set((await readBoardCards(env, bid, token)).map((c) => String(c.id)));
+    const dead = entries.filter(([, row]) => !live.has(String(row.object_id)));
+    if (!dead.length) continue;
+    await purgeCardMeta(env, token, {
+      boardId: bid, cardIds: [...new Set(dead.map(([, row]) => String(row.object_id)))],
+    });
+    for (const [key] of dead) matches.delete(key);
+  }
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 // The scope a request needs, from its method — except the MCP transport.
@@ -2912,6 +2938,13 @@ async function dispatch(url, request, env, ctx) {
       const matches = await matchIdentifiers(env, token, {
         workspaceId: board.workspace_id, objectType: 'card', identifiers: all,
       });
+      // An identifier row outlives its card when the card is deleted or moved
+      // off its board in the app — only the API's own delete purges metadata.
+      // Left in place, a match on ANOTHER board refused the item with a 409
+      // naming a card that no longer exists there, forever. Check those boards'
+      // documents and free what names nothing. (Matches on THIS board are
+      // checked against its document below, by the update itself.)
+      await dropStaleForeignMatches(env, token, matches, id);
       const resolvedHits = resolveUpsert(
         metas.map((m) => ({ identifiers: m.identifiers })),
         matches, { objectType: 'card', boardId: id },
@@ -2922,7 +2955,15 @@ async function dispatch(url, request, env, ctx) {
       resolvedHits.forEach((r, i) => (r.existing ? updateIdx : createIdx).push(i));
 
       // Existing cards first, in ONE board open — see updateCardsOnBoard.
-      let updatedCards = [];
+      //
+      // It answers POSITIONALLY, with null for a card that is not on the board.
+      // That null has to stay in place: filtering it out shifted every later
+      // result one slot, so the next item's identifiers were written onto the
+      // wrong card and the stale value then collided with itself (409, after
+      // the card writes had landed), and the following run duplicated cards.
+      // An item whose matched card is gone is re-created instead, once the
+      // dead card's metadata is purged so its identifiers are free again.
+      const updatedById = new Map();
       if (updateIdx.length) {
         const out = await updateCardsOnBoard(env, {
           boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
@@ -2932,7 +2973,18 @@ async function dispatch(url, request, env, ctx) {
               { partial: true, existingKind: before?.kind }),
           })),
         });
-        updatedCards = out.filter(Boolean);
+        const gone = [];
+        updateIdx.forEach((i, n) => {
+          if (out[n]) updatedById.set(i, out[n]);
+          else gone.push(i);
+        });
+        if (gone.length) {
+          await purgeCardMeta(env, token, {
+            boardId: id, cardIds: gone.map((i) => resolvedHits[i].existing.object_id),
+          });
+          createIdx.push(...gone);
+          createIdx.sort((a, b) => a - b);
+        }
       }
 
       let createdCards = [];
@@ -2950,7 +3002,6 @@ async function dispatch(url, request, env, ctx) {
       // Map each response position back to the card that ended up there, so the
       // caller can pair its input with what happened to it.
       const createdById = new Map(createdCards.map((c, n) => [createIdx[n], c]));
-      const updatedById = new Map(updateIdx.map((i, n) => [i, updatedCards[n]]));
       const finalCards = incoming.map((_, i) => createdById.get(i) || updatedById.get(i)).filter(Boolean);
 
       await saveMetaBulk(env, token, {
@@ -2968,7 +3019,7 @@ async function dispatch(url, request, env, ctx) {
         board_id: id,
         cards: finalCards.map(publicCard),
         created: createIdx.length,
-        updated: updateIdx.length,
+        updated: updatedById.size,
         live: true,
       }, 201);
     }

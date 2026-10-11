@@ -31,6 +31,8 @@ let calls = [];
 // board id -> { row, doc (base64 Y update) }. Boards the test has not put here
 // do not exist.
 let boards = new Map();
+// object_identifiers rows: { board_id, object_type, object_id, scope, value }.
+let idents = [];
 const realFetch = globalThis.fetch;
 const realWebSocket = globalThis.WebSocket;
 
@@ -70,7 +72,7 @@ const idFromQuery = (q, key = 'id') => {
 };
 
 function reply(body, status = 200) {
-  return new Response(body === undefined ? '' : JSON.stringify(body), {
+  return new Response(body === undefined ? null : JSON.stringify(body), {
     status, headers: { 'content-type': 'application/json' },
   });
 }
@@ -80,6 +82,7 @@ beforeEach(() => {
   routes = [];
   calls = [];
   boards = new Map();
+  idents = [];
   globalThis.WebSocket = NoRoom;
   globalThis.fetch = async (input, init = {}) => {
     const u = new URL(typeof input === 'string' ? input : input.url);
@@ -107,6 +110,31 @@ beforeEach(() => {
     if (path === 'board_state' && method === 'POST') {
       for (const r of body) if (boards.has(r.board_id)) boards.get(r.board_id).doc = r.doc;
       return reply(undefined, 201);
+    }
+    if (path === 'object_identifiers') {
+      const keep = (r) => {
+        for (const [k, v] of call.query) {
+          if (k === 'select' || k === 'order') continue;
+          const vals = idFromQuery(call.query, k);
+          if (vals && !vals.includes(String(r[k]))) return false;
+        }
+        return true;
+      };
+      if (method === 'GET') return reply(idents.filter(keep));
+      if (method === 'DELETE') { idents = idents.filter((r) => !keep(r)); return reply(undefined, 204); }
+      if (method === 'POST') {
+        for (const r of body) {
+          if (idents.some((x) => x.scope === r.scope && x.value === r.value && x.object_type === r.object_type)) {
+            return reply({ code: '23505', message: 'duplicate key value violates unique constraint' }, 409);
+          }
+        }
+        idents.push(...body);
+        return reply(undefined, 201);
+      }
+      if (method === 'PATCH') {
+        for (const r of idents) if (keep(r)) Object.assign(r, body);
+        return reply([]);
+      }
     }
     if (path.startsWith('rpc/')) return reply(null);
     return reply(method === 'GET' ? [] : null);
@@ -213,4 +241,56 @@ test('a card re-ided for a collision takes its metadata to the new id', async ()
   assert.match(m.to, /^X-/);
   assert.equal(r.body.cards[0].id, m.to);
   assert.equal(cardsOn(B2).length, 2);
+});
+
+// ── API-02: a re-run upsert survives a card deleted in the app ───────────────
+
+const ident = (board, card, value) => ({
+  workspace_id: 'w1', board_id: board, object_type: 'card', object_id: card, scope: 'src', value,
+});
+const holderOf = (value) => idents.find((r) => r.value === value)?.object_id;
+
+test('re-running an upsert after a matched card was deleted in the app re-creates it, and nobody else\'s identifiers move', async () => {
+  // C1 was deleted in the app; its identifier row stayed behind.
+  putBoard(B1, [{ id: 'C2', kind: 'note', body: 'two' }, { id: 'C3', kind: 'note', body: 'three' }]);
+  idents = [ident(B1, 'C1', 'u1'), ident(B1, 'C2', 'u2'), ident(B1, 'C3', 'u3')];
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    on_conflict: 'identifier',
+    cards: ['u1', 'u2', 'u3'].map((v) => ({ kind: 'note', body: v, identifiers: [{ scope: 'src', value: v }] })),
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.updated, 2);
+  assert.equal(r.body.created, 1);
+  assert.equal(holderOf('u2'), 'C2');
+  assert.equal(holderOf('u3'), 'C3');
+  const fresh = holderOf('u1');
+  assert.ok(fresh && fresh !== 'C1', 'u1 now names the re-created card');
+  assert.ok(cardsOn(B1).some((c) => c.id === fresh));
+  assert.deepEqual(r.body.cards.map((c) => c.id), [fresh, 'C2', 'C3']);
+});
+
+test('an identifier left behind on another board by a deleted card no longer blocks the item', async () => {
+  putBoard(B1, []);
+  putBoard(B2, [{ id: 'live', kind: 'note' }]);
+  idents = [ident(B2, 'Z', 'u9')];
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    on_conflict: 'identifier',
+    cards: [{ kind: 'note', body: 'nine', identifiers: [{ scope: 'src', value: 'u9' }] }],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.created, 1);
+  const row = idents.find((x) => x.value === 'u9');
+  assert.equal(row.board_id, B1);
+});
+
+test('a LIVE card on another board still refuses the item, naming where it is', async () => {
+  putBoard(B1, []);
+  putBoard(B2, [{ id: 'Z', kind: 'note' }]);
+  idents = [ident(B2, 'Z', 'u9')];
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    on_conflict: 'identifier',
+    cards: [{ kind: 'note', body: 'nine', identifiers: [{ scope: 'src', value: 'u9' }] }],
+  });
+  assert.equal(r.status, 409);
+  assert.match(r.body.error, new RegExp(B2));
 });

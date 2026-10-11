@@ -48333,6 +48333,37 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A card someone deleted (or moved off the board) in the app since the last run is "
+    },
+    {
+     "t": "strong",
+     "v": "created again",
+     "children": [
+      {
+       "t": "text",
+       "v": "created again"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", counted in "
+    },
+    {
+     "t": "code",
+     "v": "created"
+    },
+    {
+     "t": "text",
+     "v": ", and its identifiers move to the new card. The old card's id is gone with it, so read the new one from the response."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 3,
    "text": "Two refusals rather than a guess",
@@ -48398,7 +48429,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — the response names the board, so you can move it or use a different identifier. Quietly doing nothing would leave you believing the card is on your board when it is not."
+      "v": ", and that card is still there — the response names the board, so you can move it or use a different identifier. Quietly doing nothing would leave you believing the card is on your board when it is not."
      }
     ]
    ]
