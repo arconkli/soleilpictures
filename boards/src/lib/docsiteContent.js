@@ -15985,7 +15985,17 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The shrink button at the right of its toolbar"
+       "v": "The shrink button at the top right, beside "
+      },
+      {
+       "t": "strong",
+       "v": "Download all",
+       "children": [
+        {
+         "t": "text",
+         "v": "Download all"
+        }
+       ]
       }
      ]
     ],
@@ -16365,7 +16375,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A cluster's nested clusters are its folders. They sit first, as compact tiles — a cover, the name and how many items are inside — with the files after them."
+     "v": "A cluster's nested clusters are its folders. They sit first, as compact rows — the cluster's colour dot (or its cover), its name and how many items are inside — with the files after them."
     }
    ]
   },
@@ -26567,7 +26577,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The eye toggle hides every comment bubble on the board — for you only, not for everyone. Use it when presenting or when the feedback has piled up and you want to see the work."
+     "v": "The comments toggle hides every comment bubble on the board — for you only, not for everyone. Use it when presenting or when the feedback has piled up and you want to see the work."
     }
    ]
   },
@@ -30554,7 +30564,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The eye toggle on the board"
+       "v": "The comments toggle at the top left of the board"
       }
      ]
     ],

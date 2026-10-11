@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { ShapeGlyph, KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
-import { Link as LinkIcon, StickyNote as NoteIcon, ArrowSquareOut } from '../../lib/icons.js';
+import { Link as LinkIcon, StickyNote as NoteIcon } from '../../lib/icons.js';
 import { contrastRatio, parseColor } from '../../lib/readableColor.js';
 import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAnalysis.js';
 
@@ -136,7 +136,7 @@ export function inkOn(tone) {
 export function NoteMark({ title = '', text = '', tone = null, size = 'row' }) {
   const ink = inkOn(tone);
   const style = {};
-  if (tone) style.background = tone;
+  if (tone) { style.background = tone; style['--note-bg'] = tone; }
   if (ink) style.color = ink;
   // At row size, a glyph: a note's words at 7px are a smudge.
   if (size !== 'tile') {
@@ -176,18 +176,17 @@ export function LinkMark({ favicon = null, source = '', size = 'row' }) {
   const src = favicon || (domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : null);
   const [seen, setSeen] = useState({ src, broken: false, tiny: false });
   const state = seen.src === src ? seen : { src, broken: false, tiny: false };
-  const glyph = <Icon as={LinkIcon} size={size === 'tile' ? 16 : 14} weight="regular" />;
+  const glyph = <Icon as={LinkIcon} size={size === 'tile' ? 16 : 14} weight="light" />;
   const icon = src && !state.broken
     ? <img key={src} className={`cbp-link-favicon${state.tiny ? ' is-tiny' : ''}`} src={src} alt="" draggable="false"
            onLoad={(e) => { const tiny = e.currentTarget.naturalWidth < 32; setSeen({ src, broken: false, tiny }); }}
            onError={() => setSeen({ src, broken: true, tiny: false })} />
     : glyph;
   if (size !== 'tile') return <div className="cbp-mark cbp-link" aria-hidden="true"><span className="cbp-link-chip">{icon}</span></div>;
-  // A bookmark: the site's mark in a chip, an out-arrow, the domain.
+  // A bookmark: the site's mark in a chip over its domain, centred.
   return (
     <div className="cbp-mark cbp-link cbp-link-tile" aria-hidden="true">
       <span className="cbp-link-chip">{icon}</span>
-      <span className="cbp-link-out"><Icon as={ArrowSquareOut} size={13} /></span>
       {domain && <span className="cbp-link-domain">{domain}</span>}
     </div>
   );

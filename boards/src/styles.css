@@ -90,9 +90,11 @@
   /* Selection accent — single knob for the whole selected-card system
      (ring, halo, handles, multi-select box). Brand gold by choice. */
   --select:        var(--soleil);
-  /* The Files floor (panel and full Files). Its own token because light
-     --bg-2 sits BELOW the canvas floor, which made Files a sunken grey tray. */
-  --files-floor:   var(--bg-2);
+  /* The Files floor. Full Files is the content plane, so it matches the
+     canvas; the panel frames the canvas like the sidebar does, so it matches
+     the sidebar (.list-wrap.is-panel). The rest of the Files tokens derive
+     from it and live on .list-wrap / .ql. */
+  --files-floor:   var(--bg-0);
   --ctl-h:         28px;
   --select-soft:   var(--soleil-soft);
 
@@ -130,7 +132,6 @@
 }
 
 [data-theme='light'] {
-  --files-floor: #f5f5f7;
   --bg-0:   #f5f5f7;
   --bg-1:   #fafafc;
   --bg-2:   #ededf0;
@@ -1012,12 +1013,14 @@ body {
 }
 .sb-shared-rows { padding-left: 8px; }
 .sb-shared-row { padding-left: 22px; }
-.sb-shared-eye {
+.sb-shared-ro {
+  flex: none; margin-left: 6px; height: 16px; padding: 0 5px;
   display: inline-flex; align-items: center;
-  color: var(--ink-3);
-  margin-left: 4px;
-  flex-shrink: 0;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--ink-0) 6%, transparent); color: var(--ink-2);
+  font: 700 10px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase;
 }
+[data-theme='light'] .sb-shared-ro { color: var(--ink-1); }
 
 /* ─── Sidebar tags section ─────────────────────────────────────────── */
 /* Mirrors .sb-shared visually so the section reads as a sibling of
@@ -3397,8 +3400,8 @@ body {
 
 /* Board · Files — the topbar's primary switch (components/ViewSwitch.jsx).
    It replaced a pill quiet enough that most people never found list mode, so
-   it is bigger, carries icons and labels, and the Files side shows a count.
-   Gold only on the active segment's icon: gold is reserved for active state. */
+   it is bigger — labels on desktop, glyphs on phone — and the Files side
+   shows a count. Gold only on the active segment's phone glyph. */
 .view-pill--primary {
   padding: 3px;
   background: var(--bg-2);
@@ -3406,13 +3409,12 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 .view-pill--primary .view-pill-btn {
-  gap: 7px;
-  padding: 7px 15px 7px 13px;
+  gap: 6px;
+  padding: 7px 14px;
   font: 550 13px/1 var(--font-sans);
   color: var(--ink-2);
 }
-.view-pill--primary .view-pill-btn .vp-ico { display: inline-flex; color: var(--ink-3); transition: color var(--dur-base) var(--ease); }
-.view-pill--primary .view-pill-btn:not(.on):hover .vp-ico { color: var(--ink-1); }
+.view-pill--primary .view-pill-btn .vp-ico { display: none; color: var(--ink-3); transition: color var(--dur-base) var(--ease); }
 .view-pill--primary .view-pill-btn.on {
   background: var(--bg-4);
   color: var(--ink-0);
@@ -3869,12 +3871,7 @@ body {
   position: relative;
   isolation: isolate;
   background-color: var(--files-floor);
-  background-image:
-    linear-gradient(
-      color-mix(in srgb, var(--files-floor) 97.5%, transparent),
-      color-mix(in srgb, var(--files-floor) 97.5%, transparent)
-    ),
-    var(--grain-url);
+  background-image: var(--files-floor-paint);
   background-repeat: repeat, repeat;
   background-size: auto, 320px 240px;
   background-attachment: local, local;
@@ -3886,7 +3883,48 @@ body {
      so 32px here parked the sticky column header 32px down the scrollport with
      a strip of rows sliding along above it — and floated the action bar 32px
      higher than its own offset asked for. */
-  padding: 0 clamp(14px, 4vw, 40px);
+  padding: 0 var(--files-gutter);
+}
+/* Files' layers, all derived from the floor: FLOOR (grained, like the canvas
+   and the sidebar) → PAPER (one flat step up with one hairline: folder rows,
+   picture-less tiles, controls, Info) → solid OVERLAYS (menus, selection bar,
+   Quick look). Declared here, not on :root — they derive from a floor that
+   differs per surface, and Quick look (portalled to <body>) is its own dark
+   room in both themes. Shared components read them with fallbacks. */
+.list-wrap.is-panel, .fdl-panel .fdl-files { --files-floor: var(--bg-1); }
+.ql { --files-floor: #08080a; }
+.list-wrap, .ql {
+  --files-gutter: clamp(14px, 4vw, 40px);
+  --files-wash: color-mix(in srgb, var(--files-floor) 97.5%, transparent);
+  --files-floor-paint: linear-gradient(var(--files-wash), var(--files-wash)), var(--grain-url);
+  --files-paper: color-mix(in srgb, var(--ink-0) 5%, var(--files-floor));
+  --files-paper-hi: color-mix(in srgb, var(--ink-0) 8%, var(--files-floor));
+  --files-paper-press: color-mix(in srgb, var(--ink-0) 11%, var(--files-floor));
+  --files-edge: color-mix(in srgb, var(--ink-0) 7%, transparent);
+  --files-edge-hi: color-mix(in srgb, var(--ink-0) 14%, transparent);
+  --files-lift: none;
+  --files-overlay-edge: color-mix(in srgb, var(--ink-0) 10%, transparent);
+  --files-label: color-mix(in srgb, var(--ink-2) 85%, var(--ink-3));
+  --files-tile-hover-edge: color-mix(in srgb, var(--ink-0) 20%, transparent);
+  --files-tile-hover-lift: none;
+  --files-primary: var(--ink-1);
+  --files-primary-hi: var(--ink-0);
+  --files-on-primary: var(--bg-0);
+}
+[data-theme='light'] .list-wrap {
+  --files-paper: var(--bg-3);
+  --files-paper-hi: color-mix(in srgb, var(--ink-0) 3%, #fff);
+  --files-paper-press: color-mix(in srgb, var(--ink-0) 6%, #fff);
+  --files-edge: rgba(10, 10, 12, 0.09);
+  --files-edge-hi: rgba(10, 10, 12, 0.16);
+  --files-lift: 0 1px 2px rgba(10, 10, 12, 0.05);
+  --files-overlay-edge: rgba(10, 10, 12, 0.10);
+  --files-label: var(--ink-2);
+  --files-tile-hover-edge: rgba(10, 10, 12, 0.18);
+  --files-tile-hover-lift: 0 1px 2px rgba(10, 10, 12, 0.05), 0 8px 20px -8px rgba(10, 10, 12, 0.16);
+  --files-primary: var(--ink-0);
+  --files-primary-hi: var(--ink-1);
+  --files-on-primary: #fff;
 }
 .list-inner {
   /* Wide enough to use a wide screen: the grid fills rows to the width, so a
@@ -3904,7 +3942,7 @@ body {
 .list-section {
   display: flex; align-items: baseline; gap: 6px;
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--ink-2) 85%, var(--ink-3));
+  color: var(--files-label, color-mix(in srgb, var(--ink-2) 85%, var(--ink-3)));
   margin: 32px 0 12px;
 }
 /* The scroll padding already provides the space above the first one. Only the
@@ -3919,7 +3957,7 @@ body {
   text-align: center;
 }
 .list-empty {
-  border: 1px dashed var(--line-2);
+  border: 1px dashed color-mix(in srgb, var(--ink-0) 12%, transparent);
   border-radius: var(--radius-lg);
   padding: 56px 24px;
   text-align: center;
@@ -4645,9 +4683,8 @@ body {
 .list-wrap.is-drop-target {
   /* A drop target is an active state: gold, with a faint wash that paints
      above the grain and doesn't scroll. */
-  outline: 2px dashed color-mix(in srgb, var(--soleil) 70%, transparent);
-  outline-offset: -4px;
-  box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--soleil) 4%, transparent);
+  outline: 1.5px dashed color-mix(in srgb, var(--soleil) 65%, transparent);
+  outline-offset: -6px;
 }
 .canvas-wrap.is-drop-target::after {
   content: '';
@@ -7951,11 +7988,11 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
   overflow: visible;
-  /* Menus open over photos: near-opaque, or the art runs through the text. */
-  background: color-mix(in srgb, var(--bg-3) 97%, transparent);
-  backdrop-filter: blur(12px) saturate(1.05);
-  -webkit-backdrop-filter: blur(12px) saturate(1.05);
-  border: 1px solid rgba(255,255,255,.06);
+  /* Menus open over photos: solid, or the art runs through the text. */
+  background: var(--bg-3);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid color-mix(in srgb, var(--ink-0) 10%, transparent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
   padding: 4px;
@@ -7965,7 +8002,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   animation: ctx-menu-in var(--dur-base) var(--ease);
   transform-origin: top left;
 }
-[data-theme='light'] .ctx-menu { background: color-mix(in srgb, var(--bg-3) 97%, transparent); border-color: rgba(10,10,12,.10); box-shadow: 0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08); }
+[data-theme='light'] .ctx-menu { background: var(--bg-3); border-color: rgba(10,10,12,.10); box-shadow: 0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08); }
 @keyframes ctx-menu-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -7997,17 +8034,17 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ctx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
 .ctx-shortcut {
   flex-shrink: 0;
-  font: 500 10.5px/1 var(--font-sans); color: var(--ink-2);
-  padding: 2px 5px; border: 1px solid var(--line-2); border-radius: var(--radius);
+  font: 500 11px/1 var(--font-sans); color: var(--ink-2);
+  padding: 0; border: 0; background: none;
 }
 .ctx-divider { height: 1px; background: var(--line-2); margin: 4px 6px; }
 /* Non-interactive section label inside a context menu / its "Add" submenu. */
 .ctx-header {
-  font: 600 10px/1 var(--font-sans);
-  letter-spacing: .06em;
+  font: 700 10px/1 var(--font-display);
+  letter-spacing: .16em;
   text-transform: uppercase;
   color: var(--ink-2);
-  padding: 7px 10px 3px;
+  padding: 10px 12px 4px;
   user-select: none;
 }
 .ctx-section-label {
@@ -8745,35 +8782,64 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 
 /* Toolbar */
 .cbt { display: flex; align-items: center; gap: 8px; padding: 0 0 12px; flex-wrap: wrap; }
+/* Files controls come in three kinds plus one field, all on the Files paper:
+   a quiet icon button (.cbt-iconbtn), a tonal button (.cbt-btn), and exactly
+   one filled primary per surface (.cbt-add, "Add files"). */
 .cbt-search {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 8px;
   height: var(--ctl-h); box-sizing: border-box;
-  background: var(--bg-3); border: 1px solid var(--line-2); border-radius: var(--radius-md);
-  padding: 0 10px; min-width: 200px; flex: 1 1 240px; max-width: 400px;
+  background: var(--files-paper, var(--bg-3));
+  border: 1px solid var(--files-edge, var(--line-2)); border-radius: var(--radius-md);
+  box-shadow: var(--files-lift, none);
+  padding: 0 8px 0 8px; min-width: 200px; flex: 1 1 240px; max-width: 400px;
+  transition: border-color var(--dur-fast) var(--ease);
 }
+.cbt-search:not(:focus-within):hover { border-color: var(--files-edge-hi, var(--line-3)); }
 .cbt-search:focus-within { border-color: var(--soleil); }
-.cbt-search-icon { color: var(--ink-3); flex-shrink: 0; }
-.cbt-input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--ink-0); font-size: 13px; font-weight: 500; }
-.cbt-input::placeholder { color: var(--ink-2); }
-.cbt-clear { background: none; border: none; color: var(--ink-3); cursor: pointer; display: grid; place-items: center; padding: 2px; border-radius: 4px; }
-.cbt-clear:hover { color: var(--ink-1); background: var(--bg-hov); }
+.cbt-search-icon { color: var(--ink-2); flex-shrink: 0; }
+.cbt-input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--ink-0); font: 400 12px/1 var(--font-sans); }
+.cbt-input::placeholder { color: var(--ink-2); font-weight: 400; }
+.cbt-clear { background: none; border: none; color: var(--ink-2); cursor: pointer; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border-radius: var(--radius); }
+.cbt-clear:hover { color: var(--ink-0); background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
 .cbt-spacer { flex: 1 1 auto; }
 .cbt-menuwrap { position: relative; }
-.cbt-btn {
-  display: inline-flex; align-items: center; gap: 5px;
+.cbt-btn, .cbt-add-ico, .list-empty .cbt-btn, .list-empty-acts .tb-btn, .cb-pagehead .cb-pagehead-dl {
+  display: inline-flex; align-items: center; gap: 6px;
   height: var(--ctl-h); box-sizing: border-box;
-  background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-1);
-  border-radius: var(--radius-md); padding: 0 11px; font-size: 12px; font-weight: 500; cursor: pointer;
-  white-space: nowrap;
+  padding: 0 10px 0 8px;
+  background: var(--files-paper, var(--bg-3));
+  border: 1px solid var(--files-edge, var(--line-2)); border-radius: var(--radius-md);
+  box-shadow: var(--files-lift, none);
+  color: var(--ink-1);
+  font: 500 12px/1 var(--font-sans); letter-spacing: 0; text-transform: none;
+  cursor: pointer; white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.cbt-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
-.cbt-btn.is-open, .cbt-btn.has-active { border-color: var(--soleil); color: var(--ink-0); }
-.cbt-add { background: var(--bg-4); border-color: transparent; color: var(--ink-0); }
-.cbt-add:hover { background: var(--bg-act); color: var(--ink-0); }
-/* #ffa500 on a 10%-gold wash over #ededf0 is about 1.8:1. Same gold, darkened
-   until it reads, so the button keeps its identity in both themes. */
-[data-theme='light'] .cbt-add { color: var(--ink-0); }
-[data-theme='light'] .cbt-add:hover { color: var(--ink-0); background: var(--bg-act); }
+.cbt-btn:hover, .cbt-add-ico:hover, .list-empty .cbt-btn:hover, .list-empty-acts .tb-btn:hover, .cb-pagehead .cb-pagehead-dl:hover:not(:disabled) {
+  background: var(--files-paper-hi, color-mix(in srgb, var(--ink-0) 7%, var(--bg-3)));
+  border-color: var(--files-edge-hi, var(--line-3)); color: var(--ink-0);
+}
+.cbt-btn:active, .cbt-btn.is-open, .cbt-add-ico:active {
+  background: var(--files-paper-press, color-mix(in srgb, var(--ink-0) 10%, var(--bg-3)));
+  border-color: var(--files-edge-hi, var(--line-3)); color: var(--ink-0);
+}
+/* Filters on is a real active state: the one gold edge the toolbar keeps. */
+.cbt-btn.has-active { border-color: var(--soleil); color: var(--ink-0); }
+.cbt-add-ico, .cbt-iconbtn.cbt-add-ico { width: var(--ctl-h); padding: 0; justify-content: center; }
+.cbt-iconbtn.cbt-add-ico {
+  background: var(--files-paper, var(--bg-3)); border-color: var(--files-edge, var(--line-2));
+  box-shadow: var(--files-lift, none); color: var(--ink-1);
+}
+.cbt-iconbtn.cbt-add-ico:hover { background: var(--files-paper-hi); border-color: var(--files-edge-hi); color: var(--ink-0); }
+.cbt-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: var(--ctl-h); box-sizing: border-box; padding: 0 12px 0 10px;
+  border: 0; border-radius: var(--radius-md); box-shadow: none;
+  background: var(--files-primary, var(--ink-1)); color: var(--files-on-primary, var(--bg-0));
+  font: 600 12px/1 var(--font-sans);
+}
+.cbt-add:hover { background: var(--files-primary-hi, var(--ink-0)); color: var(--files-on-primary, var(--bg-0)); }
+.cbt-btn:focus-visible, .cbt-add:focus-visible, .cbt-add-ico:focus-visible, .cb-pagehead-dl:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 /* Quiet storage upsell next to Add files (free workspace owners only) —
    muted ink, not gold: gold stays reserved for active/selection. */
 .cbt-upsell {
@@ -8787,19 +8853,20 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbt-menu {
   position: absolute; top: calc(100% + 6px); right: 0; min-width: 190px; z-index: 60;
   display: flex; flex-direction: column; gap: 1px; padding: 4px;
-  background: color-mix(in srgb, var(--bg-3) 97%, transparent); backdrop-filter: blur(12px) saturate(1.05);
-  border: 1px solid rgba(255,255,255,.06); border-radius: var(--radius-md);
+  background: var(--bg-3); -webkit-backdrop-filter: none; backdrop-filter: none;
+  border: 1px solid color-mix(in srgb, var(--ink-0) 10%, transparent); border-radius: var(--radius-md);
   box-shadow: var(--shadow-3, 0 12px 32px rgba(0,0,0,.4));
   animation: ctx-menu-in var(--dur-fast) var(--ease);
 }
 :root[data-theme="light"] .cbt-menu, .theme-light .cbt-menu {
-  background: color-mix(in srgb, var(--bg-3) 97%, transparent); border-color: rgba(10,10,12,.10);
+  background: var(--bg-3); border-color: rgba(10,10,12,.10);
   box-shadow: 0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08);
 }
-.cbt-menu .ctx-item { position: relative; height: 28px; justify-content: flex-start; padding: 0 10px 0 30px; }
+.cbt-menu .ctx-item { position: relative; height: 30px; justify-content: flex-start; padding: 0 10px 0 30px; border-radius: var(--radius); }
+.cbt-menu .ctx-divider { margin: 4px 8px; }
 .cbt-menu .ctx-item.is-active { color: var(--ink-0); }
 .cbt-check { position: absolute; left: 10px; top: 50%; margin-top: -6px; color: var(--soleil); }
-.cbt-caret, .cbt-count { color: var(--ink-2); font: 500 11px/1 var(--font-sans); margin-left: auto; }
+.cbt-caret, .cbt-count { color: var(--ink-2); font: 400 11px/1 var(--font-sans); margin-left: auto; font-variant-numeric: tabular-nums; }
 .ctx-empty { padding: 8px 12px; color: var(--ink-3); font-size: 12px; }
 .cbt-facepile { display: inline-flex; align-items: center; padding-left: 4px; }
 .cbt-facepile > * { margin-left: -6px; }
@@ -9066,27 +9133,22 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-sw-hex { position: absolute; left: 6px; bottom: 6px; font: 500 9.5px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
 @container (max-width: 44px) { .cbp-sw-hex { display: none; } }
 .cbp-sw-more { container-type: normal; min-width: max-content; flex: 0 0 auto; display: grid; place-items: center; padding: 0 6px; background: var(--bg-4); color: var(--ink-2); font: 500 10px/1 var(--font-sans); }
-/* A file with no picture: its glyph, its format, its size. */
-.cbp-file-tile { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
-.cbp-file-glyph { display: grid; color: var(--ink-2); }
-.cbp-ext-chip {
-  font: 600 10px/1 var(--font-sans); letter-spacing: .08em;
-  padding: 4px 7px; border-radius: var(--radius);
-  color: var(--ext-ink, var(--ink-1));
-  background: color-mix(in srgb, var(--ext-ink, var(--ink-2)) 14%, transparent);
+/* A file with no picture, set in type: its format in the label face, its
+   size (and length) under it. Neutral at rest, like everything in Files. */
+.cbp-file-tile {
+  container-type: inline-size;
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: var(--files-paper, var(--bg-3));
 }
-.cbp-file-meta { font: 400 11px/1 var(--font-sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.cbp-file-tile[data-tone='pdf'] { --ext-ink: var(--ink-error); }
-.cbp-file-tile[data-tone='sheet'] { --ext-ink: var(--msg-ok); }
-.cbp-file-tile[data-tone='audio'] { --ext-ink: var(--msg-info); }
-/* Light: the same hues, dark enough for 10px text on white. */
-[data-theme='light'] .cbp-file-tile[data-tone='pdf'] { --ext-ink: #9a3b3b; }
-[data-theme='light'] .cbp-file-tile[data-tone='sheet'] { --ext-ink: #13704e; }
-[data-theme='light'] .cbp-file-tile[data-tone='audio'] { --ext-ink: #2a56b0; }
-/* Quick look is dark in both themes. */
-.ql .cbp-file-tile[data-tone='pdf'] { --ext-ink: #e08b8b; }
-.ql .cbp-file-tile[data-tone='sheet'] { --ext-ink: #2faf78; }
-.ql .cbp-file-tile[data-tone='audio'] { --ext-ink: #8ab4f8; }
+.cbp-file-glyph { display: grid; color: var(--ink-3); }
+.cbp-file-glyph svg { width: 28px; height: 28px; }
+.cbp-ext-chip {
+  font: 700 clamp(16px, 14cqi, 28px)/1 var(--font-display); letter-spacing: .12em; margin-right: -.12em;
+  color: var(--ink-1);
+}
+.cbp-file-meta { font: 400 11px/14px var(--font-sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ql .cbp-ext-chip { font-size: clamp(28px, 10cqi, 48px); }
 
 /* Schematic marks — grid/doc/schedule/shape (SVG) + note/link (HTML). Each
    fills the preview box and scales cleanly at both the row thumb and tile. */
@@ -9097,7 +9159,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   display: grid; place-items: center;
   padding: 18% 11%;
   box-sizing: border-box;
-  background: var(--bg-2);
+  background: var(--files-paper, var(--bg-2));
 }
 .cbp-audio-wave { width: 100%; height: 100%; fill: var(--ink-3); }
 .ct-tile:hover .cbp-audio-wave { fill: var(--ink-2); }
@@ -9105,9 +9167,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-mark { width: 100%; height: 100%; display: block; }
 
 /* Grid subdivision */
-.gm-cell { stroke: var(--line-3); stroke-width: 1.25px; fill: var(--ink-2); fill-opacity: 0; }
-.gm-plain { fill-opacity: .12; }
-.gm-empty { fill-opacity: 0; }
+.gm-cell { stroke: none; fill: var(--ink-2); fill-opacity: 0; }
+.gm-plain { fill-opacity: .10; }
+.gm-empty { fill-opacity: .06; }
 .gm-text { fill-opacity: .16; }
 .gm-other { fill-opacity: .3; }
 .gm-media { fill: var(--ink-1); fill-opacity: .5; }
@@ -9122,7 +9184,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 
 /* Schedule rows */
 .cbp-sched { background: var(--bg-1); }
-.cbp-sched-tick { fill: var(--soleil); opacity: .6; }
+.cbp-sched-tick { fill: var(--ink-1); opacity: .45; }
 .cbp-sched-bar { fill: var(--ink-2); opacity: .34; }
 
 /* Shape silhouette — centered, a touch inset so it never bleeds to the edge */
@@ -9135,13 +9197,24 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 /* Title over body, as the canvas shows a note; the overflow fades out. */
 .cbp-note-tile { flex-direction: column; padding: 0; }
 .cbp-note-inner {
-  /* The top-left corner is the select check's. The fade is on the words only:
-     on the tile itself it faded a coloured note's own tint. */
+  /* The fade is on the words only: on the tile itself it faded a coloured
+     note's own tint. */
   display: flex; flex-direction: column; gap: 6px;
   width: 100%; height: 100%; box-sizing: border-box; padding: 34px 14px 0; overflow: hidden;
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
 }
+/* In the grid the caption already is the note's title: the tile is its words,
+   set like a page, with a top margin the select check sits in — so the check
+   never lands on a word. */
+.cbp-note-tile { position: relative; background: var(--files-paper, var(--bg-3)); }
+.ct-jg .cbp-note-title:not(:only-child) { display: none; }
+.ct-jg .cbp-note-inner {
+  padding: 40px 14px 0; gap: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+.ct-jg .cbp-note-tile .cbp-note-text { font: 400 12px/18px var(--font-sans); opacity: 1; -webkit-line-clamp: 12; }
 .cbp-note-title { flex: none; font: 600 13px/1.3 var(--font-sans); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 .cbp-note-tile .cbp-note-text { -webkit-line-clamp: 8; font: 400 12px/1.45 var(--font-sans); opacity: .78; }
 
@@ -9151,18 +9224,27 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-link-favicon { width: 20px; height: 20px; object-fit: contain; border-radius: 3px; display: block; }
 .cbp-link-favicon.is-tiny { width: 16px; height: 16px; }
 .cbp-link-chip { display: grid; place-items: center; color: var(--ink-1); }
-.cbp-link-tile { position: relative; display: block; }
-.cbp-link-tile .cbp-link-chip { position: absolute; left: 12px; bottom: 34px; width: 32px; height: 32px; border-radius: 8px; background: var(--bg-4); }
-.cbp-link-out { position: absolute; right: 10px; top: 10px; color: var(--ink-3); }
 .ct-thumb .cbp-link-favicon { width: 20px; }
-.cbp-link-domain { font: 500 11.5px/1.2 var(--font-sans); color: var(--ink-2); max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cbp-link-tile .cbp-link-domain { position: absolute; left: 12px; right: 12px; bottom: 12px; max-width: none; }
+.cbp-link-domain { font: 400 11px/14px var(--font-sans); color: var(--ink-2); max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A bookmark: the site's mark in a chip over its domain, centred on paper. */
+.cbp-link-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px 12px; box-sizing: border-box;
+  background: var(--files-paper, var(--bg-3));
+}
+.cbp-link-tile .cbp-link-chip {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: color-mix(in srgb, var(--ink-0) 7%, var(--files-paper, var(--bg-3)));
+  box-shadow: inset 0 0 0 1px var(--files-edge, var(--line-1));
+}
+[data-theme='light'] .cbp-link-tile .cbp-link-chip { background: var(--bg-1); }
+.cbp-link-tile .cbp-link-domain { max-width: 100%; text-align: center; }
 
 /* Live presence highlight (the row's rail is set with the other row states) */
 .ct-tile.is-peer { border-color: var(--peer-color, var(--soleil)); box-shadow: 0 0 0 1px var(--peer-color, var(--soleil)); }
 
 /* Upload spinner + just-added flash (reuse keyframes from the list-drop block) */
-.ct-thumb-spin { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line-3); border-top-color: var(--soleil); animation: lf-spin 700ms linear infinite; }
+.ct-thumb-spin { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--ink-0) 14%, transparent); border-top-color: var(--ink-1); animation: lf-spin 700ms linear infinite; }
 .ct-row.is-new, .ct-tile.is-new { animation: lf-row-flash 1400ms var(--ease); }
 /* The global reduced-motion rule is `transform: none !important`, which
    outranks the keyframes and leaves the spinner frozen mid-rotation — reading
@@ -9171,7 +9253,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
    --dur-fast, so any pulse becomes an 8Hz strobe. A static ring, beside the
    "Uploading…" the row already carries, is the honest answer. */
 @media (prefers-reduced-motion: reduce) {
-  .ct-thumb-spin { animation: none; border-color: var(--soleil); opacity: .85; }
+  .ct-thumb-spin { animation: none; border-color: color-mix(in srgb, var(--ink-0) 30%, transparent); opacity: .85; }
 }
 .ct-row.is-pending, .ct-tile.is-pending { opacity: .85; }
 
@@ -9183,7 +9265,19 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile-preview { position: relative; aspect-ratio: 4 / 3; background: var(--bg-2); display: grid; place-items: center; overflow: hidden; }
 .ct-tile-preview .cbp-glyph, .ct-tile-preview .cbp-file, .ct-tile-preview .cbp-note { color: var(--ink-3); }
 .ct-tile-spin { left: 6px; top: 6px; right: auto; bottom: auto; }
-.ct-jg .ct-tile-spin { left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; }
+.ct-jg .ct-tile-spin { left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+.ct-jg .ct-tile.is-pending { opacity: 1; }
+/* Doc, schedule, shape, audio and glyph faces sit on the same paper. */
+.ct-tile-preview .cbp-doc, .ct-tile-preview .cbp-sched, .ct-tile-preview .cbp-shape-mark,
+.ct-tile-preview .cbp-glyph, .ct-tile-preview .cbp-audio { background: var(--files-paper, var(--bg-3)); }
+.ct-tile-preview .cbp-doc-bar, .ct-tile-preview .cbp-sched-bar { fill: var(--ink-0); opacity: .10; }
+.ct-tile-preview .cbp-doc-title, .ct-tile-preview .cbp-doc-bar.is-h { fill: var(--ink-0); opacity: .22; }
+.ct-tile-preview .cbp-glyph svg { width: 28px; height: 28px; }
+/* An image still on its way, or one this viewer can't open: plain paper. */
+.ct-tile-preview .img-ph { background: var(--files-paper, var(--bg-3)) !important; }
+.ct-tile-preview .img-ph > svg { display: none; }
+.ct-tile-preview div.cbp-img { background: var(--files-paper, var(--bg-3)); }
+.ct-tile-preview div.cbp-img[aria-label='No access'] { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-3); }
 .ct-jg .ct-tile.is-pending .ct-tile-preview::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--ink-0) 7%, transparent) 50%, transparent 70%) 0 0 / 200% 100%;
@@ -9192,26 +9286,32 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 @keyframes jg-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .ct-jg .ct-tile.is-pending .ct-tile-preview::after { animation: none; } }
 .ct-jg .ct-tile.is-pending .ct-tile-type { display: block; flex: none; margin: 0 0 0 auto; font-size: 11px; color: var(--ink-2); }
-/* Not on board (dashed) / a copy on board (solid): a mark by the name. */
-.ct-tile-flag { flex: none; width: 7px; height: 7px; margin-top: 4px; box-sizing: border-box; border-radius: 50%; border: 1.25px dashed var(--ink-2); }
-.ct-tile-flag.is-on { border-style: solid; border-color: var(--ink-2); background: var(--ink-2); }
+/* Not on board (a hollow ring) / a copy on board (a dot): a mark that follows
+   the name. Never dashed — a dashed 7px circle reads as a spinner. */
+.ct-tile-flag { flex: none; width: 6px; height: 6px; margin: 0; box-sizing: border-box; border-radius: 50%; border: 1.25px solid var(--ink-2); background: transparent; }
+.ct-tile-flag.is-on { background: var(--ink-2); }
 .cbt-flag { margin: 0 2px 0 0; }
 /* Select without a modifier key: a round check, top-left, on hover — and on
    every tile once something is selected. Gold only when it's selected. */
 .ct-tile-check {
   position: absolute; left: 8px; top: 8px; z-index: 2;
-  width: 20px; height: 20px; padding: 0; box-sizing: border-box;
+  width: 24px; height: 24px; padding: 0; box-sizing: border-box;
   display: grid; place-items: center; border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.92);
-  background: rgba(10, 10, 12, 0.32);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: 1.5px solid #fff;
+  background: rgba(10, 10, 12, 0.24);
+  box-shadow: 0 0 0 .5px rgba(10, 10, 12, 0.35), 0 1px 3px rgba(0, 0, 0, 0.28);
   color: transparent; cursor: pointer;
   opacity: 0; transition: opacity var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);
 }
 .ct-tile:hover .ct-tile-check, .ct-jg:has(.ct-tile.is-selected) .ct-tile-check, .ct-tile-check:focus-visible { opacity: 1; }
-.ct-tile-check:hover { background: rgba(10, 10, 12, 0.5); color: rgba(255, 255, 255, 0.85); }
-.ct-tile.is-selected .ct-tile-check { background: var(--select); border-color: var(--select); color: #0a0a0c; }
+.ct-tile:not(.is-selected) .ct-tile-check:hover { background: rgba(10, 10, 12, 0.42); color: rgba(255, 255, 255, 0.9); }
+/* On paper (a note, a link, a file) a white ring vanishes: an ink ring. */
+.ct-tile-preview[data-face='paper'] .ct-tile-check:not([aria-pressed='true']) {
+  border-color: color-mix(in srgb, var(--ink-0) 48%, transparent);
+  background: var(--files-paper, var(--bg-3)); box-shadow: none;
+}
+.ct-tile:not(.is-selected) .ct-tile-preview[data-face='paper'] .ct-tile-check:hover { color: var(--ink-2); }
+.ct-tile.is-selected .ct-tile-check { background: var(--select); border-color: var(--select); color: #0a0a0c; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
 .ct-tile-check:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 /* Gallery transport. Centred over the preview rather than beside the name —
    with cover art being read off the files, the tile IS the artwork and the
@@ -9231,19 +9331,21 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile-play:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: -2px; }
 .ct-tile.is-playing { border-color: var(--soleil); }
 .ct-tile-dl {
-  position: absolute; top: 6px; right: 6px;
+  position: absolute; top: 8px; right: 8px;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px;
-  border: 0; border-radius: 6px;
-  background: rgba(10, 10, 12, 0.62);
-  backdrop-filter: blur(6px);
+  width: 24px; height: 24px;
+  border: 0; border-radius: 50%;
+  background: rgba(10, 10, 12, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 1px 3px rgba(0, 0, 0, 0.28);
   color: #fff;
   cursor: pointer;
   opacity: 0;
   transition: opacity var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);
 }
 .ct-tile:hover .ct-tile-dl { opacity: 1; }
-.ct-tile-dl:hover { background: rgba(10, 10, 12, 0.85); }
+.ct-tile-dl:hover { background: rgba(10, 10, 12, 0.75); }
+.ct-tile-preview[data-face='paper'] .ct-tile-dl { background: var(--bg-4); color: var(--ink-1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-0) 10%, transparent); }
+.ct-tile-preview[data-face='paper'] .ct-tile-dl:hover { background: color-mix(in srgb, var(--ink-0) 10%, var(--bg-4)); color: var(--ink-0); }
 .ct-tile-dl:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
 /* Same trade on the gallery tile: the transport stays on, but as a glyph over
    a bottom gradient rather than a flat 45% wash across the artwork — which, in
@@ -9255,6 +9357,17 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
     place-items: end start;
     padding: 9px;
   }
+  .ct-tile-dl { width: 22px; height: 22px; top: 6px; right: 6px; background: rgba(10, 10, 12, 0.32); box-shadow: none; }
+  .ct-tile-dl svg { width: 12px; height: 12px; }
+}
+/* With a pointer: a disc to press, not a wash over the artwork. */
+@media (hover: hover) {
+  .ct-tile-play { background: transparent; }
+  .ct-tile-play::before {
+    content: ''; position: absolute; inset: 0; margin: auto; width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(10, 10, 12, 0.55); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  }
+  .ct-tile-play > svg { position: relative; z-index: 1; }
 }
 .ct-tile-peers { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 2px; }
 .ct-tile-meta { padding: 8px 10px; }
@@ -9307,8 +9420,8 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbd-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cbd-title { min-width: 0; font-weight: 600; font-size: 13px; color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cbd-sub { font: 400 11px/1.3 var(--font-sans); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cbd-close { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: none; border: none; color: var(--ink-2); cursor: pointer; flex-shrink: 0; }
-.cbd-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+.cbd-close { display: grid; place-items: center; width: var(--ctl-h); height: var(--ctl-h); border-radius: var(--radius-md); background: none; border: none; color: var(--ink-2); cursor: pointer; flex-shrink: 0; }
+.cbd-close:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
 .cbd-body { padding: 14px; overflow: auto; }
 .cbd-preview { width: 100%; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: var(--bg-2); border: 1px solid var(--line-1); display: grid; place-items: center; margin-bottom: 12px; }
 .cbd-meta-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12px; }
@@ -9319,12 +9432,12 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
    text at the far end — a hierarchy, not four equal slabs. */
 .cbd-actions { padding: 10px 12px; border-top: 1px solid var(--line-2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .cbd-act { display: inline-flex; align-items: center; gap: 7px; height: var(--ctl-h); padding: 0 10px; box-sizing: border-box; border-radius: var(--radius-md); background: transparent; border: 1px solid transparent; color: var(--ink-1); font: 500 12px/1 var(--font-sans); cursor: pointer; white-space: nowrap; }
-.cbd-act:hover { background: var(--bg-hov); color: var(--ink-0); }
-.cbd-act.is-primary { flex: 1; justify-content: center; background: var(--bg-4); color: var(--ink-0); }
-.cbd-act.is-primary:hover { background: var(--bg-act); }
+.cbd-act:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
+.cbd-act.is-primary { flex: 1; justify-content: center; background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
+.cbd-act.is-primary:hover { background: color-mix(in srgb, var(--ink-0) 11%, transparent); }
 [data-theme='light'] .cbd-act.is-primary { background: var(--bg-3); border-color: var(--line-2); box-shadow: var(--shadow-1); }
-.cbd-actions .cbd-icon { border-color: var(--line-2); }
 .cbd-actions .cbd-icon:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
+.cbd-act:focus-visible, .cbd-close:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 [data-theme='light'] .cbd-act.is-primary:hover { background: var(--bg-hov); }
 .cbd-act-danger { margin-left: auto; color: var(--ink-error); }
 .cbd-act-danger:hover { color: var(--ink-error); background: color-mix(in srgb, var(--ink-error) 10%, transparent); }
@@ -9387,14 +9500,17 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 
 /* ── Real grid mini-preview (actual cell content) ─────────────────────────── */
 .cbg { position: relative; width: 100%; height: 100%; background: transparent; }
-.cbg-cell { position: absolute; overflow: hidden; display: grid; place-items: center; border-radius: 3px; background: var(--bg-4); }
+.cbg-cell { position: absolute; overflow: hidden; display: grid; place-items: center; border-radius: 4px; background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
 /* An empty slot reads as a slot, like the canvas grid's "Drop an image here". */
-.cbg-empty { background: transparent; outline: 1px dashed var(--line-2); outline-offset: -1px; }
+.cbg-empty { outline: 0; background: color-mix(in srgb, var(--ink-0) 4%, transparent); }
+.ct-tile-preview .cbg { position: absolute; inset: 6px; width: auto; height: auto; }
+.ct-thumb .cbg { position: absolute; inset: 2px; width: auto; height: auto; }
+.ct-thumb .cbg-cell { border-radius: 1.5px; }
 .cbg-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cbg-favicon { width: 46%; max-width: 22px; aspect-ratio: 1; object-fit: contain; }
 .cbg-glyph { color: var(--ink-3); display: grid; place-items: center; }
 .cbg-text { font-size: 6px; line-height: 1.2; color: var(--ink-2); padding: 6%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
-.ct-tile-preview .cbg-text { font-size: 9px; -webkit-line-clamp: 5; }
+.ct-tile-preview .cbg-text { font: 400 10px/14px var(--font-sans); color: var(--ink-2); -webkit-line-clamp: 5; }
 .cbg-board { color: var(--ink-3); }
 
 /* ── Linked-grid family: group rows (table) + stacked tiles (gallery) ─────── */
@@ -22011,11 +22127,9 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .fdl-full .fdl-files { flex: 1 1 auto; }
 .fdl-panel .fdl-files {
   flex: 0 0 auto;
-  border-left: 1px solid var(--line-2);
-  box-shadow: -10px 0 28px -22px rgba(0, 0, 0, 0.55);
+  border-left: 1px solid var(--line-1);
   background: var(--files-floor);
 }
-[data-theme='light'] .fdl-panel .fdl-files { box-shadow: -12px 0 24px -22px rgba(0, 0, 0, 0.12); }
 /* Panel-width breakpoints (header, selection bar) ask the panel, not the window. */
 .fdl-files { container: files / inline-size; }
 .fdl-divider {
@@ -22066,16 +22180,23 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 
 /* The Files view as a panel: tighter gutters, no width cap, the toolbar as a
    sticky two-row header. */
-.list-wrap.is-panel { padding: 0 12px; }
+.list-wrap.is-panel { --files-gutter: 12px; padding: 0 var(--files-gutter); }
 .list-wrap.is-panel .list-inner { max-width: none; padding-block: 0 16px; }
-.list-wrap.is-panel .list-section { margin: 20px 0 8px; }
-.list-wrap.is-panel .lp-head + .list-section { margin-top: 12px; }
+.list-wrap.is-panel .list-section { margin: 24px 0 8px; }
+.list-wrap.is-panel .lp-head + .list-section,
+.list-wrap.is-panel .lp-head + .cluster-browser { margin-top: 8px; }
+.list-wrap.is-panel .lp-head + .cluster-browser > .list-section:first-child { margin-top: 0; }
+/* The sticky header bands are painted exactly like the floor, grain and all:
+   invisible at rest, an edge only once something is under them. */
+.lp-head, .cb-head {
+  background-color: var(--files-floor);
+  background-image: var(--files-floor-paint);
+  background-repeat: repeat;
+  background-size: auto, 320px 240px;
+}
 .lp-head {
   position: sticky; top: 0; z-index: 8;
-  margin: 0 -12px 2px; padding: 8px 12px 10px;
-  background: color-mix(in srgb, var(--files-floor) 88%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1);
-  backdrop-filter: blur(14px) saturate(1.1);
+  margin: 0 calc(-1 * var(--files-gutter)); padding: 8px var(--files-gutter) 12px;
   border-bottom: 1px solid transparent;
   transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
@@ -22112,19 +22233,19 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   cursor: pointer;
   transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
 }
-.cbt-iconbtn:hover { background: var(--bg-3); color: var(--ink-0); }
+.cbt-iconbtn:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
+.cbt-iconbtn:active { background: color-mix(in srgb, var(--ink-0) 10%, transparent); color: var(--ink-0); }
 .cbt-iconbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
-.cbt-add-ico { background: var(--bg-3); border-color: var(--line-2); color: var(--ink-1); }
-.cbt-add-ico:hover { background: color-mix(in srgb, var(--ink-0) 7%, var(--bg-3)); }
 .cbt-menu-label {
-  padding: 10px 10px 4px 30px;
-  font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
+  padding: 12px 10px 6px 30px;
+  font: 700 10px/1 var(--font-display); letter-spacing: .16em; text-transform: uppercase;
   color: var(--ink-2);
 }
 .cbt-shrink { white-space: nowrap; }
 
-/* Folders — compact tiles: a small cover, the name, how much is inside
-   (clusterBrowser/FolderTiles.jsx). */
+/* Folders — compact rows on the Files paper (clusterBrowser/FolderTiles.jsx):
+   the cluster's cover, or without one the sidebar's 6px tint dot; the name;
+   how much is inside. No folder glyph — it said nothing a row doesn't. */
 .ft-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -22132,55 +22253,66 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 }
 .ft {
   display: flex; align-items: center; gap: 10px;
-  min-width: 0;
-  padding: 6px 10px 6px 6px;
-  border: 1px solid color-mix(in srgb, var(--ink-0) 8%, transparent); border-radius: var(--radius-md);
-  background: var(--bg-3);
+  min-width: 0; min-height: 40px; box-sizing: border-box;
+  padding: 5px 12px;
+  border: 1px solid var(--files-edge); border-radius: var(--radius-md);
+  background: var(--files-paper); box-shadow: var(--files-lift);
   cursor: pointer; user-select: none;
-  transition: border-color var(--dur-base) var(--ease), background var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.ft:hover { border-color: color-mix(in srgb, var(--ink-0) 16%, transparent); background: color-mix(in srgb, var(--ink-0) 5%, var(--bg-3)); }
+.ft:not(.is-selected):not(.is-drop-target):hover { background: var(--files-paper-hi); border-color: var(--files-edge-hi); }
+.ft:not(.is-selected):not(.is-drop-target):active { background: var(--files-paper-press); }
 .ft.is-selected { border-color: var(--soleil); box-shadow: 0 0 0 1px var(--soleil); }
 .ft.is-drop-target { border-color: var(--soleil); background: var(--soleil-soft); }
 .ft-cover {
-  position: relative;
-  width: 44px; height: 44px; flex: 0 0 auto;
-  border-radius: 7px; overflow: hidden;
+  position: relative; flex: none;
+  width: 6px; height: 6px;
   display: grid; place-items: center;
-  /* A cover tint is the person's choice, but capped: "sun" IS #ffa500, and a
-     resting folder in full gold read as the selected one. */
-  color: color-mix(in oklab, var(--ft-tint, var(--ink-2)) 55%, var(--ink-2));
-  background: color-mix(in srgb, var(--ft-tint, var(--ink-3)) 12%, var(--bg-3));
+  overflow: visible; background: none;
 }
-.ft-cover[data-cover='neutral'] { background: color-mix(in srgb, var(--ink-0) 6%, var(--bg-3)); color: var(--ink-2); }
-.ft-thumb, .ft-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ft-text { min-width: 0; }
+/* The same mark as the sidebar's .sb-dot. A cover tint is the person's
+   choice; "sun" is mapped to sand in FolderTiles.jsx (it IS the gold). */
+.ft-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ft-tint, var(--ink-3)); }
+/* Covers: when any row has one, every row gets the slot, so a row without
+   one never reads as an image that failed to load. */
+.ft-grid:has(.ft-thumb) .ft { padding-left: 6px; }
+.ft-grid:has(.ft-thumb) .ft-cover { width: 28px; height: 28px; border-radius: 4px; overflow: hidden; }
+.ft-grid:has(.ft-thumb) .ft-cover:not(:has(.ft-thumb)) {
+  background: color-mix(in srgb, var(--ft-tint, var(--ink-3)) 18%, var(--files-paper));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-0) 8%, transparent);
+}
+.ft-thumb, .ft-cover img {
+  width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 4px;
+  outline: 1px solid color-mix(in srgb, var(--ink-0) 10%, transparent); outline-offset: -1px;
+}
+.ft-cover div.ft-thumb { background: var(--files-paper-hi); }
+.ft-cover div.ft-thumb[aria-label='No access'] > svg { display: none; }
+.ft-text { flex: 1 1 auto; min-width: 0; }
+.ft-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .ft-name {
-  font: 500 12px/1.25 var(--font-sans); color: var(--ink-0);
+  min-width: 0;
+  font: 500 12px/16px var(--font-sans); color: var(--ink-0);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ft-meta { margin-top: 2px; font: 400 11px/1.2 var(--font-sans); color: var(--ink-2); }
-.ft-badge {
-  position: absolute; right: 2px; bottom: 2px;
-  width: 15px; height: 15px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: var(--bg-1); color: var(--ink-2);
-}
-.ft-grid.is-panel { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px; }
-.ft-grid.is-panel .ft { padding: 5px 10px 5px 5px; gap: 8px; }
-.ft-grid.is-panel .ft-cover { width: 32px; height: 32px; border-radius: 6px; }
-.ft-grid.is-panel .ft-meta { margin-top: 1px; }
+.ft-link { flex: none; display: grid; color: var(--ink-2); }
+.ft-meta { margin-top: 1px; font: 400 11px/14px var(--font-sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* Beside the board. FOLDER_ROWS in lib/filesDock.js must match this rule's
+   minmax and gap — filesDock.test.mjs reads it. */
+.ft-grid.is-panel { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+.ft-grid.is-panel:has(.ft-thumb) .ft-cover { width: 24px; height: 24px; }
 .ft-more {
   display: inline-flex; align-items: center; gap: 4px;
-  height: 24px; margin: 6px 0 0 -6px; padding: 0 6px;
-  border: 0; border-radius: 6px; background: none;
+  height: 24px; margin: 8px 0 0 -6px; padding: 0 6px;
+  border: 0; border-radius: var(--radius-md); background: none;
   color: var(--ink-2); font: 500 12px/1 var(--font-sans); cursor: pointer;
 }
-.ft-more:hover { color: var(--ink-0); background: var(--bg-3); }
+.ft-more:hover { color: var(--ink-0); background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
 .ft-more:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 
-/* Files path bar (clusterBrowser/PathBar.jsx): where the panel is browsing. */
-.pb { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; margin-right: auto; }
+/* Files path bar (clusterBrowser/PathBar.jsx): where the panel is browsing.
+   Pulled left so the back chevron and the first step's text sit on the same
+   12px gutter as the search, the labels and the tiles. */
+.pb { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; margin: 0 auto 0 -6px; }
 .pb-list {
   display: flex; align-items: center; min-width: 0;
   list-style: none; margin: 0; padding: 0;
@@ -22189,50 +22321,75 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 .pb-step { display: flex; align-items: center; min-width: 0; }
 .pb-step + .pb-step::before, .pb-gap + .pb-step::before, .pb-step + .pb-gap::before {
   content: '/'; margin: 0 2px; color: var(--ink-3);
-  font: 400 12px/1 var(--font-sans);
+  font: 400 13px/1 var(--font-sans);
 }
-.pb-gap { color: var(--ink-3); font: 500 12px/1 var(--font-sans); flex: 0 0 auto; }
+.pb-gap { color: var(--ink-3); font: 500 13px/1 var(--font-sans); flex: 0 0 auto; }
 .pb-name {
-  max-width: 150px; min-width: 0; height: 24px; box-sizing: border-box;
-  display: inline-flex; align-items: center; gap: 3px;
+  max-width: 150px; min-width: 0; height: 26px; box-sizing: border-box;
+  display: inline-flex; align-items: center; gap: 4px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font: 500 12px/1 var(--font-sans);
+  font: 500 13px/1 var(--font-sans);
   color: var(--ink-2);
-  background: none; border: 0; padding: 0 6px; border-radius: 6px;
+  background: none; border: 0; padding: 0 6px; border-radius: var(--radius-md);
 }
-.pb-step.is-here .pb-name { color: var(--ink-0); font-weight: 600; font-size: 13px; }
+.pb-step.is-here .pb-name { font: 600 14px/18px var(--font-sans); letter-spacing: -0.01em; color: var(--ink-0); }
 .pb-here-text, .pb-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pb-caret { flex: none; color: var(--ink-2); transition: transform var(--dur-quick) var(--ease); }
 button.pb-here { cursor: pointer; }
-button.pb-here:hover, button.pb-here[aria-expanded='true'] { background: var(--bg-3); }
+button.pb-here:hover, .pb-link:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
+button.pb-here[aria-expanded='true'] { background: color-mix(in srgb, var(--ink-0) 10%, transparent); }
 button.pb-here[aria-expanded='true'] .pb-caret { transform: rotate(180deg); }
 button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .pb-menu { left: 0; right: auto; top: calc(100% + 4px); min-width: 210px; max-height: min(360px, 60vh); overflow-y: auto; }
-.pb-menu .ctx-item { padding-left: 10px; gap: 8px; }
-.pb-menu .cbt-menu-label { padding-left: 10px; }
-.pb-menu-ico { flex: none; display: grid; color: var(--ink-2); }
+.pb-menu .ctx-item { padding-left: 10px; gap: 6px; }
+.pb-menu .cbt-menu-label { padding-left: 30px; }
+.pb-menu .ctx-divider + .pb-menu-goto { padding-left: 30px; }
+.pb-menu-ico { flex: none; width: 14px; display: grid; place-items: center; }
+.pb-menu-dot { width: 6px; height: 6px; border-radius: 50%; }
 .pb-menu-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Browsing another cluster: the state, in the row that says where you are. */
+/* Browsing another cluster: the state, said as a label in the row that says
+   where you are — not a button. */
 .cbt-ro {
-  flex: none; display: inline-flex; align-items: center; gap: 4px;
-  height: 20px; padding: 0 7px; margin-left: 2px;
-  border-radius: 999px; border: 1px solid var(--line-2);
-  background: var(--bg-3); color: var(--ink-2);
-  font: 500 10.5px/1 var(--font-sans); white-space: nowrap;
+  flex: none; display: inline-flex; align-items: center;
+  height: 18px; padding: 0 6px; margin-left: 8px;
+  border: 0; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--ink-0) 6%, transparent); color: var(--ink-2);
+  font: 700 10px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase;
+  white-space: nowrap;
+}
+[data-theme='light'] .cbt-ro { color: var(--ink-1); }
+@container files (max-width: 360px) {
+  .cbt-ro { margin-left: 4px; padding: 0 4px; letter-spacing: .08em; }
+  .pb-step:not(.is-here) .pb-name { max-width: 64px; }
+  .pb-step.is-here .pb-name { max-width: none; }
 }
 .pb-link { cursor: pointer; }
-.pb-link:hover { color: var(--ink-0); background: var(--bg-3); }
 .pb-link:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .cbt-note {
   margin-top: -2px;
   font: 400 11px/1.3 var(--font-sans); color: var(--ink-2);
 }
 
-/* Folder tiles in full Files: a little larger, with who's inside. */
-.ft-grid.is-full { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
-.ft-grid.is-full .ft { padding: 8px 12px 8px 8px; }
-.ft-grid.is-full .ft-cover { width: 40px; height: 40px; }
-.ft-grid.is-full .ft-name { font-size: 13px; }
+/* Folder rows in full Files: a little larger, with who's inside. */
+.ft-grid.is-full { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.ft-grid.is-full .ft { min-height: 48px; padding: 6px 14px; gap: 12px; }
+.ft-grid.is-full:has(.ft-thumb) .ft { padding-left: 8px; }
+.ft-grid.is-full:has(.ft-thumb) .ft-cover { width: 32px; height: 32px; }
+.ft-grid.is-full .ft-name { font-size: 13px; line-height: 18px; }
+@media (max-width: 520px) {
+  .ft-grid.is-full { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ft-grid.is-full .ft { min-height: 40px; padding: 5px 12px; gap: 10px; }
+  .ft-grid.is-full:has(.ft-thumb) .ft { padding-left: 6px; }
+  .ft-grid.is-full:has(.ft-thumb) .ft-cover { width: 28px; height: 28px; }
+  .ft-grid.is-full .ft-name { font-size: 12px; line-height: 16px; }
+}
+@container files (max-width: 520px) {
+  .ft-grid.is-full { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ft-grid.is-full .ft { min-height: 40px; padding: 5px 12px; gap: 10px; }
+  .ft-grid.is-full:has(.ft-thumb) .ft { padding-left: 6px; }
+  .ft-grid.is-full:has(.ft-thumb) .ft-cover { width: 28px; height: 28px; }
+  .ft-grid.is-full .ft-name { font-size: 12px; line-height: 16px; }
+}
 .ft-peers { margin-left: auto; display: flex; flex: 0 0 auto; }
 .ft-peers > * + * { margin-left: -5px; }
 
@@ -22271,10 +22428,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .list-wrap .ct-row { scroll-margin-top: calc(var(--lp-head-h, 0px) + 40px); }
 .cb-head {
   position: sticky; top: 0; z-index: 8;
-  margin: 0 -8px; padding: 8px 8px 10px;
-  background: color-mix(in srgb, var(--files-floor) 88%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1);
-  backdrop-filter: blur(14px) saturate(1.1);
+  margin: 0 calc(-1 * var(--files-gutter)); padding: 12px var(--files-gutter);
   border-bottom: 1px solid transparent;
   transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
@@ -22293,29 +22447,30 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .ct-jg .ct-tile-preview {
   aspect-ratio: auto; height: var(--jg-h); flex: none;
   border-radius: var(--radius-md);
-  background: var(--bg-3);
-  outline: 1px solid var(--line-1); outline-offset: -1px;
-  transition: transform var(--dur-quick) var(--ease), box-shadow var(--dur-quick) var(--ease);
+  /* One paper and one hairline for every kind of preview, photo or not. */
+  background: var(--files-paper, var(--bg-3));
+  outline: 1px solid var(--files-edge, var(--line-1)); outline-offset: -1px;
+  box-shadow: var(--files-lift, none);
+  transition: outline-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .ct-jg .ct-tile { content-visibility: visible; contain-intrinsic-size: none; }
-/* One paper and one visible edge for every kind of preview, photo or not. */
-.ct-jg .ct-tile-preview { outline-color: color-mix(in srgb, var(--ink-0) 10%, transparent); }
-[data-theme='light'] .ct-jg .ct-tile-preview { box-shadow: var(--shadow-1); }
-.ct-jg .ct-tile:hover .ct-tile-preview { outline-color: var(--line-3); box-shadow: var(--shadow-2); }
-.ct-jg .ct-tile.is-selected { box-shadow: none; }
-.ct-jg .ct-tile.is-selected .ct-tile-preview {
-  outline: 2px solid var(--select); outline-offset: 2px;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 22%, transparent);
+/* Hover brightens the edge; it never touches a stateful ring. */
+.ct-jg .ct-tile:not(.is-selected):not(.is-active):not(.is-peer):hover .ct-tile-preview {
+  outline-color: var(--files-tile-hover-edge, var(--line-3)); box-shadow: var(--files-tile-hover-lift, none);
 }
+.ct-jg .ct-tile.is-selected { box-shadow: none; }
+.ct-jg .ct-tile.is-selected .ct-tile-preview { outline: 2px solid var(--select); outline-offset: 2px; box-shadow: var(--files-lift, none); }
 .list-wrap.is-panel .ct-tile[draggable='true'] { cursor: grab; }
 .list-wrap.is-panel .ct-tile[draggable='true']:active { cursor: grabbing; }
 .ct-jg .ct-tile.is-peer .ct-tile-preview { outline: 2px solid var(--peer-color); outline-offset: 1px; }
-.ct-jg .ct-tile-meta { flex: 1; min-height: 0; display: flex; align-items: flex-start; gap: 6px; padding: 6px 2px 0; }
+.ct-jg .ct-tile-meta { flex: 1; min-height: 0; display: flex; align-items: center; gap: 6px; padding: 6px 0 0; }
+.ct-jg .ct-tile-meta > .ct-tile-flag { order: 1; }
+.ct-jg .ct-tile-meta > .ct-tile-type { order: 2; }
 .ct-jg .ct-tile-type { display: none; }
 /* The caption is quieter than the picture it names. */
-.ct-jg .ct-tile-name { font: 400 12px/1.3 var(--font-sans); color: var(--ink-2); min-width: 0; }
+.ct-jg .ct-tile-name { font: 400 12px/16px var(--font-sans); color: var(--ink-2); min-width: 0; }
 .ct-jg .ct-tile:hover .ct-tile-name { color: var(--ink-1); }
-.ct-jg .ct-tile.is-selected .ct-tile-name { color: var(--ink-0); font-weight: 500; }
+.ct-jg .ct-tile.is-selected .ct-tile-name { color: var(--ink-0); font-weight: 400; }
 .ct-jg .ct-group-tile .ct-tile-preview { box-shadow: 3px 3px 0 -1px var(--bg-4), 3px 3px 0 0 var(--line-2); }
 /* A new arrival: a ring that fades, rather than a wash over the picture. */
 .ct-jg .ct-tile.is-new { animation: none; }
@@ -22349,24 +22504,38 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .lp-drop {
   height: var(--ctl-h); box-sizing: border-box; padding: 0 12px;
   display: flex; align-items: center; justify-content: center; text-align: center;
-  border: 1px dashed var(--soleil); border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--soleil) 40%, transparent); border-radius: var(--radius-md);
   background: var(--soleil-soft); color: var(--ink-0);
-  font: 500 12px/1.2 var(--font-sans);
+  font: 500 12px/16px var(--font-sans);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .cbt--full .lp-drop { flex: 1; }
-.lp-drop.is-blocked { border-color: var(--line-3); background: var(--bg-3); color: var(--ink-2); }
+.lp-drop.is-blocked { border-color: var(--files-edge); background: var(--files-paper); color: var(--ink-2); }
 /* Empty: say so, and offer the one thing to do. */
-.list-empty.is-compact { padding: 28px 16px; text-align: center; }
+.list-empty.is-compact { padding: 28px 16px 24px; text-align: center; border: 1px dashed color-mix(in srgb, var(--ink-0) 12%, transparent); border-radius: var(--radius-lg); }
+/* Nothing can be dropped on a cluster you're only browsing: no drop box. */
+.list-empty.is-compact.is-readonly { border: 0; background: none; padding: 40px 16px 24px; }
 .list-loading { padding: 28px 16px; text-align: center; font-size: 12px; color: var(--ink-2); animation: list-loading-pulse 1.4s ease-in-out infinite; }
 @keyframes list-loading-pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .list-loading { animation: none; } }
-.list-empty.is-compact .list-empty-title { font: 500 13px/1.4 var(--font-sans); color: var(--ink-1); }
-.list-empty.is-compact .list-empty-sub { font-size: 12px; color: var(--ink-2); max-width: 32ch; margin: 4px auto 12px; }
-.list-empty-ico { width: 32px; height: 32px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-3); color: var(--ink-2); }
+.list-empty.is-compact .list-empty-title { font: 600 13px/18px var(--font-sans); color: var(--ink-0); }
+.list-empty.is-compact .list-empty-sub { font: 400 12px/16px var(--font-sans); color: var(--ink-2); max-width: 30ch; margin: 4px auto 16px; }
+.list-empty-ico { width: 28px; height: 28px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; background: var(--files-paper, var(--bg-3)); box-shadow: inset 0 0 0 1px var(--files-edge, var(--line-1)); color: var(--ink-2); }
 .cluster-browser-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 /* Info sits on the Files floor, not over the canvas: no glass. */
-.cb-detail.surface-frosted { background: var(--bg-3); border: 1px solid var(--line-2); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: var(--shadow-2); }
+.cb-detail.surface-frosted {
+  background: var(--files-paper, var(--bg-3)); border: 1px solid var(--files-edge, var(--line-2));
+  box-shadow: var(--files-lift, none);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.cb-detail .cbd-head, .cb-detail .cbd-actions { border-color: var(--line-1); }
+.cb-detail .cbd-preview { background: var(--files-floor, var(--bg-1)); border: 0; }
+@media (min-width: 641px) {
+  .list-wrap .cb-detail { top: calc(var(--lp-head-h, 0px) + 12px); max-height: calc(100dvh - 72px - var(--lp-head-h, 0px)); }
+}
+@media (max-width: 640px) {
+  .cb-detail.surface-frosted { background: var(--bg-3); border-color: var(--files-overlay-edge, var(--line-2)); box-shadow: var(--shadow-3); }
+}
 /* Two panes, one keyboard: the pane that doesn't have it shows its
    selection in ink, not gold (Finder's inactive selection). */
 .fdl-panel[data-active-pane='files'] .fdl-canvas .card.is-selected:not(.card-kind-shape) { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-2)); box-shadow: var(--shadow-2); }
@@ -22374,19 +22543,33 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .fdl-panel:not([data-active-pane='files']) .ct-jg .ct-tile.is-selected .ct-tile-preview { outline-color: var(--ink-2); box-shadow: none; }
 .fdl-panel:not([data-active-pane='files']) .ct-tile.is-selected .ct-tile-check { background: var(--ink-2); border-color: var(--ink-2); }
 
-/* ── Full Files: the cluster's name, then the toolbar ─────────────────── */
-.cb-pagehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; margin: 0 0 12px; }
+/* ── Full Files: the cluster's name over its meta line, Download all and
+   Beside board at the right; then the toolbar. Buttons only make columns
+   when they render, so a missing one leaves no gap. */
+.cb-pagehead {
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-columns: auto; grid-auto-flow: column;
+  column-gap: 4px; row-gap: 4px; align-items: center;
+  min-width: 0; margin: 0 0 4px;
+}
 .cb-pagehead-title {
+  grid-column: 1; grid-row: 1;
   margin: 0; min-width: 0;
-  font: 600 22px/1.25 var(--font-sans); letter-spacing: -0.01em; color: var(--ink-0);
+  font: 600 24px/30px var(--font-sans); letter-spacing: -0.015em; color: var(--ink-0);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cb-pagehead-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 400 12px/1.4 var(--font-sans); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.cb-pagehead-title { min-width: min(50%, 12ch); }
-.cb-pagehead > .list-section-act, .cb-pagehead > .cbt-shrink { margin-left: auto; align-self: center; }
-.cb-pagehead > .list-section-act + .cbt-shrink { margin-left: 0; }
-.cb-pagehead-dl { height: var(--ctl-h); box-sizing: border-box; padding: 0 11px; border-radius: var(--radius-md); font-size: 12px; }
-.cb-head + .list-section, .cb-head + .list-empty { margin-top: 18px; }
+.cb-pagehead-meta {
+  grid-column: 1; grid-row: 2;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 400 12px/16px var(--font-sans); color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+.cb-pagehead > .list-section-act, .cb-pagehead > .cbt-shrink { grid-row: 1 / 3; margin: 0; }
+@media (max-width: 600px) { .cb-pagehead-title { font-size: 20px; line-height: 26px; } }
+.cbt--full { padding-bottom: 0; }
+/* Rhythm on a 4 · 8 · 12 · 16 · 24 · 32 scale. */
+.list-wrap:not(.is-panel) .list-section { margin: 32px 0 12px; }
+.list-wrap:not(.is-panel) .cb-head + .list-section,
+.list-wrap:not(.is-panel) .cb-head + .cluster-browser { margin-top: 12px; }
+.list-wrap:not(.is-panel) .cb-head + .cluster-browser > .list-section:first-child { margin-top: 0; }
 /* Segmented controls in the Files toolbar: the control height, one radius. */
 .cbt .view-pill { height: var(--ctl-h); box-sizing: border-box; padding: 2px; border-radius: var(--radius-md); align-items: stretch; }
 .cbt .view-pill-btn { height: 22px; box-sizing: border-box; border-radius: 6px; padding: 0 10px; }
@@ -22398,7 +22581,6 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 [data-theme='light'] .cbt .view-pill-btn.on, [data-theme='light'] .cbt-menu .view-pill-btn.on {
   background: var(--bg-3); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), inset 0 0 0 1px var(--line-2);
 }
-[data-theme='light'] .cbt-add { background: var(--bg-3); border-color: var(--line-2); box-shadow: var(--shadow-1); }
 
 /* List beside the board: rows on the panel floor, not a table in a card. */
 .list-wrap.is-panel .ct-table { border: 0; border-radius: 0; background: none; margin: 0 -4px; }
@@ -22407,6 +22589,52 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .list-wrap.is-panel .ct-thumb { width: 28px; height: 28px; border-radius: 5px; }
 .list-wrap.is-panel .ct-row { border-bottom-color: transparent; border-radius: var(--radius-md); }
 .list-wrap:not(.is-panel) .ct-sub-meta { display: none; }
+/* Full Files' List: rows on the floor too, under a header painted like it. */
+.list-wrap:not(.is-panel) .ct-table { background: none; border: 0; border-radius: 0; }
+.list-wrap:not(.is-panel) .ct-head {
+  background-color: var(--files-floor); background-image: var(--files-floor-paint);
+  background-size: auto, 320px 240px; border-bottom: 1px solid var(--line-1);
+}
+.list-wrap .ct-th { font: 700 10px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--files-label); }
+.list-wrap .ct-th:hover, .list-wrap .ct-th.is-sorted { color: var(--ink-1); }
+.list-wrap .ct-thumb {
+  border: 0; border-radius: 6px; background: var(--files-paper);
+  outline: 1px solid var(--files-edge); outline-offset: -1px; color: var(--ink-2);
+}
+.list-wrap .ct-thumb.is-bare { outline: 0; background: transparent; }
+.list-wrap .ct-row.is-playing .ct-thumb { outline-color: var(--soleil); }
+.list-wrap.is-panel .ct-thumb { width: 30px; height: 30px; }
+.list-wrap .ct-name-wrap { flex: 1 1 auto; }
+/* On board / not on board in the List: the same dot and ring as the grid,
+   attached to the name, with its word. */
+.list-wrap .ct-onboard, .list-wrap .ct-onboard.is-off {
+  margin-left: 8px; padding: 0; border: 0; border-radius: 0; background: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 400 11px/1 var(--font-sans); color: var(--ink-2);
+}
+.list-wrap .ct-onboard::before {
+  content: ''; width: 6px; height: 6px; box-sizing: border-box; border-radius: 50%;
+  border: 1.25px solid var(--ink-2); background: var(--ink-2);
+}
+.list-wrap .ct-onboard.is-off::before { background: transparent; }
+@container files (max-width: 360px) { .list-wrap.is-panel .ct-onboard { font-size: 0; gap: 0; } }
+.list-wrap .ct-thumb-spin { border-color: color-mix(in srgb, var(--ink-0) 14%, transparent); border-top-color: var(--ink-1); }
+@media (prefers-reduced-motion: reduce) { .list-wrap .ct-thumb-spin { border-color: color-mix(in srgb, var(--ink-0) 30%, transparent); } }
+
+/* Labels and counts: one colour, quieted by weight, never by a failing grey. */
+.list-section-count { font: 500 10px/1 var(--font-sans); letter-spacing: 0; color: var(--files-label, var(--ink-2)); }
+.list-section-meta { font-size: 11px; }
+/* The selection bar is an overlay: an edge that holds over the tiles. */
+.list-wrap .list-selbar { border-color: var(--files-overlay-edge); }
+.list-wrap .list-selbar-count { border-right-color: var(--files-overlay-edge); font: 600 12px/1 var(--font-sans); }
+/* Segmented controls on the paper; the on segment lifts. */
+.cbt .view-pill { background: var(--files-paper, var(--bg-3)); border: 1px solid var(--files-edge, var(--line-2)); padding: 2px; }
+.cbt-menu .view-pill { background: color-mix(in srgb, var(--ink-0) 6%, transparent); border: 0; }
+.cbt .view-pill-btn.on, .cbt-menu .view-pill-btn.on { background: var(--bg-4); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); color: var(--ink-0); }
+.cbt-sizes { padding: 2px 10px 8px 30px; }
+/* "Not on board" lines up with the other rows: its ring after the word. */
+.cbt-menu .ctx-item > .cbt-flag { order: 1; margin: 0 0 0 6px; }
+.cbt-menu .ctx-item > .cbt-count, .cbt-menu .ctx-item > .cbt-caret { order: 2; }
 
 /* ── Quick look (clusterBrowser/QuickLook.jsx) ──────────────────────────── */
 .ql {
@@ -22419,8 +22647,8 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   --ink-0: #f5f5f7; --ink-1: #d0d0d4; --ink-2: #888890; --ink-3: #5a5a60; --ink-error: #e08b8b;
   color: var(--ink-0);
   display: flex; flex-direction: column;
-  background: rgba(8, 8, 10, 0.92);
-  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  background: #08080a;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
   animation: lightbox-in var(--dur-fast, .14s) ease-out;
   outline: none;
 }
@@ -22430,15 +22658,15 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 }
 .ql-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ql-name { font: 600 14px/1.3 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ql-meta { font: 400 11.5px/1.3 var(--font-sans); color: rgba(245, 245, 247, 0.6); }
+.ql-meta { font: 400 11px/14px var(--font-sans); color: rgba(245, 245, 247, 0.6); }
 .ql-btn {
   display: inline-flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 11px;
-  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06); color: #f5f5f7;
-  font: 500 12.5px/1 var(--font-sans); cursor: pointer;
+  border: 1px solid transparent; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08); color: #f5f5f7;
+  font: 500 12px/1 var(--font-sans); cursor: pointer; text-decoration: none;
 }
-.ql-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.ql-btn:hover { background: rgba(255, 255, 255, 0.14); }
 .ql-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .ql-btn.is-on { background: rgba(255, 255, 255, 0.16); border-color: transparent; color: #f5f5f7; }
 .ql-x { padding: 0 8px; }
@@ -22449,10 +22677,10 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   flex: none; align-self: center;
   width: 40px; height: 40px; border-radius: 999px;
   display: grid; place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent; background: rgba(255, 255, 255, 0.08);
   color: #f5f5f7; cursor: pointer;
 }
-.ql-nav:hover { background: rgba(255, 255, 255, 0.12); }
+.ql-nav:hover { background: rgba(255, 255, 255, 0.14); }
 .ql-media { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
 .ql-video { max-width: 100%; max-height: 100%; border-radius: 8px; background: #000; }
 .ql-audio-art { width: min(420px, 70vw); aspect-ratio: 3 / 2; border-radius: 10px; overflow: hidden; background: var(--bg-3); }
@@ -22489,7 +22717,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   padding: 0 6px; margin: 0 -6px;
   border: 1px solid var(--soleil); border-radius: 5px;
   background: var(--bg-1); color: var(--ink-0);
-  font: 500 12.5px/1 var(--font-sans);
+  font: 500 12px/1 var(--font-sans);
   outline: none;
 }
 .ct-row .ir-input { height: 26px; }
@@ -22497,7 +22725,6 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 
 /* ── Files not on the board (lib/placement.js) ───────────────────────────── */
 /* Neutral, like "On board": a fact about the file, never a selection. */
-.ct-onboard.is-off { border-style: dashed; }
 .ct-tile-onboard.is-off { border: 1px dashed rgba(255, 255, 255, 0.45); }
 /* An empty board whose cluster has files waiting in Files. */
 .cnv-waiting {
@@ -22508,3 +22735,18 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   border: 1px dashed var(--line-2); background: var(--bg-2);
   font: 400 13.5px/1.4 var(--font-sans); color: var(--ink-1); text-align: center;
 }
+
+/* Touch: every Files control reads --ctl-h, so the whole toolbar grows
+   together; a 16px search stops iOS zooming the page on focus. */
+@media (pointer: coarse) {
+  .list-wrap { --ctl-h: 36px; }
+  .list-wrap .cbt .view-pill-btn { height: 30px; }
+  .list-wrap .cbt-sizepill.view-pill { height: var(--ctl-h); }
+  .list-wrap .list-selbar-act { height: 36px; }
+  .list-wrap .cbt-input { font-size: 16px; }
+}
+
+/* Clear-formatting glyph (doc toolbar + note bar): a "Tx", the convention from
+   Docs/Word, sized to sit with the B / I / U / S letter buttons. */
+.tb-clear-fmt { font-size: 12px; line-height: 1; letter-spacing: 0; }
+.tb-clear-fmt sub { font-size: 8px; vertical-align: -2px; margin-left: 1px; }

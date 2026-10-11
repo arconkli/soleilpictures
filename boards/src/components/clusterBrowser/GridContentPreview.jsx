@@ -56,15 +56,16 @@ export function GridContentPreview({ model, size = 'row' }) {
   const rects = computeCellRects(layout, { x: 0, y: 0, w: 1, h: 1 }).slice(0, GRID_RECT_CAP);
   const cells = model.cells || {};
   const basePx = size === 'tile' ? 320 : 64;
+  const g = size === 'tile' ? 2 : 1;
   return (
     <div className="cbg" aria-hidden="true">
       {rects.map((r, i) => (
         <div key={r.id || i} className={`cbg-cell cbg-${(cells[r.id] && cells[r.id].type) || 'empty'}`}
              style={{
-               // A 3px gutter between cells, so the grid reads as cells rather
-               // than as one half-loaded picture.
-               left: `calc(${r.x * 100}% + 1.5px)`, top: `calc(${r.y * 100}% + 1.5px)`,
-               width: `calc(${r.w * 100}% - 3px)`, height: `calc(${r.h * 100}% - 3px)`,
+               // A gutter between cells (4px on a tile, 2px in a thumb), so the
+               // grid reads as cells rather than as one half-loaded picture.
+               left: `calc(${r.x * 100}% + ${g}px)`, top: `calc(${r.y * 100}% + ${g}px)`,
+               width: `calc(${r.w * 100}% - ${2 * g}px)`, height: `calc(${r.h * 100}% - ${2 * g}px)`,
              }}>
           <CellContent cell={cells[r.id]} rect={r} basePx={basePx} size={size} />
         </div>

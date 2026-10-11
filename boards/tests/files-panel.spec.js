@@ -68,8 +68,9 @@ test('toasts move clear of the docked panel', async ({ page }) => {
   await go(page);
   await tiles(page).first().click({ button: 'right' });
   await page.locator('.ctx-menu .ctx-item', { hasText: /^Delete/ }).click();
+  // The confirm can open a beat after the menu closes: wait for it briefly.
   const confirm = page.getByRole('dialog').getByRole('button', { name: 'Delete' });
-  if (await confirm.isVisible().catch(() => false)) await confirm.click();
+  if (await confirm.waitFor({ timeout: 2000 }).then(() => true, () => false)) await confirm.click();
   const toast = page.locator('.toast-stack .toast').first();
   await expect(toast).toBeVisible();
   const t = await toast.boundingBox();

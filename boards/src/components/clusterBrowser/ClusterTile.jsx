@@ -44,7 +44,7 @@ export const ClusterTile = memo(function ClusterTile({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      <div className="ct-tile-preview">
+      <div className="ct-tile-preview" data-face={['r2', 'swatches'].includes(item.preview?.mode) ? 'photo' : 'paper'}>
         <CardPreview item={item} size="tile" px={px} />
         {item.pending && <span className="ct-thumb-spin ct-tile-spin" aria-hidden="true" />}
         {/* Add to (or take out of) the selection without a modifier key —
@@ -85,7 +85,7 @@ export const ClusterTile = memo(function ClusterTile({
           <button type="button" className="ct-tile-dl" title={`Download ${item.name}`}
                   aria-label={`Download ${item.name}`}
                   onClick={(e) => { e.stopPropagation(); onDownload(item); }}>
-            <Icon as={Download} size={14} />
+            <Icon as={Download} size={14} weight="light" />
           </button>
         )}
         {peer && (

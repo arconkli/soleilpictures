@@ -33,7 +33,7 @@ export function ViewSwitch({ mode = 'off', filesCount = 0, onSegment }) {
               aria-pressed={pressed.board}
               onClick={() => onSegment?.('board')}
               title={titles.board}>
-        <span className="vp-ico" aria-hidden="true"><Icon as={BoundingBox} size={15} /></span>
+        <span className="vp-ico" aria-hidden="true"><Icon as={BoundingBox} size={16} weight="light" /></span>
         <span className="vp-lbl">{VIEW_LABELS.canvas}</span>
       </button>
       <button type="button"
@@ -42,7 +42,7 @@ export function ViewSwitch({ mode = 'off', filesCount = 0, onSegment }) {
               onClick={() => onSegment?.('files')}
               title={titles.files}
               data-tour="view-toggle">
-        <span className="vp-ico" aria-hidden="true"><Icon as={Files} size={15} /></span>
+        <span className="vp-ico" aria-hidden="true"><Icon as={Files} size={16} weight="light" /></span>
         <span className="vp-lbl">{VIEW_LABELS.list}</span>
         {count && <span className="vp-count" aria-hidden="true">{count}</span>}
       </button>

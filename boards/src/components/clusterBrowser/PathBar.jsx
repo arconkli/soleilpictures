@@ -6,7 +6,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
-import { ChevronLeft, ChevronDown, Folder } from '../../lib/icons.js';
+import { ChevronLeft, ChevronDown } from '../../lib/icons.js';
+import { COVER_TINTS } from '../primitives.jsx';
 import { collapsePath, ELLIPSIS } from '../../lib/filesDock.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 
@@ -48,7 +49,7 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
     <nav className="pb" aria-label="Files path">
       {canBack && (
         <button type="button" className="cbt-iconbtn pb-back" onClick={onBack} aria-label="Back" title="Back">
-          <Icon as={ChevronLeft} size={15} />
+          <Icon as={ChevronLeft} size={16} weight="light" />
         </button>
       )}
       <ol className="pb-list">
@@ -65,7 +66,7 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
                         aria-current="location" aria-haspopup="menu" aria-expanded={open}
                         title={inside.length ? `Clusters in ${name}` : 'Go to cluster…'} onClick={() => setOpen((o) => !o)}>
                   <span className="pb-here-text">{name}</span>
-                  <span className="pb-caret" aria-hidden="true"><Icon as={ChevronDown} size={11} /></span>
+                  <span className="pb-caret" aria-hidden="true"><Icon as={ChevronDown} size={12} weight="light" /></span>
                 </button>
               ) : (
                 <span className="pb-name pb-here" aria-current="location" title={name}><span className="pb-text">{name}</span></span>
@@ -82,7 +83,9 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
           {inside.map((b) => (
             <button key={b.id} type="button" role="menuitem" tabIndex={-1} className="ctx-item pb-menu-item"
                     onClick={() => { setOpen(false); onNavigate?.(b.id); }}>
-              <span className="pb-menu-ico" aria-hidden="true"><Icon as={Folder} size={14} /></span>
+              <span className="pb-menu-ico" aria-hidden="true">
+                <span className="pb-menu-dot" style={{ background: COVER_TINTS[b.cover === 'sun' ? 'sand' : b.cover] || COVER_TINTS.neutral }} />
+              </span>
               <span className="pb-menu-name">{b.name || 'Untitled cluster'}</span>
               {Number.isFinite(b.card_count) && <span className="cbt-count">{b.card_count}</span>}
             </button>

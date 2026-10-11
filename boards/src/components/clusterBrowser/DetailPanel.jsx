@@ -7,7 +7,7 @@ import { CardPreview } from './CardPreview.jsx';
 import { copyCardLink } from '../../lib/cardLink.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
-import { X, Download, Trash2 as TrashIcon, Maximize2, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
+import { X, Download, Trash2 as TrashIcon, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
 import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { getMeta } from '../../lib/imageMeta.js';
@@ -46,7 +46,7 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
       <aside className="cb-detail surface-frosted">
         <div className="cbd-head">
           <span className="cbd-title" title={g.name}>{g.name}</span>
-          <button className="cbd-close" onClick={onClose} aria-label="Close"><Icon as={X} size={16} /></button>
+          <button className="cbd-close" onClick={onClose} aria-label="Close"><Icon as={X} size={16} weight="light" /></button>
         </div>
         <div className="cbd-body">
           <div className="cbd-preview"><CardPreview key={g.id} item={g} size="tile" /></div>
@@ -58,7 +58,7 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
               <button key={m.id} className="cbd-member" onClick={() => onReveal?.(m.id)} title={m.name}>
                 <span className="cbd-member-thumb"><CardPreview item={m} size="row" /></span>
                 <span className="cbd-member-name">{m.name || `Grid ${i + 1}`}</span>
-                <span className="cbd-member-open"><Icon as={Maximize2} size={13} /></span>
+                <span className="cbd-member-open"><Icon as={ArrowsOutSimple} size={14} weight="light" /></span>
               </button>
             ))}
           </div>
@@ -95,7 +95,7 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
           <span className="cbd-title" title={item.name}>{item.name}</span>
           <span className="cbd-sub">{[item.typeLabel, item.sub || (item.sizeBytes != null ? humanSize(item.sizeBytes) : null)].filter(Boolean).join(' · ')}</span>
         </div>
-        <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} /></button>
+        <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} weight="light" /></button>
       </div>
       <div className="cbd-body">
         {!inline && <div className="cbd-preview"><CardPreview key={item.id} item={item} size="tile" /></div>}
@@ -123,21 +123,21 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
             it can be put there instead. */}
         {item.unplaced ? (onPutOnBoard && (
           <button className="cbd-act is-primary" onClick={() => onPutOnBoard(item.id)}>
-            <Icon as={BoundingBox} size={15} /><span>Put on board</span>
+            <Icon as={BoundingBox} size={16} weight="light" /><span>Put on board</span>
           </button>
         )) : onReveal && (
           <button className="cbd-act is-primary" onClick={() => onReveal(item.id)}>
-            <Icon as={BoundingBox} size={15} /><span>Show on board</span>
+            <Icon as={BoundingBox} size={16} weight="light" /><span>Show on board</span>
           </button>
         )}
         {downloadable && (
           <button className="cbt-iconbtn cbd-icon" onClick={() => doDownload()} aria-label="Download" title="Download">
-            <Icon as={Download} size={15} />
+            <Icon as={Download} size={16} weight="light" />
           </button>
         )}
         {!isPublicSurface() && (
           <button className="cbt-iconbtn cbd-icon" onClick={() => copyLink(item.id, item.boardId)} aria-label="Copy link" title="Copy link">
-            <Icon as={LinkIcon} size={15} />
+            <Icon as={LinkIcon} size={16} weight="light" />
           </button>
         )}
         {canEdit && (

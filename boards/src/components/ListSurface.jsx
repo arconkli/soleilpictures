@@ -51,7 +51,7 @@ import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
+import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError,
@@ -1122,7 +1122,8 @@ export function ListSurface({
   // it rather than under it.
   const lpHeadRef = useRef(null);
   // Full Files with sub-clusters but no files still shows the files toolbar
-  // when it can go back beside the board — that's where Beside board is. A
+  // when it can go back beside the board — so the toolbar keeps its place;
+  // Beside board itself sits in the page header. A
   // cluster with nothing in it gets the empty state and a slim bar instead.
   const clusterEmpty = subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0;
   const filesBlockShown = otherCards.length > 0 || isPanel || (!!dockControls?.canShrink && !clusterEmpty);
@@ -1530,16 +1531,16 @@ export function ListSurface({
             <span className="cb-pagehead-meta">{pageMeta}</span>
             {canDownloadAll && (
               <button type="button" className="list-section-act cb-pagehead-dl" onClick={downloadAll} disabled={zipping}>
-                <Icon as={Download} size={13} />
+                <Icon as={Download} size={16} weight="light" />
                 <span>{zipping ? 'Preparing…'
                      : narrowed ? `Download ${downloadableVisible.length}`
                      : 'Download all'}</span>
               </button>
             )}
-            {!filesBlockShown && dockControls?.canShrink && dockControls?.onShrink && (
+            {dockControls?.canShrink && dockControls?.onShrink && (
               <button type="button" className="cbt-iconbtn cbt-shrink" onClick={dockControls.onShrink}
                       aria-label="Beside board" title="Put Files beside the board">
-                <Icon as={Minimize2} size={14} />
+                <Icon as={ArrowsInSimple} size={16} weight="light" />
               </button>
             )}
           </header>
@@ -1554,9 +1555,9 @@ export function ListSurface({
             </div>
             {canEdit && (
               <div className="list-empty-acts">
-                <button className="tb-btn" onClick={openAddPicker}><Icon as={Plus} size={13} /> Add files</button>
-                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard()}><Icon as={Folder} size={13} /> New cluster</button>}
-                {onOpenPicker && <button className="tb-btn" onClick={onOpenPicker}><Icon as={LinkIcon} size={13} /> Link a cluster</button>}
+                <button className="tb-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" /> Add files</button>
+                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard()}>New cluster</button>}
+                {onOpenPicker && <button className="tb-btn" onClick={onOpenPicker}><Icon as={LinkIcon} size={16} weight="light" /> Link a cluster</button>}
               </div>
             )}
           </div>
@@ -1573,7 +1574,7 @@ export function ListSurface({
             {folderCount > folderCapN && (
               <button type="button" className="ft-more" onClick={toggleFolders} aria-expanded={foldersOpen}>
                 {foldersOpen ? 'Show fewer' : `Show all ${folderCount}`}
-                <Icon as={foldersOpen ? ChevronUp : ChevronDown} size={11} />
+                <Icon as={foldersOpen ? ChevronUp : ChevronDown} size={12} weight="light" />
               </button>
             )}
           </>
@@ -1617,15 +1618,15 @@ export function ListSurface({
                               onClick={() => { setQuery(''); onClearFilters(); }}>Clear filters</button>
                     </div>
                   ) : (
-                    <div className="list-empty is-compact">
-                      {canEdit && <span className="list-empty-ico"><Icon as={Upload} size={16} /></span>}
+                    <div className={`list-empty is-compact${canEdit ? "" : " is-readonly"}`}>
+                      {canEdit && <span className="list-empty-ico"><Icon as={Upload} size={16} weight="light" /></span>}
                       <div className="list-empty-title">No files in {board?.name || 'this cluster'}</div>
                       <div className="list-empty-sub">
                         {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
                           : browsingFrom ? `Open ${board?.name || 'it'} to add files.` : 'Nothing here yet.'}
                       </div>
                       {canEdit ? (
-                        <button type="button" className="cbt-btn" onClick={openAddPicker}><Icon as={Plus} size={13} />Add files</button>
+                        <button type="button" className="cbt-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" />Add files</button>
                       ) : browsingFrom && dockControls?.onExpand ? (
                         <button type="button" className="cbt-btn" onClick={dockControls.onExpand}>Open {board?.name || 'cluster'}</button>
                       ) : null}
@@ -1729,7 +1730,7 @@ export function ListSurface({
             {downloadableSelected.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
                       title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
-                <Icon as={Download} size={13} />
+                <Icon as={Download} size={14} weight="light" />
                 <span>{zipping ? 'Preparing…'
                      : downloadableSelected.length === 1 ? 'Download'
                      : `Download ${downloadableSelected.length}`}</span>
@@ -1740,28 +1741,28 @@ export function ListSurface({
             {canEdit && selectedUnplaced.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
                       title="Put on the board">
-                <Icon as={BoundingBox} size={13} /><span>Put on board</span>
+                <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
               </button>
             )}
             {canEdit && onPickCluster && (
               <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…">
-                <Icon as={FolderOpen} size={13} /><span>Move to…</span>
+                <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
               </button>
             )}
             {canEdit && (
               <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete">
-                <Icon as={Trash2} size={13} /><span>Delete</span>
+                <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
               </button>
             )}
             {!isPanel && totalSel === 1 && selectedCards.size === 1 && (
               <button type="button" className={`list-selbar-act${infoOpen ? ' is-on' : ''}`} onClick={toggleInfo}
                       aria-pressed={infoOpen} title={`Info (${cmdKey}I)`}>
-                <Icon as={Info} size={13} /><span>Info</span>
+                <Icon as={Info} size={14} weight="light" /><span>Info</span>
               </button>
             )}
             <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
                     onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
-              <Icon as={X} size={13} />
+              <Icon as={X} size={14} weight="light" />
             </button>
             {!isPanel && !multiHintSeen && (
               <span className="list-selbar-hint">

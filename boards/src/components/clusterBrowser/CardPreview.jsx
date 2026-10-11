@@ -118,15 +118,16 @@ export function CardPreview({ item, size = 'row', px = null }) {
 
 // A file with no picture of its own, at tile size: its glyph, its format as a
 // chip, and how big it is (or how long, for sound).
-const EXT_TONE = { pdf: 'pdf', xls: 'sheet', xlsx: 'sheet', csv: 'sheet', numbers: 'sheet', wav: 'audio', mp3: 'audio', aif: 'audio', aiff: 'audio', flac: 'audio', m4a: 'audio' };
 function FileFace({ glyph, ext, item }) {
   const e = String(ext || '').toLowerCase();
   const dur = Number.isFinite(item?.durationSec) && item.durationSec > 0 ? formatDuration(item.durationSec) : '';
   const size = Number.isFinite(item?.sizeBytes) && item.sizeBytes > 0 ? humanSize(item.sizeBytes) : '';
   const meta = [dur, size].filter(Boolean).join(' · ');
   return (
-    <div className="cbp-file-tile" data-tone={EXT_TONE[e] || undefined}>
-      <span className="cbp-file-glyph">{glyph}</span>
+    // Set in type, not drawn as a document: the format in the label face.
+    // The glyph only shows for a file with no extension.
+    <div className="cbp-file-tile">
+      {!e && <span className="cbp-file-glyph" aria-hidden="true">{glyph}</span>}
       {e && <span className="cbp-ext-chip">{e.toUpperCase().slice(0, 5)}</span>}
       {meta && <span className="cbp-file-meta">{meta}</span>}
     </div>
