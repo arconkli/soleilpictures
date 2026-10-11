@@ -1774,6 +1774,9 @@ function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', s
   const [editingLabel, setEditingLabel] = useState(false);
   useEffect(() => { if (editLabelAt > 0 && !isStrokeOnly) setEditingLabel(true); }, [editLabelAt, isStrokeOnly]);
   const showLabel = !!onUpdate && !isStrokeOnly && (!!label || editingLabel);
+  // Anyone who can't edit (a public link, a view-only member) still reads the
+  // label: it is half of what a labelled diagram says.
+  const showReadOnlyLabel = !onUpdate && !isStrokeOnly && !!label;
   return (
     <div className="shape"
          onDoubleClick={onUpdate && !isStrokeOnly ? (e) => { e.stopPropagation(); setEditingLabel(true); } : undefined}>
@@ -1784,6 +1787,7 @@ function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', s
                       setEditing={setEditingLabel}
                       onChange={(v) => onUpdate({ label: v || null })} />
       )}
+      {showReadOnlyLabel && <div className="shape-label">{label}</div>}
     </div>
   );
 }
