@@ -8506,6 +8506,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 card={docCard}
                 ydoc={splitYDoc}
                 cardYMap={cardYMap}
+                hostBoardId={splitId}
                 workspaceId={workspace.id}
                 userId={user.id}
                 currentUser={currentUser}

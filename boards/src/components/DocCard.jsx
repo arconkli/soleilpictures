@@ -68,6 +68,10 @@ export function RichDocCard({
   onDock = null,
   // True when THIS card is the one currently docked in the split pane.
   isDocked = false,
+  // The cluster this card sits on. The doc scope carries it as `boardId`:
+  // comment @-mention notifications, doc tagging and the save footer are all
+  // keyed by the HOST board, and without it they silently did nothing.
+  hostBoardId = null,
   autoFocus = false, onUpdate,
 }) {
   // Backfill any newly-introduced Y types on cards created before this
@@ -89,8 +93,8 @@ export function RichDocCard({
   // "Appears in docs", and doc tag-search). cardYMap (= a stable Yjs map
   // child) + card.id are stable, and cardScope only reads stable Y-type refs.
   const scope = useMemo(
-    () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null),
-    [cardYMap, card.id],
+    () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id, boardId: hostBoardId || null } : null),
+    [cardYMap, card.id, hostBoardId],
   );
   // New docs no longer auto-open their full editor — autoFocus now means
   // "focus the title for renaming," letting the user rename + place the
@@ -400,11 +404,12 @@ export function DockedDocPane({
   card, ydoc, cardYMap, workspaceId, userId, currentUser, getAwareness,
   boards = {}, wsPeers = [], onJumpToPeer, canEdit = true,
   onUpdate, onClose, full = false, onSetFull,
+  hostBoardId = null, // the cluster the card lives on — see RichDocCard
 }) {
   if (cardYMap) initCardDocStore(ydoc, cardYMap);
   const scope = useMemo(
-    () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null),
-    [cardYMap, card.id],
+    () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id, boardId: hostBoardId || null } : null),
+    [cardYMap, card.id, hostBoardId],
   );
   const peersOnCard = useMemo(() => (wsPeers || []).filter(p =>
     p?.location?.docCardId === card.id && p?.user?.id !== currentUser?.id

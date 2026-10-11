@@ -1058,7 +1058,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           {/* Pages are now created automatically as content flows (DocPagination).
               The manual "+ New page" sheet button is obsolete in the reflow model. */}
         </div>
-        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={board.id} />
+        {/* Save state is reported per HOST board (yboard persists the board
+            that holds the doc); board.id here is the doc card's id. */}
+        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={scope?.boardId || (scope ? null : board.id)} />
       </section>
 
       {embedPickerOpen && (
