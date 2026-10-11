@@ -59,9 +59,6 @@ import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
-import { FilmPlayer } from './film/FilmPlayer.jsx';
-import { registerCardPlayer } from '../lib/playerBus.js';
-import { probeCardVideo } from '../hooks/useMediaFacts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
