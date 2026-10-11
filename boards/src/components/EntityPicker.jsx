@@ -223,12 +223,13 @@ export function EntityPicker({
   );
 }
 
+// Every kind carries its display `title` — the doc / note @-mention inserts it.
 function rowToTarget(row) {
-  if (row.kind === 'board') return { kind: 'board', id: row.board_id };
-  if (row.kind === 'doc')   return { kind: 'doc', docCardId: row.card_id };
+  if (row.kind === 'board') return { kind: 'board', id: row.board_id, title: row.title };
+  if (row.kind === 'doc')   return { kind: 'doc', docCardId: row.card_id, title: row.title };
   if (row.kind === 'user')  return { kind: 'user', id: row.id, title: row.title };
   if (row.kind === 'tag')   return { kind: 'tag', id: row.id, title: row.title };
-  return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
+  return { kind: 'card', boardId: row.board_id, cardId: row.card_id, title: row.title };
 }
 
 // Drag handler for picker rows — sets the universal entity-ref mime

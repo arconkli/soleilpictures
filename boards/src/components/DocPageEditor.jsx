@@ -1478,7 +1478,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             const editor = editorRef.current;
             if (!editor || !targets?.length) { setMention(null); return; }
             const linkId = uuid();
-            const text = (mention.query && mention.query.trim()) || (targets[0]?.name || 'mention');
+            // The picked names, not the query: the picker takes focus as it
+            // opens, so the editor's query is usually '' (which linked the
+            // literal word "mention") or a fragment typed before it mounted.
+            const names = targets.map(t => t?.title || t?.name).filter(Boolean).join(', ');
+            const text = names || (mention.query && mention.query.trim()) || 'mention';
             // Create the Link record FIRST so the renderer can resolve it on
             // the next transaction.
             addLink(ydoc, {
