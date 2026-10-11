@@ -67,9 +67,9 @@ test('a same-board drop centres the block on the drop point and keeps its shape'
   assert.deepEqual(planMoveToPoint([], { x: 0, y: 0 }), []);
 });
 
-test('from another cluster: files become linked copies at the drop point', () => {
+test('from another cluster: files become linked copies; notes and grids are copied from their cluster', () => {
   let n = 0;
-  const { copies, moves, moveOnly } = planCrossDrop(
+  const { copies, moves, liveCopy } = planCrossDrop(
     [img('a', 'r2:1'), { id: 'n', kind: 'note' }, { id: 'g', kind: 'grid' }],
     { x: 500, y: 500 },
     { sourceBoardId: 'SRC', boardCards: [], makeId: () => `new-${n++}` },
@@ -81,7 +81,9 @@ test('from another cluster: files become linked copies at the drop point', () =>
   // A single card keeps its size and centres on the point.
   assert.deepEqual([copies[0].x, copies[0].y, copies[0].w, copies[0].h], [400, 450, 200, 100]);
   assert.deepEqual(moves, []);
-  assert.deepEqual(moveOnly.map((c) => c.id), ['n', 'g']);
+  // The drag only carries a snapshot of a note or grid — they're copied from
+  // their cluster's live content instead (CanvasSurface.copyHereFromCluster).
+  assert.deepEqual(liveCopy.map((c) => c.id), ['n', 'g']);
 });
 
 test('a file this board already shows moves that copy instead; ⌥ makes another', () => {

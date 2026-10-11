@@ -2,7 +2,7 @@
 
 > Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-10-08_
+_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-10-11_
 
 The board is for arranging. Files is for finding.
 
@@ -55,10 +55,13 @@ alone, and deleting either one leaves the other. While you browse another
 cluster in the panel, its files that already have a copy on this board are
 marked **On board**, and clicking one finds that copy.
 
-Notes, docs and grids can't be copied this way — their content lives in their
-cluster — so dropping one from another cluster offers **Move here** instead.
-Moving takes it out of the other cluster, and the toast that follows can undo
-it.
+Notes, docs and grids from another cluster are copied the same way — the copy
+takes their words, cells and pages from the cluster they live in, and the
+original stays where it was. A grid linked to its cluster's shared layout
+arrives as a standalone grid with that layout. The toast that follows offers
+**Move instead**, which takes the copy back off and moves the original here;
+`⌘Z` undoes the copy. Copies count toward your plan's card limit like any
+other card.
 
 ## Not on board
 

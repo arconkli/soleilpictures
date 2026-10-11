@@ -104,6 +104,23 @@ export function readGridModel(card, ydoc, templates) {
   return { layout, cells, templateId, seqId: card?.seqId || null, familyTextStyle };
 }
 
+// A grid copied (or moved) to another cluster can't stay linked: that board has
+// neither the shared template its layout lives in nor the sequence that numbers
+// it. The copy carries the template's layout and family text style on the card
+// itself and drops both links. Cards that aren't linked come back unchanged.
+export function unlinkGridForCopy(card, templates) {
+  if (!card || (!card.templateId && !card.seqId)) return card;
+  const tpl = card.templateId ? (templates && templates[card.templateId]) : null;
+  const out = { ...card };
+  if (card.templateId) {
+    out.layout = (tpl && tpl.layout) || card.layout || null;
+    if (!out.textStyle && tpl && tpl.textStyle) out.textStyle = tpl.textStyle;
+  }
+  delete out.templateId;
+  delete out.seqId;
+  return out;
+}
+
 // Resolve the effective text style for one cell: the family (shared) style with the
 // cell's own `style` override (a "pinned / only this box" cell) layered on top.
 export function effectiveCellStyle(familyTextStyle, cell) {

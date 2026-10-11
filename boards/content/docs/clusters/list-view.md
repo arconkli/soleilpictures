@@ -5,7 +5,7 @@ h1: Files view
 navLabel: Files view
 section: clusters
 order: 1
-updated: 2026-10-08
+updated: 2026-10-11
 answer: Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
   - q: Does opening Files change my board?
@@ -13,7 +13,7 @@ faq:
   - q: Can I see my files and my board at the same time?
     a: Yes. Files opens as a panel beside the board. Drag its edge to make it wider, or press the expand button to fill the screen with it.
   - q: Can I drag files from Files onto the board?
-    a: Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again.
+    a: Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again. A note, doc or grid from another cluster is copied too, and the toast that follows can move it instead.
   - q: Can I upload from Files?
     a: Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
   - q: Can I make Files the default?
@@ -77,10 +77,13 @@ alone, and deleting either one leaves the other. While you browse another
 cluster in the panel, its files that already have a copy on this board are
 marked **On board**, and clicking one finds that copy.
 
-Notes, docs and grids can't be copied this way — their content lives in their
-cluster — so dropping one from another cluster offers **Move here** instead.
-Moving takes it out of the other cluster, and the toast that follows can undo
-it.
+Notes, docs and grids from another cluster are copied the same way — the copy
+takes their words, cells and pages from the cluster they live in, and the
+original stays where it was. A grid linked to its cluster's shared layout
+arrives as a standalone grid with that layout. The toast that follows offers
+**Move instead**, which takes the copy back off and moves the original here;
+`⌘Z` undoes the copy. Copies count toward your plan's card limit like any
+other card.
 
 ## Not on board
 
