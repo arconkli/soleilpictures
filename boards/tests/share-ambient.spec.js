@@ -37,7 +37,9 @@ const events    = () => read('src/lib/analyticsEvents.js');
 test.describe('one Share control, and Share opens sharing', () => {
   test('the board offers exactly ONE share control, and it opens the panel', () => {
     const s = app();
-    expect(s).toMatch(/className="tb-btn" onClick=\{\(\) => setShareOpen\(true\)\} title="Share this cluster"/);
+    // It names the pane it was pressed in (split view shares the split's
+    // cluster, not the main one) and then opens the one panel.
+    expect(s).toMatch(/className="tb-btn" onClick=\{\(\) => \{ setShareBoardId\([^)]*\); setShareOpen\(true\); \}\} title="Share this cluster"/);
     // Not two: an icon beside it opening the console is what the intermediate
     // fix shipped, and on a phone .tb-btn-label is hidden, so the pair rendered
     // as two unlabelled share glyphs with nothing to tell them apart.
@@ -136,7 +138,7 @@ test.describe('the ask to show the work', () => {
 
 test.describe('collaboration is measurable without archaeology', () => {
   test('every grant mechanism records HOW access was created', () => {
-    expect(modal()).toMatch(/ACCESS_GRANTED[\s\S]{0,200}how: inviteRole === 'workspace' \? 'workspace' : 'email'/);
+    expect(modal()).toMatch(/ACCESS_GRANTED[\s\S]{0,200}how: isWorkspaceInvite \? 'workspace' : 'email'/);
     expect(authGate()).toMatch(/ACCESS_GRANTED[\s\S]{0,120}how: 'invite_link'/);
     // Only branches that actually granted something count.
     expect(authGate()).toMatch(/status === 'joined' \|\| row\?\.status === 'upgraded'/);
