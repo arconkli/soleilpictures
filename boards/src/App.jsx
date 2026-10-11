@@ -3853,7 +3853,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Postgres board rename ─────────────────────────────────────────────────
   const renameBoardById = async (boardId, name) => {
     if (!name || !name.trim()) return;
-    const prevName = boards[boardId]?.name || null;
+    // boardsRef, not `boards`: these workspace mutators ride on the memoized
+    // pane mutators (see mainMutatorsFull), so `boards` here is the map from
+    // the render the board first opened in. A second rename read the name
+    // from before the first, so its Undo restored the wrong one.
+    const prevName = boardsRef.current?.[boardId]?.name || null;
     try {
       await renameBoard(boardId, name.trim());
       await refreshBoards();
@@ -4086,7 +4090,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({ type: 'error', message: 'No personal workspace.' });
       return;
     }
-    const sourceBoard = boards[sourceBoardId];
+    // boardsRef: a cluster made after this board opened is missing from the
+    // closed-over map, and Copy did nothing at all (see renameBoardById).
+    const sourceBoard = boardsRef.current?.[sourceBoardId];
     if (!sourceBoard) return;
     if (sourceBoard.workspace_id === personalWorkspaceId) {
       feedback.toast({ type: 'info', message: 'This cluster is already in your workspace.' });
@@ -4231,13 +4237,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // nested-board covers, public views, exports), and flag thumb_custom=true so
   // the three auto-regen paths never clobber it.
   const setBoardCustomThumbById = async (boardId, blob) => {
-    const wsId = boards[boardId]?.workspace_id || workspace.id;
+    // boardsRef, not the map frozen into the pane mutators (renameBoardById).
+    const cur = boardsRef.current?.[boardId];
+    const wsId = cur?.workspace_id || workspace.id;
     // Previous pointer, captured for the Undo. The versioned upload key means
     // the previous image's bytes still exist wherever thumb_key pointed.
     const prev = {
-      thumbKey: boards[boardId]?.thumb_key || null,
-      thumbVersion: boards[boardId]?.thumb_version ?? 0,
-      custom: !!boards[boardId]?.thumb_custom,
+      thumbKey: cur?.thumb_key || null,
+      thumbVersion: cur?.thumb_version ?? 0,
+      custom: !!cur?.thumb_custom,
     };
     try {
       const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id, versioned: true });
@@ -4276,11 +4284,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const resetBoardThumbById = async (boardId) => {
     // The custom image lives at its own versioned key (never overwritten by
     // the auto regen, which renders into the canonical key) — so this reset
-    // is undoable by pointing thumb_key back.
+    // is undoable by pointing thumb_key back. Read through boardsRef: from
+    // the frozen map a custom thumb set this session read as not custom, so
+    // the Undo below did nothing (renameBoardById).
+    const cur = boardsRef.current?.[boardId];
     const prev = {
-      thumbKey: boards[boardId]?.thumb_key || null,
-      thumbVersion: boards[boardId]?.thumb_version ?? 0,
-      custom: !!boards[boardId]?.thumb_custom,
+      thumbKey: cur?.thumb_key || null,
+      thumbVersion: cur?.thumb_version ?? 0,
+      custom: !!cur?.thumb_custom,
     };
     try {
       await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
