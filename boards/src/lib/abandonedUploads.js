@@ -135,27 +135,45 @@ export function abandonedNotice(n, allPhotos = true) {
 //                 Undo brings the card back, run it again (it holds the File)
 // The sweep above is the durable half — it serves collaborators and reloads.
 // This is the immediate one, and the only one that can help Undo.
-const late = new Map();   // boardId → Map(cardId → entry)
+const late = new Map();   // boardId → Map(cardId → { entry, at })
 
-export function stashLateUpload(boardId, cardId, entry, store = late) {
+// A { retry } holds the dropped File — possibly gigabytes — and its card may
+// never come back (deleted for good, or recovered by a collaborator's sweep).
+// Let it go once no Undo can plausibly still restore the card. Patches and
+// removals are a few fields each and stay for the session: they are what
+// keeps a card from spinning until the sweep's day is up.
+export const LATE_RETRY_MAX_MS = ABANDON_AFTER_MS;
+
+function pruneLate(store, now) {
+  for (const [boardId, byCard] of store) {
+    for (const [id, held] of byCard) {
+      if (held.entry.retry && now - held.at > LATE_RETRY_MAX_MS) byCard.delete(id);
+    }
+    if (!byCard.size) store.delete(boardId);
+  }
+}
+
+export function stashLateUpload(boardId, cardId, entry, store = late, now = Date.now()) {
+  pruneLate(store, now);
   if (!boardId || !cardId || !entry) return;
   let byCard = store.get(boardId);
   if (!byCard) { byCard = new Map(); store.set(boardId, byCard); }
-  const prev = byCard.get(cardId);
+  const prev = byCard.get(cardId)?.entry;
   // A follow-up patch (a poster after the src) joins the one already waiting.
-  if (entry.patch && prev?.patch) byCard.set(cardId, { patch: { ...prev.patch, ...entry.patch } });
-  else byCard.set(cardId, entry);
+  if (entry.patch && prev?.patch) byCard.set(cardId, { entry: { patch: { ...prev.patch, ...entry.patch } }, at: now });
+  else byCard.set(cardId, { entry, at: now });
 }
 
 // The entries whose card `isWaiting(id)` says is back and still uploading;
 // they leave the registry as they are handed out.
-export function takeLateUploads(boardId, isWaiting, store = late) {
+export function takeLateUploads(boardId, isWaiting, store = late, now = Date.now()) {
+  pruneLate(store, now);
   const byCard = store.get(boardId);
   if (!byCard || !byCard.size) return [];
   const due = [];
-  for (const [id, entry] of byCard) {
+  for (const [id, held] of byCard) {
     if (!isWaiting(id)) continue;
-    due.push({ id, entry });
+    due.push({ id, entry: held.entry });
     byCard.delete(id);
   }
   if (!byCard.size) store.delete(boardId);

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAbandonedUpload, isStillUploading, planAbandonedSweep, abandonedNotice, uploadAge, recoveryPatch, stashLateUpload, takeLateUploads, ABANDON_AFTER_MS, REMOVE_AFTER_MS, SWEEP_RECHECK_MS } from './abandonedUploads.js';
+import { isAbandonedUpload, isStillUploading, planAbandonedSweep, abandonedNotice, uploadAge, recoveryPatch, stashLateUpload, takeLateUploads, LATE_RETRY_MAX_MS, ABANDON_AFTER_MS, REMOVE_AFTER_MS, SWEEP_RECHECK_MS } from './abandonedUploads.js';
 
 const NOW = Date.parse('2026-10-01T12:00:00Z');
 const ago = (ms) => new Date(NOW - ms).toISOString();
@@ -114,6 +114,21 @@ test('late results wait for their card, merge, and leave as they are handed out'
   assert.deepEqual(takeLateUploads('b1', () => true, store), [{ id: 'file-2', entry: { patch: { fileSrc: 'r2:f.zip' } } }]);
 });
 
+test('a held retry lets go of its file once no Undo can bring the card back; results stay', () => {
+  const store = new Map();
+  const t0 = 1_000_000;
+  stashLateUpload('b1', 'big-1', { retry: () => {} }, store, t0);
+  stashLateUpload('b1', 'pdf-1', { patch: { pdfSrc: 'r2:a.pdf' } }, store, t0);
+  stashLateUpload('b2', 'vid-1', { remove: true }, store, t0);
+  assert.deepEqual(takeLateUploads('b1', () => false, store, t0 + LATE_RETRY_MAX_MS - 1), []);
+  assert.equal(store.get('b1').size, 2, 'kept while an Undo could still restore it');
+  // Pruned by any later stash or take, for any board.
+  stashLateUpload('b3', 'img-1', { patch: { src: 'r2:i.png' } }, store, t0 + LATE_RETRY_MAX_MS + 1);
+  assert.equal(store.get('b1').has('big-1'), false, 'the File is let go');
+  assert.deepEqual(takeLateUploads('b1', () => true, store, t0 + LATE_RETRY_MAX_MS + 2).map((d) => d.id), ['pdf-1']);
+  assert.deepEqual(takeLateUploads('b2', () => true, store, t0 + LATE_RETRY_MAX_MS + 2).map((d) => d.id), ['vid-1']);
+});
+
 test('uploadAge reads the creation stamp, and nothing else', () => {
   assert.equal(uploadAge(card({ createdAt: ago(5000) }), NOW), 5000);
   assert.equal(uploadAge(card({}), NOW), null);
@@ -175,6 +190,10 @@ test('a card looked up and left is not looked up again on every render, and noth
   const sweep = canvas.slice(start, canvas.indexOf('}, [board?.id, pendingUploadsSig, canEdit, isPublic, useLocalImages', start));
   assert.match(sweep, /&& !\(now - \(checked\.get\(c\.id\) \|\| 0\) < SWEEP_RECHECK_MS\)\);/);
   assert.match(sweep, /for \(const id of ids\) checked\.set\(id, at\);/);
+  // …but IS looked up again in the same session: a card too young to judge at
+  // open, or left for later, has nothing else to re-arm the sweep.
+  assert.match(sweep, /const t = setInterval\(\(\) => setSweepTick\(\(n\) => n \+ 1\), SWEEP_RECHECK_MS \+ 30_000\);/);
+  assert.match(canvas, /\}, \[board\?\.id, pendingUploadsSig, canEdit, isPublic, useLocalImages, boardSynced, sweepTick\]\);/);
   // The notice and the event report what happened, not what was planned.
   assert.match(sweep, /const removed = plan\.remove\.length \? \(Number\(m\?\.deleteCardsSilent\?\.\(plan\.remove, \{ refund: false \}\)\) \|\| 0\) : 0;/);
   assert.match(sweep, /if \(removed\) feedbackRef\.current\?\.toast/);

@@ -91,7 +91,8 @@ test('a cleared project name field puts the name back', () => {
 test('the backfill, hotlink and sweep timers key on stable signatures, not on cards', () => {
   assert.match(canvas, /\}, \[board\.id, previewKeysSig, canEdit, isPublic, useLocalImages\]\);/);
   assert.match(canvas, /\}, \[board\?\.id, hotlinkSig, canEdit, isPublic, useLocalImages, boardSynced\]\);/);
-  assert.match(canvas, /\}, \[board\?\.id, pendingUploadsSig, canEdit, isPublic, useLocalImages, boardSynced\]\);/);
+  // (plus a slow tick — still not `cards` — so a card too young to judge at open is judged later)
+  assert.match(canvas, /\}, \[board\?\.id, pendingUploadsSig, canEdit, isPublic, useLocalImages, boardSynced, sweepTick\]\);/);
   assert.doesNotMatch(canvas, /\}, \[board\??\.id, cards, canEdit, isPublic, useLocalImages/);
 });
 

@@ -3664,6 +3664,17 @@ export function CanvasSurface({
   // array from the parent (which reset this 4 s timer on any App render).
   const pendingUploadsSig = useMemo(
     () => everyCard.filter((c) => c.pending === true).map((c) => c.id).join(','), [everyCard]);
+  // …and on a slow tick while any card is pending: nothing else re-arms it for
+  // a card that was too young to judge when the cluster opened, or one looked
+  // up and left, so either would otherwise wait for the next open. A little
+  // past SWEEP_RECHECK_MS, so a card stamped by the look this tick follows is
+  // due again when it lands, not one tick later.
+  const [sweepTick, setSweepTick] = useState(0);
+  useEffect(() => {
+    if (!pendingUploadsSig) return undefined;
+    const t = setInterval(() => setSweepTick((n) => n + 1), SWEEP_RECHECK_MS + 30_000);
+    return () => clearInterval(t);
+  }, [pendingUploadsSig]);
   useEffect(() => {
     if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
     if (!pendingUploadsSig) return undefined;
@@ -3723,7 +3734,7 @@ export function CanvasSurface({
       }
     }, 4000);
     return () => clearTimeout(t);
-  }, [board?.id, pendingUploadsSig, canEdit, isPublic, useLocalImages, boardSynced]);
+  }, [board?.id, pendingUploadsSig, canEdit, isPublic, useLocalImages, boardSynced, sweepTick]);
 
   // Late upload results (lib/abandonedUploads.js): an upload that finished,
   // failed or was cancelled while its card was out of reach — another cluster
