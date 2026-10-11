@@ -341,7 +341,7 @@ export function pointInPolygon(x, y, poly) {
 
 // A stroke is lassoed when the MAJORITY of its points fall inside the polygon.
 // The same majority rule the draw tool uses to decide whether a stroke belongs
-// to an art card (pickStrokeTarget), so "mostly inside" means the same thing in
+// to an art card (pickArtStrokeTarget), so "mostly inside" means the same thing in
 // both places.
 export function strokeInPolygon(stroke, poly) {
   const pts = stroke?.points || [];
@@ -349,4 +349,95 @@ export function strokeInPolygon(stroke, poly) {
   let n = 0;
   for (const [x, y] of pts) if (pointInPolygon(x, y, poly)) n++;
   return n > pts.length / 2;
+}
+
+// How many of `pts` fall inside card `c`'s box (board coords).
+export function pointsInsideCard(pts, c) {
+  if (!c) return 0;
+  const cx = c.x || 0, cy = c.y || 0, cw = c.w || 0, ch = c.h || 0;
+  let n = 0;
+  for (const [px, py] of pts || []) {
+    if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch) n++;
+  }
+  return n;
+}
+
+// Which art canvas, if any, a just-finished board-space stroke belongs to.
+//
+// A stroke routes INTO a card only when the MAJORITY of its points land inside
+// it — a board stroke that merely clips a corner used to be swallowed whole by
+// the card (its outside portion silently vanished off the card's edge). The
+// selected art card (`selectedArt`, which may be a just-committed SketchPad card
+// that `cards` doesn't contain yet) wins over the scorer, but only by the same
+// majority rule: it used to win unconditionally, so with a fresh drawing left
+// selected every pen line and eraser pass anywhere on the board went into that
+// card, at card-local coords far outside it, where .card{overflow:hidden}
+// clipped it to nothing.
+//
+// Otherwise every art canvas is scored by how many points fall inside it; ties
+// pick the top-most z (last wins).
+export function pickArtStrokeTarget(pts, cards, selectedArt = null) {
+  const n = (pts || []).length;
+  if (!n) return null;
+  if (selectedArt && selectedArt.kind === 'art' && pointsInsideCard(pts, selectedArt) > n / 2) {
+    return selectedArt;
+  }
+  let best = null, bestScore = 0;
+  for (const c of cards || []) {
+    if (c?.kind !== 'art') continue;
+    const k = pointsInsideCard(pts, c);
+    if (k > bestScore || (k > 0 && k === bestScore && (c.z || 0) >= (best?.z || 0))) {
+      best = c; bestScore = k;
+    }
+  }
+  return bestScore > n / 2 ? best : null;
+}
+
+// Map every point's x/y through `fn(x, y) → [x, y]`, keeping whatever rides
+// after them — pen pressure is point[2]. Moving or scaling a selection used to
+// rebuild each point as a bare [x, y], which flattened an Apple Pencil stroke
+// to a constant-width polyline for good on the first nudge.
+export function mapStrokePoints(points, fn) {
+  return (points || []).map((p) => {
+    const [x, y] = fn(p[0], p[1]);
+    return p.length > 2 ? [x, y, ...p.slice(2)] : [x, y];
+  });
+}
+
+// Same stroke, by content: a Y.Array hands back fresh objects on every read, so
+// identity can't be used to recognise "the stroke I picked up".
+function sameStroke(a, b) {
+  if (!a || !b) return false;
+  const pa = a.points || [], pb = b.points || [];
+  if (pa.length !== pb.length || a.color !== b.color || a.width !== b.width) return false;
+  if (!pa.length) return true;
+  const last = pa.length - 1;
+  return pa[0][0] === pb[0][0] && pa[0][1] === pb[0][1]
+      && pa[last][0] === pb[last][0] && pa[last][1] === pb[last][1];
+}
+
+// Commit a move/scale of picked-up strokes onto the LIVE strokes array.
+//
+// `picked` is [{ idx, stroke }] as captured at pointerdown; `fn` maps a point's
+// x/y. Each picked stroke is found again in `live` — at its old index when it's
+// still there, otherwise wherever it moved to (a collaborator erased an earlier
+// stroke mid-drag) — and only those entries are replaced. A stroke that vanished
+// (erased mid-drag) stays gone rather than being resurrected, and everything
+// else is kept as it is NOW: the drag used to rewrite the whole array from the
+// pointerdown snapshot on every move, wiping a peer's stroke drawn meanwhile.
+// Returns { next, indexes } — indexes are where the moved strokes now sit — or
+// null when none of them could be found.
+export function applyStrokeTransform(live, picked, fn) {
+  const next = (live || []).slice();
+  const taken = new Set();
+  const indexes = [];
+  for (const { idx, stroke } of picked || []) {
+    let at = (!taken.has(idx) && sameStroke(next[idx], stroke)) ? idx : -1;
+    if (at < 0) at = next.findIndex((s, i) => !taken.has(i) && sameStroke(s, stroke));
+    if (at < 0) continue;
+    taken.add(at);
+    indexes.push(at);
+    next[at] = { ...next[at], points: mapStrokePoints(stroke.points, fn) };
+  }
+  return indexes.length ? { next, indexes } : null;
 }

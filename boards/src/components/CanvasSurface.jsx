@@ -100,7 +100,7 @@ import { parseLoopMeta, canonicalKey } from '../lib/loopMeta.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
-import { eraseStrokes, eraseOnCard, appendStrokeToCard, readCardStrokes, strokeInPolygon } from '../lib/strokeModel.js';
+import { eraseStrokes, eraseOnCard, appendStrokeToCard, readCardStrokes, strokeInPolygon, pickArtStrokeTarget, applyStrokeTransform, mapStrokePoints } from '../lib/strokeModel.js';
 import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
 import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeLineCap } from '../lib/strokeRender.js';
 import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
@@ -7858,41 +7858,20 @@ export function CanvasSurface({
       const pickStrokeTarget = (pts) => {
         const liveCards = cardsRef.current || [];
         const liveSelected = selectedRef.current;
+        let selArt = null;
         if (liveSelected && liveSelected.size === 1) {
           const selId = [...liveSelected][0];
-          const sel = liveCards.find(c => c.id === selId)
-                   || (pendingCardRef.current?.id === selId ? pendingCardRef.current : null);
-          // Only ART canvases accept routed strokes. Any other selected kind
-          // used to swallow the whole stroke into its card-local `strokes`
-          // prop, where .card{overflow:hidden} clipped everything outside the
-          // card's box — drawing on bare canvas with e.g. a note selected
-          // looked completely dead (and the tool auto-flipped to select).
-          // Non-art selections fall through to the bbox-majority scorer
-          // below, which is already art-only. The SketchPad-commit flow this
-          // shortcut exists for is unaffected: pendingCardRef is always
-          // created with kind:'art'.
-          if (sel && sel.kind === 'art') return sel;
+          // pendingCardRef covers the SketchPad-commit race: the new art card
+          // is selected before the Y.Doc echoes it back into `cards`. Only
+          // ART canvases accept routed strokes — any other selected kind used
+          // to swallow the stroke into card-local `strokes`, clipped to nothing.
+          selArt = liveCards.find(c => c.id === selId)
+                || (pendingCardRef.current?.id === selId ? pendingCardRef.current : null);
         }
-        // Score every art canvas by how many stroke points fall inside
-        // its bbox; the one with the most overlap wins. Ties pick the
-        // top-most z (last wins). A stroke routes INTO a card only when
-        // the majority of its points land inside — a board stroke that
-        // merely clips a corner used to be swallowed whole by the card
-        // (its outside portion silently vanished off the card's edge).
-        const arts = liveCards.filter(c => c.kind === 'art');
-        if (!arts.length) return null;
-        let best = null, bestScore = 0;
-        for (const c of arts) {
-          let n = 0;
-          const cx = c.x, cy = c.y, cw = c.w || 0, ch = c.h || 0;
-          for (const [px, py] of pts) {
-            if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch) n++;
-          }
-          if (n > bestScore || (n > 0 && n === bestScore && (c.z || 0) >= (best?.z || 0))) {
-            best = c; bestScore = n;
-          }
-        }
-        return bestScore > pts.length / 2 ? best : null;
+        // Majority-of-points rule for the selected art card too (see
+        // lib/strokeModel.js) — it used to win unconditionally, so a line
+        // drawn anywhere on the board vanished into it.
+        return pickArtStrokeTarget(pts, liveCards, selArt);
       };
       // Lasso — circle strokes to select them.
       //
@@ -10781,6 +10760,31 @@ export function CanvasSurface({
   const isPanMode = spaceDown || selectedTool === 'pan';
   const strokesInteractive = selectedTool === 'select';
 
+  // Stroke and arrow handles are only live under the select tool, so a
+  // drawing tool taking over drops those selections. One left behind under
+  // Draw kept its transform box hit-testable — a pen line started inside it
+  // dragged the old strokes instead of drawing — and Backspace mid-drawing
+  // still deleted what it held. (The lasso hands its pick to the select tool
+  // in the same batch, so this never sees it under Draw.)
+  const drawingTool = selectedTool === 'draw' || selectedTool === 'arrow';
+  useEffect(() => {
+    if (!drawingTool) return;
+    setSelectedStrokes((s) => (s.size ? new Set() : s));
+    setSelectedArrows((s) => (s.size ? new Set() : s));
+  }, [drawingTool]);
+
+  // Live strokes for pointer gestures that commit at pointerup — a closure
+  // captured at pointerdown would write back a stale array.
+  const strokesRef = useRef(strokes);
+  useEffect(() => { strokesRef.current = strokes; }, [strokes]);
+
+  // In-flight move/scale of the selected strokes: { preview: Map<idx, stroke> }.
+  // The gesture previews locally and writes the Y.Doc ONCE at pointerup. It
+  // used to rewrite the board's whole strokes array on every pointermove — a
+  // full-board CRDT update per event to every peer, and built from the
+  // pointerdown snapshot, so a stroke a collaborator drew mid-drag was wiped.
+  const [strokeXform, setStrokeXform] = useState(null);
+
   // Stroke geometry memo: SVG path string + padded bbox per stroke. The
   // strokes array identity changes only on Y.Doc edits (useYBoard snapshot /
   // the public bundle decode), so this survives every pan/zoom/selection
@@ -11621,8 +11625,10 @@ export function CanvasSurface({
             })()}
             {/* Endpoint handles for the selected arrow. Only render when
                 exactly one arrow is selected so the handles aren't a mess
-                across multi-select. Drag either end to retarget. */}
-            {canEdit && selectedArrows.size === 1 && (() => {
+                across multi-select. Drag either end to retarget. Select tool
+                only, like the arrow's own hit path: under another tool they
+                stayed hit-testable and ate that tool's pointerdown. */}
+            {canEdit && strokesInteractive && selectedArrows.size === 1 && (() => {
               const idx = [...selectedArrows][0];
               const a = arrows?.[idx];
               const att = arrowAttachments[idx];
@@ -11745,9 +11751,13 @@ export function CanvasSurface({
              style={{ position: 'absolute', left: 0, top: 0,
                       pointerEvents: 'none',
                       overflow: 'visible' }}>
-          {(strokes || []).map((s, i) => {
+          {(strokes || []).map((s0, i) => {
             const sel = selectedStrokes.has(i);
-            const g = strokeGeom[i];
+            // A stroke mid-move/scale paints its preview; strokeGeom is
+            // memoized on the committed array, so it doesn't apply to it.
+            const pv = strokeXform?.preview.get(i);
+            const s = pv || s0;
+            const g = pv ? null : strokeGeom[i];
             // Viewport cull: off-band strokes render nothing. `null` keeps
             // the array-index coupling (key / data-stroke-idx /
             // selectedStrokes / onStrokeClick all use i). Selected strokes
@@ -11801,8 +11811,12 @@ export function CanvasSurface({
           {/* Selected-stroke transform overlay: bbox + corner handles for
               moving / uniform-scaling the selected strokes. Lives inside
               the strokes-layer SVG so it shares the canvas transform. */}
-          {canEdit && selectedStrokes.size > 0 && (() => {
-            const sel = [...selectedStrokes].map(i => (strokes || [])[i]).filter(Boolean);
+          {canEdit && strokesInteractive && selectedStrokes.size > 0 && (() => {
+            // Gated on strokesInteractive: under Draw/Eraser/Arrow this box
+            // (pointer-events: all) used to swallow the pointerdown, so a new
+            // line started inside it moved the old strokes instead.
+            const sel = [...selectedStrokes]
+              .map(i => strokeXform?.preview.get(i) || (strokes || [])[i]).filter(Boolean);
             if (sel.length === 0) return null;
             // Union bbox of all selected strokes.
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -11817,43 +11831,56 @@ export function CanvasSurface({
             const h = Math.max(2, maxY - minY);
             const handleR = 6 / zoom;
             const strokeW = 1 / zoom;
-            const onBodyDown = (ev) => {
+            // One move/scale gesture. `mapFor(startC, cur)` returns the point
+            // map for the pointer's current position. trackStroke gives it the
+            // pointerId filter, rAF coalescing and pointercancel (an iPad palm
+            // reject used to strand the window listeners); Escape aborts it
+            // through pointerOpAbortRef. Nothing is written until pointerup.
+            const startXform = (ev, mapFor) => {
               ev.preventDefault();
               ev.stopPropagation();
               const startC = clientToCanvas(ev.clientX, ev.clientY);
-              const startPoints = sel.map(s => s.points.map(p => [p[0], p[1]]));
-              const selIndexes = [...selectedStrokes];
-              let last = startC;
-              const onMove = (mv) => {
-                last = clientToCanvas(mv.clientX, mv.clientY);
-                const dx = last.x - startC.x, dy = last.y - startC.y;
-                const next = (strokes || []).slice();
-                for (let k = 0; k < selIndexes.length; k++) {
-                  const idx = selIndexes[k];
-                  const orig = startPoints[k];
-                  next[idx] = { ...next[idx], points: orig.map(p => [p[0] + dx, p[1] + dy]) };
-                }
-                mutators.replaceStrokes?.(next);
-              };
-              const onUp = () => {
-                window.removeEventListener('pointermove', onMove);
-                window.removeEventListener('pointerup', onUp);
-              };
-              window.addEventListener('pointermove', onMove);
-              window.addEventListener('pointerup', onUp);
+              const picked = [...selectedStrokes]
+                .map(idx => ({ idx, stroke: (strokes || [])[idx] }))
+                .filter(p => p.stroke);
+              let fn = null;
+              const abort = () => { dispose(); setStrokeXform(null); };
+              const dispose = trackStroke({
+                pointerId: ev.pointerId,
+                onSample: (mv) => {
+                  fn = mapFor(startC, clientToCanvas(mv.clientX, mv.clientY));
+                  setStrokeXform({ preview: new Map(picked.map(({ idx, stroke }) =>
+                    [idx, { ...stroke, points: mapStrokePoints(stroke.points, fn) }])) });
+                },
+                onEnd: (_e, { canceled }) => {
+                  if (pointerOpAbortRef.current === abort) pointerOpAbortRef.current = null;
+                  // Cleared in the same batch as the write below: a 'local'
+                  // Y.Doc update refreshes `strokes` synchronously, so there
+                  // is no frame painted at the old position.
+                  setStrokeXform(null);
+                  if (canceled || !fn) return;
+                  const r = applyStrokeTransform(strokesRef.current, picked, fn);
+                  if (!r) return;
+                  // Its own ⌘Z step — replaceStrokes doesn't break (gesture
+                  // coalescing), so the move would merge into the last edit.
+                  mutators.breakUndo?.();
+                  mutators.replaceStrokes?.(r.next);
+                  mutators.breakUndo?.();
+                  setSelectedStrokes(new Set(r.indexes));
+                },
+              });
+              pointerOpAbortRef.current = abort;
             };
+            const onBodyDown = (ev) => startXform(ev, (startC, cur) => {
+              const dx = cur.x - startC.x, dy = cur.y - startC.y;
+              return (x, y) => [x + dx, y + dy];
+            });
             const onHandleDown = (which) => (ev) => {
-              ev.preventDefault();
-              ev.stopPropagation();
-              const startC = clientToCanvas(ev.clientX, ev.clientY);
-              const startPoints = sel.map(s => s.points.map(p => [p[0], p[1]]));
-              const selIndexes = [...selectedStrokes];
               // Anchor = the OPPOSITE corner of the dragged handle.
               const ax = (which === 'nw' || which === 'sw') ? (minX + w) : minX;
               const ay = (which === 'nw' || which === 'ne') ? (minY + h) : minY;
-              const startD = { dx: startC.x - ax, dy: startC.y - ay };
-              const onMove = (mv) => {
-                const cur = clientToCanvas(mv.clientX, mv.clientY);
+              startXform(ev, (startC, cur) => {
+                const startD = { dx: startC.x - ax, dy: startC.y - ay };
                 const newDx = cur.x - ax, newDy = cur.y - ay;
                 // Uniform scale: use the larger absolute ratio so the
                 // selection stays in lockstep along both axes.
@@ -11862,26 +11889,8 @@ export function CanvasSurface({
                 const sNoSign = Math.max(0.05, Math.max(Math.abs(sx), Math.abs(sy)));
                 // Keep sign so the user can flip the selection by dragging past the anchor.
                 const sFinal = sNoSign * (Math.sign(sx) || 1) * (Math.sign(sy) || 1);
-                const next = (strokes || []).slice();
-                for (let k = 0; k < selIndexes.length; k++) {
-                  const idx = selIndexes[k];
-                  const orig = startPoints[k];
-                  next[idx] = {
-                    ...next[idx],
-                    points: orig.map(p => [
-                      ax + (p[0] - ax) * sFinal,
-                      ay + (p[1] - ay) * sFinal,
-                    ]),
-                  };
-                }
-                mutators.replaceStrokes?.(next);
-              };
-              const onUp = () => {
-                window.removeEventListener('pointermove', onMove);
-                window.removeEventListener('pointerup', onUp);
-              };
-              window.addEventListener('pointermove', onMove);
-              window.addEventListener('pointerup', onUp);
+                return (x, y) => [ax + (x - ax) * sFinal, ay + (y - ay) * sFinal];
+              });
             };
             return (
               <Fragment>
