@@ -425,7 +425,11 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
     const slot = el ? parseSlotKey(el.getAttribute('data-cell-id')) : null;
     return slot?.kind === 'day' ? slot.date : null;
   };
-  const startTileDrag = (e, b) => {
+  // openOnClick: a press that never moves opens the day — right for the month
+  // grid's tile and the rail row, which have no other single-click meaning.
+  // The Tiles density passes false: its tile's own click SELECTS (as it does
+  // for viewers) and a double-click opens.
+  const startTileDrag = (e, b, { openOnClick = true } = {}) => {
     if (e.button != null && e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
@@ -443,7 +447,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       setTileDrag(null);
-      if (!armed) { onOpenBoard?.(b.id); return; }     // a click, not a drag
+      if (!armed) { if (openOnClick) onOpenBoard?.(b.id); return; }     // a click, not a drag
       const date = tileDateAt(ev);
       if (!date || date === b.scheduled_date) return;  // dropped nowhere, or home
       // A multi-day block keeps its length: dragging it moves the whole span.
@@ -1285,7 +1289,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
                   ? (date) => onAddShootDay({ from: date, to: date, scaffold: true, parentBoardId: boardId })
                   : null}
                 tileDrag={tileDrag}
-                onTilePointerDown={canMoveDays ? startTileDrag : null}
+                onTilePointerDown={canMoveDays ? (e, b) => startTileDrag(e, b, { openOnClick: false }) : null}
               />
             ) : (
               <ScheduleRail
