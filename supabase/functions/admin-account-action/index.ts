@@ -11,7 +11,9 @@
 //                             refresh). Tier is preserved so unban restores it.
 //     • unban               → clear profiles.banned_* + lift the native ban.
 //                             Does NOT resurrect the canceled subscription.
-//     • delete              → cancel any active sub, anonymize their analytics
+//     • delete              → cancel any active sub, hand each shared
+//                             workspace to an heir (0408) and remove the ones
+//                             nobody can inherit, anonymize their analytics
 //                             events + client error logs (GDPR erasure — drop
 //                             user_id/session_id + scrub props PII), then
 //                             hard-delete the auth user (cascades profiles/
@@ -173,6 +175,15 @@ Deno.serve(async (req) => {
 
       case "delete": {
         const r = await cancelStripeSub(admin, body.user_id);
+        // Shared workspaces go to an heir first (0408), as they do when an
+        // account deletes itself. Skipped, workspaces_created_by_fkey SET NULLs
+        // every workspace this account owned: co-owners locked out of managing
+        // it, large uploads refused, the card cap gone. Workspaces nobody can
+        // inherit go with the account, as prepare_account_deletion does.
+        const prep = await admin.rpc("prepare_admin_account_deletion", { p_user_id: body.user_id });
+        if (prep.error) return json({ error: `could not hand over their workspaces: ${prep.error.message}` }, 500);
+        const leftover = await admin.from("workspaces").delete().eq("created_by", body.user_id);
+        if (leftover.error) return json({ error: `could not remove their workspaces: ${leftover.error.message}` }, 500);
         // GDPR erasure: anonymize the user's analytics events + client error logs
         // (drop user_id + session_id, scrub props PII) BEFORE deleting the auth
         // user. After deletion the FKs only SET-NULL user_id, leaving rows
@@ -184,7 +195,7 @@ Deno.serve(async (req) => {
         if (anonErr.error) console.error("[admin-account-action] anonymize_user_client_errors failed", anonErr.error.message);
         const del = await admin.auth.admin.deleteUser(body.user_id);
         if (del.error) return json({ error: del.error.message }, 500);
-        return json({ ok: true, action: "delete", subscription_canceled: r.canceled, analytics_anonymized: anon.data ?? null, errors_anonymized: anonErr.data ?? null }, 200);
+        return json({ ok: true, action: "delete", subscription_canceled: r.canceled, workspaces: prep.data ?? null, analytics_anonymized: anon.data ?? null, errors_anonymized: anonErr.data ?? null }, 200);
       }
 
       case "resync_subscription": {
