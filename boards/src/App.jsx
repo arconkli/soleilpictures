@@ -4668,6 +4668,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // describes (toolbarPane). null = the main pane's cluster, which is what
   // every other way in (sidebar, ⌘K, toasts) navigates the main pane to first.
   const [shareBoardId, setShareBoardId] = useState(null);
+  // A primary overlay opening closes the phone drawer. The drawer (and its
+  // backdrop) stack above the modal layer, so "Share workspace" from the
+  // drawer's workspace menu opened the Share panel UNDER the still-open
+  // drawer: a blurred dialog in the sliver, and nothing answering until the
+  // drawer was dismissed. One effect, so every path that opens one is covered.
+  useEffect(() => {
+    if (mobileShell && (shareOpen || settingsOpen || trashOpen || versionsOpen
+        || workspaceRecoveryOpen || paletteOpen || pickerOpen || browsePickerOpen)) {
+      setMobileNavOpen(false);
+    }
+  }, [mobileShell, shareOpen, settingsOpen, trashOpen, versionsOpen,
+      workspaceRecoveryOpen, paletteOpen, pickerOpen, browsePickerOpen]);
   useEffect(() => { clearShareAfterSwitch(); }, []);
   // Which section ShareModal scrolls to on open ('invite-link' from the
   // collab nudge CTA); cleared on close so plain opens start at the top.
