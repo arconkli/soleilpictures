@@ -101,8 +101,27 @@
   --ink-error: #e08b8b;       /* desaturated rose for dark errors */
 
   --accent:  var(--soleil);
+  /* Ink for text and icons ON a gold fill. Not --bg-0: that is near-white in
+     light theme, about 1.8:1 on #ffa500. Dark ink reads in both themes. */
+  --on-soleil: #1a1205;
+
+  /* Status colours for counts, badges and destructive actions. --ok/--warn
+     ride the message language so there is one green and one amber. */
+  --danger: #e5484d;
+  --ok:     var(--msg-ok);
+  --warn:   var(--msg-warn);
+
+  /* Aliases for names some component code reached for that were never
+     defined (cssTokens.test.mjs found them). Mapped onto the real scale so
+     those uses follow the theme; new code should use the canonical names. */
+  --text:      var(--ink-0);
+  --text-1:    var(--ink-1);
+  --text-soft: var(--ink-2);
+  --border:    var(--line-2);
+  --surface-2: var(--bg-2);
 
   --radius:    4px;
+  --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
@@ -154,6 +173,7 @@
   --soleil-soft: rgba(255,165,0,.10);
 
   --ink-error: #b04a4a;
+  --danger:    #cd2b31;   /* deeper so it holds contrast as text on white */
 
   /* Message-language tokens — light overrides (dark defaults in :root). */
   --msg-surface:        rgba(250,250,252,.86);
@@ -300,7 +320,7 @@ body {
 .app-error-btn {
   padding: 8px 14px;
   background: var(--bg-2);
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: 6px;
   color: var(--ink-1);
   font: 600 12.5px/1 var(--font-sans);
@@ -327,7 +347,7 @@ body {
 .surface-error-text { font-size: 14px; }
 .surface-error-btn {
   padding: 8px 16px; border-radius: 8px;
-  border: 1px solid var(--line, #333); background: var(--bg-1, #16161a);
+  border: 1px solid var(--line-2); background: var(--bg-1, #16161a);
   color: var(--ink-0, #eee); cursor: pointer; font-size: 13px;
 }
 .surface-error-btn:hover { background: var(--bg-hov, #222); }
@@ -1099,7 +1119,7 @@ body {
   margin: 4px 0 0;
   padding: 4px 0;
   background: var(--bg-2);
-  border-top: 1px solid var(--bd-1);
+  border-top: 1px solid var(--line-2);
 }
 .sb-tags-suggestions-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -1928,7 +1948,7 @@ body {
 .tag-detail-block-open {
   font: 600 11px/1 var(--font-sans);
   padding: 4px 9px;
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: 4px;
   background: var(--bg-1);
   color: var(--ink-1);
@@ -1974,13 +1994,13 @@ body {
 .tag-detail-filter {
   display: flex; gap: 4px;
   padding: 6px 14px 8px;
-  border-bottom: 1px solid var(--bd-1);
+  border-bottom: 1px solid var(--line-2);
 }
 .tag-detail-filter-pill {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 9px;
   background: transparent;
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: 999px;
   color: var(--ink-2);
   font: 600 10.5px/1 var(--font-sans);
@@ -2001,7 +2021,7 @@ body {
 /* Right-click menu over preview items. */
 .tag-detail-menu {
   background: var(--bg-1);
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
   box-shadow: var(--shadow-2);
   min-width: 190px;
@@ -2380,7 +2400,7 @@ body {
   font-size: 13px;
 }
 .share-invite-btn-primary:hover:not(:disabled) {
-  background: var(--soleil-bright, var(--soleil));
+  background: color-mix(in srgb, var(--soleil) 88%, #fff);
   border-color: transparent;
 }
 
@@ -6966,12 +6986,12 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
 
 .oauth-note {
   color: var(--ink-2); background: var(--bg-2); border: 1px solid var(--line-1);
-  border-radius: var(--radius-sm, 8px); padding: 10px 12px; margin-bottom: 18px; line-height: 1.5;
+  border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 18px; line-height: 1.5;
 }
 .oauth-actions { display: flex; gap: 10px; }
 .oauth-allow, .oauth-deny {
   flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 40px; border-radius: var(--radius-sm, 8px); cursor: pointer;
+  height: 40px; border-radius: var(--radius-md); cursor: pointer;
   font: 600 13.5px/1 var(--font-sans); border: 1px solid var(--line-2);
 }
 .oauth-deny { flex: 0 0 auto; padding: 0 16px; background: transparent; color: var(--ink-2); }
@@ -11161,7 +11181,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .ac:hover .ac-download,
 .ac:focus-within .ac-download { opacity: 1; }
-.ac-download:hover { color: var(--ink-1); background: var(--surface-2); }
+.ac-download:hover { color: var(--ink-1); background: var(--bg-hov); }
 .ac-download:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
 @media (hover: none) {
   .ac-download { opacity: 1; }
@@ -11286,7 +11306,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   font: 500 11px/1.2 var(--font-sans);
   color: var(--ink-0);
   background: var(--bg-0);
-  border: 1px solid var(--border-1, rgba(255,255,255,.14));
+  border: 1px solid var(--line-3);
   border-radius: var(--radius-sm, 6px);
   padding: 2px 6px;
   width: 150px;
@@ -19689,8 +19709,8 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   border-color: var(--accent);
 }
 .tb-btn-primary:hover:not(:disabled) {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent) 88%, #000);
+  border-color: color-mix(in srgb, var(--accent) 88%, #000);
 }
 .tb-btn-primary:disabled {
   opacity: 0.5;
@@ -19928,7 +19948,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   padding: 9px 12px;
   border-radius: 10px;
   border: 1px solid var(--line-1, rgba(255,255,255,.14));
-  background: var(--surface-2, rgba(255,255,255,.04));
+  background: var(--bg-2);
   color: var(--ink-0, inherit);
   font: 500 13px/1.2 var(--font-mono, ui-monospace, monospace);
 }
@@ -21097,13 +21117,13 @@ button, [role="button"], a {
 
 /* ── PDF cards + in-app viewer (PdfCard.jsx / PdfViewer.jsx) ───────────────── */
 .pdfc { display: flex; flex-direction: column; height: 100%; }
-.pdfc-thumbwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--bg3, #1a1a1f); }
+.pdfc-thumbwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--bg-3); }
 .pdfc .pdfc-thumb { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: -webkit-optimize-contrast; }
 .pdfc-placeholder {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   color: var(--ink-3, #8b8b94);
-  background: var(--bg3, #1a1a1f);
+  background: var(--bg-3);
 }
 /* Filename + page count strip across the bottom of the thumbnail. */
 .pdfc-info {
@@ -21295,7 +21315,7 @@ button, [role="button"], a {
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-screenplay-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
-.doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
+.doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line-2); }
 
 /* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */
 /* Reuses .doc-editor-wrap for the 8.5×11 sheet + zoom; lays out the fields. */
@@ -21329,28 +21349,31 @@ button, [role="button"], a {
    a non-editable render-time widget, never part of the stored text. */
 .doc-paper.is-screenplay .sp-auto-contd { user-select: none; pointer-events: none; }
 .doc-paper.is-screenplay .sp-page-break-rule {
-  position: relative; height: 0; border-top: 1px dashed var(--line2, #9994); margin: .6em 0;
+  position: relative; height: 0; border-top: 1px dashed var(--line-3); margin: .6em 0;
 }
 .doc-paper.is-screenplay .sp-page-break-rule::after {
   content: 'Page ' attr(data-page); position: absolute; right: 0; top: -0.9em;
   font: 600 9px var(--font-display, sans-serif); letter-spacing: .04em; text-transform: uppercase;
-  color: var(--ink-3, #888); background: var(--bg0, #fff); padding: 0 6px;
+  color: var(--ink-3, #888); background: var(--bg-1); padding: 0 6px;
 }
+/* The chip masks the dashed rule, so it must be the sheet's own colour, which
+   is --bg-1 in dark and --bg-3 in light (see .doc-editor-wrap). */
+[data-theme='light'] .doc-paper.is-screenplay .sp-page-break-rule::after { background: var(--bg-3); }
 
 /* Screenplay character-name autocomplete popup (ScreenplaySuggest). */
 .sp-autocomplete {
   position: fixed; z-index: 2147483646; display: none;
   min-width: 160px; max-height: 240px; overflow-y: auto;
-  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); padding: 4px;
   font-family: var(--font-display, sans-serif); font-size: 13px;
 }
-.sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1, #e8e8ea); text-transform: uppercase; }
+.sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1); text-transform: uppercase; }
 .sp-autocomplete-item.is-active, .sp-autocomplete-item:hover { background: var(--soleil, #ffa500); color: #1a1205; }
 .doc-foot-status.is-error { color: var(--danger, #ef4444); }
 
 /* Scene navigator (left rail, screenplay mode) — outline of scene headings. */
-.sp-scenenav { padding: 8px 4px; margin-top: 8px; border-top: 1px solid var(--line2, rgba(255,255,255,.08)); overflow-y: auto; }
+.sp-scenenav { padding: 8px 4px; margin-top: 8px; border-top: 1px solid var(--line-1); overflow-y: auto; }
 .sp-scenenav-head { padding: 2px 8px 6px; color: var(--ink-3); }
 .sp-scenenav-empty { padding: 4px 8px; color: var(--ink-3); font-size: 12px; }
 .sp-scenenav-item {
@@ -21370,14 +21393,14 @@ button, [role="button"], a {
   .doc-mobile-pages-btn {
     display: inline-flex; align-items: center; gap: 6px;
     margin: 6px 8px; padding: 6px 12px; min-height: 36px;
-    border: 1px solid var(--line2, #3a3a42); border-radius: 8px;
-    background: var(--bg1, #1a1a1f); color: var(--ink-1, #e8e8ea);
+    border: 1px solid var(--line-2); border-radius: 8px;
+    background: var(--bg-3); color: var(--ink-1);
     font: 600 12px var(--font-display, sans-serif); cursor: pointer;
   }
   .doc-surface.mobile-rail-open .doc-rail.doc-rail-left {
     display: block; position: absolute; left: 0; top: 0; bottom: 0;
     width: min(82%, 300px); z-index: 30; overflow-y: auto;
-    background: var(--bg0, #14141a); border-right: 1px solid var(--line2, #3a3a42);
+    background: var(--bg-1); border-right: 1px solid var(--line-2);
     box-shadow: 6px 0 28px rgba(0,0,0,.45);
     padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   }
@@ -21404,16 +21427,16 @@ button, [role="button"], a {
 /* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu). */
 .doc-bubble {
   display: flex; gap: 2px; padding: 4px;
-  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
 }
 .doc-bubble button {
   min-width: 36px; height: 36px; padding: 0 8px;
   border: 0; border-radius: 7px; background: transparent;
-  color: var(--ink-1, #e8e8ea); font-size: 15px; cursor: pointer;
+  color: var(--ink-1); font-size: 15px; cursor: pointer;
 }
 .doc-bubble button.is-active { background: var(--soleil, #ffa500); color: #1a1205; }
-.doc-bubble button:active { background: var(--bg2, #2a2a33); }
+.doc-bubble button:active { background: var(--bg-act); }
 
 
 /* Reject-dialog canned-reason chips (feedback.prompt suggestions). */
@@ -21879,7 +21902,7 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 
 /* Settings → Members (Phase 0). Table-shaped, so it is a list, not a grid. */
 .settings-member-list { list-style: none; margin: 0; padding: 0; }
-.settings-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line, rgba(0,0,0,.08)); }
+.settings-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-1); }
 .settings-member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-member-role { color: var(--ink-2); font-size: 13px; }
 .settings-member-actions { display: flex; gap: 8px; }
@@ -22038,7 +22061,7 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
   max-width: min(560px, calc(100vw - 32px));
   padding: 10px 12px 10px 16px;
   border-radius: 999px;
-  background: var(--bg-elev, rgba(24, 22, 19, 0.92));
+  background: color-mix(in srgb, var(--bg-3) 92%, transparent);
   border: 1px solid var(--line-2, rgba(255, 255, 255, 0.1));
   box-shadow: var(--shadow-2);
   color: var(--ink-1);
