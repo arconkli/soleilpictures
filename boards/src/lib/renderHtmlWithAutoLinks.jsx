@@ -18,9 +18,13 @@ const ALLOWED_TAGS = new Set([
   'ul','ol','li','h1','h2','h3','h4','blockquote','img','small','sup','sub',
 ]);
 
+// Everything sanitizeNoteHtml lets through that the note display relies on.
+// data-comment-id is what makes commented words in a note open their thread
+// (`.tt-comment[data-comment-id]`); without it a reader could never get there.
 const SAFE_ATTRS = new Set([
   'class','style','href','target','rel','src','alt','title',
   'data-link-id','data-records','data-entity-ref',
+  'data-comment-id','data-url','aria-checked','role','aria-label','type',
 ]);
 
 const SKIP_AUTO = new Set(['code', 'pre', 'a']);
