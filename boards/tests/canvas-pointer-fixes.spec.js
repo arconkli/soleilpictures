@@ -143,11 +143,20 @@ test('Escape mid-drag cancels a shape and a free arrow', async ({ page }) => {
 async function addNote(page, text, x, y) {
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x, y } });
-  await page.locator('.note-body[contenteditable="true"]').last().click();
+  // A placed note opens already focused for typing. Don't click into it: the
+  // card is still in its pop-in animation, Playwright's hit check misses, and
+  // its retry force-scrolls the overflow-hidden .canvas-wrap (by 500,315),
+  // which shifts every page coordinate the test uses afterwards.
+  await expect(page.locator('.note-body[contenteditable="true"]').last()).toBeFocused();
   await page.keyboard.type(text);
   await page.locator('.canvas-wrap').click({ position: { x: 60, y: 640 } });
   const card = page.locator('.card', { hasText: text }).first();
   await expect(card).toBeVisible();
+  // The canvas maps pointer coordinates assuming the wrap is never scrolled.
+  await expect.poll(() => page.evaluate(() => {
+    const w = document.querySelector('.canvas-wrap');
+    return w.scrollLeft + w.scrollTop;
+  })).toBe(0);
   return card;
 }
 
@@ -185,18 +194,28 @@ test('slowly dragging an arrow end onto a card attaches it', async ({ page }) =>
   await blank(page);
   const card = await addNote(page, 'target', 620, 300);
   const cb = await card.boundingBox();
-  // A free arrow ending well left of the card.
+  const wb = await page.locator('.canvas-wrap').boundingBox();
+  // A free arrow ending well left of the card, placed from where the card
+  // actually is rather than from fixed page coordinates.
+  const y = cb.y + cb.height / 2;
+  const x0 = cb.x - 260, x1 = cb.x - 140;
+  expect(x0).toBeGreaterThan(wb.x + 80);
+  // The drag must start on bare canvas, with nothing selected, or the Arrow
+  // tool takes it as "connect from this card" instead of a free arrow.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.card.is-selected')).toHaveCount(0);
+  expect(await page.evaluate(([px, py]) => !document.elementFromPoint(px, py)?.closest('.card'), [x0, y])).toBe(true);
   await page.keyboard.press('a');
-  await drag(page, 360, cb.y + cb.height / 2, 480, cb.y + cb.height / 2);
+  await drag(page, x0, y, x1, y);
   await expect(page.locator('.arrow-g')).toHaveCount(1);
   await page.locator('.arrow-g > path').first()
-    .dispatchEvent('pointerdown', { button: 0, pointerId: 1, clientX: 420, clientY: cb.y + cb.height / 2 });
+    .dispatchEvent('pointerdown', { button: 0, pointerId: 1, clientX: (x0 + x1) / 2, clientY: y });
   await page.mouse.up();
   // Grab the `to` handle (second endpoint circle) and creep onto the card in
   // 2px steps, so every move lands on the handle's previous position.
   const handles = page.locator('.arrows-layer circle[r]').filter({ hasNot: page.locator('title') });
   await expect.poll(() => handles.count()).toBeGreaterThanOrEqual(2);
-  const toPos = { x: 480, y: cb.y + cb.height / 2 };
+  const toPos = { x: x1, y };
   await page.mouse.move(toPos.x, toPos.y);
   await page.mouse.down();
   const targetX = cb.x + 30;
