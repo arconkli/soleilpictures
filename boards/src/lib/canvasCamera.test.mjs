@@ -78,6 +78,14 @@ test('a paste takes groups and comments from the board it was copied from', () =
   assert.match(paste, /const sameWs = srcComments\.filter\(c => c\.workspace_id === workspaceId\);/);
 });
 
+// CANVAS-A-14: a cleared project-name field stayed blank, reading as unnamed,
+// while the project kept its name everywhere else. (Not reachable in the
+// local harness, which never shows the fresh-project field.)
+test('a cleared project name field puts the name back', () => {
+  const commit = between('function ProjectNameField({ board, onRename }) {', 'return (');
+  assert.match(commit, /if \(!t\) \{ setDraft\(named\); return; \}/);
+});
+
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {
