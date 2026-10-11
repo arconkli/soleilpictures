@@ -22713,6 +22713,19 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   .list-wrap.is-panel .list-selbar-act > span { display: none; }
   .list-wrap.is-panel .list-selbar-act { padding: 0 8px; }
 }
+/* Labelled, the actions run to ~510px of nowrap — wider than the panel's
+   default 400, or a phone's full Files — and spilled past the pill with Delete
+   and × off-screen. Below that they go to icons; each keeps its name in
+   aria-label and title. The media query covers Files outside the dock (the
+   public viewer), where no `files` container exists. */
+@container files (max-width: 520px) {
+  .list-wrap .list-selbar-act > span { display: none; }
+  .list-wrap .list-selbar-act { padding: 0 8px; }
+}
+@media (max-width: 640px) {
+  .list-wrap .list-selbar-act > span { display: none; }
+  .list-wrap .list-selbar-act { padding: 0 8px; }
+}
 /* The Grid's keyboard cursor: a thin ring on the preview (gold is focus). */
 .ct-jg .ct-tile.is-active .ct-tile-preview { outline: 1px solid var(--soleil); outline-offset: 2px; }
 .ct-jg .ct-tile.is-active.is-selected .ct-tile-preview { outline-width: 2px; outline-offset: 2px; }

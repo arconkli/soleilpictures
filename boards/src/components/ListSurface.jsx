@@ -1943,7 +1943,8 @@ export function ListSurface({
                   title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel} selected</span>
             {downloadableSelected.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
-                      title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
+                      title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
+                      aria-label={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
                 <Icon as={Download} size={14} weight="light" />
                 <span>{zipping ? 'Preparing…'
                      : downloadableSelected.length === 1 ? 'Download'
@@ -1954,23 +1955,23 @@ export function ListSurface({
                 aren't offered. */}
             {canEdit && selectedUnplaced.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
-                      title="Put on the board">
+                      title="Put on the board" aria-label="Put on board">
                 <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
               </button>
             )}
             {canEdit && onPickCluster && (
-              <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…">
+              <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
                 <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
               </button>
             )}
             {canEdit && (
-              <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete">
+              <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete" aria-label="Delete">
                 <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
               </button>
             )}
             {totalSel > 0 && (
               <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
-                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`}>
+                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`} aria-label="Info">
                 <Icon as={Info} size={14} weight="light" /><span>Info</span>
               </button>
             )}
