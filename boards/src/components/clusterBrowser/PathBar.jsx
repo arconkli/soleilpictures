@@ -1,12 +1,12 @@
 // The path inside Files beside the board: where the panel is browsing, as
 // clickable steps (root … parent / here), with Back for the panel's own
-// history, a ▾ on the current step that lists the clusters inside it, and
+// history and a ▾ on the current step that lists the clusters inside it, then
 // "Go to cluster…" to jump anywhere. Browsing here never moves the board —
 // the topbar breadcrumb still says where the board is.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
-import { ChevronLeft, ChevronDown, Compass, Folder, Eye } from '../../lib/icons.js';
+import { ChevronLeft, ChevronDown, Folder } from '../../lib/icons.js';
 import { collapsePath, ELLIPSIS } from '../../lib/filesDock.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 
@@ -60,10 +60,10 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
             <li key={id} className={`pb-step${here ? ' is-here' : ''}`}>
               {!here ? (
                 <button type="button" className="pb-name pb-link" onClick={() => onNavigate?.(id)} title={name}><span className="pb-text">{name}</span></button>
-              ) : inside.length ? (
+              ) : inside.length || onGoTo ? (
                 <button type="button" className="pb-name pb-here" data-menu-trigger="path" ref={triggerRef}
                         aria-current="location" aria-haspopup="menu" aria-expanded={open}
-                        title={`Clusters in ${name}`} onClick={() => setOpen((o) => !o)}>
+                        title={inside.length ? `Clusters in ${name}` : 'Go to cluster…'} onClick={() => setOpen((o) => !o)}>
                   <span className="pb-here-text">{name}</span>
                   <span className="pb-caret" aria-hidden="true"><Icon as={ChevronDown} size={11} /></span>
                 </button>
@@ -76,9 +76,9 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
       </ol>
       {/* Straight after the path, so it's next in reading order to its ▾. */}
       {open && (
-        <div className="cbt-menu pb-menu" ref={menuRef} role="menu" aria-label={`Clusters in ${hereName}`}
+        <div className="cbt-menu pb-menu" ref={menuRef} role="menu" aria-label={inside.length ? `Clusters in ${hereName}` : 'Go to cluster'}
              onKeyDown={onMenuKey}>
-          <div className="cbt-menu-label">In {hereName}</div>
+          {inside.length > 0 && <div className="cbt-menu-label">In {hereName}</div>}
           {inside.map((b) => (
             <button key={b.id} type="button" role="menuitem" tabIndex={-1} className="ctx-item pb-menu-item"
                     onClick={() => { setOpen(false); onNavigate?.(b.id); }}>
@@ -87,17 +87,19 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
               {Number.isFinite(b.card_count) && <span className="cbt-count">{b.card_count}</span>}
             </button>
           ))}
+          {onGoTo && (
+            <>
+              {inside.length > 0 && <div className="ctx-divider" role="separator" />}
+              <button type="button" role="menuitem" tabIndex={-1} className="ctx-item pb-menu-item pb-menu-goto"
+                      onClick={() => { setOpen(false); onGoTo(); }}>
+                <span className="pb-menu-name">Go to cluster…</span>
+              </button>
+            </>
+          )}
         </div>
       )}
       {readOnly && (
-        <span className="cbt-ro" title="Open this cluster to add or change files">
-          <Icon as={Eye} size={11} />View only
-        </span>
-      )}
-      {onGoTo && (
-        <button type="button" className="cbt-iconbtn pb-goto" onClick={onGoTo} aria-label="Go to cluster" title="Go to cluster…">
-          <Icon as={Compass} size={14} />
-        </button>
+        <span className="cbt-ro" title="Open this cluster to add or change files">View only</span>
       )}
     </nav>
   );

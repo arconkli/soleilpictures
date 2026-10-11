@@ -16388,7 +16388,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". The path bar at the top shows where the panel is; click any step to go back up, or use the back arrow to retrace where you have been. The search button beside it jumps to any cluster in the workspace. "
+     "v": ". The path bar at the top shows where the panel is; click any step to go back up, or use the back arrow to retrace where you have been. The ▾ on the current step lists the clusters inside it, and its "
+    },
+    {
+     "t": "strong",
+     "v": "Go to cluster…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Go to cluster…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " jumps to any cluster in the workspace. "
     },
     {
      "t": "strong",
