@@ -60,6 +60,7 @@ import { supabase } from '../lib/supabase.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
 import { placedOf } from '../lib/placement.js';
+import { bundleFailureKind, bundleHttpError } from '../lib/shareLoadError.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
@@ -159,7 +160,9 @@ export function PublicBoardView({ token, slug }) {
     scroll: 'none',
   });
 
-  const [status, setStatus] = useState('loading');   // 'loading' | 'ok' | 'invalid'
+  const [status, setStatus] = useState('loading');   // 'loading' | 'ok' | 'invalid' | 'error'
+  // Bumped by the "Couldn't load" screen's Retry to re-run the initial load.
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [cache, setCache] = useState({});             // boardId → decoded bundle
   const [navBoards, setNavBoards] = useState({});     // boardId → name (reachable)
   const [includeSubboards, setIncludeSubboards] = useState(false);
@@ -283,7 +286,7 @@ export function PublicBoardView({ token, slug }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug, boardId: boardId || undefined }),
         });
-        if (!res.ok) throw new Error('bundle-failed');
+        if (!res.ok) throw bundleHttpError(res);
       }
     } else {
       const early = typeof window !== 'undefined' ? window.__shareBundle : null;
@@ -299,7 +302,7 @@ export function PublicBoardView({ token, slug }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, boardId: boardId || undefined }),
         });
-        if (!res.ok) throw new Error('bundle-failed');
+        if (!res.ok) throw bundleHttpError(res);
       }
     }
     const bundle = await res.json();
@@ -357,14 +360,33 @@ export function PublicBoardView({ token, slug }) {
 
   // Initial load — honor a ?b=<id> deep link, falling back to the root
   // board if that specific board isn't reachable via this link.
+  //
+  // A failure is only "this link is no longer live" when the server said so
+  // (a 404). A dropped connection or a 5xx retries once by itself, then shows
+  // "Couldn't load this board" with a Retry — the link may be perfectly good
+  // (MEDIA-03).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const initialB = new URLSearchParams(window.location.search).get('b');
+      const load = async () => {
+        try { return await fetchBundle(initialB); }
+        catch (e) {
+          // The ?b= board may be outside the link; the root is the fallback.
+          // A network failure is not that, so don't spend a request on it.
+          if (initialB && bundleFailureKind(e) === 'invalid') return fetchBundle(null);
+          throw e;
+        }
+      };
       try {
         let r;
-        try { r = await fetchBundle(initialB); }
-        catch (e) { if (initialB) r = await fetchBundle(null); else throw e; }
+        try { r = await load(); }
+        catch (e) {
+          if (bundleFailureKind(e) !== 'retry' || cancelled) throw e;
+          await new Promise(res => setTimeout(res, 1500));
+          if (cancelled) return;
+          r = await load();
+        }
         if (cancelled) return;
         const id = applyBundle(r);
         const root = r.bundle.root_id || id;
@@ -382,13 +404,17 @@ export function PublicBoardView({ token, slug }) {
       } catch (e) {
         console.error('[share] bundle fetch failed', e);
         if (!cancelled) {
-          setStatus('invalid');
-          logEventOnce(`share_view_invalid:${linkKey}`, EV.SHARE_VIEW, { ...attrib, valid: false });
+          if (bundleFailureKind(e) === 'retry') {
+            setStatus('error');
+          } else {
+            setStatus('invalid');
+            logEventOnce(`share_view_invalid:${linkKey}`, EV.SHARE_VIEW, { ...attrib, valid: false });
+          }
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [token, slug, ctx, attrib, linkKey, fetchBundle, applyBundle]);
+  }, [token, slug, ctx, attrib, linkKey, fetchBundle, applyBundle, loadAttempt]);
 
   // Keep the tab title in sync with the visible board — same format the
   // worker injects server-side for the root board's unfurl/title.
@@ -673,6 +699,28 @@ export function PublicBoardView({ token, slug }) {
         <div className="public-loading">
           <SoleilMark size={42} color="var(--soleil)" glow />
           <div>Loading board…</div>
+        </div>
+      </div>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <div className="public-shell">
+        <PublicTopbar hrefFor={(sfc) => ctaHref(ctx, sfc)} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta} />
+        <div className="public-empty" role="alert">
+          <SoleilMark size={42} color="var(--soleil)" glow />
+          <div className="public-empty-title">Couldn’t load this board</div>
+          <div className="public-empty-sub">
+            The connection dropped or the server didn’t answer in time. Nothing is wrong with the link — try again in a moment.
+          </div>
+          <div className="public-empty-actions">
+            {/* Neutral, not the gold CTA: retrying is not a selection or an
+                upsell. 40px tall for a thumb (the phone tap-target rule). */}
+            <button type="button" className="btn-secondary" style={{ minHeight: 40 }}
+                    onClick={() => { setStatus('loading'); setLoadAttempt(n => n + 1); }}>
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );

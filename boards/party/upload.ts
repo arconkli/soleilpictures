@@ -288,8 +288,13 @@ export default class UploadParty implements Party.Server {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
-      return new Response(`Invalid or expired share link${msg ? `: ${msg}` : ""}`, {
-        status: 404, headers: corsHeaders(origin),
+      // A Supabase 5xx / gateway timeout says nothing about the link: pass it
+      // through so the viewer offers a Retry instead of "expired or revoked"
+      // (MEDIA-03). Clients that predate this treat any non-ok the same way,
+      // so it is backward compatible.
+      const status = rpcRes.status >= 500 ? rpcRes.status : 404;
+      return new Response(`${status === 404 ? "Invalid or expired share link" : "Share link temporarily unavailable"}${msg ? `: ${msg}` : ""}`, {
+        status, headers: corsHeaders(origin),
       });
     }
     const bundle: any = await rpcRes.json();
@@ -331,8 +336,10 @@ export default class UploadParty implements Party.Server {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
-      return new Response(`No such public board${msg ? `: ${msg}` : ""}`, {
-        status: 404, headers: corsHeaders(origin),
+      // Same as /share-bundle: a 5xx is not "no such board" (MEDIA-03).
+      const status = rpcRes.status >= 500 ? rpcRes.status : 404;
+      return new Response(`${status === 404 ? "No such public board" : "Public board temporarily unavailable"}${msg ? `: ${msg}` : ""}`, {
+        status, headers: corsHeaders(origin),
       });
     }
     const bundle: any = await rpcRes.json();
