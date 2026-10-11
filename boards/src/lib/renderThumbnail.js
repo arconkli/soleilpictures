@@ -20,6 +20,8 @@
 
 import { resolveSrc, cachedUrl } from './r2.js';
 import { loadCorsCleanImage } from './corsImage.js';
+import { getMeta as getImageMeta } from './imageMeta.js';
+import { pickVariantSrc } from './imageVariantPick.js';
 import { sanitizeNoteHtml } from './sanitizeNoteHtml.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon, uprightLabelAngle,
@@ -452,9 +454,18 @@ async function resolveImageUrl(src) {
 // Load a remote URL into an HTMLImageElement we can drawImage to a canvas
 // without tainting. Delegates to loadCorsCleanImage — a cache-bypassing
 // fetch → blob, NOT an <img crossOrigin> load (see lib/corsImage.js).
-function loadCorsImage(url) {
-  if (!url) return Promise.resolve(null);
-  return loadCorsCleanImage(url);
+//
+// Decoded here, before the synchronous draw loop: an <img> that has only fired
+// onload is not yet decoded, so the first drawImage decoded every card's bytes
+// on the main thread inside one task (hundreds of ms on a 20-image board,
+// right as the user paused editing — PERF-01).
+async function loadCorsImage(url) {
+  if (!url) return null;
+  const img = await loadCorsCleanImage(url);
+  if (img && typeof img.decode === 'function') {
+    try { await img.decode(); } catch (_) { /* drawImage still decodes it */ }
+  }
+  return img;
 }
 
 // Crop-fill (object-fit: cover) an image into a rect. Throws 'TAINT' via
@@ -1209,7 +1220,12 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
   if (allowImages) {
     const loadJobs = [];
     for (const c of sorted) {
-      const src = (c.kind === 'image' && c.src) ? c.src
+      // Image cards draw from the smallest stored preview that covers the
+      // card's drawn size, not the original: this runs every few seconds
+      // while a board is edited, and re-fetching + decoding a dozen camera
+      // originals to paint them at a few hundred pixels was the cost (PERF-01).
+      const src = (c.kind === 'image' && c.src)
+          ? pickVariantSrc(c.src, getImageMeta, Math.max(c.w || 100, c.h || 100) * pxPerUnit)
         : (c.kind === 'pdf' && c.src) ? c.src
         : (c.kind === 'link' && c.image) ? c.image
         // Nested boards: load the child board's stored thumbnail (an r2:
