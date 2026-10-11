@@ -385,6 +385,7 @@ const SELECTED_MOUNT_CAP = 50;
 const MemoScheduleCard = memo(ScheduleCard, shallowEqualIgnoreFns);
 const MemoRichDocCard = memo(RichDocCard, shallowEqualIgnoreFns);
 const EMPTY_UPLOADS = Object.freeze({});
+const EMPTY_ITEMS = Object.freeze([]);
 
 // Stroke path building, eraser splitting and the point/polyline distance math
 // all live in lib/strokeModel.js + lib/strokeRender.js now — the board layer,
@@ -8392,7 +8393,12 @@ export function CanvasSurface({
 
   const onBackgroundContextMenu = (e) => {
     if (isPublic) { e.preventDefault(); return; } // no canvas menu in public preview
-    if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox')) return;
+    // Text fields floating on the canvas — a comment draft or reply, a vote
+    // label, the tool bar's hex and size inputs — keep the browser's own menu
+    // (Cut / Copy / Paste, spellcheck). Notes already got this in
+    // onCardContextMenu; these got Add / Paste / Select all instead.
+    if (isEditorPointerTarget(e)) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox, .tob')) return;
     e.preventDefault();
     // A finger's press-and-hold already opened this menu through
     // useLongPress; Android's contextmenu would open it a second time.
@@ -12700,7 +12706,10 @@ export function CanvasSurface({
         open={ctx.open}
         x={ctx.x}
         y={ctx.y}
-        items={ctx.cardId ? buildMenu(cardById[ctx.cardId] || {}) : []}
+        // Built only while open: ctx.cardId outlives the menu, and buildMenu
+        // (cycle checks across every board for a cluster card) used to run on
+        // every canvas render after the first right-click, drag frames included.
+        items={ctx.open && ctx.cardId ? buildMenu(cardById[ctx.cardId] || {}) : EMPTY_ITEMS}
         onClose={closeCardMenu}
         workspaceId={workspaceId}
         boardId={board?.id}
@@ -12724,7 +12733,7 @@ export function CanvasSurface({
         open={bgCtx.open}
         x={bgCtx.x}
         y={bgCtx.y}
-        items={buildBgMenu()}
+        items={bgCtx.open ? buildBgMenu() : EMPTY_ITEMS}
         onClose={closeBgMenu}
         workspaceId={workspaceId}
         boardId={board?.id}
