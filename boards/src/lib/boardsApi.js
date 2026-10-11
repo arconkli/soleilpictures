@@ -1115,6 +1115,8 @@ export async function saveBoardSnapshot(boardId, ydoc, { stateWrite = 'always' }
   // Mirror named card-groups into group_index so they appear in
   // entity_search (linkable / @-mentionable / hover-previewable).
   syncGroupIndex({ boardId, ydoc }).catch(e => console.warn('group_index sync failed', e));
+  // Whether board_state was written: yboard clears its local draft only then.
+  return due;
 }
 
 // Project the board's Y.Map<'cards'> into Postgres `card_index`.
