@@ -9404,7 +9404,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       <VersionHistoryModal
         open={versionsOpen}
-        boardId={tbBoard.id}
+        boardId={activeBoardId}
         boardName={tbBoard?.name || ''}
         ydoc={tbYDoc}
         sessionId={tbYb?.sessionId || null}
