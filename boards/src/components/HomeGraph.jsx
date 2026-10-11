@@ -334,15 +334,20 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
   }, [loaded, data]);
 
   // Kind filter is fixed (no HUD). Memoize so layout algorithms see stable refs.
-  const filtered = useMemo(() => ({
-    nodes: data.nodes.filter(n => kinds.has(n.kind)),
-    links: data.links.filter(l => {
-      const sId = typeof l.source === 'string' ? l.source : l.source.id;
-      const tId = typeof l.target === 'string' ? l.target : l.target.id;
-      const seen = new Set(data.nodes.filter(n => kinds.has(n.kind)).map(n => n.id));
-      return seen.has(sId) && seen.has(tId);
-    }),
-  }), [data, kinds]);
+  // The id set is built once, not per link — rebuilding it inside the filter
+  // was O(links x nodes) work before Home's first frame.
+  const filtered = useMemo(() => {
+    const nodes = data.nodes.filter(n => kinds.has(n.kind));
+    const seen = new Set(nodes.map(n => n.id));
+    return {
+      nodes,
+      links: data.links.filter(l => {
+        const sId = typeof l.source === 'string' ? l.source : l.source.id;
+        const tId = typeof l.target === 'string' ? l.target : l.target.id;
+        return seen.has(sId) && seen.has(tId);
+      }),
+    };
+  }, [data, kinds]);
 
   // Scatter dots onto varied orbits instead of one even shell: vary each
   // structural parent↔child link's ideal distance by a deterministic ±35%
@@ -416,11 +421,26 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
     </div>
   ) : null;
 
+  // Shared by both renderers: the 2D fallback used to set `selected` with no
+  // drawer to show it, so without WebGL no node could be opened at all.
+  const detailDrawer = selected ? (
+    <HomeGraphDetailDrawer
+      workspaceId={workspaceId}
+      node={selected}
+      onClose={() => setSelected(null)}
+      onOpen={() => onNavigate?.(nodeToTarget(selected))}
+    />
+  ) : null;
+
   if (!supportsWebGL) {
     return (
       <div className="home-graph-wrap" ref={setContainer}>
-        <HomeGraph2DFallback data={filtered} width={size.w} height={size.h} onNodeClick={setSelected} />
+        <HomeGraph2DFallback data={filtered} width={size.w} height={size.h}
+                             backgroundColor={BG_FOR[theme]}
+                             onNodeClick={setSelected}
+                             onNodeRightClick={(n) => onNavigate?.(nodeToTarget(n))} />
         {sparseHint}
+        {detailDrawer}
       </div>
     );
   }
@@ -481,14 +501,7 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
       />
       </div>
       {sparseHint}
-      {selected && (
-        <HomeGraphDetailDrawer
-          workspaceId={workspaceId}
-          node={selected}
-          onClose={() => setSelected(null)}
-          onOpen={() => onNavigate?.(nodeToTarget(selected))}
-        />
-      )}
+      {detailDrawer}
     </div>
   );
 }
