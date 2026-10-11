@@ -236,13 +236,31 @@
   z-index: 3;
 }
 .gridc-cell:hover .gridc-celltools { opacity: 1; }
-.gridc-celltools > .gridc-pill { pointer-events: auto; max-width: 100%; flex-wrap: nowrap; }
+.gridc-celltools > .gridc-pill { max-width: 100%; flex-wrap: nowrap; }
+/* Live only while SHOWN. An opacity:0 control still takes a tap, and a touch
+   screen has no hover to reveal it first: tapping a filled cell's corner to
+   select the grid cleared the cell, and a tap near the bottom split it. At
+   rest the pill, the compact trigger and Clear are click-through. */
+.gridc-celltools > .gridc-pill,
+.gridc-pill-mini,
+.gridc-cell-x { pointer-events: none; }
+.gridc-cell:hover .gridc-celltools > .gridc-pill,
+.gridc-cell:hover .gridc-pill-mini,
+.gridc-cell:hover .gridc-cell-x { pointer-events: auto; }
+/* No hover on touch: the tools show on the cell you tapped, once the grid is
+   selected — a first tap selects, the next one acts. */
+@media (hover: none) {
+  .card.is-selected .gridc-cell.is-focused .gridc-celltools { opacity: 1; }
+  .card.is-selected .gridc-cell.is-focused .gridc-cell-x { opacity: 1; transform: scale(1); }
+  .card.is-selected .gridc-cell.is-focused .gridc-celltools > .gridc-pill,
+  .card.is-selected .gridc-cell.is-focused .gridc-pill-mini,
+  .card.is-selected .gridc-cell.is-focused .gridc-cell-x { pointer-events: auto; }
+}
 
 /* Compact trigger — shown INSTEAD of the pill on cells too small to host it
    (see GRID_TUNING.PILL_MIN_W/H). A single frosted button; clicking it opens the
    portaled full-size menu (.gridc-cell-menu). Fits any cell down to MIN_CELL_PX. */
 .gridc-pill-mini {
-  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -334,9 +352,11 @@
   pointer-events: none !important;
 }
 .gridc.is-repositioning .gridc-celltools,
-.gridc.is-repositioning .gridc-cell-x {
-  opacity: 0;
-  pointer-events: none;
+.gridc.is-repositioning .gridc-cell-x,
+.gridc.is-repositioning .gridc-celltools > .gridc-pill,
+.gridc.is-repositioning .gridc-pill-mini {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* Portaled image-cell photo + fit editor (opened by the pill pencil / GridCellMenu
