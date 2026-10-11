@@ -4,22 +4,27 @@
 // flip transform. Here there's no pan/zoom — just a fit-to-screen live preview
 // beside the shared ImageAdjustPanel, with hold-to-compare against the original.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { R2Image } from './R2Image.jsx';
 import { ImageAdjustPanel } from './ImageAdjustPanel.jsx';
 import { Icon } from './Icon.jsx';
 import { X, Download } from '../lib/icons.js';
 import { buildImgStyle, isAdjusted } from '../lib/imageAdjust.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
+
+// The portal still bubbles through the React tree: a press or double-click on
+// the image or the rail reached the card that opened the editor and dragged it.
+const stopBubble = (e) => e.stopPropagation();
 
 export function ImageEditModal({ src, title, adjust, cardId, onChange, onReset, onDownload, onClose }) {
   const [comparing, setComparing] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // Registered with lib/modalGuard so the canvas shortcuts (Backspace, D, ⌘D…)
+  // stand down while the editor is up, and Escape closes only the top layer.
+  useEffect(() => registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } }), []);
 
   const canCompare = isAdjusted(adjust);
   const imgStyle = comparing ? undefined : buildImgStyle(adjust, cardId);
@@ -33,8 +38,10 @@ export function ImageEditModal({ src, title, adjust, cardId, onChange, onReset, 
   const node = (
     <div className="iem" role="dialog" aria-label="Edit photo"
          onPointerDown={(e) => {
+           e.stopPropagation();
            if (!e.target.closest('.iem-img') && !e.target.closest('.iem-rail') && !e.target.closest('.iem-download')) onClose?.();
-         }}>
+         }}
+         onMouseDown={stopBubble} onDoubleClick={stopBubble} onContextMenu={stopBubble}>
       <button className="iem-x" aria-label="Close" onClick={onClose}><Icon as={X} size={18} /></button>
       <div className="iem-stage">
         {src

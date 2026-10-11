@@ -20,6 +20,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { X } from '../lib/icons.js';
 import { trackStroke } from '../lib/pointerStroke.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
 
 const FRAME_W = 1200;          // output canvas — matches renderThumbnail.js FRAME_W/H
 const FRAME_H = 675;
@@ -59,12 +60,12 @@ export function ThumbnailCropModal({ file, saving = false, onCancel, onSave }) {
     return () => { revoked = true; URL.revokeObjectURL(url); };
   }, [file]);
 
-  // Escape to cancel.
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
+  // Registered with lib/modalGuard so the canvas and sidebar shortcuts stand
+  // down while the crop is up (a focused Save button is not an "editable
+  // target"), and Escape cancels only when this is the top layer.
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+  useEffect(() => registerModalOpen({ onEscape: () => { onCancelRef.current?.(); return true; } }), []);
 
   // Measure the frame's rendered width so the cover math and the bake agree
   // regardless of viewport size.
@@ -134,7 +135,7 @@ export function ThumbnailCropModal({ file, saving = false, onCancel, onSave }) {
 
   const node = (
     <div style={S.overlay} role="dialog" aria-label="Set cluster thumbnail" aria-modal="true"
-         onPointerDown={(e) => { if (e.target === e.currentTarget) onCancel?.(); }}>
+         onPointerDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onCancel?.(); }}>
       <div style={S.panel}>
         <div style={S.head}>
           <div style={S.title}>Set cluster thumbnail</div>
