@@ -1363,6 +1363,10 @@ export function ListSurface({
   const onFilesDragEnd = () => { try { window.__soleilFilesDrag = null; } catch (_) {} };
 
   const totalSel = selectedBoards.size + selectedCards.size;
+  // A linked cluster isn't moved — its link is removed instead — so a
+  // selection of only links offered Move to…, took a pick and did nothing.
+  const movableSel = selectedBoards.size
+    + [...selectedCards].filter((id) => !linkedCards.some((c) => c.id === id)).length;
   const unplacedIds = useMemo(() => new Set(items.filter((it) => it.unplaced).map((it) => it.id)), [items]);
   const selectedUnplaced = useMemo(
     () => (browsingFrom ? [] : [...selectedCards].filter((id) => unplacedIds.has(id))),
@@ -1606,7 +1610,7 @@ export function ListSurface({
     const cIds = [...selectedCards];
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
-    const canMove = canEdit && !!onPickCluster;
+    const canMove = canEdit && !!onPickCluster && movableSel > 0;
     // The menu's header already says how many; Delete needn't repeat it.
     const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
     // Info on anything: in full Files it's the panel beside the list, which
@@ -1945,7 +1949,7 @@ export function ListSurface({
                 <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
               </button>
             )}
-            {canEdit && onPickCluster && (
+            {canEdit && onPickCluster && movableSel > 0 && (
               <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
                 <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
               </button>
