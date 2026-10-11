@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-07
+updated: 2026-10-10
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -124,8 +124,10 @@ sent can't be accepted, and if the account is less than a week old its share
 links pause too. All of it works again, and held invitations are sent, if the
 review clears it.
 
-Workspace owners get a third choice, **Whole workspace** — that grants every
-cluster in the workspace, not just this one, so only the owner can hand it out.
+Workspace owners and co-owners get a third choice, **Whole workspace** — that
+grants every cluster in the workspace, not just this one, so only they can hand
+it out. **Share workspace…** in a workspace's right-click or **⋯** menu opens
+the panel with that choice already picked.
 
 Editors are **free on every plan**. See [Collaborating](/docs/collaborate).
 
@@ -133,8 +135,8 @@ Editors are **free on every plan**. See [Collaborating](/docs/collaborate).
 
 One list, covering everyone: workspace members, people added to this cluster
 alone, and invitations still waiting on a signup. Each row says what that person
-can do and how far it reaches. Owners can change a role, remove access, or
-transfer the workspace from here.
+can do and how far it reaches. Owners and co-owners can change a role or
+remove access from here; only the owner can transfer the workspace.
 
 ## Getting a link fast
 

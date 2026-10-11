@@ -1,7 +1,8 @@
 // The third tab under "This workspace": who is in it, at what level, and — for
-// the owner — the controls that were only reachable through the board-scoped
-// ShareModal before (remove, transfer) plus the one that did not exist
-// (change role, 0318).
+// the owner and co-owners — the controls that were only reachable through the
+// board-scoped ShareModal before (remove, transfer) plus the one that did not
+// exist (change role, 0318). A co-owner (0391) gets everything here except
+// "Make owner": handing the workspace over stays the owner's alone.
 //
 // Removal uses the same confirm the ShareModal uses (ShareModal.onRemoveMember):
 // it is an access change, not content deletion, so the undo-toast convention
@@ -15,13 +16,13 @@ import {
 import { useFeedback } from '../AppFeedback.jsx';
 import { SettingsCategory } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
-
-const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', editor: 'Editor', viewer: 'Viewer', service: 'Service account' };
+import { WORKSPACE_ROLE_LABEL as ROLE_LABEL, ASSIGNABLE_ROLES, canManageWorkspace } from '../../lib/workspaceRoles.js';
 
 export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspacesChanged }) {
   const feedback = useFeedback();
   const save = useSettingsSave();
   const isOwner = role === 'owner';
+  const canManage = canManageWorkspace(role);
   const [members, setMembers] = useState([]);
   const [directory, setDirectory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +92,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
 
   const invite = async () => {
     const email = inviteEmail.trim();
-    if (!email || !isOwner) return;
+    if (!email || !canManage) return;
     try {
       const status = await inviteWorkspaceMember({ workspaceId, email, role: inviteRole });
       feedback.toast({
@@ -110,29 +111,31 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
   return (
     <div className="settings-tab-body">
       <SettingsCategory title="People in this workspace"
-                        desc={isOwner ? 'Editors can add and change content. Viewers can open and read, comment, and vote.'
-                                      : 'Only the owner can change roles or remove members.'}>
+                        desc={canManage
+                          ? 'Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment, and vote.'
+                          : 'Only the owner or a co-owner can change roles or remove members.'}>
         {loading && members.length === 0 && <div className="settings-empty">Loading…</div>}
         <ul className="settings-member-list">
           {members.map(m => {
             const self = m.user_id === user?.id;
             const isOwnerRow = m.role === 'owner';
-            const changeable = isOwner && !isOwnerRow && !self && (m.role === 'editor' || m.role === 'viewer');
+            const changeable = canManage && !isOwnerRow && !self && ASSIGNABLE_ROLES.includes(m.role);
             return (
               <li key={m.user_id} className="settings-member-row">
                 <span className="settings-member-name">{label(m)}{self ? ' (you)' : ''}</span>
                 {changeable ? (
                   <select className="settings-input" aria-label={`Role for ${label(m)}`}
                           value={m.role} onChange={(e) => changeRole(m, e.target.value)}>
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
+                    {ASSIGNABLE_ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                   </select>
                 ) : (
                   <span className="settings-member-role">{ROLE_LABEL[m.role] || m.role}</span>
                 )}
-                {isOwner && !isOwnerRow && !self && m.role !== 'service' && (
+                {canManage && !isOwnerRow && !self && m.role !== 'service' && (
                   <span className="settings-member-actions">
-                    <button type="button" className="settings-link-btn" onClick={() => transfer(m)}>Make owner</button>
+                    {isOwner && (
+                      <button type="button" className="settings-link-btn" onClick={() => transfer(m)}>Make owner</button>
+                    )}
                     <button type="button" className="settings-link-btn is-danger" onClick={() => remove(m)}>Remove</button>
                   </span>
                 )}
@@ -141,7 +144,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
           })}
         </ul>
       </SettingsCategory>
-      {isOwner && (
+      {canManage && (
         <SettingsCategory title="Add someone" desc="They sign in to accept. Editors are free on every plan.">
           <div className="settings-invite-row">
             <input className="settings-input" type="email" placeholder="Email address"

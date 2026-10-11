@@ -93,6 +93,7 @@ import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import {
   markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch,
   markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
+  markShareAfterSwitch, shareAfterSwitchFor, clearShareAfterSwitch,
 } from './lib/homeAfterSwitch.js';
 import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
@@ -3964,6 +3965,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // here would open it on the instance about to be thrown away (it did, from
   // the sidebar, since 222745e1): the note opens it in the new mount instead.
   // `thenHome`: asked for from Home, so that mount opens on Home too.
+  // "Share workspace…" from a workspace's ⋯ / right-click menu. Same switch-
+  // first dance as Settings: the remount would throw an open panel away.
+  const shareWorkspace = (ws, { thenHome = false } = {}) => {
+    if (!ws?.id) return;
+    if (ws.id !== workspace?.id) {
+      markShareAfterSwitch(ws.id);
+      if (thenHome === true) markHomeAfterSwitch(ws.id);
+      onSwitchWorkspace?.(ws.id);
+      return;
+    }
+    shareSurfaceRef.current = 'workspace_menu';
+    setShareScope('workspace');
+    setShareInitialSection(null);
+    setShareOpen(true);
+  };
+
   const openWorkspaceSettings = (ws, { thenHome = false } = {}) => {
     if (ws?.id && ws.id !== workspace?.id) {
       markSettingsAfterSwitch(ws.id, 'general');
@@ -4450,8 +4467,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // doc inside one of its cards. DocCardOverlay dispatches lifecycle
   // events; we mirror them into state so workspace presence reflects
   // the exact location for click-to-jump.
-  //   null OR { cardId, pageId, scrollTop }
+  //   null OR { cardId, pageId }   (scrollTop lives in openDocScrollRef)
   const [openDocCard, setOpenDocCard] = useState(null);
+  const openDocScrollRef = useRef({ cardId: null, scrollTop: 0 });
   // Keep a live reference to the board flush fns so the (empty-dep) doc-card
   // listener below can persist pending edits the moment a card closes. A doc
   // card's content lives in its host board's Y.Doc, so flushing the open
@@ -4468,7 +4486,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onMount = (e) => {
       const { cardId } = e.detail || {};
       if (!cardId) return;
-      setOpenDocCard({ cardId, pageId: null, scrollTop: 0 });
+      openDocScrollRef.current = { cardId, scrollTop: 0 };
+      setOpenDocCard({ cardId, pageId: null });
     };
     const onUnmount = (e) => {
       const { cardId } = e.detail || {};
@@ -4479,9 +4498,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const { cardId, pageId } = e.detail || {};
       setOpenDocCard(c => (c?.cardId === cardId ? { ...c, pageId: pageId || null } : c));
     };
+    // Scroll lands in a ref, never in state: this fires every 200ms while a
+    // doc scrolls, and a state write here re-rendered the whole App (~9k
+    // lines of tree) five times a second under the reader's finger — one of
+    // the causes of the occasional stutter scrolling down a doc. Presence
+    // reads it lazily at heartbeat time (see the location getter below).
     const onScroll = (e) => {
       const { cardId, scrollTop } = e.detail || {};
-      setOpenDocCard(c => (c?.cardId === cardId ? { ...c, scrollTop: scrollTop || 0 } : c));
+      if (openDocScrollRef.current.cardId === cardId) openDocScrollRef.current.scrollTop = scrollTop || 0;
     };
     document.addEventListener('soleil-doccard-mount', onMount);
     document.addEventListener('soleil-doccard-unmount', onUnmount);
@@ -4507,14 +4531,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //  reference to keep the import linked even before the wsPeers
   //  hook resolves on first render.)
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
-  const [shareOpen, setShareOpen] = useState(false);
+  // A "Share workspace" asked for on a workspace we weren't in (its ⋯ /
+  // right-click menu) switched us here, which remounts all of this: the note
+  // opens the panel in this mount instead (lib/homeAfterSwitch).
+  const [shareOpen, setShareOpen] = useState(() => shareAfterSwitchFor(workspace.id));
+  // 'cluster' (the cluster on screen) or 'workspace' (the whole workspace, from
+  // the workspace menu: the panel shares its root cluster and starts on
+  // "Whole workspace"). Back to 'cluster' whenever the panel closes.
+  const [shareScope, setShareScope] = useState(() => (shareAfterSwitchFor(workspace.id) ? 'workspace' : 'cluster'));
+  useEffect(() => { clearShareAfterSwitch(); }, []);
   // Which section ShareModal scrolls to on open ('invite-link' from the
   // collab nudge CTA); cleared on close so plain opens start at the top.
   const [shareInitialSection, setShareInitialSection] = useState(null);
   // Which entry point opened the panel, so the share funnel can tell a toolbar
   // click from a context-menu click from the nudge CTA. Set by the caller
   // immediately before setShareOpen(true); read (and reset) by the effect below.
-  const shareSurfaceRef = useRef('topbar');
+  const shareSurfaceRef = useRef(shareAfterSwitchFor(workspace.id) ? 'workspace_menu' : 'topbar');
   // Collaboration-loop signal: fire when the share surface opens (any path).
   useEffect(() => {
     if (!shareOpen) return;
@@ -4612,7 +4644,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }
           if (boardId && boards[boardId]) setStack([boardId]);
           if (ref.pageId) {
-            try { sessionStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
+            try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
           }
           setTimeout(() => {
             document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
@@ -4683,7 +4715,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (boardId && boards[boardId]) { setStack([boardId]); recents.push(boardId); }
       if (ref.pageId) {
-        try { sessionStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
+        try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
       }
       setTimeout(() => {
         document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
@@ -7066,7 +7098,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       docBoardId: !openDocCard ? null
         : (splitDoc?.cardId === openDocCard.cardId ? splitId : currentBoard?.id) ?? null,
       pageId:    openDocCard?.pageId ?? null,
-      scrollTop: openDocCard?.scrollTop ?? 0,
+      // A getter, so the heartbeat reads the live value from the ref without
+      // the scroll ever re-rendering App.
+      get scrollTop() {
+        return openDocCard && openDocScrollRef.current.cardId === openDocCard.cardId
+          ? openDocScrollRef.current.scrollTop : 0;
+      },
       // True only when this tab is foregrounded AND user is on a board.
       // Peers consume this to hide presence dots from background tabs
       // (peer has Board X open but is currently viewing Board Y → only
@@ -7122,7 +7159,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // cards to mount on the new canvas before firing.
     if (loc.docCardId) {
       if (loc.pageId) {
-        try { sessionStorage.setItem(`soleil.boards.docActivePage.${loc.docCardId}`, loc.pageId); } catch (_) {}
+        try { localStorage.setItem(`soleil.boards.docActivePage.${loc.docCardId}`, loc.pageId); } catch (_) {}
       }
       setTimeout(() => {
         document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
@@ -8558,6 +8595,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 onAddNew={addNewWorkspace}
                 onRemove={(ws, action) => removeWorkspace(ws, action)}
                 onOpenSettings={(ws) => openWorkspaceSettings(ws)}
+                onShare={(ws) => shareWorkspace(ws)}
                 onClose={() => setWsMenuOpen(false)}
               />
             )}
@@ -8569,15 +8607,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
             const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
             const ownerPeer = peerById.get(workspace.created_by);
+            const sharedBy = maskEmail(ownerPeer?.user?.email, workspace.created_by)
+                             || maskName(ownerPeer?.user?.name, workspace.created_by)
+                             || 'someone';
             const subtitle = isPersonal
               ? 'Personal'
               : isOwner
                 ? 'Yours'
                 // A shared workspace names its owner by address, right under
                 // the workspace title — the most prominent leak on the screen.
-                : `Shared by ${maskEmail(ownerPeer?.user?.email, workspace.created_by)
-                             || maskName(ownerPeer?.user?.name, workspace.created_by)
-                             || 'someone'}`;
+                : workspace._myRole === 'coowner'
+                  ? `Co-owner · shared by ${sharedBy}`
+                  : `Shared by ${sharedBy}`;
             const visibleMembers = workspaceMembers.slice(0, 6);
             const overflow = workspaceMembers.length - visibleMembers.length;
             return (
@@ -8935,6 +8976,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             }}
             onRemoveWorkspace={(ws, action) => removeWorkspace(ws, action, { thenHome: true })}
             onOpenWorkspaceSettings={(ws) => openWorkspaceSettings(ws, { thenHome: true })}
+            onShareWorkspace={(ws) => shareWorkspace(ws, { thenHome: true })}
             /* Phones get the panel only: no graph to float over, and no reason
                to load the 3D bundle for scenery. */
             graph={mobileShell ? null : (
@@ -9188,26 +9230,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         />
       ), document.body)}
 
-      {shareOpen && (
-        <ShareModal
-          board={currentBoard}
-          workspace={workspace}
-          workspaceMembers={workspaceMembers}
-          wsPeers={wsPeers}
-          selfUserId={user.id}
-          canManage={canEditCurrent}
-          initialSection={shareInitialSection}
-          onClose={() => { setShareOpen(false); setShareInitialSection(null); }}
-          onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
-          onSharesChanged={() => { refreshSharedBoards?.(); }}
-          onLinkCreated={() => {
-            try {
-              const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
-              if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
-            } catch (_) {}
-          }}
-        />
-      )}
+      {shareOpen && (() => {
+        // Sharing the WORKSPACE shares its root cluster (links then cover
+        // every cluster under it) and starts on "Whole workspace".
+        const shareTarget = shareScope === 'workspace' ? (boards[rootBoard.id] || rootBoard) : currentBoard;
+        return (
+          <ShareModal
+            board={shareTarget}
+            workspace={workspace}
+            workspaceMembers={workspaceMembers}
+            wsPeers={wsPeers}
+            selfUserId={user.id}
+            myWorkspaceRole={workspace._myRole || null}
+            scope={shareScope}
+            canManage={shareScope === 'workspace' ? canEditBoard(rootBoard.id) : canEditCurrent}
+            initialSection={shareInitialSection}
+            onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); }}
+            onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
+            onSharesChanged={() => { refreshSharedBoards?.(); }}
+            onLinkCreated={() => {
+              try {
+                const yd = yb.ready && yb.boardId === shareTarget.id ? yb.ydoc : null;
+                if (yd) forceBoardThumbnail(shareTarget.id, yd, { workspaceId: workspace.id, userId: user.id });
+              } catch (_) {}
+            }}
+          />
+        );
+      })()}
       {backlinksRef && (
         <EntityBacklinksPanel
           ref={backlinksRef}

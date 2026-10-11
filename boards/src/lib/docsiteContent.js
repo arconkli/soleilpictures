@@ -3007,6 +3007,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⌘\\"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Clear formatting — links and comments stay"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "@"
       }
      ],
@@ -3165,6 +3179,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Highlight · inline code"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘\\"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Clear formatting — links and comments stay"
       }
      ]
     ],
@@ -7425,7 +7453,38 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment."
+     "v": " for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and "
+    },
+    {
+     "t": "strong",
+     "v": "Tx",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tx"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — clear formatting ("
+    },
+    {
+     "t": "code",
+     "v": "⌘\\"
+    },
+    {
+     "t": "text",
+     "v": "), which strips the selection back to the note's own font and size while keeping links and comments."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note."
     }
    ]
   },
@@ -20088,6 +20147,43 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A document reopens "
+    },
+    {
+     "t": "strong",
+     "v": "where you left it",
+     "children": [
+      {
+       "t": "text",
+       "v": "where you left it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the same page, scrolled to the same spot — even after you close the tab. That position is remembered per browser, not synced between devices. Following a collaborator's avatar into a document still takes you to where "
+    },
+    {
+     "t": "em",
+     "v": "they",
+     "children": [
+      {
+       "t": "text",
+       "v": "they"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "The three panes",
@@ -20225,6 +20321,51 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Text pasted from Google Docs, Word or a web page keeps its structure and emphasis — headings, lists, links, bold, italic, real colours — but drops the source's font, size, background and default black ink, so it takes on the document's own typography instead of arriving as a patch of 11pt Arial. Text copied from another Clusters note or document keeps everything. "
+    },
+    {
+     "t": "strong",
+     "v": "Clear formatting",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clear formatting"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "⌘\\"
+    },
+    {
+     "t": "text",
+     "v": ", or the "
+    },
+    {
+     "t": "strong",
+     "v": "Tx",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tx"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button) strips the selection back to plain; links and comments stay."
     }
    ]
   },
@@ -24046,6 +24187,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
+       "v": "Co-owner",
+       "children": [
+        {
+         "t": "text",
+         "v": "Co-owner"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Runs a workspace alongside its owner — invites and removes members, changes roles, manages every share and link, renames it — but cannot delete it, hand it over, or remove the owner"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
        "v": "Editor",
        "children": [
         {
@@ -24188,7 +24349,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". A co-owner is not the owner for this purpose: what they add counts against the owner's allowance, like an editor's."
     }
    ]
   },
@@ -24356,7 +24517,72 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " level instead of per board, which is the right shape for a team that works together continuously rather than on one project."
+     "v": " level instead of per board, which is the right shape for a team that works together continuously rather than on one project. To share a whole workspace, right-click it in the workspace switcher — or use its "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Share workspace…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share workspace…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": the share panel opens already set to invite people to every cluster in it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A workspace has one owner, and can have any number of "
+    },
+    {
+     "t": "strong",
+     "v": "co-owners",
+     "children": [
+      {
+       "t": "text",
+       "v": "co-owners"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The owner or a co-owner makes someone a co-owner from "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Members",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Members"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Co-owners share the running of the workspace; deleting it and handing it to someone else stay with the owner."
     }
    ]
   },
@@ -25234,7 +25460,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Workspace owners get a third choice, "
+     "v": "Workspace owners and co-owners get a third choice, "
     },
     {
      "t": "strong",
@@ -25248,7 +25474,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — that grants every cluster in the workspace, not just this one, so only the owner can hand it out."
+     "v": " — that grants every cluster in the workspace, not just this one, so only they can hand it out. "
+    },
+    {
+     "t": "strong",
+     "v": "Share workspace…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share workspace…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in a workspace's right-click or "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu opens the panel with that choice already picked."
     }
    ]
   },
@@ -25307,7 +25561,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners can change a role, remove access, or transfer the workspace from here."
+     "v": "One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace."
     }
    ]
   },
@@ -29758,7 +30012,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Shared. Everyone in the workspace sees the same values. Editors and owners can change Card defaults; only the owner can change the name, the icon, the members, or run a recovery. Viewers see everything read-only."
+     "v": "Shared. Everyone in the workspace sees the same values. Editors, co-owners and owners can change Card defaults; only the owner or a co-owner can change the name, the icon or the members, and only the owner can run a recovery. Viewers see everything read-only."
     }
    ]
   },
@@ -29898,6 +30152,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
+     "v": "Co-owner",
+     "children": [
+      {
+       "t": "text",
+       "v": "Co-owner"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (runs the workspace alongside the owner), "
+    },
+    {
+     "t": "strong",
      "v": "Editor",
      "children": [
       {
@@ -29922,7 +30190,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (opens, reads, comments and votes, but does not change anything). The owner can change an editor to a viewer and back, remove a member — which also removes any cluster shared to them directly in this workspace — hand the workspace to another member, and invite someone by email as an editor or a viewer. Everyone else sees the list."
+     "v": " (opens, reads, comments and votes, but does not change anything). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Only the owner can hand the workspace to another member. Everyone else sees the list."
     }
    ]
   },
@@ -33325,7 +33593,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " deleted. Ownership passes to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving."
+      "v": " deleted. Ownership passes to a co-owner if there is one, and otherwise to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving."
      }
     ],
     [

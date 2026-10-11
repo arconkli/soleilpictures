@@ -780,9 +780,10 @@ test('a banned account is refused at connect and dropped from open boards within
 
 test('a deleted account\'s shared workspace passes to an editor, who becomes its owner', () => {
   const heir = latestDefinition('_deletion_heir').body;
-  assert.match(heir, /m\.role in \('owner', 'admin', 'editor'\)/, 'never a viewer or a service account');
+  assert.match(heir, /m\.role in \('owner', 'coowner', 'admin', 'editor'\)/, 'never a viewer or a service account');
   assert.match(heir, /not public\._user_banned\(m\.user_id\)/);
-  assert.match(heir, /order by m\.created_at asc, m\.user_id asc\s+limit 1/, 'one deterministic heir');
+  // 0391: a co-owner inherits first; then the longest-standing editor.
+  assert.match(heir, /order by \(m\.role = 'coowner'\) desc, m\.created_at asc, m\.user_id asc\s+limit 1/, 'one deterministic heir');
   const prep = latestDefinition('prepare_account_deletion').body;
   assert.match(prep, /public\._deletion_heir\(w\.id, p_user_id\)/);
   assert.match(prep, /update workspace_members set role = 'owner' where workspace_id = r\.id and user_id = r\.to_user;/);

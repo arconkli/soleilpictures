@@ -940,6 +940,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
           <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" toggle active={fmt.italic} />
           <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" toggle active={fmt.underline} />
           <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" toggle active={fmt.strike} />
+          <ClearFormatBtn />
           <span className="tob-sep" />
           <ListBtn label="•"  title="Bulleted list" type="ul"   active={fmt.listType === 'ul'} />
           <ListBtn label="1." title="Numbered list" type="ol"   active={fmt.listType === 'ol'} />
@@ -1172,6 +1173,27 @@ function FormatBtn({ label, title, cmd, val, bold, active = false, toggle = fals
             onClick={() => (toggle ? execToggle(cmd, !active) : execCmd(cmd, val))}
             style={bold ? { fontWeight: 700 } : undefined}>
       {label}
+    </button>
+  );
+}
+
+// Clear formatting (⌘\): strips bold/italic/colour/font/size from the
+// selection back to the note's own defaults; links and comments stay. The
+// legacy contentEditable path falls back to the browser's removeFormat.
+function ClearFormatBtn() {
+  return (
+    <button className="tob-btn"
+            title="Clear formatting (⌘\)"
+            aria-label="Clear formatting"
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const editor = getActiveNoteEditor();
+              if (editor) editor.chain().focus().clearFormatting().run();
+              else withSelection(() => { try { document.execCommand('removeFormat'); } catch (_) {} });
+              notifyFormatChanged();
+            }}>
+      <span className="tb-clear-fmt">T<sub>x</sub></span>
     </button>
   );
 }

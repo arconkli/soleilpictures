@@ -7,7 +7,7 @@
 // Escape close it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check } from '../lib/icons.js';
+import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check, Share2 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { R2Image } from './R2Image.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
@@ -25,8 +25,10 @@ export function WorkspaceMenu({
   onSelect,
   onAddNew,
   onRemove,             // (ws, action: 'delete' | 'leave') => void
-  onOpenSettings,       // (ws) => void   — owners only; opens Settings → General,
+  onOpenSettings,       // (ws) => void   — owner / co-owner; opens Settings → General,
                         //                  where the name sits beside the icon
+  onShare,              // (ws) => void   — owner / co-owner; opens the Share panel
+                        //                  set to invite people to the WHOLE workspace
   onClose,
   // The button that opens THIS menu. A click on it is the trigger's own toggle,
   // not an outside click — closing here first would let the toggle reopen it.
@@ -87,8 +89,13 @@ export function WorkspaceMenu({
     const isActive = w.id === activeWorkspaceId;
     const isPersonal = w.id === personalWorkspaceId;
     const isOwner = w.created_by === selfUserId;
+    // 0391: a co-owner runs the workspace (people, sharing, name, icon) but
+    // can't delete it, so their remove action stays "Leave".
+    const isCoowner = !isOwner && w._myRole === 'coowner';
+    const canManage = isOwner || isCoowner;
     const subtitle = isPersonal ? 'Personal'
                   : isOwner    ? 'You own this'
+                  : isCoowner  ? 'You co-own this'
                   :              'Shared with you';
     const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
     const tint = pickPresenceColor(w.id);
@@ -97,12 +104,16 @@ export function WorkspaceMenu({
     // see "Delete workspace" (destroys it for everyone); shared
     // members see "Leave workspace" (removes their own membership).
     const canRemove = !!onRemove && !isPersonal;
-    const canRename = !!onOpenSettings && isOwner;
+    const canRename = !!onOpenSettings && canManage;
+    const canShare = !!onShare && canManage;
     const removeAction = isOwner ? 'delete' : 'leave';
     const isMenuOpen = openMenuId === w.id;
-    const hasRowMenu = canRemove || canRename;
+    const hasRowMenu = canRemove || canRename || canShare;
     return (
-      <div key={w.id} className={`ws-menu-row-wrap ${hasRowMenu ? 'has-menu' : ''}`}>
+      <div key={w.id} className={`ws-menu-row-wrap ${hasRowMenu ? 'has-menu' : ''}`}
+           // Right-click a workspace → the same menu its ⋯ opens, instead of
+           // the browser's.
+           onContextMenu={hasRowMenu ? (e) => { e.preventDefault(); setOpenMenuId(w.id); } : undefined}>
         <button className={`ws-menu-row ${isActive ? 'is-active' : ''}`}
                 onClick={() => { onSelect?.(w.id); onClose?.(); }}>
           {iconSrc
@@ -132,6 +143,17 @@ export function WorkspaceMenu({
             {isMenuOpen && (
               <div className="ws-menu-row-pop" role="menu"
                    onClick={(e) => e.stopPropagation()}>
+                {canShare && (
+                  <button className="ws-menu-row-pop-item"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            onShare?.(w);
+                            onClose?.();
+                          }}>
+                    <Icon as={Share2} size={12} />
+                    <span>Share workspace…</span>
+                  </button>
+                )}
                 {canRename && (
                   <button className="ws-menu-row-pop-item"
                           onClick={() => {

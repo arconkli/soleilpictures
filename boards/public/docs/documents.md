@@ -43,6 +43,11 @@ document is docked at a time; opening another hands it the pane. Docking a
 document also takes over the [split view](/docs/clusters#side-by-side) pane, since
 there is only one.
 
+A document reopens **where you left it** — the same page, scrolled to the same
+spot — even after you close the tab. That position is remembered per browser,
+not synced between devices. Following a collaborator's avatar into a document
+still takes you to where *they* are.
+
 ## The three panes
 
 **Pages** on the left — a hierarchical tree. Documents are genuinely
@@ -63,6 +68,14 @@ lists, task lists, alignment, colour, font and size. Every one has a
 [keyboard shortcut](/docs/keyboard-shortcuts#document).
 
 `⌘F` opens **find and replace**.
+
+Text pasted from Google Docs, Word or a web page keeps its structure and
+emphasis — headings, lists, links, bold, italic, real colours — but drops the
+source's font, size, background and default black ink, so it takes on the
+document's own typography instead of arriving as a patch of 11pt Arial. Text
+copied from another Clusters note or document keeps everything. **Clear
+formatting** (`⌘\`, or the **Tx** button) strips the selection back to plain;
+links and comments stay.
 
 The footer shows a live word and character count, and an honest save status —
 it reports what has actually been persisted rather than an optimistic tick.

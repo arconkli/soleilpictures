@@ -204,7 +204,7 @@ export function RichDocCard({
       const { cardId, pageId, scrollTop } = e.detail || {};
       if (cardId !== card.id) return;
       if (pageId) {
-        try { sessionStorage.setItem(`soleil.boards.docActivePage.${card.id}`, pageId); } catch (_) {}
+        try { localStorage.setItem(`soleil.boards.docActivePage.${card.id}`, pageId); } catch (_) {}
       }
       setPendingScroll({ boardId: card.id, pageId: pageId || null, scrollTop: scrollTop || 0 });
       openRemembered();

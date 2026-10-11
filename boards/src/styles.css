@@ -9483,11 +9483,24 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   padding: 6px 10px;
   box-shadow: var(--shadow-3);
   z-index: 25;
-  max-width: calc(100% - 360px);
-  flex-wrap: wrap;
+  /* One row, always. This used to be `max-width: calc(100% - 360px)` with
+     `flex-wrap: wrap`, so the full note bar (~740px) folded onto a second row
+     whenever the canvas was under ~1100px — sidebar open, a docked doc, a
+     split — which read as wrapping "for no reason". Now it never wraps: the
+     gutter shrinks to 140px a side (still clears .cnv-zoom bottom-right, ~124px
+     with its inset) and, only if the canvas is genuinely narrower than the
+     bar, it swipes sideways like the phone bar does. Every picker popover is
+     portaled to <body>, so the overflow clip never hides one. */
+  max-width: calc(100% - 280px);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   user-select: none;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+.tob::-webkit-scrollbar { display: none; }
+.tob > * { flex-shrink: 0; }
 [data-theme='light'] .tob { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
 .tob-label {
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
@@ -9619,6 +9632,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
 .size-combo-wrap.is-drop-up .size-combo-pop { top: auto; bottom: calc(100% + 4px); }
+/* Portaled to <body> (SizeInput sets left/top|bottom inline): fixed, and above
+   the floating bars it hangs off. */
+.size-combo-pop.is-portaled { position: fixed; z-index: 2147483647; } /* same layer as .font-pop: must clear the doc modal */
 .size-combo-item {
   border: 0; border-radius: 4px;
   background: transparent;
@@ -12849,15 +12865,20 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scroll-behavior: smooth;
+  /* No `scroll-behavior: smooth` here. It animated every programmatic scroll —
+     ProseMirror keeping the caret in view while typing, the reopen restore —
+     so the page lagged behind and then caught up: the occasional "glitch"
+     scrolling down a doc. Callers that want smooth (find, outline jumps) ask
+     for it per call. */
   background-color: var(--bg-0);
-  /* Grain texture painted directly on the scrollable surface. The
-     translucent top layer is the base color at 97% opacity, so the
-     grain image under it shows through at ~3% effective opacity —
-     same look as the canvas's separate <div class="grain-canvas">.
-     background-attachment: local tiles the bg across the entire
-     scrollHeight so the dark gutter stays grained no matter how many
-     sheets stack on top of each other. */
+  /* Grain texture on the scroller's box. The translucent top layer is the
+     base color at 97% opacity, so the grain shows through at ~3% — same look
+     as the canvas's separate <div class="grain-canvas">. It used to be
+     `background-attachment: local` so the grain scrolled with the sheets, but
+     a local-attached, translucent, tiled background has to be repainted on
+     every scroll frame (Safari in particular gives up composited scrolling),
+     which is what made long docs judder. The grain at 3% reads the same
+     standing still behind the sheets. */
   background-image:
     linear-gradient(
       color-mix(in srgb, var(--bg-0) 97%, transparent),
@@ -12866,7 +12887,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
     var(--grain-url);
   background-repeat: repeat, repeat;
   background-size: auto, 320px 240px;
-  background-attachment: local, local;
   display: flex; flex-direction: column;
   align-items: center;
   padding: 32px 24px 96px;
@@ -22484,3 +22504,8 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   border: 1px dashed var(--line-2); background: var(--bg-2);
   font: 400 13.5px/1.4 var(--font-sans); color: var(--ink-1); text-align: center;
 }
+
+/* Clear-formatting glyph (doc toolbar + note bar): a "Tx", the convention from
+   Docs/Word, sized to sit with the B / I / U / S letter buttons. */
+.tb-clear-fmt { font-size: 12px; line-height: 1; letter-spacing: 0; }
+.tb-clear-fmt sub { font-size: 8px; vertical-align: -2px; margin-left: 1px; }

@@ -116,10 +116,14 @@ test.describe('one list, one scroll region', () => {
     expect(s).toMatch(/ROLE_LABEL\[s\.role\]\} — this cluster/);
     // One empty state, not two.
     expect(s.match(/className="share-empty"/g)?.length).toBe(2);   // loading + empty
-    // Every per-row control kept its gate.
-    expect(s).toMatch(/isOwner && !isSelf && !isWsOwner/);
-    expect(s).toMatch(/\(isOwner \|\| s\.invited_by === selfUserId\)/);
-    expect(s).toMatch(/\(isOwner \|\| row\.invited_by === selfUserId\)/);
+    // Every per-row control kept its gate. 0391 widened "the owner" to "the
+    // owner or a co-owner" (isManager); handing the workspace over stays the
+    // owner's alone.
+    expect(s).toMatch(/isManager && !isSelf && !isWsOwner/);
+    expect(s).toMatch(/\{isOwner && \(\s*<button className="share-remove" onClick=\{\(\) => onMakeOwner\(m\)\}/);
+    expect(s).toMatch(/\(isManager \|\| s\.invited_by === selfUserId\)/);
+    expect(s).toMatch(/\(isManager \|\| row\.invited_by === selfUserId\)/);
+    expect(s).toMatch(/const isManager = isOwner \|\| myRole === 'coowner';/);
   });
 
   test('the panel scrolls as one body', () => {
@@ -148,9 +152,10 @@ test.describe('the simplification did not weaken the permissions', () => {
     }
   });
 
-  test('workspace membership stays owner-only', () => {
+  test('workspace membership stays with the owner and co-owners', () => {
     const s = modal();
-    expect(s).toMatch(/isOwner && \(\s*\n\s*<option value="workspace"/);
+    expect(s).toMatch(/isManager && \(\s*\n\s*<option value="workspace"/);
+    expect(s).toMatch(/isManager && \(\s*\n\s*<option value="workspaceviewer"/);
   });
 
   test('turning access off is the only path that revokes, and it confirms first', () => {
