@@ -100,3 +100,27 @@ test('ModalShell dialogs are full-bleed on a phone', async ({ page }) => {
     expect(r.scrolls, `.${cls} backdrop must not scroll`).toBe(false);
   }
 });
+
+// MOBILE-04: iOS zooms the app on focus of any field under 16px. Coarse
+// pointers get 16px on every field a phone user types into.
+test('text fields are at least 16px on a touch device', async ({ browser }) => {
+  const ctx = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  await page.goto('/?local=1&reset=1&blank=1');
+  await expect(page.locator('.app')).toBeAttached();
+  expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'the context must report a coarse pointer').toBe(true);
+  const sizes = await page.evaluate(() => {
+    const out = {};
+    for (const [tag, cls] of [['textarea', 'msg-composer-input'], ['input', 'share-input'],
+      ['textarea', 'canvas-comment-draft-input'], ['input', 'canvas-comment-reply-input'], ['input', 'cmdk-input']]) {
+      const el = document.createElement(tag);
+      el.className = cls;
+      document.body.appendChild(el);
+      out[cls] = parseFloat(getComputedStyle(el).fontSize);
+      el.remove();
+    }
+    return out;
+  });
+  for (const [cls, px] of Object.entries(sizes)) expect(px, `.${cls}`).toBeGreaterThanOrEqual(16);
+  await ctx.close();
+});
