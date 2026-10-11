@@ -9623,21 +9623,43 @@ function AppTrieProvider({ workspaceId, children }) {
 // modals open across split toggles).
 function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, activePane = 'main', onClose }) {
   const wrapRef = React.useRef(null);
+  // The ratio lives HERE while the divider is dragged and reaches the parent
+  // once, on release. Setting App state per pointermove re-rendered the whole
+  // Workspace and both canvases and wrote the session to localStorage on every
+  // move. Re-rendering only this container leaves left/right alone: they are
+  // the same elements, so React skips them.
+  const [dragRatio, setDragRatio] = useState(null);
+  const shown = dragRatio ?? ratio;
   const onPointerDown = (e) => {
+    if (e.button != null && e.button !== 0) return;
     e.preventDefault();
     const wrap = wrapRef.current;
+    const divider = e.currentTarget;
     if (!wrap) return;
     const rect = wrap.getBoundingClientRect();
+    let latest = null;
+    // Pointer capture keeps the move/up events coming to the divider even
+    // over an embed's iframe, which used to swallow the pointerup and leave
+    // the divider following a pointer with no button held. pointercancel and
+    // lostpointercapture end the drag the same way.
+    try { divider.setPointerCapture?.(e.pointerId); } catch (_) {}
     const onMove = (ev) => {
-      const next = Math.max(0.18, Math.min(0.82, (ev.clientX - rect.left) / rect.width));
-      onRatio?.(next);
+      latest = Math.max(0.18, Math.min(0.82, (ev.clientX - rect.left) / rect.width));
+      setDragRatio(latest);
     };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+    const onEnd = () => {
+      divider.removeEventListener('pointermove', onMove);
+      divider.removeEventListener('pointerup', onEnd);
+      divider.removeEventListener('pointercancel', onEnd);
+      divider.removeEventListener('lostpointercapture', onEnd);
+      try { divider.releasePointerCapture?.(e.pointerId); } catch (_) {}
+      if (latest != null) onRatio?.(latest);
+      setDragRatio(null);
     };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    divider.addEventListener('pointermove', onMove);
+    divider.addEventListener('pointerup', onEnd);
+    divider.addEventListener('pointercancel', onEnd);
+    divider.addEventListener('lostpointercapture', onEnd);
   };
   return (
     <div className="split-wrap" ref={wrapRef}>
@@ -9647,7 +9669,7 @@ function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, a
           back button and the sidebar highlight are talking about. Never marked
           when there is no split — one pane needs no disambiguating. */}
       <div className={`split-pane${showSplit && activePane === 'main' ? ' is-active' : ''}`}
-           style={{ flex: showSplit ? ratio : 1 }}>{left}</div>
+           style={{ flex: showSplit ? shown : 1 }}>{left}</div>
       {showSplit && (
         <div className="split-divider" onPointerDown={onPointerDown}>
           {/* The close rides the divider: the one piece of chrome that belongs
@@ -9667,7 +9689,7 @@ function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, a
       )}
       {showSplit && (
         <div className={`split-pane${activePane === 'split' ? ' is-active' : ''}`}
-             style={{ flex: 1 - ratio }}>{right}</div>
+             style={{ flex: 1 - shown }}>{right}</div>
       )}
     </div>
   );
