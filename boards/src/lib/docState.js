@@ -14,6 +14,7 @@
 import * as Y from 'yjs';
 import { cloneYXmlNode } from './yhelpers.js';
 import { fragmentText } from './docText.js';
+import { convertFragmentDocMode } from '../components/docExtensions/screenplay/screenplayModeSwitch.js';
 
 // Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
 // mode). Deliberately NOT 'local' so the board-level Y.UndoManager (which
@@ -190,6 +191,26 @@ export function setDocMode(ydoc, scope, mode) {
   const m = metaMap(ydoc, scope);
   if (!m) return;
   ydoc.transact(() => { m.set('mode', mode === 'screenplay' ? 'screenplay' : 'doc'); }, DOC_ORIGIN);
+}
+
+// The person-facing mode switch (the Screenplay pill, enabling a title page):
+// flips the mode AND converts every page's content, in ONE DOC_ORIGIN
+// transaction. One writer — only the client that flipped converts, so peers'
+// editors never race each other into duplicating the doc — and one update, so
+// a peer never sees the new mode over unconverted content. Lossless both ways
+// and a single doc-structure undo step. setDocMode stays the raw setter for
+// content that is already in the right shape (a dropped script's body).
+export function switchDocMode(ydoc, scope, mode) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return;
+  const next = mode === 'screenplay' ? 'screenplay' : 'doc';
+  ydoc.transact(() => {
+    for (const map of [pageContentMap(ydoc, scope), sheetContentMap(ydoc, scope)]) {
+      if (!map || typeof map.forEach !== 'function') continue;
+      map.forEach((frag) => { convertFragmentDocMode(frag, next); });
+    }
+    m.set('mode', next);
+  }, DOC_ORIGIN);
 }
 
 // Screenplay scene-number visibility (the lock state itself lives on the scene
