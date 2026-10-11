@@ -138,7 +138,10 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
 
   if (!open) return null;
   // The TAGS block (head + chip row + divider) is ~44px on top of the rows.
-  const w = 220, hEst = items.length * 30 + 8 + (appliedTags.length ? 44 : 0);
+  // Reserved whenever the tags fetch runs, not once tags arrive: they load
+  // after the menu opens, and a menu near the bottom jumped up 44px then.
+  const canHaveTags = !!(supabase && workspaceId && boardId && card?.id);
+  const w = 220, hEst = items.length * 30 + 8 + (canHaveTags ? 44 : 0);
   const px = Math.max(8, Math.min(x, window.innerWidth  - w  - 8));
   // Floored at the top edge: on a short window (a landscape phone, or an image
   // card's ~20 rows) this went negative and the first rows started above the
