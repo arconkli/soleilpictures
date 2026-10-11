@@ -1038,6 +1038,43 @@ export function CanvasSurface({
   // Per-card upload progress (cardId → 0..1). Threaded into ImageCard so
   // the spinner overlay can show a percentage while uploading.
   const [uploadProgressById, setUploadProgressById] = useState({});
+  // XHR progress fires many times a second per upload, each in its own task,
+  // and a 30-photo drop runs them all at once: setting this top-level state
+  // on every event re-rendered the whole canvas hundreds of times a second
+  // while you panned. Reports are coalesced into one update per frame, and
+  // only a change in the whole percent the card shows is worth a render.
+  const progressPendingRef = useRef(null);   // Map(cardId → frac) awaiting the next frame
+  const reportUploadProgress = useCallback((id, frac) => {
+    let pend = progressPendingRef.current;
+    if (!pend) {
+      pend = progressPendingRef.current = new Map();
+      const flush = () => {
+        const batch = progressPendingRef.current;
+        progressPendingRef.current = null;
+        if (!batch || !batch.size) return;
+        setUploadProgressById((prev) => {
+          let next = null;
+          for (const [cid, f] of batch) {
+            if (prev[cid] != null && Math.round(prev[cid] * 100) === Math.round(f * 100)) continue;
+            if (!next) next = { ...prev };
+            next[cid] = f;
+          }
+          return next || prev;
+        });
+      };
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(flush);
+      else setTimeout(flush, 16);
+    }
+    pend.set(id, frac);
+  }, []);
+  const clearUploadProgress = useCallback((id) => {
+    progressPendingRef.current?.delete(id);   // a queued report must not bring it back
+    setUploadProgressById((prev) => {
+      if (!(id in prev)) return prev;
+      const { [id]: _drop, ...rest } = prev;
+      return rest;
+    });
+  }, []);
   // IDs of cards/boards currently highlighted because the user is hovering
   // an EntityLink that points at them. Drives the .is-link-target class
   // so the canvas reflects what the link will navigate to.
@@ -3573,9 +3610,7 @@ export function CanvasSurface({
       ...fileMetaFor(file),
     });
     try {
-      const onProgress = (frac) => {
-        setUploadProgressById(prev => ({ ...prev, [id]: frac }));
-      };
+      const onProgress = (frac) => reportUploadProgress(id, frac);
       const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       // If the user navigated to a different board mid-upload, the active
       // mutators no longer target the board this card lives on, so the patch
@@ -3595,7 +3630,7 @@ export function CanvasSurface({
       // upgrade path and no telemetry.
       handleUploadReject(err, id, dropBoardId);
     } finally {
-      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      clearUploadProgress(id);
       setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
       if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
     }
@@ -3778,7 +3813,7 @@ export function CanvasSurface({
     mutators.addCard?.({ id, kind: 'pdf', name: file.name || 'PDF',
                          x: placed.x, y: placed.y, w, h, pending: true });
     try {
-      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const onProgress = (frac) => reportUploadProgress(id, frac);
       inflightUploadsRef.current.add(id);
       const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       settleUpload(dropBoardId, id, {
@@ -3793,7 +3828,7 @@ export function CanvasSurface({
       handleUploadReject(err, id, dropBoardId);
     } finally {
       inflightUploadsRef.current.delete(id);
-      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      clearUploadProgress(id);
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas, handleUploadReject, settleUpload]);
 
@@ -3825,7 +3860,7 @@ export function CanvasSurface({
         settled = true;
         unwatch();
         inflightUploadsRef.current.delete(id);
-        setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+        clearUploadProgress(id);
       }
       // The file is in: anything that fails after this is a missing extra (a
       // poster, a waveform), never a reason to take the card away.
@@ -3856,7 +3891,7 @@ export function CanvasSurface({
 
     mutators.addCard?.({ id, kind: 'file', fileName: file.name, mime: file.type,
                          sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h, pending: true });
-    const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+    const onProgress = (frac) => reportUploadProgress(id, frac);
     await runCancellableUpload(id, dropBoardId,
       (signal) => uploadFile({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress, signal, originalName: meaningfulFileName(file) }),
       (up) => settleUpload(dropBoardId, id, {
@@ -3892,7 +3927,7 @@ export function CanvasSurface({
     const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const placed = placeDropRect(cx, cy, w, h, rect);
     mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
-    const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+    const onProgress = (frac) => reportUploadProgress(id, frac);
     await runCancellableUpload(id, dropBoardId,
       (signal) => uploadFile({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress, signal, originalName: meaningfulFileName(file) }),
       async (up) => {
@@ -3943,7 +3978,7 @@ export function CanvasSurface({
     mutators.addCard?.({ id, kind: 'video', ...fileMetaFor(file), x: placed.x, y: placed.y, w, h, pending: true });
     inflightUploadsRef.current.add(id);
     try {
-      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const onProgress = (frac) => reportUploadProgress(id, frac);
       // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
       // moot here (this path only handles ≤ the free byte cap — larger goes
       // through dropLargeMedia/multipart).
@@ -3969,7 +4004,7 @@ export function CanvasSurface({
       handleUploadReject(e, id, dropBoardId);
     } finally {
       inflightUploadsRef.current.delete(id);
-      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      clearUploadProgress(id);
     }
   }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject, settleUpload]);
 
@@ -4003,7 +4038,7 @@ export function CanvasSurface({
       x: placed.x, y: placed.y, w, h, pending: true,
     });
     try {
-      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const onProgress = (frac) => reportUploadProgress(id, frac);
       inflightUploadsRef.current.add(id);
       const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       settleUpload(dropBoardId, id, {
@@ -4020,7 +4055,7 @@ export function CanvasSurface({
       handleUploadReject(err, id, dropBoardId);
     } finally {
       inflightUploadsRef.current.delete(id);
-      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      clearUploadProgress(id);
     }
   }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject, settleUpload]);
 

@@ -95,6 +95,16 @@ test('the backfill, hotlink and sweep timers key on stable signatures, not on ca
   assert.doesNotMatch(canvas, /\}, \[board\??\.id, cards, canEdit, isPublic, useLocalImages/);
 });
 
+// MEDIA-13: every XHR progress event set top-level canvas state, so a
+// multi-file upload re-rendered the whole canvas hundreds of times a second.
+test('upload progress is coalesced per frame and only on a whole-percent change', () => {
+  const fx = between('const reportUploadProgress = useCallback(', 'const clearUploadProgress = useCallback(');
+  assert.match(fx, /requestAnimationFrame\(flush\)/);
+  assert.match(fx, /Math\.round\(prev\[cid\] \* 100\) === Math\.round\(f \* 100\)\) continue;/);
+  assert.match(fx, /return next \|\| prev;/);
+  assert.equal((canvas.match(/setUploadProgressById\(/g) || []).length, 2, 'only the coalescer and the clear touch the state');
+});
+
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {
