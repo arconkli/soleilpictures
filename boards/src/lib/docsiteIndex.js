@@ -2036,7 +2036,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-10-02",
+    "updated": "2026-10-10",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2092,7 +2092,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-10-07",
+    "updated": "2026-10-10",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2528,7 +2528,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-09-10",
+    "updated": "2026-10-10",
     "navLabel": "Settings",
     "headings": [
       {

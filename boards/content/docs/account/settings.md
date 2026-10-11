@@ -5,7 +5,7 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-09-10
+updated: 2026-10-10
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
@@ -99,9 +99,10 @@ friends joined, how many got started, cards earned, free months.
 
 ## This workspace
 
-Shared. Everyone in the workspace sees the same values. Editors and owners can
-change Card defaults; only the owner can change the name, the icon, the
-members, or run a recovery. Viewers see everything read-only.
+Shared. Everyone in the workspace sees the same values. Editors, co-owners and
+owners can change Card defaults; only the owner or a co-owner can change the
+name, the icon or the members, and only the owner can run a recovery. Viewers
+see everything read-only.
 
 ### General
 
@@ -116,12 +117,14 @@ the rewind itself is reversible. See
 
 ### Members
 
-Everyone in the workspace, with their level: **Owner**, **Editor** (adds and
-changes content) or **Viewer** (opens, reads, comments and votes, but does not
-change anything). The owner can change an editor to a viewer and back, remove a
-member — which also removes any cluster shared to them directly in this
-workspace — hand the workspace to another member, and invite someone by email
-as an editor or a viewer. Everyone else sees the list.
+Everyone in the workspace, with their level: **Owner**, **Co-owner** (runs the
+workspace alongside the owner), **Editor** (adds and changes content) or
+**Viewer** (opens, reads, comments and votes, but does not change anything).
+The owner and co-owners can move anyone else between co-owner, editor and
+viewer, remove a member — which also removes any cluster shared to them
+directly in this workspace — and invite someone by email as an editor or a
+viewer. Only the owner can hand the workspace to another member. Everyone else
+sees the list.
 
 ### Card defaults
 

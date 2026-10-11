@@ -47,8 +47,10 @@ test('0317: public_share_links is read-only to client roles', () => {
   const sql = textOf('0317');
   assert.match(sql, /revoke insert, update, delete on public\.public_share_links from anon, authenticated;/);
   assert.match(sql, /drop policy if exists "public_links manage by owner" on public\.public_share_links;/);
+  // 0317 made it select-only; 0391 re-emits it so a co-owner reads every link
+  // too. Whoever emits it last, it must stay a SELECT policy.
   const p = latestPolicy('public_links read by owner');
-  assert.ok(p && p.file.startsWith('0317'), 'select-only owner policy must be in 0317');
+  assert.ok(p && p.file >= '0317', 'select-only owner policy must be 0317 or later');
   assert.match(p.body, /for select/i);
 });
 
@@ -71,9 +73,10 @@ test('0318: workspace_members.role is constrained and the CHECK includes service
 });
 
 test('0318: the allowed writer set is stated once and both write predicates use it', () => {
+  // 0391 added 'coowner' to the set; it is still stated once, here.
   const canWrite = latestDefinition('_workspace_member_can_write');
-  assert.ok(canWrite && canWrite.file.startsWith('0318'));
-  assert.match(canWrite.body, /in \('owner',\s*'admin',\s*'editor',\s*'service'\)/);
+  assert.ok(canWrite && canWrite.file >= '0318');
+  assert.match(canWrite.body, /in \('owner',\s*'coowner',\s*'admin',\s*'editor',\s*'service'\)/);
   for (const fn of ['can_write_workspace', 'can_write_board']) {
     const def = latestDefinition(fn);
     assert.ok(def.file >= '0318', `${fn} latest definition must be 0318 or later, got ${def.file}`);
@@ -99,12 +102,40 @@ test('0318: removing or leaving a workspace also removes that user\'s board shar
   }
 });
 
-test('0318: set_workspace_member_role exists, is owner-gated and only allows editor|viewer', () => {
+test('0318/0391: set_workspace_member_role is manager-gated, never touches the owner, and only allows coowner|editor|viewer', () => {
   const def = latestDefinition('set_workspace_member_role');
-  assert.ok(def && def.file.startsWith('0318'));
-  assert.match(def.body, /p_role not in \('editor',\s*'viewer'\)/);
-  assert.match(def.body, /created_by/);
+  assert.ok(def && def.file >= '0318');
+  assert.match(def.body, /p_role not in \('coowner',\s*'editor',\s*'viewer'\)/);
+  assert.match(def.body, /not public\.can_manage_workspace\(p_workspace_id\)/);
+  assert.match(def.body, /if p_user_id = v_owner then/, 'the owner\'s row is ownership, not a role');
   assert.match(textOf('0318'), /grant execute on function public\.set_workspace_member_role\(uuid, uuid, text\) to authenticated;/);
+});
+
+test('0391: a co-owner manages but cannot destroy or take the workspace', () => {
+  const sql = textOf('0391');
+  // Called from RLS policies, which run as the caller — so authenticated needs
+  // EXECUTE, anon must not have it.
+  assert.match(sql, /revoke all on function public\.can_manage_workspace\(uuid\) from public, anon;/);
+  assert.match(sql, /grant execute on function public\.can_manage_workspace\(uuid\) to authenticated, service_role;/);
+  assert.match(latestDefinition('can_manage_workspace').body, /m\.role = 'coowner'/);
+  for (const fn of ['invite_workspace_member', 'remove_workspace_member', 'list_pending_invites_for_workspace', 'share_board']) {
+    assert.match(latestDefinition(fn).body, /can_manage_workspace\(/, `${fn} must let a co-owner manage`);
+  }
+  assert.match(latestDefinition('remove_workspace_member').body, /if p_user_id = v_owner then/, 'nobody removes the owner');
+  // Deleting and handing over stay created_by-only.
+  for (const fn of ['delete_workspace', 'transfer_workspace_ownership']) {
+    assert.doesNotMatch(latestDefinition(fn).body, /can_manage_workspace/, `${fn} must stay owner-only`);
+  }
+  // The billing anchor never moves: limits are charged to created_by.
+  assert.doesNotMatch(latestDefinition('_owner_card_count').body, /coowner/);
+});
+
+test('0392: only a manager renames a workspace or changes its icon', () => {
+  assert.match(textOf('0392'), /drop policy if exists "ws update settings by editor" on public\.workspaces;/);
+  const merge = latestDefinition('merge_workspace_settings');
+  assert.ok(merge.file >= '0392');
+  assert.match(merge.body, /\? 'icon_url'\s+and not public\.can_manage_workspace\(p_workspace_id\)/);
+  assert.match(latestPolicy('ws update by creator or co-owner').body, /created_by = auth\.uid\(\) or public\.can_manage_workspace\(id\)/);
 });
 
 test('0318: invite_workspace_member keeps a viewer invite a viewer', () => {
