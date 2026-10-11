@@ -46,6 +46,15 @@ test('the client reacts through the RPC and checks the error', () => {
   assert.match(body, /supabase\.rpc\('toggle_message_reaction'/);
   assert.match(body, /if \(error\)/);
   assert.doesNotMatch(body, /\.update\(/, 'no direct UPDATE: RLS makes it a silent no-op');
+  // Until 0398 is applied, a missing RPC falls back to the author-only path,
+  // and only then; the fallback reads back the row it wrote, so a zero-row
+  // UPDATE on someone else's message throws instead of passing silently.
+  assert.match(body, /if \(error && isMissingFunction\(error\)\) return toggleOwnReactionLegacy\(/);
+  assert.match(src, /error\?\.code === 'PGRST202' \|\| error\?\.code === '42883'/);
+  const legacy = src.slice(src.indexOf('async function toggleOwnReactionLegacy'));
+  const lbody = legacy.slice(0, legacy.indexOf('\n}\n'));
+  assert.match(lbody, /\.update\(\{ reactions \}\)\.eq\('id', messageId\)\.select\('id'\)/);
+  assert.match(lbody, /if \(!rows \|\| rows\.length === 0\) throw/);
   const thread = readFileSync(new URL('../components/MessageThread.jsx', import.meta.url), 'utf8');
   const react = thread.slice(thread.indexOf('const handleReact'), thread.indexOf('const handleReply'));
   assert.match(react, /catch[\s\S]*feedback\.toast\(\{ type: 'error'/, 'a failed reaction says so');

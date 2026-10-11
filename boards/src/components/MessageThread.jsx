@@ -457,12 +457,12 @@ export function MessageThread({
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
     try {
-      await toggleReaction({ messageId: msg.id, emoji });
+      await toggleReaction({ messageId: msg.id, emoji, userId });
       refetch();
     } catch (e) {
       feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
     }
-  }, [refetch, feedback]);
+  }, [userId, refetch, feedback]);
 
   const handleReply = useCallback((msg) => {
     setReplyParent(msg);
