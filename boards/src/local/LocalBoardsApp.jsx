@@ -2043,6 +2043,7 @@ export function LocalBoardsApp({ user, signOut }) {
                     hasSplit={filesMode === 'panel'}
                     dockControls={localDockControls}
                     mutators={surfaceMutators}
+                    homeSrc={currentBoard ? { boardId: currentBoard.id, cards: framedState.cards, mutators: surfaceMutators, canEdit: true } : null}
                     {...o}
                   />
                 )}

@@ -10,12 +10,28 @@ import { ChevronLeft, ChevronDown } from '../../lib/icons.js';
 import { COVER_TINTS } from '../primitives.jsx';
 import { collapsePath, ELLIPSIS } from '../../lib/filesDock.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { useSpring } from '../../hooks/useSpring.js';
 
 const byName = (a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
 
-export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = false, onGoTo = null, readOnly = false }) {
-  const steps = collapsePath(path, 3);
+export function PathBar({
+  path = [], boards = {}, onNavigate, onBack, canBack = false, onGoTo = null, readOnly = false,
+  // Spring-loading (lib/springLoad.js): hold a dragged file over Back or a step
+  // and the panel goes there, mid-drag.
+  onSpringBack = null, onSpringTo = null,
+  // Full Files: just the way back — Back and the ancestors, no current step
+  // (the page title says where you are).
+  trail = false,
+}) {
+  const steps = collapsePath(trail ? path.slice(0, -1) : path, 3);
   const last = path[path.length - 1];
+  const spring = useSpring();
+  const springProps = (key, fire) => (fire ? {
+    onDragEnter: () => spring.enter(key, fire),
+    onDragOver: () => spring.enter(key, fire),
+    onDragLeave: (e) => spring.leave(key, e),
+    onDrop: () => spring.cancel(),
+  } : {});
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
@@ -57,9 +73,10 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
   );
   const hereName = boards[last]?.name || 'Untitled cluster';
   return (
-    <nav className="pb" aria-label="Files path">
+    <nav className={`pb${trail ? ' pb--trail' : ''}`} aria-label="Files path">
       {canBack && (
-        <button type="button" className="cbt-iconbtn pb-back" onClick={onBack} aria-label="Back" title="Back">
+        <button type="button" className={`cbt-iconbtn pb-back${spring.armed === 'back' ? ' is-springing' : ''}`} onClick={onBack} aria-label="Back" title="Back"
+                {...springProps('back', onSpringBack)}>
           <Icon as={ChevronLeft} size={16} weight="light" />
         </button>
       )}
@@ -67,11 +84,12 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
         {steps.map((id, i) => {
           if (id === ELLIPSIS) return <li key={`gap-${i}`} className="pb-gap" aria-hidden="true">…</li>;
           const name = boards[id]?.name || 'Untitled cluster';
-          const here = id === last;
+          const here = !trail && id === last;
           return (
             <li key={id} className={`pb-step${here ? ' is-here' : ''}`}>
               {!here ? (
-                <button type="button" className="pb-name pb-link" onClick={() => onNavigate?.(id)} title={name}><span className="pb-text">{name}</span></button>
+                <button type="button" className={`pb-name pb-link${spring.armed === `step:${id}` ? ' is-springing' : ''}`} onClick={() => onNavigate?.(id)} title={name}
+                        {...springProps(`step:${id}`, onSpringTo ? () => onSpringTo(id) : null)}><span className="pb-text">{name}</span></button>
               ) : inside.length || onGoTo ? (
                 <button type="button" className="pb-name pb-here" data-menu-trigger="path" ref={triggerRef}
                         aria-current="location" aria-haspopup="menu" aria-expanded={open}

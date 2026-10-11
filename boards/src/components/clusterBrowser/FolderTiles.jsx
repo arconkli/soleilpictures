@@ -33,6 +33,7 @@ export const FolderTile = memo(function FolderTile({
   peers = null,
   rename = null,   // inline rename: { onCommit, onCancel }
   compact = false, // the panel's one-line rows: a smaller cover and glyph
+  springing = false, // a drag is held over it: it's about to open (lib/springLoad.js)
   className = '', ...divProps
 }) {
   const people = [];
@@ -52,7 +53,7 @@ export const FolderTile = memo(function FolderTile({
   return (
     <div {...divProps}
          draggable={rename ? undefined : divProps.draggable}
-         className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
+         className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${springing ? ' is-springing' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
          title={label}>
       <div className="ft-cover" data-cover={cover} style={{ '--ft-tint': tint }}>
         {board?.thumb_key ? (
