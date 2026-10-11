@@ -164,7 +164,8 @@ export function FilesDockLayout({
     if (mode !== 'panel' || prev !== 'off') return undefined;
     setEntering(true);
     const t = setTimeout(() => setEntering(false), 240);
-    return () => clearTimeout(t);
+    // Expanding inside the slide must not carry the class into full Files.
+    return () => { clearTimeout(t); setEntering(false); };
   }, [mode]);
 
   return (
@@ -290,6 +291,8 @@ export function FilesPane({
         if (here) onLocate(here);
       } : null,
       childBoards: childBoards || [],
+      // Its snapshot is still on the way: not "no files" yet.
+      loading: !cardsFor && preview == null,
       canEdit: false,
       mutators: {},
       onDropFilesToCluster: undefined,

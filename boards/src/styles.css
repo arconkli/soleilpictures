@@ -7986,6 +7986,10 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .ctx-item:hover:not(:disabled), .ctx-item.kbd-active { background: var(--bg-hov); color: var(--ink-0); }
+/* Menus sit on --bg-3 now; --bg-hov is darker than that in dark, so a hovered
+   row would vanish. An ink wash shows on any surface, in either theme. */
+.ctx-menu .ctx-item:hover:not(:disabled), .ctx-menu .ctx-item.kbd-active,
+.cbt-menu .ctx-item:hover:not(:disabled) { background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
 .ctx-item.kbd-active { background: var(--soleil-soft); }
 .ctx-item.danger { color: var(--ink-error); }
 .ctx-item.danger:hover { background: rgba(224,139,139,0.10); }
@@ -8750,7 +8754,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbt-search:focus-within { border-color: var(--soleil); }
 .cbt-search-icon { color: var(--ink-3); flex-shrink: 0; }
 .cbt-input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--ink-0); font-size: 13px; font-weight: 500; }
-.cbt-input::placeholder { color: color-mix(in srgb, var(--ink-2) 85%, var(--ink-3)); }
+.cbt-input::placeholder { color: var(--ink-2); }
 .cbt-clear { background: none; border: none; color: var(--ink-3); cursor: pointer; display: grid; place-items: center; padding: 2px; border-radius: 4px; }
 .cbt-clear:hover { color: var(--ink-1); background: var(--bg-hov); }
 .cbt-spacer { flex: 1 1 auto; }
@@ -8876,6 +8880,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   padding: 8px 12px;
   transition: color var(--dur-quick) var(--ease);
 }
+.ct-thw { display: contents; }
 .ct-th:hover { color: var(--ink-0); }
 .ct-th:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; border-radius: 3px; }
 .ct-head .ct-th { gap: 4px; }
@@ -9060,7 +9065,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-sw { flex: 1 1 0; min-width: 0; height: 100%; position: relative; container-type: inline-size; }
 .cbp-sw-hex { position: absolute; left: 6px; bottom: 6px; font: 500 9.5px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
 @container (max-width: 44px) { .cbp-sw-hex { display: none; } }
-.cbp-sw-more { flex: 0 0 auto; display: grid; place-items: center; padding: 0 6px; background: var(--bg-4); color: var(--ink-2); font: 500 10px/1 var(--font-sans); }
+.cbp-sw-more { container-type: normal; min-width: max-content; flex: 0 0 auto; display: grid; place-items: center; padding: 0 6px; background: var(--bg-4); color: var(--ink-2); font: 500 10px/1 var(--font-sans); }
 /* A file with no picture: its glyph, its format, its size. */
 .cbp-file-tile { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
 .cbp-file-glyph { display: grid; color: var(--ink-2); }
@@ -9074,6 +9079,14 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-file-tile[data-tone='pdf'] { --ext-ink: var(--ink-error); }
 .cbp-file-tile[data-tone='sheet'] { --ext-ink: var(--msg-ok); }
 .cbp-file-tile[data-tone='audio'] { --ext-ink: var(--msg-info); }
+/* Light: the same hues, dark enough for 10px text on white. */
+[data-theme='light'] .cbp-file-tile[data-tone='pdf'] { --ext-ink: #9a3b3b; }
+[data-theme='light'] .cbp-file-tile[data-tone='sheet'] { --ext-ink: #13704e; }
+[data-theme='light'] .cbp-file-tile[data-tone='audio'] { --ext-ink: #2a56b0; }
+/* Quick look is dark in both themes. */
+.ql .cbp-file-tile[data-tone='pdf'] { --ext-ink: #e08b8b; }
+.ql .cbp-file-tile[data-tone='sheet'] { --ext-ink: #2faf78; }
+.ql .cbp-file-tile[data-tone='audio'] { --ext-ink: #8ab4f8; }
 
 /* Schematic marks — grid/doc/schedule/shape (SVG) + note/link (HTML). Each
    fills the preview box and scales cleanly at both the row thumb and tile. */
@@ -9120,9 +9133,12 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbp-note-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 .cbp-note-row { display: grid; place-items: center; color: var(--ink-2); }
 /* Title over body, as the canvas shows a note; the overflow fades out. */
-.cbp-note-tile {
-  /* The top-left corner is the select check's. */
-  flex-direction: column; gap: 6px; padding: 34px 14px 0;
+.cbp-note-tile { flex-direction: column; padding: 0; }
+.cbp-note-inner {
+  /* The top-left corner is the select check's. The fade is on the words only:
+     on the tile itself it faded a coloured note's own tint. */
+  display: flex; flex-direction: column; gap: 6px;
+  width: 100%; height: 100%; box-sizing: border-box; padding: 34px 14px 0; overflow: hidden;
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
 }
@@ -9178,7 +9194,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-jg .ct-tile.is-pending .ct-tile-type { display: block; flex: none; margin: 0 0 0 auto; font-size: 11px; color: var(--ink-2); }
 /* Not on board (dashed) / a copy on board (solid): a mark by the name. */
 .ct-tile-flag { flex: none; width: 7px; height: 7px; margin-top: 4px; box-sizing: border-box; border-radius: 50%; border: 1.25px dashed var(--ink-2); }
-.ct-tile-flag.is-on { border-style: solid; border-color: var(--ink-3); background: var(--ink-3); }
+.ct-tile-flag.is-on { border-style: solid; border-color: var(--ink-2); background: var(--ink-2); }
 .cbt-flag { margin: 0 2px 0 0; }
 /* Select without a modifier key: a round check, top-left, on hover — and on
    every tile once something is selected. Gold only when it's selected. */
@@ -9307,7 +9323,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .cbd-act.is-primary { flex: 1; justify-content: center; background: var(--bg-4); color: var(--ink-0); }
 .cbd-act.is-primary:hover { background: var(--bg-act); }
 [data-theme='light'] .cbd-act.is-primary { background: var(--bg-3); border-color: var(--line-2); box-shadow: var(--shadow-1); }
-.cbd-icon { border-color: var(--line-2); }
+.cbd-actions .cbd-icon { border-color: var(--line-2); }
+.cbd-actions .cbd-icon:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
+[data-theme='light'] .cbd-act.is-primary:hover { background: var(--bg-hov); }
 .cbd-act-danger { margin-left: auto; color: var(--ink-error); }
 .cbd-act-danger:hover { color: var(--ink-error); background: color-mix(in srgb, var(--ink-error) 10%, transparent); }
 .cbd-members { margin-top: 6px; }
@@ -9426,6 +9444,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   .cbt { gap: 6px; padding-bottom: 10px; }
   .cbt-spacer { display: none; }
   .cbt-search { flex: 1 1 100%; max-width: none; }
+  /* View is first on the second line here: open its menu rightwards, or it
+     hangs off the left edge of the screen. */
+  .cbt--full .cbt-menu { left: 0; right: auto; }
   .ct-gallery { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   /* Detail popout → bottom sheet on phones. */
   .cb-split { flex-direction: column; }
@@ -22070,11 +22091,11 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 .cbt-iconbtn:hover { background: var(--bg-3); color: var(--ink-0); }
 .cbt-iconbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .cbt-add-ico { background: var(--bg-3); border-color: var(--line-2); color: var(--ink-1); }
-.cbt-add-ico:hover { background: var(--bg-hov); }
+.cbt-add-ico:hover { background: color-mix(in srgb, var(--ink-0) 7%, var(--bg-3)); }
 .cbt-menu-label {
   padding: 10px 10px 4px 30px;
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--ink-2) 85%, var(--ink-3));
+  color: var(--ink-2);
 }
 .cbt-shrink { white-space: nowrap; }
 
@@ -22108,8 +22129,6 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   background: color-mix(in srgb, var(--ft-tint, var(--ink-3)) 12%, var(--bg-3));
 }
 .ft-cover[data-cover='neutral'] { background: color-mix(in srgb, var(--ink-0) 6%, var(--bg-3)); color: var(--ink-2); }
-/* Even capped, the gold cover echoed the sidebar's active row: sand in Files. */
-.ft-cover[data-cover='sun'] { --ft-tint: #c9a577; }
 .ft-thumb, .ft-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ft-text { min-width: 0; }
 .ft-name {
@@ -22158,7 +22177,7 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   background: none; border: 0; padding: 0 6px; border-radius: 6px;
 }
 .pb-step.is-here .pb-name { color: var(--ink-0); font-weight: 600; font-size: 13px; }
-.pb-here-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-here-text, .pb-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pb-caret { flex: none; color: var(--ink-2); transition: transform var(--dur-quick) var(--ease); }
 button.pb-here { cursor: pointer; }
 button.pb-here:hover, button.pb-here[aria-expanded='true'] { background: var(--bg-3); }
@@ -22315,6 +22334,9 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .lp-drop.is-blocked { border-color: var(--line-3); background: var(--bg-3); color: var(--ink-2); }
 /* Empty: say so, and offer the one thing to do. */
 .list-empty.is-compact { padding: 28px 16px; text-align: center; }
+.list-loading { padding: 28px 16px; text-align: center; font-size: 12px; color: var(--ink-2); animation: list-loading-pulse 1.4s ease-in-out infinite; }
+@keyframes list-loading-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .list-loading { animation: none; } }
 .list-empty.is-compact .list-empty-title { font: 500 13px/1.4 var(--font-sans); color: var(--ink-1); }
 .list-empty.is-compact .list-empty-sub { font-size: 12px; color: var(--ink-2); max-width: 32ch; margin: 4px auto 12px; }
 .list-empty-ico { width: 32px; height: 32px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-3); color: var(--ink-2); }
@@ -22323,18 +22345,20 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .cb-detail.surface-frosted { background: var(--bg-3); border: 1px solid var(--line-2); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: var(--shadow-2); }
 /* Two panes, one keyboard: the pane that doesn't have it shows its
    selection in ink, not gold (Finder's inactive selection). */
-.fdl-panel[data-active-pane='files'] .fdl-canvas .card.is-selected { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-3)); box-shadow: var(--shadow-2); }
-.fdl-panel:not([data-active-pane='files']) .ct-jg .ct-tile.is-selected .ct-tile-preview { outline-color: var(--ink-3); box-shadow: none; }
-.fdl-panel:not([data-active-pane='files']) .ct-tile.is-selected .ct-tile-check { background: var(--ink-3); border-color: var(--ink-3); }
+.fdl-panel[data-active-pane='files'] .fdl-canvas .card.is-selected:not(.card-kind-shape) { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-2)); box-shadow: var(--shadow-2); }
+.fdl-panel[data-active-pane='files'] .fdl-canvas .card.card-kind-shape.is-selected { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-2)); box-shadow: none; }
+.fdl-panel:not([data-active-pane='files']) .ct-jg .ct-tile.is-selected .ct-tile-preview { outline-color: var(--ink-2); box-shadow: none; }
+.fdl-panel:not([data-active-pane='files']) .ct-tile.is-selected .ct-tile-check { background: var(--ink-2); border-color: var(--ink-2); }
 
 /* ── Full Files: the cluster's name, then the toolbar ─────────────────── */
-.cb-pagehead { display: flex; align-items: baseline; gap: 12px; min-width: 0; margin: 0 0 12px; }
+.cb-pagehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; margin: 0 0 12px; }
 .cb-pagehead-title {
   margin: 0; min-width: 0;
   font: 600 22px/1.25 var(--font-sans); letter-spacing: -0.01em; color: var(--ink-0);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cb-pagehead-meta { font: 400 12px/1.4 var(--font-sans); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cb-pagehead-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 400 12px/1.4 var(--font-sans); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cb-pagehead-title { min-width: min(50%, 12ch); }
 .cb-pagehead > .list-section-act, .cb-pagehead > .cbt-shrink { margin-left: auto; align-self: center; }
 .cb-pagehead > .list-section-act + .cbt-shrink { margin-left: 0; }
 .cb-pagehead-dl { height: var(--ctl-h); box-sizing: border-box; padding: 0 11px; border-radius: var(--radius-md); font-size: 12px; }

@@ -295,6 +295,7 @@ In Files, beside the board or full screen. Beside the board, these keys go to wh
 Key | Action
 ← → ↑ ↓ | Move through files — in the grid, ↑ / ↓ go to the nearest tile in the next row
 Enter | Select the highlighted file
+⇧Space | Add the highlighted file to the selection, or take it out — the keyboard version of a tile's round check
 Space or double-click | Quick look — ← / → step through the files, Space or Esc closes
 ⌘I | Info for the selected file — remembered on your device
 F2 | Rename the selected file or folder — Enter saves, Esc cancels
@@ -1924,7 +1925,7 @@ The combination is the answer to "where is that PDF someone dropped in here last
 
 Selecting and moving
 
-Click a file to select it, ⌘-click to add to the selection, ⇧-click for a range, ⌘A for everything showing. Click empty space or press Esc to clear it. The arrow keys move a highlight through the files and Enter selects it.
+Click a file to select it, ⌘-click to add to the selection, ⇧-click for a range, ⌘A for everything showing. In the grid, the round check that appears in a tile's corner on hover adds it without a modifier key. Click empty space or press Esc to clear it. The arrow keys move a highlight through the files, Enter selects it and ⇧Space adds it to the selection.
 
 A selection gets a bar along the bottom:
 

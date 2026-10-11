@@ -3,6 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   DOCK, canDock, filesModeOf, planFilesEvent, switchSegments,
   clampWidth, dragPreview, releaseDock, readDockPrefs, writeDockPrefs,
@@ -138,9 +139,19 @@ test('panel folders: two rows of columns, unless only one would be hidden', () =
   assert.equal(folderCap(4, 376), 4);
   assert.equal(folderCap(5, 376), 5);             // hiding one buys nothing
   assert.equal(folderCap(6, 376), 4);
-  assert.equal(folderCap(40, 900), 10);
+  assert.equal(folderCap(40, 900), 12);
   assert.equal(folderCap(-1, 376), 0);
   assert.equal(folderCap('x', 376), 0);
+});
+
+test('the folder cap counts the same columns the stylesheet draws', () => {
+  const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.ft-grid\.is-panel\s*\{([^}]*)\}/);
+  assert.ok(rule, '.ft-grid.is-panel rule not found in styles.css');
+  const min = rule[1].match(/minmax\(\s*(\d+)px/);
+  const gap = rule[1].match(/(?:^|[;\s])gap:\s*(\d+)px/);
+  assert.equal(Number(min?.[1]), FOLDER_ROWS.MIN_W, 'minmax() column width');
+  assert.equal(Number(gap?.[1]), FOLDER_ROWS.GAP, 'gap');
 });
 
 test('Show all folders is remembered per device, and broken storage reads collapsed', () => {

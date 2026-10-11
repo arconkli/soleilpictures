@@ -43,36 +43,42 @@ export function typeBucket(kind) {
 
 // Strip HTML → text WITHOUT a DOM so this stays dependency-free (testable in
 // node). Good enough for deriving a note's display name from its first words.
+const ENTITIES = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'", '#x27': "'" };
+function decodeEntities(t) {
+  return t.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+\d*);/gi, (m, e) => {
+    const k = e.toLowerCase();
+    if (ENTITIES[k] != null) return ENTITIES[k];
+    if (k[0] === '#') {
+      const code = k[1] === 'x' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10);
+      try { return Number.isFinite(code) ? String.fromCodePoint(code) : m; } catch (_) { return m; }
+    }
+    return m;
+  });
+}
 function stripTags(html, max = 90) {
   if (!html) return '';
-  const txt = String(html)
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+  const txt = decodeEntities(String(html).replace(/<[^>]*>/g, ' '))
     .replace(/\s+/g, ' ').trim();
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
 
 // A note's first block is its title, the rest its body — the canvas shows
-// them that way, so Files shouldn't run them into one line. Blocks end at
-// headings, paragraphs, line breaks, list items and divs.
+// them that way, so Files shouldn't run them into one line. Blocks start or
+// end at headings, paragraphs, list items, divs and line breaks (older notes
+// are "Title<div>Body</div>"). The title is the whole first block — the tile
+// clamps it to two lines — so nothing shows twice. The link-preview chrome a
+// note editor appends after the text ("LINK PREVIEW host url x") isn't part
+// of the note.
+const NOTE_CHROME_RE = /<div[^>]*class="note-(?:link-preview|preview-hidden)[\s\S]*$/i;
+const BLOCK_RE = /<\/(?:h[1-6]|p|li|div|blockquote)>|<(?:h[1-6]|p|li|div|blockquote)\b[^>]*>|<br\s*\/?>/i;
 export function noteParts(html, body = '') {
-  const src = String(html || '');
-  if (!src.trim()) {
-    // Plain text: the first line is the title.
-    const lines = String(body || '').split(/\n+/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    if (!lines.length) return { title: '', body: '' };
-    const [first, ...rest] = lines;
-    const title = first.length > 60 ? `${first.slice(0, 59).trimEnd()}…` : first;
-    return { title, body: rest.join(' ') || (first.length > 60 ? first : '') };
-  }
-  const blocks = src
-    .split(/<\/(?:h[1-6]|p|li|div|blockquote)>|<br\s*\/?>/i)
-    .map((b) => stripTags(b, 400))
-    .filter(Boolean);
+  const src = String(html || '').replace(NOTE_CHROME_RE, '');
+  const blocks = src.trim()
+    ? src.split(BLOCK_RE).map((b) => stripTags(b, 600)).filter(Boolean)
+    : String(body || '').split(/\n+/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
   if (!blocks.length) return { title: '', body: '' };
-  const [first, ...rest] = blocks;
-  const title = first.length > 60 ? `${first.slice(0, 59).trimEnd()}…` : first;
-  return { title, body: rest.join(' ') || (first.length > 60 ? first : '') };
+  const [title, ...rest] = blocks;
+  return { title, body: rest.join(' ') };
 }
 
 // The name a tile shows: the file's own extension dropped ("wardrobe-ref",

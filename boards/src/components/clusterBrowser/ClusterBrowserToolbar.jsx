@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
@@ -36,13 +36,27 @@ function Menu({ open, onClose, trigger = null, children }) {
 }
 
 // A menu row. The check in its gutter is what says which layout, sort or
-// filter is on — the class alone drew nothing.
-function Item({ active = false, onClick, children }) {
+// filter is on — the class alone drew nothing. `role` is menuitemradio for a
+// pick-one (layout, sort) and menuitemcheckbox for Show only.
+function Item({ active = false, onClick, role = 'menuitemradio', children }) {
   return (
-    <button className={`ctx-item${active ? ' is-active' : ''}`} onClick={onClick} aria-pressed={active}>
+    <button type="button" className={`ctx-item${active ? ' is-active' : ''}`} onClick={onClick}
+            role={role} aria-checked={active}>
       {active && <Icon as={Check} size={12} weight="bold" className="cbt-check" />}
       {children}
     </button>
+  );
+}
+
+// One labelled section of a menu, so a screen reader hears "Sort by" with
+// its choices rather than a flat run of rows.
+function Group({ label, children }) {
+  const id = useId();
+  return (
+    <div role="group" aria-labelledby={id}>
+      <div className="cbt-menu-label" id={id}>{label}</div>
+      {children}
+    </div>
   );
 }
 
@@ -82,7 +96,7 @@ export function ClusterBrowserToolbar({
   const activeFilters = filters instanceof Set ? filters : new Set(filters || []);
   const activeCount = activeFilters.size + (unplacedOnly ? 1 : 0);
   const unplacedItem = unplacedCount > 0 && onToggleUnplaced ? (
-    <Item active={unplacedOnly} onClick={() => onToggleUnplaced()}>
+    <Item active={unplacedOnly} onClick={() => onToggleUnplaced()} role="menuitemcheckbox">
       <span className="ct-tile-flag is-off cbt-flag" aria-hidden="true" />
       <span>Not on board</span>
       <span className="cbt-count">{unplacedCount}</span>
@@ -131,10 +145,13 @@ export function ClusterBrowserToolbar({
   // One View menu for both sizes of Files: layout (beside the board only —
   // full Files keeps Grid/List on screen), tile size, sort, and Show only.
   const sortOptions = [...SORT_OPTIONS, ...(audioMode ? AUDIO_SORT_OPTIONS : [])];
+  // Its label can be hidden (a narrow panel shows the icon alone), so the
+  // name — with how many filters are on — rides on aria-label and the tooltip.
+  const viewName = activeCount ? `View, ${activeCount} ${activeCount === 1 ? 'filter' : 'filters'} on` : 'View';
   const viewMenu = (withLayout) => (
     <div className="cbt-menuwrap">
-      <button className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeCount ? ' has-active' : ''}`}
-              data-menu-trigger="view"
+      <button type="button" className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeCount ? ' has-active' : ''}`}
+              data-menu-trigger="view" aria-label={viewName} title={viewName}
               onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
         <Icon as={SlidersHorizontal} size={14} className="cbt-btn-ico" />
         <span className="cbt-btn-label">View{activeCount ? ` · ${activeCount}` : ''}</span>
@@ -142,40 +159,40 @@ export function ClusterBrowserToolbar({
       </button>
       <Menu open={viewOpen} onClose={() => setViewOpen(false)} trigger="view">
         {withLayout && (
-          <>
-            <div className="cbt-menu-label">Layout</div>
+          <Group label="Layout">
             <Item active={viewMode === 'gallery'} onClick={() => onViewMode('gallery')}><span>Grid</span></Item>
             <Item active={viewMode === 'table'} onClick={() => onViewMode('table')}><span>List</span></Item>
-          </>
+          </Group>
         )}
         {viewMode === 'gallery' && onTileSize && (
-          <>
-            <div className="cbt-menu-label">Size</div>
+          <Group label="Size">
             <div className="cbt-sizes">{sizePill}</div>
-          </>
+          </Group>
         )}
-        {(withLayout || (viewMode === 'gallery' && onTileSize)) && <div className="ctx-divider" />}
-        <div className="cbt-menu-label">Sort by</div>
-        {sortOptions.map(o => (
-          <Item key={o.key} active={sortKey === o.key} onClick={() => onSort(o.key)}>
-            <span>{o.label}</span>
-            {sortKey === o.key && <span className="cbt-caret">{sortDir === 'asc' ? '↑' : '↓'}</span>}
-          </Item>
-        ))}
+        {(withLayout || (viewMode === 'gallery' && onTileSize)) && <div className="ctx-divider" role="separator" />}
+        <Group label="Sort by">
+          {sortOptions.map(o => (
+            <Item key={o.key} active={sortKey === o.key} onClick={() => onSort(o.key)}>
+              <span>{o.label}</span>
+              {sortKey === o.key && <span className="cbt-caret">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+            </Item>
+          ))}
+        </Group>
         {(availableBuckets.length > 0 || unplacedItem) && (
           <>
-            <div className="ctx-divider" />
-            <div className="cbt-menu-label">Show only</div>
-            {unplacedItem}
-            {availableBuckets.map(b => (
-              <Item key={b.key} active={activeFilters.has(b.key)} onClick={() => onToggleFilter(b.key)}>
-                <span>{b.label}</span>
-                <span className="cbt-count">{b.count}</span>
-              </Item>
-            ))}
-            {activeCount > 0 && (
-              <button className="ctx-item cbt-clear-filters" onClick={() => onClearFilters()}>Clear filters</button>
-            )}
+            <div className="ctx-divider" role="separator" />
+            <Group label="Show only">
+              {unplacedItem}
+              {availableBuckets.map(b => (
+                <Item key={b.key} active={activeFilters.has(b.key)} onClick={() => onToggleFilter(b.key)} role="menuitemcheckbox">
+                  <span>{b.label}</span>
+                  <span className="cbt-count">{b.count}</span>
+                </Item>
+              ))}
+              {activeCount > 0 && (
+                <button type="button" role="menuitem" className="ctx-item cbt-clear-filters" onClick={() => onClearFilters()}>Clear filters</button>
+              )}
+            </Group>
           </>
         )}
       </Menu>

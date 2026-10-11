@@ -157,8 +157,10 @@ hunting expedition.
 ## Selecting and moving
 
 Click a file to select it, `⌘`-click to add to the selection, `⇧`-click for a
-range, `⌘A` for everything showing. Click empty space or press `Esc` to clear
-it. The arrow keys move a highlight through the files and `Enter` selects it.
+range, `⌘A` for everything showing. In the grid, the round check that appears
+in a tile's corner on hover adds it without a modifier key. Click empty space
+or press `Esc` to clear it. The arrow keys move a highlight through the files,
+`Enter` selects it and `⇧Space` adds it to the selection.
 
 A selection gets a bar along the bottom:
 

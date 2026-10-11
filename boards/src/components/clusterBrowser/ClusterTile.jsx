@@ -56,7 +56,12 @@ export const ClusterTile = memo(function ClusterTile({
                   e.stopPropagation();
                   onClick?.({ target: e.currentTarget, metaKey: true, ctrlKey: true, shiftKey: e.shiftKey, stopPropagation() {} });
                 }}
-                onDoubleClick={(e) => e.stopPropagation()}>
+                onDoubleClick={(e) => e.stopPropagation()}
+                // A click mustn't park focus here — Space and Enter belong to the
+                // list's keyboard (Quick look, select the highlighted file) — nor
+                // leave it on whatever had it before: let go of focus, the same
+                // as a click on the tile itself does.
+                onMouseDown={(e) => { e.preventDefault(); document.activeElement?.blur?.(); }}>
           <Icon as={Check} size={11} weight="bold" />
         </button>
         {canAudition && (
