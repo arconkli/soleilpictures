@@ -3,7 +3,7 @@
 // thing in the always-mounted provider that imports @phosphor-icons/react +
 // createPortal. The provider renders this only when there's an active dialog
 // or toast, so the signed-out landing never downloads Phosphor.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle, WarningCircle, Warning, Info, X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
@@ -18,14 +18,35 @@ const TOAST_ICON = { success: CheckCircle, error: WarningCircle, warning: Warnin
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismissToast, onManualDismiss }) {
+  const stackRef = useRef(null);
+  // Toasts sit on the top tier (z-index INT_MAX, like the feedback dialog), but
+  // so do several overlays, and between equal z-indexes the LATER element in
+  // <body> wins. A toast fired inside an overlay opened after the stack
+  // mounted (Pricing from Settings > Billing) would still land underneath it.
+  // When a toast arrives, move the stack to the end of <body> — and the
+  // feedback dialog after it, which must stay above toasts.
+  const count = toasts.length;
+  useLayoutEffect(() => {
+    const el = stackRef.current;
+    const body = typeof document !== 'undefined' ? document.body : null;
+    if (!el || !body || el.parentNode !== body) return;
+    const bg = body.querySelector(':scope > .feedback-bg');
+    const wantLast = bg || el;
+    if (body.lastElementChild === wantLast && (!bg || bg.previousElementSibling === el)) return;
+    body.appendChild(el);
+    if (bg) body.appendChild(bg);
+  }, [count]);
+
   const overlay = (
     <>
-      <FeedbackDialog dialog={dialog} onClose={onCloseDialog} />
-      <div className="toast-stack" aria-live="polite" aria-atomic="false">
+      {/* The stack comes BEFORE the dialog so a confirm opened while toasts
+          are showing is inserted after it and stays on top. Not a live
+          region: AppFeedback's always-mounted announcer speaks the toasts
+          (a region created with its first toast is never announced). */}
+      <div className="toast-stack" ref={stackRef}>
         {toasts.map(item => (
           <div key={item.id}
-               className={`toast toast-${item.type}${item.exiting ? ' toast-exiting' : ''}`}
-               role={item.type === 'error' ? 'alert' : undefined}>
+               className={`toast toast-${item.type}${item.exiting ? ' toast-exiting' : ''}`}>
             <span className="toast-icon" aria-hidden="true">
               <Icon as={TOAST_ICON[item.type] || Info} size={16} weight="bold" />
             </span>
@@ -51,6 +72,7 @@ export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismi
           </div>
         ))}
       </div>
+      <FeedbackDialog dialog={dialog} onClose={onCloseDialog} />
     </>
   );
 

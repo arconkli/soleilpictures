@@ -11984,7 +11984,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   right: calc(16px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px));
   transition: right var(--dur-base) var(--ease);
   top: 54px;
-  z-index: 1100;
+  /* The top tier. At 1100 every toast, Undo included, rendered under the
+     doc overlay (~2147483600), Settings (2147483646) and the other full-
+     screen layers: save errors and Undo were invisible or unclickable there.
+     FeedbackOverlay keeps the stack last in <body> so it also wins the tie
+     with other INT_MAX layers, and the feedback dialog after it. */
+  z-index: 2147483647;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -12044,6 +12049,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 /* Amber, deliberately not --soleil: gold is reserved for active/selection/focus
    and a toast is neither. Info keeps no rail — it is the quiet class. */
 .toast-warning { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-warn); }
+/* Touch: Undo and × were ~22px pills, the one recovery affordance for a
+   delete, easy to miss before the toast expires. 40px targets; the
+   dismiss's negative margin keeps the toast's own height unchanged. */
+@media (hover: none) and (pointer: coarse) {
+  .toast-action { min-height: 40px; padding: 0 14px; font-size: 13px; }
+  .toast-dismiss { width: 40px; height: 40px; margin: -9px -9px -9px 0; }
+}
 
 
 /* ──────────────────────────── Phase 4.14: thumbnails + list-mode ───────── */
