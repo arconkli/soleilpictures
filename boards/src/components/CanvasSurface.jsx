@@ -11278,6 +11278,14 @@ export function CanvasSurface({
           const resizeId = resize?.id;
           const ctxCardId = ctx.open ? ctx.cardId : null;
           const playing = playingMediaRef.current;
+          // A card deleted or moved to Files mid-playback fires its 'pause'
+          // on a detached node the capture listener never hears, so drop ids
+          // that left the board here — or an Undo would bring it back pinned
+          // mounted off-screen for good. Idempotent, so safe in render.
+          if (playing.size) {
+            const onBoard = new Set(sortedCards.map(c => c.id));
+            for (const id of playing) if (!onBoard.has(id)) playing.delete(id);
+          }
           // A selected card stays mounted so panning away doesn't drop its
           // editing state — but only for a hand-sized selection. ⌘A on a big
           // board used to mount every card at once (every image fetching and
