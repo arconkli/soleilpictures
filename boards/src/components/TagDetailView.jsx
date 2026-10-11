@@ -396,11 +396,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const allBoards = useMemo(() => rows.filter(r => r.kind === 'board'), [rows]);
   const allGroups = useMemo(() => rows.filter(r => r.kind === 'group'), [rows]);
 
+  // allCardsFlat reads every entry in these maps, so when the last tagged
+  // cluster/group goes (removed, or never there) the map must be emptied,
+  // not left holding cards that no longer belong to this tag.
   useEffect(() => {
-    if (allBoards.length === 0) return;
-    let cancelled = false;
     const ids = allBoards.map(b => b.board_id || b.id).filter(Boolean);
-    if (ids.length === 0) return;
+    if (ids.length === 0) { setBoardCards(prev => (prev.size ? new Map() : prev)); return; }
+    let cancelled = false;
     (async () => {
       const { data } = await supabase.from('card_index')
         .select('board_id, card_id, kind, title, body, meta, updated_at')
@@ -421,10 +423,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   }, [allBoards, workspaceId]);
 
   useEffect(() => {
-    if (allGroups.length === 0) return;
-    let cancelled = false;
     const allBoardIds = allGroups.map(g => g.board_id).filter(Boolean);
-    if (allBoardIds.length === 0) return;
+    if (allBoardIds.length === 0) { setGroupCards(prev => (prev.size ? new Map() : prev)); return; }
+    let cancelled = false;
     (async () => {
       const { data } = await supabase.from('card_index')
         .select('board_id, card_id, kind, title, body, meta, updated_at')
