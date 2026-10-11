@@ -8485,7 +8485,10 @@ export function CanvasSurface({
           run: () => mutators.updateArrow?.(idx, { dashed: !arrow.dashed }) },
         { divider: true },
         { id: 'arrow-delete', label: 'Delete arrow', danger: true,
-          run: () => deleteSingleArrow(idx) },
+          // Right-click selected this index. Left behind, it would select
+          // whichever arrow slides into the slot — with handles, popover and
+          // a Backspace aimed at it.
+          run: () => { deleteSingleArrow(idx); setSelectedArrows(new Set()); } },
       ];
     }
     // View-only states (viewer share, no access) — just expose the safe
@@ -8588,8 +8591,25 @@ export function CanvasSurface({
       ]},
       { divider: true },
       { id: 'clearstrokes', label: 'Clear all drawings', disabled: !(strokes && strokes.length > 0),
-        danger: true, run: () => mutators.clearStrokes?.() },
+        danger: true, run: clearAllDrawings },
     ];
+  };
+
+  // Every board stroke at once, so it gets the house Undo toast like any other
+  // delete (it had none). The stroke selection goes too: its indices would
+  // otherwise land on the next stroke drawn, already selected.
+  const clearAllDrawings = () => {
+    mutators.clearStrokes?.();
+    const um = mutators.undoManager;
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    setSelectedStrokes(new Set());
+    undoToast(feedback, {
+      message: 'Drawings cleared',
+      undoManager: um,
+      stackItem: item,
+      onUndo: () => mutators.undo?.(),
+    });
   };
 
   // ── Tags ──────────────────────────────────────────────────────────────
