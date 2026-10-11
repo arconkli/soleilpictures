@@ -105,7 +105,7 @@ import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
 import { placedOf, positionUnplaced } from './lib/placement.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
-import { anyModalOpen } from './lib/modalGuard.js';
+import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
@@ -771,6 +771,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // otherwise you tap a board in the drawer, the board loads behind, and
   // the drawer stays open obscuring the content.
   useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
+  // The open drawer is a layer in lib/modalGuard (as shell/MobileDrawer is):
+  // Escape closes it, the canvas shortcuts stand down behind its backdrop, and
+  // the phone's Back closes it instead of leaving the app.
+  const drawerShown = mobileShell && mobileNavOpen;
+  useEffect(() => {
+    if (!drawerShown) return undefined;
+    const unregister = registerModalOpen({ onEscape: () => { setMobileNavOpen(false); return true; } });
+    const unBack = registerBackLayer(() => setMobileNavOpen(false));
+    return () => { unregister(); unBack(); };
+  }, [drawerShown]);
   // Drop focus mode the moment we're back on a non-touch/desktop viewport so a
   // resized window can't get stuck chromeless with no touch exit affordance.
   useEffect(() => { if (!isTouch) setFocusMode(false); }, [isTouch]);
@@ -8689,7 +8699,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             of them collides the moment that state appears — which is exactly
             what happened to the top-right one the first time a peer showed up.
             It lives on the divider now, which the split owns outright. */}
-        <SurfaceErrorBoundary>{surfaceJsx}</SurfaceErrorBoundary>
+        {/* resetKey: another cluster in this pane clears a held crash panel. */}
+        <SurfaceErrorBoundary resetKey={board?.id}>{surfaceJsx}</SurfaceErrorBoundary>
         {/* Loading overlay while the Y.Doc is hydrating. Keeps the page feeling
             alive during the boot window where CanvasSurface mounts but holds
             no data — without this, the user stares at an empty canvas with
@@ -8730,7 +8741,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         {/* No bar here either: DocCardOverlay's own header already carries the
             document's title and its close button, so this was the same title
             and the same × twice over. */}
-        <SurfaceErrorBoundary>
+        <SurfaceErrorBoundary resetKey={cardId}>
           {docCard && cardYMap ? (
             <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
               <DockedDocPane
