@@ -13,7 +13,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listVoteCards } from '../lib/voteCardsApi.js';
 
-export function useVoteCards(boardId) {
+// `enabled: false` skips the list fetch and the realtime channel (the
+// signed-out public viewer: same reasoning as useCanvasComments).
+export function useVoteCards(rawBoardId, { enabled = true } = {}) {
+  const boardId = enabled ? rawBoardId : null;
   const [voteCards, setVoteCards] = useState([]);
   const [loading, setLoading]     = useState(false);
   const reloadingRef = useRef(false);
