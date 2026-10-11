@@ -246,6 +246,9 @@ const TWEAK_DEFAULTS = {
 };
 
 const SESSION_PREFIX = 'soleil.boards.session.';
+// One shared empty card list, so a pane that isn't ready yet hands its surface
+// the same array every render (see renderSurface's per-pane memo).
+const NO_CARDS = [];
 
 // In-product engagement: card_edit fires at most once per card per page-session
 // (the analytics.js batcher coalesces these) and ONLY for content edits — not
@@ -8377,6 +8380,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // from: which stack an open pushes, which board a linked cluster lands on,
   // which board a view switch flips, whose permission decides `canEdit`.
   // Anything still reading `currentId` in here is a pane leak.
+  const paneCardsMemoRef = useRef({});
   const renderSurface = ({ board, view, yb: yh, isMain }) => {
     // Board id resolved to nothing — usually means it was just deleted and
     // the cleanup useEffects haven't popped the stack yet. Render an empty
@@ -8393,12 +8397,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // on board.id so the card vanishes instantly from its old parent on drop
     // (no snap-back) while the target pane, if open, still shows it via the
     // reconcile-drift effect. See pendingReparent + the onReparent handler.
-    const rawCards = ready ? yh.cards : [];
-    const cards = (boardsLoading || !boards || Object.keys(boards).length === 0)
-      ? rawCards
-      : rawCards.filter(c =>
-          !isOrphanRef(c) &&
-          !(c.kind === 'board' && pendingReparent.get(c.id) === board.id));
+    //
+    // Memoized per pane on its inputs (renderSurface can't call hooks, so the
+    // cache lives on a ref). A fresh array every App render re-sorted the
+    // canvas, recomputed arrow geometry and re-armed CanvasSurface's idle
+    // timers — the preview backfill's "wait until the board is quiet" among
+    // them — on every presence tick or toast.
+    const rawCards = ready ? yh.cards : NO_CARDS;
+    const memoKey = isMain ? 'main' : 'split';
+    const memo = paneCardsMemoRef.current[memoKey];
+    let cards;
+    if (memo && memo.raw === rawCards && memo.boards === boards && memo.pending === pendingReparent
+        && memo.loading === boardsLoading && memo.boardId === board.id) {
+      cards = memo.cards;
+    } else {
+      cards = (boardsLoading || !boards || Object.keys(boards).length === 0)
+        ? rawCards
+        : rawCards.filter(c =>
+            !isOrphanRef(c) &&
+            !(c.kind === 'board' && pendingReparent.get(c.id) === board.id));
+      paneCardsMemoRef.current[memoKey] = {
+        raw: rawCards, boards, pending: pendingReparent, loading: boardsLoading, boardId: board.id, cards,
+      };
+    }
     // The board draws only what's on it; Files lists every card, including
     // files waiting off the board (lib/placement.js).
     const canvasCards = placedOf(cards);
