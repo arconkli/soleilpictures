@@ -4960,11 +4960,14 @@ export function CanvasSurface({
         try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
       }
       const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      // Kept in the viewport like a dropped file — not clamped to x,y >= 8,
+      // which threw a paste made over negative board space to the origin.
+      const placed = placeDropRect(pos.x, pos.y, w, h);
       const card = {
         id: newId, kind: 'link',
         source: url, link: url, title,
-        x: Math.max(8, Math.round(pos.x - w / 2)),
-        y: Math.max(8, Math.round(pos.y - h / 2)),
+        x: placed.x,
+        y: placed.y,
         w, h,
       };
       if (embed) card.embed = embed;
@@ -4998,10 +5001,11 @@ export function CanvasSurface({
         .join('');
       const w = 240, h = 160;
       const newId = `note-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const placed = placeDropRect(pos.x, pos.y, w, h);   // in view, as above
       mutators.addCard?.({
         id: newId, kind: 'note', html,
-        x: Math.max(8, Math.round(pos.x - w / 2)),
-        y: Math.max(8, Math.round(pos.y - h / 2)),
+        x: placed.x,
+        y: placed.y,
         w, h,
       });
     };
@@ -5151,7 +5155,7 @@ export function CanvasSurface({
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
   }, [feedback, dispatchIngestOne, canAttemptFiles, doPaste, mutators,
-      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId, markViewSettled]);
+      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId, markViewSettled, placeDropRect]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
