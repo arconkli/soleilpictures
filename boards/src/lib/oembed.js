@@ -47,6 +47,9 @@ function spotify(u) {
   if (host !== 'open.spotify.com' && host !== 'spotify.com') return null;
   // /track/<id>, /album/<id>, /playlist/<id>, /show/<id>, /episode/<id>, /artist/<id>
   const parts = u.pathname.split('/').filter(Boolean);
+  // A non-English Spotify client shares /intl-fr/track/<id>; the locale
+  // segment says nothing about what to embed.
+  if (/^intl-[a-z-]+$/i.test(parts[0] || '')) parts.shift();
   if (parts.length < 2) return null;
   const [type, id] = parts;
   const valid = ['track', 'album', 'playlist', 'show', 'episode', 'artist'];
