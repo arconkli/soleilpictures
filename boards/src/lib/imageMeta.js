@@ -48,9 +48,6 @@ function notifyAll() {
 // board open would otherwise carry them for every image, other workspaces'
 // included.
 const META_COLS = 'storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height,size_bytes';
-// The facts query reads the meta columns too, so an entry it creates is a
-// whole one — R2Image never re-primes a key that's already cached.
-const FACT_COLS = `${META_COLS},uploaded_by,created_at,original_name`;
 
 function rowToMeta(row) {
   return {
@@ -66,6 +63,9 @@ function rowToMeta(row) {
     w:            row.width ?? null,
     h:            row.height ?? null,
     sizeBytes:    row.size_bytes ?? null,
+    // 0402: variant generation finished and there is nothing more to make
+    // (imageVariantPick.variantsSettled). Absent before that migration.
+    checked:      !!row.variants_checked_at,
   };
 }
 
@@ -76,6 +76,26 @@ function fillMissing(prev, row) {
   const next = { ...prev };
   for (const [k, v] of Object.entries(row)) if (next[k] == null && v != null) next[k] = v;
   return next;
+}
+
+// variants_checked_at arrived in migration 0402; until it is applied,
+// selecting it is a 42703 that would fail the whole prime, so the first such
+// error drops it for the session and the query is retried without.
+let _withChecked = true;
+const metaCols = () => (_withChecked ? `${META_COLS},variants_checked_at` : META_COLS);
+function missingCheckedColumn(error) {
+  return !!error && _withChecked
+    && (error.code === '42703' || /variants_checked_at/.test(String(error.message || '')));
+}
+// Run a select built from the current column list, retrying once without the
+// 0402 column when the server does not have it yet.
+async function selectMeta(build) {
+  let res = await build(metaCols());
+  if (missingCheckedColumn(res.error)) {
+    _withChecked = false;
+    res = await build(metaCols());
+  }
+  return res;
 }
 
 // Prime metadata for a list of original storage_path keys. Dedupes against
@@ -106,10 +126,10 @@ export async function primeImageMeta(keys) {
     // round-trip's worth of wall time instead of three serialized ones, so the
     // Tier-0 blur can paint sooner.
     await Promise.all(chunks.map(async (chunk) => {
-      const { data, error } = await supabase
+      const { data, error } = await selectMeta((cols) => supabase
         .from('images')
-        .select(META_COLS)
-        .in('storage_path', chunk);
+        .select(cols)
+        .in('storage_path', chunk));
       if (error) { for (const k of chunk) inflight.delete(k); return; }
       const seen = new Set();
       for (const row of (data || [])) {
@@ -124,7 +144,7 @@ export async function primeImageMeta(keys) {
       // entry so we don't re-query them every render; a later setMetaLocal
       // (e.g. after the upload's variant generation) overwrites it.
       for (const k of chunk) {
-        if (!seen.has(k) && !cache.has(k)) cache.set(k, { blur: null, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null, w: null, h: null });
+        if (!seen.has(k) && !cache.has(k)) cache.set(k, { blur: null, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null, w: null, h: null, checked: false });
         inflight.delete(k);
         notify(k);
       }
@@ -154,7 +174,6 @@ export async function primeImageMetaForBoard(boardId) {
   if (primedBoards.has(boardId)) return;
   primedBoards.add(boardId);
   const _t0 = perf.isEnabled() ? performance.now() : 0;
-  const COLS = META_COLS;
   try {
     // Two queries, not one .or(). PostgREST turns
     //   .or('board_id.eq.X,referenced_in_board_ids.cs.{X}')
@@ -169,8 +188,8 @@ export async function primeImageMetaForBoard(boardId) {
     // a row matching both halves is written once. Deliberately NOT filtered on
     // deleted_at — a soft-deleted image still renders during its undo window.
     const [own, ref] = await Promise.all([
-      supabase.from('images').select(COLS).eq('board_id', boardId),
-      supabase.from('images').select(COLS).contains('referenced_in_board_ids', [boardId]),
+      selectMeta((cols) => supabase.from('images').select(cols).eq('board_id', boardId)),
+      selectMeta((cols) => supabase.from('images').select(cols).contains('referenced_in_board_ids', [boardId])),
     ]);
     if (own.error && ref.error) { primedBoards.delete(boardId); return; }
     for (const row of [...(own.data || []), ...(ref.data || [])]) {
@@ -198,7 +217,11 @@ export async function primeFileFacts(keys) {
   if (!todo.length) return;
   for (const k of todo) factsDone.add(k);
   try {
-    const { data, error } = await supabase.from('images').select(FACT_COLS).in('storage_path', todo.slice(0, 200));
+    // The facts query reads the meta columns too (0402's included), so an
+    // entry it creates is a whole one — R2Image never re-primes a key that's
+    // already cached.
+    const { data, error } = await selectMeta((cols) => supabase.from('images')
+      .select(`${cols},uploaded_by,created_at,original_name`).in('storage_path', todo.slice(0, 200)));
     if (error) { for (const k of todo) factsDone.delete(k); return; }
     for (const row of data || []) {
       const facts = {

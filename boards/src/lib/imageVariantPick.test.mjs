@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pickVariantKey, pickVariantSrc } from './imageVariantPick.js';
+import { pickVariantKey, pickVariantSrc, variantsSettled, ORIGINAL_IS_PREVIEW_EDGE } from './imageVariantPick.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const META = {
@@ -46,4 +46,29 @@ test('the thumbnail renderer and the hover prefetch both go through it', () => {
   const kinds = readFileSync(join(here, 'prefetchKinds.js'), 'utf8');
   assert.match(kinds, /pickVariantKey\(/, 'the hover warm-up warms a variant');
   assert.doesNotMatch(kinds, /Y\.applyUpdate\(/, 'the hover warm-up decodes the snapshot off the main thread');
+});
+
+// ── PERF-04: the variant backfill reaches a terminal state ────────────────
+
+test('a small original with its blur recorded is settled: nothing more to make', () => {
+  assert.equal(variantsSettled({ blur: 'b', previewKey: null, w: 1280, h: 720 }), true);
+  assert.equal(variantsSettled({ blur: 'b', previewKey: null, w: 800, h: 1200 }), true);
+  assert.equal(variantsSettled({ blur: null, previewKey: 'p', w: 4000, h: 3000 }), true);
+  assert.equal(variantsSettled({ checked: true }), true, 'the server stamp (0402) wins');
+});
+
+test('a large original with no preview, or an unknown size, still heals', () => {
+  assert.equal(variantsSettled({ blur: 'b', previewKey: null, w: 4032, h: 3024 }), false);
+  assert.equal(variantsSettled({ blur: 'b', previewKey: null, w: null, h: null }), false);
+  assert.equal(variantsSettled({ blur: null, previewKey: null, w: 600, h: 400 }), false, 'no blur yet');
+  assert.equal(variantsSettled(null), false);
+});
+
+test('the 1280 edge matches the upload engine and the migration', () => {
+  const uploads = readFileSync(join(here, 'uploads.js'), 'utf8');
+  assert.match(uploads, new RegExp(`PREVIEW_LONGEST_EDGE = ${ORIGINAL_IS_PREVIEW_EDGE};`));
+  const mig = readFileSync(join(here, '..', '..', '..', 'supabase', 'migrations', '0402_image_variant_terminal_state.sql'), 'utf8');
+  assert.match(mig, new RegExp(`greatest\\(width, height\\) <= ${ORIGINAL_IS_PREVIEW_EDGE}`));
+  const backfill = readFileSync(join(here, 'previewBackfill.js'), 'utf8');
+  assert.match(backfill, /variantsSettled\(meta\)/, 'requestImageBackfill (sweep and on-view) checks it');
 });
