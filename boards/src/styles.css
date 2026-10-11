@@ -19264,9 +19264,11 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 /* …but on the mobile shell the note bar is meant to be fixed (its earlier
    phone/touch blocks say so), and the line above out-ranked them on source
    order. ToolOptionsBar's keyboard lift measures from the viewport, so the
-   bar has to be positioned against it. Same query as the shell's .tob block. */
+   bar has to be positioned against it. Same queries as those two .tob blocks
+   (phone width, and any touch device wider than that, iPad Pro landscape
+   included). */
 @media (max-width: 640px),
-       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+       (hover: none) and (pointer: coarse) and (min-width: 641px) {
   .tob { position: fixed; }
 }
 
