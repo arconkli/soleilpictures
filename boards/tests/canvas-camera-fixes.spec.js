@@ -70,3 +70,27 @@ test('a Delete already consumed by another listener leaves the selection alone',
   await page.keyboard.press('Backspace');
   await expect(page.locator('.card', { hasText: 'keep-me' })).toHaveCount(0);
 });
+
+// CANVAS-A-01: use-gesture's pinch-on-wheel ran alongside the custom wheel
+// handler and won, so one ctrl+scroll-down notch at 100% dropped to 10%.
+test('one ctrl+wheel notch steps the zoom by about x0.78, not to the floor', async ({ page }) => {
+  await goBlank(page);
+  await page.waitForTimeout(500);
+  const a = await readCamera(page);
+  await page.mouse.move(600, 400);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, 100);
+  await page.keyboard.up('Control');
+  await page.waitForTimeout(400);
+  const b = await readCamera(page);
+  const ratio = b.zoom / a.zoom;
+  expect(ratio).toBeGreaterThan(0.7);
+  expect(ratio).toBeLessThan(0.86);
+
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.up('Control');
+  await page.waitForTimeout(400);
+  const c = await readCamera(page);
+  expect(c.zoom).toBeCloseTo(a.zoom, 2);
+});

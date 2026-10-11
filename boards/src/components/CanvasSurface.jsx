@@ -4451,7 +4451,13 @@ export function CanvasSurface({
     {
       target: wrapRef,
       eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: ZOOM_MIN / 4, max: ZOOM_MAX * 4 }, rubberband: true },
+      // pinchOnWheel: false — ctrl+wheel (a Windows mouse zoom, a Chrome
+      // trackpad pinch) is the custom onWheel's job, with its tuned
+      // sensitivity. Left on, use-gesture ALSO read it as a pinch at its own
+      // 1/100 ratio and wrote an absolute zoom from the gesture start, so one
+      // ctrl+scroll-down notch at 100% rubberbanded straight to ZOOM_MIN.
+      // Safari's trackpad pinch still arrives here through gesture events.
+      pinch: { scaleBounds: { min: ZOOM_MIN / 4, max: ZOOM_MAX * 4 }, rubberband: true, pinchOnWheel: false },
       // `touch: true` only switches the drag engine to TouchEvents on
       // devices where use-gesture's SUPPORT.touch ('ontouchstart') is true.
       // On a touchless desktop it silently falls back to PointerEvents,
