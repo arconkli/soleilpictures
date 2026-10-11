@@ -1329,10 +1329,13 @@ export function ListSurface({
   const lpHeadRef = useRef(null);
   // Full Files with sub-clusters but no files still shows the files toolbar
   // when it can go back beside the board — so the toolbar keeps its place;
-  // Beside board itself sits in the page header. A
-  // cluster with nothing in it gets the empty state and a slim bar instead.
+  // Beside board itself sits in the page header — and wherever files can be
+  // added: on a phone, a narrow window or the split pane it was the only way
+  // to Add files, and it vanished there. A cluster with nothing in it gets
+  // the empty state and a slim bar instead.
   const clusterEmpty = subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0;
-  const filesBlockShown = otherCards.length > 0 || isPanel || (!!dockControls?.canShrink && !clusterEmpty);
+  const filesBlockShown = otherCards.length > 0 || isPanel
+    || (!clusterEmpty && (canEdit || !!dockControls?.canShrink));
   useEffect(() => {
     const head = lpHeadRef.current;
     const wrap = head?.closest?.('.list-wrap');

@@ -240,6 +240,28 @@ test('FILES-LIST-11: with the board active, Files shows List and folder selectio
   await expect.poll(() => folder.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(ink);
 });
 
+test('FILES-LIST-12: full Files of a cluster with only sub-clusters offers Add files where it cannot dock', async ({ page }) => {
+  await go(page, { blank: true });
+  const canvas = page.locator('.canvas-wrap');
+  // A cluster placed as a board's first card opens itself, so a note goes
+  // down first and is deleted after.
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
+  await canvas.click({ position: { x: 820, y: 200 } });
+  await expect(page.locator('.card .note')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
+  await canvas.click({ position: { x: 220, y: 220 } });
+  await expect(page.locator('.card')).toHaveCount(2);
+  // Too narrow to put Files beside the board.
+  await page.setViewportSize({ width: 820, height: 900 });
+  await openFullFiles(page);
+  await full(page).locator('.ct-tile').first().click();
+  await full(page).locator('.list-selbar').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(full(page).locator('.ct-tile')).toHaveCount(0);
+  await expect(full(page).locator('[data-folder-id]')).toHaveCount(1);
+  await expect(full(page).getByRole('button', { name: 'Add files' }).first()).toBeVisible();
+});
+
 test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
   await go(page, { width: 390, height: 844 });
   await openFull(page);
