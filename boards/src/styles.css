@@ -12036,7 +12036,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
      (FilesDockLayout), so a toast never sits on the panel's ⤢ and ×. */
   right: calc(16px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px));
   transition: right var(--dur-base) var(--ease);
-  top: 54px;
+  /* 6px under the 48px topbar, which grows by the top safe-area inset on a
+     notched iPhone or the iOS app — without the inset the toast landed in
+     the status bar over the hamburger and title. */
+  top: calc(54px + env(safe-area-inset-top, 0px));
   /* The top tier. At 1100 every toast, Undo included, rendered under the
      doc overlay (~2147483600), Settings (2147483646) and the other full-
      screen layers: save errors and Undo were invisible or unclickable there.
@@ -12063,6 +12066,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   animation: toastIn var(--dur-base) var(--ease);
 }
 .toast.toast-exiting { animation: toastOut var(--dur-base) var(--ease) forwards; }
+/* Mobile shell (same query as `mobileShell` in App.jsx): pin both edges so a
+   long toast keeps a 12px gutter on the left too instead of running into the
+   screen edge, and keep the stack right-aligned where there is room. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .toast-stack { left: 12px; right: 12px; align-items: flex-end; }
+}
 @keyframes toastIn  { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
 

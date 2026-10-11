@@ -56,3 +56,22 @@ test('the note formatting bar clears the phone bottom nav with no keyboard up', 
   // to it — the grain layering block's `position: absolute` used to win.
   expect(await bar.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
 });
+
+// VIS-13: on a phone a long toast filled the width from the right gutter and
+// touched the left screen edge.
+test('a long toast keeps a gutter on both sides on a phone', async ({ page }) => {
+  await boot(page, { width: 390, height: 844 });
+  const { left, right } = await page.evaluate(() => {
+    const stack = document.createElement('div');
+    stack.className = 'toast-stack';
+    stack.innerHTML = '<div class="toast">' + 'A long toast message that wraps. '.repeat(6) + '</div>';
+    document.body.appendChild(stack);
+    // Measure the resting place, not the toastIn slide's first frame.
+    stack.firstElementChild.getAnimations().forEach((a) => a.finish());
+    const r = stack.firstElementChild.getBoundingClientRect();
+    stack.remove();
+    return { left: r.left, right: window.innerWidth - r.right };
+  });
+  expect(left, 'left gutter').toBeGreaterThanOrEqual(12);
+  expect(right, 'right gutter').toBeGreaterThanOrEqual(12);
+});
