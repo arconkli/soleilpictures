@@ -266,10 +266,13 @@ export function invalidateBoardPreview(boardId) {
   _lsClear(boardId);
   const entry = cache.get(boardId);
   if (!entry) return;
-  entry.data = null;
+  // Stale-while-revalidate, like the rest of this hook: keep showing the data
+  // we have and swap it when the refetch lands. Broadcasting null here made
+  // every list-mode cluster card and sub-board row flash empty (and drop its
+  // count) right after you navigated back out of a board, because no
+  // consumer renders a loading state for it (PERF-10). expiresAt = 0 still
+  // makes any newly mounted consumer treat the entry as stale.
   entry.expiresAt = 0;
-  // Optimistically clear so consumers can show a loading state.
-  for (const fn of entry.listeners) fn(null);
   // Refetch and notify when it lands.
   const promise = fetchPreview(boardId);
   entry.promise = promise;
