@@ -2085,7 +2085,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
   const onTitleDouble = (e) => { e.stopPropagation(); setEditingTitle(true); };
 
   const playButton = (
-    <button type="button" className="ac-play"
+    <button type="button" className={`ac-play${isPlaying ? ' is-playing' : ''}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={togglePlay}
             aria-label={isPlaying ? 'Pause' : 'Play'}>

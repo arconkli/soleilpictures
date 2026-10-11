@@ -89,8 +89,11 @@ test('the transport plays, and Enter drives the selected card', async ({ page })
 
   await page.locator('.ac-play').first().click();
   await expect(page.locator('.ac-play[aria-label="Pause"]')).toHaveCount(1);
+  // The gold playing state keys on this class, not on the label's wording.
+  await expect(page.locator('.ac-play.is-playing')).toHaveCount(1);
   await page.locator('.ac-play').first().click();
   await expect(page.locator('.ac-play[aria-label="Play"]')).toHaveCount(1);
+  await expect(page.locator('.ac-play.is-playing')).toHaveCount(0);
 
   // Enter, not Space — Space is the canvas pan modifier.
   await card.click({ position: { x: 10, y: 10 } });
