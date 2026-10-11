@@ -743,7 +743,7 @@ export function readAudioMeta(file) {
 // uses the table as the "uploaded R2 objects" allowlist for RLS, so a
 // missing row means no signed read URL gets issued and `<audio>`
 // silently fails to load.
-export async function uploadAudio({ file, workspaceId, boardId, userId, onProgress = null,
+export async function uploadAudio({ file, workspaceId, boardId, cardId = null, userId, onProgress = null,
                                     maxBytes = FREE_AUDIO_CAP, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
@@ -774,6 +774,7 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
     .insert({
       workspace_id: workspaceId,
       board_id: boardId || null,
+      card_id: cardId || null,   // lets the abandoned-upload sweep recover it
       storage_path: key,
       width: null,
       height: null,
@@ -907,7 +908,7 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
 // (max duration, max bytes) BEFORE calling — we still validate here as
 // a backstop. Returns the same shape as uploadImage so callers can
 // switch on `kind` rather than the URL.
-export async function uploadVideo({ file, workspaceId, boardId, userId, onProgress = null,
+export async function uploadVideo({ file, workspaceId, boardId, cardId = null, userId, onProgress = null,
                                     maxBytes = FREE_VIDEO_CAP,
                                     maxDurationSec = FREE_VIDEO_SECONDS, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
@@ -940,6 +941,7 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     .insert({
       workspace_id: workspaceId,
       board_id: boardId || null,
+      card_id: cardId || null,   // lets the abandoned-upload sweep recover it
       storage_path: key,
       width: meta.w,
       height: meta.h,

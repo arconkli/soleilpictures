@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAbandonedUpload, isStillUploading, planAbandonedSweep, abandonedNotice, uploadAge, ABANDON_AFTER_MS, REMOVE_AFTER_MS, SWEEP_RECHECK_MS } from './abandonedUploads.js';
+import { isAbandonedUpload, isStillUploading, planAbandonedSweep, abandonedNotice, uploadAge, recoveryPatch, stashLateUpload, takeLateUploads, ABANDON_AFTER_MS, REMOVE_AFTER_MS, SWEEP_RECHECK_MS } from './abandonedUploads.js';
 
 const NOW = Date.parse('2026-10-01T12:00:00Z');
 const ago = (ms) => new Date(NOW - ms).toISOString();
@@ -21,12 +21,14 @@ test('an upload still inside the window is left alone — it may be in flight', 
   assert.ok(ABANDON_AFTER_MS >= 15 * 60_000, 'long enough for a big batch on a slow connection');
 });
 
-test('anything with a file, not pending, not a photo, or without a creation stamp is not judged', () => {
+test('anything with a file, not pending, not an upload, or without a creation stamp is not judged', () => {
   const old = ago(ABANDON_AFTER_MS * 2);
   assert.equal(isAbandonedUpload(card({ kind: 'image', pending: true, src: 'r2:a/b.png', createdAt: old }), NOW), false);
   assert.equal(isAbandonedUpload(card({ kind: 'image', pending: false, createdAt: old }), NOW), false);
   assert.equal(isAbandonedUpload(card({ kind: 'image', createdAt: old }), NOW), false);
-  assert.equal(isAbandonedUpload(card({ kind: 'pdf', pending: true, createdAt: old }), NOW), false);
+  assert.equal(isAbandonedUpload(card({ kind: 'note', pending: true, createdAt: old }), NOW), false);
+  assert.equal(isAbandonedUpload(card({ kind: 'file', pending: true, fileSrc: 'r2:a/f.zip', createdAt: old }), NOW), false);
+  assert.equal(isAbandonedUpload(card({ kind: 'pdf', pending: true, pdfSrc: 'r2:a/f.pdf', createdAt: old }), NOW), false);
   assert.equal(isAbandonedUpload(card({ kind: 'image', pending: true }), NOW), false);
   assert.equal(isAbandonedUpload(card({ kind: 'image', pending: true, createdAt: 'yesterday' }), NOW), false);
 });
@@ -48,6 +50,70 @@ test('the sweep recovers what landed at any age, and removes only what is past a
   assert.ok(REMOVE_AFTER_MS > ABANDON_AFTER_MS);
 });
 
+// CANVAS-A-03: a PDF, file, audio or video card stranded by a cluster switch
+// spun "Uploading" for ever — the sweep only knew photos.
+test('every uploaded kind is judged, not only photos', () => {
+  const old = ago(ABANDON_AFTER_MS * 2);
+  for (const kind of ['pdf', 'file', 'video', 'audio']) {
+    assert.equal(isAbandonedUpload(card({ kind, pending: true, createdAt: old }), NOW), true, kind);
+  }
+});
+
+test('a landed upload is recovered into the field its kind reads', () => {
+  assert.deepEqual(recoveryPatch('image', 'ws/b/x.png'), { src: 'r2:ws/b/x.png' });
+  assert.deepEqual(recoveryPatch('video', ['ws/b/x.mp4']), { src: 'r2:ws/b/x.mp4' });
+  assert.deepEqual(recoveryPatch('audio', 'ws/b/x.wav'), { src: 'r2:ws/b/x.wav' });
+  assert.deepEqual(recoveryPatch('file', 'ws/b/x.zip'), { fileSrc: 'r2:ws/b/x.zip' });
+  // A PDF has two rows under its card id: the original and the page-1 thumbnail.
+  assert.deepEqual(recoveryPatch('pdf', ['ws/b/t.webp', 'ws/b/d.pdf']), { pdfSrc: 'r2:ws/b/d.pdf', src: 'r2:ws/b/t.webp' });
+  assert.deepEqual(recoveryPatch('pdf', ['ws/b/d.PDF']), { pdfSrc: 'r2:ws/b/d.PDF' });
+  assert.equal(recoveryPatch('pdf', ['ws/b/t.webp']), null, 'a thumbnail alone cannot open');
+  assert.equal(recoveryPatch('file', undefined), null);
+  assert.equal(recoveryPatch('file', []), null);
+
+  const found = new Map([['pdf-1', ['ws/b/t.webp', 'ws/b/d.pdf']], ['file-1', 'ws/b/f.zip']]);
+  assert.deepEqual(planAbandonedSweep([
+    { id: 'pdf-1', kind: 'pdf', age: 1 },
+    { id: 'file-1', kind: 'file', age: 1 },
+    { id: 'aud-1', kind: 'audio', age: REMOVE_AFTER_MS + 1 },
+  ], found), {
+    recover: [{ id: 'pdf-1', pdfSrc: 'r2:ws/b/d.pdf', src: 'r2:ws/b/t.webp' }, { id: 'file-1', fileSrc: 'r2:ws/b/f.zip' }],
+    remove: ['aud-1'],
+  });
+});
+
+test('a pending PDF whose original is in is no longer uploading', () => {
+  assert.equal(isStillUploading({ kind: 'pdf', pending: true, pdfSrc: 'r2:a/d.pdf' }), false);
+});
+
+// CANVAS-A-02/03, MEDIA-06: an upload that finishes after a cluster switch, or
+// after its card was deleted, keeps its result until the card is back.
+test('late results wait for their card, merge, and leave as they are handed out', () => {
+  const store = new Map();
+  stashLateUpload('b1', 'vid-1', { patch: { src: 'r2:v.mp4', pending: false } }, store);
+  stashLateUpload('b1', 'vid-1', { patch: { poster: 'r2:p.webp' } }, store);
+  stashLateUpload('b1', 'file-1', { remove: true }, store);
+  stashLateUpload('b2', 'aud-1', { patch: { src: 'r2:a.wav' } }, store);
+  stashLateUpload(null, 'x', { remove: true }, store);
+  stashLateUpload('b1', 'y', null, store);
+
+  assert.deepEqual(takeLateUploads('b1', () => false, store), [], 'nothing until its card is back');
+  const due = takeLateUploads('b1', (id) => id === 'vid-1', store);
+  assert.deepEqual(due, [{ id: 'vid-1', entry: { patch: { src: 'r2:v.mp4', pending: false, poster: 'r2:p.webp' } } }]);
+  assert.deepEqual(takeLateUploads('b1', (id) => id === 'vid-1', store), [], 'handed out once');
+  assert.deepEqual(takeLateUploads('b1', () => true, store), [{ id: 'file-1', entry: { remove: true } }]);
+  assert.equal(store.has('b1'), false);
+  assert.deepEqual(takeLateUploads('b2', () => true, store).map((d) => d.id), ['aud-1']);
+  assert.equal(store.size, 0);
+
+  // A later outcome replaces an earlier one that wasn't a patch (a cancelled
+  // upload restarted by Undo, then finished).
+  const retry = () => {};
+  stashLateUpload('b1', 'file-2', { retry }, store);
+  stashLateUpload('b1', 'file-2', { patch: { fileSrc: 'r2:f.zip' } }, store);
+  assert.deepEqual(takeLateUploads('b1', () => true, store), [{ id: 'file-2', entry: { patch: { fileSrc: 'r2:f.zip' } } }]);
+});
+
 test('uploadAge reads the creation stamp, and nothing else', () => {
   assert.equal(uploadAge(card({ createdAt: ago(5000) }), NOW), 5000);
   assert.equal(uploadAge(card({}), NOW), null);
@@ -57,6 +123,8 @@ test('the notice is plain, singular when it should be, and silent for none', () 
   assert.match(abandonedNotice(36), /^36 photos didn't finish uploading before the page closed, so they were removed\. Add them again/);
   assert.match(abandonedNotice(1), /^1 photo didn't finish uploading .* so it was removed\. Add it again to keep it\.$/);
   assert.equal(abandonedNotice(0), '');
+  assert.match(abandonedNotice(2, false), /^2 files didn't finish uploading/);
+  assert.match(abandonedNotice(1, false), /^1 file didn't finish uploading/);
 });
 
 // ── Wiring. Playwright is not in CI. ──
@@ -93,7 +161,8 @@ test('the sweep judges from the server\'s snapshot and the live cards, not from 
   // Every card in the cluster, not just the board's: an upload waiting in Files
   // (lib/placement.js) is swept and recovered like one on the board.
   assert.match(sweep, /const live = new Map\(\(allCardsRef\.current \|\| \[\]\)\.map\(\(c\) => \[c\.id, c\]\)\);/, 're-read after the await');
-  assert.match(sweep, /\.filter\(\(c\) => c && isAbandonedUpload\(\(k\) => c\[k\], at\) && !localImagePreviewRef\.current\?\.\[c\.id\]\)/);
+  assert.match(sweep, /\.filter\(\(c\) => c && isAbandonedUpload\(\(k\) => c\[k\], at\) && !localImagePreviewRef\.current\?\.\[c\.id\] && !inflightUploadsRef\.current\.has\(c\.id\)\)/,
+    'nothing this tab is still uploading, of any kind');
   const yb = readFileSync(join(here, '../hooks/useYBoard.js'), 'utf8');
   assert.match(yb, /synced: !!handle\.serverApplied\?\.\(\),/);
   assert.match(read('../lib/yboard.js'), /serverApplied = true;/);
@@ -137,6 +206,39 @@ test('a card still uploading never leaves the card its upload will land in', () 
   // (The replacement also carries its own file name since 2026-10 — or clears
   // the old one; the assertion is about `pending`, so it allows that field.)
   assert.match(canvas, /mutators\.updateCard\?\.\(c\.id, \{ src: payload\.publicUrl, adjust: null, pending: false(, fileName: payload\.fileName \|\| null)? \}\);/, 'Replace image… clears pending');
+});
+
+test('an upload never patches a card it cannot reach, and its result waits for the card', () => {
+  // CANVAS-A-02: the video drop awaited its upload and only then added the card
+  // — into a destroyed doc after a cluster switch. It is optimistic now, and
+  // the drop does not wait on it.
+  const video = canvas.slice(canvas.indexOf('const dropVideoFile = useCallback('), canvas.indexOf('const dropAudioFile = useCallback('));
+  assert.ok(video.indexOf('mutators.addCard?.({ id, kind: \'video\'') < video.indexOf('await uploadVideo('), 'the card is placed before the upload');
+  assert.match(video, /pending: true/);
+  assert.match(video, /onProgress/);
+  assert.match(video, /settleUpload\(dropBoardId, id, \{ src: up\.src/);
+  assert.match(video, /handleUploadReject\(e, id, dropBoardId\);/);
+  assert.match(canvas, /\/\/ behind a clip's upload\.\s*dropVideoFile\(file, cx, cy, canAttemptFiles, rect\);/, 'not awaited by the drop');
+  // CANVAS-A-03: no upload path patches through a bare board check any more.
+  const uploads = canvas.slice(canvas.indexOf('const optimisticDropImage = useCallback('), canvas.indexOf('const dispatchIngestOne = useCallback('));
+  assert.doesNotMatch(uploads, /if \(boardIdRef\.current === dropBoardId\) (\{\s*)?mutators\.updateCardSilent/);
+  const settle = canvas.slice(canvas.indexOf('const settleUpload = useCallback('));
+  assert.match(settle.slice(0, 400), /if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) mutators\.updateCardSilent\?\.\(id, patch\);\s*else stashLateUpload\(dropBoardId, id, \{ patch \}\);/);
+  const reject = canvas.slice(canvas.indexOf('const handleUploadReject = useCallback('));
+  assert.match(reject.slice(0, 900), /else stashLateUpload\(dropBoardId, id, \{ remove: true \}\);/);
+  // MEDIA-06: a multipart upload stops when its card is deleted, and Undo restarts it.
+  const run = canvas.slice(canvas.indexOf('const runCancellableUpload = useCallback('));
+  assert.match(run.slice(0, 1600), /if \(cancelled\) \{ stashLateUpload\(dropBoardId, id, \{ retry: run \}\); return; \}/);
+  assert.match(canvas, /\(signal\) => uploadFile\(\{[^}]*signal,/);
+  const apply = canvas.slice(canvas.indexOf('// Late upload results (lib/abandonedUploads.js)'));
+  assert.match(apply.slice(0, 1500), /takeLateUploads\(board\.id, \(cid\) => waiting\.has\(cid\)\)/);
+  // Every kind's row carries its card id, so the sweep can recover it for anyone.
+  const up = read('uploads.js');
+  for (const fn of ['uploadAudio', 'uploadVideo']) {
+    const body = up.slice(up.indexOf(`export async function ${fn}(`));
+    assert.match(body.slice(0, 200), /cardId = null/, fn);
+    assert.match(body.slice(0, 3000), /card_id: cardId \|\| null/, fn);
+  }
 });
 
 test('each open of a cluster gets its own look, whatever was looked up on the last visit', () => {

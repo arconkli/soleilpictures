@@ -768,7 +768,8 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // playback uses a <video> element with a presigned read URL fetched
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
-function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null }) {
+function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
+                     pending = false, uploadProgress = null }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. Double-click to edit instead.
@@ -856,6 +857,16 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
           : (posterUrl
               ? <img className="vc-video" src={posterUrl} alt="" draggable="false" />
               : <ImagePlaceholder label="VIDEO" tone="neutral" />)}
+        {/* A dropped clip is placed at once and uploads in the background —
+            same overlay as a photo's, so it never looks finished early. */}
+        {pending && !src && (
+          <div className="ic-upload-overlay" aria-label="Uploading video">
+            <Spinner size={22} tone="on-dark" label="Uploading video" />
+            {uploadProgress != null && (
+              <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
+            )}
+          </div>
+        )}
       </div>
       {showTitle && onUpdate && (
         <EditableText
