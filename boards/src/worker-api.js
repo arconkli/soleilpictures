@@ -3162,12 +3162,14 @@ async function dispatch(url, request, env, ctx) {
     // readable only by someone who can read a board the card is no longer on.
     //
     // The destination id can differ from the source id: moveCardsBetweenBoards
-    // renames a card on collision, and it reports the new id in `moved`.
+    // renames a card on collision. It reports each (from, to) in `pairs`; the
+    // request's card_ids cannot be zipped with `moved`, which is in board order
+    // and leaves out any id that was not on the board.
     await repointCardMeta(env, token, {
       fromBoardId: id,
       toBoardId: to,
       workspaceId: dest.workspace_id,
-      idPairs: out.moved.map((c, n) => ({ from: cardIds[n], to: c.id })),
+      idPairs: out.pairs || [],
     });
 
     return json({ moved: out.count, cards: out.moved.map(publicCard), live: out.live });

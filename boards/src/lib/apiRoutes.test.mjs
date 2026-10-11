@@ -175,3 +175,42 @@ test('a read-only token is still refused a REST write', async () => {
   assert.equal(r.body.code, 'insufficient_scope');
 });
 
+// ── API-07: a move repoints each card's metadata to THAT card ────────────────
+
+const repoints = () => calls
+  .filter((c) => c.method === 'PATCH' && c.path === 'object_identifiers')
+  .map((c) => ({ from: idFromQuery(c.query, 'object_id')[0], to: c.body.object_id, board: c.body.board_id }));
+
+test('moving cards in a different order than the board keeps each card\'s identifiers', async () => {
+  putBoard(B1, [{ id: 'X', kind: 'note', x: 0, y: 0 }, { id: 'Y', kind: 'note', x: 300, y: 0 }]);
+  putBoard(B2, []);
+  const r = await api('POST', `/boards/${B1}/cards/move`, { to_board_id: B2, card_ids: ['Y', 'X'] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.moved, 2);
+  const moves = repoints();
+  assert.equal(moves.length, 2);
+  for (const m of moves) {
+    assert.equal(m.from, m.to, `metadata of ${m.from} must stay with ${m.from}, not move to ${m.to}`);
+    assert.equal(m.board, B2);
+  }
+});
+
+test('a missing card id does not shift metadata onto its neighbour', async () => {
+  putBoard(B1, [{ id: 'X', kind: 'note', x: 0, y: 0 }, { id: 'Y', kind: 'note', x: 300, y: 0 }]);
+  putBoard(B2, []);
+  const r = await api('POST', `/boards/${B1}/cards/move`, { to_board_id: B2, card_ids: ['gone', 'Y'] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(repoints().map((m) => [m.from, m.to]), [['Y', 'Y']]);
+});
+
+test('a card re-ided for a collision takes its metadata to the new id', async () => {
+  putBoard(B1, [{ id: 'X', kind: 'note', x: 0, y: 0 }]);
+  putBoard(B2, [{ id: 'X', kind: 'note', x: 0, y: 0 }]);
+  const r = await api('POST', `/boards/${B1}/cards/move`, { to_board_id: B2, card_ids: ['X'] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const [m] = repoints();
+  assert.equal(m.from, 'X');
+  assert.match(m.to, /^X-/);
+  assert.equal(r.body.cards[0].id, m.to);
+  assert.equal(cardsOn(B2).length, 2);
+});
