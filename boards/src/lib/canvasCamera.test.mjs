@@ -59,8 +59,10 @@ test('the opening fit never magnifies past 1:1', () => {
 
 // CANVAS-A-11 / CANVAS-B-09: drag and resize deltas used the render-time zoom.
 test('drags run in world space and resizes read the live zoom', () => {
-  assert.match(canvas, /const startWorld = clientToCanvas\(startClient\.x, startClient\.y\);/);
-  const moves = canvas.match(/const _origin = dragOriginWorld \|\| startWorld;\s*const _at = clientToCanvas\(ev\.clientX, ev\.clientY\);/g) || [];
+  assert.match(canvas, /const startWorld = clientToCanvas\(startClient\.x, startClient\.y, dragWrapRect\);/);
+  // …through a wrap rect measured once at the press, not a layout read per frame.
+  assert.match(canvas, /const dragWrapRect = wrapRef\.current\.getBoundingClientRect\(\);/);
+  const moves = canvas.match(/const _origin = dragOriginWorld \|\| startWorld;\s*const _at = clientToCanvas\(ev\.clientX, ev\.clientY, dragWrapRect\);/g) || [];
   assert.equal(moves.length, 2, 'flushMove and the release commit agree');
   assert.doesNotMatch(canvas, /\(ev\.clientX - (_origin|startClient)\.x\) \/ zoom;/);
   assert.doesNotMatch(canvas, /\(mv\.clientX - startClient\.x\) \/ zoom;/);
