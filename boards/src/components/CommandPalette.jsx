@@ -250,9 +250,15 @@ export function CommandPalette({
   // Bucket the async rows; dedupe board rows already shown from the local map.
   // Server hits obey the same rootId / excludeIds filter as the local list, or
   // a pick could offer the very cluster the link is being made in.
+  // entity_search still returns clusters in the Trash (and the cards on them),
+  // but `boards` only holds live ones. Opening such a row stranded the app on
+  // a raw-UUID breadcrumb over the root canvas, and a card on one did nothing,
+  // so a row whose cluster isn't live here is not offered at all.
   const asyncGroups = useMemo(() => {
     const asyncBoards = [], cards = [], tags = [], docs = [];
+    const onLiveBoard = (r) => !r.board_id || !!boards?.[r.board_id];
     for (const r of asyncRows) {
+      if (r.kind !== 'tag' && r.kind !== 'user' && !onLiveBoard(r)) continue;
       if (r.kind === 'board') {
         if (!localBoardIds.has(r.board_id) && r.board_id !== rootId && !excludeIds.includes(r.board_id)) asyncBoards.push(r);
       }
@@ -267,7 +273,7 @@ export function CommandPalette({
       tags: tags.slice(0, CAP.tags),
       docs: docs.slice(0, CAP.docs),
     };
-  }, [asyncRows, localBoardIds, rootId, excludeIds]);
+  }, [asyncRows, localBoardIds, rootId, excludeIds, boards]);
 
   // Build sections in render order; each item carries its own activate().
   const sections = useMemo(() => {
