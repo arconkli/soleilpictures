@@ -13,6 +13,7 @@ import { logClientError } from './lib/errorReporting.js';
 import { describeReason } from './lib/describeReason.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload } from './lib/lazyWithReload.js';
+import { installDomMutationGuard } from './lib/domMutationGuard.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
@@ -56,6 +57,12 @@ if (typeof window !== 'undefined') {
   // socket CloseEvent — instead of stringifying it to "[object Object]".
   window.addEventListener('unhandledrejection', (e) =>
     logClientError(describeReason(e?.reason), { kind: 'unhandledrejection' }));
+
+  // Google Translate / extensions rewrite React-owned text nodes; the next
+  // commit's removeChild/insertBefore then throws and takes a page or canvas
+  // pane down. Installed before any createRoot below (lib/domMutationGuard.js).
+  installDomMutationGuard(window.Node, (op) =>
+    logClientError(new Error(`DOM changed outside React (${op} on a node the parent no longer owns)`), { kind: 'dom-mutated' }));
 
   // Always-on field jank telemetry (longtasks + interaction-time low fps) →
   // client_errors kind='perf', hard-capped. See lib/perfReport.js.
