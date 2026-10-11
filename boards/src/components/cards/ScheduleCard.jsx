@@ -363,6 +363,9 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
   // neither has room for a thumbnail.
   const density = normalizeDensity(card?.calDensity);
 
+  // goTo is a no-op while the cluster's date owns the anchor; editors keep
+  // the controls regardless, as before.
+  const canNav = editable || !boardDate;
   const goTo = (nextAnchor, nextHour) => {
     if (boardDate) return;                       // the cluster's date owns this card
     setViewAnchor_(nextAnchor);
@@ -1133,13 +1136,17 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           </div>
         ) : (
         <div className="schedc-head" style={{ flexBasis: headerH, '--chrome-k': chromeK }}>
-          {editable && (
+          {/* ‹ › / Today / the date jump are for everyone: they only move this
+              viewer's local anchor (goTo), so a view-only member or a public
+              link can page to next month too. What writes the card (view,
+              density, month span) stays editor-only below. */}
+          {canNav && (
             <button type="button" className="schedc-nav" title="Previous" aria-label="Previous"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(-1); }}>
               <Icon as={ChevronLeft} size={13} />
             </button>
           )}
-          {editable ? (
+          {canNav ? (
             <button type="button" className="schedc-title" title={`${title} — jump to date`}
               aria-haspopup="dialog"
               onPointerDown={stop}
@@ -1156,14 +1163,14 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           ) : (
             <span className="schedc-title" title={title}>{title}</span>
           )}
-          {editable && (
+          {canNav && (
             <button type="button" className="schedc-nav" title="Next" aria-label="Next"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(1); }}>
               <Icon as={ChevronRight} size={13} />
             </button>
           )}
           <span className="schedc-spring" />
-          {editable && (
+          {canNav && (
             <button type="button" className="schedc-today" title="Go to today" aria-label="Go to today"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); goTo(todayISO()); }}>
               <span className="schedc-today-dot" aria-hidden="true" />
@@ -1378,7 +1385,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           onAdd={(opts) => onAddShootDay?.({ ...opts, parentBoardId: boardId })}
           onClose={() => setRangePop(null)} />
       )}
-      {editable && datePop && (
+      {canNav && datePop && (
         <SchedDatePopover anchorRect={datePop.anchorRect} anchor={anchor}
           onPick={(date) => { goTo(date); setDatePop(null); }}
           onClose={() => setDatePop(null)} />
