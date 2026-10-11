@@ -4282,8 +4282,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // doc inside one of its cards. DocCardOverlay dispatches lifecycle
   // events; we mirror them into state so workspace presence reflects
   // the exact location for click-to-jump.
-  //   null OR { cardId, pageId, scrollTop }
+  //   null OR { cardId, pageId }   (scrollTop lives in openDocScrollRef)
   const [openDocCard, setOpenDocCard] = useState(null);
+  const openDocScrollRef = useRef({ cardId: null, scrollTop: 0 });
   // Keep a live reference to the board flush fns so the (empty-dep) doc-card
   // listener below can persist pending edits the moment a card closes. A doc
   // card's content lives in its host board's Y.Doc, so flushing the open
@@ -4300,7 +4301,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onMount = (e) => {
       const { cardId } = e.detail || {};
       if (!cardId) return;
-      setOpenDocCard({ cardId, pageId: null, scrollTop: 0 });
+      openDocScrollRef.current = { cardId, scrollTop: 0 };
+      setOpenDocCard({ cardId, pageId: null });
     };
     const onUnmount = (e) => {
       const { cardId } = e.detail || {};
@@ -4311,9 +4313,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const { cardId, pageId } = e.detail || {};
       setOpenDocCard(c => (c?.cardId === cardId ? { ...c, pageId: pageId || null } : c));
     };
+    // Scroll lands in a ref, never in state: this fires every 200ms while a
+    // doc scrolls, and a state write here re-rendered the whole App (~9k
+    // lines of tree) five times a second under the reader's finger — one of
+    // the causes of the occasional stutter scrolling down a doc. Presence
+    // reads it lazily at heartbeat time (see the location getter below).
     const onScroll = (e) => {
       const { cardId, scrollTop } = e.detail || {};
-      setOpenDocCard(c => (c?.cardId === cardId ? { ...c, scrollTop: scrollTop || 0 } : c));
+      if (openDocScrollRef.current.cardId === cardId) openDocScrollRef.current.scrollTop = scrollTop || 0;
     };
     document.addEventListener('soleil-doccard-mount', onMount);
     document.addEventListener('soleil-doccard-unmount', onUnmount);
@@ -4444,7 +4451,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }
           if (boardId && boards[boardId]) setStack([boardId]);
           if (ref.pageId) {
-            try { sessionStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
+            try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
           }
           setTimeout(() => {
             document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
@@ -4515,7 +4522,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (boardId && boards[boardId]) { setStack([boardId]); recents.push(boardId); }
       if (ref.pageId) {
-        try { sessionStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
+        try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
       }
       setTimeout(() => {
         document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
@@ -6890,7 +6897,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       docBoardId: !openDocCard ? null
         : (splitDoc?.cardId === openDocCard.cardId ? splitId : currentBoard?.id) ?? null,
       pageId:    openDocCard?.pageId ?? null,
-      scrollTop: openDocCard?.scrollTop ?? 0,
+      // A getter, so the heartbeat reads the live value from the ref without
+      // the scroll ever re-rendering App.
+      get scrollTop() {
+        return openDocCard && openDocScrollRef.current.cardId === openDocCard.cardId
+          ? openDocScrollRef.current.scrollTop : 0;
+      },
       // True only when this tab is foregrounded AND user is on a board.
       // Peers consume this to hide presence dots from background tabs
       // (peer has Board X open but is currently viewing Board Y → only
@@ -6946,7 +6958,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // cards to mount on the new canvas before firing.
     if (loc.docCardId) {
       if (loc.pageId) {
-        try { sessionStorage.setItem(`soleil.boards.docActivePage.${loc.docCardId}`, loc.pageId); } catch (_) {}
+        try { localStorage.setItem(`soleil.boards.docActivePage.${loc.docCardId}`, loc.pageId); } catch (_) {}
       }
       setTimeout(() => {
         document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
