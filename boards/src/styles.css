@@ -15897,7 +15897,7 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   color: var(--ink-3);
 }
 
-.sb-row-count.has-unread { background: var(--soleil); color: var(--on-soleil); padding: 2px 6px; border-radius: 999px; font-weight: 600; }
+.sb-row-count.has-unread { background: var(--ink-0); color: var(--bg-0); padding: 2px 6px; border-radius: 999px; font-weight: 600; }
 
 .msg-thread-body {
   flex: 1;
@@ -16222,10 +16222,14 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   margin-bottom: 4px;
 }
 
-/* Channel-row unread count pill (right side, replaces timestamp). */
+/* Channel-row unread count pill (right side, replaces timestamp). Unread
+   counts are inverse ink everywhere (sidebar, this row, the phone nav badge,
+   the rail's member badge): an unread count is news, not a selection, and
+   gold is reserved for active / selection / focus. Inverse ink reads in both
+   themes. */
 .msg-row-count {
-  background: var(--soleil);
-  color: var(--on-soleil);
+  background: var(--ink-0);
+  color: var(--bg-0);
   font: 700 10px/1 var(--font-sans);
   padding: 3px 7px;
   border-radius: 999px;
@@ -20796,8 +20800,9 @@ button, [role="button"], a {
   min-width: 16px; height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--soleil);
-  color: #0a0a0c;
+  /* Inverse ink, like every unread count (see .msg-row-count). */
+  background: var(--ink-0);
+  color: var(--bg-0);
   font: 700 10px/16px var(--font-sans);
   text-align: center;
 }
