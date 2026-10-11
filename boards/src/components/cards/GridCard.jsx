@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { readGridModel, effectiveCellStyle, readGridHints } from '../../lib/gridState.js';
+import { isCellFilled } from '../../lib/gridCount.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { Spinner } from '../Spinner.jsx';
@@ -87,7 +88,27 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   // Enter/leave a text cell's editor. Also tells CanvasSurface so the bottom
   // note formatting toolbar (font / size / style) shows scoped to this cell.
   const enterTextEdit = (cellId) => { setEditingCellId(cellId); gridActions?.setCellEditing?.(card.id, cellId); };
-  const exitTextEdit = (cellId) => { setEditingCellId((p) => (p === cellId ? null : p)); gridActions?.setCellEditing?.(null, null); };
+  const exitTextEdit = (cellId) => {
+    setEditingCellId((p) => (p === cellId ? null : p));
+    gridActions?.setCellEditing?.(null, null);
+    // A double-click turns an empty cell into a text cell at once; left without
+    // a word typed, it would keep none of an empty cell's hint, styling or
+    // direct Image / Link buttons. Read live (the editor has just committed),
+    // and keep any pinned style: setCellContent with a type preserves it.
+    const live = readGridModel(card, ydoc, templates).cells[cellId];
+    if (live && live.type === 'text' && !isCellFilled(live)) gridActions?.setCellContent?.(card.id, cellId, { type: 'empty' });
+  };
+  // Deletes in here get the house Undo toast (gridActions.withUndoToast);
+  // without it they fall back to the bare mutator.
+  const withUndo = (message, fn) => (gridActions?.withUndoToast ? gridActions.withUndoToast(message, fn) : fn());
+  const clearCell = (cellId) => withUndo('Cell cleared', () => gridActions.clearCellContent(card.id, cellId));
+  // Removing a line deletes the right / bottom side's cells. Content moves
+  // into an empty neighbour; what can't is counted, and only then is there a
+  // toast — a line between two empty cells costs nothing.
+  const removeLine = (d) => withUndo(
+    (res) => (res?.dropped ? (res.dropped === 1 ? 'Removed a filled cell' : `Removed ${res.dropped} filled cells`) : null),
+    () => gridActions.removeDivider?.(card.id, d.path, d.childIndex),
+  );
   // Open / close the image cell's photo + fit editor (portaled popover below).
   const openPhotoEdit = (cellId, anchorRect) => { setMenu(null); setRepositionOn(false); setCompareCellId(null); setPhotoEdit({ cellId, anchorRect }); };
   const closePhotoEdit = () => { setPhotoEdit(null); setRepositionOn(false); setCompareCellId(null); };
@@ -332,7 +353,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 className="gridc-cell-x"
                 title="Clear cell"
                 onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); gridActions.clearCellContent(card.id, r.id); setSwapCellId(null); }}
+                onClick={(e) => { e.stopPropagation(); clearCell(r.id); setSwapCellId(null); }}
               ><span className="gridc-ico"><Icon as={Trash} size={13} /></span></button>
             )}
           </div>
@@ -340,7 +361,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
       })}
       {dividers.map((d) => {
         const grab = editable && isSelected;   // resize after select (standard, avoids mis-grabs)
-        const remove = (e) => { e.stopPropagation(); gridActions.removeDivider?.(card.id, d.path, d.childIndex); };
+        const remove = (e) => { e.stopPropagation(); removeLine(d); };
         return (
           <div
             key={d.id}
@@ -376,7 +397,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         onLink={() => gridActions.addLinkToCell(card.id, menu.cellId)}
         onSplitRow={() => gridActions.splitCell(card.id, menu.cellId, 'row')}
         onSplitCol={() => gridActions.splitCell(card.id, menu.cellId, 'col')}
-        onClear={() => gridActions.clearCellContent(card.id, menu.cellId)}
+        onClear={() => clearCell(menu.cellId)}
         onClose={() => setMenu(null)}
       />
     )}

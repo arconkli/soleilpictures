@@ -15,7 +15,7 @@ import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } f
 import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { scheduleCreationAllowed } from '../lib/appHost.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
 import { CURATED_TEMPLATES } from '../lib/gridTemplateIndex.js';
 import { layoutById } from '../lib/templateLayouts.js';
@@ -1096,10 +1096,17 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const removeGridDivider = (gridId, path, childIndex) => {
     const card = findLocalGrid(gridId); const cur = localGridLayout(card); if (!cur) return;
-    const { tree, removedIds } = removeDivider(cur, path, childIndex);
-    if (!removedIds.length) return;
+    const { tree, removedIds, keptIds } = removeDivider(cur, path, childIndex);
+    if (!removedIds.length) return null;
     localGridLayoutEdit(gridId, () => tree);
-    mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
+    // Mirrors App.removeGridDivider: carry into an empty heir, count the rest.
+    const plan = carryRemovedCells(removedIds, keptIds, card.cells || {});
+    mapGridCard(gridId, c => {
+      const cells = { ...(c.cells || {}) };
+      removedIds.forEach(id => delete cells[id]);
+      return { ...c, cells: { ...cells, ...plan.moves } };
+    });
+    return { dropped: plan.dropped };
   };
   // Re-cut a Grid to a saved template's shape — the local mirror of
   // App.applyGridLayout. Same contract: instantiate (a template's leaf ids are

@@ -55,6 +55,8 @@ import {
   Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
@@ -1480,6 +1482,12 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const isEditable = !!onUpdate;
+  // Optional: the QA harnesses render cards outside FeedbackProvider. useContext
+  // runs before useFeedback throws, so the hook order is stable either way.
+  let feedback = null;
+  try { feedback = useFeedback(); } catch (_) { /* no provider: no toast */ }
+  const swatchesRef = useRef(swatches); swatchesRef.current = swatches;
+  const onUpdateRef = useRef(onUpdate); onUpdateRef.current = onUpdate;
   // One toggle — "pure color" — hides every label (hex, names, title) for a
   // full-bleed palette. Legacy hideHex/hideLabels are still honored on old
   // cards so nothing regresses; the eye button writes chipsOnly.
@@ -1509,9 +1517,22 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
     e.stopPropagation();
     onUpdate({ swatches: [...swatches, { name: 'Color', hex: '#888888' }] });
   };
+  // Removing a swatch gets the house Undo toast. The inverse is a closure (put
+  // the swatch back where it was in the CURRENT list), so an edit made in the
+  // toast window isn't reverted with it.
   const removeSwatch = (i, e) => {
     e.stopPropagation();
+    const gone = swatches[i];
     onUpdate({ swatches: swatches.filter((_, idx) => idx !== i) });
+    if (!gone) return;
+    undoToast(feedback, {
+      message: 'Color removed',
+      onUndo: () => {
+        const cur = [...(swatchesRef.current || [])];
+        cur.splice(Math.min(i, cur.length), 0, gone);
+        onUpdateRef.current?.({ swatches: cur });
+      },
+    });
   };
   const openPicker = (i, e) => {
     e.stopPropagation();
