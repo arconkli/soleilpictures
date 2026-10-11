@@ -4,6 +4,8 @@
 // working before the user has provisioned a Supabase project.
 
 import { createClient } from '@supabase/supabase-js';
+import { guardRealtimeConnect } from './realtimeGuard.js';
+import { logClientError } from './errorReporting.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 // Prefer the modern publishable key; fall back to legacy anon JWT.
@@ -101,6 +103,17 @@ export const supabase = (url && publicKey)
   : null;
 
 export const isSupabaseConfigured = !!supabase;
+
+// A browser that refuses the WebSocket made every channel().subscribe() throw
+// out of its React effect (realtime-js rethrows the constructor failure from
+// connect()) and red-panelled /c/. Realtime is never load-bearing here — every
+// surface fetches over REST first — so note it once and stay offline.
+if (supabase) {
+  guardRealtimeConnect(supabase.realtime, (err) => {
+    console.warn('[realtime] unavailable — staying offline', err?.message || err);
+    try { logClientError(err, { kind: 'realtime-unavailable' }); } catch (_) {}
+  });
+}
 
 // ── Realtime wake handling ─────────────────────────────────────────────
 // Two layers of recovery:
