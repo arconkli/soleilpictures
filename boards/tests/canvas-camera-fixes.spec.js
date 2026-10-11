@@ -186,11 +186,26 @@ test('a card held through a wheel pan stays under the cursor', async ({ page }) 
   await goBlank(page);
   await createNote(page, 'hold-me');
   const card = page.locator('.card', { hasText: 'hold-me' }).first();
+  // Select it first (the corner, as the other specs do) so the press drags
+  // the card rather than landing in the note's text.
+  await card.click({ position: { x: 6, y: 6 } });
+  // Focusing a note low in the harness viewport can leave an ANCESTOR of the
+  // canvas scrolled, which then moves under the wheel too. Undo that so the
+  // only thing the wheel moves is the camera.
+  await page.evaluate(() => {
+    for (let el = document.querySelector('.canvas-wrap'); el; el = el.parentElement) {
+      if (el.scrollTop) el.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  });
+  await page.waitForTimeout(100);
   const b0 = await card.boundingBox();
-  const grab = { x: b0.x + 8, y: b0.y + 8 };
+  const grab = { x: b0.x + 6, y: b0.y + 6 };
   await page.mouse.move(grab.x, grab.y);
   await page.mouse.down();
-  await page.mouse.move(grab.x + 30, grab.y + 10, { steps: 4 });
+  await page.mouse.move(grab.x + 30, grab.y + 10, { steps: 8 });
+  // The drag is live: the card has followed the pointer.
+  await expect.poll(async () => Math.round((await card.boundingBox()).x - b0.x)).toBeGreaterThan(20);
   await page.mouse.wheel(0, 300);
   await page.waitForTimeout(300);
   await page.mouse.move(grab.x + 40, grab.y + 12, { steps: 3 });
@@ -198,8 +213,8 @@ test('a card held through a wheel pan stays under the cursor', async ({ page }) 
   await page.waitForTimeout(300);
   const b1 = await card.boundingBox();
   // The grab point is where the cursor let go.
-  expect(Math.abs(b1.x + 8 - (grab.x + 40))).toBeLessThan(12);
-  expect(Math.abs(b1.y + 8 - (grab.y + 12))).toBeLessThan(12);
+  expect(Math.abs(b1.x + 6 - (grab.x + 40))).toBeLessThan(12);
+  expect(Math.abs(b1.y + 6 - (grab.y + 12))).toBeLessThan(12);
 });
 
 // CARDS-01: the PDF viewer renders inside .canvas-wrap, whose native wheel
