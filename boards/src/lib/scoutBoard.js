@@ -441,7 +441,7 @@ async function saveVersionRow(env, boardId, doc, { triggerKind = 'api', label = 
 //   dropIds — cards to DELETE from the source rather than move (an ingest
 //             section header whose photos have all just left, for instance)
 //
-// Returns { moved, count, live, droppedHeader }.
+// Returns { moved, pairs, count, live, droppedHeader }.
 export async function moveCardsBetweenBoards(env, {
   fromBoardId, toBoardId, workspaceId, userId, accessToken,
   cardIds = [], dropIds = [], layout,
@@ -502,6 +502,7 @@ export async function moveCardsBetweenBoards(env, {
     // Re-id anything that would collide on the destination. map.set() on an
     // existing id REPLACES that card, and this is someone else's board.
     const renames = new Map();
+    const originalOf = new Map();   // destination id → the id it had here
     const prepared = moving.map((c, i) => {
       let id = String(c.id);
       let guard = 0;
@@ -509,6 +510,7 @@ export async function moveCardsBetweenBoards(env, {
         id = `${c.id}-${Math.random().toString(36).slice(2, 8)}`;
       }
       if (id !== String(c.id)) renames.set(String(c.id), id);
+      originalOf.set(id, String(c.id));
       return { ...c, id, z: maxZ + i + 1, updatedAt: nowIso, updatedBy: userId || null };
     }).filter((c) => !dstCards.has(c.id));
 
@@ -604,6 +606,11 @@ export async function moveCardsBetweenBoards(env, {
 
     return {
       moved: prepared,
+      // Which source id became which destination id, explicitly. `moved` is in
+      // BOARD order, not the caller's, and skips ids that were not there, so
+      // pairing it with the request by position put one card's identifiers and
+      // props on another (2026-10-11 audit, API-07).
+      pairs: prepared.map((c) => ({ from: originalOf.get(c.id) || String(c.id), to: c.id })),
       count: prepared.length,
       live: liveTo,
       droppedHeader,
