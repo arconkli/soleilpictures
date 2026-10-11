@@ -1360,7 +1360,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-08",
+    "updated": "2026-10-11",
     "navLabel": "Files view",
     "headings": [
       {
@@ -1448,7 +1448,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I drag files from Files onto the board?",
-        "a": "Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again."
+        "a": "Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again. A note, doc or grid from another cluster is copied too, and the toast that follows can move it instead."
       },
       {
         "q": "Can I upload from Files?",

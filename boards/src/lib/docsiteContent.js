@@ -16231,21 +16231,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Notes, docs and grids can't be copied this way — their content lives in their cluster — so dropping one from another cluster offers "
+     "v": "Notes, docs and grids from another cluster are copied the same way — the copy takes their words, cells and pages from the cluster they live in, and the original stays where it was. A grid linked to its cluster's shared layout arrives as a standalone grid with that layout. The toast that follows offers "
     },
     {
      "t": "strong",
-     "v": "Move here",
+     "v": "Move instead",
      "children": [
       {
        "t": "text",
-       "v": "Move here"
+       "v": "Move instead"
       }
      ]
     },
     {
      "t": "text",
-     "v": " instead. Moving takes it out of the other cluster, and the toast that follows can undo it."
+     "v": ", which takes the copy back off and moves the original here; "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " undoes the copy. Copies count toward your plan's card limit like any other card."
     }
    ]
   },

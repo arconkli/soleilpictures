@@ -146,7 +146,7 @@ test('dragging this cluster\'s file from the panel moves its card to the drop po
   }).toBeLessThan(3);
 });
 
-test('another cluster\'s file drags in as a linked copy; a doc is offered as a move', async ({ page }) => {
+test('another cluster\'s file drags in as a linked copy; a doc is copied too, or moved instead', async ({ page }) => {
   await go(page);
   await page.keyboard.press('f');
   const p = panel(page);
@@ -160,11 +160,40 @@ test('another cluster\'s file drags in as a linked copy; a doc is offered as a m
   // The original stays where it was.
   await expect(p.locator('[data-item-id="s-img1"]')).toBeVisible();
 
+  // A doc is copied from its cluster's real content; the original stays.
   await p.locator('[data-item-id="s-doc"]').dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 420, y: 560 } });
-  await expect(cards).toHaveCount(n0 + 1);
-  await page.getByRole('button', { name: 'Move here' }).click();
+  await expect(cards).toHaveCount(n0 + 2);
+  await expect(page.getByText(/Copied 1 card from “Sundown Highway”/)).toBeVisible();
+  await expect(p.locator('[data-item-id="s-doc"]')).toHaveCount(1);
+  await expect(page.locator('[data-card-id="s-doc"]')).toHaveCount(0);
+  // Move instead: the copy comes off and the original moves here.
+  await page.getByRole('button', { name: 'Move instead' }).click();
   await expect(page.locator('[data-card-id="s-doc"]')).toHaveCount(1);
   await expect(p.locator('[data-item-id="s-doc"]')).toHaveCount(0);
+  await expect(cards).toHaveCount(n0 + 2);
+});
+
+test('a note from another cluster is copied with its words, and ⌘Z takes the copy back', async ({ page }) => {
+  await go(page);
+  await page.locator('.sidebar, nav').getByText('Halcyon', { exact: true }).first().click();
+  await expect(page.locator('.crumb.here')).toContainText('Halcyon');
+  await page.locator('.canvas-wrap').click({ position: { x: 30, y: 300 } });
+  await page.keyboard.press('f');
+  const p = panel(page);
+  await p.locator('.pb').getByRole('button', { name: 'Studio' }).click();
+  const note = p.locator('[data-item-id="home-note"]');
+  await expect(note).toBeVisible();
+  const cards = page.locator('[data-card-id]');
+  const n0 = await cards.count();
+  await note.dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 360, y: 360 } });
+  await expect(page.getByText(/Copied 1 note from “Studio”/)).toBeVisible();
+  await expect(cards).toHaveCount(n0 + 1);
+  await expect(page.locator('.canvas-wrap').getByText('Drop projects here', { exact: false })).toBeVisible();
+  // Still in Studio.
+  await expect(note).toBeVisible();
+  await page.locator('.canvas-wrap').click({ position: { x: 30, y: 300 } });
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(cards).toHaveCount(n0);
 });
 
 test('a plain click on a file in the panel selects it on the board', async ({ page }) => {
@@ -199,18 +228,18 @@ test('the View menu closes when its button is pressed again', async ({ page }) =
   await expect(panel(page).getByRole('menu')).toHaveCount(0);
 });
 
-test('"Move here" does nothing once the board has changed under it', async ({ page }) => {
+test('"Move instead" does nothing once the board has changed under it', async ({ page }) => {
   await go(page);
   await page.keyboard.press('f');
   const p = panel(page);
   await p.locator('.ft', { hasText: 'Sundown Highway' }).dblclick();
   await p.locator('[data-item-id="s-doc"]').dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 420, y: 560 } });
-  await expect(page.getByRole('button', { name: 'Move here' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Move instead' })).toBeVisible();
   // The board moves to another cluster before the toast is acted on.
   await page.locator('.sidebar, nav').getByText('Halcyon', { exact: true }).first().click();
   await expect(page.locator('.crumb.here')).toContainText('Halcyon');
   await expect(p).toBeVisible();
-  await page.getByRole('button', { name: 'Move here' }).click();
+  await page.getByRole('button', { name: 'Move instead' }).click();
   await expect(page.locator('[data-card-id="s-doc"]')).toHaveCount(0);
   // Still in its own cluster: walk the panel back up to it.
   await p.locator('.pb').getByRole('button', { name: 'Studio' }).click();

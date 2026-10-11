@@ -47,6 +47,7 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { ProjectsHome } from '../components/ProjectsHome.jsx';
 import { isTopLevelProject, spotBesideContent } from '../lib/projectsHome.js';
 import { ancestorPath } from '../lib/boardTree.js';
+import { arrowsBetween } from '../lib/filesDrag.js';
 import { layoutDrop } from '../lib/layoutEngine.js';
 import { placedOf, positionUnplaced } from '../lib/placement.js';
 import { classifyDropFile, fileMetaFor } from '../lib/fileIngest.js';
@@ -334,12 +335,33 @@ export function LocalBoardsApp({ user, signOut }) {
   // "Move here" from a cluster that isn't open: in memory, the source's cards
   // simply change boards. (The signed-in shell goes through its saved
   // snapshot — lib/moveFromCluster.js.)
+  // A copy reads the source as it is now, so the asking canvas can add the
+  // copies itself (one undo step, its toast) — through refs, since the
+  // listener is added once.
+  const boardStateRef = useRef(boardState);
+  boardStateRef.current = boardState;
+  const gridTplRef = useRef({});
   useEffect(() => {
     const onAsk = (e) => {
       const d = e.detail || {};
       if (d.handled || !d.sourceBoardId || !d.targetBoardId || d.sourceBoardId === d.targetBoardId) return;
-      d.handled = true;
       const ids = new Set(d.ids || []);
+      if (d.copy) {
+        const src = boardStateRef.current?.[d.sourceBoardId];
+        const cards = (src?.cards || []).filter((c) => ids.has(c.id)).map((c) => structuredClone(c));
+        if (!cards.length) return;
+        d.handled = true;
+        d.live = {
+          cards,
+          templates: gridTplRef.current?.[d.sourceBoardId] || {},
+          originals: new Map(),
+          arrowsBetween: (idMap) => arrowsBetween(src?.arrows || [], idMap),
+          commit: async () => {},
+          close: () => {},
+        };
+        return;
+      }
+      d.handled = true;
       setLocalState((prev) => {
         const src = prev.boardState?.[d.sourceBoardId];
         const dst = prev.boardState?.[d.targetBoardId];
@@ -363,6 +385,7 @@ export function LocalBoardsApp({ user, signOut }) {
   // Shared Grid layout templates (global sync), keyed by boardId → { tplId: {id,name,layout} }.
   // Kept separate from boardState (whose updater only threads cards/arrows/strokes).
   const [gridTplState, setGridTplState] = useState({});
+  gridTplRef.current = gridTplState;
   // Grid sequences, keyed by boardId → { seqId: {id,name,pattern,format} }.
   const [gridSeqState, setGridSeqState] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);

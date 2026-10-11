@@ -70,9 +70,14 @@ export async function openClusterForMove(sourceBoardId, ids, { userId = null, se
   }).filter(Boolean);
   const originals = new Map(cards.map((c) => [c.id, Object.fromEntries(PLACE_KEYS.map((k) => [k, c[k]]))]));
   const arrowList = () => { try { return doc.getArray('arrows').toArray(); } catch (_) { return []; } };
+  let templates = {};
+  try { templates = doc.getMap('gridTemplates').toJSON(); } catch (_) {}
 
   return {
     cards,
+    // Its shared Grid layouts: a linked grid leaving the cluster takes its
+    // layout along (gridState.unlinkGridForCopy).
+    templates,
     // The source's arrows between cards that are moving, re-pointed at the
     // new ids — they travel with the cards.
     arrowsBetween: (idMap) => arrowsBetween(arrowList(), idMap),

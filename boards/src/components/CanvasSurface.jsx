@@ -73,6 +73,7 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
+import { unlinkGridForCopy } from '../lib/gridState.js';
 import { yMapToCard } from '../lib/yhelpers.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
@@ -9377,21 +9378,7 @@ export function CanvasSurface({
         onUndo: () => mutators.undo?.(),
       });
     }
-    if (plan.moveOnly.length) offerMoveHere(payload, plan.moveOnly, at);
-  };
-
-  const offerMoveHere = (payload, list, at) => {
-    const KIND_NOUN = { note: 'A note', doc: 'A doc', grid: 'A grid', schedule: 'A schedule', shape: 'A shape' };
-    const n = list.length;
-    const from = payload.sourceName ? ` from “${payload.sourceName}”` : '';
-    feedback.toast({
-      type: 'info',
-      ttl: 10000,
-      message: n === 1
-        ? `${KIND_NOUN[list[0].kind] || 'This card'} lives in one cluster — it can be moved here${from}, not copied.`
-        : `${n} notes, docs or grids live in one cluster — they can be moved here${from}, not copied.`,
-      action: { label: 'Move here', onClick: () => { moveHereFromCluster(payload.sourceBoardId, list.map((c) => c.id), at); } },
-    });
+    if (plan.liveCopy.length) copyHereFromCluster(payload, plan.liveCopy.map((c) => c.id), at);
   };
 
   // Is this pane still showing the board (and live doc) a move started on? A
@@ -9439,7 +9426,7 @@ export function CanvasSurface({
       const stamp = Date.now();
       // Dropped on this canvas, so it's on this board — even a note that was
       // waiting in the other cluster's Files (lib/placement.js).
-      const fresh = movable.map((c, i) => ({ ...c, id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`, groupId: null, unplaced: false }));
+      const fresh = movable.map((c, i) => ({ ...unlinkGridForCopy(c, src.templates), id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`, groupId: null, unplaced: false }));
       const allIds = Object.fromEntries(movable.map((c, i) => [c.id, fresh[i].id]));
       const placed = layoutDrop(fresh.map((c) => ({ ...c, w: c.w || 240, h: c.h || 200 })), { at, layout: 'grid' });
       const res = mutators.addCards?.(placed, { moveFrom: sourceBoardId, untracked: true, arrows: src.arrowsBetween(allIds) });
@@ -9462,6 +9449,84 @@ export function CanvasSurface({
         type: 'success',
         message: n === 1 ? 'Moved 1 card here' : `Moved ${n} cards here`,
         onUndo: () => undoMoveHere({ sourceBoardId, targetId, doc, idMap, originals }),
+      });
+    } finally {
+      src.close();
+    }
+  };
+
+  // Notes, docs and grids from another cluster are copied here, like files —
+  // but from their cluster's real content (its open canvas, else its saved
+  // snapshot), since the drag only carries a snapshot that can't hold a note's
+  // text or a grid's cells. One tracked step, charged against the card limit;
+  // the source is never touched. "Move instead" takes the copy back off and
+  // moves the originals here.
+  const copyHereFromCluster = async (payload, ids, at) => {
+    const sourceBoardId = payload.sourceBoardId;
+    const targetId = board.id;
+    const doc = ydoc;
+    if (!stillOn(targetId, doc)) return;
+    const ask = { sourceBoardId, targetBoardId: targetId, ids, at, handled: false, live: null, copy: true };
+    document.dispatchEvent(new CustomEvent('soleil-files-move-from', { detail: ask }));
+    let src = ask.live;
+    if (!src) {
+      try {
+        src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
+      } catch (err) { console.error('[files-copy-here] open failed', err); }
+      if (!src) {
+        feedback.toast({ type: 'error', message: 'Could not read that cluster — nothing was copied. Try again in a moment.' });
+        return;
+      }
+    }
+    try {
+      if (!stillOn(targetId, doc)) {
+        feedback.toast({ type: 'info', message: 'Nothing was copied — this board changed before the copy could finish.' });
+        return;
+      }
+      const copyable = src.cards.filter((c) => !isStillUploading(c) && c.kind !== 'board' && c.kind !== 'boardlink');
+      if (!copyable.length) return;
+      const stamp = Date.now();
+      const fresh = copyable.map((c, i) => ({
+        ...unlinkGridForCopy(c, src.templates),
+        id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`,
+        groupId: null, unplaced: false,
+      }));
+      const allIds = Object.fromEntries(copyable.map((c, i) => [c.id, fresh[i].id]));
+      const placed = layoutDrop(fresh.map((c) => ({ ...c, w: c.w || 240, h: c.h || 200 })), { at, layout: 'grid' });
+      const um = mutators.undoManager;
+      mutators.breakUndo?.();
+      // addCards deep-copies live Yjs content (yhelpers.cardToYMap) and charges
+      // the cap — it may keep only what fits.
+      const res = mutators.addCards?.(placed, { arrows: src.arrowsBetween(allIds) });
+      const landed = res?.placedIds || [];
+      const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+      mutators.breakUndo?.();
+      if (!landed.length) return;
+      setSelected(new Set(landed));
+      const n = landed.length;
+      const allNotes = copyable.every((c) => c.kind === 'note');
+      const noun = allNotes ? (n === 1 ? 'note' : 'notes') : (n === 1 ? 'card' : 'cards');
+      const from = payload.sourceName ? ` from “${payload.sourceName}”` : '';
+      feedback.toast({
+        type: 'success',
+        ttl: 8000,
+        message: `Copied ${n} ${noun}${from} · ⌘Z undoes`,
+        action: {
+          label: 'Move instead',
+          onClick: () => {
+            if (!stillOn(targetId, doc)) {
+              feedback.toast({ type: 'info', message: 'Nothing was moved — this board changed since the copy.' });
+              return;
+            }
+            const topNow = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+            if (um && item && topNow !== item) {
+              feedback.toast({ type: 'info', message: 'The board changed since — drag it in again to move it instead.' });
+              return;
+            }
+            mutators.undo?.();
+            moveHereFromCluster(sourceBoardId, ids, at);
+          },
+        },
       });
     } finally {
       src.close();
@@ -9510,7 +9575,8 @@ export function CanvasSurface({
   // always sees this render's cards and mutators.
   const moveFromAskRef = useRef(null);
   moveFromAskRef.current = (d) => {
-    if (isPublic || !canEdit) return;
+    // A copy only reads: seeing the cluster is enough. A move needs edit.
+    if (isPublic || (!canEdit && !d.copy)) return;
     if (d.handled || d.sourceBoardId !== board?.id || d.targetBoardId === board?.id) return;
     const idSet = new Set(d.ids || []);
     // Every card in the cluster — one waiting in Files moves out too, live.
@@ -9520,6 +9586,7 @@ export function CanvasSurface({
     d.handled = true;
     d.live = {
       cards: moving,
+      templates: gridTemplates || {},
       originals: new Map(moving.map((c) => [c.id, { x: c.x, y: c.y, w: c.w, h: c.h, z: c.z, groupId: c.groupId, unplaced: c.unplaced === true }])),
       arrowsBetween: (idMap) => arrowsBetween(arrows || [], idMap),
       // Let go of what landed — the untracked move-delete, so ⌘Z here can't

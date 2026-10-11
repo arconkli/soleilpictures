@@ -144,16 +144,17 @@ export function planSameClusterDrop(payloadCards, at, liveById) {
 // Another cluster: sort each dragged card into what the drop does with it.
 //   copies   new linked-copy cards, laid out as one block on the drop point
 //   moves    cards already on this board showing the same file → move here
-//   moveOnly notes, docs, grids… — offered as a move from their cluster
+//   liveCopy notes, docs, grids… — copied too, but from their cluster's live
+//            content (the drag carries only a snapshot, which can't hold it)
 export function planCrossDrop(cards, at, {
   sourceBoardId, boardCards = [], extraCopy = false, makeId,
 } = {}) {
   const index = extraCopy ? new Map() : onBoardIndex(boardCards);
-  const toCopy = [], alreadyHere = [], moveOnly = [];
+  const toCopy = [], alreadyHere = [], liveCopy = [];
   const seen = new Set();
   for (const c of cards || []) {
     if (!c || NEVER_DRAGGED.has(c.kind)) continue;
-    if (!COPYABLE_KINDS.has(c.kind)) { moveOnly.push(c); continue; }
+    if (!COPYABLE_KINDS.has(c.kind)) { liveCopy.push(c); continue; }
     const existing = index.get(fileKeyOf(c));
     if (existing) { if (!seen.has(existing)) { seen.add(existing); alreadyHere.push(existing); } continue; }
     toCopy.push(c);
@@ -173,7 +174,7 @@ export function planCrossDrop(cards, at, {
   // it was waiting in Files — rather than adding another.
   const liveById = new Map((boardCards || []).map((c) => [c.id, c]));
   const moves = alreadyHere.length ? planPlaceAt(alreadyHere.map((id) => liveById.get(id)).filter(Boolean), at) : [];
-  return { copies, moves, moveOnly };
+  return { copies, moves, liveCopy };
 }
 
 export function summarizeDrop({ copied = 0, moved = 0, sourceName = '' }) {
