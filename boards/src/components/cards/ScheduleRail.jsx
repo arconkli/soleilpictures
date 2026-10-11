@@ -235,7 +235,7 @@ export function ScheduleRail({
         {groups.length === 0 ? (
           <p className="schedc-rail-empty">
             Nothing on the calendar yet.
-            {editable && onAddDay ? ' Right-click a date to add days.' : ''}
+            {editable && onAddDay ? ' Use “Add days…” below to lay out a block.' : ''}
           </p>
         ) : groups.map((g) => (
           <div key={g.key} className="schedc-rail-group">
