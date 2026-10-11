@@ -301,6 +301,20 @@ export function boardDoc(boardId) {
   return doc;
 }
 
+// The origins of edits made on THIS client: the canvas ('local'), doc
+// structure ('doc-struct'), the Screenplay switch ('doc-mode'), typing in a doc
+// or note — y-prosemirror's binding, whose origin is its PluginKey, named
+// 'y-sync$' (or 'y-sync$1'… if a second key is ever minted, so match the
+// prefix rather than one spelling) — and any Y.UndoManager's undo/redo (the
+// canvas's, the doc-structure one, a text editor's y-undo). Strings, not
+// imports: importing y-prosemirror here would drag ProseMirror into every
+// board's chunk.
+export function isLocalEditOrigin(origin) {
+  if (origin === 'local' || origin === 'doc-struct' || origin === 'doc-mode') return true;
+  if (origin instanceof Y.UndoManager) return true;
+  return typeof origin?.key === 'string' && origin.key.startsWith('y-sync$');
+}
+
 // `fresh`: skip every local copy (draft, IndexedDB cache, hover-prefetch) and
 // read board_state straight from the server. Set by useYBoard on the remount
 // that follows a reset/restore: the restored bytes share this doc's Yjs
@@ -531,7 +545,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       pendingEarly = true;
       localEdits = true;
       localSeq += 1;
-      if (origin === 'local') { pendingLocal = true; emitSaveState('saving'); }
+      if (isLocalEditOrigin(origin)) { pendingLocal = true; emitSaveState('saving'); }
       draftSoon();
       return;
     }
@@ -542,10 +556,9 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     localEdits = true;
     localSeq += 1;
     // Only a LOCAL edit drives the "Saving…" footer (peer edits shouldn't
-    // flip your own save indicator). Local means the canvas ('local'), doc
-    // structure ('doc-struct') and typing in a doc or note — y-prosemirror's
-    // binding, whose origin is its PluginKey ('y-sync$').
-    if (origin === 'local' || origin === 'doc-struct' || origin?.key === 'y-sync$') { pendingLocal = true; emitSaveState('saving'); }
+    // flip your own save indicator). Peer updates arrive as 'remote' (or as
+    // the realtime provider object); everything else is one of these.
+    if (isLocalEditOrigin(origin)) { pendingLocal = true; emitSaveState('saving'); }
     persistSoon();
   };
   ydoc.on('update', onUpdate);
