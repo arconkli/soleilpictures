@@ -15,6 +15,12 @@ const FeedbackContext = createContext(null);
 export function FeedbackProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const [toasts, setToasts] = useState([]);
+  // What screen readers hear. The visual stack only mounts with its first
+  // toast, and a live region inserted together with its content is not
+  // announced — so "Deleted · Undo" was silent. These two regions are mounted
+  // from boot and only their text changes. The id-parity nbsp makes a repeat
+  // of the same message still count as a change.
+  const [announce, setAnnounce] = useState({ polite: '', alert: '' });
   const nextId = useRef(1);
   const lastTrigger = useRef(null);
 
@@ -105,6 +111,8 @@ export function FeedbackProvider({ children }) {
     if (isSilenced()) return;
     const id = nextId.current++;
     setToasts(current => [...current, { id, type, message, action, onDismiss, exiting: false }]);
+    const spoken = `${message}${action ? ` — ${action.label || 'Undo'} available` : ''}${id % 2 ? '\u00a0' : ''}`;
+    setAnnounce(type === 'error' ? { polite: '', alert: spoken } : { polite: spoken, alert: '' });
     window.setTimeout(() => dismissToast(id), Math.max(1000, ttl));
   }, [dismissToast]);
 
@@ -113,6 +121,8 @@ export function FeedbackProvider({ children }) {
   return (
     <FeedbackContext.Provider value={value}>
       {children}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">{announce.polite}</div>
+      <div className="sr-only" role="alert" aria-atomic="true">{announce.alert}</div>
       {(dialog || toasts.length > 0) && (
         <Suspense fallback={null}>
           <FeedbackOverlay
