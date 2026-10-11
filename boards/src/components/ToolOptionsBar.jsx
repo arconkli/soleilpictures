@@ -891,9 +891,9 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
   // overlays the layout viewport (visualViewport shrinks, the page doesn't), so
   // a CSS `bottom` would sit the bar UNDER the keyboard. Track visualViewport
   // and set the bar's bottom to the keyboard height + a small gap. Desktop / no
-  // keyboard → kb = 0 → no-op. The Capacitor app resizes natively, which the
-  // same math also handles. Re-subscribes per edit (the bar mounts when a note
-  // edit begins).
+  // keyboard → kb = 0 → the CSS bottom stands. The Capacitor app resizes
+  // natively, which the same math also handles. Re-subscribes per edit (the
+  // bar mounts when a note edit begins).
   useEffect(() => {
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     const el = barRef.current;
@@ -906,8 +906,11 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
     const touch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
     if (!narrow && !touch) return;
     const apply = () => {
-      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      el.style.bottom = `calc(${Math.round(kb)}px + 8px)`;
+      const kb = Math.round(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+      // Only override while a keyboard is up. With none, clear it so the
+      // stylesheet's bottom applies: on the mobile shell that clears the
+      // fixed bottom nav, and an inline 8px parked the bar behind the nav.
+      el.style.bottom = kb > 0 ? `calc(${kb}px + 8px)` : '';
     };
     apply();
     vv.addEventListener('resize', apply);

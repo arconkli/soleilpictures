@@ -36,3 +36,23 @@ test('the Upgrade chip steps aside while a full-screen overlay is open', async (
   expect(shown.alone, 'the chip must show when nothing covers the screen').toBe('visible');
   for (const cls of overlays) expect(shown[cls], `chip over .${cls}`).toBe('hidden');
 });
+
+// VIS-08: the note bar's keyboard lift wrote `bottom: 8px` inline even with
+// no keyboard up, beating the stylesheet's nav clearance and parking the bar
+// behind the fixed bottom nav.
+test('the note formatting bar clears the phone bottom nav with no keyboard up', async ({ page }) => {
+  await boot(page, { width: 390, height: 844 });
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
+  await page.locator('.canvas-wrap').click({ position: { x: 195, y: 300 } });
+  await page.locator('.note-body[contenteditable="true"]').waitFor();
+  const bar = page.locator('.tob').first();
+  await expect(bar).toBeVisible();
+  const nav = await page.locator('.mb-nav').boundingBox();
+  const box = await bar.boundingBox();
+  expect(nav, 'the bottom nav must be laid out').not.toBeNull();
+  expect(box.y + box.height, 'the bar must sit above the bottom nav').toBeLessThanOrEqual(nav.y);
+  // The keyboard lift measures from the viewport, so the bar must be fixed
+  // to it — the grain layering block's `position: absolute` used to win.
+  expect(await bar.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
+});
