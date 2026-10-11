@@ -107,7 +107,9 @@
 
   --accent:  var(--soleil);
   /* Ink for text and icons ON a gold fill. Not --bg-0: that is near-white in
-     light theme, about 1.8:1 on #ffa500. Dark ink reads in both themes. */
+     light theme, about 1.8:1 on #ffa500. Dark ink reads in both themes. A
+     user accent re-sets it beside --soleil (lib/accentInk.js), white on a
+     dark accent. */
   --on-soleil: #1a1205;
 
   /* Status colours for counts, badges and destructive actions. --ok/--warn

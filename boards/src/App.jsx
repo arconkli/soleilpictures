@@ -67,6 +67,7 @@ import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 // stays node-importable so it can't import analytics.js itself). Idempotent.
 setJourneySink({ logEvent, logEventNow });
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
+import { onSoleilInk } from './lib/accentInk.js';
 import { applyWheelModeNow, getWheelMode } from './lib/wheelMode.js';
 import { applySidebarOpenNow, getSidebarOpen } from './lib/sidebarPref.js';
 import { R2Image } from './components/R2Image.jsx';
@@ -1100,6 +1101,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         + ` --soleil-soft: rgba(${r},${g},${b},.14);`
         + ` --soleil-glow: 0 0 24px rgba(${r},${g},${b},.18);`
         + ` --accent: ${hex};`
+        + ` --on-soleil: ${onSoleilInk(hex)};`
         + ` }`);
     }
     if (ui.fontSans) {
