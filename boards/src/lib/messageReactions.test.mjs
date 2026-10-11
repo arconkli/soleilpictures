@@ -59,3 +59,25 @@ test('the client reacts through the RPC and checks the error', () => {
   const react = thread.slice(thread.indexOf('const handleReact'), thread.indexOf('const handleReply'));
   assert.match(react, /catch[\s\S]*feedback\.toast\(\{ type: 'error'/, 'a failed reaction says so');
 });
+
+// ── 0407: re-adding someone who left brings them back ───────────────────────
+
+test('adding people goes through add_conversation_participants, which lets a leaver back in', () => {
+  const add = latestDefinition('add_conversation_participants');
+  assert.ok(add, 'add_conversation_participants is defined');
+  // The insert policy's rule for adding someone else, unchanged.
+  assert.match(add.body, /public\.is_active_conversation_participant\(p_conversation_id\)/);
+  assert.match(add.body, /public\.can_write_workspace\(v_ws\)/);
+  assert.match(add.body, /not public\.can_message\(v_uid\)/);
+  // The bug: ON CONFLICT DO NOTHING kept left_at set.
+  assert.match(add.body, /on conflict \(conversation_id, user_id\) do update\s+set left_at = null/);
+  const src = readFileSync(new URL('./messages.js', import.meta.url), 'utf8');
+  const fn = src.slice(src.indexOf('export async function addParticipants'));
+  const body = fn.slice(0, fn.indexOf('\n}\n'));
+  assert.match(body, /supabase\.rpc\('add_conversation_participants'/);
+  assert.doesNotMatch(body, /ignoreDuplicates/);
+  // The thread announces only who actually joined.
+  const thread = readFileSync(new URL('../components/MessageThread.jsx', import.meta.url), 'utf8');
+  assert.match(thread, /const joined = await addParticipants\(\{ conversationId, userIds: picked \}\);/);
+  assert.match(thread, /const names = joined\.map\(nameOf\);/);
+});

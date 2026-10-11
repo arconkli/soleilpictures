@@ -917,10 +917,16 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
   const handleAdd = async () => {
     if (picked.length === 0 || busy) return;
     setBusy(true);
-    const names = picked.map(uid => userProfiles.get(uid)?.name || userProfiles.get(uid)?.email || 'someone');
+    const nameOf = (uid) => userProfiles.get(uid)?.name || userProfiles.get(uid)?.email || 'someone';
     try {
-      await addParticipants({ conversationId, userIds: picked });
-      // Post a system message announcing the additions.
+      const joined = await addParticipants({ conversationId, userIds: picked });
+      if (!joined.length) {
+        feedback.toast({ type: 'info', message: 'They’re already in this conversation.' });
+        onAdded?.();
+        return;
+      }
+      const names = joined.map(nameOf);
+      // Announce only the people who actually joined.
       const me = currentUser?.name || currentUser?.email || 'Someone';
       const body = `${me} added ${names.join(', ')}`;
       await sendMessage({

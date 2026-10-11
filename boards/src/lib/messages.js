@@ -342,17 +342,17 @@ export async function createGroupConversation({ workspaceId, title, memberIds })
 }
 
 // Add workspace members to an existing conversation.
+// Returns the ids of the people who actually joined: new to the conversation,
+// or back after leaving. The old upsert ignored duplicates, so someone who had
+// left stayed out while the thread announced them as added (0407).
 export async function addParticipants({ conversationId, userIds }) {
-  if (!conversationId || !Array.isArray(userIds) || userIds.length === 0) return false;
-  const rows = userIds.map(uid => ({ conversation_id: conversationId, user_id: uid }));
-  // upsert so adding an existing-but-left participant resets nothing on
-  // the existing row (it stays left_at non-null unless they re-engage themselves).
-  // For freshly-added users, the row is inserted.
-  const { error } = await supabase
-    .from('conversation_participants')
-    .upsert(rows, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
+  if (!conversationId || !Array.isArray(userIds) || userIds.length === 0) return [];
+  const { data, error } = await supabase.rpc('add_conversation_participants', {
+    p_conversation_id: conversationId,
+    p_user_ids: userIds,
+  });
   if (error) { console.warn('addParticipants', error); throw error; }
-  return true;
+  return Array.isArray(data) ? data : [];
 }
 
 // Rename a conversation's title. Null/empty clears it.
