@@ -2,7 +2,7 @@
 
 > Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
-_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-10-08_
+_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-10-11_
 
 Press `?` on any canvas to see this list in the app, where it shows the right
 modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl`.
@@ -17,7 +17,7 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 | `D` | Free-draw |
 | `A` | Arrow |
 | `G` | Add a grid |
-| `Esc` | Back to select · dismiss whatever is open |
+| `Esc` | Back to select · close whatever is on top — a menu, a dialog, Settings |
 
 
 
@@ -32,6 +32,17 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 `⌘K` is the fastest way to get anywhere. It searches cluster names, card
 contents, notes, docs and tags, and it also runs commands — "share", "trash",
 "theme", "invite" all work as typed input.
+
+## Sidebar
+
+In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused one.
+
+| Key | Action |
+|---|---|
+| `Enter` or `Space` | Open the cluster |
+| `→` / `←` | Expand · collapse the clusters inside it |
+| `F2` | Rename the cluster — `Enter` saves, `Esc` cancels |
+| `⇧F10` or `Menu` | The row's menu — the same one right-click opens |
 
 ## Edit
 

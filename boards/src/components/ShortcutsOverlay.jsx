@@ -25,7 +25,7 @@ const SECTIONS = [
       [['D'], 'Free-draw'],
       [['A'], 'Arrow'],
       [['G'], 'Add a grid'],
-      [['Esc'], 'Back to select · dismiss'],
+      [['Esc'], 'Back to select · close what is on top'],
     ],
   },
   {
@@ -34,6 +34,15 @@ const SECTIONS = [
       [[`${CMD}K`, '/'], 'Search & commands'],
       [[`${CMD}B`], 'Toggle sidebar'],
       [[`${CMD}.`], 'Clean mode'],
+    ],
+  },
+  {
+    title: 'Sidebar',
+    rows: [
+      [['Enter', 'Space'], 'Open the focused cluster'],
+      [['→', '←'], 'Expand · collapse'],
+      [['F2'], 'Rename the cluster'],
+      [['⇧F10', 'Menu'], 'The row menu'],
     ],
   },
   {

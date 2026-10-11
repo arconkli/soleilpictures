@@ -1868,7 +1868,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Back to select · dismiss whatever is open"
+       "v": "Back to select · close whatever is on top — a menu, a dialog, Settings"
       }
      ]
     ]
@@ -1966,6 +1966,150 @@ export const DOCS_CONTENT = {
      "t": "text",
      "v": " is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — \"share\", \"trash\", \"theme\", \"invite\" all work as typed input."
     }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Sidebar",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sidebar"
+    }
+   ],
+   "id": "sidebar"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In the sidebar's cluster tree. "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " reaches the rows; these act on the focused one."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Space"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Open the cluster"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "←"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Expand · collapse the clusters inside it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "F2"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rename the cluster — "
+      },
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " saves, "
+      },
+      {
+       "t": "code",
+       "v": "Esc"
+      },
+      {
+       "t": "text",
+       "v": " cancels"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧F10"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Menu"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The row's menu — the same one right-click opens"
+      }
+     ]
+    ]
    ]
   },
   {
@@ -17585,7 +17729,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a cluster: drag it in the sidebar tree, drag it onto another cluster's card on a canvas, or right-click it → "
+     "v": " a cluster: drag it in the sidebar tree (on a touch screen, hold the row first — a swipe scrolls the list), drag it onto another cluster's card on a canvas, or right-click it → "
     },
     {
      "t": "strong",
@@ -35248,7 +35392,26 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " holds navigation that does not fit."
+     "v": " holds navigation that does not fit, including the cluster tree. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Back",
+     "children": [
+      {
+       "t": "text",
+       "v": "Back"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app."
     }
    ]
   },
