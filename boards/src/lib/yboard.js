@@ -41,6 +41,9 @@ const attachRealtime = import.meta.env.VITE_USE_PARTYKIT === 'true'
   : attachRealtimeSupabase;
 
 const SNAP_DEBOUNCE_MS = 250;
+// Re-fetching board_state after the cold load's fetch failed (see serverMerged).
+const MERGE_RETRY_MS = 3000;
+const MERGE_RETRY_MAX_MS = 60_000;
 // The localStorage draft is a full encodeStateAsUpdate + base64 + setItem —
 // tens of ms on a big board. It used to run synchronously on EVERY Y update,
 // a peer's keystrokes included. Now it is written only for this tab's own
@@ -212,18 +215,19 @@ export function forceBoardThumbnail(boardId, ydoc, { workspaceId, userId } = {})
 // The on-open thumbnail backfill runs for whoever opens a board without one —
 // including view-only members, whose upload is refused at presign after a
 // full render. Ask can_write_board once per board per page (the same predicate
-// presign enforces) before paying for the render. Fails closed: a thumbnail is
-// never data, so skipping one on an error costs nothing.
-const _canWriteBoard = new Map();   // boardId -> Promise<boolean>
+// presign enforces) before paying for the render. Resolves true / false, or
+// null when the ask itself failed — falsy, so the thumbnail fails closed (it is
+// never data), while a caller about to DROP data can tell "no" from "unknown".
+const _canWriteBoard = new Map();   // boardId -> Promise<boolean|null>
 function canWriteBoardOnce(boardId) {
-  if (!supabase || !boardId) return Promise.resolve(false);
+  if (!supabase || !boardId) return Promise.resolve(null);
   if (!_canWriteBoard.has(boardId)) {
     _canWriteBoard.set(boardId, (async () => {
       try {
         const { data, error } = await supabase.rpc('can_write_board', { p_board_id: boardId });
-        if (error) { _canWriteBoard.delete(boardId); return false; }
+        if (error) { _canWriteBoard.delete(boardId); return null; }
         return data === true;
-      } catch (_) { _canWriteBoard.delete(boardId); return false; }
+      } catch (_) { _canWriteBoard.delete(boardId); return null; }
     })());
   }
   return _canWriteBoard.get(boardId);
@@ -349,6 +353,15 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   // Implies poisoned, and additionally keeps realtime from (re)attaching.
   let discarded = false;
   let initialized = false;
+  // Whether this doc has merged the SERVER's copy: board_state fetched (a null
+  // result counts — a new board has none). Not the same as `initialized`, which
+  // is also set when that fetch threw. Until it lands, board_state is never
+  // written from this doc: the upsert REPLACES the row, so a doc holding only
+  // the draft or the cache paint would erase whatever the server had beyond it
+  // — and under PartyKit a cold room then loads the truncated row for everyone.
+  // Edits go to the draft meanwhile; a background re-fetch merges and saves.
+  let serverMerged = false;
+  let mergeRetryTimer = null;
   let pendingLocal = false; // a local edit is awaiting a remote save
   // This tab made an edit this session. Only those are ours to persist: an
   // APPLIED update (a peer via the room, the draft/cache paint) was already
@@ -362,7 +375,11 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   let pendingEarly = false;
   const sessionId = genSessionId();
   let draftSeq = 0;
-  let draftVersion = `${sessionId}:0`;   // version of the last draft THIS handle wrote
+  // Version of the stored draft this handle owns: the last one it wrote, or
+  // the one it found and merged on open (`ready` adopts it, so a confirmed
+  // save clears an earlier session's draft too, legacy numeric versions
+  // included).
+  let draftVersion = `${sessionId}:0`;
   let draftTimer = null;
   let draftDirtySince = 0;   // when the oldest not-yet-drafted local edit landed; 0 = draft current
   let localSeq = 0;          // bumps per local edit; lets a save tell whether it covered them all
@@ -402,6 +419,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
 
   const persistSoon = () => {
     draftSoon();
+    if (!serverMerged) return;   // draft only — see serverMerged
     if (snapTimer) clearTimeout(snapTimer);
     snapTimer = setTimeout(async () => {
       snapTimer = null;
@@ -530,6 +548,48 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   };
   ydoc.on('update', onUpdate);
 
+  // Unsaved local state the server may not have: edits made on the early
+  // paint, or a draft left by an earlier session that never confirmed its
+  // save. Runs once the server's copy has merged, so the save is whole.
+  const saveCarried = () => {
+    if (destroyed || poisoned) return;
+    if (pendingEarly || localEdits) { localEdits = true; persistSoon(); return; }
+    if (!hadDraft) return;
+    // Only a draft, no edit this session. Ask before uploading it: a view-only
+    // member's draft (older builds drafted every peer update) would otherwise
+    // POST the whole doc into an RLS refusal on every open and close, forever.
+    const adopted = draftVersion;
+    canWriteBoardOnce(boardId).then((ok) => {
+      if (destroyed || poisoned) return;
+      if (ok === true) { localEdits = true; persistSoon(); }
+      // Can't write here: the draft can never be saved, so drop it. Unknown
+      // (the ask failed) keeps it for the next open.
+      else if (ok === false) clearLocalDraft(boardId, adopted);
+    });
+  };
+  // The cold-load fetch failed: keep trying in the background, so a network
+  // blip on open doesn't leave this session's edits stuck in the draft.
+  const retryServerMerge = (delay) => {
+    mergeRetryTimer = setTimeout(async () => {
+      mergeRetryTimer = null;
+      if (destroyed || poisoned || serverMerged) return;
+      let b64;
+      try { b64 = await loadBoardSnapshot(boardId); }
+      catch (_) {
+        if (!destroyed && !poisoned) retryServerMerge(Math.min(delay * 2, MERGE_RETRY_MAX_MS));
+        return;
+      }
+      if (destroyed || poisoned || serverMerged) return;
+      if (b64) {
+        try { Y.applyUpdate(ydoc, b64ToBytes(b64), 'snapshot'); }
+        catch (e) { try { logClientError(e, { kind: 'yboard-snapshot-merge' }); } catch (_) {} return; }
+        serverApplied = true;
+      }
+      serverMerged = true;
+      saveCarried();
+    }, delay);
+  };
+
   // Whether the SERVER's snapshot has been applied — not just the instant
   // cache/draft paint, which can be a day stale. A cleanup that deletes what
   // it judges unfinished must not judge from that paint (useYBoard `synced`).
@@ -539,6 +599,9 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     try {
       const localDraft = fresh ? null : readLocalDraft(boardId);
       hadDraft = !!localDraft?.doc;
+      // Own the draft we are about to merge: the save that later confirms
+      // this doc clears it by version, whichever session wrote it.
+      if (hadDraft) draftVersion = localDraft.version;
       if (localDraft?.doc) {
         const bytes = b64ToBytes(localDraft.doc);
         const _t0 = perf.isEnabled() ? performance.now() : 0;
@@ -606,18 +669,16 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
         // Refresh the instant-reopen cache with the authoritative server state.
         if (!destroyed) putSnapshot(boardId, userId, b64);
       }
+      // Reached only when the fetch AND the apply succeeded (null = a board
+      // with no board_state yet, which is merged by definition).
+      serverMerged = true;
     } catch (e) {
       console.error('loadBoardSnapshot failed', e);
       try { logClientError(e, { kind: 'yboard-snapshot-load' }); } catch (_) {}
     }
     initialized = true;
-    // Unsaved local state that the server may not have: edits made on the
-    // early paint, or a draft left by an earlier session that never confirmed
-    // its save. Merged with the server snapshot above, so the save is whole.
-    if ((pendingEarly || hadDraft) && !destroyed && !poisoned) {
-      localEdits = true;
-      persistSoon();
-    }
+    if (serverMerged) saveCarried();
+    else if (!destroyed) retryServerMerge(MERGE_RETRY_MS);
     if (_loadT0) {
       const ms = performance.now() - _loadT0;
       perf.mark('yboard.loadYBoard.ms', ms);
@@ -642,7 +703,9 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       _scheduleIdle(() => {
         if (destroyed) return;
         canWriteBoardOnce(boardId).then((ok) => {
-          if (ok && !destroyed && !poisoned) maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId });
+          // Not from a doc missing the server's copy (a failed cold-load
+          // fetch): that would upload a preview of the stale cache paint.
+          if (ok && !destroyed && !poisoned && serverMerged) maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId });
         });
       });
     }
@@ -661,7 +724,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   const onPageHide = () => {
     if (poisoned) return;
     writeDraftNow();
-    if (!initialized) return;
+    if (!initialized || !serverMerged) return;
     if (snapTimer) {
       clearTimeout(snapTimer);
       snapTimer = null;
@@ -674,7 +737,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   // e.g. when a doc card closes, so an edit made in the last ~250ms can't be
   // lost if the tab is closed right after. No-op when nothing is pending.
   const flushNow = () => {
-    if (destroyed || !initialized || poisoned) return;
+    if (destroyed || !initialized || !serverMerged || poisoned) return;
     if (snapTimer) {
       clearTimeout(snapTimer);
       snapTimer = null;
@@ -685,6 +748,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   const destroy = () => {
     destroyed = true;
     if (snapTimer) clearTimeout(snapTimer);
+    if (mergeRetryTimer) clearTimeout(mergeRetryTimer);
     if (idleTimer) clearTimeout(idleTimer);
     if (periodicTimer) clearTimeout(periodicTimer);
     if (typeof window !== 'undefined') window.removeEventListener('pagehide', onPageHide);
@@ -695,9 +759,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     // would re-seed the corruption, or undo the restore that replaced it.
     if (poisoned) {
       if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
-    } else if (!initialized) {
-      // Left before the server snapshot merged: edits made on the early paint
-      // go to the draft only (see onUpdate). The next open merges them.
+    } else if (!initialized || !serverMerged) {
+      // Left before the server's copy merged: edits made on the early paint,
+      // or after a failed cold-load fetch, go to the draft only (see onUpdate,
+      // serverMerged). The next open merges them.
       writeDraftNow();
     } else {
       const version = writeDraftNow();
@@ -781,6 +846,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       poisoned = true;
       if (snapTimer) { clearTimeout(snapTimer); snapTimer = null; }
       if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
+      if (mergeRetryTimer) { clearTimeout(mergeRetryTimer); mergeRetryTimer = null; }
       if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
       if (periodicTimer) { clearTimeout(periodicTimer); periodicTimer = null; }
       try { realtime?.destroy?.(); } catch (_) {}

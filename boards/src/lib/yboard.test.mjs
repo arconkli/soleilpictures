@@ -18,6 +18,10 @@
 //                on pagehide
 //   PERF-X1/02   applied (peer) updates upload nothing; the open backfill
 //                asks can_write_board before rendering a thumbnail
+//   review       an earlier session's draft is cleared by the first confirmed
+//                save (any version shape), dropped when it can't be written,
+//                and nothing writes board_state from a doc whose server
+//                fetch failed — a re-fetch merges first
 import test, { mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
@@ -94,13 +98,19 @@ function resetEnv() {
     canWrite: true,
     backstopDue: true,
     serverGate: null,         // a promise loadBoardSnapshot/prefetchBoard wait on
+    serverDown: false,        // board_state reads throw (a network blip)
+    rpcDown: false,           // can_write_board errors
     realtime: [],             // { boardId, destroyed }
     restoreWatchers: [],
   };
 }
 const impl = {
   boardsApi: {
-    loadBoardSnapshot: async (id) => { if (env.serverGate) await env.serverGate; return env.server.get(id) ?? null; },
+    loadBoardSnapshot: async (id) => {
+      if (env.serverGate) await env.serverGate;
+      if (env.serverDown) throw new Error('network down');
+      return env.server.get(id) ?? null;
+    },
     saveBoardSnapshot: async (id, doc, { stateWrite = 'always' } = {}) => {
       const due = stateWrite === 'always' || env.backstopDue;
       const bytes = enc(doc);   // encoded synchronously, like the real one
@@ -125,6 +135,7 @@ const impl = {
     prefetchBoard: async (id) => {
       if (env.prefetch.has(id)) return env.prefetch.get(id);
       if (env.serverGate) await env.serverGate;
+      if (env.serverDown) throw new Error('network down');
       const v = env.server.get(id) ?? null;
       if (v) env.prefetch.set(id, v);
       return v;
@@ -143,7 +154,12 @@ const impl = {
       return { awareness: null, destroy() { rec.destroyed = true; }, whenSynced: async () => true };
     },
   },
-  supabase: { rpc: async (name, args) => { env.rpc.push({ name, args }); return { data: env.canWrite, error: null }; } },
+  supabase: {
+    rpc: async (name, args) => {
+      env.rpc.push({ name, args });
+      return env.rpcDown ? { data: null, error: { message: 'down' } } : { data: env.canWrite, error: null };
+    },
+  },
   restoreSignal: { watchBoardRestores: (boardId, cb) => { env.restoreWatchers.push({ boardId, cb }); return () => {}; } },
   imageMeta: { primeImageMeta: () => {}, primeImageMetaForBoard: () => {} },
 };
@@ -461,6 +477,7 @@ test('APP-CORE-10: an edit on the instant cache paint survives leaving before th
   assert.deepEqual(cardsOf(h2.ydoc), ['a', 'early', 'fromPeer'], 'next open merges the early edit with the server');
   await advance(3000);
   assert.deepEqual(cardsOf(serverDoc(boardId)), ['a', 'early', 'fromPeer'], 'and saves it');
+  assert.equal(draftOf(boardId), null, 'and the saved draft is gone');
   h2.destroy();
 });
 
@@ -477,4 +494,144 @@ test('APP-CORE-10: an early edit is saved once the snapshot lands, if you stay',
   await advance(3000);
   assert.ok(cardsOf(serverDoc(boardId)).includes('early'));
   h.destroy();
+});
+
+// ── a draft left by an earlier session ──────────────────────────────────────
+// Store a draft the way an earlier session (or an older build) left it.
+function plantDraft(boardId, doc, version) {
+  const b = enc(doc);
+  lsStore.set(`soleil.boards.ydoc.${boardId}`, version === 'raw' ? b : JSON.stringify({ doc: b, version }));
+}
+
+for (const version of [7, 'old-session:3', 'raw']) {
+  test(`an earlier session's draft (version ${JSON.stringify(version)}) is saved and cleared on a view-only open; later opens save nothing`, async () => {
+    const boardId = newBoardId();
+    const lineage = seedServer(boardId, ['a']);
+    const restorePoint = enc(lineage);
+    const drafted = new Y.Doc();
+    Y.applyUpdate(drafted, Buffer.from(restorePoint, 'base64'));
+    addCard(drafted, 'unsaved');
+    plantDraft(boardId, drafted, version);
+
+    const h1 = loadYBoard(boardId, { userId: 'u1' });
+    await h1.ready;
+    await advance(3000);                      // no edits: just looking
+    assert.deepEqual(cardsOf(serverDoc(boardId)), ['a', 'unsaved'], 'the unsaved draft reached board_state');
+    assert.equal(draftOf(boardId), null, 'and, confirmed, the draft is gone');
+    h1.destroy();
+    await advance(100);
+    assert.equal(draftOf(boardId), null);
+
+    // Version history restores [a] on another device. Reopening here must not
+    // merge anything back over it, and a view-only reopen uploads nothing.
+    env.server.set(boardId, restorePoint);
+    env.idb.delete(boardId);
+    env.saves.length = 0;
+    const h2 = loadYBoard(boardId, { userId: 'u1' });
+    await h2.ready;
+    await advance(3000);
+    h2.destroy();
+    await advance(100);
+    assert.equal(env.saves.length, 0, 'a view-only reopen makes zero saves');
+    assert.deepEqual(cardsOf(serverDoc(boardId)), ['a'], 'the restore made elsewhere stands');
+  });
+}
+
+test('a view-only member with a leftover draft drops it instead of POSTing it into a refusal on every open', async () => {
+  const boardId = newBoardId();
+  const peer = seedServer(boardId, ['a']);
+  addCard(peer, 'p');                        // an older build drafted this peer edit
+  plantDraft(boardId, peer, 4);
+  env.canWrite = false;
+
+  const h1 = loadYBoard(boardId, { userId: 'viewer' });
+  await h1.ready;
+  await advance(3000);
+  h1.destroy();
+  await advance(100);
+  assert.equal(env.saves.length, 0, 'no upload');
+  assert.equal(draftOf(boardId), null, 'the unsaveable draft is dropped');
+  assert.ok(env.rpc.some((r) => r.name === 'can_write_board'), 'decided by can_write_board');
+
+  const h2 = loadYBoard(boardId, { userId: 'viewer' });
+  await h2.ready;
+  await advance(3000);
+  h2.destroy();
+  await advance(100);
+  assert.equal(env.saves.length, 0, 'and the next open uploads nothing either');
+});
+
+test('a draft is kept, not dropped, when can_write_board cannot be asked', async () => {
+  const boardId = newBoardId();
+  const doc = seedServer(boardId, ['a']);
+  addCard(doc, 'unsaved');
+  plantDraft(boardId, doc, 2);
+  env.rpcDown = true;
+  const h = loadYBoard(boardId, { userId: 'u1' });
+  await h.ready;
+  await advance(3000);
+  h.destroy();
+  await advance(100);
+  assert.equal(env.saves.length, 0);
+  assert.ok(cardsOf(draftOf(boardId)).includes('unsaved'), 'the draft waits for the next open');
+});
+
+// ── the cold-load fetch fails ───────────────────────────────────────────────
+test('a failed snapshot fetch never overwrites board_state with the draft / cache paint; a re-fetch merges and saves', async () => {
+  const boardId = newBoardId();
+  const server = seedServer(boardId, ['a']);
+  const drafted = new Y.Doc();
+  Y.applyUpdate(drafted, Y.encodeStateAsUpdate(server));
+  addCard(drafted, 'unsaved');
+  plantDraft(boardId, drafted, 'old:3');
+  addCard(server, 'newerOnServer');          // the server moved on since
+  env.server.set(boardId, enc(server));
+  env.serverDown = true;                      // the open hits a network blip
+
+  const h = loadYBoard(boardId, { userId: 'u1' });
+  await h.ready;
+  addCard(h.ydoc, 'typedMeanwhile');          // an edit while the server copy is missing
+  await advance(2000);
+  window.dispatchEvent(new Event('pagehide'));
+  h.flushNow();
+  await advance(100);
+  assert.equal(env.saves.length, 0, 'nothing written from a doc that has not merged the server');
+  assert.deepEqual(cardsOf(serverDoc(boardId)), ['a', 'newerOnServer']);
+  assert.ok(cardsOf(draftOf(boardId)).includes('typedMeanwhile'), 'the edit is safe in the draft');
+
+  env.serverDown = false;                     // the network comes back
+  await advance(10000);
+  assert.deepEqual(cardsOf(h.ydoc), ['a', 'newerOnServer', 'typedMeanwhile', 'unsaved'], 're-fetch merged the server copy');
+  assert.deepEqual(cardsOf(serverDoc(boardId)), ['a', 'newerOnServer', 'typedMeanwhile', 'unsaved'], 'and the save is whole');
+  h.destroy();
+  await advance(100);
+  assert.equal(draftOf(boardId), null);
+});
+
+test('leaving while the snapshot fetch is still failing keeps everything in the draft and writes nothing', async () => {
+  const boardId = newBoardId();
+  const server = seedServer(boardId, ['a']);
+  env.idb.set(boardId, enc(server));         // cache paint
+  addCard(server, 'newerOnServer');
+  env.server.set(boardId, enc(server));
+  env.serverDown = true;
+
+  const h = loadYBoard(boardId, { userId: 'u1', workspaceId: 'ws1' });
+  await h.ready;
+  addCard(h.ydoc, 'mine');
+  await advance(500);
+  h.destroy();
+  await advance(5000);
+  assert.equal(env.saves.length, 0);
+  assert.equal(env.renders, 0);
+  assert.deepEqual(cardsOf(serverDoc(boardId)), ['a', 'newerOnServer'], 'board_state untouched');
+  assert.ok(cardsOf(draftOf(boardId)).includes('mine'));
+
+  env.serverDown = false;
+  const h2 = loadYBoard(boardId, { userId: 'u1' });
+  await h2.ready;
+  await advance(3000);
+  assert.deepEqual(cardsOf(serverDoc(boardId)), ['a', 'mine', 'newerOnServer'], 'the next open merges and saves');
+  assert.equal(draftOf(boardId), null);
+  h2.destroy();
 });
