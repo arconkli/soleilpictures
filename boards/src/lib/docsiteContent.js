@@ -28419,8 +28419,67 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Publishing is reversible from the same place."
+     "v": "Submitting opens up once an account is 72 hours old."
     }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Unpublishing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Unpublishing"
+    }
+   ],
+   "id": "unpublishing"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same section takes it back:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Remove from Explore",
+      "children": [
+       {
+        "t": "text",
+        "v": "Remove from Explore"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " appears while the board is live. The public page stops being served and the board leaves the directory straight away."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Withdraw submission",
+      "children": [
+       {
+        "t": "text",
+        "v": "Withdraw submission"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " appears while it is still waiting for review, and cancels the submission."
+     }
+    ]
    ]
   },
   {
@@ -28428,7 +28487,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Submitting opens up once an account is 72 hours old."
+     "v": "Either way the board is back to never having been submitted. You can submit it again later, and it goes back through review."
     }
    ]
   },
@@ -28754,7 +28813,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Unpublish"
+       "v": "Remove from Explore"
       }
      ]
     ]

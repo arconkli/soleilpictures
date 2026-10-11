@@ -5,7 +5,7 @@ h1: Publishing to Explore
 navLabel: Explore
 section: publish
 order: 0
-updated: 2026-10-07
+updated: 2026-10-11
 answer: Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.
 faq:
   - q: How is publishing different from a share link?
@@ -13,7 +13,7 @@ faq:
   - q: Is publishing automatic?
     a: No. Submissions are reviewed before they appear. Nothing becomes public because you clicked the wrong thing.
   - q: Can I unpublish?
-    a: Yes. Publishing is reversible from the same place you submitted it.
+    a: Yes. In the Share dialog, the Publish to Explore section shows Remove from Explore while the board is live and Withdraw submission while it is waiting for review. Either takes effect straight away, and you can submit the board again later — it goes back through review.
 related:
   - /docs/collaborate/sharing
   - /explore
@@ -32,9 +32,19 @@ Review is a real step: a human looks before it appears. Nothing becomes public
 because somebody clicked the wrong control, and the directory does not fill with
 half-finished boards.
 
-Publishing is reversible from the same place.
-
 Submitting opens up once an account is {{fact:newAccountHours}} hours old.
+
+## Unpublishing
+
+The same section takes it back:
+
+- **Remove from Explore** appears while the board is live. The public page
+  stops being served and the board leaves the directory straight away.
+- **Withdraw submission** appears while it is still waiting for review, and
+  cancels the submission.
+
+Either way the board is back to never having been submitted. You can submit it
+again later, and it goes back through review.
 
 ## What a published board gets
 
@@ -65,7 +75,7 @@ or alphabetical, and topic filters.
 | Discoverable | No | Yes, in the directory |
 | Indexed by search | No, unless you allow it | Yes |
 | Review | None | Reviewed before appearing |
-| Reversible | Revoke the link | Unpublish |
+| Reversible | Revoke the link | Remove from Explore |
 
 Use a share link for a client or a collaborator. Publish when you want the work
 found.
