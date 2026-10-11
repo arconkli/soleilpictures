@@ -4623,6 +4623,8 @@ Give each board an identifiers array and pass "on_conflict": "identifier", and a
 
 The response adds updated, and each board carries created: true|false. This is what makes an import re-runnable — see Identifiers and properties.
 
+An update changes name and view. A matched board stays where it is unless the entry names a parent_board_id, in which case it is moved there the same way POST /boards/move moves it (409 if that move is refused). A matched board you cannot edit is a 403, and the boards the batch created keep their identifiers, so running it again finds them instead of creating them twice.
+
 GET /boards/:id
 
 { "board": … }, or 404 — which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see.

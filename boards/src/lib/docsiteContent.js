@@ -39515,6 +39515,63 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An update changes "
+    },
+    {
+     "t": "code",
+     "v": "name"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "view"
+    },
+    {
+     "t": "text",
+     "v": ". A matched board stays where it is unless the entry names a "
+    },
+    {
+     "t": "code",
+     "v": "parent_board_id"
+    },
+    {
+     "t": "text",
+     "v": ", in which case it is moved there the same way "
+    },
+    {
+     "t": "code",
+     "v": "POST /boards/move"
+    },
+    {
+     "t": "text",
+     "v": " moves it ("
+    },
+    {
+     "t": "code",
+     "v": "409"
+    },
+    {
+     "t": "text",
+     "v": " if that move is refused). A matched board you cannot edit is a "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": ", and the boards the batch created keep their identifiers, so running it again finds them instead of creating them twice."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "GET /boards/:id",

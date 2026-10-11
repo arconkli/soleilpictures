@@ -2006,6 +2006,9 @@ async function dispatch(url, request, env, ctx) {
           name: nm.slice(0, 200),
           view: b.view === 'list' ? 'list' : 'canvas',
           created_by: auth.userId,
+          // Whether the caller SAID where this board goes. Omitting the field on
+          // a re-run means "leave it where it is", not "move it to the top".
+          _parentGiven: Object.prototype.hasOwnProperty.call(b, 'parent_board_id'),
           _props: meta.props,
           _identifiers: meta.identifiers,
           // Not a column write: sched_* are outside the client UPDATE grant, so
@@ -2048,6 +2051,7 @@ async function dispatch(url, request, env, ctx) {
           // references, and its own record of what it created last time, stay
           // valid across runs.
           b.id = hit.board_id;
+          b._target = b.parent_board_id;
           updates.push(b);
         } else {
           creates.push(b);
@@ -2055,11 +2059,23 @@ async function dispatch(url, request, env, ctx) {
       });
 
       const now = new Date().toISOString();
+      const saveMetaFor = async (list) => {
+        // Grouped by workspace because that is what the rows are keyed on.
+        for (const wsId of new Set(list.map((b) => b.workspace_id))) {
+          const entries = list
+            .filter((b) => b.workspace_id === wsId)
+            .map((b) => ({ objectId: b.id, boardId: b.id, props: b._props, identifiers: b._identifiers }));
+          await saveMetaBulk(env, token, {
+            workspaceId: wsId, objectType: 'board', entries, userId: auth.userId,
+          });
+        }
+      };
       if (creates.length) {
         // RLS still decides: one INSERT as the user, so a workspace they cannot
         // write is refused for the whole batch rather than partly applied.
         await userInsert(env, token, 'boards',
-          creates.map(({ _props, _identifiers, _sched, ...row }) => row), { returning: 'minimal' });
+          creates.map(({ _props, _identifiers, _sched, _parentGiven, ...row }) => row),
+          { returning: 'minimal' });
 
         // Every board needs its empty snapshot or it cold-loads as broken
         // rather than as empty. Identical bytes for all, so encode once.
@@ -2070,28 +2086,53 @@ async function dispatch(url, request, env, ctx) {
           creates.map((b) => ({ board_id: b.id, doc: b64, updated_at: now })),
           { returning: 'minimal' });
       }
-      if (updates.length) {
-        // Upsert by id rather than one PATCH each: 500 matched boards would
-        // otherwise be 500 round trips. created_by is deliberately absent so a
-        // re-run does not rewrite who made the board.
-        await userInsert(env, token, 'boards', updates.map((b) => ({
-          id: b.id,
-          workspace_id: b.workspace_id,
-          name: b.name,
-          view: b.view,
-          parent_board_id: b.parent_board_id,
-        })), { returning: 'minimal', onConflict: 'id' });
-      }
+      // The new boards' identifiers go on BEFORE anything below can fail. If
+      // they did not, a failure further down left boards with no identifiers,
+      // which the next run cannot match — so it created them again, and failed
+      // again, duplicating the batch on every retry.
+      await saveMetaFor(creates);
 
-      // Metadata for every board in the batch, in a fixed handful of queries.
-      // Grouped by workspace because that is what the rows are keyed on.
-      for (const wsId of new Set(prepared.map((b) => b.workspace_id))) {
-        const entries = prepared
-          .filter((b) => b.workspace_id === wsId)
-          .map((b) => ({ objectId: b.id, boardId: b.id, props: b._props, identifiers: b._identifiers }));
-        await saveMetaBulk(env, token, {
-          workspaceId: wsId, objectType: 'board', entries, userId: auth.userId,
+      if (updates.length) {
+        // A PATCH of name and view per matched board — the two columns the
+        // client UPDATE grant covers. This used to be an INSERT … ON CONFLICT
+        // (id) DO UPDATE, which sets EVERY supplied column including id and
+        // workspace_id; with no UPDATE grant on those, any batch that matched
+        // an existing board failed with a permission error. created_by is
+        // deliberately absent so a re-run does not rewrite who made the board.
+        const refused = [];
+        await mapWithConcurrency(updates, 8, async (b) => {
+          const rows = await userPatch(env, token, 'boards',
+            `id=eq.${b.id}&deleted_at=is.null`, { name: b.name, view: b.view });
+          // RLS turns an update it refuses into zero rows, not an error.
+          if (!Array.isArray(rows) || !rows.length) refused.push(b.id);
+          else b.parent_board_id = rows[0].parent_board_id ?? null;
         });
+        if (refused.length) {
+          throw fail(403, 'forbidden',
+            `you cannot change board ${refused[0]}${refused.length > 1 ? ` (and ${refused.length - 1} more)` : ''}`);
+        }
+
+        // Reparenting goes through move_boards_under and nowhere else, as on
+        // PATCH /boards/:id — and only where the caller named a parent. One
+        // call per destination.
+        const byTarget = new Map();
+        for (const b of updates) {
+          if (!b._parentGiven) continue;
+          const target = b._target ?? null;
+          if (!byTarget.has(target)) byTarget.set(target, []);
+          byTarget.get(target).push(b);
+        }
+        for (const [target, list] of byTarget) {
+          const out = await userRpc(env, token, 'move_boards_under',
+            { p_child_ids: list.map((b) => b.id), p_target_id: target });
+          const skipped = (out?.skipped || []).filter((x) => x?.reason !== 'same-parent');
+          if (skipped.length) {
+            throw fail(409, 'conflict', `could not reparent board ${skipped[0].id}: ${skipped[0].reason}`);
+          }
+          for (const b of list) b.parent_board_id = target;
+        }
+
+        await saveMetaFor(updates);
       }
 
       // Dates last, one RPC per scheduled board. A stripboard import is the

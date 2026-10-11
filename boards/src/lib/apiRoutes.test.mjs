@@ -103,6 +103,22 @@ beforeEach(() => {
       const ids = idFromQuery(call.query);
       return reply([...boards.values()].map((b) => b.row).filter((r) => !ids || ids.includes(r.id)));
     }
+    if (path === 'boards' && method === 'POST') {
+      // The real column grants: INSERT on id/workspace_id, UPDATE only on
+      // name/view/parent_board_id. ON CONFLICT DO UPDATE sets every column.
+      if (call.headers.prefer?.includes('merge-duplicates')) {
+        return reply({ code: '42501', message: 'permission denied for table boards' }, 403);
+      }
+      for (const r of body) boards.set(r.id, { row: { deleted_at: null, ...r }, doc: null });
+      return reply(undefined, 201);
+    }
+    if (path === 'boards' && method === 'PATCH') {
+      const [bid] = idFromQuery(call.query);
+      const b = boards.get(bid);
+      if (!b || b.readOnly) return reply([]);
+      Object.assign(b.row, body);
+      return reply([b.row]);
+    }
     if (path === 'board_state' && method === 'GET') {
       const [bid] = idFromQuery(call.query, 'board_id');
       return reply(boards.has(bid) ? [{ doc: boards.get(bid).doc }] : []);
@@ -293,4 +309,64 @@ test('a LIVE card on another board still refuses the item, naming where it is', 
   });
   assert.equal(r.status, 409);
   assert.match(r.body.error, new RegExp(B2));
+});
+
+// ── API-03: a bulk board upsert that matches existing boards ─────────────────
+
+const W1 = '33333333-3333-4333-8333-333333333333';
+const P1 = '44444444-4444-4444-8444-444444444444';
+const boardIdent = (board, value) => ({
+  workspace_id: W1, board_id: board, object_type: 'board', object_id: board, scope: 'sg', value,
+});
+
+test('a bulk upsert renames matched boards and creates the rest, with identifiers on both', async () => {
+  putBoard(B1, [], { name: 'Shot 1 (old)', workspace_id: W1, parent_board_id: P1 });
+  idents = [boardIdent(B1, '1')];
+  const moves = [];
+  on('POST', 'rpc/move_boards_under', (c) => { moves.push(c.body); return reply({ moved: c.body.p_child_ids, skipped: [] }); });
+  const r = await api('POST', '/boards', {
+    on_conflict: 'identifier', workspace_id: W1,
+    boards: [
+      { name: 'Shot 1', identifiers: [{ scope: 'sg', value: '1' }] },
+      { name: 'Shot 2', identifiers: [{ scope: 'sg', value: '2' }] },
+    ],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.updated, 1);
+  assert.equal(r.body.created, 1);
+  assert.equal(boards.get(B1).row.name, 'Shot 1');
+  // Leaving parent_board_id out leaves the board where it is.
+  assert.equal(boards.get(B1).row.parent_board_id, P1);
+  assert.equal(r.body.boards[0].parent_board_id, P1);
+  assert.equal(moves.length, 0);
+  const fresh = r.body.boards[1].id;
+  assert.ok(idents.some((x) => x.value === '2' && x.object_id === fresh));
+});
+
+test('a named parent on a matched board goes through move_boards_under', async () => {
+  putBoard(B1, [], { workspace_id: W1, parent_board_id: null });
+  idents = [boardIdent(B1, '1')];
+  const moves = [];
+  on('POST', 'rpc/move_boards_under', (c) => { moves.push(c.body); return reply({ moved: c.body.p_child_ids, skipped: [] }); });
+  const r = await api('POST', '/boards', {
+    on_conflict: 'identifier', workspace_id: W1,
+    boards: [{ name: 'Shot 1', parent_board_id: P1, identifiers: [{ scope: 'sg', value: '1' }] }],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.deepEqual(moves, [{ p_child_ids: [B1], p_target_id: P1 }]);
+});
+
+test('new boards keep their identifiers even when a matched board refuses the rename', async () => {
+  putBoard(B1, [], { workspace_id: W1 });
+  boards.get(B1).readOnly = true;
+  idents = [boardIdent(B1, '1')];
+  const r = await api('POST', '/boards', {
+    on_conflict: 'identifier', workspace_id: W1,
+    boards: [
+      { name: 'Shot 1', identifiers: [{ scope: 'sg', value: '1' }] },
+      { name: 'Shot 2', identifiers: [{ scope: 'sg', value: '2' }] },
+    ],
+  });
+  assert.equal(r.status, 403);
+  assert.ok(idents.some((x) => x.value === '2'), 'the created board can be matched by the next run');
 });
