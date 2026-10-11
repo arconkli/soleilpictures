@@ -9680,7 +9680,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           tabs={[
             { key: 'home',     label: 'Home',     icon: <Icon as={Home} size={20} /> },
             { key: 'search',   label: 'Search',   icon: <Icon as={Search} size={20} /> },
-            { key: 'messages', label: 'Messages', icon: <Icon as={MessageSquare} size={20} /> },
+            // The unread count the drawer row and the tab title already show;
+            // the always-visible tab said nothing until the drawer was opened.
+            { key: 'messages', label: 'Messages', icon: <Icon as={MessageSquare} size={20} />,
+              badge: messagesUnread > 0 ? (messagesUnread > 99 ? '99+' : messagesUnread) : null },
             { key: 'settings', label: 'Settings', icon: <Icon as={Settings} size={20} /> },
           ]}
           onChange={(k) => {
