@@ -12,7 +12,10 @@
 // on demand. Cards never persist a leakable URL.
 
 import { supabase } from './supabase.js';
-import { FREE_VIDEO_CAP, FREE_VIDEO_SECONDS, FREE_AUDIO_CAP } from './fileIngest.js';
+import {
+  FREE_VIDEO_CAP, FREE_VIDEO_SECONDS, FREE_AUDIO_CAP,
+  isAnimatedImageKey, isAnimatedImageBytes, ANIMATION_SNIFF_BYTES,
+} from './fileIngest.js';
 import { analyzeAudioFile, analyzable } from './audioAnalysis.js';
 import { readEmbeddedCover } from './audioTags.js';
 import { lowMemoryDevice } from './device.js';
@@ -347,6 +350,19 @@ function computeThumbHashBase64({ drawable, w, h }) {
   return u8ToBase64(hash);
 }
 
+// True when the source is (or may be) animated: a .gif key, or a File/Blob
+// whose header says GIF, animated WebP or APNG (fileIngest.isAnimatedImageBytes).
+// Only the head is read, never the whole file.
+async function sourceIsAnimated(storagePath, source) {
+  if (isAnimatedImageKey(storagePath)) return true;
+  if (typeof Blob === 'undefined' || !(source instanceof Blob)) return false;
+  if (source.type === 'image/gif') return true;
+  try {
+    const head = new Uint8Array(await source.slice(0, ANIMATION_SNIFF_BYTES).arrayBuffer());
+    return isAnimatedImageBytes(head);
+  } catch (_) { return false; }
+}
+
 // Generate + persist Tier-0/Tier-1 variants for one image. workspaceId/boardId
 // scope the preview key + the can_write_board presign gate. storagePath is the
 // ORIGINAL image key. imageSource is a File (upload) or HTMLImageElement
@@ -365,9 +381,14 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
 
     let previewKey = null, previewW = null, previewH = null;
     let previewSmKey = null, previewSmW = null, previewSmH = null;
+    // An animated image gets the blur only: a preview is its first frame, and
+    // a card that prefers the preview would show that still for good.
+    const animated = await sourceIsAnimated(storagePath, imageSource);
     let dn = null;
-    try { dn = await downscaleDrawableToWebp(d, PREVIEW_LONGEST_EDGE, PREVIEW_QUALITY); }
-    catch (_) { dn = null; }
+    if (!animated) {
+      try { dn = await downscaleDrawableToWebp(d, PREVIEW_LONGEST_EDGE, PREVIEW_QUALITY); }
+      catch (_) { dn = null; }
+    }
     // ≤1280px sources used to get NO preview ("the original serves as
     // Tier-1") — which optimizes pixels but not bytes: a ~600KB screenshot
     // PNG re-encodes to a ~50KB webp at identical pixels, and without a
@@ -375,7 +396,7 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
     // full original for every tiny card. Generate a native-size webp when it
     // actually pays: source bigger than the floor, byte size known
     // (File/Blob — all current callers), and the webp saves ≥20%.
-    if (!dn) {
+    if (!dn && !animated) {
       const sourceBytes = (typeof Blob !== 'undefined' && imageSource instanceof Blob)
         ? imageSource.size : null;
       if (sourceBytes

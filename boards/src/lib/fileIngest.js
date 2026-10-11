@@ -214,3 +214,47 @@ export function fileMetaFor(file) {
   const fileName = meaningfulFileName(file);
   return fileName ? { fileName } : {};
 }
+
+// ── Images whose canvas preview must be the original ───────────────────────
+//
+// The Tier-1 preview is a still: createImageBitmap decodes frame one only. An
+// animated GIF, WebP or PNG that gets one shows that frame on the canvas for
+// good, because the card prefers the preview and a native-size preview leaves
+// the original nothing to "upgrade" to. The board-open backfill always knew
+// this (previewBackfill.js keeps GIFs out of RASTER_RE); the upload path did
+// not, so every GIF dropped through the app froze.
+//
+// A .gif key is treated as animated outright — a still GIF loses only a
+// preview it barely needed. WebP and PNG are animated only when their header
+// says so, which isAnimatedImageBytes reads.
+export const ANIMATED_KEY_RE = /\.gif$/i;
+export function isAnimatedImageKey(key) {
+  return typeof key === 'string' && ANIMATED_KEY_RE.test(key);
+}
+
+// Sniff the head of an image file for animation. `u8` is a Uint8Array of its
+// first bytes (64 KB is plenty: an APNG's acTL must precede its first IDAT,
+// and a WebP's VP8X flags sit at byte 20).
+//   GIF  → always (see above)
+//   WebP → extended header (VP8X) with the animation flag set
+//   PNG  → an acTL chunk before the first IDAT (APNG)
+export const ANIMATION_SNIFF_BYTES = 64 * 1024;
+export function isAnimatedImageBytes(u8) {
+  if (!u8 || typeof u8.length !== 'number' || u8.length < 12) return false;
+  const ascii = (o, n) => String.fromCharCode(...u8.subarray(o, o + n));
+  if (ascii(0, 4) === 'GIF8') return true;
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') {
+    return u8.length > 20 && ascii(12, 4) === 'VP8X' && (u8[20] & 0x02) !== 0;
+  }
+  if (u8[0] === 0x89 && ascii(1, 3) === 'PNG') {
+    let o = 8;
+    while (o + 8 <= u8.length) {
+      const len = ((u8[o] << 24) | (u8[o + 1] << 16) | (u8[o + 2] << 8) | u8[o + 3]) >>> 0;
+      const type = ascii(o + 4, 4);
+      if (type === 'acTL') return true;
+      if (type === 'IDAT' || type === 'IEND') return false;
+      o += 12 + len;
+    }
+  }
+  return false;
+}

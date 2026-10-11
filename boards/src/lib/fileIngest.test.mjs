@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyDropFile, sizeBucket, fitImageDims, meaningfulFileName, fileMetaFor,
+  isAnimatedImageBytes, isAnimatedImageKey,
   FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP, FREE_FILE_CAP_LABEL, FALLBACK_DIMS,
 } from './fileIngest.js';
 
@@ -191,4 +192,46 @@ test('what a browser invents for a paste is not a name', () => {
 test('fileMetaFor adds the name or nothing at all', () => {
   assert.deepEqual(fileMetaFor({ name: 'diner.jpg' }), { fileName: 'diner.jpg' });
   assert.deepEqual(fileMetaFor({ name: 'image.png' }), {});
+});
+
+// ── Animated images keep the original as their canvas tier (MEDIA-01) ──────
+
+const bytes = (...parts) => {
+  const out = [];
+  for (const p of parts) {
+    if (typeof p === 'string') for (const ch of p) out.push(ch.charCodeAt(0));
+    else out.push(...p);
+  }
+  return Uint8Array.from(out);
+};
+const u32 = (n) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+const pngChunk = (type, len) => [...u32(len), ...bytes(type), ...new Array(len).fill(0), 0, 0, 0, 0];
+const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+test('a GIF is animated by key and by bytes', () => {
+  assert.equal(isAnimatedImageKey('ws/abc.gif'), true);
+  assert.equal(isAnimatedImageKey('ws/abc.GIF'), true);
+  assert.equal(isAnimatedImageKey('ws/abc.png'), false);
+  assert.equal(isAnimatedImageKey(null), false);
+  assert.equal(isAnimatedImageBytes(bytes('GIF89a', new Array(20).fill(0))), true);
+});
+
+test('an animated WebP is told apart from a still one by its VP8X flag', () => {
+  const head = (flags) => bytes('RIFF', [0, 0, 0, 0], 'WEBP', 'VP8X', [10, 0, 0, 0], [flags], new Array(20).fill(0));
+  assert.equal(isAnimatedImageBytes(head(0x02)), true);
+  assert.equal(isAnimatedImageBytes(head(0x10)), false, 'alpha only');
+  assert.equal(isAnimatedImageBytes(bytes('RIFF', [0, 0, 0, 0], 'WEBP', 'VP8 ', new Array(20).fill(0))), false);
+});
+
+test('an APNG is told apart from a PNG by an acTL before the first IDAT', () => {
+  const apng = Uint8Array.from([...PNG_SIG, ...pngChunk('IHDR', 13), ...pngChunk('acTL', 8), ...pngChunk('IDAT', 4)]);
+  const png = Uint8Array.from([...PNG_SIG, ...pngChunk('IHDR', 13), ...pngChunk('IDAT', 4), ...pngChunk('acTL', 8)]);
+  assert.equal(isAnimatedImageBytes(apng), true);
+  assert.equal(isAnimatedImageBytes(png), false);
+});
+
+test('a JPEG, a short read or nothing at all is not animated', () => {
+  assert.equal(isAnimatedImageBytes(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...new Array(20).fill(0)])), false);
+  assert.equal(isAnimatedImageBytes(Uint8Array.from([0x47, 0x49])), false);
+  assert.equal(isAnimatedImageBytes(null), false);
 });
