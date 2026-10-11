@@ -24,6 +24,7 @@ import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
 import { planParts } from './multipartPlan.js';
+import { presignAndPut, retryWait, keepResumeSession } from './uploadRetry.js';
 import { runGated } from './backfillGate.js';
 import { enqueueVariant, dequeueVariant } from './variantQueue.js';
 
@@ -217,6 +218,17 @@ function putWithProgress(url, file, { onProgress } = {}) {
     xhr.onerror = () => reject(new Error('Upload network error'));
     xhr.onabort = () => reject(new Error('Upload aborted'));
     xhr.send(file);
+  });
+}
+
+// Presign + PUT a whole file, retrying a dropped connection or a 5xx (see
+// uploadRetry.presignAndPut, MEDIA-10). Returns { uploadUrl, key } — the key
+// of the attempt that landed, which a re-presign may have changed.
+function presignAndPutFile({ workspaceId, boardId, file, onProgress }) {
+  return presignAndPut({
+    presign: () => presign({ workspaceId, boardId, file }),
+    put: (url) => putWithProgress(url, file, { onProgress }),
+    wait: (attempt) => retryWait(attempt),
   });
 }
 
@@ -493,9 +505,7 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
 export async function uploadImage({ file, workspaceId, boardId, cardId = null, userId, onProgress = null, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
 
-  const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
-
-  await putWithProgress(uploadUrl, file, { onProgress });
+  const { key } = await presignAndPutFile({ workspaceId, boardId, file, onProgress });
 
   const dims = await readImageDims(file);
 
@@ -787,8 +797,7 @@ export async function uploadAudio({ file, workspaceId, boardId, cardId = null, u
   // Cover art too, from the same File. Head reads only — see audioTags.js.
   const coverP = extractAndUploadCover({ file, workspaceId, boardId, userId });
 
-  const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
-  await putWithProgress(uploadUrl, file, { onProgress });
+  const { key } = await presignAndPutFile({ workspaceId, boardId, file, onProgress });
 
   const { error: rowErr } = await supabase
     .from('images')
@@ -863,8 +872,7 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
   }
 
   // 1) Upload the original PDF + its authorizing images row.
-  const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
-  await putWithProgress(uploadUrl, file, { onProgress });
+  const { key } = await presignAndPutFile({ workspaceId, boardId, file, onProgress });
   const { error: rowErr } = await supabase
     .from('images')
     .insert({
@@ -939,10 +947,15 @@ export async function uploadVideo({ file, workspaceId, boardId, cardId = null, u
   const meta = await readVideoMeta(file);
   // Fail CLOSED: if we couldn't read the duration we can't prove it's within
   // the limit, so reject rather than let a possibly-huge video through.
-  if (meta.duration == null || Number.isNaN(meta.duration)) {
+  // …but only when there IS a length limit. A paid owner (Infinity) was
+  // refused a 20 MB HEVC .mov or .mkv this browser can't parse, while the same
+  // clip over the single-PUT size went through multipart, which reads no
+  // metadata at all (MEDIA-12). Unreadable just means no duration on the card.
+  const unreadable = meta.duration == null || Number.isNaN(meta.duration);
+  if (unreadable && Number.isFinite(maxDurationSec)) {
     throw new Error('Could not read the video length — re-export and try again.');
   }
-  if (meta.duration > maxDurationSec) {
+  if (!unreadable && meta.duration > maxDurationSec) {
     // Coded so the caller can record the refusal. This one never reached
     // telemetry at all: it threw into a toast, so how many free accounts are
     // turned away for a clip past the length cap could not be counted.
@@ -952,8 +965,7 @@ export async function uploadVideo({ file, workspaceId, boardId, cardId = null, u
     e.maxSec = maxDurationSec;
     throw e;
   }
-  const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
-  await putWithProgress(uploadUrl, file, { onProgress });
+  const { key } = await presignAndPutFile({ workspaceId, boardId, file, onProgress });
 
   // Insert an `images` row so sign-reads authorizes the key. Without
   // this the video element gets src=undefined and never plays.
@@ -984,7 +996,7 @@ export async function uploadVideo({ file, workspaceId, boardId, cardId = null, u
     key,
     width: meta.w,
     height: meta.h,
-    duration: meta.duration,
+    duration: unreadable ? null : meta.duration,
     poster,
   };
 }
@@ -1103,6 +1115,12 @@ async function runPool(items, concurrency, worker) {
   if (failed) throw failed;
 }
 
+// Fingerprints with a multipart upload running in this tab. A second drop of
+// the same file while the first is still going used to load the first's saved
+// session and race it on one uploadId, rolling one card back (MEDIA-11); it
+// now runs its own session and leaves the saved one to the first.
+const activeFingerprints = new Set();
+
 function mpuFingerprint(file, workspaceId, boardId) {
   return `soleil.mpu.${workspaceId}:${boardId}:${file.name}:${file.size}:${file.lastModified}`;
 }
@@ -1151,17 +1169,30 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
   if (!boardId) throw new Error('boardId required');
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
   const fp = mpuFingerprint(file, workspaceId, boardId);
+  // Only the first concurrent upload of a file owns its resume state.
+  const ownsResume = !activeFingerprints.has(fp);
+  if (ownsResume) activeFingerprints.add(fp);
+  try {
+    return await uploadFileSession({ file, workspaceId, boardId, cardId, userId, onProgress, signal, originalName, ext, fp, ownsResume });
+  } finally {
+    if (ownsResume) activeFingerprints.delete(fp);
+  }
+}
+
+async function uploadFileSession({ file, workspaceId, boardId, cardId, userId, onProgress, signal, originalName, ext, fp, ownsResume }) {
+  const save = (st) => { if (ownsResume) saveMpuState(fp, st); };
+  const clear = () => { if (ownsResume) clearMpuState(fp); };
 
   // Resume an alive session for this exact file, else open a new one. A 402/403
   // here (over quota / not a paid owner) throws straight out — no session exists
   // to clean up — for the caller to roll back + upsell.
-  let session = loadMpuState(fp);
+  let session = ownsResume ? loadMpuState(fp) : null;
   if (!session) {
     const created = await mpuPost('create', workspaceId, {
       boardId, fileExt: ext, contentType: file.type || 'application/octet-stream', totalBytes: file.size,
     });
     session = { key: created.key, uploadId: created.uploadId, partSize: created.partSize, completed: {}, createdAt: Date.now() };
-    saveMpuState(fp, session);
+    save(session);
   }
 
   const { key, uploadId, partSize } = session;
@@ -1198,7 +1229,7 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
         });
         completed[p.partNumber] = etag;
         loadedByPart[p.partNumber] = (p.end - p.start);
-        session.completed = completed; saveMpuState(fp, session);
+        session.completed = completed; save(session);
         emit();
       });
     }
@@ -1209,14 +1240,17 @@ export async function uploadFile({ file, workspaceId, boardId, cardId = null, us
     });
     const raw = done?.bytes;
     serverBytes = (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) ? raw : null;
-    clearMpuState(fp);
+    clear();
   } catch (err) {
-    // Terminal (auth/quota/abort) → discard the server session + local state.
-    // Transient (network) → keep local state so a re-drop resumes. Always
-    // re-throw so the caller rolls back the optimistic card.
-    if (err?.code === 402 || err?.code === 403 || String(err?.message) === 'aborted') {
+    // Transient (no response at all) → keep local state so a re-drop resumes.
+    // Anything the server answered (auth, quota, a failed complete, a refused
+    // part) or an abort → discard the server session + local state: the
+    // session is dead or already finished, and resuming it only failed again
+    // (uploadRetry.keepResumeSession). Always re-throw so the caller rolls
+    // back the optimistic card.
+    if (!keepResumeSession(err)) {
       await mpuPost('abort', workspaceId, { boardId, key, uploadId }).catch(() => {});
-      clearMpuState(fp);
+      clear();
     }
     throw err;
   }
