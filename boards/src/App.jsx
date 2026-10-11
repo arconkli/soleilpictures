@@ -4671,6 +4671,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the workspace menu: the panel shares its root cluster and starts on
   // "Whole workspace"). Back to 'cluster' whenever the panel closes.
   const [shareScope, setShareScope] = useState(() => (shareAfterSwitchFor(workspace.id) ? 'workspace' : 'cluster'));
+  // The cluster the topbar's Share was pressed for — the pane the breadcrumb
+  // describes (toolbarPane). null = the main pane's cluster, which is what
+  // every other way in (sidebar, ⌘K, toasts) navigates the main pane to first.
+  const [shareBoardId, setShareBoardId] = useState(null);
   useEffect(() => { clearShareAfterSwitch(); }, []);
   // Which section ShareModal scrolls to on open ('invite-link' from the
   // collab nudge CTA); cleared on close so plain opens start at the top.
@@ -8335,6 +8339,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const onActiveCrumb = toolbarPane === 'split' ? goToSplit : goTo;
   const activeNavCaps = navCaps[toolbarPane] || { back: false, fwd: false };
   const activeBoardId = toolbarPane === 'split' ? splitId : currentId;
+  // Undo/Redo, Version history and Share in the topbar act on the same pane
+  // the breadcrumb beside them describes. They used to act on the main pane
+  // always: with the split focused, Undo reverted the LEFT cluster's last edit
+  // (and greyed out by its stack), while ⌘Z — pane-aware — undid the right.
+  const tbYb = toolbarPane === 'split' ? splitYb : yb;
+  const tbMutators = toolbarPane === 'split' ? splitMutators : mainMutators;
+  const tbYDoc = toolbarPane === 'split' ? splitYDoc : currentYDoc;
+  const tbBoard = toolbarPane === 'split' ? (splitBoard || currentBoard) : currentBoard;
   const ybReadyForCurrent = Boolean(currentYDoc);
   // Hide orphan board / boardlink cards at the render layer. See the
   // long comment in the orphan-sweep section above for why we filter
@@ -9007,10 +9019,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     onClick={() => setPaletteOpen(true)}>
               <Icon as={Search} size={16} />
             </button>
-            <button className="tb-icon" title="Undo (⌘Z)" disabled={!yb.canUndo} onClick={() => mainMutators.undo?.()}>
+            <button className="tb-icon" title="Undo (⌘Z)" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
               <Icon as={Undo} size={16} />
             </button>
-            <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
+            <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
               <Icon as={Redo} size={16} />
             </button>
             <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
@@ -9051,7 +9063,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
                 What that buys back: invites, revoking, and publishing stop being
                 reachable only through a toast that disappears. */}
-            <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this cluster">
+            <button className="tb-btn" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
             <button className="tb-icon tb-icon-theme" title="Toggle theme"
@@ -9289,10 +9301,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       <VersionHistoryModal
         open={versionsOpen}
-        boardId={currentId}
-        boardName={currentBoard?.name || ''}
-        ydoc={currentYDoc}
-        sessionId={yb?.sessionId || null}
+        boardId={tbBoard.id}
+        boardName={tbBoard?.name || ''}
+        ydoc={tbYDoc}
+        sessionId={tbYb?.sessionId || null}
         userId={user?.id || null}
         onRestored={() => refreshBoards()}
         onClose={() => setVersionsOpen(false)}
@@ -9362,7 +9374,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {shareOpen && (() => {
         // Sharing the WORKSPACE shares its root cluster (links then cover
         // every cluster under it) and starts on "Whole workspace".
-        const shareTarget = shareScope === 'workspace' ? (boards[rootBoard.id] || rootBoard) : currentBoard;
+        const shareTarget = shareScope === 'workspace'
+          ? (boards[rootBoard.id] || rootBoard)
+          : ((shareBoardId && boards[shareBoardId]) || currentBoard);
         return (
           <ShareModal
             board={shareTarget}
@@ -9372,14 +9386,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             selfUserId={user.id}
             myWorkspaceRole={workspace._myRole || null}
             scope={shareScope}
-            canManage={shareScope === 'workspace' ? canEditBoard(rootBoard.id) : canEditCurrent}
+            canManage={shareScope === 'workspace' ? canEditBoard(rootBoard.id)
+              : shareTarget.id === currentId ? canEditCurrent : canEditBoard(shareTarget.id)}
             initialSection={shareInitialSection}
-            onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); }}
+            onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }}
             onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
             onSharesChanged={() => { refreshSharedBoards?.(); }}
             onLinkCreated={() => {
               try {
-                const yd = yb.ready && yb.boardId === shareTarget.id ? yb.ydoc : null;
+                const yd = yb.ready && yb.boardId === shareTarget.id ? yb.ydoc
+                  : (splitYb.ready && splitYb.boardId === shareTarget.id ? splitYb.ydoc : null);
                 if (yd) forceBoardThumbnail(shareTarget.id, yd, { workspaceId: workspace.id, userId: user.id });
               } catch (_) {}
             }}
