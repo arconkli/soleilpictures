@@ -19206,6 +19206,15 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .rb-swatch-pop, .folder-tab,
 .msg-panel { position: absolute; }
 
+/* …but on the mobile shell the note bar is meant to be fixed (its earlier
+   phone/touch blocks say so), and the line above out-ranked them on source
+   order. ToolOptionsBar's keyboard lift measures from the viewport, so the
+   bar has to be positioned against it. Same query as the shell's .tob block. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .tob { position: fixed; }
+}
+
 .auth-screen, .pricing-screen, .welcome-screen,
 .doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
 .entity-picker, .link-popover, .emoji-palette,
