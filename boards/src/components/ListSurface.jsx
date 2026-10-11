@@ -653,6 +653,24 @@ export function ListSurface({
     setSelectedGroupId(null);
   }, [board.id]);
 
+  // Files deleted or moved elsewhere — on the canvas, by a collaborator —
+  // leave the selection. Otherwise the bar kept counting them, Move to… did
+  // nothing, and Delete confirmed and toasted a delete that never happened,
+  // whose Undo then reverted whatever else was on top of the stack.
+  useEffect(() => {
+    if (loading) return;
+    const live = (set, has) => {
+      if (!set.size) return set;
+      const next = new Set([...set].filter(has));
+      return next.size === set.size ? set : next;
+    };
+    const cardIds = new Set((cards || []).map((c) => c.id));
+    const boardIds = new Set(subBoards.map((b) => b.id));
+    setSelectedCards((prev) => live(prev, (id) => cardIds.has(id)));
+    setSelectedBoards((prev) => live(prev, (id) => boardIds.has(id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, childBoards, loading]);
+
   // Asked to show files that aren't on the board (a link, a search hit, Show
   // on board): clear whatever would hide them, select them and bring the
   // first into view. No ids = just Files, filtered to what's not on the board.
