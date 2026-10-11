@@ -15,6 +15,7 @@
 // enforced server-side; a viewer-role caller just gets a quiet RPC denial.
 
 import { getMeta } from './imageMeta.js';
+import { variantsSettled } from './imageVariantPick.js';
 import { getSignedUrl } from './r2.js';
 import { runGated } from './backfillGate.js';
 import { importWithReload } from './lazyWithReload.js';
@@ -117,7 +118,7 @@ export function requestImageBackfill(key, boardId) {
   if (_fetchBlocked) return false;
   if (!key || backfillAttempted.has(key) || !RASTER_RE.test(key)) return false;
   const meta = getMeta(key);
-  if (!meta || meta.previewKey) return false;
+  if (!meta || variantsSettled(meta)) return false;
   backfillAttempted.add(key);
   runGated(() => backfillOne(key, boardId));
   return true;
