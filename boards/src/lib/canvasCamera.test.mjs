@@ -57,6 +57,15 @@ test('the opening fit never magnifies past 1:1', () => {
   assert.match(fit, /let z = Math\.max\(ZOOM_MIN, Math\.min\(OPEN_FIT_MAX_ZOOM, Math\.min\(/);
 });
 
+// CANVAS-A-11 / CANVAS-B-09: drag and resize deltas used the render-time zoom.
+test('drags run in world space and resizes read the live zoom', () => {
+  assert.match(canvas, /const startWorld = clientToCanvas\(startClient\.x, startClient\.y\);/);
+  const moves = canvas.match(/const _origin = dragOriginWorld \|\| startWorld;\s*const _at = clientToCanvas\(ev\.clientX, ev\.clientY\);/g) || [];
+  assert.equal(moves.length, 2, 'flushMove and the release commit agree');
+  assert.doesNotMatch(canvas, /\(ev\.clientX - (_origin|startClient)\.x\) \/ zoom;/);
+  assert.doesNotMatch(canvas, /\(mv\.clientX - startClient\.x\) \/ zoom;/);
+});
+
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {

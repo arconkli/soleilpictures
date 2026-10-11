@@ -179,6 +179,29 @@ test('pasted text lands in view over negative board space', async ({ page }) => 
   expect(Math.abs(box.x + box.width / 2 - 640)).toBeLessThan(40);
 });
 
+// CANVAS-A-11 / CANVAS-B-09: the drag divided screen deltas by the render-time
+// zoom, so a wheel pan while holding a card left it riding with the canvas,
+// off the cursor.
+test('a card held through a wheel pan stays under the cursor', async ({ page }) => {
+  await goBlank(page);
+  await createNote(page, 'hold-me');
+  const card = page.locator('.card', { hasText: 'hold-me' }).first();
+  const b0 = await card.boundingBox();
+  const grab = { x: b0.x + 8, y: b0.y + 8 };
+  await page.mouse.move(grab.x, grab.y);
+  await page.mouse.down();
+  await page.mouse.move(grab.x + 30, grab.y + 10, { steps: 4 });
+  await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(300);
+  await page.mouse.move(grab.x + 40, grab.y + 12, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const b1 = await card.boundingBox();
+  // The grab point is where the cursor let go.
+  expect(Math.abs(b1.x + 8 - (grab.x + 40))).toBeLessThan(12);
+  expect(Math.abs(b1.y + 8 - (grab.y + 12))).toBeLessThan(12);
+});
+
 // CARDS-01: the PDF viewer renders inside .canvas-wrap, whose native wheel
 // listener preventDefaulted every wheel over its pages and panned the board.
 test('a wheel over the PDF viewer scrolls its pages, not the board', async ({ page }) => {
