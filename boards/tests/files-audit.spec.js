@@ -139,6 +139,42 @@ test('FILES-LIST-04: a file deleted on the board leaves the Files selection', as
   await expect(bar).toHaveCount(0);
 });
 
+// Parks a tile just behind the sticky toolbar, then asks for it the way the
+// keyboard cursor and a reveal do (scrollIntoView, block: 'nearest'), and
+// returns how far its top sits below the toolbar's bottom.
+async function tileClearOfHead(wrap) {
+  return wrap.evaluate((el) => {
+    const head = el.querySelector('.lp-head, .cb-head');
+    const tiles = [...el.querySelectorAll('.ct-tile')];
+    const tile = tiles[Math.floor(tiles.length / 2)];
+    const wrapTop = el.getBoundingClientRect().top;
+    el.scrollTop += tile.getBoundingClientRect().top - wrapTop - 10;
+    tile.scrollIntoView({ block: 'nearest' });
+    return tile.getBoundingClientRect().top - head.getBoundingClientRect().bottom;
+  });
+}
+
+test('FILES-LIST-05: the keyboard cursor never parks a tile under the sticky toolbar', async ({ page }) => {
+  await go(page, { width: 1280, height: 640, blank: true });
+  await openFullFiles(page);
+  await full(page).locator('input[type="file"][multiple]').setInputFiles(
+    pngs(...Array.from({ length: 40 }, (_, i) => `shot-${i}.png`)));
+  await expect(full(page).locator('.ct-tile')).toHaveCount(40);
+  expect(await tileClearOfHead(full(page))).toBeGreaterThanOrEqual(0);
+  // And at the bottom, under the selection bar a selection brings up.
+  await full(page).locator('.ct-tile').first().click();
+  await expect(full(page).locator('.list-selbar')).toBeVisible();
+  const clear = await full(page).evaluate((el) => {
+    const bar = el.querySelector('.list-selbar');
+    const tiles = [...el.querySelectorAll('.ct-tile')];
+    const tile = tiles[Math.floor(tiles.length / 2)];
+    el.scrollTop += tile.getBoundingClientRect().bottom - el.getBoundingClientRect().bottom + 10;
+    tile.scrollIntoView({ block: 'nearest' });
+    return bar.getBoundingClientRect().top - tile.getBoundingClientRect().bottom;
+  });
+  expect(clear).toBeGreaterThanOrEqual(0);
+});
+
 test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
   await go(page, { width: 390, height: 844 });
   await openFull(page);
