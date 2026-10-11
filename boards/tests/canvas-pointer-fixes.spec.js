@@ -251,6 +251,32 @@ test('a card menu on a short window starts on screen and scrolls instead of crus
   expect(rowH).toBeGreaterThanOrEqual(30);
 });
 
+test('a card-to-card connector set to No arrowheads keeps its editor', async ({ page }) => {
+  await blank(page);
+  const a = await addNote(page, 'from-here', 380, 260);
+  const b = await addNote(page, 'to-there', 760, 260);
+  await page.keyboard.press('a');
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-arrow/);
+  await a.click({ position: { x: 20, y: 20 } });
+  await b.click({ position: { x: 20, y: 20 } });
+  await expect(page.locator('.arrow-g')).toHaveCount(1);
+  await page.keyboard.press('v');
+  const hit = page.locator('.arrow-g > path').first();
+  const box = await hit.boundingBox();
+  await hit.dispatchEvent('pointerdown', {
+    button: 0, pointerId: 1, isPrimary: true,
+    clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
+  });
+  await page.mouse.up();
+  const pop = page.locator('.arrow-popover');
+  await expect(pop).toBeVisible();
+  await pop.locator('[title="No arrowheads"]').click();
+  // Still editable: the popover stays, and the heads can come back.
+  await expect(pop).toBeVisible();
+  await pop.locator('[title="Single arrowhead"]').click();
+  await expect(pop.locator('[title="Single arrowhead"]')).toHaveAttribute('aria-checked', 'true');
+});
+
 async function zoomIntoCentre(page, notches = 12) {
   await page.evaluate((n) => {
     const wrap = document.querySelector('.canvas-wrap');
