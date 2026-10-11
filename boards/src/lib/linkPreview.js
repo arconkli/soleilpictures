@@ -49,3 +49,25 @@ function normalize(j, fallbackUrl) {
     url: j.url || fallbackUrl,
   };
 }
+
+// The preview lands a second or three after the card (or grid cell) was made,
+// by which time the user may have renamed it, resized it, edited its URL, or
+// replaced the cell with something else. Applied blind, it put the page's OG
+// title back over the user's and snapped the card to 280×290. Write only what
+// is still the way creation left it. `created` is what the card / cell was
+// made with, `current` is it now (null once it's gone); `grow` is the size a
+// card takes on when an image arrives, applied only from its creation size.
+export function previewPatch(p, current, created, { grow = null } = {}) {
+  if (!p || !current || !created) return {};
+  if ((current.source || '') !== (created.source || '')) return {};
+  if (created.type && current.type !== created.type) return {};
+  const patch = {};
+  if (p.title && (current.title || '') === (created.title || '')) patch.title = p.title;
+  if (p.image && !current.image) patch.image = p.image;
+  if (p.description && !current.description) patch.description = p.description;
+  if (p.favicon && !current.favicon) patch.favicon = p.favicon;
+  if (grow && patch.image && current.w === created.w && current.h === created.h) {
+    patch.w = grow.w; patch.h = grow.h;
+  }
+  return patch;
+}
