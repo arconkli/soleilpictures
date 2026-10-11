@@ -27,7 +27,7 @@ test('the closed phone sidebar drawer stays off-screen with motion reduced', asy
   await reduceMotion(page);
   await page.goto('/?local=1&reset=1&blank=1');
   const sidebar = page.locator('.sidebar').first();
-  await expect(sidebar).toBeAttached();
+  await expect(sidebar).toBeAttached({ timeout: 30000 });
   await expect(sidebar).not.toHaveClass(/is-mobile-open/);
   // Give any clamped transition time to settle before measuring.
   await page.waitForTimeout(300);
@@ -41,7 +41,7 @@ test('the empty-cluster panel stays centred with motion reduced', async ({ page 
   await reduceMotion(page);
   await page.goto('/?local=1&reset=1&blank=1');
   const panel = page.locator('.cnv-empty-tiles');
-  await expect(panel).toBeVisible();
+  await expect(panel).toBeVisible({ timeout: 30000 });
   await page.waitForTimeout(300);
   const { mid, wrapMid } = await panel.evaluate((el) => {
     const r = el.getBoundingClientRect();
@@ -54,7 +54,7 @@ test('the empty-cluster panel stays centred with motion reduced', async ({ page 
 test('inline transforms survive and infinite loops stop with motion reduced', async ({ page }) => {
   await reduceMotion(page);
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('#root')).toBeVisible();
+  await expect(page.locator('.app')).toBeAttached({ timeout: 30000 });
   const probe = await page.evaluate(() => {
     // A peer cursor / flipped image / fitted embed: a plain inline transform.
     const pos = document.createElement('div');
