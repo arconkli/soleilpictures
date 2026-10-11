@@ -62,23 +62,34 @@ test('zoom-in promotes only on-screen cards; off-screen mounted cards stay sm; n
   // mounted. One ctrl-wheel burst per step; stop as soon as a card has promoted
   // AND off-screen mounted cards exist (a moderate zoom — too deep and the cull
   // prunes the off-screen ring away).
-  const zoomStep = () => page.evaluate(() => {
-    const wrap = document.querySelector('.canvas-wrap');
-    const x = window.innerWidth / 2, y = window.innerHeight / 2;
-    for (let i = 0; i < 2; i++) {
-      wrap.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, ctrlKey: true, bubbles: true, cancelable: true, clientX: x, clientY: y }));
+  // One zoom-in GESTURE: a quick burst of ctrl-wheel notches (each ~x1.8 since
+  // pinch-on-wheel is off, CANVAS-A-01), sent faster than the 140ms settle so
+  // no promotion pass runs mid-zoom. Stop as soon as the KEEP band holds a ring
+  // of mounted off-screen cards (a moderate zoom: too deep and the cull prunes
+  // the ring away), then let it settle once.
+  // Ready when an on-screen tile is drawn wider than the 640px sm variant (so
+  // it deserves a promote) AND some mounted tile sits off screen.
+  const ready = () => page.evaluate(() => {
+    const vw = window.innerWidth, vh = window.innerHeight, dpr = window.devicePixelRatio || 1;
+    let big = false, off = false;
+    for (const el of document.querySelectorAll('.r2p-img')) {
+      const r = el.getBoundingClientRect();
+      const inView = r.right > 0 && r.left < vw && r.bottom > 0 && r.top < vh;
+      if (inView && r.width * dpr > 700) big = true;
+      if (!inView) off = true;
     }
+    return big && off;
   });
-
-  let tiles = [];
-  for (let step = 0; step < 5; step++) {
-    await zoomStep();
-    await page.waitForTimeout(650);   // settle + promote drain + batches
-    tiles = await snapshotTiles(page);
-    const promoted = tiles.some((t) => t.inView && t.tier !== 'sm');
-    const offMounted = tiles.some((t) => !t.inView);
-    if (promoted && offMounted) break;
+  for (let i = 0; i < 12 && !(await ready()); i++) {
+    await page.evaluate(() => {
+      const wrap = document.querySelector('.canvas-wrap');
+      wrap.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, ctrlKey: true, bubbles: true, cancelable: true,
+        clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }));
+    });
+    await page.waitForTimeout(40);
   }
+  await page.waitForTimeout(650);   // settle + promote drain + batches
+  const tiles = await snapshotTiles(page);
 
   const offView = tiles.filter((t) => !t.inView);
   // The test is only meaningful if some cards are mounted but off-viewport.

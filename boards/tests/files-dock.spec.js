@@ -156,14 +156,15 @@ test('another cluster\'s file drags in as a linked copy; a doc is copied too, or
   const n0 = await cards.count();
   await p.locator('[data-item-id="s-img1"]').dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 320, y: 300 } });
   await expect(cards).toHaveCount(n0 + 1);
-  await expect(page.getByText('Linked 1 file from “Sundown Highway”')).toBeVisible();
+  // Scoped to the toast: the screen-reader announcer repeats toast text.
+  await expect(page.locator('.toast-msg').getByText('Linked 1 file from “Sundown Highway”')).toBeVisible();
   // The original stays where it was.
   await expect(p.locator('[data-item-id="s-img1"]')).toBeVisible();
 
   // A doc is copied from its cluster's real content; the original stays.
   await p.locator('[data-item-id="s-doc"]').dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 420, y: 560 } });
   await expect(cards).toHaveCount(n0 + 2);
-  await expect(page.getByText(/Copied 1 card from “Sundown Highway”/)).toBeVisible();
+  await expect(page.locator('.toast-msg').getByText(/Copied 1 card from “Sundown Highway”/)).toBeVisible();
   await expect(p.locator('[data-item-id="s-doc"]')).toHaveCount(1);
   await expect(page.locator('[data-card-id="s-doc"]')).toHaveCount(0);
   // Move instead: the copy comes off and the original moves here.
@@ -191,7 +192,7 @@ test('a note from another cluster is copied with its words, and ⌘Z takes the c
   const cards = page.locator('[data-card-id]');
   const n0 = await cards.count();
   await note.dragTo(page.locator('.canvas-wrap'), { targetPosition: { x: 360, y: 360 } });
-  await expect(page.getByText(/Copied 1 note from “Studio”/)).toBeVisible();
+  await expect(page.locator('.toast-msg').getByText(/Copied 1 note from “Studio”/)).toBeVisible();
   await expect(cards).toHaveCount(n0 + 1);
   await expect(page.locator('.canvas-wrap').getByText('Drop projects here', { exact: false })).toBeVisible();
   // Still in Studio.
