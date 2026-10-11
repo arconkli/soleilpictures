@@ -22,7 +22,10 @@ import { supabase } from '../lib/supabase.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 
-export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
+// `target`, never `ref`: React reserves `ref` and never hands it to a plain
+// function component, so as `ref` this was always undefined and the drawer
+// never drew from any entry point.
+export function EntityBacklinksPanel({ target: targetRef, onClose }) {
   const navigate = useEntityNavigate();
   const { workspaceId } = useEntityTrie();
   const [linkRows, setLinkRows] = useState([]);

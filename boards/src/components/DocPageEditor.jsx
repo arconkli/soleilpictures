@@ -1445,7 +1445,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       )}
       {backlinksRef && (
         <EntityBacklinksPanel
-          ref={backlinksRef}
+          target={backlinksRef}
           onClose={() => setBacklinksRef(null)}
         />
       )}
