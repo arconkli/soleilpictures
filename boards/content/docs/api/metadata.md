@@ -86,13 +86,18 @@ not change**, so your own record of what you made last time stays valid.
 The same flag works on `POST /boards/:id/cards`. Run your importer twice over
 three million assets and you get three million objects, not six.
 
+A card someone deleted (or moved off the board) in the app since the last run
+is **created again**, counted in `created`, and its identifiers move to the new
+card. The old card's id is gone with it, so read the new one from the response.
+
 ### Two refusals rather than a guess
 
 `409 identifier_conflict` in two cases, both of which have no correct answer:
 
 - one item whose identifiers match **two different existing objects** — picking
   one would silently merge two records
-- a card whose identifier already lives **on a different board** — the response
+- a card whose identifier already lives **on a different board**, and that card
+  is still there — the response
   names the board, so you can move it or use a different identifier. Quietly
   doing nothing would leave you believing the card is on your board when it is
   not.
