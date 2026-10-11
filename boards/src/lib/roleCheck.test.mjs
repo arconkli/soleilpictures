@@ -311,3 +311,12 @@ test('0397: a workspace goes only to someone who can edit it, and its storage go
   assert.match(def.body, /'workspace\.ownership_received'/);
   assert.match(def.body, /if v_old <> auth\.uid\(\) then/);
 });
+
+test('0401: only the workspace owner manages its webhooks', () => {
+  for (const fn of ['webhook_create', 'webhook_update', 'webhook_delete', 'webhook_redeliver']) {
+    const def = latestDefinition(fn);
+    assert.ok(def.file >= '0401', `${fn} latest definition must be 0401 or later`);
+    assert.match(def.body, /ws\.created_by = auth\.uid\(\)/, `${fn} must be owner-only`);
+    assert.match(def.body, /can_write_workspace\(/, `${fn} keeps the suspend/waitlist gate`);
+  }
+});

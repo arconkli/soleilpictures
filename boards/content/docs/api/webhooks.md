@@ -34,8 +34,10 @@ happens to a board.
 
 ## Register one
 
-Registering a webhook, or pointing one at a new URL, opens up once the account
-is {{fact:newAccountHours}} hours old.
+Only the workspace's **owner** can add, change, replay or delete its webhooks —
+a webhook carries every event in the workspace, so where those go is the
+owner's call. Registering a webhook, or pointing one at a new URL, opens up once
+the account is {{fact:newAccountHours}} hours old.
 
 ```sh
 curl -X POST "$SOLEIL_API/webhooks" \
