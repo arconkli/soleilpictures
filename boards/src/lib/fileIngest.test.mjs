@@ -21,8 +21,8 @@ const f = (name, type, size = 1024) => ({ name, type, size });
 
 // 0367: file TYPES are open on the free plan; only SIZE stays Creator's.
 test('a free owner may drop any file type up to the free file cap', () => {
-  // (.psd arrives with an image/ MIME from most pickers and takes the image
-  // route, as it always has; the empty-MIME case is the one that used to bounce.)
+  // (.psd with an image/ MIME is a file card too since MEDIA-02 — see the
+  // undrawable-image test below; the empty-MIME case is the one that used to bounce.)
   for (const [name, type] of [['comp.psd', ''], ['mock.fig', ''], ['pack.zip', 'application/zip'],
                               ['brief.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']]) {
     const c = classifyDropFile(f(name, type, FREE_FILE_CAP), { canAttemptFiles: false });
@@ -192,6 +192,25 @@ test('what a browser invents for a paste is not a name', () => {
 test('fileMetaFor adds the name or nothing at all', () => {
   assert.deepEqual(fileMetaFor({ name: 'diner.jpg' }), { fileName: 'diner.jpg' });
   assert.deepEqual(fileMetaFor({ name: 'image.png' }), {});
+});
+
+// ── Image types no browser draws become file cards (MEDIA-02) ──────────────
+
+test('a .psd or a camera raw is a file card even when it says image/', () => {
+  for (const [name, type] of [['comp.psd', 'image/vnd.adobe.photoshop'], ['comp.psd', 'image/x-photoshop'],
+                              ['DSC00412.ARW', 'image/x-sony-arw'], ['IMG_1.CR2', 'image/x-canon-cr2'],
+                              ['shot.dng', 'image/x-adobe-dng'], ['big.psb', '']]) {
+    for (const canAttemptFiles of [true, false]) {
+      const c = classifyDropFile(f(name, type), { canAttemptFiles });
+      assert.equal(c.route, 'file', `${name} (${type || 'no type'}) is a file card`);
+    }
+  }
+  // Safari draws TIFF and HEIC, so they stay images (the card shows "Preview
+  // not available" on browsers that can't).
+  assert.equal(classifyDropFile(f('scan.tif', 'image/tiff')).route, 'image');
+  assert.equal(classifyDropFile(f('IMG_1.HEIC', 'image/heic')).route, 'image');
+  assert.equal(classifyDropFile(f('IMG_1.HEIC', '')).route, 'image');
+  assert.equal(classifyDropFile(f('a.png', 'image/png')).route, 'image');
 });
 
 // ── Animated images keep the original as their canvas tier (MEDIA-01) ──────

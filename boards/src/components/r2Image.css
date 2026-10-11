@@ -1,0 +1,33 @@
+/* R2Image's "Preview not available" state (R2Image.jsx, UnavailablePlaceholder).
+
+   Shown when the browser refused the bytes even after one fresh signature: a
+   TIFF or PSD outside Safari, a HEIC on Chrome/Firefox, an object that is gone.
+   It inherits .r2-img-blocked's neutral tile from styles.css and only adds the
+   label and the Download. Neutral ink throughout: nothing here is active or
+   selected, so gold stays out (focus gets the global :focus-visible ring). */
+
+.r2-img-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  overflow: hidden;
+  text-align: center;
+}
+.r2-img-unavailable-label {
+  font: 500 11px/1.3 var(--font-sans);
+  color: var(--ink-3);
+}
+.r2-img-unavailable-dl {
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-1);
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.r2-img-unavailable-dl:hover { background: var(--bg-hov); }

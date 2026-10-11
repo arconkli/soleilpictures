@@ -77,6 +77,9 @@ export const SCREENPLAY_FILE_RE = /\.(fountain|fdx)$/i;
 // readers drop these on their first visit; uploading one only ever produced an
 // opaque file card (paid) or a storage pitch (free). Neither opens the board.
 export const PUREREF_FILE_RE = /\.pur$/i;
+// Photoshop documents and camera raws: image MIME types that no browser
+// decodes, Safari included (TIFF and HEIC are not here — Safari draws both).
+export const UNDRAWABLE_IMAGE_RE = /\.(psd|psb|dng|cr2|cr3|crw|nef|nrw|arw|srf|sr2|raf|orf|rw2|pef|srw|3fr|iiq|x3f)$/i;
 
 // Decide the upload route + card kind + fallback size for a File.
 //   canAttemptFiles — false when the user OWNS this workspace and is NOT on a
@@ -102,7 +105,13 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   // Some pickers surface iPhone HEIC/HEIF with an EMPTY mime type — match the
   // extension too, or a camera-roll photo becomes a generic file card (which is
   // paid-gated for free owners). Browsers that DO report a type say image/heic.
-  const isImage = type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name));
+  // …except image types no browser can draw at all. Chrome calls a .psd
+  // "image/vnd.adobe.photoshop" and a camera raw "image/x-sony-arw", and the
+  // image route turned those into a blank card with nothing to download. As
+  // file cards they keep their name, type icon and Download — what the docs
+  // have always said a .psd becomes.
+  const isImage = (type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name)))
+    && !UNDRAWABLE_IMAGE_RE.test(name) && !/photoshop/i.test(type);
   const isVideo = type.startsWith('video/');
   // Same empty-mime problem as HEIC, and it bites hardest on the formats
   // producers actually ship: Safari reports NO type for .flac and .aiff, and
