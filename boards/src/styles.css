@@ -21975,7 +21975,8 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .fdl-files { container: files / inline-size; }
 .fdl-divider {
   flex: 0 0 auto;
-  width: 7px; margin: 0 -3px; z-index: 6;
+  /* 10px to grab; a 1px line shows where it is on hover, gold on focus. */
+  width: 10px; margin: 0 -5px; z-index: 6;
   position: relative;
   cursor: col-resize;
   display: grid; place-items: center;
@@ -21989,6 +21990,22 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 }
 .fdl-divider:hover .fdl-grip, .fdl-divider.is-dragging .fdl-grip { opacity: 1; background: var(--ink-3); }
 .fdl-divider:focus-visible .fdl-grip { opacity: 1; background: var(--soleil); }
+.fdl-divider::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; margin-left: -0.5px;
+  background: transparent; transition: background var(--dur-base) var(--ease);
+}
+.fdl-divider:hover::before, .fdl-divider.is-dragging::before { background: var(--line-3); }
+.fdl-divider:focus-visible::before { background: var(--soleil); }
+/* Opening beside the board: a short slide in. Letting go here would close
+   it: the panel fades, so the preview reads before the release. */
+.fdl-files { transition: opacity var(--dur-base) var(--ease); }
+.fdl-files.is-entering { animation: fdl-in 180ms var(--ease); }
+@keyframes fdl-in { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+.fdl.is-closing .fdl-files { opacity: 0.4; }
+@media (prefers-reduced-motion: reduce) { .fdl-files.is-entering { animation: none; } .fdl-files { transition: none; } }
+/* A big grid holds its layout while the divider moves (JustifiedGallery);
+   don't let that show as a sideways scrollbar for a moment. */
+body.fdl-resizing .list-wrap { overflow-x: hidden; }
 body.fdl-resizing { cursor: col-resize; user-select: none; }
 body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none; }
 .fdl-preview {

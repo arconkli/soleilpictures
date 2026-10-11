@@ -29,17 +29,26 @@ export function JustifiedGallery({
 }) {
   const ref = useRef(null);
   const [width, setWidth] = useState(0);
+  // A big grid waits out a drag of the Files divider and lays out once on
+  // release, rather than re-flowing hundreds of tiles every frame.
+  const bigRef = useRef(false);
+  bigRef.current = (items?.length || 0) > 150;
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
     setWidth(el.clientWidth);
     if (typeof ResizeObserver === 'undefined') return undefined;
+    let pending = null;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect?.width;
-      if (Number.isFinite(w)) setWidth(Math.floor(w));
+      if (!Number.isFinite(w)) return;
+      if (bigRef.current && document.body.classList.contains('fdl-resizing')) { pending = Math.floor(w); return; }
+      setWidth(Math.floor(w));
     });
+    const onEnd = () => { if (pending != null) { setWidth(pending); pending = null; } };
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('fdl-resize-end', onEnd);
+    return () => { ro.disconnect(); window.removeEventListener('fdl-resize-end', onEnd); };
   }, []);
 
   const entries = useMemo(() => {
