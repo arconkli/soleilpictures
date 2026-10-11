@@ -9301,7 +9301,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
           />
         ) : currentSurface === 'tag' && activeTag ? (
+          // Keyed by tag: switching tags must start from empty state, not
+          // render the previous tag's items under the new name.
           <TagDetailView
+            key={activeTag.id}
             tag={activeTag}
             workspaceId={workspace.id}
             userId={user.id}
