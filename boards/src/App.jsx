@@ -3047,10 +3047,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           } else if (it.route === 'video') {
             // canAttemptFiles mirrors CanvasSurface's allowLong semantics
             // (owner-pays: own board → own plan, shared board → owner's).
-            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file), ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+            // cardId on the images row, as for every kind: if this patch is
+            // lost, the abandoned sweep recovers the card from it instead of
+            // removing a clip that landed as "didn't finish uploading".
+            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
             updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
-            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file) });
+            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
             updateCardSilent(id, {
               src: up.src, duration: up.duration || null, pending: false,
               peaks: up.peaks || null, sampleRate: up.sampleRate || null,
@@ -5555,8 +5558,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const upload = (item, { boardId, cardId }) => {
       const opts = { file: item.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(item.file) };
       if (item.route === 'image') return uploadImage({ ...opts, cardId });
-      if (item.route === 'video') return uploadVideo({ ...opts, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
-      if (item.route === 'audio') return uploadAudio(opts);
+      if (item.route === 'video') return uploadVideo({ ...opts, cardId, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+      if (item.route === 'audio') return uploadAudio({ ...opts, cardId });
       if (item.route === 'pdf') return uploadPdf({ ...opts, cardId });
       return uploadFile({ ...opts, cardId });   // 'largeMedia' and 'file' — multipart
     };

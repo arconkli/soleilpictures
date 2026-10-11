@@ -1243,6 +1243,9 @@ export function CanvasSurface({
   localImagePreviewRef.current = localImagePreview;
   // The sweep debounces on card changes; reading these through refs keeps a
   // re-render that hands it a new object from resetting its timer for ever.
+  // Also the only mutators an upload's late patch may use: App builds a fresh
+  // set for each Y.Doc, and every open of a cluster is a fresh doc, so the set
+  // captured by the drop writes into a destroyed doc after a round trip.
   const sweepMutatorsRef = useRef(mutators);
   sweepMutatorsRef.current = mutators;
 
@@ -3430,10 +3433,12 @@ export function CanvasSurface({
   // the board in front of us, otherwise held until it is (a cluster switch, or
   // a delete that Undo may reverse — lib/abandonedUploads.js, late results).
   // Silent (origin 'upload'): the async patch must not be its own undo step.
+  // Through the LIVE mutators, never the drop's: drop on A, open B, come back to
+  // A — the card is live again, but in a new doc the drop's mutators can't reach.
   const settleUpload = useCallback((dropBoardId, id, patch) => {
-    if (boardIdRef.current === dropBoardId && cardIsLive(id)) mutators.updateCardSilent?.(id, patch);
+    if (boardIdRef.current === dropBoardId && cardIsLive(id)) sweepMutatorsRef.current?.updateCardSilent?.(id, patch);
     else stashLateUpload(dropBoardId, id, { patch });
-  }, [mutators, cardIsLive]);
+  }, [cardIsLive]);
   // Call onGone when the card is deleted from the doc it was dropped into (by
   // anyone, by Undo of the drop, by a delete). A cluster switch destroys that
   // doc without deleting anything, so it never fires for a switch.
@@ -3463,7 +3468,8 @@ export function CanvasSurface({
     // so Cmd+Z must not resurrect the dead card. A card that isn't in front of
     // us (another cluster is open, or it was deleted and Undo may bring it
     // back) is removed when it is — or it would spin "Uploading" for ever.
-    if (boardIdRef.current === dropBoardId && cardIsLive(id)) mutators.deleteCardsSilent?.([id]);
+    // Live mutators, for the reason settleUpload gives.
+    if (boardIdRef.current === dropBoardId && cardIsLive(id)) sweepMutatorsRef.current?.deleteCardsSilent?.([id]);
     else stashLateUpload(dropBoardId, id, { remove: true });
     const upsell = onRequestStorageUpgrade || onRequestUpgrade;
     if (err?.code === 402 || err?.code === 403) {
@@ -3522,7 +3528,7 @@ export function CanvasSurface({
     } else if (String(err?.message) !== 'aborted') {
       feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
     }
-  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, cardIsLive]);
+  }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, cardIsLive]);
 
   // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
   //
@@ -9176,7 +9182,7 @@ export function CanvasSurface({
         // owners too — the one upload route that never learned about the
         // plan — so a Creator account was refused a long clip by the ceiling
         // its own offer says it removed.
-        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress, originalName: meaningfulFileName(f),
+        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f),
                                        ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY, maxBytes: Number.POSITIVE_INFINITY } : {}) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
       } else {

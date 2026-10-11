@@ -223,9 +223,15 @@ test('an upload never patches a card it cannot reach, and its result waits for t
   const uploads = canvas.slice(canvas.indexOf('const optimisticDropImage = useCallback('), canvas.indexOf('const dispatchIngestOne = useCallback('));
   assert.doesNotMatch(uploads, /if \(boardIdRef\.current === dropBoardId\) (\{\s*)?mutators\.updateCardSilent/);
   const settle = canvas.slice(canvas.indexOf('const settleUpload = useCallback('));
-  assert.match(settle.slice(0, 400), /if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) mutators\.updateCardSilent\?\.\(id, patch\);\s*else stashLateUpload\(dropBoardId, id, \{ patch \}\);/);
+  // Through the live mutators, not the drop's: drop on A, open B, back to A,
+  // and the drop's set writes into A's destroyed first doc while cardIsLive
+  // (which reads the live doc) says yes — the patch is lost and nothing stashed.
+  assert.match(settle.slice(0, 400), /if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) sweepMutatorsRef\.current\?\.updateCardSilent\?\.\(id, patch\);\s*else stashLateUpload\(dropBoardId, id, \{ patch \}\);/);
+  assert.match(settle.slice(0, 400), /\}, \[cardIsLive\]\);/, 'no closure over the drop-time mutators');
   const reject = canvas.slice(canvas.indexOf('const handleUploadReject = useCallback('));
-  assert.match(reject.slice(0, 900), /else stashLateUpload\(dropBoardId, id, \{ remove: true \}\);/);
+  assert.match(reject.slice(0, 900), /cardIsLive\(id\)\) sweepMutatorsRef\.current\?\.deleteCardsSilent\?\.\(\[id\]\);\s*else stashLateUpload\(dropBoardId, id, \{ remove: true \}\);/);
+  assert.doesNotMatch(reject.slice(0, reject.indexOf('}, [')), /\bmutators\./, 'the rollback never uses the drop-time mutators');
+  assert.match(canvas, /const sweepMutatorsRef = useRef\(mutators\);\s*sweepMutatorsRef\.current = mutators;/);
   // MEDIA-06: a multipart upload stops when its card is deleted, and Undo restarts it.
   const run = canvas.slice(canvas.indexOf('const runCancellableUpload = useCallback('));
   assert.match(run.slice(0, 1600), /if \(cancelled\) \{ stashLateUpload\(dropBoardId, id, \{ retry: run \}\); return; \}/);
@@ -238,6 +244,14 @@ test('an upload never patches a card it cannot reach, and its result waits for t
     const body = up.slice(up.indexOf(`export async function ${fn}(`));
     assert.match(body.slice(0, 200), /cardId = null/, fn);
     assert.match(body.slice(0, 3000), /card_id: cardId \|\| null/, fn);
+  }
+  // …and every caller hands it over. The sweep removes a pending clip with no
+  // images row after a day, so a call that drops cardId turns a lost patch on
+  // a clip that DID land into "didn't finish uploading" and a removed card.
+  for (const [name, src] of [['App.jsx', app], ['CanvasSurface.jsx', canvas]]) {
+    const calls = [...src.matchAll(/\b(uploadVideo|uploadAudio)\((\{[^;]*?\}|opts)\)/g)];
+    assert.ok(calls.length >= 2, `${name} still has its video/audio uploads`);
+    for (const [call] of calls) assert.match(call, /\bcardId\b/, `${name}: ${call.slice(0, 90)}`);
   }
 });
 
