@@ -20245,13 +20245,23 @@ button, [role="button"], a {
   .modal-workspace-recovery {
     width: 100vw;
     max-width: 100vw;
+    /* dvh, like .app / .auth-screen / .settings-modal below: 100vh includes
+       the browser toolbar, so the last search results and the dialog footers
+       sat permanently behind it. The vh line is the fallback. */
     height: calc(100vh - var(--safe-top) - var(--safe-bottom));
+    height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
     max-height: none;
     border-radius: 0;
     border-left: 0; border-right: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
+  }
+  /* Share / Trash / History / workspace recovery mount in ModalShell, whose
+     backdrop pads 24px for the desktop card. Full-bleed on phone means no
+     gutter, or the panel runs off the bottom and the backdrop scrolls too. */
+  .modal-shell-bg:has(> .modal, > .share-modal, > .modal-workspace-recovery) {
+    padding: var(--safe-top) 0 0;
   }
   /* Full-screen palette on phone: show the close button, drop the 600px cap,
      and give rows ≥44px tap targets. */
@@ -20688,11 +20698,12 @@ button, [role="button"], a {
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-3);
   max-height: 90vh;
+  max-height: 90dvh; /* the visible height: 90vh clipped the grip row on iOS */
   display: flex; flex-direction: column;
   padding-bottom: var(--safe-bottom);
   animation: sheet-up 260ms var(--ease);
 }
-[data-snap="half"] .sheet-panel { max-height: 50vh; }
+[data-snap="half"] .sheet-panel { max-height: 50vh; max-height: 50dvh; }
 .sheet-grip-row {
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;

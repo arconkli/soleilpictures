@@ -75,3 +75,28 @@ test('a long toast keeps a gutter on both sides on a phone', async ({ page }) =>
   expect(left, 'left gutter').toBeGreaterThanOrEqual(12);
   expect(right, 'right gutter').toBeGreaterThanOrEqual(12);
 });
+
+// MOBILE-03: Share / Trash / History mount in ModalShell, whose desktop
+// backdrop padding (24px) left the "full-screen" phone panel inset on three
+// sides and running off the bottom, with the backdrop scrolling as well.
+test('ModalShell dialogs are full-bleed on a phone', async ({ page }) => {
+  await boot(page, { width: 390, height: 844 });
+  for (const cls of ['modal', 'share-modal']) {
+    const r = await page.evaluate((cls) => {
+      const bg = document.createElement('div');
+      bg.className = 'modal-shell-bg';
+      bg.innerHTML = `<div class="modal-shell ${cls}" role="dialog"></div>`;
+      document.body.appendChild(bg);
+      const panel = bg.firstElementChild;
+      panel.getAnimations().forEach((a) => a.finish());
+      const box = panel.getBoundingClientRect();
+      const out = { left: box.left, right: box.right, bottom: box.bottom, scrolls: bg.scrollHeight > bg.clientHeight };
+      bg.remove();
+      return out;
+    }, cls);
+    expect(r.left, `.${cls} left edge`).toBe(0);
+    expect(r.right, `.${cls} right edge`).toBe(390);
+    expect(r.bottom, `.${cls} must end on screen`).toBeLessThanOrEqual(844);
+    expect(r.scrolls, `.${cls} backdrop must not scroll`).toBe(false);
+  }
+});
