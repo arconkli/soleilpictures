@@ -761,6 +761,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
+  const wsMenuOpenRef = useRef(false);
+  wsMenuOpenRef.current = wsMenuOpen;
+  // The phone drawer behaves as a dialog. Open, focus moves into it (it used
+  // to stay on the hamburger, behind the backdrop) and Escape closes it; on
+  // close, focus goes back to whatever opened it unless something else (a
+  // modal the drawer gave way to) has taken it. Closed, the aside is inert —
+  // see its markup.
+  const sidebarRef = useRef(null);
+  useEffect(() => {
+    if (!mobileShell || !mobileNavOpen) return undefined;
+    const aside = sidebarRef.current;
+    const opener = document.activeElement;
+    const raf = requestAnimationFrame(() => {
+      try { aside?.querySelector('.sb-ws-trigger')?.focus({ preventScroll: true }); } catch (_) {}
+    });
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      // The workspace menu inside the drawer closes first, on its own.
+      if (wsMenuOpenRef.current) return;
+      setMobileNavOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', onKey);
+      const now = document.activeElement;
+      if (opener && opener !== document.body && document.contains(opener)
+          && (!now || now === document.body || aside?.contains(now))) {
+        try { opener.focus({ preventScroll: true }); } catch (_) {}
+      }
+    };
+  }, [mobileShell, mobileNavOpen]);
   // One Settings panel, opened from several places at the tab that place is
   // about. `settingsTab` is which one; null means "no particular tab", which
   // on a phone shows the rail as a list instead of pushing straight into a
@@ -8741,7 +8773,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
              onClick={() => setMobileNavOpen(false)}
              aria-hidden="true" />
       )}
-      <aside className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}`}>
+      {/* In the mobile shell the closed drawer is only translated off-screen,
+          so without inert every control in it stayed in the Tab and VoiceOver
+          order ahead of the canvas. Open, it is a modal dialog. inert is ''
+          not true: React 18 passes unknown attributes through only as
+          strings. */}
+      <aside ref={sidebarRef}
+             className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}`}
+             inert={mobileShell && !mobileNavOpen ? '' : undefined}
+             aria-hidden={mobileShell && !mobileNavOpen ? 'true' : undefined}
+             role={mobileShell && mobileNavOpen ? 'dialog' : undefined}
+             aria-modal={mobileShell && mobileNavOpen ? 'true' : undefined}
+             aria-label={mobileShell && mobileNavOpen ? 'Menu' : undefined}>
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
