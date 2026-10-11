@@ -3905,6 +3905,7 @@ body {
   --files-lift: none;
   --files-overlay-edge: color-mix(in srgb, var(--ink-0) 10%, transparent);
   --files-label: color-mix(in srgb, var(--ink-2) 85%, var(--ink-3));
+  --files-tile-edge: color-mix(in srgb, var(--ink-0) 11%, transparent);
   --files-tile-hover-edge: color-mix(in srgb, var(--ink-0) 20%, transparent);
   --files-tile-hover-lift: none;
   --files-primary: var(--ink-1);
@@ -3920,6 +3921,7 @@ body {
   --files-lift: 0 1px 2px rgba(10, 10, 12, 0.05);
   --files-overlay-edge: rgba(10, 10, 12, 0.10);
   --files-label: var(--ink-2);
+  --files-tile-edge: rgba(10, 10, 12, 0.10);
   --files-tile-hover-edge: rgba(10, 10, 12, 0.18);
   --files-tile-hover-lift: 0 1px 2px rgba(10, 10, 12, 0.05), 0 8px 20px -8px rgba(10, 10, 12, 0.16);
   --files-primary: var(--ink-0);
@@ -4675,14 +4677,22 @@ body {
   color: var(--ink-3);
 }
 
+/* Inside Files the frame is drawn on the non-scrolling .fdl-files, above the
+   sticky header (8) and the tiles, which painted over the list's own outline. */
+.fdl-files .list-wrap.is-drop-target { outline: none; }
+.fdl-files:has(.list-wrap.is-drop-target)::after {
+  content: ''; position: absolute; inset: 6px; z-index: 9; pointer-events: none;
+  border: 1.5px dashed var(--soleil); border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--soleil) 4%, transparent);
+}
 /* Drop-target highlight on the canvas. The LIST cannot use a pseudo-element
    for this: it is a scroll container, so an inset:0 ::after scrolls away with
    the rows and leaves a drag with no feedback the moment you are past the
    first screenful — the same trap the grain was in. An `outline` with a
    negative offset is painted on the border box and never scrolls. */
 .list-wrap.is-drop-target {
-  /* A drop target is an active state: gold, with a faint wash that paints
-     above the grain and doesn't scroll. */
+  /* A drop target is an active state: gold. (Inside Files the frame and its
+     wash are drawn on .fdl-files instead — see above.) */
   outline: 1.5px dashed color-mix(in srgb, var(--soleil) 65%, transparent);
   outline-offset: -6px;
 }
@@ -9298,8 +9308,8 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   width: 24px; height: 24px; padding: 0; box-sizing: border-box;
   display: grid; place-items: center; border-radius: 50%;
   border: 1.5px solid #fff;
-  background: rgba(10, 10, 12, 0.24);
-  box-shadow: 0 0 0 .5px rgba(10, 10, 12, 0.35), 0 1px 3px rgba(0, 0, 0, 0.28);
+  background: rgba(10, 10, 12, 0.32);
+  box-shadow: 0 0 0 .5px rgba(10, 10, 12, 0.45), 0 1px 4px rgba(0, 0, 0, 0.35);
   color: transparent; cursor: pointer;
   opacity: 0; transition: opacity var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);
 }
@@ -9357,7 +9367,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
     place-items: end start;
     padding: 9px;
   }
-  .ct-tile-dl { width: 22px; height: 22px; top: 6px; right: 6px; background: rgba(10, 10, 12, 0.32); box-shadow: none; }
+  .ct-tile-dl { width: 22px; height: 22px; top: 6px; right: 6px; background: rgba(10, 10, 12, 0.55); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 1px 3px rgba(0, 0, 0, 0.28); }
   .ct-tile-dl svg { width: 12px; height: 12px; }
 }
 /* With a pointer: a disc to press, not a wash over the artwork. */
@@ -9563,6 +9573,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   /* View is first on the second line here: open its menu rightwards, or it
      hangs off the left edge of the screen. */
   .cbt--full .cbt-menu { left: 0; right: auto; }
+  .cbt--full .cbt-add { margin-left: auto; }
   .ct-gallery { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   /* Detail popout → bottom sheet on phones. */
   .cb-split { flex-direction: column; }
@@ -22450,9 +22461,20 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   transition: outline-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .ct-jg .ct-tile { content-visibility: visible; contain-intrinsic-size: none; }
+/* The hairline is drawn OVER the picture, not under it: a palette band, a
+   note or a letterboxed still the colour of the floor kept painting over an
+   outline and lost its edge. Above the content, below the check (z 2). */
+.ct-jg .ct-tile-preview { outline-color: transparent; isolation: isolate; }
+.ct-jg .ct-tile-preview::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--files-tile-edge, var(--line-2));
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
 /* Hover brightens the edge; it never touches a stateful ring. */
-.ct-jg .ct-tile:not(.is-selected):not(.is-active):not(.is-peer):hover .ct-tile-preview {
-  outline-color: var(--files-tile-hover-edge, var(--line-3)); box-shadow: var(--files-tile-hover-lift, none);
+.ct-jg .ct-tile:not(.is-selected):not(.is-active):not(.is-peer):hover .ct-tile-preview { box-shadow: var(--files-tile-hover-lift, none); }
+.ct-jg .ct-tile:not(.is-selected):not(.is-active):not(.is-peer):hover .ct-tile-preview::before {
+  box-shadow: inset 0 0 0 1px var(--files-tile-hover-edge, var(--line-3));
 }
 .ct-jg .ct-tile.is-selected { box-shadow: none; }
 .ct-jg .ct-tile.is-selected .ct-tile-preview { outline: 2px solid var(--select); outline-offset: 2px; box-shadow: var(--files-lift, none); }
@@ -22579,14 +22601,15 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 }
 
 /* List beside the board: rows on the panel floor, not a table in a card. */
-.list-wrap.is-panel .ct-table { border: 0; border-radius: 0; background: none; margin: 0 -4px; }
+.list-wrap.is-panel .ct-table { border: 0; border-radius: 0; background: none; margin: 0 -8px; }
 .list-wrap.is-panel .ct-head { display: none; }
 .list-wrap.is-panel .ct-cell { padding: 5px 8px; }
 .list-wrap.is-panel .ct-thumb { width: 28px; height: 28px; border-radius: 5px; }
 .list-wrap.is-panel .ct-row { border-bottom-color: transparent; border-radius: var(--radius-md); }
 .list-wrap:not(.is-panel) .ct-sub-meta { display: none; }
 /* Full Files' List: rows on the floor too, under a header painted like it. */
-.list-wrap:not(.is-panel) .ct-table { background: none; border: 0; border-radius: 0; }
+.list-wrap:not(.is-panel) .ct-table { background: none; border: 0; border-radius: 0; margin-inline: -12px; }
+@media (max-width: 640px) { .list-wrap:not(.is-panel) .ct-table { margin-inline: -10px; } }
 .list-wrap:not(.is-panel) .ct-head {
   background-color: var(--files-floor); background-image: var(--files-floor-paint);
   background-size: auto, 320px 240px; border-bottom: 1px solid var(--line-1);
@@ -22629,7 +22652,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .cbt .view-pill-btn.on, .cbt-menu .view-pill-btn.on { background: var(--bg-4); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); color: var(--ink-0); }
 .cbt-sizes { padding: 2px 10px 8px 30px; }
 /* "Not on board" lines up with the other rows: its ring after the word. */
-.cbt-menu .ctx-item > .cbt-flag { order: 1; margin: 0 0 0 6px; }
+.cbt-menu .ctx-item > .cbt-flag { order: 1; margin: 0 0 0 -6px; }
 .cbt-menu .ctx-item > .cbt-count, .cbt-menu .ctx-item > .cbt-caret { order: 2; }
 
 /* ── Quick look (clusterBrowser/QuickLook.jsx) ──────────────────────────── */
@@ -22694,7 +22717,8 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .ql-link-chip .cbp-link { width: auto; height: auto; }
 .ql-link-title { font: 600 20px/1.3 var(--font-sans); color: var(--ink-0); max-width: 100%; overflow-wrap: anywhere; }
 .ql-link-url { font: 400 13px/1.3 var(--font-sans); color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ql-link .ql-open { margin-top: 8px; gap: 6px; }
+.ql-link .ql-open { margin-top: 8px; gap: 6px; text-decoration: none; background: var(--bg-4); border-color: var(--line-3); color: var(--ink-0); }
+.ql-link .ql-open:hover { background: color-mix(in srgb, var(--ink-0) 8%, var(--bg-4)); border-color: var(--line-3); }
 .ql-wait { width: 48px; height: 48px; border-radius: 999px; border: 2px solid rgba(255,255,255,.2); border-top-color: #fff; animation: spin 0.9s linear infinite; }
 .ql .cb-detail.is-inline { position: static; flex: none; width: 300px; max-height: 100%; overflow: auto; }
 .lightbox-stage.lightbox-mode-actual { cursor: grab; }

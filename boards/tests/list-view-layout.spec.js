@@ -90,22 +90,27 @@ test('the grain is painted on the scrollable surface, not on a one-screen pseudo
   expect(bg.afterImage).not.toContain('grain');
 });
 
-test('the drop outline survives scrolling', async ({ page }) => {
+test('the drop frame survives scrolling', async ({ page }) => {
   await boot(page);
-  // An outline is painted on the border box; the ::after it replaced was
-  // positioned in the scrolled content and vanished past the first screenful.
+  // Inside Files the frame is drawn on the non-scrolling .fdl-files, above the
+  // sticky header and the tiles — not in the scrolled content, where it
+  // vanished past the first screenful, nor as the list's own outline, which
+  // the header and tiles painted over.
   const style = await page.locator('.list-wrap').evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
     el.classList.add('is-drop-target');
+    const host = el.closest('.fdl-files');
     // getComputedStyle returns a LIVE declaration — read the values out before
     // dropping the class again, or you measure the element without it.
-    const cs = getComputedStyle(el);
-    const out = { style: cs.outlineStyle, offset: cs.outlineOffset };
+    const cs = getComputedStyle(host, '::after');
+    const out = { style: cs.borderTopStyle, position: cs.position, top: cs.top, z: cs.zIndex };
     el.classList.remove('is-drop-target');
     return out;
   });
   expect(style.style).toBe('dashed');
-  // Inset, so it frames the list rather than reading as a focus ring.
-  expect(parseFloat(style.offset)).toBeLessThan(0);
+  expect(style.position).toBe('absolute');
+  expect(parseFloat(style.top)).toBeGreaterThan(0);   // inset: it frames the list
+  expect(Number(style.z)).toBeGreaterThan(8);          // over the sticky header
 });
 
 test('the column header stays pinned to the top of the list while it scrolls', async ({ page }) => {

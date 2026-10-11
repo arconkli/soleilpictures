@@ -99,7 +99,7 @@ function Stage({ item }) {
           {raw && <div className="ql-link-url" title={raw}>{raw}</div>}
           {href && (
             <a className="cbt-btn ql-open" href={href} target="_blank" rel="noopener noreferrer">
-              <Icon as={ArrowSquareOut} size={14} weight="light" />Open link
+              <Icon as={ArrowSquareOut} size={16} weight="light" />Open link
             </a>
           )}
         </div>
