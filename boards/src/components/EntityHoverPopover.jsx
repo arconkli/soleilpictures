@@ -203,6 +203,25 @@ export function EntityHoverPopover({
   const headingTerm = term || sortedEntities[0]?.title || '';
   const totalCount = sortedEntities.length + totalAppears;
 
+  // "See all references" / "+ N more →". A host that has its own drawer
+  // (DocPageEditor) passes onSeeAll; everywhere else — messages, notes, card
+  // titles — nobody did, so the primary button just closed the popover.
+  // Default to the app-wide backlinks drawer (App listens for
+  // soleil-open-backlinks). With nothing to anchor the drawer on, hide the
+  // buttons rather than show a dead end.
+  const seeAllRef = refs?.[0] || rowToRef(sortedEntities[0]);
+  const canSeeAll = Boolean(onSeeAll || seeAllRef);
+  const seeAll = () => {
+    if (onSeeAll) { onSeeAll(seeAllRef, headingTerm); return; }
+    if (!seeAllRef) return;
+    // A tag's own page IS its full list of references.
+    if (seeAllRef.kind === 'tag') { onClose?.(); navigate(seeAllRef); return; }
+    document.dispatchEvent(new CustomEvent('soleil-open-backlinks', {
+      detail: { ref: seeAllRef, name: headingTerm || null },
+    }));
+    onClose?.();
+  };
+
   return createPortal(
     <div
       ref={popRef}
@@ -279,8 +298,8 @@ export function EntityHoverPopover({
                 </div>
               );
             })}
-            {nonTagEntities.length > 6 && (
-              <button className="ent-pop-more" onClick={() => onSeeAll?.()}>
+            {nonTagEntities.length > 6 && canSeeAll && (
+              <button className="ent-pop-more" onClick={seeAll}>
                 + {nonTagEntities.length - 6} more →
               </button>
             )}
@@ -303,8 +322,8 @@ export function EntityHoverPopover({
                 }}
               />
             ))}
-            {totalAppears > appearsIn.length && (
-              <button className="ent-pop-more" onClick={() => onSeeAll?.()}>
+            {totalAppears > appearsIn.length && canSeeAll && (
+              <button className="ent-pop-more" onClick={seeAll}>
                 + {totalAppears - appearsIn.length} more →
               </button>
             )}
@@ -378,9 +397,9 @@ export function EntityHoverPopover({
             Don't anywhere
           </button>
         )}
-        {totalCount > 0 && (
+        {totalCount > 0 && canSeeAll && (
           <button className="ent-pop-foot-btn ent-pop-foot-btn-primary"
-                  onClick={() => onSeeAll?.()}>
+                  onClick={seeAll}>
             See all references
           </button>
         )}
