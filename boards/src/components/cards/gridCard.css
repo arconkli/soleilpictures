@@ -562,6 +562,7 @@
 
 /* ── light theme — warm-cream frosted surfaces (mirror .surface-frosted) ────── */
 [data-theme='light'] .gridc-pill,
+[data-theme='light'] .gridc-pill-mini,
 [data-theme='light'] .gridc-cell-x,
 [data-theme='light'] .gridc-divider-rm,
 [data-theme='light'] .gridc-linked-badge,
