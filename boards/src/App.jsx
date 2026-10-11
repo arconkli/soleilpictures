@@ -8862,8 +8862,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
 
+          {/* This workspace's own clusters only. The tree already filtered to
+              them, but the CLUSTERS count beside it counted the whole merged
+              map, so a shared production's thirty shoot days showed as yours. */}
           <SidebarBoardsSection
-            boards={boards}
+            boards={ownedBoards}
             workspaceId={workspace.id}
             rootId={rootBoard.id}
             activeBoardId={currentSurface === 'board' ? activeBoardId : null}
@@ -9491,7 +9494,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {upgradeReason && (
         <UpgradeModal
           reason={upgradeReason}
-          clusterCount={Object.keys(boards || {}).length || null}
+          // Yours only: the merged map carries clusters shared in from other
+          // workspaces, and "what you've built" must not count those.
+          clusterCount={Object.keys(ownedBoards || {}).length || null}
           // Gated on the reason: a refusal count left over from an earlier cap
           // episode must not surface on the storage or generic pitch, where it
           // would describe something that didn't just happen.
