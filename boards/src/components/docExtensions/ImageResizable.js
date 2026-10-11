@@ -31,6 +31,42 @@ function applyR2Src(img, src) {
   return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); };
 }
 
+// Remembered natural sizes, keyed by src. An r2: image resolves its signed
+// URL asynchronously and reserved no height until it decoded, so every image
+// above the reader popped open late and shoved the page down mid-scroll.
+// Once we've seen an image we know its shape: the next mount sets the
+// <img> width/height attributes up front (browsers map those to an
+// aspect-ratio), so the box is the right height before a byte arrives.
+// localStorage so a reopened doc — the common case — is stable from the
+// first frame; capped so it can't grow without bound.
+const SIZE_KEY = 'soleil.boards.docImgSizes';
+const SIZE_CAP = 400;
+let sizeCache = null;
+function sizes() {
+  if (sizeCache) return sizeCache;
+  sizeCache = new Map();
+  try {
+    const raw = JSON.parse(localStorage.getItem(SIZE_KEY) || '[]');
+    if (Array.isArray(raw)) for (const [k, w, h] of raw) if (k && w > 0 && h > 0) sizeCache.set(k, [w, h]);
+  } catch (_) {}
+  return sizeCache;
+}
+function rememberSize(src, w, h) {
+  if (!src || !(w > 0) || !(h > 0)) return;
+  const m = sizes();
+  const prev = m.get(src);
+  if (prev && prev[0] === w && prev[1] === h) return;
+  m.delete(src);
+  m.set(src, [w, h]);
+  while (m.size > SIZE_CAP) m.delete(m.keys().next().value);
+  try { localStorage.setItem(SIZE_KEY, JSON.stringify([...m].map(([k, [a, b]]) => [k, a, b]))); } catch (_) {}
+}
+function reserveSize(img, src) {
+  const known = src ? sizes().get(src) : null;
+  if (known) { img.width = known[0]; img.height = known[1]; }
+  else { img.removeAttribute('width'); img.removeAttribute('height'); }
+}
+
 export const ImageResizable = Image.extend({
   addAttributes() {
     return {
@@ -61,8 +97,11 @@ export const ImageResizable = Image.extend({
       if (node.attrs.width) img.style.width = node.attrs.width;
       img.draggable = false;
       dom.appendChild(img);
+      let curSrc = node.attrs.src || '';
+      reserveSize(img, curSrc);
+      img.addEventListener('load', () => rememberSize(curSrc, img.naturalWidth, img.naturalHeight));
       // Resolve r2: sentinels to signed URLs (auto-refreshes near TTL).
-      let cancelR2 = applyR2Src(img, node.attrs.src || '');
+      let cancelR2 = applyR2Src(img, curSrc);
 
       // Resize handle (bottom-right). Only visible when the image is selected.
       const handle = document.createElement('div');
@@ -138,9 +177,11 @@ export const ImageResizable = Image.extend({
         dom,
         update(updatedNode) {
           if (updatedNode.type.name !== 'image') return false;
-          if (updatedNode.attrs.src !== node.attrs.src) {
+          if ((updatedNode.attrs.src || '') !== curSrc) {
             cancelR2?.();
-            cancelR2 = applyR2Src(img, updatedNode.attrs.src || '');
+            curSrc = updatedNode.attrs.src || '';
+            reserveSize(img, curSrc);
+            cancelR2 = applyR2Src(img, curSrc);
           }
           if (updatedNode.attrs.width !== img.style.width) img.style.width = updatedNode.attrs.width || '';
           dom.className = `tt-img-wrap tt-img-align-${updatedNode.attrs.align || 'center'}`;

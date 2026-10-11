@@ -36,6 +36,30 @@ import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
+// Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
+// Yjs relative anchor for the block at the top of the viewport (survives
+// edits, zoom and reflow) and `offset` its distance below the scroller's top
+// edge; `top` is a raw scrollTop fallback for when the anchor can't resolve.
+// localStorage, not sessionStorage, so a doc reopens where it was left even
+// after the tab or browser is closed.
+const POS_KEY = (boardId) => `soleil.boards.docPos.${boardId}`;
+function loadDocPos(boardId) {
+  try {
+    const v = JSON.parse(localStorage.getItem(POS_KEY(boardId)) || 'null');
+    return v && typeof v === 'object' && v.pageId ? v : null;
+  } catch (_) { return null; }
+}
+function saveDocPos(boardId, pos) {
+  try { localStorage.setItem(POS_KEY(boardId), JSON.stringify(pos)); } catch (_) {}
+}
+function loadActivePage(boardId) {
+  // localStorage first; sessionStorage is where it used to live (per-tab), so
+  // still honour a value from before the move.
+  try {
+    return localStorage.getItem(ACTIVE_PAGE_KEY(boardId))
+      || sessionStorage.getItem(ACTIVE_PAGE_KEY(boardId));
+  } catch (_) { return null; }
+}
 const RAILS_KEY = 'soleil.boards.docRails';
 const ZOOM_KEY = 'soleil.boards.docZoom';
 // 0.25 (not 0.5) because a phone in fit-to-width needs ~0.42 for an 8.5in
@@ -159,15 +183,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // Reset awareness when the board changes — getAwareness will return the
   // new board's awareness once attach completes; the effect above re-runs.
   useEffect(() => { setAwareness(null); }, [board.id]);
-  const [activePageId, setActivePageIdState] = useState(() => {
-    if (typeof sessionStorage === 'undefined') return null;
-    return sessionStorage.getItem(ACTIVE_PAGE_KEY(board.id));
-  });
+  const [activePageId, setActivePageIdState] = useState(() => loadActivePage(board.id));
   const setActivePageId = (id) => {
     setActivePageIdState(id);
     try {
-      if (id) sessionStorage.setItem(ACTIVE_PAGE_KEY(board.id), id);
-      else sessionStorage.removeItem(ACTIVE_PAGE_KEY(board.id));
+      if (id) localStorage.setItem(ACTIVE_PAGE_KEY(board.id), id);
+      else localStorage.removeItem(ACTIVE_PAGE_KEY(board.id));
     } catch (_) {}
     onActivePageChange?.(id || null);
   };
@@ -599,17 +620,23 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     const paper = paperRef.current;
     if (!vv || !paper) return;
+    // Only on the keyboard OPENING does the caret get pulled into view, and
+    // the padding is only written when it changes. This used to run on every
+    // visualViewport `scroll` too, so on iOS each scroll frame forced a layout
+    // (padding write) and yanked the page back to the caret mid-swipe.
+    let wasOpen = false;
+    let lastPad = '';
     const onVV = () => {
       const occluded = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       const open = occluded > 80;
-      paper.style.paddingBottom = open ? `${occluded}px` : '';
-      if (open) { try { editorRef.current?.commands?.scrollIntoView(); } catch (_) {} }
+      const pad = open ? `${occluded}px` : '';
+      if (pad !== lastPad) { paper.style.paddingBottom = pad; lastPad = pad; }
+      if (open && !wasOpen) { try { editorRef.current?.commands?.scrollIntoView(); } catch (_) {} }
+      wasOpen = open;
     };
     vv.addEventListener('resize', onVV);
-    vv.addEventListener('scroll', onVV);
     return () => {
       vv.removeEventListener('resize', onVV);
-      vv.removeEventListener('scroll', onVV);
       if (paper) paper.style.paddingBottom = '';
     };
   }, []);
@@ -654,6 +681,110 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     onPendingScrollConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingScroll, board.id, activePageId, onPendingScrollConsumed]);
+
+  // ── Reopen where the reader left off ──────────────────────────────────
+  // The position saved on the last visit, read ONCE per mount. It only
+  // applies if it names the page we opened on, and a click-to-jump or a
+  // bookmark jump arriving with the open always wins over it.
+  const restoreRef = useRef(null);
+  if (restoreRef.current === null) {
+    const saved = loadDocPos(board.id);
+    // 'soleil-open-doc-card' doubles as the plain "open this doc" event
+    // ({ pageId: null, scrollTop: 0 }), so only a pendingScroll that names a
+    // page or a spot is a real jump.
+    const jumping = !!pendingScroll && (!!pendingScroll.pageId || (pendingScroll.scrollTop || 0) > 0);
+    restoreRef.current = (saved && saved.pageId === activePageId && !jumping && !pendingBookmark)
+      ? saved : false;
+  }
+
+  // Record the block at the top of the viewport while scrolling (throttled)
+  // and on unmount — unmount is the one path every close takes, the overlay's
+  // Esc / backdrop / button and the docked pane alike.
+  useEffect(() => {
+    const paper = paperRef.current;
+    if (!paper || !activePageId) return undefined;
+    const capture = () => {
+      if (restoreRef.current) return; // never overwrite a position we haven't restored yet
+      const pr = paper.getBoundingClientRect();
+      if (!pr.height) return;
+      const probeY = pr.top + 12;
+      const rec = { pageId: activePageId, sheetId: null, rel: null, offset: 0, top: paper.scrollTop || 0, at: Date.now() };
+      for (const [sid, ed] of editorsRef.current.entries()) {
+        const dom = ed?.view?.dom;
+        if (!dom || !dom.isConnected) continue;
+        const r = dom.getBoundingClientRect();
+        if (r.bottom < probeY) continue;          // sheet entirely above the fold
+        const y = Math.max(probeY, r.top + 1);
+        const hit = ed.view.posAtCoords({ left: r.left + Math.min(40, r.width / 2), top: y });
+        if (!hit) break;
+        try {
+          const $p = ed.state.doc.resolve(hit.pos);
+          const blockPos = $p.depth > 0 ? $p.before(1) + 1 : hit.pos;
+          const c = ed.view.coordsAtPos(blockPos);
+          rec.sheetId = sid;
+          rec.rel = encodeAnchor(ed, blockPos);
+          rec.offset = c.top - pr.top;
+        } catch (_) {}
+        break;
+      }
+      saveDocPos(board.id, rec);
+    };
+    let timer = null;
+    const onScroll = () => { if (!timer) timer = setTimeout(() => { timer = null; capture(); }, 250); };
+    paper.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      paper.removeEventListener('scroll', onScroll);
+      if (timer) clearTimeout(timer);
+      capture();
+    };
+  }, [board.id, activePageId]);
+
+  // Put the reader back. The editors mount asynchronously (one per sheet) and
+  // images / pagination can still settle afterwards, so re-apply a few times
+  // over the first ~0.6s — but stop the instant the reader scrolls, taps or
+  // types, so we never fight them.
+  useEffect(() => {
+    const saved = restoreRef.current;
+    const paper = paperRef.current;
+    if (!saved || !paper || !ready || !activePageId) return undefined;
+    // The saved page is gone (deleted, or the keep-valid effect moved us):
+    // drop the restore so scrolling starts recording again.
+    if (saved.pageId !== activePageId) { restoreRef.current = false; return undefined; }
+    let stopped = false;
+    let focused = false;
+    const timers = [];
+    const stop = () => { stopped = true; restoreRef.current = false; };
+    const apply = () => {
+      if (stopped) return;
+      const ed = (saved.sheetId && editorsRef.current.get(saved.sheetId)) || null;
+      const pos = ed && saved.rel ? resolveAnchor(ed, saved.rel) : null;
+      if (ed && pos != null) {
+        try {
+          const clamped = Math.max(1, Math.min(pos, ed.state.doc.content.size - 1));
+          const c = ed.view.coordsAtPos(clamped);
+          const pr = paper.getBoundingClientRect();
+          paper.scrollTop += (c.top - pr.top) - (saved.offset || 0);
+          if (!focused && ed.isEditable) {
+            focused = true;
+            ed.commands.focus(clamped, { scrollIntoView: false });
+          }
+          return;
+        } catch (_) {}
+      }
+      paper.scrollTop = saved.top || 0;
+    };
+    const interrupt = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+    interrupt.forEach(t => paper.addEventListener(t, stop, { passive: true }));
+    requestAnimationFrame(apply);
+    for (const ms of [120, 300, 600]) timers.push(setTimeout(apply, ms));
+    timers.push(setTimeout(stop, 650));
+    return () => {
+      timers.forEach(clearTimeout);
+      interrupt.forEach(t => paper.removeEventListener(t, stop));
+    };
+    // Re-run as sheet editors register (force() bumps on each).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, activePageId, editorsRef.current.size]);
 
   // Cross-component link-picker wiring: DocPageEditor registers its
   // openLinkPicker function here; the toolbar calls it via onOpenLink.
@@ -854,6 +985,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 workspaceId={workspaceId}
                 userId={userId}
                 currentUser={currentUser}
+                autofocus={!restoreRef.current}
                 onEditorReady={onEditorReady}
                 onEditorDestroy={onEditorDestroy}
                 onEditorFocus={onEditorFocus}
