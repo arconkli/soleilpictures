@@ -217,7 +217,10 @@ function ProjectNameField({ board, onRename }) {
   useEffect(() => { setDraft(named); /* a different board, or a rename from elsewhere */ }, [board?.id, named]);
   const commit = () => {
     const t = draft.trim();
-    if (!t || t === board?.name) return;
+    // A cleared field doesn't rename (a project keeps a name), so put the name
+    // back — left blank it read as "unnamed" while the sidebar kept the old one.
+    if (!t) { setDraft(named); return; }
+    if (t === board?.name) return;
     onRename?.(t);
   };
   return (
