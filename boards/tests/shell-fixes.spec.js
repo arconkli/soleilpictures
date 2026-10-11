@@ -138,3 +138,102 @@ test('tree rows are reachable and openable from the keyboard', async ({ page }) 
   await page.keyboard.press('ArrowRight');
   await expect(page.locator('#tree-qa .sb-tree-row')).toHaveCount(3);
 });
+
+// ── overlay registry: Escape and Back close only the top layer ─────────
+
+// Mount real components next to the local shell (same React, same
+// lib/modalGuard instance as the page), driven from window.__layerQa.
+async function mountLayers(page) {
+  await page.evaluate(async () => {
+    const urls = performance.getEntriesByType('resource').map(e => e.name);
+    const React = (await import(urls.find(u => /\/deps\/react\.js/.test(u)))).default;
+    const clientMod = await import(urls.find(u => /\/deps\/react-dom_client\.js/.test(u)));
+    const createRoot = clientMod.createRoot || clientMod.default.createRoot;
+    const { Sheet } = await import('/src/components/shell/Sheet.jsx');
+    const { Modal } = await import('/src/components/Modal.jsx');
+    const guard = await import('/src/lib/modalGuard.js');
+    const h = React.createElement;
+    const qa = { closed: [], guard };
+    window.__layerQa = qa;
+    function Host() {
+      const [sheet, setSheet] = React.useState(false);
+      const [modal, setModal] = React.useState(false);
+      const [rows, setRows] = React.useState(['one', 'two']);
+      qa.openSheet = () => setSheet(true);
+      qa.openModal = () => setModal(true);
+      return h(React.Fragment, null,
+        h(Sheet, { open: sheet, title: 'Add to cluster', onClose: () => { qa.closed.push('sheet'); setSheet(false); } },
+          h('button', { type: 'button', id: 'sheet-tile' }, 'Note')),
+        h(Modal, { open: modal, ariaLabel: 'Trash', onClose: () => { qa.closed.push('modal'); setModal(false); } },
+          rows.map(r => h('button', { key: r, type: 'button', className: 'qa-restore', onClick: () => setRows(x => x.filter(y => y !== r)) }, `Restore ${r}`))));
+    }
+    const host = document.createElement('div');
+    host.id = 'layer-qa';
+    document.body.appendChild(host);
+    createRoot(host).render(h(Host));
+  });
+}
+
+test('the bottom sheet is a named layer: canvas shortcuts stand down, focus moves in, Escape closes it', async ({ page }) => {
+  await mountLayers(page);
+  await page.evaluate(() => window.__layerQa.openSheet());
+  const sheet = page.getByRole('dialog', { name: 'Add to cluster' });
+  await expect(sheet).toBeVisible();
+  expect(await page.evaluate(() => window.__layerQa.guard.anyModalOpen())).toBe(true);
+  await expect(page.locator('#sheet-tile')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  expect(await page.evaluate(() => window.__layerQa.closed)).toEqual(['sheet']);
+  expect(await page.evaluate(() => window.__layerQa.guard.anyModalOpen())).toBe(false);
+});
+
+test('Back closes the open sheet instead of leaving the page', async ({ page }) => {
+  await mountLayers(page);
+  const before = page.url();
+  await page.evaluate(() => window.__layerQa.openSheet());
+  await expect(page.getByRole('dialog', { name: 'Add to cluster' })).toBeVisible();
+  // The history entry is pushed on a microtask after the sheet opens.
+  await page.waitForFunction(() => history.state && history.state.soleilLayer);
+  await page.goBack();
+  await expect(page.getByRole('dialog', { name: 'Add to cluster' })).toBeHidden();
+  expect(page.url()).toBe(before);
+  await expect(page.locator('.sb-search')).toBeVisible();
+});
+
+test('closing a sheet by the UI consumes its history entry', async ({ page }) => {
+  await mountLayers(page);
+  const len0 = await page.evaluate(() => history.length);
+  await page.evaluate(() => window.__layerQa.openSheet());
+  await page.waitForFunction(() => history.state && history.state.soleilLayer);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !(history.state && history.state.soleilLayer));
+  // Back now leaves the layer-free entry list as it was: nothing is open, so
+  // nothing gets closed, and the shell is still there.
+  expect(await page.evaluate(() => window.__layerQa.closed)).toEqual(['sheet']);
+  expect(await page.evaluate(() => history.length)).toBeGreaterThanOrEqual(len0);
+});
+
+test('Escape still closes a modal after the focused row button was removed', async ({ page }) => {
+  await mountLayers(page);
+  await page.evaluate(() => window.__layerQa.openModal());
+  const modal = page.getByRole('dialog', { name: 'Trash' });
+  await expect(modal).toBeVisible();
+  await page.locator('.qa-restore').first().click();
+  await expect(page.locator('.qa-restore')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeHidden();
+  expect(await page.evaluate(() => window.__layerQa.closed)).toEqual(['modal']);
+});
+
+test('Escape closes only the top layer', async ({ page }) => {
+  await mountLayers(page);
+  await page.evaluate(() => window.__layerQa.openSheet());
+  await page.evaluate(() => window.__layerQa.openModal());
+  await expect(page.getByRole('dialog', { name: 'Trash' })).toBeVisible();
+  // The modal takes focus on the next frame.
+  await expect(page.locator('.qa-restore').first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Trash' })).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Add to cluster' })).toBeVisible();
+  expect(await page.evaluate(() => window.__layerQa.closed)).toEqual(['modal']);
+});

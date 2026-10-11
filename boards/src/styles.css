@@ -4211,6 +4211,11 @@ body {
   padding-top: 12vh;
   animation: pickerFade var(--dur-slow) var(--ease);
 }
+/* A full-screen doc or schedule (both set body[data-doc-overlay]) sits at
+   ~2147483600. ⌘K / "/" opened the palette UNDER it: invisible, holding focus,
+   swallowing keystrokes. Lift it just over that overlay — the same pattern the
+   messages panel uses — and still under Settings. */
+body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 .cmdk {
   width: min(600px, calc(100vw - 32px));
   max-height: min(60vh, 560px);

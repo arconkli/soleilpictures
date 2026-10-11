@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { registerModalOpen, registerBackLayer } from '../../lib/modalGuard.js';
+
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+function focusables(root) {
+  return Array.from(root.querySelectorAll(FOCUSABLE)).filter(n => n.getClientRects().length > 0);
+}
 
 // Bottom sheet primitive. Used as the phone-width alternative to
 // modals and side drawers in P2 (MessagesPanel, SettingsPanel,
@@ -29,13 +35,48 @@ export function Sheet({ open, onClose, title, children, snap = 'full', className
   const [dragY, setDragY] = useState(0);
   // True for the ~200ms after a released drag while the sheet eases home.
   const [snapping, setSnapping] = useState(false);
+  const titleId = useId();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
+  // A layer in lib/modalGuard while open, like Modal: the canvas's window
+  // shortcuts (Backspace = delete the selection) stand down behind it,
+  // Escape closes only the top layer, and the phone's Back closes the sheet
+  // instead of leaving the app. Focus moves into the sheet and goes back to
+  // whatever opened it (the + puck) on close.
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    if (!open) return undefined;
+    const unregister = registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } });
+    const unBack = registerBackLayer(() => onCloseRef.current?.());
+    const trigger = document.activeElement;
+    const raf = requestAnimationFrame(() => {
+      const panel = sheetRef.current;
+      if (!panel || panel.contains(document.activeElement)) return;
+      const target = focusables(panel)[0] || panel;
+      try { target.focus({ preventScroll: true }); } catch (_) { /* noop */ }
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      unregister();
+      unBack();
+      if (trigger && typeof trigger.focus === 'function' && document.contains(trigger)) {
+        try { trigger.focus({ preventScroll: true }); } catch (_) { /* noop */ }
+      }
+    };
+  }, [open]);
+
+  // Keep Tab inside the sheet; it used to walk into the page behind it.
+  const onKeyDown = (e) => {
+    if (e.key !== 'Tab') return;
+    const panel = sheetRef.current;
+    if (!panel) return;
+    const nodes = focusables(panel);
+    if (nodes.length === 0) { e.preventDefault(); panel.focus?.(); return; }
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
 
   useEffect(() => {
     if (!open) { setDragY(0); setSnapping(false); }
@@ -71,11 +112,14 @@ export function Sheet({ open, onClose, title, children, snap = 'full', className
   };
 
   return createPortal(
-    <div className={`sheet-root ${className}`.trim()} data-snap={snap} role="dialog" aria-modal="true">
+    <div className={`sheet-root ${className}`.trim()} data-snap={snap} role="dialog" aria-modal="true"
+         aria-labelledby={title ? titleId : undefined} aria-label={title ? undefined : 'Sheet'}
+         onKeyDown={onKeyDown}>
       <div className="sheet-backdrop" onClick={onClose} />
       <div
         ref={sheetRef}
         className="sheet-panel"
+        tabIndex={-1}
         // Live drags track the finger 1:1 (no transition); a released drag
         // keeps a transition just long enough to ease home.
         style={dragY
@@ -91,7 +135,7 @@ export function Sheet({ open, onClose, title, children, snap = 'full', className
         <div className="sheet-grip-row" data-sheet-grab="true">
           <div className="sheet-grip" data-sheet-grab="true" />
         </div>
-        {title ? <div className="sheet-title">{title}</div> : null}
+        {title ? <div className="sheet-title" id={titleId}>{title}</div> : null}
         <div className="sheet-body">{children}</div>
       </div>
     </div>,
