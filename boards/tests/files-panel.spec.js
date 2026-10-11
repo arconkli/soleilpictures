@@ -194,9 +194,13 @@ test('Back returns Files to where it was scrolled; a folder opens at its top', a
   // is known) before reading where it rests — that's the place it remembers.
   await page.waitForTimeout(400);
   const at = await p.evaluate((el) => el.scrollTop);
-  // Step into a folder from the title row's ▾ (the folder rows are scrolled away).
-  await p.locator('.pb-step.is-here button.pb-here').click();
-  await page.locator('.pb-menu .pb-menu-item').first().click();
+  // Step into a folder from the title row's ▾ (the folder rows are scrolled
+  // away) — by keyboard: a pointer click would have Playwright scroll the list
+  // to bring the menu item into view first, and the list remembers that.
+  await p.locator('.pb-step.is-here button.pb-here').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.pb-menu .pb-menu-item').first()).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(p.locator('.cbt-ro')).toBeVisible();
   await expect.poll(() => p.evaluate((el) => el.scrollTop)).toBe(0);
   await p.getByRole('button', { name: 'Back' }).click();
