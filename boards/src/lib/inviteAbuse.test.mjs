@@ -230,6 +230,27 @@ test('changing a collaborator\'s role sends nothing and spends nothing', () => {
   assert.ok(ret < branch.indexOf('insert into share_notifications'), 'and before the email-sending row');
 });
 
+test('undoing "Remove access" sends nothing and spends nothing (0405)', () => {
+  // The Undo used to call share_board, which on a removed row is a NEW share:
+  // budget spent, "X shared Y with you" emailed to the person you meant to
+  // leave alone, and once the budget ran out the removal could not be undone.
+  const restore = latestDefinition('restore_board_share');
+  assert.ok(restore, 'restore_board_share must exist');
+  const code = restore.body.replace(/--[^\n]*/g, '');
+  assert.doesNotMatch(code, /_invite_budget_take/, 'an undo spends no invite');
+  assert.doesNotMatch(code, /share_notifications/, 'an undo emails nobody');
+  // It is an undo, not a way to share without the budget: only the remover,
+  // only briefly, and only while they still manage the access.
+  assert.match(restore.body, /r\.removed_by is distinct from auth\.uid\(\)/);
+  assert.match(restore.body, /r\.removed_at < now\(\) - interval '15 minutes'/);
+  assert.match(restore.body, /can_manage_workspace\(b\.workspace_id\)/);
+  assert.match(restore.body, /can_write_board\(p_board_id\)/);
+  const modal = read('../components/ShareModal.jsx');
+  const onRemove = modal.slice(modal.indexOf('const onRemoveShare'), modal.indexOf('const onMakeOwner'));
+  assert.match(onRemove, /await restoreBoardShare\(\{ boardId: board\.id, userId: share\.user_id \}\)/);
+  assert.doesNotMatch(onRemove, /await shareBoard\(/, 'the undo must not re-share');
+});
+
 test('the sharing docs state the limits the server enforces', () => {
   // Typed as placeholders (never as numbers) in the source, and resolved by
   // gen-docs to the migration's own constants in the generated mirror.
