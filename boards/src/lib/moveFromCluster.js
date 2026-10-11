@@ -16,6 +16,7 @@
 //   • Undo puts the cards back on the source with their original ids and
 //     places, carrying whatever was edited since, then removes them here.
 
+import { gridLinkOf, relinkGrid } from './gridState.js';
 import * as Y from 'yjs';
 import { loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, saveBoardVersion } from './boardsApi.js';
 import { b64ToBytes, cardToYMap, yMapToCard } from './yhelpers.js';
@@ -68,7 +69,7 @@ export async function openClusterForMove(sourceBoardId, ids, { userId = null, se
     const ym = cm.get(id);
     return ym ? { ...yMapToCard(ym), id } : null;
   }).filter(Boolean);
-  const originals = new Map(cards.map((c) => [c.id, Object.fromEntries(PLACE_KEYS.map((k) => [k, c[k]]))]));
+  const originals = new Map(cards.map((c) => [c.id, { ...Object.fromEntries(PLACE_KEYS.map((k) => [k, c[k]])), link: gridLinkOf(c) }]));
   const arrowList = () => { try { return doc.getArray('arrows').toArray(); } catch (_) { return []; } };
   let templates = {};
   try { templates = doc.getMap('gridTemplates').toJSON(); } catch (_) {}
@@ -123,7 +124,11 @@ export async function returnToCluster(sourceBoardId, entries, originals, arrows 
         const place = originals?.get?.(id) || {};
         const back = { ...card, id };
         for (const k of PLACE_KEYS) { if (place[k] !== undefined) back[k] = place[k]; else delete back[k]; }
-        cm.set(id, cardToYMap(back));
+        const relinked = relinkGrid(back, place.link, {
+          hasTemplate: (t) => doc.getMap('gridTemplates').has(t),
+          hasSequence: (q) => doc.getMap('gridSequences').has(q),
+        });
+        cm.set(id, cardToYMap(relinked));
       }
       const ar = doc.getArray('arrows');
       const ok = (arrows || []).filter((a) => { const [f, t] = arrowEnds(a); return cm.has(f) && cm.has(t); });

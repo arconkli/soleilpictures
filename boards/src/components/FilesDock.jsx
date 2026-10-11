@@ -281,7 +281,10 @@ export function FilesPane({
     if (!pending) { snapBack(); return; }
     const where = st.browseId;
     pending.then(
-      (ok) => { if (ok && where && where !== st.homeId) openRef.current?.(where); else snapBack(); },
+      (ok) => {
+        if (ok && where && where !== st.homeId) { setSpringing(false); openRef.current?.(where); }
+        else snapBack();
+      },
       () => snapBack(),
     );
   }), []);

@@ -23,6 +23,11 @@ export function createSpring({
 } = {}) {
   let armedKey = null;
   let timer = null;
+  // Where the pointer was when the last spring fired. The place sprung to puts
+  // its own folders under a still pointer; without this, holding still after a
+  // spring would dive into the next one, and the next. It re-arms once the
+  // pointer has really moved.
+  let heldAt = null;
   const disarm = () => {
     if (timer != null) clearTimer(timer);
     timer = null;
@@ -33,6 +38,11 @@ export function createSpring({
     // second enter on the same key (dragover repeats) keeps the first timer.
     enter(key, fire) {
       if (armedKey === key) return;
+      if (heldAt) {
+        const p = session;
+        if (p && Number.isFinite(p.x) && Math.abs(p.x - heldAt.x) + Math.abs(p.y - heldAt.y) < 4) return;
+        heldAt = null;
+      }
       disarm();
       armedKey = key;
       onArm?.(key);
@@ -40,11 +50,12 @@ export function createSpring({
         timer = null;
         armedKey = null;
         onArm?.(null);
+        heldAt = session && Number.isFinite(session.x) ? { x: session.x, y: session.y } : null;
         fire?.();
       }, delay);
     },
     leave(key) { if (armedKey === key) disarm(); },
-    cancel: disarm,
+    cancel: () => { heldAt = null; disarm(); },
     get armed() { return armedKey; },
   };
 }
@@ -72,17 +83,22 @@ export function beginDragSession(sourceEl, info = {}, win = (typeof window !== '
   // Mouse events are held for the whole of an HTML5 drag: the first one after
   // it is proof it ended, even when the source node — and its dragend — went.
   const onMove = () => end();
+  // Where the drag is, for the spring's "has the pointer moved" check. In the
+  // capture phase, so it's current before any target's dragover arms a spring.
+  const onOver = (e) => { s.x = e.clientX; s.y = e.clientY; };
   try { sourceEl?.addEventListener?.('dragend', end); } catch (_) {}
   win?.addEventListener?.('drop', onDrop, true);
   win?.addEventListener?.('dragend', end, true);
   win?.addEventListener?.('mousemove', onMove, true);
   win?.addEventListener?.('pointermove', onMove, true);
+  win?.addEventListener?.('dragover', onOver, true);
   s.cleanup = () => {
     try { sourceEl?.removeEventListener?.('dragend', end); } catch (_) {}
     win?.removeEventListener?.('drop', onDrop, true);
     win?.removeEventListener?.('dragend', end, true);
     win?.removeEventListener?.('mousemove', onMove, true);
     win?.removeEventListener?.('pointermove', onMove, true);
+    win?.removeEventListener?.('dragover', onOver, true);
   };
   listeners.forEach((fn) => { try { fn({ type: 'start', session: s }); } catch (_) {} });
   return s;

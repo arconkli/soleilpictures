@@ -1609,6 +1609,9 @@ export function LocalBoardsApp({ user, signOut }) {
       h.redo.push(cur);
       setLocalState(prev => ({ ...prev, boardState: { ...prev.boardState, [currentId]: snap } }));
     },
+    // Forget what Redo would bring back (CanvasSurface "Move instead": the copy
+    // it takes back is part of the move, not an undo to redo).
+    clearRedo: () => { histFor(currentId).redo = []; },
     redo: () => {
       const h = histFor(currentId);
       if (!h.redo.length) return;
