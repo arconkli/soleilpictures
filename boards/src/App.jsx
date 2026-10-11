@@ -8350,6 +8350,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        mode={listMode}
                        dockControls={dockControls}
                        mutators={muts}
+                       // Kept when browsing replaces board/cards/mutators: a drag
+                       // that springs into another cluster moves files from here.
+                       homeSrc={{ boardId: board.id, cards, mutators: muts, canEdit: paneCanEdit }}
                        {...o} />
                    )} />
       );

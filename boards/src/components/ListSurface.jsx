@@ -2,6 +2,10 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useState, useCallback, useM
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
+import { beginDragSession, onDragSession } from '../lib/springLoad.js';
+import { useSpring } from '../hooks/useSpring.js';
+import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
+import { PathBar } from './clusterBrowser/PathBar.jsx';
 import { gridNeighbor } from '../lib/justifiedGrid.js';
 import { canRename, cleanName, renamePatch } from '../lib/fileRename.js';
 import { planPutOnBoard, positionUnplaced } from '../lib/placement.js';
@@ -132,6 +136,14 @@ export function ListSurface({
   browsingFrom = null,
   // A browsed cluster whose snapshot hasn't arrived — not "no files" yet.
   loading = false,
+  // The board this Files belongs to — its live cards and mutators — kept when
+  // browsing another cluster replaces board/cards/mutators. After a drag has
+  // sprung into another cluster, a drop moves the files from here.
+  homeSrc = null,       // { boardId, cards, mutators, canEdit }
+  // Spring-loading from FilesPane: { into(id), back(), drop(promise) }.
+  spring = null,
+  // Full Files: the way back up (PathBar trail), above the title.
+  fullPathBar = null,
 }) {
   const feedback = useFeedback();
   const isPanel = mode === 'panel';
@@ -789,24 +801,31 @@ export function ListSurface({
   // dropped on a folder. The cross-board move App already runs for the canvas
   // (its 'soleil-card-into-board-drop' listener) writes the target, then this
   // side lets go of only what it saved; its toast undoes both sides.
-  const moveCardsTo = useCallback(async (ids, targetId) => {
-    if (!canEdit || !targetId || targetId === board.id) return;
+  // Moves cards into another cluster. `src` is where they come from — this
+  // board, or (after a drag has sprung into another cluster) the home board.
+  // Resolves whether anything moved.
+  const moveCardsTo = useCallback(async (ids, targetId, src = null) => {
+    const from = src || { boardId: board.id, cards, mutators, canEdit };
+    if (!from.canEdit || !targetId || targetId === from.boardId) return false;
     const idSet = new Set(ids || []);
-    const all = (cards || []).filter((c) => idSet.has(c.id) && c.kind !== 'board' && c.kind !== 'boardlink');
+    const all = (from.cards || []).filter((c) => idSet.has(c.id) && c.kind !== 'board' && c.kind !== 'boardlink');
     const moving = all.filter((c) => !isStillUploading(c));
     if (moving.length < all.length) {
       feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
     }
-    if (!moving.length) return;
+    if (!moving.length) return false;
     try {
       await new Promise((resolve, reject) => {
         document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
-          detail: { sourceBoardId: board.id, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu' },
+          detail: { sourceBoardId: from.boardId, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu' },
         }));
       });
-    } catch (_) { return; } // App said why; nothing left this cluster
-    mutators.deleteCardsForMove?.(moving.map((c) => c.id));
+    } catch (_) { return false; } // App said why; nothing left this cluster
+    from.mutators?.deleteCardsForMove?.(moving.map((c) => c.id));
     setSelectedCards(new Set());
+    // A browsed cluster shows its saved snapshot: fetch it again with them in.
+    try { invalidateBoardPreview(targetId); } catch (_) {}
+    return true;
   }, [canEdit, board.id, cards, feedback, mutators]);
 
   // Put on board: files waiting in Files go onto the board as one block where
@@ -1050,9 +1069,35 @@ export function ListSurface({
     t.includes('Files') || t.includes('text/uri-list') || t.includes('text/plain') || t.includes('text/html');
   // What the header says while files are dragged over: where they'll go, or
   // — browsing another cluster — that this one isn't the place.
-  const [dragNote, setDragNote] = useState(null);   // 'files' | 'blocked' | null
+  const [dragNote, setDragNote] = useState(null);   // 'files' | 'blocked' | 'move' | null
+  // Browsing another cluster (the panel, or full Files after a drag sprang),
+  // with this Files' own files in the drag: they can be moved here.
+  const homeFilesHere = (types) => {
+    if (!types?.includes?.(FILES_DRAG_MIME) || !browsingFrom || !homeSrc?.canEdit) return false;
+    const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
+    return from === homeSrc.boardId && board?.id && board.id !== homeSrc.boardId;
+  };
+  // Clusters dragged in after a spring: they can be nested here.
+  const foldersHere = (types) => !!browsingFrom && !!homeSrc?.canEdit
+    && (types?.includes?.(BOARD_REF_MIME) || types?.includes?.(BOARD_REF_LIST_MIME));
+  // Let go of every drag highlight when a drag ends — even one whose source
+  // tile was unmounted by a spring, so React's own onDragEnd never fired.
+  useEffect(() => onDragSession((ev) => {
+    if (ev.type !== 'end') return;
+    setDragOver(false);
+    setDragNote(null);
+    setDropTileId(null);
+  }), []);
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
+    if (homeFilesHere(types) || foldersHere(types)) {
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+      if (!dragOver) setDragOver(true);
+      const note = homeFilesHere(types) ? 'move' : null;
+      if (note !== dragNote) setDragNote(note);
+      return;
+    }
     if (!isRecognizedDrag(types)) return;
     e.preventDefault();
     const files = types.includes('Files');
@@ -1076,6 +1121,23 @@ export function ListSurface({
     setDragOver(false);
     setDragNote(null);
     const t = e.dataTransfer.types;
+    if (homeFilesHere(t)) {
+      e.preventDefault();
+      const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
+      if (!payload || payload.sourceBoardId !== homeSrc.boardId) return;
+      spring?.drop?.(moveCardsTo(payload.cards.map((c) => c.id), board.id, homeSrc));
+      return;
+    }
+    if (foldersHere(t)) {
+      e.preventDefault();
+      const childIds = readBoardRefIds(e.dataTransfer).filter((id) => id !== board.id && !wouldCreateCycle(boards, id, board.id));
+      if (!childIds.length) return;
+      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+        detail: { childIds, targetId: board.id, sourceSurface: 'list' },
+      }));
+      spring?.drop?.(Promise.resolve(true));
+      return;
+    }
     if (!isRecognizedDrag(t)) return;
     e.preventDefault(); // swallow so the browser never navigates
     if (!canEdit) {
@@ -1172,6 +1234,7 @@ export function ListSurface({
     // dragover can only see types, not data: the board reads where the drag
     // came from here, to show move vs copy before the drop.
     try { window.__soleilFilesDrag = { sourceBoardId: board.id, n: list.length }; } catch (_) {}
+    beginDragSession(el, { kind: 'files', sourceBoardId: board.id });
     if (list.length > 1) {
       const ghost = document.createElement('div');
       ghost.className = 'files-drag-ghost';
@@ -1317,6 +1380,9 @@ export function ListSurface({
 
   // Click, double-click, drag (reparent) and drop handlers for one sub-cluster
   // tile — shared by the full-mode cluster cards and the panel's folder tiles.
+  const springTimer = useSpring();
+  // Full Files' way back up: shown when there's an ancestor, or a spring to undo.
+  const hasTrail = !isPanel && !!fullPathBar && (fullPathBar.canBack || (fullPathBar.path?.length || 0) > 1);
   const folderProps = (b) => ({
     'data-folder-id': b.id,
     onClick: (e) => onTileClick(e, 'board', b.id),
@@ -1324,6 +1390,7 @@ export function ListSurface({
     onDragStart: (e) => {
       const ids = (selectedBoards.size > 1 && selectedBoards.has(b.id)) ? [...selectedBoards] : [b.id];
       try { window.__soleilBoardDrag = { boardIds: ids }; } catch (_) {}
+      beginDragSession(e.currentTarget, { kind: 'folders' });
       try {
         e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
         if (ids.length > 1) e.dataTransfer.setData(BOARD_REF_LIST_MIME, JSON.stringify(ids));
@@ -1331,12 +1398,18 @@ export function ListSurface({
       } catch (_) {}
     },
     onDragEnd: () => { try { window.__soleilBoardDrag = null; } catch (_) {} setDropTileId(null); },
+    onDragEnter: () => { if (spring) springTimer.enter(`folder:${b.id}`, () => spring.into(b.id)); },
     onDragOver: (e) => {
       const t = e.dataTransfer.types;
-      // This cluster's files dropped on one of its folders move into it.
+      // Hold here and Files opens this folder, mid-drag (lib/springLoad.js).
+      if (spring) springTimer.enter(`folder:${b.id}`, () => spring.into(b.id));
+      // This cluster's files dropped on one of its folders move into it — and
+      // so do the home cluster's, after a drag has sprung in here.
       if (t.includes(FILES_DRAG_MIME)) {
         const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
-        if (!canEdit || from !== board.id) return;
+        const own = canEdit && from === board.id;
+        const fromHome = !!homeSrc?.canEdit && from === homeSrc.boardId && b.id !== homeSrc.boardId;
+        if (!own && !fromHome) return;
         e.preventDefault();
         e.stopPropagation();
         try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
@@ -1352,16 +1425,25 @@ export function ListSurface({
       try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
       if (dropTileId !== b.id) setDropTileId(b.id);
     },
-    onDragLeave: (e) => { if (e.currentTarget.contains?.(e.relatedTarget)) return; setDropTileId(prev => (prev === b.id ? null : prev)); },
+    onDragLeave: (e) => {
+      if (e.currentTarget.contains?.(e.relatedTarget)) return;
+      springTimer.leave(`folder:${b.id}`);
+      setDropTileId(prev => (prev === b.id ? null : prev));
+    },
     onDrop: (e) => {
       setDropTileId(null);
+      springTimer.cancel();
       if (e.dataTransfer.types.includes(FILES_DRAG_MIME)) {
         const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
-        if (!payload || payload.sourceBoardId !== board.id) return;
+        if (!payload) return;
+        const own = canEdit && payload.sourceBoardId === board.id;
+        const fromHome = !!homeSrc?.canEdit && payload.sourceBoardId === homeSrc.boardId && b.id !== homeSrc.boardId;
+        if (!own && !fromHome) return;
         e.preventDefault();
         e.stopPropagation();
-        try { window.__soleilFilesDrag = null; } catch (_) {}
-        moveCardsTo(payload.cards.map((c) => c.id), b.id);
+        const ids = payload.cards.map((c) => c.id);
+        const moved = own ? moveCardsTo(ids, b.id) : moveCardsTo(ids, b.id, homeSrc);
+        spring?.drop?.(moved);
         return;
       }
       const childIds = readBoardRefIds(e.dataTransfer);
@@ -1371,6 +1453,7 @@ export function ListSurface({
       document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
         detail: { childIds, targetId: b.id, sourceSurface: 'list' },
       }));
+      spring?.drop?.(Promise.resolve(true));
     },
   });
 
@@ -1378,6 +1461,7 @@ export function ListSurface({
     <FolderTile key={b.id} board={b} compact={isPanel}
                 selected={selectedBoards.has(b.id)}
                 dropTarget={dropTileId === b.id}
+                springing={springTimer.armed === `folder:${b.id}`}
                 peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
                 draggable={canEdit}
                 rename={renameFor(b.id)}
@@ -1390,6 +1474,11 @@ export function ListSurface({
                   name={t?.name || c.name}
                   missing={!t && boardsReady}
                   selected={selectedCards.has(c.id)}
+                  springing={springTimer.armed === `folder:${c.target}`}
+                  // Hold a drag over it and Files opens the cluster it links to.
+                  onDragEnter={t && spring ? () => springTimer.enter(`folder:${c.target}`, () => spring.into(c.target)) : undefined}
+                  onDragOver={t && spring ? () => springTimer.enter(`folder:${c.target}`, () => spring.into(c.target)) : undefined}
+                  onDragLeave={t && spring ? (e) => springTimer.leave(`folder:${c.target}`, e) : undefined}
                   data-link-id={c.id}
                   onClick={(e) => onTileClick(e, 'boardlink', c.id)}
                   onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)} />
@@ -1422,7 +1511,9 @@ export function ListSurface({
       clusterName={board?.name}
       pathBar={isPanel ? pathBar : null}
       readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
-      dropBanner={dragNote === 'files'
+      dropBanner={dragNote === 'move'
+        ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
+        : dragNote === 'files'
         ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
         : dragNote === 'blocked'
           ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
@@ -1530,7 +1621,8 @@ export function ListSurface({
         {/* Full Files opens on the cluster's name and what's in it — then the
             toolbar, sticky, above everything it searches and sorts. */}
         {!isPanel && (
-          <header className="cb-pagehead">
+          <header className={`cb-pagehead${hasTrail ? ' has-trail' : ''}`}>
+            {hasTrail && <div className="cb-pagehead-trail"><PathBar {...fullPathBar} /></div>}
             <h1 className="cb-pagehead-title">{board?.name || 'Untitled cluster'}</h1>
             <span className="cb-pagehead-meta">{pageMeta}</span>
             {canDownloadAll && (

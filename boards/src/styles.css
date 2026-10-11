@@ -22275,6 +22275,26 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 .ft:not(.is-selected):not(.is-drop-target):active { background: var(--files-paper-press); }
 .ft.is-selected { border-color: var(--soleil); box-shadow: 0 0 0 1px var(--soleil); }
 .ft.is-drop-target { border-color: var(--soleil); background: var(--soleil-soft); }
+/* Spring-loading: a drag held over a folder, Back or a path step blinks it
+   twice before Files goes there (lib/springLoad.js). Gold — it's the drop
+   target. Under reduced motion it simply stays lit. */
+.ft.is-springing, .pb-back.is-springing, .pb-link.is-springing { animation: spring-blink 700ms steps(1, end); }
+.pb-back.is-springing, .pb-link.is-springing { color: var(--ink-0); }
+@keyframes spring-blink {
+  0%, 30%, 60% { box-shadow: 0 0 0 1px var(--soleil); background-color: var(--soleil-soft); }
+  15%, 45%, 75% { box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ft.is-springing, .pb-back.is-springing, .pb-link.is-springing { animation: none; box-shadow: 0 0 0 1px var(--soleil); background-color: var(--soleil-soft); }
+}
+/* Full Files: the way back up, above the title. */
+.cb-pagehead-trail { grid-column: 1; grid-row: 1; min-width: 0; margin: 0 0 2px -6px; }
+.cb-pagehead.has-trail .cb-pagehead-title { grid-row: 2; }
+.cb-pagehead.has-trail .cb-pagehead-meta { grid-row: 3; }
+.cb-pagehead.has-trail > .list-section-act, .cb-pagehead.has-trail > .cbt-shrink { grid-row: 2 / 4; }
+.cb-pagehead-trail .pb { margin: 0; }
+.cb-pagehead-trail .pb-name { height: 22px; font-size: 12px; }
+.pb--trail .pb-step:last-child::after { content: '/'; margin: 0 2px; color: var(--ink-3); font: 400 12px/1 var(--font-sans); }
 .ft-cover {
   position: relative; flex: none;
   width: 6px; height: 6px;

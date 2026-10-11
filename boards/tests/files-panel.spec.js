@@ -318,3 +318,80 @@ test('full Files: coming back from a folder returns to where the list was scroll
   await expect(page.locator('.cb-pagehead-title')).toHaveText(home);
   await expect.poll(() => wrap.evaluate((el) => el.scrollTop)).toBe(at);
 });
+
+// ── Spring-loaded folders (lib/springLoad.js) ──────────────────────────────
+// A held HTML5 drag: Playwright only sends dragover on mouse moves, and the
+// spring is a timer from dragenter, so the hold is a plain wait.
+async function startDrag(page, locator) {
+  const b = await locator.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 10, b.y + b.height / 2 + 10, { steps: 3 });
+}
+async function holdOver(page, locator) {
+  const b = await locator.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
+  await page.waitForTimeout(900);
+  await page.mouse.move(b.x + b.width / 2 + 2, b.y + b.height / 2 + 2);
+}
+
+test('holding a dragged file over a folder opens it; dropping there moves the file in', async ({ page }) => {
+  await go(page);
+  const p = panel(page);
+  const tile = tiles(page).nth(3);
+  const name = await tile.locator('.ct-tile-name').getAttribute('title');
+  await startDrag(page, tile);
+  const folder = p.locator('.ft', { hasText: 'Features' });
+  const fb = await folder.boundingBox();
+  await page.mouse.move(fb.x + fb.width / 2, fb.y + fb.height / 2, { steps: 8 });
+  await expect(folder).toHaveClass(/is-springing/);
+  await page.waitForTimeout(900);
+  await page.mouse.move(fb.x + fb.width / 2 + 2, fb.y + fb.height / 2 + 2);
+  await expect(p.locator('.pb-step.is-here')).toContainText('Features');
+  const box = await p.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height - 120, { steps: 5 });
+  await expect(p.locator('.lp-drop')).toContainText('Drop to move to Features');
+  await page.mouse.up();
+  await expect(p.locator(`.ct-tile-name[title="${name}"]`)).toHaveCount(1);
+  await p.getByRole('button', { name: 'Back' }).click();
+  await expect(p.locator('.pb-step.is-here')).toContainText('Studio');
+  await expect(p.locator(`.ct-tile-name[title="${name}"]`)).toHaveCount(0);
+});
+
+test('holding over Back goes back mid-drag; a cancelled drag returns to where it started', async ({ page }) => {
+  await go(page);
+  const p = panel(page);
+  await startDrag(page, tiles(page).nth(2));
+  await holdOver(page, p.locator('.ft', { hasText: 'Stills' }));
+  await expect(p.locator('.pb-step.is-here')).toContainText('Stills');
+  await holdOver(page, p.getByRole('button', { name: 'Back' }));
+  await expect(p.locator('.pb-step.is-here')).toContainText('Studio');
+  await holdOver(page, p.locator('.ft', { hasText: 'Stills' }));
+  await expect(p.locator('.pb-step.is-here')).toContainText('Stills');
+  // Let go outside any drop target: nothing moves, and the panel goes back.
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await page.mouse.move(700, 400);
+  await expect(p.locator('.pb-step.is-here')).toContainText('Studio');
+});
+
+test('full Files: holding over a folder browses into it mid-drag; the drop lands you there with the file', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?local=1&reset=1');
+  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
+  await page.reload();
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  await openFullFiles(page);
+  const w = page.locator('.list-wrap:not(.is-panel)');
+  const tile = w.locator('.ct-jg [data-item-id]').nth(4);
+  const name = await tile.locator('.ct-tile-name').getAttribute('title');
+  await startDrag(page, tile);
+  await holdOver(page, w.locator('.ft', { hasText: 'Halcyon' }));
+  await expect(page.locator('.cb-pagehead-title')).toHaveText('Halcyon');
+  await expect(page.locator('.cb-pagehead-trail')).toContainText('Studio');
+  await expect(page.locator('.crumb.here')).toContainText('Studio');   // the app hasn't moved yet
+  await page.mouse.move(700, 600, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.locator('.crumb.here')).toContainText('Halcyon');
+  await expect(w.locator(`.ct-tile-name[title="${name}"]`)).toHaveCount(1);
+});
