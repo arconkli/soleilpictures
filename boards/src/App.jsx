@@ -9397,6 +9397,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             initialSection={shareInitialSection}
             onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }}
             onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
+            onWorkspacesChanged={() => { onWorkspacesChanged?.(); }}
             onSharesChanged={() => { refreshSharedBoards?.(); }}
             onLinkCreated={() => {
               try {
