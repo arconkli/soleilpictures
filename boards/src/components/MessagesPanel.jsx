@@ -13,8 +13,9 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 // conversation).
 //
 //   workspaceId, currentUser
-//   openConversationId, setOpenConversationId — controlled by App.jsx
-//     so useInboxLive can suppress toasts for the active thread
+//   openConversationId, setOpenConversationId — controlled by App.jsx so a
+//     toast's "Open" can open a thread (which thread is on screen, for
+//     toast suppression, is threadAttention.js's job)
 //   initialOpenConversationId — set by permalink resolver to deep-link
 //   jumpToMessageId           — passed through to MessageThread
 //   pendingOpenPeerId         — when set, find/create a DM with this

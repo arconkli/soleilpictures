@@ -1010,8 +1010,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // membership changes bump the panel without a full refetch loop. Realtime
   // refreshes are per-conversation; this tick is for cross-thread cache busting.
   const [msgRefreshTick, setMsgRefreshTick] = useState(0);
-  // openConversationId is lifted from MessagesPanel so useInboxLive can
-  // suppress toasts for the conversation the user is actively viewing.
+  // openConversationId is lifted from MessagesPanel so a toast's "Open" can
+  // open a thread. Toast suppression for the thread
+  // you're looking at is threadAttention.js's job (it knows when the panel is
+  // closed or the tab is hidden), not this id's.
   const [openConversationId, setOpenConversationId] = useState(null);
   const conversationList = useConversationList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
   const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByConv: conversationList.unreadByConv });
@@ -1035,7 +1037,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [setTweak]);
   useInboxLive({
     userId: user.id,
-    openConversationId,
     onOpenConversation: openConversationFromToast,
     feedback,
   });

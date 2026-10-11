@@ -56,3 +56,10 @@ export function scanMentions(str, targets = [], { allowUnresolved = false } = {}
   if (from < str.length) out.push({ text: str.slice(from) });
   return out;
 }
+
+// Whether an unresolved "@word" may still pill: only while some mentioned
+// person's name hasn't loaded yet. Once every mention resolves, an unrelated
+// "@here" or "@handle" in the same message stays plain text.
+export function hasUnresolvedMention(mentions, userNamesById) {
+  return (mentions || []).some(id => [].concat(userNamesById?.[id] || []).filter(Boolean).length === 0);
+}

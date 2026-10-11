@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { scanMentions } from './messageMentions.js';
+import { scanMentions, hasUnresolvedMention } from './messageMentions.js';
 
 const pills = (segs) => segs.filter(s => 'mention' in s).map(s => s.text);
 const text = (segs) => segs.map(s => s.text).join('');
@@ -45,4 +45,13 @@ test('the bubble hands the renderer the mentioned people\'s names', () => {
   const renderer = readFileSync(new URL('./renderMessageBody.jsx', import.meta.url), 'utf8');
   assert.doesNotMatch(renderer, /\[a-zA-Z0-9_'’\\- \]\{1,40\}/, 'the greedy space-eating regex is gone');
   assert.match(renderer, /scanMentions\(/);
+});
+
+test('a stray @word pills only while a mentioned person is still unresolved', () => {
+  assert.equal(hasUnresolvedMention(['u1'], {}), true, 'Sam is still loading');
+  assert.equal(hasUnresolvedMention(['u1'], { u1: ['Sam Smith', 'sam@x.com'] }), false);
+  assert.equal(hasUnresolvedMention(['u1', 'u2'], { u1: 'Sam Smith' }), true);
+  assert.equal(hasUnresolvedMention([], {}), false, 'no mentions, no pills');
+  const renderer = readFileSync(new URL('./renderMessageBody.jsx', import.meta.url), 'utf8');
+  assert.match(renderer, /allowUnresolved = hasUnresolvedMention\(ctx\.mentions, ctx\.userNamesById\)/);
 });
