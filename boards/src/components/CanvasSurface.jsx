@@ -5970,6 +5970,12 @@ export function CanvasSurface({
       if (dc) startPositions[id] = { x: dc.x, y: dc.y };
     });
     const startClient = { x: e.clientX, y: e.clientY };
+    // The drag runs in WORLD space: the pointer's board point now minus its
+    // board point at the origin, both through the live camera refs. Dividing a
+    // screen delta by the render-time `zoom` drifted the card off the cursor
+    // when the camera moved mid-drag (a wheel pan or zoom while holding it, or
+    // a grab inside the 140 ms before a pinch commits its zoom).
+    const startWorld = clientToCanvas(startClient.x, startClient.y);
 
     // Snap targets, captured once at drag start (see lib/snapGuides.js). The
     // viewport gate keeps far-off-board cards out of the candidate pool — the
@@ -6027,9 +6033,10 @@ export function CanvasSurface({
     const touchScrollEl = touchHold ? findTouchScrollable(e.target) : null;
     let touchScrolling = false;
     let lastScrollClientY = e.clientY;
-    // Re-baselined to the arm point on a touch lift so the card doesn't jump
-    // by the finger's pre-lift drift. Null on mouse → deltas use startClient.
-    let dragOriginClient = null;
+    // Re-baselined to the arm point's board position on a touch lift so the
+    // card doesn't jump by the finger's pre-lift drift (or the pan it made).
+    // Null on mouse → deltas use startWorld.
+    let dragOriginWorld = null;
     let liftTimer = null;
     let liftStartedAt = 0;
     const cancelLift = () => {
@@ -6186,13 +6193,14 @@ export function CanvasSurface({
           Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) <= 4) return;
       // A touch lift re-baselines the drag origin to the arm point so the card
       // doesn't jump by the finger's pre-lift drift. Mouse keeps startClient.
-      if (!dragArmed && touchHold) dragOriginClient = { x: ev.clientX, y: ev.clientY };
+      if (!dragArmed && touchHold) dragOriginWorld = clientToCanvas(ev.clientX, ev.clientY);
       dragArmed = true;
       perf.bump('drag.flush');
       const _t0 = perf.isEnabled() ? performance.now() : 0;
-      const _origin = dragOriginClient || startClient;
-      const rawDx = (ev.clientX - _origin.x) / zoom;
-      const rawDy = (ev.clientY - _origin.y) / zoom;
+      const _origin = dragOriginWorld || startWorld;
+      const _at = clientToCanvas(ev.clientX, ev.clientY);
+      const rawDx = _at.x - _origin.x;
+      const rawDy = _at.y - _origin.y;
       // Hold Alt/Option to bypass snap.
       const skip = ev.altKey;
       // Smooth the pointer speed and decide whether the user is placing (slow)
@@ -6348,11 +6356,12 @@ export function CanvasSurface({
         setDrag(null);
         return;
       }
-      // Same origin flushMove used (lift point on touch, else startClient) so
+      // Same origin flushMove used (lift point on touch, else startWorld) so
       // the committed position matches the live drag — no jump on release.
-      const _origin = dragOriginClient || startClient;
-      const rawDx = (ev.clientX - _origin.x) / zoom;
-      const rawDy = (ev.clientY - _origin.y) / zoom;
+      const _origin = dragOriginWorld || startWorld;
+      const _at = clientToCanvas(ev.clientX, ev.clientY);
+      const rawDx = _at.x - _origin.x;
+      const rawDy = _at.y - _origin.y;
       const skip = ev.altKey;
       // Snap on commit only if released while placing (slowed); a release mid-fling
       // (fast, guides were hidden) lands free so a toss isn't yanked into alignment.
@@ -6598,8 +6607,8 @@ export function CanvasSurface({
 
     let prevResizeRaw = null; // last frame's raw (world) delta, for the fast clear
     const onMove = (ev) => {
-      const rawDwRaw = (ev.clientX - startClient.x) / zoom;
-      const rawDhRaw = (ev.clientY - startClient.y) / zoom;
+      const rawDwRaw = (ev.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
+      const rawDhRaw = (ev.clientY - startClient.y) / zoomRef.current;
       const bypass = ev.metaKey || ev.ctrlKey;
       const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
       updateNoteLatch(ev);
@@ -6620,8 +6629,8 @@ export function CanvasSurface({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       pointerOpAbortRef.current = null;
-      const rawDwRaw = (ev.clientX - startClient.x) / zoom;
-      const rawDhRaw = (ev.clientY - startClient.y) / zoom;
+      const rawDwRaw = (ev.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
+      const rawDhRaw = (ev.clientY - startClient.y) / zoomRef.current;
       const bypass = ev.metaKey || ev.ctrlKey;
       const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
       updateNoteLatch(ev);
@@ -6696,8 +6705,8 @@ export function CanvasSurface({
     setMultiResize({ handle, anchor, startBounds, startById, live: null });
 
     const computeUpdates = (ev) => {
-      const dx = (ev.clientX - startClient.x) / zoom;
-      const dy = (ev.clientY - startClient.y) / zoom;
+      const dx = (ev.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
+      const dy = (ev.clientY - startClient.y) / zoomRef.current;
       const newCornerX = startCorner.x + dx;
       const newCornerY = startCorner.y + dy;
       const denomX = (startCorner.x - anchor.x);
@@ -6877,9 +6886,9 @@ export function CanvasSurface({
     });
     let dragged = false;
     const onMove = (mv) => {
-      const dxRaw = (mv.clientX - startClient.x) / zoom;
-      const dyRaw = (mv.clientY - startClient.y) / zoom;
-      if (!dragged && Math.hypot(dxRaw * zoom, dyRaw * zoom) < 3) return;
+      const dxRaw = (mv.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
+      const dyRaw = (mv.clientY - startClient.y) / zoomRef.current;
+      if (!dragged && Math.hypot(mv.clientX - startClient.x, mv.clientY - startClient.y) < 3) return;
       dragged = true;
       // Candidate (un-snapped) endpoint positions.
       const candFromX = startFrom.x + dxRaw;
