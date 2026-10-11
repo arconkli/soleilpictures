@@ -38,3 +38,8 @@ test('the doc mention inserts the picked names, and the query only when none has
   const ed = read('../components/DocPageEditor.jsx');
   assert.match(ed, /const names = targets\.map\(t => t\?\.title \|\| t\?\.name\)\.filter\(Boolean\)\.join\(', '\);\s*const text = names \|\| \(mention\.query && mention\.query\.trim\(\)\) \|\| 'mention';/);
 });
+
+test('the picked title goes in as text, so the link covers exactly its characters', () => {
+  const ed = read('../components/DocPageEditor.jsx');
+  assert.match(ed, /\.deleteRange\(mention\.range\)\s*\.insertContent\(\{ type: 'text', text \}\)\s*\.setTextSelection\(\{ from: mention\.range\.from, to: mention\.range\.from \+ text\.length \}\)/);
+});
