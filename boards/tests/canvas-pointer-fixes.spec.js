@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { TOKEN, routeShareBundle, routeAnalytics } from './helpers/share-fixture.js';
 
 // Canvas pointer gestures and menus: small regressions, one test each.
 // Harness: ?local=1&reset=1&blank=1.
@@ -37,4 +38,40 @@ test('reordering a palette swatch and missing never drops a stray note', async (
   // The canvas doesn't even offer itself as a drop target for a swatch.
   expect(accepted).toBe(false);
   await expect(page.locator('.card')).toHaveCount(cards);
+});
+
+async function zoomIntoCentre(page, notches = 12) {
+  await page.evaluate((n) => {
+    const wrap = document.querySelector('.canvas-wrap');
+    const r = wrap.getBoundingClientRect();
+    for (let i = 0; i < n; i++) {
+      wrap.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: -240, ctrlKey: true, bubbles: true, cancelable: true,
+        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+      }));
+    }
+  }, notches);
+}
+
+test('a card whose media is playing stays mounted when you zoom away from it', async ({ page }) => {
+  // The dense 60-note share fixture: fit-all mounts everything, a deep zoom
+  // into the centre culls the corners.
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { dense: true });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+  await expect(page.getByText('Note 0', { exact: true })).toBeVisible();
+
+  // Stand-in for an audio card mid-playback: a media element inside the card
+  // that has fired `play` (which doesn't bubble).
+  await page.evaluate(() => {
+    const card = document.querySelector('[data-card-id="card-grid-0"]');
+    const a = document.createElement('audio');
+    card.appendChild(a);
+    a.dispatchEvent(new Event('play'));
+  });
+  await zoomIntoCentre(page);
+  // The opposite corner, not playing, is culled once the zoom settles…
+  await expect(page.locator('[data-card-id="card-grid-9"]')).toHaveCount(0, { timeout: 4000 });
+  // …while the playing one is still there, its media element with it.
+  await expect(page.locator('[data-card-id="card-grid-0"] audio')).toHaveCount(1);
 });
