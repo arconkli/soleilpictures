@@ -6,7 +6,8 @@ import { TOKEN, routeShareBundle, routeAnalytics } from './helpers/share-fixture
 
 async function blank(page) {
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  // Generous: the first load after an edit re-transforms the whole canvas.
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 20000 });
   await page.waitForTimeout(800);
 }
 
@@ -109,6 +110,109 @@ test('the Clear all drawings toast puts every stroke back', async ({ page }) => 
   await expect(strokes).toHaveCount(0);
   await page.locator('.toast', { hasText: 'Drawings cleared' }).getByRole('button', { name: 'Undo' }).click();
   await expect(strokes).toHaveCount(2);
+});
+
+test('Escape mid-drag cancels a shape and a free arrow', async ({ page }) => {
+  await blank(page);
+  const cards = await page.locator('.card').count();
+  await page.getByRole('button', { name: 'Add menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
+  await page.mouse.move(400, 300);
+  await page.mouse.down();
+  await page.mouse.move(470, 360, { steps: 6 });
+  await page.mouse.move(520, 400, { steps: 6 });
+  await page.keyboard.press('Escape');
+  await page.mouse.move(540, 420, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.card')).toHaveCount(cards);
+
+  await page.keyboard.press('a');
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-arrow/);
+  await page.mouse.move(400, 300);
+  await page.mouse.down();
+  await page.mouse.move(470, 300, { steps: 6 });
+  await page.mouse.move(560, 300, { steps: 6 });
+  await page.keyboard.press('Escape');
+  await page.mouse.move(600, 300, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.arrow-g')).toHaveCount(0);
+});
+
+async function addNote(page, text, x, y) {
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
+  await page.locator('.canvas-wrap').click({ position: { x, y } });
+  await page.locator('.note-body[contenteditable="true"]').last().click();
+  await page.keyboard.type(text);
+  await page.locator('.canvas-wrap').click({ position: { x: 60, y: 640 } });
+  const card = page.locator('.card', { hasText: text }).first();
+  await expect(card).toBeVisible();
+  return card;
+}
+
+test('a resize the OS cancels mid-gesture reverts instead of following the next touch', async ({ page }) => {
+  await blank(page);
+  const card = await addNote(page, 'cancel-me', 420, 320);
+  await card.click({ position: { x: 8, y: 8 } });
+  const before = await card.boundingBox();
+  const hb = await card.locator('.card-resize').boundingBox();
+  const x = hb.x + hb.width / 2, y = hb.y + hb.height / 2;
+  // A real pointer starts the resize (the handle takes pointer capture, which
+  // needs a live pointer)…
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y + 60, { steps: 6 });
+  await expect.poll(async () => (await card.boundingBox()).width).toBeGreaterThan(before.width + 40);
+  // …then the OS cancels it, and a different pointer moves and lifts.
+  await page.evaluate(({ x, y }) => {
+    const ev = (t, cx, cy, extra) => new PointerEvent(t, {
+      bubbles: true, cancelable: true, composed: true, isPrimary: true, button: 0,
+      clientX: cx, clientY: cy, ...extra,
+    });
+    window.dispatchEvent(ev('pointercancel', x + 80, y + 60, { pointerId: 1, buttons: 0 }));
+    window.dispatchEvent(ev('pointermove', x + 200, y + 160, { pointerId: 10, pointerType: 'touch', buttons: 1 }));
+    window.dispatchEvent(ev('pointerup', x + 200, y + 160, { pointerId: 10, pointerType: 'touch', buttons: 0 }));
+  }, { x, y });
+  await page.waitForTimeout(300);
+  const after = await card.boundingBox();
+  expect(Math.abs(after.width - before.width)).toBeLessThan(2);
+  expect(Math.abs(after.height - before.height)).toBeLessThan(2);
+  await page.mouse.up();
+});
+
+test('slowly dragging an arrow end onto a card attaches it', async ({ page }) => {
+  await blank(page);
+  const card = await addNote(page, 'target', 620, 300);
+  const cb = await card.boundingBox();
+  // A free arrow ending well left of the card.
+  await page.keyboard.press('a');
+  await drag(page, 360, cb.y + cb.height / 2, 480, cb.y + cb.height / 2);
+  await expect(page.locator('.arrow-g')).toHaveCount(1);
+  await page.locator('.arrow-g > path').first()
+    .dispatchEvent('pointerdown', { button: 0, pointerId: 1, clientX: 420, clientY: cb.y + cb.height / 2 });
+  await page.mouse.up();
+  // Grab the `to` handle (second endpoint circle) and creep onto the card in
+  // 2px steps, so every move lands on the handle's previous position.
+  const handles = page.locator('.arrows-layer circle[r]').filter({ hasNot: page.locator('title') });
+  await expect.poll(() => handles.count()).toBeGreaterThanOrEqual(2);
+  const toPos = { x: 480, y: cb.y + cb.height / 2 };
+  await page.mouse.move(toPos.x, toPos.y);
+  await page.mouse.down();
+  const targetX = cb.x + 30;
+  for (let x = toPos.x; x <= targetX; x += 2) await page.mouse.move(x, toPos.y);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  // Attached: the arrow now ends at the card's edge, not at the cursor
+  // 30px inside it.
+  const end = await page.evaluate(() => {
+    const p = document.querySelector('.arrow-g path[data-arrow-line]');
+    const len = p.getTotalLength();
+    const pt = p.getPointAtLength(len);
+    const m = p.getScreenCTM();
+    return { x: pt.x * m.a + m.e, y: pt.y * m.d + m.f };
+  });
+  expect(end.x).toBeLessThan(targetX - 10);
 });
 
 async function zoomIntoCentre(page, notches = 12) {

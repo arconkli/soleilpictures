@@ -6633,6 +6633,31 @@ export function CanvasSurface({
     window.addEventListener('pointercancel', onCancel);
   };
 
+  // Window listeners for one pointer gesture that commits on release (resize,
+  // group resize, rotate, arrow drags). Moves and ups from other pointers are
+  // ignored, and pointercancel — what iOS sends instead of pointerup on a palm
+  // reject or a system edge-swipe — aborts like Escape does: these gestures
+  // used to listen for pointerup only, so after a cancel the card kept
+  // following unrelated touches and the next tap committed a size or angle.
+  // Registers the abort in pointerOpAbortRef for the Escape ladder.
+  const trackPointerGesture = ({ pointerId, onMove, onUp, onAbort }) => {
+    const mine = (ev) => pointerId == null || ev.pointerId == null || ev.pointerId === pointerId;
+    const move = (ev) => { if (mine(ev)) onMove(ev); };
+    const teardown = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      if (pointerOpAbortRef.current === abort) pointerOpAbortRef.current = null;
+    };
+    const up = (ev) => { if (!mine(ev)) return; teardown(); onUp(ev); };
+    const abort = () => { teardown(); onAbort?.(); };
+    const cancel = (ev) => { if (mine(ev)) abort(); };
+    pointerOpAbortRef.current = abort;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+  };
+
   const onResizePointerDown = (e, c) => {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -6744,9 +6769,6 @@ export function CanvasSurface({
       setSnapHints(hints);
     };
     const onUp = (ev) => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      pointerOpAbortRef.current = null;
       const rawDwRaw = (ev.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
       const rawDhRaw = (ev.clientY - startClient.y) / zoomRef.current;
       const bypass = ev.metaKey || ev.ctrlKey;
@@ -6777,17 +6799,16 @@ export function CanvasSurface({
       setResize(null);
       clearSnapGuidesNow();
     };
-    // Escape-abort: revert to the committed size (setResize(null)).
-    pointerOpAbortRef.current = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      noteMeasurer?.destroy();
-      noteMeasurer = null;
-      clearSnapGuidesNow();
-      setResize(null);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    // Escape / pointercancel: revert to the committed size (setResize(null)).
+    trackPointerGesture({
+      pointerId: e.pointerId, onMove, onUp,
+      onAbort: () => {
+        noteMeasurer?.destroy();
+        noteMeasurer = null;
+        clearSnapGuidesNow();
+        setResize(null);
+      },
+    });
   };
 
   // Multi-selection / group resize. Activated by handles on the
@@ -6873,9 +6894,6 @@ export function CanvasSurface({
       setMultiResize(prev => prev ? { ...prev, live } : prev);
     };
     const onUp = (ev) => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      pointerOpAbortRef.current = null;
       const live = computeUpdates(ev);
       const updates = [];
       for (const [id, lv] of live) {
@@ -6892,14 +6910,11 @@ export function CanvasSurface({
       if (updates.length) mutators.updateCards?.(updates);
       setMultiResize(null);
     };
-    // Escape-abort: revert to committed bounds (setMultiResize(null)).
-    pointerOpAbortRef.current = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      setMultiResize(null);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    // Escape / pointercancel: revert to committed bounds (setMultiResize(null)).
+    trackPointerGesture({
+      pointerId: e.pointerId, onMove, onUp,
+      onAbort: () => setMultiResize(null),
+    });
   };
 
   const onRotatePointerDown = (e, c) => {
@@ -6924,21 +6939,15 @@ export function CanvasSurface({
     setRotateState({ id: c.id, rot: startRot });
     const onMove = (ev) => setRotateState({ id: c.id, rot: compute(ev) });
     const onUp = (ev) => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      pointerOpAbortRef.current = null;
       const rot = compute(ev);
       mutators.updateCard?.(c.id, { rotation: Math.round(rot) || null });
       setRotateState(null);
     };
-    // Escape-abort: revert to the committed rotation (setRotateState(null)).
-    pointerOpAbortRef.current = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      setRotateState(null);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    // Escape / pointercancel: revert to the committed rotation.
+    trackPointerGesture({
+      pointerId: e.pointerId, onMove, onUp,
+      onAbort: () => setRotateState(null),
+    });
   };
 
   // ── Stroke / arrow click (select tool selects) ───────────────────────────
@@ -7034,12 +7043,11 @@ export function CanvasSurface({
         to:   { x: Math.round(startTo.x + dx),   y: Math.round(startTo.y + dy) },
       });
     };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    // Escape / pointercancel put the arrow back where it was.
+    trackPointerGesture({
+      pointerId: e.pointerId, onMove, onUp: () => {},
+      onAbort: () => { if (dragged) mutators.updateArrow?.(idx, { from: startFrom, to: startTo }); },
+    });
   };
 
   // Right-click on an arrow → small menu with edit-label + toggle
@@ -8060,7 +8068,11 @@ export function CanvasSurface({
       let moved = false;
       let lastTo = startC;
       const startClient = { x: e.clientX, y: e.clientY };
-      trackStroke({
+      // Escape aborts through pointerOpAbortRef. The Escape ladder's own
+      // setActiveFreeArrow(null) only blinked the preview off: the next move
+      // put it back and the arrow was still created on release.
+      const abortArrow = () => { dispose(); setActiveFreeArrow(null); };
+      const dispose = trackStroke({
         pointerId: e.pointerId,
         onSample: (ev) => {
           if (!moved && Math.abs(ev.clientX - startClient.x) < 4 && Math.abs(ev.clientY - startClient.y) < 4) return;
@@ -8069,6 +8081,7 @@ export function CanvasSurface({
           setActiveFreeArrow({ from: startC, to: lastTo });
         },
         onEnd: (ev, { canceled }) => {
+          if (pointerOpAbortRef.current === abortArrow) pointerOpAbortRef.current = null;
           if (moved && !canceled) {
             const end = ev ? clientToCanvas(ev.clientX, ev.clientY) : lastTo;
             mutators.addFreeArrow?.({ x: startC.x, y: startC.y }, { x: end.x, y: end.y }, arrowOptions);
@@ -8077,6 +8090,7 @@ export function CanvasSurface({
           setActiveFreeArrow(null);
         },
       });
+      pointerOpAbortRef.current = abortArrow;
       return;
     }
 
@@ -8179,7 +8193,18 @@ export function CanvasSurface({
         setActiveShape(null);
         setSelectedTool('select');
       };
-      trackStroke({ pointerId: e.pointerId, onSample, onEnd });
+      // Escape drops the shape in progress, like every other drag gesture.
+      // Without this it only flipped the tool to Select and the shape was
+      // still committed on release.
+      const dispose = trackStroke({
+        pointerId: e.pointerId, onSample,
+        onEnd: (ev, info) => {
+          if (pointerOpAbortRef.current === abortShape) pointerOpAbortRef.current = null;
+          onEnd(ev, info);
+        },
+      });
+      const abortShape = () => { dispose(); setActiveShape(null); };
+      pointerOpAbortRef.current = abortShape;
       return;
     }
 
@@ -11515,20 +11540,25 @@ export function CanvasSurface({
                 const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2;
                 const round = (n) => Math.round(n * 1e4) / 1e4;
                 setBendDragging(true);
+                const startBend = { bend: a.bend ?? null, straight: !!a.straight };
+                let bent = false;
                 const onMove = (mv) => {
                   const P = clientToCanvas(mv.clientX, mv.clientY);
                   const rx = P.x - mx, ry = P.y - my;
                   const u = Math.max(-0.4, Math.min(0.4, (rx * ux + ry * uy) / blen));
                   const v = (rx * px + ry * py) / blen;
+                  bent = true;
                   mutators.updateArrow?.(i, { bend: { u: round(u), v: round(v) }, straight: false });
                 };
-                const onUp = () => {
-                  setBendDragging(false);
-                  window.removeEventListener('pointermove', onMove);
-                  window.removeEventListener('pointerup', onUp);
-                };
-                window.addEventListener('pointermove', onMove);
-                window.addEventListener('pointerup', onUp);
+                // Escape / pointercancel restore the curve it had.
+                trackPointerGesture({
+                  pointerId: ev.pointerId, onMove,
+                  onUp: () => setBendDragging(false),
+                  onAbort: () => {
+                    setBendDragging(false);
+                    if (bent) mutators.updateArrow?.(i, startBend);
+                  },
+                });
               };
               // Right-click the dot → toggle arc ↔ straight line.
               const onBendContext = (ev) => {
@@ -11703,13 +11733,30 @@ export function CanvasSurface({
                 }
                 lastEndpointClickRef.current = { time: now, idx, which };
                 const snapTargets = collectSnapTargets();
+                const startEnd = a[which];
+                let moved = false;
+                // The card under the pointer, looking THROUGH the arrow and
+                // stroke layers. Those sit above the cards, and this endpoint's
+                // own handle (and the arrow's fat hit path) was re-placed at the
+                // previous pointer position each move — so on a slow drag
+                // elementFromPoint found the handle, not the card, and the
+                // endpoint never attached.
+                const cardIdAt = (x, y) => {
+                  for (const el of document.elementsFromPoint(x, y)) {
+                    if (el.closest?.('.arrows-layer, .strokes-layer')) continue;
+                    const cardEl = el.closest?.('[data-card-id]');
+                    return cardEl?.getAttribute?.('data-card-id') || null;
+                  }
+                  return null;
+                };
+                let lastCardId = null;
                 const onMove = (mv) => {
+                  moved = true;
                   const canvas = clientToCanvas(mv.clientX, mv.clientY);
                   // 1) Card snap: pointer hovering a card → anchor the
                   //    endpoint to that card (the existing behavior).
-                  const overEl = document.elementFromPoint(mv.clientX, mv.clientY);
-                  const cardEl = overEl?.closest?.('[data-card-id]');
-                  const cardId = cardEl?.getAttribute?.('data-card-id');
+                  const cardId = cardIdAt(mv.clientX, mv.clientY);
+                  lastCardId = cardId;
                   if (cardId) {
                     mutators.updateArrow?.(idx, which === 'from' ? { from: cardId } : { to: cardId });
                     return;
@@ -11729,12 +11776,22 @@ export function CanvasSurface({
                     : { x: Math.round(canvas.x), y: Math.round(canvas.y) };
                   mutators.updateArrow?.(idx, which === 'from' ? { from: next } : { to: next });
                 };
-                const onUp = () => {
-                  window.removeEventListener('pointermove', onMove);
-                  window.removeEventListener('pointerup', onUp);
-                };
-                window.addEventListener('pointermove', onMove);
-                window.addEventListener('pointerup', onUp);
+                trackPointerGesture({
+                  pointerId: ev.pointerId, onMove,
+                  // Release over a card attaches even if no move event
+                  // landed there after the last one that hit the handle.
+                  onUp: (up) => {
+                    if (!moved) return;
+                    const cardId = cardIdAt(up.clientX, up.clientY);
+                    if (cardId && cardId !== lastCardId) {
+                      mutators.updateArrow?.(idx, which === 'from' ? { from: cardId } : { to: cardId });
+                    }
+                  },
+                  // Escape / pointercancel: back to where this end was.
+                  onAbort: () => {
+                    if (moved) mutators.updateArrow?.(idx, which === 'from' ? { from: startEnd } : { to: startEnd });
+                  },
+                });
               };
               return (
                 <Fragment>
