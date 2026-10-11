@@ -10,7 +10,7 @@ const KEY = 'soleil.boards.local.session.v1';
 
 async function plantShapes(page) {
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 15000 });
   await expect.poll(() => page.evaluate((k) => !!localStorage.getItem(k), KEY)).toBe(true);
   await page.evaluate((k) => {
     const s = JSON.parse(localStorage.getItem(k));

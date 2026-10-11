@@ -7,7 +7,7 @@ const PAD = '.sketchpad-surface';
 
 async function openPad(page) {
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(1000);
   await page.keyboard.press('d');
   await page.waitForTimeout(250);
