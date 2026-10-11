@@ -189,7 +189,7 @@ import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
 import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from '../lib/fileIngest.js';
 import { saveWebImageCopy } from '../lib/webImageClient.js';
-import { pickHotlinks, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
+import { pickHotlinks, isHotlinkImage, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
 import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
@@ -650,19 +650,26 @@ export function CanvasSurface({
   // Whole-board preview self-heal (writers only): any image card still
   // missing its Tier-1 preview gets variants generated a few seconds after
   // open (see lib/previewBackfill.js). The cleanup cancels the pending sweep
-  // whenever cards change, so it effectively debounces until the board has
-  // been quiet for the scheduler's delay — it never competes with first
-  // paint or an active edit burst.
+  // whenever the board's set of images changes, so it debounces until that
+  // has been quiet for the scheduler's delay — it never competes with first
+  // paint or an image drop.
+  //
+  // Keyed on the image keys as a string, not on `cards`: the parent hands
+  // down a fresh array on every one of its renders (presence, toasts…), and
+  // each one re-armed this timer, so the sweep fired at whatever moment the
+  // app happened to fall quiet.
+  const previewKeysSig = useMemo(() => cards
+    .filter(c => c.kind === 'image' && typeof c.src === 'string' && c.src.startsWith('r2:'))
+    .map(c => c.src.slice(3))
+    .join('\n'), [cards]);
   useEffect(() => {
     if (!canEdit || isPublic || useLocalImages) return undefined;
     // Resume any uploads whose variant generation was interrupted (tab closed
     // mid-batch) — once per session, independent of which board this is.
     drainVariantQueue();
-    const keys = cards
-      .filter(c => c.kind === 'image' && typeof c.src === 'string' && c.src.startsWith('r2:'))
-      .map(c => c.src.slice(3));
+    const keys = previewKeysSig ? previewKeysSig.split('\n') : [];
     return scheduleBoardPreviewBackfill({ boardId: board.id, keys });
-  }, [board.id, cards, canEdit, isPublic, useLocalImages]);
+  }, [board.id, previewKeysSig, canEdit, isPublic, useLocalImages]);
 
   // Field jank telemetry context (lib/perfReport.js — always on, unlike the
   // perf.js HUD). Board identity + content scale, refreshed when they change;
@@ -3623,14 +3630,19 @@ export function CanvasSurface({
   // map carried across would skip the next open's look on a card seen minutes
   // ago on the last visit.
   const sweepCheckedRef = useRef({ boardId: null, at: new Map() });   // card id → when last looked up
+  // Re-armed when the set of pending cards changes, not on every new `cards`
+  // array from the parent (which reset this 4 s timer on any App render).
+  const pendingUploadsSig = useMemo(
+    () => everyCard.filter((c) => c.pending === true).map((c) => c.id).join(','), [everyCard]);
   useEffect(() => {
     if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
+    if (!pendingUploadsSig) return undefined;
     const now = Date.now();
     if (sweepCheckedRef.current.boardId !== board.id) sweepCheckedRef.current = { boardId: board.id, at: new Map() };
     const checked = sweepCheckedRef.current.at;
     // Every card — an upload waiting in Files (not on the board) is swept and
     // recovered the same as one on it.
-    const stale = everyCard.filter((c) => isAbandonedUpload((k) => c[k], now)
+    const stale = (allCardsRef.current || []).filter((c) => isAbandonedUpload((k) => c[k], now)
       && !localImagePreviewRef.current?.[c.id] && !inflightUploadsRef.current.has(c.id)
       && !(now - (checked.get(c.id) || 0) < SWEEP_RECHECK_MS));
     if (!stale.length) return undefined;
@@ -3681,7 +3693,7 @@ export function CanvasSurface({
       }
     }, 4000);
     return () => clearTimeout(t);
-  }, [board?.id, everyCard, canEdit, isPublic, useLocalImages, boardSynced]);
+  }, [board?.id, pendingUploadsSig, canEdit, isPublic, useLocalImages, boardSynced]);
 
   // Late upload results (lib/abandonedUploads.js): an upload that finished,
   // failed or was cancelled while its card was out of reach — another cluster
@@ -3706,12 +3718,16 @@ export function CanvasSurface({
   // settled and the SERVER's snapshot is in — the sweep's gate, above. Silent:
   // a card that cannot be copied stays the link it was.
   const hotlinkPassRef = useRef({ boardId: null, n: 0, attempted: new Set() });
+  // Keyed on the web-image cards themselves, not on `cards` (a fresh array
+  // from the parent on every App render re-armed the 8 s timer each time).
+  const hotlinkSig = useMemo(
+    () => cards.filter(isHotlinkImage).map((c) => `${c.id}|${c.src}`).join('\n'), [cards]);
   useEffect(() => {
     if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
     if (hotlinkPassRef.current.boardId !== board.id) hotlinkPassRef.current = { boardId: board.id, n: 0, attempted: new Set() };
     const pass = hotlinkPassRef.current;
     const store = (() => { try { return window.localStorage; } catch (_) { return null; } })();
-    const picks = pickHotlinks(cards, {
+    const picks = pickHotlinks(cardsRef.current, {
       attempted: pass.attempted, tried: loadTried(store), limit: HOTLINK_PER_OPEN - pass.n,
     });
     if (!picks.length) return undefined;
@@ -3749,7 +3765,7 @@ export function CanvasSurface({
       }
     }, 8000);
     return () => clearTimeout(t);
-  }, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);
+  }, [board?.id, hotlinkSig, canEdit, isPublic, useLocalImages, boardSynced]);
 
   // Drop a PDF: add a pending card immediately, then upload + render the
   // page-1 thumbnail in the background (same optimistic pattern as images).
