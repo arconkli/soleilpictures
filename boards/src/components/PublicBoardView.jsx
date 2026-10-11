@@ -870,7 +870,7 @@ export function PublicBoardView({ token, slug }) {
         }}>
           {relatedBoards.length > 0 && (
             <>
-              <span className="t-meta" style={{ color: 'var(--text-soft, #b7b1a6)', fontWeight: 600 }}>Related:</span>
+              <span className="t-meta" style={{ color: 'var(--ink-2)', fontWeight: 600 }}>Related:</span>
               {relatedBoards.slice(0, 4).map((r) => (
                 <a key={r.slug} href={`/c/${r.slug}`} style={{
                   color: '#FFA500', textDecoration: 'none', fontSize: '.85rem',
@@ -884,7 +884,7 @@ export function PublicBoardView({ token, slug }) {
             color: '#FFA500', textDecoration: 'none', fontSize: '.85rem', fontWeight: 600, whiteSpace: 'nowrap',
           }}>Make your own — free</a>
           <a href="/use-cases" style={{
-            color: 'var(--text-soft, #b7b1a6)', textDecoration: 'none', fontSize: '.85rem', whiteSpace: 'nowrap',
+            color: 'var(--ink-2)', textDecoration: 'none', fontSize: '.85rem', whiteSpace: 'nowrap',
           }}>What you can make</a>
         </nav>
       )}
