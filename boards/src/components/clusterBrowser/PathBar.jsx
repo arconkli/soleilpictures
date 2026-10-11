@@ -23,8 +23,19 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
   // Somewhere else now (Back, a step, Go to cluster): the old list is stale.
   useEffect(() => { setOpen(false); }, [last]);
   // Opened, focus goes into the list, so ↑ ↓ and Enter work straight away.
+  // Without preventScroll, focusing an item scrolled the whole Files list to
+  // it — the list jumped, and remembered the jump as where you'd been.
+  // Only the menu itself scrolls to keep the focused item in view.
+  const focusItem = (el) => {
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    const m = menuRef.current;
+    if (!m) return;
+    if (el.offsetTop < m.scrollTop) m.scrollTop = el.offsetTop;
+    else if (el.offsetTop + el.offsetHeight > m.scrollTop + m.clientHeight) m.scrollTop = el.offsetTop + el.offsetHeight - m.clientHeight;
+  };
   useEffect(() => {
-    if (open) menuRef.current?.querySelector('[role="menuitem"]')?.focus();
+    if (open) focusItem(menuRef.current?.querySelector('[role="menuitem"]'));
   }, [open]);
   const onMenuKey = (e) => {
     const items = [...(menuRef.current?.querySelectorAll('[role="menuitem"]') || [])];
@@ -32,9 +43,9 @@ export function PathBar({ path = [], boards = {}, onNavigate, onBack, canBack = 
     const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
     if (to !== undefined && items.length) {
       e.preventDefault();
-      items[(to + items.length) % items.length].focus();
+      focusItem(items[(to + items.length) % items.length]);
     } else if (e.key === 'Escape') {
-      triggerRef.current?.focus();
+      triggerRef.current?.focus({ preventScroll: true });
       setOpen(false);
     } else if (e.key === 'Tab') {
       setOpen(false);

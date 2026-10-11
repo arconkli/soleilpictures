@@ -193,7 +193,11 @@ export function ListSurface({
     userInput.forEach((t) => el.addEventListener(t, settle, { passive: true }));
     const ro = typeof ResizeObserver !== 'undefined' && listInnerRef.current ? new ResizeObserver(apply) : null;
     if (ro) ro.observe(listInnerRef.current);
-    const raf = requestAnimationFrame(apply);
+    // And every frame while pending: the grid can finish laying out without
+    // .list-inner itself resizing in a way the observer reports.
+    let raf = 0;
+    const tick = () => { apply(); if (pending) raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
     const give = setTimeout(settle, 4000);   // a list that never gets tall enough
     return () => {
       cancelAnimationFrame(raf);

@@ -190,8 +190,10 @@ test('Back returns Files to where it was scrolled; a folder opens at its top', a
   const p = panel(page);
   await p.evaluate((el) => { el.scrollTop = 260; });
   await expect.poll(() => p.evaluate((el) => el.scrollTop)).toBeGreaterThan(200);
+  // Let the panel finish laying out (its folder rows reflow once their width
+  // is known) before reading where it rests — that's the place it remembers.
+  await page.waitForTimeout(400);
   const at = await p.evaluate((el) => el.scrollTop);
-  await page.waitForTimeout(100);
   // Step into a folder from the title row's ▾ (the folder rows are scrolled away).
   await p.locator('.pb-step.is-here button.pb-here').click();
   await page.locator('.pb-menu .pb-menu-item').first().click();
