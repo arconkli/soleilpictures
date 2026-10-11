@@ -95,6 +95,30 @@ test('one ctrl+wheel notch steps the zoom by about x0.78, not to the floor', asy
   expect(c.zoom).toBeCloseTo(a.zoom, 2);
 });
 
+// CANVAS-A-05: a wheel pan moves the camera without a mousemove, so copied
+// cards pasted at the last mousemove's canvas point landed out of view.
+test('copied cards paste under the cursor after a wheel pan, not where it last moved', async ({ page }) => {
+  await goBlank(page);
+  await createNote(page, 'copy-src');
+  await page.locator('.card', { hasText: 'copy-src' }).first().click({ position: { x: 6, y: 6 } });
+  await page.keyboard.press('ControlOrMeta+c');
+  // Park the cursor mid-canvas, then pan far with the wheel only.
+  await page.mouse.move(640, 420);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(400);
+  // The OS clipboard is empty here, so this exercises the internal fallback.
+  await page.evaluate(() => {
+    const ev = new ClipboardEvent('paste', { clipboardData: new DataTransfer(), bubbles: true, cancelable: true });
+    window.dispatchEvent(ev);
+  });
+  // Off-screen cards are culled from the DOM, so look for the copy by where it
+  // is: its top-left under the cursor.
+  await expect.poll(() => page.locator('.card', { hasText: 'copy-src' }).evaluateAll((els) => els.some((el) => {
+    const r = el.getBoundingClientRect();
+    return Math.abs(r.x - 640) < 40 && Math.abs(r.y - 420) < 40;
+  }))).toBe(true);
+});
+
 // CARDS-01: the PDF viewer renders inside .canvas-wrap, whose native wheel
 // listener preventDefaulted every wheel over its pages and panned the board.
 test('a wheel over the PDF viewer scrolls its pages, not the board', async ({ page }) => {

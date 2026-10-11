@@ -29,6 +29,16 @@ test('ctrl+wheel belongs to the custom wheel handler, not use-gesture', () => {
   assert.match(canvas, /pinch: \{ scaleBounds: \{[^}]*\}, rubberband: true, pinchOnWheel: false \}/);
 });
 
+// CANVAS-A-05: internal card paste used the last mousemove's canvas point,
+// which a wheel pan or a cluster switch leaves out of view.
+test('copied cards paste at a live, in-view position', () => {
+  const resolve = between('const resolvePastePos = () => {', 'const notePasteCreate');
+  assert.match(resolve, /const raw = client \? clientToCanvas\(client\.x, client\.y\) : lastMouseCanvasRef\.current;/);
+  const paste = between('const onPaste = async (e) => {', "window.addEventListener('paste', onPaste);");
+  assert.doesNotMatch(paste, /doPaste\(\);/, 'no bare doPaste() left in the paste handler');
+  assert.equal((paste.match(/pasteCopiedCards\(\);/g) || []).length, 2, 'sentinel and fallback branches');
+});
+
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {

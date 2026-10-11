@@ -1580,6 +1580,10 @@ export function CanvasSurface({
   const mobileShell = isPhone || (isTablet && isTouch);
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
+  // The same pointer in SCREEN space. A wheel or trackpad pan moves the camera
+  // without a mousemove, so the canvas point above goes stale while the cursor
+  // sits still; converting this at paste time lands under the cursor.
+  const lastMouseClientRef = useRef(null);
   const feedback = useFeedback();
   // The wheel effect binds once with [] deps on purpose (re-binding it fired
   // the cleanup mid-pan and nulled the peer cursor — see that effect), so it
@@ -1836,7 +1840,8 @@ export function CanvasSurface({
   // stale-paste dead-end). Clamp to the visible viewport center in that case and
   // report that we recovered.
   const resolvePastePos = () => {
-    const raw = lastMouseCanvasRef.current;
+    const client = lastMouseClientRef.current;
+    const raw = client ? clientToCanvas(client.x, client.y) : lastMouseCanvasRef.current;
     const wrap = wrapRef.current;
     if (!wrap) return { pos: raw, clamped: false };
     const rect = wrap.getBoundingClientRect();
@@ -4287,6 +4292,7 @@ export function CanvasSurface({
       if (e.clientX < rect.left || e.clientX > rect.right ||
           e.clientY < rect.top || e.clientY > rect.bottom) return;
       lastMouseCanvasRef.current = clientToCanvas(e.clientX, e.clientY);
+      lastMouseClientRef.current = { x: e.clientX, y: e.clientY };
     };
     window.addEventListener('mousemove', onMove);
     return () => window.removeEventListener('mousemove', onMove);
@@ -5076,10 +5082,23 @@ export function CanvasSurface({
 
       const text = e.clipboardData?.getData('text/plain') || '';
 
+      // Copied cards land where the text/URL/file paths do: under the cursor
+      // as the camera is NOW, or in view when that is off-screen. A bare
+      // doPaste() used the canvas point of the last mousemove, which a wheel
+      // pan or a cluster switch leaves pointing out of view.
+      const pasteCopiedCards = () => {
+        const { pos, clamped } = resolvePastePos();
+        if (clamped) {
+          noteCreateBlocked('stale_paste', 'paste');
+          feedback.toast({ type: 'info', message: 'Pasted into view.', ttl: 2500 });
+        }
+        doPaste(pos);
+      };
+
       // 2) Our sentinel → internal paste.
       if (matchesSentinel(text) && getClipboard().length > 0) {
         e.preventDefault();
-        doPaste();
+        pasteCopiedCards();
         return;
       }
       // 3) Stale/foreign sentinel → swallow so we don't make a junk note.
@@ -5112,7 +5131,7 @@ export function CanvasSurface({
       //    sentinel was silently blocked).
       if (hasRecentInternalCopy()) {
         e.preventDefault();
-        doPaste();
+        pasteCopiedCards();
       }
     };
     window.addEventListener('paste', onPaste);
