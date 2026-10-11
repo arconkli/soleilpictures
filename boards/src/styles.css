@@ -15220,16 +15220,21 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   position: absolute;
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--soleil);
+  /* Neutral at rest — a margin of resting gold dots spends the colour that
+     marks focus. Gold arrives on hover / keyboard focus. */
+  background: var(--ink-2);
   border: 0;
   padding: 0;
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.comment-gutter-dot:hover {
+.comment-gutter-dot:hover,
+.comment-gutter-dot:focus-visible {
+  background: var(--soleil);
   transform: scale(1.3);
   box-shadow: 0 0 0 4px var(--soleil-soft);
 }
+.comment-gutter-dot:focus-visible { outline: none; }
 
 .comment-inline-pop {
   position: fixed;

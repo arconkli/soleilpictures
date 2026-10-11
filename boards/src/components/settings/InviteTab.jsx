@@ -14,7 +14,7 @@ function ReferralStat({ label, value, highlight }) {
   return (
     <div>
       <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1,
-                    color: highlight ? 'var(--soleil, #ffa500)' : 'var(--text-1, inherit)',
+                    color: highlight ? 'var(--ink-0)' : 'var(--text-1, inherit)',
                     fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div className="settings-billing-label" style={{ marginTop: 2 }}>{label}</div>
     </div>

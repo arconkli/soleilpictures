@@ -52,7 +52,7 @@ test('dark media chips keep light ink in light theme', async ({ page }) => {
 const GOLD = 'rgb(255, 165, 0)';
 
 // Gold (--soleil) is reserved for active / selection / focus. These resting
-// elements wore it anyway (VIS-09, MOBILE-16).
+// elements wore it anyway (VIS-09, MOBILE-16, SHARE-17).
 test('resting icons and labels are not gold', async ({ page }) => {
   await boot(page, 'dark');
   const resting = [
@@ -66,6 +66,8 @@ test('resting icons and labels are not gold', async ({ page }) => {
     ['<span class="tag-detail-block-attr is-auto">auto</span>', '.is-auto', 'color'],
     ['<span class="picker-dot list"></span>', '.picker-dot', 'backgroundColor'],
     ['<button class="tag-disambig-yes">Yes</button>', '.tag-disambig-yes', 'color'],
+    // SHARE-17: the doc margin's comment dots.
+    ['<div class="comment-gutter"><button class="comment-gutter-dot"></button></div>', '.comment-gutter-dot', 'backgroundColor'],
   ];
   for (const [html, sel, prop] of resting) {
     expect(await computed(page, html, sel, prop), `${sel} ${prop} at rest`).not.toBe(GOLD);
