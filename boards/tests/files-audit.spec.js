@@ -122,6 +122,23 @@ test('FILES-LIST-03: a search that matches nothing does not wipe the Tempo sort'
   await expect(tempo).not.toHaveAttribute('aria-sort', 'none');
 });
 
+test('FILES-LIST-04: a file deleted on the board leaves the Files selection', async ({ page }) => {
+  await go(page);
+  await openPanel(page);
+  // Clicking a file beside the board flies the board to it and selects it there.
+  const tile = panel(page).locator('.ct-tile:not(.is-unplaced)').first();
+  await tile.click();
+  const bar = panel(page).locator('.list-selbar');
+  await expect(bar.locator('.list-selbar-count')).toHaveText('1 selected');
+  const before = await panel(page).locator('.ct-tile').count();
+  // The pointer over the canvas hands it the keyboard: Delete removes it there.
+  const wrap = await page.locator('.canvas-wrap').boundingBox();
+  await page.mouse.move(wrap.x + 40, wrap.y + wrap.height / 2);
+  await page.keyboard.press('Delete');
+  await expect(panel(page).locator('.ct-tile')).toHaveCount(before - 1);
+  await expect(bar).toHaveCount(0);
+});
+
 test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
   await go(page, { width: 390, height: 844 });
   await openFull(page);
