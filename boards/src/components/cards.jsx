@@ -1536,7 +1536,11 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   };
   const onCellDragStart = (i, e) => {
     e.stopPropagation();
-    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); } catch (_) {}
+    // A private type, not text/plain: the canvas accepts text/plain drops, so
+    // a reorder released just past the last swatch made a note reading "2"
+    // (and lit the whole canvas up as a drop target while dragging). Some
+    // payload is still required for Firefox to start the drag at all.
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('application/x-soleil-swatch', String(i)); } catch (_) {}
     setDragIdx(i);
   };
   const onCellDragOver = (i, e) => {
