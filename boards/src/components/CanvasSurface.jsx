@@ -38,6 +38,7 @@ import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard as ScheduleTableCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
+  shallowEqualIgnoreFns,
 } from './cards.jsx';
 import { ScheduleCard } from './cards/ScheduleCard.jsx';
 import { RichDocCard } from './DocCard.jsx';
@@ -369,6 +370,14 @@ const STROKE_HIT_PADDING = 12; // invisible hit region added around each stroke
 // Largest selection whose off-screen cards the viewport cull still keeps
 // mounted (see the cards-layer filter).
 const SELECTED_MOUNT_CAP = 50;
+// The new-model schedule card and the rich doc card live outside cards.jsx and
+// weren't memoized, so every visible one re-rendered on every canvas render —
+// every drag/resize/marquee frame — and the doc card re-walked its text each
+// time. Both self-observe their own Y content, so the cards.jsx comparator
+// (ignore function identity) is safe for them too.
+const MemoScheduleCard = memo(ScheduleCard, shallowEqualIgnoreFns);
+const MemoRichDocCard = memo(RichDocCard, shallowEqualIgnoreFns);
+const EMPTY_UPLOADS = Object.freeze({});
 
 // Stroke path building, eraser splitting and the point/polyline distance math
 // all live in lib/strokeModel.js + lib/strokeRender.js now — the board layer,
@@ -9087,6 +9096,27 @@ export function CanvasSurface({
   // `${gridId}:${cellId}` → fraction 0..1. Drives the in-cell spinner overlay so
   // the user sees that an upload is happening (mirrors the canvas ImageCard pattern).
   const [cellUploads, setCellUploads] = useState({});
+  // One container card's slice of cellUploads ({ cellId: frac }), identity-
+  // stable until cellUploads itself changes — and the shared EMPTY_UPLOADS
+  // when it has none. Building a fresh {} per render busted MemoGridCard's
+  // comparator, so every grid re-read its whole model on every drag frame.
+  const uploadSlicesRef = useRef({ src: null, byId: new Map() });
+  const cellUploadsFor = (cardId) => {
+    const cache = uploadSlicesRef.current;
+    if (cache.src !== cellUploads) { cache.src = cellUploads; cache.byId = new Map(); }
+    let slice = cache.byId.get(cardId);
+    if (!slice) {
+      const prefix = `${cardId}:`;
+      for (const k in cellUploads) {
+        if (!k.startsWith(prefix)) continue;
+        if (!slice) slice = {};
+        slice[k.slice(prefix.length)] = cellUploads[k];
+      }
+      slice = slice || EMPTY_UPLOADS;
+      cache.byId.set(cardId, slice);
+    }
+    return slice;
+  };
   // A grid text cell currently being edited → surfaces the note formatting toolbar
   // (font / size / style) scoped to that cell's editor. { gridId, cellId } | null.
   const [editingCell, setEditingCell] = useState(null);
@@ -9505,7 +9535,7 @@ export function CanvasSurface({
       // docPages/etc. initialized — fall back to a stub render.
       const isRich = !!cardYMap?.get('docPages');
       inner = isRich ? (
-        <RichDocCard card={c} ydoc={ydoc} cardYMap={cardYMap}
+        <MemoRichDocCard card={c} ydoc={ydoc} cardYMap={cardYMap}
                      workspaceId={workspaceId} userId={userId}
                      boards={boards}
                      getAwareness={getAwareness}
@@ -9531,9 +9561,13 @@ export function CanvasSurface({
       // the grid branch below: cardYMap exposes the nested gridCells/gridMeta,
       // and the per-card upload slice keys by the item path.
       const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
-      const schedUploads = {};
-      for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) schedUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
-      inner = <ScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+      const schedUploads = cellUploadsFor(c.id);
+      // settledZoom is unused by the card; it only busts the memo when the
+      // committed zoom changes. The card's level-of-detail tier reads
+      // getCanvasScale() on a settle tick, and not every zoom path emits one
+      // (keyboard ⌘−/⌘= doesn't), so it used to ride this parent re-render.
+      inner = <MemoScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+                            settledZoom={zoom}
                             canEdit={canEdit} onUpdate={onUpdate}
                             focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
                             dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
@@ -9553,8 +9587,7 @@ export function CanvasSurface({
       // in later phases; P1 renders the static cell layout read-only.
       const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
       // Per-cell upload progress slice for this grid: { cellId: frac }.
-      const gridUploads = {};
-      for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) gridUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
+      const gridUploads = cellUploadsFor(c.id);
       inner = <GridCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
                         templates={gridTemplates} seqIndex={gridSeqIndex.get(c.id)} seqFormat={gridSeqFormatFor(c)}
                         isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}

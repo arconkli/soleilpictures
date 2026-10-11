@@ -2159,7 +2159,8 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
 // in the function props does NOT reflect a behavior change — ignoring it
 // lets the memo actually short-circuit. Any non-function prop change
 // still busts the memo (selection flip, drag flag, card data edit, etc.).
-function shallowEqualIgnoreFns(prev, next) {
+// Exported for card components that live outside this file (CanvasSurface).
+export function shallowEqualIgnoreFns(prev, next) {
   if (prev === next) return true;
   const keys = Object.keys(next);
   if (keys.length !== Object.keys(prev).length) return false;
