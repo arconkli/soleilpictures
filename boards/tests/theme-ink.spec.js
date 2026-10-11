@@ -75,3 +75,22 @@ test('resting icons and labels are not gold', async ({ page }) => {
   // The play button still lights up while its card is playing.
   expect(await computed(page, '<button class="ac-play" aria-label="Pause"></button>', '.ac-play', 'backgroundColor')).toBe(GOLD);
 });
+
+// UNREAD-BADGE-NEUTRAL: unread counts share one inverse-ink pill, never gold,
+// and the count reads against its pill in both themes.
+test('unread counts are inverse ink in both themes', async ({ page }) => {
+  for (const theme of ['dark', 'light']) {
+    await boot(page, theme);
+    for (const [html, sel] of [
+      ['<span class="mb-nav-badge">3</span>', '.mb-nav-badge'],
+      ['<span class="sb-row-count has-unread">3</span>', '.sb-row-count'],
+      ['<span class="msg-row-count">3</span>', '.msg-row-count'],
+    ]) {
+      const bg = await computed(page, html, sel, 'backgroundColor');
+      const fg = await computed(page, html, sel, 'color');
+      expect(bg, `${sel} in ${theme}`).not.toBe(GOLD);
+      const [hi, lo] = [lum(bg), lum(fg)].sort((a, b) => b - a);
+      expect((hi + 0.05) / (lo + 0.05), `${sel} contrast in ${theme}`).toBeGreaterThan(7);
+    }
+  }
+});
