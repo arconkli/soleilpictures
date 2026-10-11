@@ -993,13 +993,14 @@ export function ShareModal({
                       {isWsOwner ? 'Owner'
                         : m.role === 'coowner' ? 'Co-owner — runs the workspace'
                         : m.role === 'viewer' ? 'Member — view only'
+                        : m.role === 'service' ? 'Service account'
                         : 'Member — can edit every cluster'}
                       {meta.email && ` · ${meta.email}`}
                     </div>
                   </div>
-                  {isManager && !isSelf && !isWsOwner && (
+                  {isManager && !isSelf && !isWsOwner && m.role !== 'service' && (
                     <div className="share-row-actions">
-                      {isOwner && (
+                      {isOwner && m.role !== 'viewer' && (
                         <button className="share-remove" onClick={() => onMakeOwner(m)}
                                 title="Transfer workspace ownership">
                           Make owner

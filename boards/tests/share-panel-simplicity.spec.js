@@ -120,7 +120,10 @@ test.describe('one list, one scroll region', () => {
     // owner or a co-owner" (isManager); handing the workspace over stays the
     // owner's alone.
     expect(s).toMatch(/isManager && !isSelf && !isWsOwner/);
-    expect(s).toMatch(/\{isOwner && \(\s*<button className="share-remove" onClick=\{\(\) => onMakeOwner\(m\)\}/);
+    // 0397: a viewer or a service account can't be made owner (the server
+    // refuses both), and a service account's row has no actions at all.
+    expect(s).toMatch(/isManager && !isSelf && !isWsOwner && m\.role !== 'service'/);
+    expect(s).toMatch(/\{isOwner && m\.role !== 'viewer' && \(\s*<button className="share-remove" onClick=\{\(\) => onMakeOwner\(m\)\}/);
     expect(s).toMatch(/\(isManager \|\| s\.invited_by === selfUserId\)/);
     expect(s).toMatch(/\(isManager \|\| row\.invited_by === selfUserId\)/);
     expect(s).toMatch(/const isManager = isOwner \|\| myRole === 'coowner';/);
