@@ -1494,9 +1494,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
               createdBy: userId || null,
             });
             // Replace the @text with the resolved text + apply the link mark.
+            // A text NODE, not a string: a string is parsed as HTML, so a title
+            // with '<' or runs of spaces inserts fewer than text.length
+            // characters and the link range covers what follows the mention.
             editor.chain().focus()
               .deleteRange(mention.range)
-              .insertContent(text)
+              .insertContent({ type: 'text', text })
               .setTextSelection({ from: mention.range.from, to: mention.range.from + text.length })
               .setMark('link', { linkId })
               .run();
