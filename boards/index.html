@@ -138,6 +138,21 @@
         // Inject accent + font overrides into a style tag we'll
         // reuse from React so we don't double-up.
         var rules = [];
+        // Ink on an accent fill: white on a dark accent, the stylesheet's dark
+        // ink otherwise, whichever has more contrast. Inline copy of
+        // lib/accentInk.js onSoleilInk (accentInk.test.mjs runs both).
+        // ON-SOLEIL-INK-BEGIN
+        function onSoleilInk(hex) {
+          // Parsed here, not from r/g/b below: their `|| 212` fallback turns a
+          // 00 channel into a bright one.
+          var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex).trim());
+          if (!m) return '#1a1205';
+          function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+          var L = 0.2126 * lin(parseInt(m[1], 16)) + 0.7152 * lin(parseInt(m[2], 16)) + 0.0722 * lin(parseInt(m[3], 16));
+          var Ld = 0.2126 * lin(0x1a) + 0.7152 * lin(0x12) + 0.0722 * lin(0x05);
+          return (1.05 / (L + 0.05)) > ((L + 0.05) / (Ld + 0.05)) ? '#ffffff' : '#1a1205';
+        }
+        // ON-SOLEIL-INK-END
         if (ui.accent) {
           var hex = ui.accent;
           var r = parseInt(hex.slice(1,3), 16) || 212;
@@ -148,6 +163,7 @@
             + " --soleil-soft: rgba(" + r + "," + g + "," + b + ",.14);"
             + " --soleil-glow: 0 0 24px rgba(" + r + "," + g + "," + b + ",.18);"
             + " --accent: " + hex + ";"
+            + " --on-soleil: " + onSoleilInk(hex) + ";"
             + " }");
         }
         if (ui.fontSans) {
