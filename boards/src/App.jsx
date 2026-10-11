@@ -4432,7 +4432,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const addLink = (targetBoard, clickPos = null) => {
     const w = 220, h = 160;
     // Land the link on whichever pane opened the picker — see linkPickerPaneRef.
-    const muts = linkPickerPaneRef.current === 'split' ? splitMutators : mainMutators;
+    const onSplit = linkPickerPaneRef.current === 'split';
+    const muts = onSplit ? splitMutators : mainMutators;
+    // Never a link to the cluster it would sit on, nor to the root. The picker
+    // leaves both out of its own list, but its server-search hits arrive
+    // unfiltered, and a self-link is a dead card that still costs a card.
+    const hostId = onSplit && splitId ? splitId : currentId;
+    if (!targetBoard?.id || targetBoard.id === hostId || targetBoard.id === rootBoard.id) {
+      if (targetBoard?.id) {
+        feedback.toast({
+          type: 'info', ttl: 3000,
+          message: targetBoard.id === hostId ? "You're already in that cluster." : "The workspace's top cluster can't be linked.",
+        });
+      }
+      return;
+    }
     muts._addCardRaw?.({
       id: `xlink-${Date.now()}`,
       kind: 'boardlink',
@@ -9206,7 +9220,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         mode="pick"
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        excludeIds={[currentId]}
+        // The pane that asked (linkPickerPaneRef, set before the open that
+        // renders this): from the split pane, its OWN cluster is the one to
+        // leave out, not the main pane's.
+        excludeIds={[linkPickerPaneRef.current === 'split' && splitId ? splitId : currentId]}
         workspaceId={workspace.id}
         boards={boards}
         rootId={rootBoard.id}
