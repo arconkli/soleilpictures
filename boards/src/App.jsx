@@ -5416,7 +5416,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // openBoard is rebuilt every render; read the live one when the import ends.
   const openBoardRef = useRef(openBoard);
   openBoardRef.current = openBoard;
-  const importFolder = useCallback(async ({
+  const importFolderOnce = useCallback(async ({
     entries = null, pickedFiles = null, at = null, boardId: targetBoardId, mutators: muts,
     canAttemptFiles = false, source = 'drop', boardWasEmpty = false,
   } = {}) => {
@@ -5585,6 +5585,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     return { loose: plan.loose, walked, plan, res };
   }, [workspace?.id, user?.id, currentBoard?.id, feedback, refreshBoards, pitchStorageGate]);
+  // One folder import at a time. There is one progress banner and one Cancel,
+  // and a second import running alongside wrote its counts into the first's
+  // banner, and whichever finished first took the banner (and the other's only
+  // Cancel) away while it was still uploading. Held from the moment the drop
+  // is read, so a second drop during the preflight question waits too.
+  const folderImportBusyRef = useRef(false);
+  const importFolder = useCallback(async (args = {}) => {
+    if (folderImportBusyRef.current) {
+      feedback.toast({ type: 'info', message: 'A folder is still importing. Drop this one again when it has finished.', ttl: 6000 });
+      return { loose: [] };
+    }
+    folderImportBusyRef.current = true;
+    try { return await importFolderOnce(args); }
+    finally { folderImportBusyRef.current = false; }
+  }, [importFolderOnce, feedback]);
 
   // Should this demo user be pitched at all? Shared by every always-on upsell
   // surface so the chip, the first-value banner and the list-toolbar chip agree
