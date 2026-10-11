@@ -1881,6 +1881,12 @@ export async function bulletproofRestore(boardId, b64) {
   } finally {
     tmp.destroy();
   }
+  // Known gap until the room handles it: between step 1 and the wipe below,
+  // the room's own debounced board_state flush (party/board.ts, via
+  // boardStateSync.js) can still land with the PRE-restore doc, and a fresh
+  // mount would then load that.
+  // Closing it needs the room to drop its pending flush on /reset (or the
+  // wipe to run before step 1).
   // 2) Wipe the PartyKit room + kick every client. Best-effort: if the
   //    party isn't deployed yet (or this returns 4xx), proceed anyway.
   //    Without the wipe, the room's DO storage will eventually re-merge
