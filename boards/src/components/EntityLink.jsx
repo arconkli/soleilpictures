@@ -164,7 +164,10 @@ export function EntityLink({
           onMouseEnter={cancelTimers}
           onMouseLeave={scheduleClose}
           onClose={closeNow}
-          onSeeAll={() => { closeNow(); onSeeAll?.(); }}
+          // Only override the popover's default (the app-wide backlinks
+          // drawer) when the host actually supplies a handler: passing a
+          // wrapper unconditionally made "See all references" a no-op.
+          onSeeAll={onSeeAll ? (ref, name) => { closeNow(); onSeeAll(ref, name); } : undefined}
         />
       )}
     </>
