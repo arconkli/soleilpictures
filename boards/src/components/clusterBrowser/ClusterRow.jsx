@@ -79,11 +79,12 @@ export const ClusterRow = memo(function ClusterRow({
       data-item-id={item.id}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
       role="row"
+      aria-selected={!!selected}
       draggable={draggable && !item.pending && !rename ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      <div role="cell" className="ct-cell ct-c-name">
+      <div role="gridcell" className="ct-cell ct-c-name">
         <div className={`ct-thumb${canAudition ? ' is-audio' : ''}${bareAudio ? ' is-bare' : ''}`}>
           <CardPreview item={item} size="row" />
           {item.pending && <span className="ct-thumb-spin" aria-hidden="true" />}
@@ -138,22 +139,22 @@ export const ClusterRow = memo(function ClusterRow({
       </div>
       {audioMode ? (
         <>
-          <div role="cell" className="ct-cell ct-c-dur">{formatDuration(item.durationSec)}</div>
+          <div role="gridcell" className="ct-cell ct-c-dur">{formatDuration(item.durationSec)}</div>
           {/* An em dash rather than a blank: half a pack with no tempo reads as
               a broken column, and "not set yet" is something you can go and fix
               by typing it on the card. */}
-          <div role="cell" className="ct-cell ct-c-bpm">{item.bpm != null ? item.bpm : <span className="ct-nil">—</span>}</div>
-          <div role="cell" className="ct-cell ct-c-key">{formatKey(item.musicalKey) || <span className="ct-nil">—</span>}</div>
-          <div role="cell" className="ct-cell ct-c-fmt">{item.format || item.typeLabel}</div>
+          <div role="gridcell" className="ct-cell ct-c-bpm">{item.bpm != null ? item.bpm : <span className="ct-nil">—</span>}</div>
+          <div role="gridcell" className="ct-cell ct-c-key">{formatKey(item.musicalKey) || <span className="ct-nil">—</span>}</div>
+          <div role="gridcell" className="ct-cell ct-c-fmt">{item.format || item.typeLabel}</div>
         </>
       ) : (
         <>
-          <div role="cell" className="ct-cell ct-c-type">{item.typeLabel}</div>
-          <div role="cell" className="ct-cell ct-c-size">{item.sizeBytes != null ? humanSize(item.sizeBytes) : ''}</div>
+          <div role="gridcell" className="ct-cell ct-c-type">{item.typeLabel}</div>
+          <div role="gridcell" className="ct-cell ct-c-size">{item.sizeBytes != null ? humanSize(item.sizeBytes) : ''}</div>
         </>
       )}
-      <div role="cell" className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
-      <div role="cell" className="ct-cell ct-c-presence">
+      <div role="gridcell" className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
+      <div role="gridcell" className="ct-cell ct-c-presence">
         {peers && peers.slice(0, 2).map((pp, i) => (
           <Avatar key={pp.user.id || i} name={pp.user.name} color={pp.user.color} size={18} ring />
         ))}

@@ -169,3 +169,44 @@ test('Quick look gives a link its own card with an Open link that works for a ba
   await expect(open).toBeVisible();
   await expect(open).toHaveAttribute('href', 'https://docs.soleil');
 });
+
+test('the divider states its bounds, and Home / End take the panel to them', async ({ page }) => {
+  await go(page);
+  const div = page.locator('.fdl-divider');
+  await expect(div).toHaveAttribute('aria-valuemin', '300');
+  const max = Number(await div.getAttribute('aria-valuemax'));
+  expect(max).toBeGreaterThan(300);
+  await div.focus();
+  await page.keyboard.press('End');
+  await expect(div).toHaveAttribute('aria-valuenow', String(max));
+  await page.keyboard.press('Home');
+  await expect(div).toHaveAttribute('aria-valuenow', '300');
+});
+
+test('Back returns Files to where it was scrolled; a folder opens at its top', async ({ page }) => {
+  await go(page, { width: 1440, height: 560 });
+  const p = panel(page);
+  await p.evaluate((el) => { el.scrollTop = 260; });
+  await expect.poll(() => p.evaluate((el) => el.scrollTop)).toBeGreaterThan(200);
+  const at = await p.evaluate((el) => el.scrollTop);
+  await page.waitForTimeout(100);
+  // Step into a folder from the title row's ▾ (the folder rows are scrolled away).
+  await p.locator('.pb-step.is-here button.pb-here').click();
+  await page.locator('.pb-menu .pb-menu-item').first().click();
+  await expect(p.locator('.cbt-ro')).toBeVisible();
+  await expect.poll(() => p.evaluate((el) => el.scrollTop)).toBe(0);
+  await p.getByRole('button', { name: 'Back' }).click();
+  await expect.poll(() => p.evaluate((el) => el.scrollTop)).toBe(at);
+});
+
+test('the List layout is a grid whose rows say whether they are selected', async ({ page }) => {
+  await go(page);
+  await panel(page).getByRole('button', { name: /^View/ }).click();
+  await page.locator('.cbt-menu .ctx-item', { hasText: /^List$/ }).click();
+  await page.keyboard.press('Escape');
+  await expect(panel(page).locator('.ct-table')).toHaveAttribute('role', 'grid');
+  const row = panel(page).locator('.ct-row').first();
+  await expect(row).toHaveAttribute('aria-selected', 'false');
+  await row.click();
+  await expect(row).toHaveAttribute('aria-selected', 'true');
+});

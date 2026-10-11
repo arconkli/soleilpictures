@@ -33,6 +33,9 @@ import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
 
 // Quick look ships in its own chunk: most visits to Files never open it.
+// Files' scroll position per cluster (and size of Files), for this session.
+const SCROLL_MEMORY = new Map();
+
 const QuickLook = lazy(() => import('./clusterBrowser/QuickLook.jsx'));
 
 // Info (the detail panel) is opt-in — ⌘I or Info — and the choice is this
@@ -157,6 +160,36 @@ export function ListSurface({
   const folderCapN = folderCap(folderCount, ftWidth);
   const folderShown = isPanel && !foldersOpen ? folderCapN : folderCount;
   const toggleFolders = () => setFoldersOpen((v) => { writeFoldersExpanded(!v); return !v; });
+
+  // Where each cluster's Files was scrolled to, this session: Back, or coming
+  // back to a cluster, returns to the same place; a cluster seen for the
+  // first time starts at the top. A reveal does its own scrolling.
+  const listWrapRef = useRef(null);
+  const scrollKey = `${isPanel ? 'p' : 'f'}:${board?.id}`;
+  useLayoutEffect(() => {
+    const el = listWrapRef.current;
+    if (!el) return undefined;
+    const saved = SCROLL_MEMORY.get(scrollKey) || 0;
+    const save = () => SCROLL_MEMORY.set(scrollKey, el.scrollTop);
+    let raf = 0;
+    let listening = false;
+    const listen = () => { if (!listening) { listening = true; el.addEventListener('scroll', save, { passive: true }); } };
+    if (revealRequest?.token) listen();
+    else if (saved > 0) {
+      // Now, and again once the grid has its width and height — listening only
+      // after, so a position clamped by a half-laid-out list isn't remembered.
+      el.scrollTop = saved;
+      raf = requestAnimationFrame(() => {
+        el.scrollTop = saved;
+        raf = requestAnimationFrame(listen);
+      });
+    } else {
+      el.scrollTop = 0;
+      listen();
+    }
+    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', save); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollKey]);
 
   // The sticky header gets its edge only once something has scrolled under it.
   const headSentinelRef = useRef(null);
@@ -1444,7 +1477,7 @@ export function ListSurface({
     : null;
 
   return (
-    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`}
+    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`} ref={listWrapRef}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}

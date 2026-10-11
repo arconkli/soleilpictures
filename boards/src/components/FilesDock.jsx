@@ -121,6 +121,8 @@ export function FilesDockLayout({
       el.removeEventListener('pointercancel', end);
       el.removeEventListener('lostpointercapture', end);
       document.body.classList.remove('fdl-resizing');
+      // Anything that waited out the drag (a big grid) lays out once, now.
+      try { window.dispatchEvent(new Event('fdl-resize-end')); } catch (_) {}
       dragEndRef.current = null;
       setDrag(null);
     };
@@ -143,19 +145,36 @@ export function FilesDockLayout({
     el.addEventListener('lostpointercapture', end);
   };
 
+  const widest = clampWidth(Number.MAX_SAFE_INTEGER, paneW);
   const onDividerKey = (e) => {
     if (e.key === 'ArrowLeft') { e.preventDefault(); onResize?.(clampWidth(panelW + DOCK.KEY_STEP, paneW)); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); onResize?.(clampWidth(panelW - DOCK.KEY_STEP, paneW)); }
+    else if (e.key === 'Home') { e.preventDefault(); onResize?.(DOCK.MIN); }
+    else if (e.key === 'End') { e.preventDefault(); onResize?.(widest); }
     else if (e.key === 'Enter') { e.preventDefault(); onExpand?.(); }
   };
 
+  // Opening beside the board slides the panel in (from off only — not when
+  // full Files shrinks to it); the styles skip it under reduced motion.
+  const [entering, setEntering] = useState(false);
+  const lastModeRef = useRef(mode);
+  useLayoutEffect(() => {
+    const prev = lastModeRef.current;
+    lastModeRef.current = mode;
+    if (mode !== 'panel' || prev !== 'off') return undefined;
+    setEntering(true);
+    const t = setTimeout(() => setEntering(false), 240);
+    return () => clearTimeout(t);
+  }, [mode]);
+
   return (
-    <div className={`fdl fdl-${mode}`} ref={rootRef} data-active-pane={mode === 'panel' ? activePane : undefined}>
+    <div className={`fdl fdl-${mode}${drag?.preview === 'close' ? ' is-closing' : ''}`} ref={rootRef}
+         data-active-pane={mode === 'panel' ? activePane : undefined}>
       <div className="fdl-canvas">{canvas}</div>
       {mode === 'panel' ? (
         <div className={`fdl-divider${drag ? ' is-dragging' : ''}`}
              role="separator" aria-orientation="vertical" aria-label="Resize Files"
-             aria-valuenow={Math.round(panelW)} tabIndex={0}
+             aria-valuenow={Math.round(panelW)} aria-valuemin={DOCK.MIN} aria-valuemax={widest} tabIndex={0}
              title="Drag to resize · drag all the way to fill the screen · double-click to reset"
              onPointerDown={onDividerDown}
              onDoubleClick={() => onResize?.(DOCK.DEFAULT)}
@@ -163,7 +182,7 @@ export function FilesDockLayout({
           <span className="fdl-grip" aria-hidden="true" />
         </div>
       ) : null}
-      <div className="fdl-files" ref={filesRef} style={mode === 'panel' ? { width: panelW } : undefined}>{files}</div>
+      <div className={`fdl-files${entering ? ' is-entering' : ''}`} ref={filesRef} style={mode === 'panel' ? { width: panelW } : undefined}>{files}</div>
       {drag?.preview ? (
         <div className={`fdl-preview is-${drag.preview}`} aria-hidden="true">
           {drag.preview === 'full' ? 'Release for full-screen Files' : 'Release to close Files'}

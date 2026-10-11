@@ -26,7 +26,7 @@ export function ClusterTable({
     <SortTh cls={cls} col={col} label={label} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
   );
   return (
-    <div className="ct-table" role="table" data-cols={audioMode ? 'audio' : undefined}>
+    <div className="ct-table" role="grid" aria-multiselectable="true" aria-label="Files" data-cols={audioMode ? 'audio' : undefined}>
       <div className="ct-head" role="row">
         {th('ct-c-name', 'name', 'Name')}
         {audioMode ? (
@@ -123,7 +123,7 @@ function GroupBlock({
            role="row" aria-expanded={!!expanded}
            ref={registerRow ? registerRow(group.id) : null}
            onClick={(e) => onGroupClick(e, group.id)}>
-        <div role="cell" className="ct-cell ct-c-name">
+        <div role="gridcell" className="ct-cell ct-c-name">
           <span className={`ct-group-caret${expanded ? ' is-open' : ''}`} aria-hidden="true"><Icon as={ChevronRight} size={13} /></span>
           <div className="ct-thumb"><CardPreview item={group} size="row" /></div>
           <div className="ct-name-wrap">
@@ -133,19 +133,19 @@ function GroupBlock({
         </div>
         {audioMode ? (
           <>
-            <div role="cell" className="ct-cell ct-c-dur" />
-            <div role="cell" className="ct-cell ct-c-bpm" />
-            <div role="cell" className="ct-cell ct-c-key" />
-            <div role="cell" className="ct-cell ct-c-fmt">Grid family</div>
+            <div role="gridcell" className="ct-cell ct-c-dur" />
+            <div role="gridcell" className="ct-cell ct-c-bpm" />
+            <div role="gridcell" className="ct-cell ct-c-key" />
+            <div role="gridcell" className="ct-cell ct-c-fmt">Grid family</div>
           </>
         ) : (
           <>
-            <div role="cell" className="ct-cell ct-c-type">Grid family</div>
-            <div role="cell" className="ct-cell ct-c-size" />
+            <div role="gridcell" className="ct-cell ct-c-type">Grid family</div>
+            <div role="gridcell" className="ct-cell ct-c-size" />
           </>
         )}
-        <div role="cell" className="ct-cell ct-c-date" />
-        <div role="cell" className="ct-cell ct-c-presence" />
+        <div role="gridcell" className="ct-cell ct-c-date" />
+        <div role="gridcell" className="ct-cell ct-c-presence" />
       </div>
       {expanded && group.members.map(m => (
         <ClusterRow
