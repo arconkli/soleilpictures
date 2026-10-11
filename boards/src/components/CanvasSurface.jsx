@@ -251,6 +251,14 @@ function RotatingWord({ words = BREADTH_WORDS, intervalMs = 2000 }) {
   return <span key={words[i]} className="cnv-rotating-word">{words[i]}</span>;
 }
 
+// Shallow equality for a { key: string } map (peer note edits).
+function sameStringMap(a, b) {
+  const ka = Object.keys(a), kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  for (const k of ka) if (a[k] !== b[k]) return false;
+  return true;
+}
+
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
@@ -1286,7 +1294,13 @@ export function CanvasSurface({
   useEffect(() => {
     const aw = getAwareness?.();
     if (!aw) return;
-    const refresh = () => {
+    // Awareness 'change' fires for every cursor flush — our own included,
+    // about every 16 ms while the mouse moves — and a fresh {} each time
+    // re-rendered this whole component that often. Our own state never feeds
+    // this map, so local changes are skipped, and an unchanged map keeps its
+    // identity so React bails out.
+    const refresh = (_changes, origin) => {
+      if (origin === 'local') return;
       const map = {};
       aw.getStates().forEach((state) => {
         if (!state?.user || state.user.id === currentUser?.id) return;
@@ -1294,7 +1308,7 @@ export function CanvasSurface({
         if (!ne || ne.boardId !== board.id || !ne.cardId) return;
         map[ne.cardId] = ne.html;
       });
-      setPeerNoteEdits(map);
+      setPeerNoteEdits((prev) => (sameStringMap(prev, map) ? prev : map));
     };
     refresh();
     aw.on('change', refresh);
