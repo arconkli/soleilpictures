@@ -15,9 +15,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
-import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType } from '../lib/tagsApi.js';
+import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
 import { supabase } from '../lib/supabase.js';
+import { coalesce, touchesAppliedTag } from '../lib/tagSurface.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useCandidateNames } from '../hooks/useCandidateNames.js';
@@ -143,23 +144,29 @@ export function SidebarTags({
   useEffect(() => {
     if (!workspaceId) return;
     let cancelled = false;
-    listTagCounts(workspaceId).then(c => { if (!cancelled) setCounts(c); }).catch(() => {});
+    const reloadCounts = coalesce(async () => {
+      try {
+        const c = await listTagCounts(workspaceId);
+        if (!cancelled) setCounts(c);
+      } catch (_) {}
+    });
+    reloadCounts();
     const sfx = Math.random().toString(36).slice(2, 9);
     const chan = supabase.channel(`sb-tag-counts:${workspaceId}:${sfx}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'entity_links',
         filter: `source_workspace=eq.${workspaceId}`,
       }, (payload) => {
-        const n = payload?.new || {};
-        const o = payload?.old || {};
-        if ((n.target_kind === 'tag' && n.link_kind === 'applied')
-         || (o.target_kind === 'tag' && o.link_kind === 'applied')) {
-          listTagCounts(workspaceId).then(c => { if (!cancelled) setCounts(c); }).catch(() => {});
-        }
+        // A DELETE carries only the row id (replica identity default + RLS),
+        // so a removed tag never matched and its count never dropped.
+        if (touchesAppliedTag(payload)) reloadCounts();
       })
       .subscribe();
+    // This tab's own removals, independent of what realtime delivers.
+    document.addEventListener(TAG_LINKS_CHANGED, reloadCounts);
     return () => {
       cancelled = true;
+      document.removeEventListener(TAG_LINKS_CHANGED, reloadCounts);
       try { supabase.removeChannel(chan); } catch (_) {}
     };
   }, [workspaceId]);

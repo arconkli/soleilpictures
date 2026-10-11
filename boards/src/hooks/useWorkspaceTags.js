@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { listWorkspaceTags, listCardTags, listBoardTags } from '../lib/tagsApi.js';
+import { listWorkspaceTags, listCardTags, listBoardTags, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { resolveTagColor } from '../lib/tagColor.js';
 import { coalesce, touchesAppliedTag } from '../lib/tagSurface.js';
 
@@ -78,7 +78,12 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
         if (touchesAppliedTag(payload)) refresh();
       })
       .subscribe();
-    return () => { try { supabase.removeChannel(chan); } catch (_) {} };
+    // This tab's own removals, independent of what realtime delivers.
+    document.addEventListener(TAG_LINKS_CHANGED, refresh);
+    return () => {
+      document.removeEventListener(TAG_LINKS_CHANGED, refresh);
+      try { supabase.removeChannel(chan); } catch (_) {}
+    };
   }, [workspaceId, refresh]);
 
   // Memoize the derived Maps. Without this, byCard / byBoard get

@@ -13,6 +13,17 @@
 
 import { supabase } from './supabase.js';
 
+// Removals are the half realtime can't describe: a DELETE on entity_links
+// carries only the row id (replica identity default + RLS), so a listener
+// can't tell it was a tag application. Every removal (and every bulk move:
+// delete / restore / merge) also announces itself in-page, so the sidebar
+// counts and an open tag profile catch this tab's own changes whatever
+// realtime delivers.
+export const TAG_LINKS_CHANGED = 'soleil-tag-links-changed';
+function announceTagLinksChanged() {
+  try { document.dispatchEvent(new CustomEvent(TAG_LINKS_CHANGED)); } catch (_) {}
+}
+
 // ── Tag definitions ────────────────────────────────────────────────────
 
 export async function listWorkspaceTags(workspaceId) {
@@ -109,6 +120,7 @@ export async function getRelatedEntities(tagId, limit = 8) {
 export async function deleteTag(tagId) {
   const { data, error } = await supabase.rpc('soft_delete_tag', { p_tag_id: tagId });
   if (error) throw error;
+  announceTagLinksChanged();
   return data || 0;
 }
 
@@ -116,6 +128,7 @@ export async function deleteTag(tagId) {
 export async function restoreTag(tagId) {
   const { data, error } = await supabase.rpc('restore_tag', { p_tag_id: tagId });
   if (error) throw error;
+  announceTagLinksChanged();
   return data || 0;
 }
 
@@ -157,6 +170,7 @@ export async function mergeTags({ fromTagId, intoTagId }) {
     p_into_tag_id: intoTagId,
   });
   if (error) throw error;
+  announceTagLinksChanged();
   return { mergeId: data?.merge_id || null, rewritten: data?.rewritten || 0 };
 }
 
@@ -166,6 +180,7 @@ export async function undoTagMerge(mergeId) {
   if (!mergeId) return 0;
   const { data, error } = await supabase.rpc('undo_tag_merge', { p_merge_id: mergeId });
   if (error) throw error;
+  announceTagLinksChanged();
   return data || 0;
 }
 
@@ -252,6 +267,7 @@ export async function untagCard({ boardId, cardId, tagId }) {
     .eq('target_id', tagId)
     .eq('link_kind', 'applied');
   if (error) throw error;
+  announceTagLinksChanged();
 }
 
 export async function listBoardTags(boardId) {
@@ -305,6 +321,7 @@ export async function untagBoard({ boardId, tagId }) {
     .eq('target_id', tagId)
     .eq('link_kind', 'applied');
   if (error) throw error;
+  announceTagLinksChanged();
 }
 
 // Groups are first-class taggable entities. Group ids are NOT uuids
@@ -377,6 +394,7 @@ export async function untagDocRange({ workspaceId, docCardId, pageId, tagId, sou
   }
   const { error } = await q;
   if (error) throw error;
+  announceTagLinksChanged();
 }
 
 export async function untagDocPage({ workspaceId, docCardId, pageId, tagId }) {
@@ -390,6 +408,7 @@ export async function untagDocPage({ workspaceId, docCardId, pageId, tagId }) {
     .eq('target_id', tagId)
     .eq('link_kind', 'applied');
   if (error) throw error;
+  announceTagLinksChanged();
 }
 
 // Range-anchored doc apply: a tag scoped to a paragraph (or smaller
@@ -429,6 +448,7 @@ export async function untagGroup({ boardId, groupId, tagId }) {
     .eq('target_id', tagId)
     .eq('link_kind', 'applied');
   if (error) throw error;
+  announceTagLinksChanged();
 }
 
 // Promote an auto/ai applied tag to user-confirmed. Updates the
