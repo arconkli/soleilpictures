@@ -110,6 +110,14 @@ test('the theme blocks declare color-scheme, so native controls follow the theme
   assert.match(block("[data-theme='light']"), /color-scheme:\s*light/);
 });
 
+test('iframes keep color-scheme normal, so embeds stay transparent in dark theme', () => {
+  // An iframe inherits `dark` from :root; when that differs from the embedded
+  // document's scheme (third-party embeds declare none) Chromium paints an
+  // opaque white backdrop behind it, boxing X/Spotify/IG embeds in white.
+  const css = stripComments(readFileSync(join(SRC, 'styles.css'), 'utf8'), true);
+  assert.match(css, /(?:^|\n)iframe\s*\{[^}]*color-scheme:\s*normal/);
+});
+
 test('nothing on a gold fill is inked with --bg-0', () => {
   // --bg-0 is near-black in dark theme and near-white (#f5f5f7) in light, so
   // as text on #ffa500 it reads in one theme and sits at about 1.8:1 in the
