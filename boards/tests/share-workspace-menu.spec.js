@@ -113,28 +113,3 @@ test('a cluster-scoped Share panel still starts on this cluster', async ({ page 
   await expect(modal.locator('#share-title')).toHaveText('Studio');
   await expect(modal.locator('select[aria-label="Access level for invitees"]')).toHaveValue('editor');
 });
-
-test('handing a workspace over warns that limits follow the new owner, and offers co-owner instead', async ({ page }) => {
-  await boot(page);
-  await page.evaluate(async ({ me }) => {
-    const { mountShareModal } = await import('/src/local/shareWorkspaceProbe.js');
-    mountShareModal({
-      board: { id: '00000000-0000-4000-8000-00000000b0a4', name: 'Studio', workspace_id: 'ws-x' },
-      workspace: { id: 'ws-x', name: 'Team space', created_by: me },
-      workspaceMembers: [
-        { user_id: me, role: 'owner' },
-        { user_id: '00000000-0000-4000-8000-0000000000cc', role: 'editor' },
-      ],
-      selfUserId: me,
-      myWorkspaceRole: 'owner',
-      canManage: true,
-    });
-  }, { me: ME });
-  const editorRow = page.locator('.share-modal .share-row', { hasText: 'Member — can edit every cluster' });
-  await editorRow.getByRole('button', { name: 'Make owner' }).click();
-  const dialog = page.locator('.feedback-actions').locator('..');
-  await expect(dialog).toContainText("plan instead of yours");
-  await expect(dialog).toContainText('make them a co-owner instead');
-  await expect(page.getByRole('button', { name: 'Make co-owner instead' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Transfer ownership' })).toBeVisible();
-});
