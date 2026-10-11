@@ -9,6 +9,10 @@ export const ELEMENTS = [
   'scene', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'centered',
 ];
 
+// screenplayBlock attr → the paragraph attr that remembers it while the doc is
+// in Doc mode, so Screenplay off → on is lossless (screenplayModeSwitch.js).
+export const SP_MEMORY = { element: 'spElement', sceneNumber: 'spSceneNumber', dual: 'spDual' };
+
 // Tab cycles through this canonical ring (Shift-Tab reverses). `centered` is a
 // rarely-used element reachable via the toolbar "+" insert menu, so it's out of
 // the Tab ring.
