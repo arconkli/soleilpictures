@@ -6188,6 +6188,11 @@ export function CanvasSurface({
       // A second finger → use-gesture owns the pinch; abort our pan/lift so we
       // never fight its panRef writes or commit a stray move (cf. startPan).
       if (ev.pointerType !== 'touch' || ev.pointerId === initialPointerId) return;
+      // Already carrying the card: the pinch can't share the gesture (the
+      // drag maths uses the zoom from pointerdown), so put the card back
+      // where it was rather than let it hop between fingers and drop under
+      // whichever lifts first.
+      if (lifted) { onCancel(); return; }
       aborted = true;
       cleanupTouchHold();
     };
@@ -6460,11 +6465,17 @@ export function CanvasSurface({
       if (!liveDragRafId) liveDragRafId = requestAnimationFrame(flushLiveDrag);
       if (_t0) perf.mark('drag.flush.ms', performance.now() - _t0);
     };
+    // Only the pointer that pressed the card drives, ends or cancels the drag:
+    // a second finger's moves used to feed the same drag (the card flickered
+    // between fingers) and its lift committed the drop at ITS position.
+    const ownPointer = (ev) => ev?.pointerId == null || ev.pointerId === initialPointerId;
     const onMove = (ev) => {
+      if (!ownPointer(ev)) return;
       pendingMoveEv = ev;
       if (!moveRafId) moveRafId = requestAnimationFrame(flushMove);
     };
     const onUp = (ev) => {
+      if (!ownPointer(ev)) return;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
@@ -6613,7 +6624,7 @@ export function CanvasSurface({
     // Escape-abort: tear down listeners + queued frames, drop the live-drag
     // broadcast, clear drop hints, and revert cards to their committed
     // positions (setDrag(null)) WITHOUT committing the move.
-    pointerOpAbortRef.current = () => {
+    const abortDrag = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
@@ -6630,15 +6641,17 @@ export function CanvasSurface({
       clearSnapGuidesNow();
       setDrag(null);
     };
+    pointerOpAbortRef.current = abortDrag;
     // pointercancel fires (not pointerup) when the OS steals the touch — palm
     // rejection, a system gesture, or use-gesture converting to a pinch. Tear
     // down WITHOUT committing a move or opening a board, and clear the lift
     // timer / .is-lifted visual so they can't leak after the finger is gone.
-    const onCancel = () => {
+    const onCancel = (ev) => {
+      if (ev && !ownPointer(ev)) return;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
-      pointerOpAbortRef.current = null;
+      if (pointerOpAbortRef.current === abortDrag) pointerOpAbortRef.current = null;
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
       if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
@@ -7093,6 +7106,15 @@ export function CanvasSurface({
   };
 
   // ── Card context menu ─────────────────────────────────────────────────────
+  // Whether a contextmenu event came from a finger. Chromium dispatches it as
+  // a PointerEvent carrying pointerType; elsewhere, fall back to the type of
+  // the press that is (still) down — a long press is held for ~500ms.
+  const isTouchContextMenu = (e) => {
+    const t = e?.nativeEvent?.pointerType;
+    if (t) return t === 'touch';
+    const last = lastPointerDownRef.current;
+    return last.type === 'touch' && performance.now() - last.at < 1500;
+  };
   const onCardContextMenu = (e, c) => {
     // Public viewer: no card context menu (it would still expose Info /
     // "Linked from" / navigation). Suppress the native menu too for a
@@ -7117,6 +7139,10 @@ export function CanvasSurface({
     if (isEditorPointerTarget(e)) { e.stopPropagation(); return; }
     e.preventDefault();
     e.stopPropagation();
+    // Android fires contextmenu on a press-and-hold — the very gesture that
+    // LIFTS the card here — so the menu popped open over the card in your
+    // hand. Touch menus come from the ⋯ button and useLongPress instead.
+    if (isTouchContextMenu(e)) return;
     setBgCtx(b => ({ ...b, open: false }));
     if (!selected.has(c.id)) setSelected(new Set([c.id]));
     setCtx({ open: true, x: e.clientX, y: e.clientY, cardId: c.id });
@@ -8368,6 +8394,9 @@ export function CanvasSurface({
     if (isPublic) { e.preventDefault(); return; } // no canvas menu in public preview
     if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox')) return;
     e.preventDefault();
+    // A finger's press-and-hold already opened this menu through
+    // useLongPress; Android's contextmenu would open it a second time.
+    if (isTouchContextMenu(e)) return;
     closeCardMenu();
     const pos = clientToCanvas(e.clientX, e.clientY);
     setBgCtx({ open: true, x: e.clientX, y: e.clientY, canvasPos: pos });
@@ -10872,6 +10901,18 @@ export function CanvasSurface({
   // full-board CRDT update per event to every peer, and built from the
   // pointerdown snapshot, so a stroke a collaborator drew mid-drag was wiped.
   const [strokeXform, setStrokeXform] = useState(null);
+
+  // The most recent press on the canvas: { type, at }. Read by the context-menu
+  // handlers to tell a finger's long press from a right-click where the
+  // contextmenu event doesn't say (see isTouchContextMenu).
+  const lastPointerDownRef = useRef({ type: null, at: 0 });
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const onDown = (e) => { lastPointerDownRef.current = { type: e.pointerType, at: performance.now() }; };
+    el.addEventListener('pointerdown', onDown, true);
+    return () => el.removeEventListener('pointerdown', onDown, true);
+  }, []);
 
   // Cards whose <audio>/<video> is playing right now, so the viewport cull
   // keeps them mounted: unmounting removes the media element, and that
