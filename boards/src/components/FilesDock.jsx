@@ -13,7 +13,7 @@
 // ←/→ resize, Enter expands, double-click resets the width.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { DOCK, canDock, clampWidth, dragPreview, releaseDock } from '../lib/filesDock.js';
+import { DOCK, canDock, clampWidth, dragPreview, releaseDock, previewOwnedBy } from '../lib/filesDock.js';
 import { getActivePane, setActivePane, subscribeActivePane } from '../lib/activePane.js';
 import { ancestorPath } from '../lib/boardTree.js';
 import { onBoardIndex, fileKeyOf } from '../lib/filesDrag.js';
@@ -235,7 +235,11 @@ export function FilesPane({
   const top = hist[hist.length - 1];
   const browseId = (mode === 'panel' || springing) && top && boards?.[top] ? top : homeId;
   const browsing = !!browseId && browseId !== homeId;
-  const preview = useBoardPreview(browsing && !cardsFor ? browseId : null, browsing && !cardsFor);
+  const snapshot = useBoardPreview(browsing && !cardsFor ? browseId : null, browsing && !cardsFor);
+  // The hook keeps the last folder's snapshot for a render after browsing on
+  // (lib/filesDock.js previewOwnedBy): that reads as loading, not as its files.
+  const previewOwners = useRef(new WeakMap());
+  const preview = previewOwnedBy(previewOwners.current, snapshot, browseId);
 
   const browseCards = browsing ? ((cardsFor ? cardsFor(browseId) : preview?.cards) || []) : null;
   // Browsing another cluster: which of its files this board already shows (a

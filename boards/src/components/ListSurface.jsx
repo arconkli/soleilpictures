@@ -292,7 +292,7 @@ export function ListSurface({
   // so a card added or deleted later never swaps the layout under you.
   const savedLayout = useMemo(() => readFilesLayout(board?.id), [board?.id, layoutChoice]);
   const openedLayoutRef = useRef({});
-  if (board?.id && items.length && !openedLayoutRef.current[board.id]) {
+  if (board?.id && items.length && !loading && !openedLayoutRef.current[board.id]) {
     openedLayoutRef.current[board.id] = defaultFilesLayout(items);
   }
   const viewMode = layoutChoice[board?.id] || savedLayout
