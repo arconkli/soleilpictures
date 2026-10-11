@@ -228,7 +228,9 @@ test('a cluster is never made at the limit, and its card is put back without a w
   const ask = nb.indexOf('if (capHit) { noteBlocked(\'demo_cap\'); surfaceCapHit(cs); return null; }');
   const make = nb.indexOf('await createBoard(');
   assert.ok(ask > 0 && make > ask, 'the cap is asked before the cluster exists');
-  assert.match(app, /mainMutators\.addCards\?\.\(newCards, \{ restore: true \}\);/, 'the reconcile effect restores, never adds');
+  // untracked too (APP-CORE-02): a tracked tile sat on the undo stack above
+  // the delete that caused it, so ⌘Z could never reach the delete.
+  assert.match(app, /mainMutators\.addCards\?\.\(newCards, \{ restore: true, untracked: true \}\);/, 'the reconcile effect restores, never adds, and stays off the undo stack');
 });
 
 // ── Third review round (round-2 fixes), 2026-10-02 ──
@@ -276,7 +278,7 @@ test('a cluster made from the sidebar or pasted asks the cap first, and restored
     assert.match(fn, /if \(!ask\.ok\) return;/);
     assert.match(fn, /if \(ask\.cs\.own\) myTier\.notePlaced\?\.\(/);
   }
-  assert.match(app, /mainMutators\.addCards\?\.\(newCards, \{ restore: true \}\);\s*expectIndexChange\(\);/);
+  assert.match(app, /mainMutators\.addCards\?\.\(newCards, \{ restore: true, untracked: true \}\);\s*expectIndexChange\(\);/);
   const tier = read('../hooks/useMyTier.js');
   assert.match(tier, /export function expectIndexChange\(\) \{ _store\.lastReadAt = Date\.now\(\); \}/);
 });
