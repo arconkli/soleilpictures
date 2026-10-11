@@ -238,13 +238,41 @@ export async function listPinnedForConversation({ conversationId }) {
 // reactions to other people never saved (COMMS-02). The RPC checks the caller
 // may post in the conversation, locks the row, and returns the new map.
 // Throws on failure so the caller can say so.
-export async function toggleReaction({ messageId, emoji }) {
+export async function toggleReaction({ messageId, emoji, userId }) {
   const { data, error } = await supabase.rpc('toggle_message_reaction', {
     p_message_id: messageId,
     p_emoji: emoji,
   });
+  if (error && isMissingFunction(error)) return toggleOwnReactionLegacy({ messageId, emoji, userId });
   if (error) { console.warn('toggleReaction', error); throw error; }
   return data || {};
+}
+
+// PostgREST's "no such function in the schema cache", or Postgres's own.
+function isMissingFunction(error) {
+  return error?.code === 'PGRST202' || error?.code === '42883';
+}
+
+// Until 0398 is applied (a preview build shares the production database), the
+// old author-only path keeps reactions to your OWN messages working instead of
+// failing them all. It now reads back the row it wrote: on anyone else's
+// message RLS matches nothing, and that throws instead of passing silently.
+// Delete once 0398 is live everywhere.
+async function toggleOwnReactionLegacy({ messageId, emoji, userId }) {
+  const missing = new Error('toggle_message_reaction is not available yet');
+  if (!userId) throw missing;
+  const { data: msg, error: readErr } = await supabase.from('messages')
+    .select('reactions').eq('id', messageId).maybeSingle();
+  if (readErr || !msg) throw readErr || missing;
+  const reactions = { ...(msg.reactions || {}) };
+  const who = new Set(reactions[emoji] || []);
+  if (who.has(userId)) who.delete(userId); else who.add(userId);
+  if (who.size === 0) delete reactions[emoji]; else reactions[emoji] = [...who];
+  const { data: rows, error } = await supabase.from('messages')
+    .update({ reactions }).eq('id', messageId).select('id');
+  if (error) { console.warn('toggleReaction (legacy)', error); throw error; }
+  if (!rows || rows.length === 0) throw missing;
+  return reactions;
 }
 
 // ── Unread counts ───────────────────────────────────────────────────
