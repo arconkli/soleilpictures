@@ -596,6 +596,21 @@ export function ListSurface({
   const onClearFilters = useCallback(() => { setFilters(new Set()); setUnplacedOnly(false); }, []);
   const openAddPicker = useCallback(() => addInputRef.current?.click(), []);
 
+  // The phone's bottom-nav "+" asks the board to add a card — but full Files
+  // has no board mounted, so the puck did nothing here. Here it adds files.
+  // (Beside the board the canvas is mounted and answers it itself.) The event
+  // is dispatched inside the tap, so the picker still opens as a user gesture.
+  useEffect(() => {
+    if (isPanel || !canEdit || browsingFrom || paneId !== 'main') return undefined;
+    const onAdd = (e) => {
+      if (e.detail?.boardId !== board?.id) return;
+      if (document.body.dataset.tourActive === '1') return;   // guided tour owns input
+      openAddPicker();
+    };
+    document.addEventListener('soleil-mobile-add-card', onAdd);
+    return () => document.removeEventListener('soleil-mobile-add-card', onAdd);
+  }, [isPanel, canEdit, browsingFrom, paneId, board?.id, openAddPicker]);
+
   // Descendant search: when the user types a query, also surface matches from
   // sub-clusters (server-side entity_search, filtered to this subtree). These
   // aren't loaded cards, so they render as compact links that open the owning

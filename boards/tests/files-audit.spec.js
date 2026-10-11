@@ -76,3 +76,16 @@ test('FILES-LIST-01: full Files at phone width keeps the whole selection bar on 
   await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
   await expectSelbarFits(page, full(page), { x: 0, width: 390 });
 });
+
+test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
+  await go(page, { width: 390, height: 844 });
+  await openFull(page);
+  await expect(page.locator('.canvas-wrap')).toHaveCount(0);
+  // The harness hides its puck outside the canvas; the app's shows it on any
+  // editable cluster and sends this event, which only the board answered.
+  const chooser = page.waitForEvent('filechooser', { timeout: 4000 });
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('soleil-mobile-add-card', { detail: { boardId: 'root' } })));
+  const fc = await chooser;
+  await fc.setFiles(pngs('from-plus.png'));
+  await expect(full(page).locator('.ct-tile-name[title="from-plus.png"]')).toBeVisible();
+});
