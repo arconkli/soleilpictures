@@ -8921,12 +8921,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </button>
 
           <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
-               onClick={() => setCurrentSurface('home')}>
+               {...rowButtonProps(() => setCurrentSurface('home'))}>
             <Icon as={Home} size={14} />
             <span className="sb-row-label">Home</span>
           </div>
           <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
-               onClick={() => setTweak('showMessages', !tweak.showMessages)}
+               {...rowButtonProps(() => setTweak('showMessages', !tweak.showMessages))}
                title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
             <Icon as={MessageSquare} size={14} />
             <span className="sb-row-label">Messages</span>
@@ -8939,7 +8939,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               "Schedule" in every sidebar — and people opened it and found nothing. */}
           {((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) && (
           <div className={`sb-row ${notifOpen ? 'active' : ''}`}
-               onClick={() => {
+               {...rowButtonProps(() => {
                  // Only the open is worth a row; the close tells us nothing.
                  // This is the denominator notif_click needs — a notification
                  // nobody clicked and a bell nobody opened are different
@@ -8948,7 +8948,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                    try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
                  }
                  setNotifOpen(v => !v);
-               }}
+               })}
                title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
             <Icon as={Bell} size={14} />
             <span className="sb-row-label">Schedule</span>
@@ -9441,6 +9441,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ydoc={tbYDoc}
         sessionId={tbYb?.sessionId || null}
         userId={user?.id || null}
+        canEdit={toolbarPane === 'split' ? splitBoardPerm.canEdit : canEditCurrent}
         onRestored={() => refreshBoards()}
         onClose={() => setVersionsOpen(false)}
       />
@@ -9902,6 +9903,19 @@ function TopbarAddMenu({ onAddBoard, onAddDoc, onLinkBoard }) {
   );
 }
 
+
+// A sidebar row that acts as a button: reachable by Tab, activated by Enter or
+// Space, and announced as a button (MOBILE-08).
+function rowButtonProps(onActivate) {
+  return {
+    role: 'button',
+    tabIndex: 0,
+    onClick: onActivate,
+    onKeyDown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(e); }
+    },
+  };
+}
 
 function LoadingShell() {
   return (
