@@ -5666,6 +5666,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             own: ownRejected,
           });
         } catch (_) {}
+        // Kept is not the same as fine: the card is on the canvas but missing
+        // from search, tags and the graph, and the person who just added one
+        // from a tab that still thought it was paid (or uncapped) was told
+        // nothing. Say so, quietly — a toast, never the wall. Visible board
+        // only, and once per card (syncCardIndex announces each id once).
+        if (rejectedBoardId === currentId && !(Number(e?.detail?.rejected) > 0)) {
+          const one = nKept === 1;
+          try {
+            feedback.toast({
+              type: 'warning',
+              message: `${nKept} card${one ? '' : 's'} here ${one ? "isn't" : "aren't"} counted — `
+                + (ownRejected ? "you're at your card limit. " : "this cluster's owner is at their card limit. ")
+                + `${one ? 'It stays' : 'They stay'} on the canvas, but won't show in search or tags until there's room.`,
+              ttl: 9000,
+            });
+          } catch (_) {}
+        }
       }
       if (!(Number(e?.detail?.rejected) > 0)) { refreshCap(); return; }
 
