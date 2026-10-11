@@ -105,8 +105,9 @@ a cover, the name and how many items are inside — with the files after them.
 
 In the panel, **double-click a folder to step into it**. The path bar at the top
 shows where the panel is; click any step to go back up, or use the back arrow
-to retrace where you have been. The search button beside it jumps to any
-cluster in the workspace. **The board doesn't move** while you browse — the
+to retrace where you have been. The ▾ on the current step lists the clusters
+inside it, and its **Go to cluster…** jumps to any cluster in the workspace.
+**The board doesn't move** while you browse — the
 breadcrumb at the top of the screen still says where it is.
 
 Another cluster's files are read-only from the panel: browse, preview and

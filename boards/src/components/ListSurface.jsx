@@ -51,7 +51,7 @@ import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Eye } from '../lib/icons.js';
+import { Download, FolderOpen, Trash2, X, Plus, Folder, Link as LinkIcon, Minimize2, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError,
@@ -1618,7 +1618,7 @@ export function ListSurface({
                     </div>
                   ) : (
                     <div className="list-empty is-compact">
-                      <span className="list-empty-ico"><Icon as={canEdit ? Upload : Eye} size={16} /></span>
+                      {canEdit && <span className="list-empty-ico"><Icon as={Upload} size={16} /></span>}
                       <div className="list-empty-title">No files in {board?.name || 'this cluster'}</div>
                       <div className="list-empty-sub">
                         {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
