@@ -286,7 +286,12 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   // The browser refused the bytes even after one fresh signature (see onError).
   const [unavailable, setUnavailable] = useState(false);
   const resignedRef = useRef(false);
-  useEffect(() => { resignedRef.current = false; setUnavailable(false); }, [src]);
+  // One failed→retry re-arm per src, as the progressive flavor has: without it
+  // a ~12 s sign-reads outage (a laptop waking, captive Wi-Fi) left cluster
+  // thumbnails and Files previews padlocked until the user navigated away
+  // (MEDIA-14). Re-arms after 30 s, or at once when the browser comes online.
+  const rearmedRef = useRef(false);
+  useEffect(() => { resignedRef.current = false; rearmedRef.current = false; setUnavailable(false); }, [src]);
 
   useEffect(() => {
     if (visible) return;
@@ -306,9 +311,13 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
     let cancelled = false;
     let refreshTimer = null;
     let retryTimer = null;
+    let onOnline = null;
     let attempt = 0;
     const isR2 = typeof src === 'string' && src.startsWith('r2:');
     const key = isR2 ? src.slice(3) : null;
+    const dropOnline = () => {
+      if (onOnline) { try { window.removeEventListener('online', onOnline); } catch (_) {} onOnline = null; }
+    };
     const tick = async () => {
       // When a content version (bust) newer than the one we last minted is
       // present, force a fresh presign so the URL string changes and the
@@ -327,6 +336,22 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
           return;
         }
         setFailed(true);
+        // Genuine loss of access re-locks after this one extra cycle and stays.
+        if (isR2 && !rearmedRef.current) {
+          rearmedRef.current = true;
+          const rearm = () => {
+            if (cancelled) return;
+            dropOnline();
+            clearTimeout(retryTimer);
+            attempt = 0;
+            setSlowRetry(false);
+            setFailed(false);
+            tick();
+          };
+          retryTimer = setTimeout(rearm, 30000);
+          onOnline = rearm;
+          try { window.addEventListener('online', onOnline); } catch (_) {}
+        }
         return;
       }
       // Record the version only after a successful sign, so a transient
@@ -345,7 +370,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
       }
     };
     tick();
-    return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
+    return () => { cancelled = true; dropOnline(); if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
   }, [src, visible, bust]);
 
   if (failed) return <BlockedPlaceholder {...rest} />;
