@@ -48,3 +48,28 @@ test('dark media chips keep light ink in light theme', async ({ page }) => {
     expect(lum(color), `${sel} ink is ${color} on a dark chip`).toBeGreaterThan(0.5);
   }
 });
+
+const GOLD = 'rgb(255, 165, 0)';
+
+// Gold (--soleil) is reserved for active / selection / focus. These resting
+// elements wore it anyway (VIS-09, MOBILE-16).
+test('resting icons and labels are not gold', async ({ page }) => {
+  await boot(page, 'dark');
+  const resting = [
+    ['<button class="mobile-add-tile"><span class="mobile-add-ico">+</span></button>', '.mobile-add-ico', 'color'],
+    ['<button class="ac-play" aria-label="Play"></button>', '.ac-play', 'backgroundColor'],
+    ['<span class="entity-picker-url">https://x</span>', '.entity-picker-url', 'color'],
+    ['<span class="ent-backlinks-row-tag">tag</span>', '.ent-backlinks-row-tag', 'color'],
+    ['<span class="tag-picker-kind tag-picker-kind-auto">auto</span>', '.tag-picker-kind-auto', 'color'],
+    ['<span class="tag-picker-kind tag-picker-kind-new">new</span>', '.tag-picker-kind-new', 'color'],
+    ['<span class="tag-detail-row-attr is-auto">auto</span>', '.is-auto', 'color'],
+    ['<span class="tag-detail-block-attr is-auto">auto</span>', '.is-auto', 'color'],
+    ['<span class="picker-dot list"></span>', '.picker-dot', 'backgroundColor'],
+    ['<button class="tag-disambig-yes">Yes</button>', '.tag-disambig-yes', 'color'],
+  ];
+  for (const [html, sel, prop] of resting) {
+    expect(await computed(page, html, sel, prop), `${sel} ${prop} at rest`).not.toBe(GOLD);
+  }
+  // The play button still lights up while its card is playing.
+  expect(await computed(page, '<button class="ac-play" aria-label="Pause"></button>', '.ac-play', 'backgroundColor')).toBe(GOLD);
+});
