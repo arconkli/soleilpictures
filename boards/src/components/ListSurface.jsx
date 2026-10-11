@@ -63,7 +63,7 @@ import { Icon } from './Icon.jsx';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
-  AssetFetchError,
+  AssetFetchError, isPublicSurface,
 } from '../lib/cardDownload.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
@@ -133,6 +133,26 @@ export function ListSurface({
   // { canShrink, onExpand, onShrink, onClose } — the ⤢ ⤡ × controls of the
   // dock, from the shell that owns the mode. Null in the split pane / harness.
   dockControls = null,
+  // The panel's path bar (FilesPane): { path, boards, onNavigate, onBack,
+  // canBack, onGoTo }. Absent in full Files, where the topbar breadcrumb rules.
+  pathBar = null,
+  // Set when the panel is browsing a cluster other than the board's own (a
+  // read-only snapshot) — the board it came from.
+  browsingFrom = null,
+  // A browsed cluster whose snapshot hasn't arrived — not "no files" yet.
+  loading = false,
+  // "Not on board" marks, count and filter: the owner's view of their own
+  // board. A visitor on a public link isn't looking at that board, and the
+  // waiting files are just files to them.
+  showPlacement = !isPublicSurface(),
+  // The board this Files belongs to — its live cards and mutators — kept when
+  // browsing another cluster replaces board/cards/mutators. After a drag has
+  // sprung into another cluster, a drop moves the files from here.
+  homeSrc = null,       // { boardId, cards, mutators, canEdit }
+  // Spring-loading from FilesPane: { into(id), back(), drop(promise) }.
+  spring = null,
+  // Full Files: the way back up (PathBar trail), above the title.
+  fullPathBar = null,
 }) {
   const feedback = useFeedback();
   const isPanel = mode === 'panel';
@@ -295,7 +315,9 @@ export function ListSurface({
     () => sortItems(filterItems(matchItems(items, query), filters, { unplacedOnly }), sortKey, sortDir),
     [items, query, filters, unplacedOnly, sortKey, sortDir]
   );
-  const unplacedTotal = useMemo(() => items.filter((it) => it.unplaced).length, [items]);
+  const markUnplaced = showPlacement && !browsingFrom;
+  const unplacedTotal = useMemo(
+    () => (markUnplaced ? items.filter((it) => it.unplaced).length : 0), [items, markUnplaced]);
   useEffect(() => { if (unplacedOnly && !unplacedTotal) setUnplacedOnly(false); }, [unplacedOnly, unplacedTotal]);
 
   // Collapse linked-grid families into expandable group nodes (tens of grids →
@@ -1507,7 +1529,7 @@ export function ListSurface({
   const pageMeta = [
     `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
     subBoards.length ? `${subBoards.length} ${subBoards.length === 1 ? 'cluster' : 'clusters'}` : null,
-    !browsingFrom && unplacedTotal ? `${unplacedTotal} not on board` : null,
+    unplacedTotal ? `${unplacedTotal} not on board` : null,
   ].filter(Boolean).join(' · ');
   const downloadAll = useCallback(
     () => downloadMany(downloadableVisible), [downloadMany, downloadableVisible]);
@@ -1562,6 +1584,9 @@ export function ListSurface({
       filters={filters} availableBuckets={availableBuckets}
       onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
       viewMode={viewMode} onViewMode={onViewMode}
+      tileSize={tileSize} onTileSize={onTileSize}
+      unplacedCount={unplacedTotal} unplacedOnly={unplacedOnly}
+      onToggleUnplaced={() => setUnplacedOnly((v) => !v)}
       onAddFiles={openAddPicker} canEdit={canEdit}
       showUpsell={!isPanel && showStorageUpsell && !!onStorageUpsell}
       onUpsell={() => {
@@ -1835,7 +1860,7 @@ export function ListSurface({
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <JustifiedGallery tileSize={tileSize}
                     activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
-                    renameFor={renameFor} markUnplaced={!browsingFrom}
+                    renameFor={renameFor} markUnplaced={markUnplaced}
                     items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
@@ -1859,7 +1884,7 @@ export function ListSurface({
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
                     audioMode={audioMode}
                     draggableItems={filesDraggable} onBoardIds={onBoardIds} renameFor={renameFor}
-                    markUnplaced={!browsingFrom}
+                    markUnplaced={markUnplaced}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}
