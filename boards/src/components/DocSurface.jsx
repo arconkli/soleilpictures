@@ -15,7 +15,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -122,8 +122,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
 
   // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —
-  // page add/delete/move/rename, sheets, bookmarks, comment threads, mode
-  // flips). Text editing keeps its own y-undo stack inside Tiptap; these are
+  // page add/delete/move/rename, sheets, bookmarks, comment threads; not the
+  // Screenplay switch, which is its own inverse). Text editing keeps its own y-undo stack inside Tiptap; these are
   // separate by design (see docState.js). While this surface is mounted it
   // OWNS Cmd+Z: CanvasSurface stands down (lib/overlayRouting.js) so a
   // shortcut can never silently undo canvas ops hidden behind the overlay.
@@ -247,6 +247,21 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     return () => m.unobserve(update);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, scope]);
+  // Heal content that reached this doc in the other mode's shape (a page
+  // restored by a structural undo, a peer's line that raced the flip, an old
+  // bundle mid-rollout) — editors used to convert on every mount and that is
+  // what duplicated docs, so exactly ONE client heals: the editor with the
+  // lowest awareness client id. Viewers write nothing. If the lowest is a
+  // viewer nobody heals this time, which is fine — the lines are still
+  // exported as Action. A no-op (no update at all) when nothing is stranded.
+  // (Two editors opening in the same instant, before either sees the other's
+  // awareness, could both heal — that needs stranded lines too, so it is
+  // vanishingly rare, which is not true of converting on every mount.)
+  useEffect(() => {
+    if (!canEdit || !awareness) return;
+    if (awareness.clientID !== Math.min(...awareness.getStates().keys())) return;
+    try { healDocMode(ydoc, scope); } catch (_) {}
+  }, [ydoc, scope, canEdit, awareness, docMode]);
   // Only an editor converts, and only the one who flipped: switchDocMode
   // rewrites the content in the same transaction as the mode.
   const toggleScreenplay = useCallback(() => {

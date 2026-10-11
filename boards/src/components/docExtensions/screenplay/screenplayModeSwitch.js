@@ -90,8 +90,11 @@ function toScreenplay(fragment) {
     }
     // Sluglines, cues and transitions are uppercase — but only as a pure
     // same-length transform of unmarked text, so no mark or comment shifts.
+    // Detected lines only: a remembered one was already uppercase when it left
+    // Screenplay, so uppercasing it again could only destroy prose written
+    // over it in Doc mode.
     let upper = null;
-    if (shouldUppercase(element) && plain) {
+    if (!remembered && shouldUppercase(element) && plain) {
       const u = text.toUpperCase();
       if (u !== text && u.length === text.length) upper = u;
     }
