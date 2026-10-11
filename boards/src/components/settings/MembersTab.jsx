@@ -73,12 +73,18 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
 
   const transfer = async (m) => {
     const who = label(m);
+    // Every limit follows the owner (created_by): a paid owner who hands over
+    // a workspace stops covering it. Say so before, and offer co-owner — which
+    // keeps this plan paying — as the other answer. Never name the recipient's
+    // plan: members don't see each other's.
     const ok = await feedback.confirm({
       title: `Make ${who} the owner?`,
-      message: `You'll become an editor of "${workspaceName}". Only they can transfer it back.`,
+      message: `Its cards, files and storage will count against ${who}'s plan instead of yours, and everyone in it will work within that plan's limits. To let them run it while your plan keeps covering it, make them a co-owner instead. If you transfer, you'll become an editor of "${workspaceName}" and only they can transfer it back.`,
       confirmLabel: 'Transfer ownership',
+      altLabel: m.role === 'coowner' ? null : 'Make co-owner instead',
       danger: true,
     });
+    if (ok === 'alt') { changeRole(m, 'coowner'); return; }
     if (!ok) return;
     try {
       await transferWorkspaceOwnership({ workspaceId, newOwnerId: m.user_id });

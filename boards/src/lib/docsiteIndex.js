@@ -2648,7 +2648,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "If someone on my team upgrades, does my workspace get the higher limits?",
-        "a": "Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours."
+        "a": "Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it."
       },
       {
         "q": "What happens when I hit the card cap?",

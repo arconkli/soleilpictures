@@ -141,6 +141,15 @@ test('0394: a suspended account manages no workspace', () => {
   }
 });
 
+test('0395: a transfer tells the new owner, and never fails because of it', () => {
+  const def = latestDefinition('transfer_workspace_ownership');
+  assert.ok(def.file >= '0395');
+  assert.match(def.body, /if v_old <> auth\.uid\(\) then/, 'still created_by-only');
+  assert.doesNotMatch(def.body, /can_manage_workspace/, 'a co-owner still cannot hand the workspace over');
+  assert.match(def.body, /insert into public\.notifications[\s\S]*'workspace\.ownership_received'/);
+  assert.match(def.body, /exception when others then\s+raise warning/, 'the notice is best-effort');
+});
+
 test('0392: only a manager renames a workspace or changes its icon', () => {
   assert.match(textOf('0392'), /drop policy if exists "ws update settings by editor" on public\.workspaces;/);
   const merge = latestDefinition('merge_workspace_settings');

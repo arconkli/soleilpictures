@@ -40,6 +40,10 @@ export function FeedbackProvider({ children }) {
       message: options.message,
       confirmLabel: options.confirmLabel || 'Confirm',
       cancelLabel: options.cancelLabel || 'Cancel',
+      // Optional third choice between Cancel and Confirm. The promise then
+      // resolves 'alt' when it is picked, so a caller that passes one must
+      // test for it before treating the result as a yes.
+      altLabel: options.altLabel || null,
       danger: !!options.danger,
       // Optional "type this exact string to enable the confirm button"
       // gate. Used for destructive actions like deleting a workspace.
