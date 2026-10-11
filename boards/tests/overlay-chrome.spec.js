@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test';
 async function boot(page, size = { width: 1280, height: 800 }) {
   await page.setViewportSize(size);
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('.app')).toBeAttached();
+  await expect(page.locator('.app')).toBeAttached({ timeout: 30000 }); // cold Vite compile
 }
 
 // VIS-05: the demo Upgrade chip (z near INT_MAX, top-right) landed on Quick
@@ -107,7 +107,7 @@ test('text fields are at least 16px on a touch device', async ({ browser }) => {
   const ctx = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
   const page = await ctx.newPage();
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('.app')).toBeAttached();
+  await expect(page.locator('.app')).toBeAttached({ timeout: 30000 }); // cold Vite compile
   expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'the context must report a coarse pointer').toBe(true);
   const sizes = await page.evaluate(() => {
     const out = {};

@@ -5090,6 +5090,21 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 .note-body ul:not(.note-checklist) > li,
 .note-body ol > li { margin: 2px 0; }
 .note-body li::marker { color: currentColor; }
+/* Note headings (# / ## / ###). With no rule they fell to the UA's 2em /
+   1.5em / 1.17em — a 30px H1 in a 15px note — with the global reset's zero
+   margins. A tighter scale than the doc editor's, in em so a per-card text
+   size carries through. Here rather than noteTiptap.css: that file loads with
+   the editor, and the static display must match it or headings jump on blur. */
+.note-body h1, .note-body h2, .note-body h3 {
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  margin: .5em 0 .2em;
+}
+.note-body h1 { font-size: 1.35em; }
+.note-body h2 { font-size: 1.18em; }
+.note-body h3 { font-size: 1.05em; }
+.note-body > :is(h1, h2, h3):first-child { margin-top: 0; }
 
 /* Checklist inside a note. Hairline checkbox; warm-gold check on toggle.
    Uses a click handler on .ck-box (RichNoteEditor.onBodyClick) to flip

@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
 
 async function boot(page, theme) {
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('.app')).toBeAttached();
+  await expect(page.locator('.app')).toBeAttached({ timeout: 30000 }); // cold Vite compile
   await page.evaluate((t) => { document.documentElement.dataset.theme = t; }, theme);
 }
 
@@ -93,4 +93,22 @@ test('unread counts are inverse ink in both themes', async ({ page }) => {
       expect((hi + 0.05) / (lo + 0.05), `${sel} contrast in ${theme}`).toBeGreaterThan(7);
     }
   }
+});
+
+// DOCS-23: note headings had no rule and fell to the UA's 2em / 1.5em /
+// 1.17em. They follow a scale relative to the note's own text size.
+test('note headings use the note scale, not browser defaults', async ({ page }) => {
+  await boot(page, 'dark');
+  const px = await page.evaluate(() => {
+    const host = document.createElement('div');
+    host.innerHTML = '<div class="note-body"><h1>a</h1><h2>b</h2><h3>c</h3><p>d</p></div>';
+    document.body.appendChild(host);
+    const size = (sel) => parseFloat(getComputedStyle(host.querySelector(sel)).fontSize);
+    const out = { h1: size('h1'), h2: size('h2'), h3: size('h3'), p: size('p') };
+    host.remove();
+    return out;
+  });
+  expect(px.h1 / px.p).toBeCloseTo(1.35, 2);
+  expect(px.h2 / px.p).toBeCloseTo(1.18, 2);
+  expect(px.h3 / px.p).toBeCloseTo(1.05, 2);
 });
