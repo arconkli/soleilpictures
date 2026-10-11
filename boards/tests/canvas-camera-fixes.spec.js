@@ -119,6 +119,42 @@ test('copied cards paste under the cursor after a wheel pan, not where it last m
   }))).toBe(true);
 });
 
+// CANVAS-A-06: the zoom widget's −/+ and 100% (and ⌘0) scaled around the
+// board origin, so whatever you were looking at slid off-screen.
+test('zoom widget buttons and ⌘0 keep the view centre in place', async ({ page }) => {
+  await goBlank(page);
+  await page.waitForTimeout(500);
+  const centreWorld = async () => {
+    const cam = await readCamera(page);
+    const r = await page.evaluate(() => {
+      const b = document.querySelector('.canvas-wrap').getBoundingClientRect();
+      return { w: b.width, h: b.height };
+    });
+    return { x: (r.w / 2 - cam.x) / cam.zoom, y: (r.h / 2 - cam.y) / cam.zoom, zoom: cam.zoom };
+  };
+  // Pan far from the origin with the wheel.
+  await page.mouse.move(640, 420);
+  for (let i = 0; i < 5; i++) await page.mouse.wheel(500, 500);
+  await page.waitForTimeout(400);
+  const a = await centreWorld();
+  // dispatchEvent: at the harness viewport the settings gear overlaps the
+  // widget's corner, and the click under test is the handler, not the layout.
+  for (const step of [
+    () => page.locator('.cnv-zoom button', { hasText: '+' }).dispatchEvent('click'),
+    () => page.locator('.cnv-zoom button', { hasText: '−' }).dispatchEvent('click'),
+    () => page.locator('.cnv-zoom button', { hasText: '−' }).dispatchEvent('click'),
+    () => page.locator('.cnv-zoom-val').dispatchEvent('click'),
+    () => page.keyboard.press('ControlOrMeta+0'),
+  ]) {
+    await step();
+    await page.waitForTimeout(450);
+    const b = await centreWorld();
+    expect(Math.abs(b.x - a.x)).toBeLessThan(3);
+    expect(Math.abs(b.y - a.y)).toBeLessThan(3);
+  }
+  expect((await readCamera(page)).zoom).toBeCloseTo(1, 2);
+});
+
 // CARDS-01: the PDF viewer renders inside .canvas-wrap, whose native wheel
 // listener preventDefaulted every wheel over its pages and panned the board.
 test('a wheel over the PDF viewer scrolls its pages, not the board', async ({ page }) => {
