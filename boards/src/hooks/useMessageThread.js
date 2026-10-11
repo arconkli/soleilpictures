@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { fetchConversationMessages, markRead } from '../lib/messages.js';
+import { fetchConversationMessages, fetchConversationRange, markRead } from '../lib/messages.js';
 import { subscribeConversation } from '../lib/messageRealtime.js';
 import { MESSAGE_PAGE, mergeNewestPage, prependOlder, lastMessageId } from '../lib/messagePaging.js';
 import { tabIsAttended } from '../lib/threadAttention.js';
@@ -30,35 +30,59 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   // Set once "load older" comes back short: the start of the conversation is
   // on screen, and later newest-page refetches keep it there.
   const reachedStartRef = useRef(false);
+  // created_at of the oldest row "load older" brought in: the start of the
+  // history every refetch re-reads, so edits, deletes, undos and reactions
+  // to old messages reach the screen (the newest page alone never covers them).
+  const historyFromRef = useRef(null);
 
   useEffect(() => {
     reachedStartRef.current = false;
+    historyFromRef.current = null;
     setHasOlder(false);
   }, [conversationId]);
 
   const refetch = useCallback(async () => {
     if (!conversationId) { setMessages([]); setHasOlder(false); return; }
     const rows = await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
-    if (convRef.current !== conversationId || rows == null) return;
-    setMessages(prev => mergeNewestPage(prev, rows, { conversationId, pageSize: MESSAGE_PAGE }));
+    if (convRef.current !== conversationId) return;
+    if (rows == null) {
+      // A failed read keeps this thread on screen, but never the previous
+      // one: the thread isn't remounted on a switch, so a failed first read
+      // would otherwise paint the last conversation under this header.
+      setMessages(prev => prev.filter(m => m.conversation_id === conversationId));
+      return;
+    }
+    const historyFrom = historyFromRef.current;
+    let history = null;
+    if (historyFrom && rows.length >= MESSAGE_PAGE) {
+      history = await fetchConversationRange({ conversationId, from: historyFrom, to: rows[0].created_at });
+      if (convRef.current !== conversationId) return;
+    }
+    setMessages(prev => mergeNewestPage(prev, rows, {
+      conversationId, pageSize: MESSAGE_PAGE, history, historyFrom,
+    }));
     setHasOlder(rows.length >= MESSAGE_PAGE && !reachedStartRef.current);
   }, [conversationId]);
 
   useEffect(() => { refetch(); }, [refetch]);
 
+  // Resolves true once a page was asked for, false when it bailed — so the
+  // caller can drop the scroll anchor it set for a page that isn't coming.
   const loadOlder = useCallback(async () => {
     const oldest = messagesRef.current[0];
-    if (!conversationId || !oldest || loadingOlderRef.current) return;
-    if (oldest.conversation_id !== conversationId) return; // switch still loading
+    if (!conversationId || !oldest || loadingOlderRef.current) return false;
+    if (oldest.conversation_id !== conversationId) return false; // switch still loading
     loadingOlderRef.current = true;
     setLoadingOlder(true);
     try {
       const rows = await fetchConversationMessages({
         conversationId, limit: MESSAGE_PAGE, before: oldest.created_at,
       });
-      if (convRef.current !== conversationId || rows == null) return;
+      if (convRef.current !== conversationId || rows == null) return true;
       if (rows.length < MESSAGE_PAGE) { reachedStartRef.current = true; setHasOlder(false); }
+      if (rows.length) historyFromRef.current = rows[0].created_at;
       setMessages(prev => prependOlder(prev, rows));
+      return true;
     } finally {
       loadingOlderRef.current = false;
       setLoadingOlder(false);

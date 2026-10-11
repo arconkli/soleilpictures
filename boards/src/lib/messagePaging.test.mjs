@@ -64,3 +64,56 @@ test('"something new arrived" keys on the last id, which moves even at a full pa
   assert.equal(lastMessageId(prependOlder(range(5, 9), range(1, 4))), 'm9');
   assert.equal(lastMessageId([]), null);
 });
+
+// History the reader paged back to is re-read on every refetch: a delete, an
+// undo, an edit or a reaction to an old message used to change nothing on
+// screen, because the merge kept the paged-back rows exactly as they were.
+test('a re-read of paged-back history replaces it: deletes drop, edits and reactions show', () => {
+  const pageSize = 3;
+  const prev = range(1, 6);                               // m1-m3 paged back
+  const fresh = range(4, 6);
+  const history = [msg(1), { ...msg(3), body: 'edited', reactions: { '👍': ['u2'] } }]; // m2 deleted
+  const merged = mergeNewestPage(prev, fresh, { conversationId: C, pageSize, history, historyFrom: msg(1).created_at });
+  assert.deepEqual(merged.map(m => m.id), ['m1', 'm3', 'm4', 'm5', 'm6']);
+  assert.equal(merged[1].body, 'edited');
+  assert.deepEqual(merged[1].reactions, { '👍': ['u2'] });
+});
+
+test('an undo brings a paged-back message back', () => {
+  const prev = [msg(1), msg(3), msg(4), msg(5), msg(6)];  // m2 was deleted
+  const merged = mergeNewestPage(prev, range(4, 6), { conversationId: C, pageSize: 3, history: range(1, 3), historyFrom: msg(1).created_at });
+  assert.deepEqual(merged.map(m => m.id), ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']);
+});
+
+test('the re-read is held to this conversation and to before the page, without repeats', () => {
+  const history = [msg(1, 'conv-b'), msg(2), msg(4), msg(9)];
+  const merged = mergeNewestPage(range(1, 6), range(4, 6), { conversationId: C, pageSize: 3, history });
+  assert.deepEqual(merged.map(m => m.id), ['m2', 'm4', 'm5', 'm6']);
+});
+
+test('without a re-read (none held, or it failed) the paged-back rows stay as they were', () => {
+  const merged = mergeNewestPage(range(1, 6), range(4, 6), { conversationId: C, pageSize: 3, history: null });
+  assert.deepEqual(merged.map(m => m.id), ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']);
+});
+
+test('the hook re-reads the paged-back range from the oldest loaded page, up to the page', () => {
+  const src = readFileSync(new URL('../hooks/useMessageThread.js', import.meta.url), 'utf8');
+  const fn = src.slice(src.indexOf('const refetch = useCallback'), src.indexOf('useEffect(() => { refetch(); }'));
+  assert.match(fn, /fetchConversationRange\(/);
+  assert.match(fn, /history/);
+  const lib = readFileSync(new URL('./messages.js', import.meta.url), 'utf8');
+  const range = lib.slice(lib.indexOf('export async function fetchConversationRange'));
+  const body = range.slice(0, range.indexOf('\n}\n'));
+  assert.match(body, /\.gte\('created_at', from\)/);
+  assert.match(body, /\.lte\('created_at', to\)/);
+  assert.match(body, /\.is\('deleted_at', null\)/);
+  assert.match(body, /if \(error\)/);
+});
+
+test('a page loaded while the re-read was in flight is kept, not dropped', () => {
+  const prev = range(1, 6);                               // m1-m2 landed mid re-read
+  const merged = mergeNewestPage(prev, range(4, 6), {
+    conversationId: C, pageSize: 3, history: [msg(3)], historyFrom: msg(3).created_at,
+  });
+  assert.deepEqual(merged.map(m => m.id), ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']);
+});
