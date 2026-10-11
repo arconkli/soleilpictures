@@ -2932,7 +2932,7 @@ Editors are free on every plan. See Collaborating.
 
 People with access
 
-One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace.
+One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
 
 Getting a link fast
 
@@ -3638,7 +3638,7 @@ Q: Do collaborators need to pay?
 A: No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
 
 Q: If someone on my team upgrades, does my workspace get the higher limits?
-A: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours.
+A: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it.
 
 Q: What happens when I hit the card cap?
 A: You are told, and asked to upgrade. Nothing already made is taken away or locked.

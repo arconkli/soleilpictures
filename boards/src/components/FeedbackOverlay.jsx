@@ -155,6 +155,11 @@ function FeedbackDialog({ dialog, onClose }) {
                   onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}>
             {dialog.cancelLabel}
           </button>
+          {dialog.kind === 'confirm' && dialog.altLabel && (
+            <button type="button" className="btn-secondary" onClick={() => onClose('alt')}>
+              {dialog.altLabel}
+            </button>
+          )}
           <button
             type="submit"
             className={dialog.danger ? 'btn-primary btn-danger' : 'btn-primary'}
