@@ -23,8 +23,11 @@ import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { lastMessageId } from '../lib/messagePaging.js';
 
 const STICK_THRESHOLD_PX = 80;
+// Start fetching the previous page this far before the reader hits the top.
+const LOAD_OLDER_THRESHOLD_PX = 120;
 
 // conversation = { id, title, participants: [{ user_id, left_at, ... }] }
 export function MessageThread({
@@ -36,7 +39,7 @@ export function MessageThread({
   const conversationId = conversation?.id;
   const feedback = useFeedback();
 
-  const { messages, typingUsers, refetch } = useMessageThread({
+  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
   });
@@ -70,16 +73,33 @@ export function MessageThread({
   // ── Sticky-scroll behavior ───────────────────────────────────────────
   const wasAtBottomRef = useRef(true);
   const [unseenCount, setUnseenCount] = useState(0);
-  const prevLenRef = useRef(0);
+  const prevLastIdRef = useRef(null);
+  // Scroll height captured just before an older page is prepended, so the
+  // message the reader is looking at stays put instead of jumping down.
+  const anchorRef = useRef(null);
 
   const isNearBottom = () => {
     const el = scrollRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < STICK_THRESHOLD_PX;
   };
+  const requestOlder = () => {
+    const el = scrollRef.current;
+    if (!hasOlder || loadingOlder || !el) return;
+    anchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
+    loadOlder();
+  };
+  const lastScrollTopRef = useRef(0);
   const onScroll = () => {
     wasAtBottomRef.current = isNearBottom();
     if (wasAtBottomRef.current) setUnseenCount(0);
+    const el = scrollRef.current;
+    if (!el) return;
+    // Only an UPWARD scroll near the top pages back: the opening jump to the
+    // bottom starts at scrollTop 0 and must not fetch history on its way down.
+    const goingUp = el.scrollTop < lastScrollTopRef.current;
+    lastScrollTopRef.current = el.scrollTop;
+    if (goingUp && el.scrollTop < LOAD_OLDER_THRESHOLD_PX && !searchOpen && !replyParent) requestOlder();
   };
   const jumpToBottom = (smooth = true) => {
     const el = scrollRef.current;
@@ -92,22 +112,39 @@ export function MessageThread({
   useEffect(() => {
     wasAtBottomRef.current = true;
     setUnseenCount(0);
-    prevLenRef.current = 0;
+    prevLastIdRef.current = null;
+    anchorRef.current = null;
     requestAnimationFrame(() => jumpToBottom(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
+  // New messages land at the END, so "something arrived" is the newest id
+  // moving — not the length, which also grows when older history is
+  // prepended and stays flat once a thread holds a full page.
+  const lastId = lastMessageId(messages);
   useEffect(() => {
-    const prev = prevLenRef.current;
-    const now = messages.length;
-    prevLenRef.current = now;
-    if (now <= prev) return;
-    if (wasAtBottomRef.current) {
+    const prevId = prevLastIdRef.current;
+    prevLastIdRef.current = lastId;
+    if (!lastId || lastId === prevId) return;
+    if (wasAtBottomRef.current || !prevId) {
       requestAnimationFrame(() => jumpToBottom(true));
     } else {
-      setUnseenCount(c => c + (now - prev));
+      const at = messages.findIndex(m => m.id === prevId);
+      const added = at >= 0 ? messages.length - 1 - at : 1;
+      if (added > 0) setUnseenCount(c => c + added);
     }
-  }, [messages.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastId]);
+
+  // After an older page is prepended, push the scroll position down by the
+  // height it added so the reader's place doesn't move.
+  useLayoutEffect(() => {
+    const a = anchorRef.current;
+    const el = scrollRef.current;
+    if (!a || !el || loadingOlder) return;
+    anchorRef.current = null;
+    el.scrollTop = el.scrollHeight - a.height + a.top;
+  }, [messages, loadingOlder]);
 
   // ── Search ───────────────────────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
@@ -596,6 +633,16 @@ export function MessageThread({
       )}
 
       <div className="msg-thread-body" ref={scrollRef} onScroll={onScroll}>
+        {!searchOpen && !replyParent && hasOlder && (
+          <button
+            type="button"
+            className="msg-load-older t-meta"
+            onClick={requestOlder}
+            disabled={loadingOlder}
+          >
+            {loadingOlder ? 'Loading earlier messages…' : 'Load earlier messages'}
+          </button>
+        )}
         {searchOpen && searchQuery.trim() ? (
           <>
             <div className="msg-search-summary t-meta">

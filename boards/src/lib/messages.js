@@ -59,17 +59,24 @@ export async function listMessageableUsers({ workspaceId, query = null } = {}) {
 
 // ── Message fetching ────────────────────────────────────────────────
 
-export async function fetchConversationMessages({ conversationId, limit = 200 }) {
+// The NEWEST `limit` messages (or the newest ones strictly before `before`,
+// for "load older"), returned oldest-first for rendering. Ordering ascending
+// with a limit returned the first 200 ever sent, so a long thread froze at
+// message 200 (COMMS-06). Resolves null on a failed read so the caller can
+// keep what it already shows instead of painting an empty thread.
+export async function fetchConversationMessages({ conversationId, limit = 200, before = null }) {
   if (!conversationId) return [];
-  const { data, error } = await supabase
+  let q = supabase
     .from('messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
+    .is('deleted_at', null);
+  if (before) q = q.lt('created_at', before);
+  const { data, error } = await q
+    .order('created_at', { ascending: false })
     .limit(limit);
-  if (error) { console.warn('fetchConversationMessages', error); return []; }
-  return data || [];
+  if (error) { console.warn('fetchConversationMessages', error); return null; }
+  return (data || []).reverse();
 }
 
 export async function fetchMessageById(id) {
