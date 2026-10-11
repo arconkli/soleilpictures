@@ -374,22 +374,36 @@ body {
 
 /* ─────────────────────────── Motion defaults ────────────────────────────── */
 
+/* Reduce MOTION, never position. This block used to add `transform: none
+   !important` as well, and a transform is as often a place as a movement: the
+   closed phone drawer IS translateX(-100%), a peer cursor IS its translate, a
+   flipped photo IS scaleX(-1), and translate(-50%) centring is everywhere. That
+   one line parked the drawer open over the app, stacked every cursor at the
+   origin and pushed centred panels off by half their width (VIS-01/02,
+   CANVAS-A-X1). So: durations clamp (fades and entrances still RUN, which
+   matters — several entrances start at opacity 0 and end via `forwards`), and
+   loops play once, because a spinner clamped to 120ms a turn would whirl.
+   Keyframes that slide something a long way get a fade-only twin under this
+   same query, next to the original (a later @keyframes of the same name wins).
+   Pinned by tests/reduced-motion-transforms.spec.js. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-duration: var(--dur-fast) !important;
     animation-duration: var(--dur-fast) !important;
-    transform: none !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
 /* Shared entrance for centered dialogs/modals. Referenced in ~7 places
    (.account-modal, .feedback-dialog, .settings-modal, time-travel, etc.) that
    previously pointed at an *undefined* keyframe — so they had no entrance at
-   all. The transform is neutralized automatically under prefers-reduced-motion
-   by the rule above, leaving a clean opacity fade. */
+   all. Under prefers-reduced-motion it is a plain opacity fade. */
 @keyframes modalRise {
   from { opacity: 0; transform: translateY(8px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes modalRise { from { opacity: 0; } to { opacity: 1; } }
 }
 
 /* Canonical disabled treatment for every inert control. Zero specificity via
@@ -6191,11 +6205,8 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
      overflows in both directions and cannot be scrolled back to — measured at
      a 660px-high laptop viewport the modal was 697px and its CTA sat below the
      fold with `overflow-y: visible` and no way to reach it. This is the same
-     idiom .modal-shell-bg has always used, and it is equally immune to the
-     global prefers-reduced-motion rule that flattens transform on every
-     element (styles.css:369, and the .capture-hud scar at :16251) — margins
-     are not motion, so nothing has to be exempted. Do not centre with
-     translate, and do not "simplify" this back to place-items. */
+     idiom .modal-shell-bg has always used. Do not "simplify" this back to
+     place-items. */
   display: flex;
   justify-content: center;
   overflow-y: auto;
@@ -10719,7 +10730,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 @media (prefers-reduced-motion: reduce) {
   /* No pop for reduced-motion — the layer opacity fade alone reveals the
-     guides at their settled end-state (the global rule already drops transforms). */
+     guides at their settled end-state. */
   .snap-guides .guide-line,
   .snap-guides .guide-mark { animation: none; }
 }
@@ -14784,6 +14795,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   from { opacity: 0; transform: translateX(40px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes doc-card-modal-side-in { from { opacity: 0; } to { opacity: 1; } }
+}
 .doc-card-side-divider {
   position: fixed; bottom: 0;
   /* `top` set via inline style so the divider tracks the panel top */
@@ -18054,12 +18068,9 @@ body[data-capture-freeze='1'] { --grain-url: none; }
 .capture-hud {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-  /* Centred by auto margins rather than translateX(-50%). The global
-     prefers-reduced-motion rule flattens `transform` on every element, and it
-     is right to — but a transform used purely to CENTRE something is not
-     motion, and losing it parked this strip with its left edge at the middle of
-     the screen, half of it off the side. Auto margins are not motion, so
-     nothing has to be exempted. */
+  /* Centred by auto margins rather than translateX(-50%) — a habit from when
+     the global prefers-reduced-motion rule flattened every transform and parked
+     this strip half off the screen. Either works now; auto margins stay. */
   left: 0;
   right: 0;
   margin-inline: auto;
@@ -20649,6 +20660,10 @@ button, [role="button"], a {
   overscroll-behavior: contain;
 }
 @keyframes sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  /* A full-height slide is the motion this query exists to stop: fade instead. */
+  @keyframes sheet-up { from { opacity: 0; } to { opacity: 1; } }
+}
 @keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* Mobile add sheet — the phone bottom-nav "+" opens this grid of add actions
@@ -20785,6 +20800,9 @@ button, [role="button"], a {
   overscroll-behavior: contain;
 }
 @keyframes md-slide { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes md-slide { from { opacity: 0; } to { opacity: 1; } }
+}
 @keyframes md-fade  { from { opacity: 0; } to { opacity: 1; } }
 
 
