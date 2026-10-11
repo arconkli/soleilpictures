@@ -17,8 +17,9 @@
 // right-clickable (Remove tag / Confirm / Don't suggest again).
 // A filter pill at the top toggles between All / Auto / Manual.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { coalesce, touchesAppliedTag, touchesTagMention } from '../lib/tagSurface.js';
 import { setTagEntityType } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
@@ -28,7 +29,7 @@ import {
   untagCard, untagBoard, untagGroup,
   confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion,
   tagCard, tagGroup, tagBoard, tagDocPage,
-  getRelatedEntities,
+  getRelatedEntities, TAG_LINKS_CHANGED,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
@@ -79,6 +80,17 @@ const KIND_ICON = {
 };
 
 function kindIcon(kind) { return KIND_ICON[kind] || StickyNote; }
+
+// Is this get_things_tagged row the item a menu action targeted?
+// target: { id, boardId } as built by the render helpers' menuTarget.
+function isRowFor(r, targetKind, target) {
+  if (targetKind === 'board') return r.kind === 'board' && (r.board_id || r.id) === target.id;
+  if (targetKind === 'group') {
+    return r.kind === 'group' && (r.group_id || r.id) === target.id && r.board_id === target.boardId;
+  }
+  return r.kind !== 'board' && r.kind !== 'group'
+    && r.card_id === target.id && r.board_id === target.boardId;
+}
 
 function itemExcerpt(it) {
   const title = (it.title || '').trim();
@@ -183,10 +195,22 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     }
   };
 
+  // The live tag's row reload, for actions outside the effect below (Undo).
+  const reloadRowsRef = useRef(null);
+
   useEffect(() => {
     if (!tag?.id) { setRows([]); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
+    // Coalesced: a burst of realtime events (any DELETE now counts, see
+    // below) runs at most one fetch plus one trailing re-run.
+    const reloadRows = coalesce(async () => {
+      const { data, error } = await supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 300 });
+      if (cancelled) return;
+      if (error) { console.warn('[tags] get_things_tagged failed', error); return; }
+      setRows(Array.isArray(data) ? data : []);
+    });
+    reloadRowsRef.current = reloadRows;
     supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 300 })
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -262,6 +286,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
         });
     };
     loadMentions();
+    const reloadMentions = coalesce(loadMentions);
 
     // Pending suggestions for this tag — the per-tag inbox in the
     // Suggested filter. dismissed_at IS NULL filters out tombstones.
@@ -305,20 +330,11 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'entity_links',
       }, (payload) => {
-        const n = payload?.new || {};
-        const o = payload?.old || {};
-        const isApplied =
-          (n.target_kind === 'tag' && n.target_id === tag.id && n.link_kind === 'applied') ||
-          (o.target_kind === 'tag' && o.target_id === tag.id && o.link_kind === 'applied');
-        const isMention =
-          (n.target_kind === 'tag' && n.target_id === tag.id && (n.link_kind === 'mention' || (n.link_kind === 'applied' && n.source_kind === 'doc'))) ||
-          (o.target_kind === 'tag' && o.target_id === tag.id && (o.link_kind === 'mention' || (o.link_kind === 'applied' && o.source_kind === 'doc')));
-        if (isApplied) {
-          supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 300 })
-            .then(({ data }) => { if (!cancelled) setRows(Array.isArray(data) ? data : []); })
-            .catch(() => {});
-        }
-        if (isMention) loadMentions();
+        // A DELETE's `old` is only the row id (replica identity default +
+        // RLS), so a removal — yours from another tab, a peer's, a tag
+        // delete — can't be matched to this tag. Reload on any DELETE.
+        if (touchesAppliedTag(payload, tag.id)) reloadRows();
+        if (touchesTagMention(payload, tag.id)) reloadMentions();
       })
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'tag_suggestions',
@@ -329,8 +345,15 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       })
       .subscribe();
 
+    // This tab's own removals (another surface, a delete, a merge),
+    // independent of what realtime delivers.
+    const onLocalChange = () => { reloadRows(); reloadMentions(); };
+    document.addEventListener(TAG_LINKS_CHANGED, onLocalChange);
+
     return () => {
       cancelled = true;
+      document.removeEventListener(TAG_LINKS_CHANGED, onLocalChange);
+      if (reloadRowsRef.current === reloadRows) reloadRowsRef.current = null;
       try { supabase.removeChannel(chan); } catch (_) {}
     };
   }, [tag?.id]);
@@ -456,6 +479,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       } else if (targetKind === 'group') {
         await untagGroup({ boardId: target.boardId, groupId: target.id, tagId: tag.id });
       }
+      // Take it off the list now. The realtime DELETE can't name the tag, so
+      // the item used to stay listed (and counted) after "Tag removed".
+      setRows(prev => prev.filter(r => !isRowFor(r, targetKind, target)));
       await dismissAutotagSuggestion({
         workspaceId: workspaceId || tag.workspace_id,
         targetKind, targetId: target.id, tagId: tag.id, userId,
@@ -475,6 +501,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
               await tagGroup({ workspaceId: ws, boardId: target.boardId, groupId: target.id, tagId: tag.id });
             }
             await undismissAutotagSuggestion({ workspaceId: ws, targetKind, targetId: target.id, tagId: tag.id });
+            reloadRowsRef.current?.();
           } catch (err) {
             feedback?.toast?.({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
           }
