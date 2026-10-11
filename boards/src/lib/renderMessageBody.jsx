@@ -21,7 +21,7 @@
 import React from 'react';
 import { EntityLink } from '../components/EntityLink.jsx';
 import { scanForAutoLinks } from './scanForAutoLinks.js';
-import { scanMentions } from './messageMentions.js';
+import { scanMentions, hasUnresolvedMention } from './messageMentions.js';
 
 const URL_RE = /https?:\/\/[^\s<>]+/g;
 const FENCE_RE = /```([\s\S]*?)```/g;
@@ -55,8 +55,8 @@ function renderInline(str, ctx, keyPrefix = 'i') {
     if (att.title || att.name) targets.push({ name: att.title || att.name, kind: att.kind, ref: att });
   }
   // A mentioned person whose profile hasn't resolved yet still gets a
-  // one-word pill rather than none.
-  const allowUnresolved = (ctx.mentions?.length || 0) > 0;
+  // one-word pill rather than none — but only while one hasn't.
+  const allowUnresolved = hasUnresolvedMention(ctx.mentions, ctx.userNamesById);
 
   const out = [];
   let counter = 0;
