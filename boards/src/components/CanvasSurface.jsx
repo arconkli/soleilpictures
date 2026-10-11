@@ -5186,7 +5186,9 @@ export function CanvasSurface({
         return;
       }
 
-      if (cmd && e.key === '0') { e.preventDefault(); enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); return; }
+      // 100% around the view's centre — not a jump to the board origin, which
+      // is usually empty canvas.
+      if (cmd && e.key === '0') { e.preventDefault(); zoomAroundCenter(1 / zoomRef.current); return; }
       if (cmd && (e.key === '=' || e.key === '+')) { e.preventDefault(); zoomAroundCenter(1.25); return; }
       if (cmd && (e.key === '-')) { e.preventDefault(); zoomAroundCenter(1 / 1.25); return; }
 
@@ -8410,7 +8412,7 @@ export function CanvasSurface({
           });
         }},
       ]},
-      { id: 'fit', label: 'Reset zoom (⌘0)', run: () => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); } },
+      { id: 'fit', label: 'Reset zoom (⌘0)', run: () => zoomAroundCenter(1 / zoomRef.current) },
       { id: 'export', label: 'Export', submenu: [
         { id: 'export-png', label: 'PNG image', run: async () => {
           setExportSvgMounted(true);
@@ -12173,7 +12175,10 @@ export function CanvasSurface({
       )}
 
       <div className="cnv-zoom">
-        <button onClick={() => { enableSmoothTransform(); markZooming(); setZoom(z => Math.max(ZOOM_MIN, z / 1.25)); }}>−</button>
+        {/* −, + and 100% keep the view's centre where it is, like ⌘−/⌘=. A bare
+            setZoom scales around the board origin (transform-origin 0 0), so
+            what you were looking at slid away with every click. */}
+        <button onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>−</button>
         <input
           className="cnv-zoom-slider"
           type="range"
@@ -12199,11 +12204,11 @@ export function CanvasSurface({
         />
         <span className="cnv-zoom-val"
               title="Click: 100% · Double-click: Full Cluster"
-              onClick={() => { enableSmoothTransform(); markZooming(); setZoom(1); setPan({ x: 40, y: 60 }); }}
+              onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
               onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
           {Math.round(zoom * 100)}%
         </span>
-        <button onClick={() => { enableSmoothTransform(); markZooming(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); }}>+</button>
+        <button onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>+</button>
       </div>
 
       {/* Master comments-visibility toggle. Always rendered — left-click
