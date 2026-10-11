@@ -21,14 +21,18 @@
 //           members AND editor-shared users). If no boardId, falls
 //           back to `can_write_workspace(<workspaceId>)` — since 0318 a
 //           membership row alone is not a write right.
+//     Quota: main content is checked against the owner's storage quota —
+//           authorize_image_upload(boardId), or authorize_upload(room) with
+//           no boardId — and refused 403 { reason: 'over_quota' }.
 //     Returns: { uploadUrl, key }
 //
 //   POST /parties/upload/<workspaceId>/sign-reads
-//     Body: { keys: string[] }
+//     Body: { keys: string[], download?: { [key]: filename } }
 //     Auth: caller's Supabase JWT — RLS on the `images` table filters
 //           to keys the user can actually read (workspace member OR
 //           shared into a board the image belongs to).
-//     Returns: { urls: { [key]: signedReadUrl }, ttl }
+//     Returns: { urls: { [key]: signedReadUrl }, ttl }, plus
+//              downloads: { [key]: attachmentUrl } when `download` was sent
 //
 // The room name is the workspaceId — we don't use room state, but
 // PartyKit requires a room id in the URL.
@@ -508,11 +512,17 @@ export default class UploadParty implements Party.Server {
       return new Response("Too large for a thumbnail or preview", { status: 413, headers: corsHeaders(origin) });
     }
 
-    if (body.boardId && !isDerivedKey) {
-      const authRows = await supabaseRpc("authorize_image_upload", {
-        p_board_id: body.boardId,
-        p_bytes: declared,
-      }, accessToken);
+    if (!isDerivedKey) {
+      // No boardId (images pasted into a doc page, avatars): the quota is the
+      // workspace owner's, via authorize_upload(room). This branch used to
+      // skip the check entirely, so a free owner over quota was refused on
+      // the canvas and accepted in a doc (DB-10). Same fail-open shape and
+      // same 403 over_quota answer as the board branch — only over_quota
+      // refuses here (owner_not_paid is the multipart file-size gate, not an
+      // image one). Current clients already handle this response.
+      const authRows = body.boardId
+        ? await supabaseRpc("authorize_image_upload", { p_board_id: body.boardId, p_bytes: declared }, accessToken)
+        : await supabaseRpc("authorize_upload", { p_workspace_id: workspaceId, p_bytes: declared }, accessToken);
       const auth = Array.isArray(authRows) ? authRows[0] : authRows;
       if (auth && auth.allow !== true && auth.reason === "over_quota") {
         return Response.json(
