@@ -233,9 +233,10 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     expect(cs).toMatch(/mutators\.deleteCardsSilent\?\.\(\[id\]\)/);
     // Canvas post-upload patches use updateCardSilent (the list path always
     // did; the canvas path used to "peel" the src on Cmd+Z).
-    // (Since 2026-10-12 through updateCardMeta where the shell has it: an
-    // upload finishing isn't an edit, so it doesn't stamp "Modified" in Info.)
-    expect(cs).toMatch(/\(mutators\.updateCardMeta \|\| mutators\.updateCardSilent\)\?\.\(id, \{ src: up\.src, pending: false \}\)/);
+    // (Since 2026-10 every canvas upload settles through settleUpload, which
+    // patches silently or holds the result for a card that is out of reach.)
+    expect(cs).toMatch(/if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) mutators\.updateCardSilent\?\.\(id, patch\);/);
+    expect(cs).toMatch(/settleUpload\(dropBoardId, id, \{ src: up\.src, pending: false \}\)/);
     expect(cs).not.toMatch(/mutators\.updateCard\?\.\(id, \{ src: up\.src, pending: false \}\)/);
   });
 
@@ -348,7 +349,10 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     const cs = read('src/components/CanvasSurface.jsx');
     // Both the keydown AND paste window handlers stand down while any
     // dialog (Modal, feedback confirm, sketch pad) is open.
-    expect((cs.match(/anyModalOpen\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
+    // (Through boardKeysBlocked(), which also checks the DOM for viewers that
+    // don't register — the PDF viewer, lightbox, photo editor, Settings.)
+    expect(cs).toMatch(/function boardKeysBlocked\(\) \{\s*if \(anyModalOpen\(\)\) return true;/);
+    expect((cs.match(/if \(boardKeysBlocked\(\)\) return;/g) || []).length).toBeGreaterThanOrEqual(2);
     expect(read('src/components/ListSurface.jsx')).toMatch(/anyModalOpen\(\)/);
     expect(read('src/components/Modal.jsx')).toMatch(/registerModalOpen\(\)/);
     expect(read('src/components/FeedbackOverlay.jsx')).toMatch(/registerModalOpen\(\)/);
