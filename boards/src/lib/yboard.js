@@ -542,8 +542,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     localEdits = true;
     localSeq += 1;
     // Only a LOCAL edit drives the "Saving…" footer (peer edits shouldn't
-    // flip your own save indicator).
-    if (origin === 'local') { pendingLocal = true; emitSaveState('saving'); }
+    // flip your own save indicator). Local means the canvas ('local'), doc
+    // structure ('doc-struct') and typing in a doc or note — y-prosemirror's
+    // binding, whose origin is its PluginKey ('y-sync$').
+    if (origin === 'local' || origin === 'doc-struct' || origin?.key === 'y-sync$') { pendingLocal = true; emitSaveState('saving'); }
     persistSoon();
   };
   ydoc.on('update', onUpdate);

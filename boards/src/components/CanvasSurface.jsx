@@ -9196,6 +9196,7 @@ export function CanvasSurface({
                      isPublic={isPublic}
                      onDock={onDockDoc}
                      isDocked={dockedDocCardId === c.id}
+                     hostBoardId={board.id}
                      autoFocus={af}
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} html={c.html} body={c.body} onUpdate={onUpdate} autoFocus={af} />;
