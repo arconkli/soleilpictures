@@ -413,7 +413,7 @@ export function ListSurface({
   useEffect(() => {
     if (activeId && !navItems.some(it => it.id === activeId)) setActiveId(null);
   }, [navItems, activeId]);
-  useEffect(() => { setActiveId(null); setPlayingId(null); }, [board.id]);
+  useEffect(() => { setActiveId(null); }, [board.id]);
 
   // Keep the keyboard cursor on screen. A ref per row rather than a query
   // selector so this survives the rows re-ordering under a sort.
@@ -461,6 +461,14 @@ export function ListSurface({
     try { audioElRef.current?.pause(); } catch (_) {}
     setPlayingId(null);
   }, [setRowProgress]);
+
+  // Another cluster (a folder opened, a breadcrumb, the panel browsing) stops
+  // what's sounding. This component outlives the move, so the <audio> did
+  // too — playing on with no row to show it and no pause to reach.
+  useEffect(() => {
+    stopAudition();
+    audioBus.release(stopAudition);
+  }, [board.id, stopAudition]);
 
   const auditionCard = useCallback(async (id) => {
     const it = items.find(x => x.id === id);

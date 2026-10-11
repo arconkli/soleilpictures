@@ -77,6 +77,30 @@ test('FILES-LIST-01: full Files at phone width keeps the whole selection bar on 
   await expectSelbarFits(page, full(page), { x: 0, width: 390 });
 });
 
+test('FILES-LIST-02: opening a folder stops the loop that was playing', async ({ page }) => {
+  await go(page);
+  await page.waitForFunction(() => !!window.__soleilAudioLive);
+  await page.evaluate(() => {
+    for (let i = 0; i < 3; i++) window.__soleilAudioLive.addAudio({ x: 900 + i * 40, y: 500 + i * 40 });
+  });
+  await openFullFiles(page);
+  await page.getByRole('button', { name: 'List layout' }).click();
+  await full(page).locator('.ct-play').first().click();
+  await expect(full(page).locator('.ct-row.is-playing')).toHaveCount(1);
+  await page.waitForFunction(() => {
+    const el = document.querySelector('audio[data-list-audio]');
+    return el && !el.paused;
+  });
+  // The fixture is two seconds long: loop it, so only the move can stop it.
+  await page.evaluate(() => { document.querySelector('audio[data-list-audio]').loop = true; });
+  await full(page).locator('[data-folder-id]').first().dblclick();
+  await expect(full(page).locator('.ct-play')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => {
+    const el = document.querySelector('audio[data-list-audio]');
+    return !el || el.paused;
+  })).toBe(true);
+});
+
 test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
   await go(page, { width: 390, height: 844 });
   await openFull(page);
