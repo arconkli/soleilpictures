@@ -379,6 +379,11 @@ const MemoScheduleCard = memo(ScheduleCard, shallowEqualIgnoreFns);
 const MemoRichDocCard = memo(RichDocCard, shallowEqualIgnoreFns);
 const EMPTY_UPLOADS = Object.freeze({});
 const EMPTY_ITEMS = Object.freeze([]);
+// A "line": an arrow with no heads whose ends are both free points (not
+// anchored to a card or group). The ToolOptionsBar edits these; the arrow
+// popover edits everything else.
+const isFreeEnd = (r) => !!r && typeof r === 'object' && !r.cardId && !r.id;
+const isFreeLine = (a) => !!a && a.head === 'none' && isFreeEnd(a.from) && isFreeEnd(a.to);
 
 // Stroke path building, eraser splitting and the point/polyline distance math
 // all live in lib/strokeModel.js + lib/strokeRender.js now — the board layer,
@@ -12075,16 +12080,19 @@ export function CanvasSurface({
 
       {/* Inline arrow-editor popover — shown when exactly one arrow is
           selected. Lives in screen-space (position:fixed) so it doesn't
-          scale with the canvas transform. Lines (arrows with
-          head:'none' created via the Shape tool) use the bottom
+          scale with the canvas transform. Free-floating lines (head:'none'
+          with both ends free, i.e. the Shape tool's lines) use the bottom
           ToolOptionsBar instead; suppress this popover for them so
-          the user doesn't see two editors with different controls. */}
+          the user doesn't see two editors with different controls. Only
+          for THOSE: a card-to-card connector set to "No arrowheads" is
+          still a connector, and hiding the popover there left it with no
+          editor at all (the toolbar only takes free lines). */}
       {canEdit && selectedArrows.size === 1 && !bendDragging && (() => {
         const idx = [...selectedArrows][0];
         const a = (arrows || [])[idx];
         const att = arrowAttachments[idx];
         if (!a || !att?.from || !att?.to) return null;
-        if (a.head === 'none') return null;
+        if (isFreeLine(a)) return null;
         const excludeFrom = excludedCardIdsForRef(a.from);
         const excludeTo   = excludedCardIdsForRef(a.to);
         const excludeSet = new Set();
@@ -12765,10 +12773,7 @@ export function CanvasSurface({
           if (selectedArrows.size !== 1 || selected.size > 0) return null;
           const idx = [...selectedArrows][0];
           const a = (arrows || [])[idx];
-          if (!a || a.head !== 'none') return null;
-          const fromIsFree = a.from && typeof a.from === 'object' && !a.from.cardId && !a.from.id;
-          const toIsFree   = a.to   && typeof a.to   === 'object' && !a.to.cardId   && !a.to.id;
-          if (!fromIsFree || !toIsFree) return null;
+          if (!isFreeLine(a)) return null;
           return { idx, arrow: a };
         })()}
         onUpdateEditingLineArrow={(patch) => {
