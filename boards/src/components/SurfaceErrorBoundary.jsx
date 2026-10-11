@@ -16,6 +16,12 @@
 // key) rather than retry in place. A small retry cap stops an infinite
 // crash→remount loop if the error is somehow deterministic.
 //
+// The cap is a RATE, not a lifetime budget: only crashes inside the last
+// CRASH_WINDOW_MS count. A lifetime counter meant four unrelated glitches over
+// a long session stranded the pane on the glitch panel for good — and because
+// the same instance serves every cluster (App keys it with `resetKey`, the
+// board id), it followed the user to every other cluster until a reload.
+//
 // Class component because hooks can't catch errors.
 
 import { Component } from 'react';
@@ -23,11 +29,33 @@ import { logClientError } from '../lib/errorReporting.js';
 import { looksLikeStaleChunk, reloadIfStaleChunk } from '../lib/lazyWithReload.js';
 
 const MAX_AUTO_REMOUNTS = 3;
+const CRASH_WINDOW_MS = 60_000;
 
 export class SurfaceErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, remounts: 0, error: null, recovering: false };
+    this.state = { hasError: false, exhausted: false, remounts: 0, error: null, recovering: false };
+    // Timestamps of recent caught crashes (componentDidCatch decides from it
+    // whether to remount or hold the panel, which sets `exhausted`).
+    this.crashTimes = [];
+  }
+
+  recentCrashCount(now = Date.now()) {
+    this.crashTimes = this.crashTimes.filter(t => now - t < CRASH_WINDOW_MS);
+    return this.crashTimes.length;
+  }
+
+  componentDidUpdate(prevProps) {
+    // A different cluster in this pane is a fresh start: clear the panel and
+    // the crash history. Not while a stale-chunk reload is in flight — that
+    // "Updating…" must stay up until the page goes.
+    if (prevProps.resetKey !== this.props.resetKey && !this.state.recovering) {
+      this.crashTimes = [];
+      if (this.state.hasError) {
+        // eslint-disable-next-line react/no-did-update-set-state
+        this.setState((s) => ({ hasError: false, exhausted: false, error: null, remounts: s.remounts + 1 }));
+      }
+    }
   }
 
   static getDerivedStateFromError(error) {
@@ -48,7 +76,7 @@ export class SurfaceErrorBoundary extends Component {
       logClientError(error, { kind: 'chunk-recover', componentStack: info?.componentStack });
       // Reloading → keep the neutral "Updating…" up. Guard says we already
       // reloaded and it's STILL failing → fall through to the in-pane fallback.
-      this.setState(reloading ? { hasError: true, recovering: true } : { hasError: true, recovering: false });
+      this.setState(reloading ? { hasError: true, recovering: true } : { hasError: true, exhausted: true, recovering: false });
       return;
     }
 
@@ -60,10 +88,12 @@ export class SurfaceErrorBoundary extends Component {
     // we've already retried too many times — then hold the fallback so we
     // don't spin. The Y.Doc state is intact either way; a manual reopen of
     // the board always rebuilds cleanly.
+    const canRemount = this.recentCrashCount() < MAX_AUTO_REMOUNTS;
+    this.crashTimes.push(Date.now());
     this.setState((s) =>
-      s.remounts < MAX_AUTO_REMOUNTS
+      canRemount
         ? { hasError: false, remounts: s.remounts + 1 }
-        : { hasError: true });
+        : { hasError: true, exhausted: true });
   }
 
   render() {
@@ -76,6 +106,12 @@ export class SurfaceErrorBoundary extends Component {
           <div className="surface-error-text">Updating… a new version is loading.</div>
         </div>
       );
+    }
+    if (this.state.hasError && !this.state.exhausted) {
+      // The render between getDerivedStateFromError and componentDidCatch:
+      // a fresh remount is the likely outcome, so paint an empty pane for this
+      // one frame rather than flashing the glitch panel.
+      return <div className="surface-eb-root" />;
     }
     if (this.state.hasError) {
       // Exhausted auto-remounts — show a quiet, in-place recovery prompt
