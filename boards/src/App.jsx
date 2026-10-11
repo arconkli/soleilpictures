@@ -9132,14 +9132,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                   workspaceId={workspace.id}
                   backdrop={!homeExploring}
                   onNavigate={(target) => {
-                    setCurrentSurface('board');
-                    if (target?.kind === 'url') {
-                      window.open(target.href, '_blank', 'noopener,noreferrer');
+                    // A link opens in its own tab and leaves you on Home; it
+                    // used to switch this tab to whatever cluster was last open.
+                    if (!target || target.kind === 'url') {
+                      if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');
                       return;
                     }
-                    if (target?.kind === 'board') setStack(ancestorPath(boards, target.id));
-                    if (target?.kind === 'card')  setStack(ancestorPath(boards, target.boardId));
-                    if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
+                    // Everything else goes through navHandlers, like any other
+                    // link: a card is flashed once its cluster opens, and a doc
+                    // finds its cluster through card_index and opens — the doc
+                    // branch here was an empty stub that showed some unrelated
+                    // cluster instead.
+                    setCurrentSurface('board');
+                    navHandlers[target.kind]?.(target);
                   }}
                 />
               </Suspense>
