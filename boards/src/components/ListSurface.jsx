@@ -412,6 +412,21 @@ export function ListSurface({
   // Right-click menu: { x, y } — it acts on the selection.
   const [ctxMenu, setCtxMenu] = useState(null);
   useEffect(() => { setRenamingId(null); setCtxMenu(null); }, [board.id]);
+  // Opened from the keyboard (⇧F10, the menu key): focus goes into the menu.
+  // Its arrow keys only work with focus inside, and Files' own keys stand down
+  // while it is open — so ↓ and Enter used to reach nothing at all. Focus
+  // comes back where it was when the menu closes, unless what it ran took it
+  // (Rename's field, Quick look).
+  useEffect(() => {
+    if (!ctxMenu?.keyboard) return undefined;
+    const prev = document.activeElement;
+    document.querySelector('.ctx-menu button.ctx-item:not(:disabled)')?.focus();
+    return () => {
+      const now = document.activeElement;
+      const lost = !now || now === document.body || !!now.closest?.('.ctx-menu');
+      if (lost && prev?.isConnected) prev.focus?.({ preventScroll: true });
+    };
+  }, [ctxMenu]);
   const [infoOpen, setInfoOpen] = useState(() => readInfoPref());
   const toggleInfo = useCallback(() => setInfoOpen((v) => { writeInfoPref(!v); return !v; }), []);
 
@@ -1004,7 +1019,7 @@ export function ListSurface({
         e.preventDefault();
         const el = document.querySelector(`[data-item-id="${CSS.escape(ids[0])}"], [data-folder-id="${CSS.escape(ids[0])}"]`);
         const r = el?.getBoundingClientRect?.();
-        setCtxMenu({ x: r ? r.left + 16 : 200, y: r ? r.top + 16 : 200 });
+        setCtxMenu({ x: r ? r.left + 16 : 200, y: r ? r.top + 16 : 200, keyboard: true });
         return;
       }
       // ⌘Z / ⇧⌘Z: the cluster's own undo, here as on the canvas.

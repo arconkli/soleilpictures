@@ -175,6 +175,35 @@ test('FILES-LIST-05: the keyboard cursor never parks a tile under the sticky too
   expect(clear).toBeGreaterThanOrEqual(0);
 });
 
+test('FILES-LIST-08: the menu opened with Shift+F10 is driven from the keyboard', async ({ page }) => {
+  await go(page, { blank: true });
+  await openFullFiles(page);
+  await full(page).locator('input[type="file"][multiple]').setInputFiles(pngs('shot.png'));
+  await full(page).locator('.ct-tile-name[title="shot.png"]').click();
+  await page.keyboard.press('Shift+F10');
+  const menu = page.locator('.ctx-menu');
+  await expect(menu).toBeVisible();
+  const items = menu.locator('button.ctx-item:not(:disabled)');
+  await expect(items.first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.nth(1)).toBeFocused();
+  // Enter runs the focused item, as a click would.
+  await page.keyboard.press('ArrowUp');
+  await expect(items.first()).toHaveText(/Quick look/);
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: /^Quick look/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: /^Quick look/ })).toHaveCount(0);
+  // Rename from the menu keeps its field focused: closing the menu must not
+  // hand focus back over it.
+  await page.keyboard.press('Shift+F10');
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: /Rename/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(full(page).locator('input:focus')).toHaveCount(1);
+});
+
 test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
   await go(page, { width: 390, height: 844 });
   await openFull(page);
