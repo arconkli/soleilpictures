@@ -6,32 +6,51 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listWorkspaceTags, listCardTags, listBoardTags } from '../lib/tagsApi.js';
 import { resolveTagColor } from '../lib/tagColor.js';
+import { coalesce, touchesAppliedTag } from '../lib/tagSurface.js';
 
 export function useWorkspaceTags({ workspaceId, boardId }) {
   const [tags, setTags] = useState([]);
   const [cardTagRows, setCardTagRows] = useState([]);
   const [boardTagRows, setBoardTagRows] = useState([]);
-  const reloadRef = useRef(false);
 
-  const refresh = useCallback(async () => {
-    if (!workspaceId) return;
-    if (reloadRef.current) return;
-    reloadRef.current = true;
-    try {
-      const [t, c, b] = await Promise.all([
-        listWorkspaceTags(workspaceId),
-        boardId ? listCardTags(boardId) : Promise.resolve([]),
-        boardId ? listBoardTags(boardId) : Promise.resolve([]),
-      ]);
-      setTags(t || []);
-      setCardTagRows(c || []);
-      setBoardTagRows(b || []);
-    } catch (err) {
-      console.warn('[tags] refresh failed', err);
-    } finally {
-      reloadRef.current = false;
-    }
-  }, [workspaceId, boardId]);
+  // The params the NEXT fetch should use. Read at run time (not closed over)
+  // so a fetch that started on the board you just left can tell its rows are
+  // stale and drop them instead of painting the old board's chips.
+  const paramsRef = useRef({ workspaceId, boardId });
+  paramsRef.current = { workspaceId, boardId };
+
+  // One coalesced runner per hook instance. The old boolean guard RETURNED
+  // when a fetch was in flight, so the refresh for a board you had just
+  // switched to (CanvasSurface isn't keyed by board) or the explicit refresh
+  // after removing a chip was simply lost. Now it runs once more afterwards.
+  const runnerRef = useRef(null);
+  if (!runnerRef.current) {
+    runnerRef.current = coalesce(async () => {
+      const { workspaceId: ws, boardId: bid } = paramsRef.current;
+      if (!ws) return;
+      try {
+        const [t, c, b] = await Promise.all([
+          listWorkspaceTags(ws),
+          bid ? listCardTags(bid) : Promise.resolve([]),
+          bid ? listBoardTags(bid) : Promise.resolve([]),
+        ]);
+        const now = paramsRef.current;
+        // Switched mid-fetch: these rows describe the board we left. The
+        // switch's own refresh is already queued behind this run.
+        if (now.workspaceId !== ws || now.boardId !== bid) return;
+        setTags(t || []);
+        setCardTagRows(c || []);
+        setBoardTagRows(b || []);
+      } catch (err) {
+        console.warn('[tags] refresh failed', err);
+      }
+    });
+  }
+
+  // Identity still changes with the workspace/board so the mount effect below
+  // re-fetches on a switch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const refresh = useCallback(() => runnerRef.current(), [workspaceId, boardId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -53,15 +72,10 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
         filter: `source_workspace=eq.${workspaceId}`,
       }, (payload) => {
         // Only re-fetch when the change touches an applied tag — most
-        // entity_links activity is mention-flavored and irrelevant
-        // to the chip rendering. Realtime payloads include both
-        // old + new, so check both.
-        const n = payload?.new || {};
-        const o = payload?.old || {};
-        if ((n.target_kind === 'tag' && n.link_kind === 'applied')
-         || (o.target_kind === 'tag' && o.link_kind === 'applied')) {
-          refresh();
-        }
+        // entity_links activity is mention-flavored and irrelevant to the
+        // chip rendering. A DELETE carries only the row id (replica identity
+        // default + RLS), so it can't be ruled out and always refreshes.
+        if (touchesAppliedTag(payload)) refresh();
       })
       .subscribe();
     return () => { try { supabase.removeChannel(chan); } catch (_) {} };
