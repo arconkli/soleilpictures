@@ -20,6 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
+import { isAnimatedImageKey } from '../lib/fileIngest.js';
 import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
@@ -92,6 +93,17 @@ function markBust(key, version) {
 // Below it, a warm original is comparable to the 1280px preview (~1.6MP).
 const MAX_WARM_ORIGINAL_PX = 2_500_000;
 
+// The image metadata this card tiers on. A GIF's preview is its first frame, so
+// a GIF card never tiers: it is read as having no preview, which keeps it on
+// the (animated) original through mount, promotion and demotion alike. Rows
+// uploaded before the upload path stopped making GIF previews still carry one;
+// this is what un-freezes them. The blur placeholder is kept.
+function readMeta(key) {
+  const m = key ? getMeta(key) : null;
+  if (!m || !m.previewKey || !isAnimatedImageKey(key)) return m;
+  return { ...m, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null };
+}
+
 // Pick which tier to mount/show before anything has loaded. Prefer the
 // preview ONLY when it's at least as warm as the original:
 //   preview signed URL cached → preview (smaller decode, the fast path)
@@ -106,7 +118,7 @@ const MAX_WARM_ORIGINAL_PX = 2_500_000;
 // Public viewer: cachedUrl resolves via the share bundle, so every bundled
 // key counts as warm and the preview keeps winning there.
 function pickTierSrc(src, originalKey) {
-  const m = originalKey ? getMeta(originalKey) : null;
+  const m = readMeta(originalKey);
   if (!m || !m.previewKey) return src;
   const pv = `r2:${m.previewKey}`;
   if (cachedUrl(pv) || !cachedUrl(src)) return pv;
@@ -140,7 +152,7 @@ function pickTierSrc(src, originalKey) {
 // no w/h, so the guard's `m.w && m.h` is false and the floor variant (sm/lg)
 // wins — exactly what we want on /share.
 function pickInitialTier(src, originalKey, w) {
-  const m = originalKey ? getMeta(originalKey) : null;
+  const m = readMeta(originalKey);
   if (!m || !m.previewKey) return src;
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   const displayedPx = (typeof w === 'number' && w > 0)
@@ -349,7 +361,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                               cardId = null, className, style, draggable, ...rest }) {
   const originalKey = (typeof src === 'string' && src.startsWith('r2:')) ? src.slice(3) : null;
 
-  const [meta, setMeta] = useState(() => (originalKey ? getMeta(originalKey) : null));
+  const [meta, setMeta] = useState(() => readMeta(originalKey));
   // The r2 sentinel currently being shown. Prefers the warmest tier at mount
   // (pickInitialTier); before load it only ever switches via the pre-load
   // switch effect below. AFTER load it moves both ways under the image-tier
@@ -414,8 +426,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // or a fresh upload's variant generation).
   useEffect(() => {
     if (!originalKey) return;
-    setMeta(getMeta(originalKey));
-    const unsub = subscribeMeta(originalKey, () => setMeta(getMeta(originalKey)));
+    setMeta(readMeta(originalKey));
+    const unsub = subscribeMeta(originalKey, () => setMeta(readMeta(originalKey)));
     return unsub;
   }, [originalKey]);
 
