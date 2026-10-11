@@ -215,16 +215,44 @@ export function mergeCell(tree, cellId) {
 
 // Remove the line (divider) at [path, childIndex]: merge the two children it
 // separates by deleting child[childIndex+1] and giving its space to
-// child[childIndex]. Returns { tree, removedIds } (the cells that disappeared).
+// child[childIndex]. Returns { tree, removedIds, keptIds } — the cells that
+// disappeared and the cells that grew into their space.
 export function removeDivider(tree, path, childIndex) {
   const next = cloneNode(tree);
   const node = nodeAt(next, path);
-  if (!node || !node.children || childIndex < 0 || childIndex + 1 >= node.children.length) return { tree, removedIds: [] };
+  if (!node || !node.children || childIndex < 0 || childIndex + 1 >= node.children.length) return { tree, removedIds: [], keptIds: [] };
   const removed = leafIds(node.children[childIndex + 1]);
+  const kept = leafIds(node.children[childIndex]);
   const goneFrac = node.children[childIndex + 1].frac || 0;
   node.children.splice(childIndex + 1, 1);
   node.children[childIndex].frac = (node.children[childIndex].frac || 0) + goneFrac;
-  return { tree: normalizeTree(next), removedIds: removed };
+  return { tree: normalizeTree(next), removedIds: removed, keptIds: kept };
+}
+
+// What removing a line does to the CONTENT on either side of it. The line
+// always deletes the right / bottom side's cells, so an image on that side
+// used to vanish even when the cell taking its space was empty. When the side
+// that grows is a single empty cell, the first record from the removed side
+// moves into it (the merge reads as "the line went away", not "my image
+// went away"). Anything else on the removed side is gone, and the FILLED ones
+// are counted so the caller can name the loss in an undo toast.
+//
+// `cells` is { cellId: record } for (at least) the ids involved. Returns
+// { moves: { keptId: record }, dropped }. Carry vs count follows rehomeCells:
+// any non-'empty' record is carried, only isCellFilled ones are counted.
+export function carryRemovedCells(removedIds, keptIds, cells) {
+  const src = cells || {};
+  const has = (rec) => !!(rec && rec.type && rec.type !== 'empty');
+  const moves = {};
+  let dropped = 0;
+  const heir = (keptIds || []).length === 1 && !has(src[keptIds[0]]) ? keptIds[0] : null;
+  (removedIds || []).forEach((id) => {
+    const rec = src[id];
+    if (!has(rec)) return;
+    if (heir && !moves[heir]) { moves[heir] = rec; return; }
+    if (isCellFilled(rec)) dropped += 1;
+  });
+  return { moves, dropped };
 }
 
 // Snap targets (absolute LOCAL coords along the dragged divider's axis) so a

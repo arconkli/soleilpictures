@@ -9440,6 +9440,19 @@ export function CanvasSurface({
     // True key delete — schedule item chips remove entirely (a {type:'empty'}
     // tombstone would linger as a ghost entry in a multi-item slot).
     removeCellRecord: (gridId, cellId) => mutators.removeGridCellRecord?.(gridId, cellId),
+    // A delete inside a card (Clear cell, a rundown row, a line that took
+    // content with it) gets the house Undo toast: run `fn` as its own undo
+    // step, then toast `message` — or message(result), null for no toast.
+    withUndoToast: (message, fn) => {
+      mutators.breakUndo?.();
+      const res = fn();
+      const text = typeof message === 'function' ? message(res) : message;
+      const um = mutators.undoManager;
+      const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+      mutators.breakUndo?.();
+      if (text) undoToast(feedback, { message: text, undoManager: um, stackItem: item, onUndo: () => mutators.undo?.() });
+      return res;
+    },
     // Schedule breakdown: 'hours' on a day slot / 'minutes' on an hour slot /
     // null to collapse (meta-only, non-destructive).
     setSlotExpand: (cardId, slotPath, mode) => mutators.setSchedSlotExpand?.(cardId, slotPath, mode),

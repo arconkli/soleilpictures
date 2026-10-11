@@ -315,6 +315,8 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
   const rootRef = useRef(null);
 
   const editable = canEdit && !!gridActions;
+  // Removing an item (a chip ×, a rundown row ×) gets the house Undo toast.
+  const removeWithUndo = (fn) => (gridActions?.withUndoToast ? gridActions.withUndoToast('Item removed', fn) : fn());
   const model = readSchedModel(card, ydoc);
   const cellKeys = Object.keys(model.cells);
   const todayIso = todayISO();
@@ -919,7 +921,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             {editable && !passive && (
               <button type="button" className="schedc-item-x" title="Remove" aria-label="Remove"
                 onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); gridActions.removeCellRecord?.(card.id, items[0].k); }}>
+                onClick={(e) => { e.stopPropagation(); removeWithUndo(() => gridActions.removeCellRecord?.(card.id, items[0].k)); }}>
                 <Icon as={X} size={11} />
               </button>
             )}
@@ -929,7 +931,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             {shown.map((it) => (
               <SlotChip key={it.k} itemKey={it.k} cell={it.cell} boards={boards} onOpenBoard={onOpenBoard}
                 passive={passive}
-                onRemove={editable && !passive ? () => gridActions.removeCellRecord?.(card.id, it.k) : null} />
+                onRemove={editable && !passive ? () => removeWithUndo(() => gridActions.removeCellRecord?.(card.id, it.k)) : null} />
             ))}
             {overflow > 0 && (passive ? (
               // Passive marker on the grid — the CELL opens the day.
@@ -1242,7 +1244,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             onCancelTitle={() => setEditing(null)}
             onSetDur={(key, dur) => rd.patch(key, { dur })}
             onTogglePin={(key, clock) => rd.patch(key, { pin: clock })}
-            onRemove={(key) => rd.remove(key)}
+            onRemove={(key) => removeWithUndo(() => rd.remove(key))}
             onAdd={(index) => rd.add(index)}
             onMove={(from, to) => rd.move(from, to)}
             onEditTitle={(key) => rd.editTitle(key)}
