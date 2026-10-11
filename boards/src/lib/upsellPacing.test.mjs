@@ -118,6 +118,16 @@ test('the interrupting upload paths are wired to the latched helper', () => {
     `both list-drop refusal paths must call pitchStorageGate; found ${viaHelper.length}`);
 });
 
+test('a drop of several over-length clips pitches once, and only the owner hears about Creator', () => {
+  const canvas = stripComments(src('components/CanvasSurface.jsx'));
+  const reject = canvas.slice(canvas.indexOf('const handleUploadReject = useCallback('));
+  const branch = reject.slice(reject.indexOf("err?.code === 'video_too_long'"), reject.indexOf("String(err?.message) !== 'aborted'"));
+  assert.match(branch, /if \(tooLongRef\.current\) \{ tooLongRef\.current\.push\(err\); return; \}/,
+    'later clips of the same drop join the first refusal instead of pitching again');
+  assert.equal((branch.match(/upsell\?\.\(\)/g) || []).length, 1);
+  assert.match(branch, /message: ownsWorkspace \? `\$\{what\} Creator removes the length limit\.` : what,/);
+});
+
 test('every deliberate cap-wall open takes the moment it asks for', () => {
   // The most expensive ordering bug in this family, and the only one with a
   // production trace behind it. A 65-file over-cap drop: the user presses

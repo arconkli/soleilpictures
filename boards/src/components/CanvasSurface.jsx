@@ -3473,6 +3473,8 @@ export function CanvasSurface({
   // fill — and the third used to compute nothing at all, so it applied the FREE
   // ceilings to paid owners.
   const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
+  // The over-length clips of one drop, gathered so they are said once (below).
+  const tooLongRef = useRef(null);
 
   const handleUploadReject = useCallback((err, id, dropBoardId) => {
     // Silent (off-stack) rollback: the failed upload is not a user action,
@@ -3528,14 +3530,26 @@ export function CanvasSurface({
       // The free clip-length cap is a paid limit like the two above, and only
       // ever applies to an owner on the free plan (a shared cluster attempts
       // any length), so it pitches the same way instead of a dead-end error.
-      const explained = ownsWorkspace ? upsell?.() : false;
-      feedback.toast({
-        type: 'warning',
-        message: `${err.message}. Creator removes the length limit.`,
-        ...(ownsWorkspace && !explained
-          ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'video_too_long' }); upsell?.({ force: true }); } } }
-          : {}),
-      });
+      // Once per drop, not per clip: every clip of a drop is measured at once,
+      // so their refusals arrive together — gathered for a moment, then one
+      // pitch and one toast instead of one of each per clip.
+      if (tooLongRef.current) { tooLongRef.current.push(err); return; }
+      tooLongRef.current = [err];
+      setTimeout(() => {
+        const errs = tooLongRef.current || [err];
+        tooLongRef.current = null;
+        const explained = ownsWorkspace ? upsell?.() : false;
+        const what = errs.length === 1
+          ? `${err.message}.`
+          : `${errs.length} videos are over the ${err.maxSec ? `${err.maxSec}-second ` : ''}limit and were left out.`;
+        feedback.toast({
+          type: 'warning',
+          message: ownsWorkspace ? `${what} Creator removes the length limit.` : what,
+          ...(ownsWorkspace && !explained
+            ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'video_too_long' }); upsell?.({ force: true }); } } }
+            : {}),
+        });
+      }, 1000);
     } else if (String(err?.message) !== 'aborted') {
       feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
     }
