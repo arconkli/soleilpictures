@@ -41,3 +41,19 @@ test('the trash shows batches, a failed load is not an empty trash, and restore 
   assert.match(src, /Couldn.t load the trash/, 'a failed fetch must not render the empty state');
   assert.match(src, /past your limit/, 'a cap refusal must still surface (cardCapScope)');
 });
+
+test('search finds nothing in the Trash (0404)', async () => {
+  // entity_search fed ⌘K, the @-mention trie and the hover popover with
+  // trashed clusters and the cards on them; opening one stranded the app on a
+  // raw UUID breadcrumb. Card and group rows follow their cluster.
+  const { latestMatch } = await import('./migrationText.mjs');
+  const view = latestMatch(/create or replace view public\.entity_search[\s\S]*?;/i);
+  assert.ok(view, 'entity_search must be defined in a migration');
+  const sql = view.match[0];
+  assert.match(sql, /with \(security_invoker = on\)/, 'create or replace view resets an unstated reloption (0302)');
+  assert.match(sql, /FROM boards b\s+WHERE b\.deleted_at IS NULL/, 'the cluster branch skips trashed clusters');
+  assert.match(sql, /FROM card_index ci\s+WHERE NOT EXISTS \(SELECT 1 FROM boards tb WHERE tb\.id = ci\.board_id AND tb\.deleted_at IS NOT NULL\)/,
+    'cards on a trashed cluster are not found');
+  assert.match(sql, /FROM group_index gi\s+WHERE NOT EXISTS \(SELECT 1 FROM boards tb WHERE tb\.id = gi\.board_id AND tb\.deleted_at IS NOT NULL\)/,
+    'groups on a trashed cluster are not found');
+});
