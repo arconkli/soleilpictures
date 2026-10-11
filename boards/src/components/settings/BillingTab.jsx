@@ -107,6 +107,23 @@ export function StorageMeter() {
   const remaining = usage.remaining != null
     ? usage.remaining
     : (usage.quota != null ? Math.max(0, usage.quota - usage.used) : null);
+  // A failed fetch is not "0 B used": say so, with a way to try again.
+  if (usage.error && !usage.loading) {
+    return (
+      <div style={{ marginTop: 12 }} role="alert">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+          <span className="settings-billing-label">Storage</span>
+          <span className="t-meta" style={{ color: 'var(--ink-3, #9aa0aa)' }}>
+            Couldn’t load storage —{' '}
+            <button type="button" className="btn-secondary" style={{ padding: '4px 8px', minHeight: 28 }}
+                    onClick={() => usage.refetch()}>
+              Retry
+            </button>
+          </span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
@@ -118,7 +135,9 @@ export function StorageMeter() {
       <div style={{ height: 6, borderRadius: 999, background: 'var(--line-1, rgba(255,255,255,.12))', overflow: 'hidden' }}>
         <div style={{
           height: '100%', width: `${pct}%`, borderRadius: 999,
-          background: near ? '#ef4444' : 'var(--soleil, #ffa500)',
+          // Neutral ink at rest: gold is reserved for active / selection /
+          // focus, and a usage bar is none of those. Red only near full.
+          background: near ? '#ef4444' : 'var(--ink-2)',
           transition: 'width .3s ease',
         }} />
       </div>
