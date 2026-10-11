@@ -9377,14 +9377,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const shareTarget = shareScope === 'workspace'
           ? (boards[rootBoard.id] || rootBoard)
           : ((shareBoardId && boards[shareBoardId]) || currentBoard);
+        // A cluster shared into you from someone else's workspace belongs to
+        // THAT workspace. Handing the panel yours listed your own members as
+        // its access, made you a "manager" of it because you own yours, and
+        // pointed Whole-workspace invites at your workspace instead. Give it
+        // the cluster's own workspace, with no member list and no role, so
+        // you get exactly what a share gives you: an editor's panel.
+        const foreignWs = shareTarget?.workspace_id && shareTarget.workspace_id !== workspace.id;
+        const shareWs = !foreignWs ? workspace : {
+          id: shareTarget.workspace_id,
+          name: (sharedBoards || []).find((r) => r.source_workspace_id === shareTarget.workspace_id)?.source_workspace_name
+            || 'their workspace',
+          created_by: null,
+        };
         return (
           <ShareModal
             board={shareTarget}
-            workspace={workspace}
-            workspaceMembers={workspaceMembers}
+            workspace={shareWs}
+            workspaceMembers={foreignWs ? [] : workspaceMembers}
             wsPeers={wsPeers}
             selfUserId={user.id}
-            myWorkspaceRole={workspace._myRole || null}
+            myWorkspaceRole={foreignWs ? null : (workspace._myRole || null)}
             scope={shareScope}
             canManage={shareScope === 'workspace' ? canEditBoard(rootBoard.id)
               : shareTarget.id === currentId ? canEditCurrent : canEditBoard(shareTarget.id)}
