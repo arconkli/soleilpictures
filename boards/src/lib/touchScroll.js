@@ -30,6 +30,14 @@ const CONTAINERS = [
   { sel: '.gc-text', requireActive: true },
   { sel: '.gc-text-edit', requireActive: false },
   { sel: '.schedc-peekbody', requireActive: false },
+  // A schedule card's inline List / Tiles bodies and the day rundown: card
+  // content, so armed only once the card is selected (as a note is).
+  { sel: '.rd-body', requireActive: true },
+  { sel: '.schedt', requireActive: true },
+  { sel: '.schedc-rail-body', requireActive: true },
+  // The full-screen PDF viewer's page list. It renders inside .canvas-wrap and
+  // so inherits touch-action:none; it is already a deliberate open state.
+  { sel: '.pdfv-scroll', requireActive: false },
   // Listed BEFORE .cnv-tools deliberately — the templates panel lives inside
   // the rail, so without its own entry findTouchScrollable climbs past it and
   // a drag over the template list scrolls the rail behind it.

@@ -91,6 +91,20 @@ test.describe('touchScroll arming rule', () => {
     expect(await page.evaluate(() => !!window.__ts.findTouchScrollable(window.__tsTarget))).toBe(true);
   });
 
+  // CARDS-01/02: the PDF viewer's pages and a schedule card's own panes were
+  // finger-dead inside .canvas-wrap.
+  test('the PDF viewer arms at once; schedule panes once their card is selected', async ({ page }) => {
+    await loadLib(page);
+    await makeTree(page, { className: 'pdfv-scroll', overflowing: true, wrapperClass: 'pdfv' });
+    expect(await page.evaluate(() => !!window.__ts.findTouchScrollable(window.__tsTarget))).toBe(true);
+    for (const cls of ['rd-body', 'schedt', 'schedc-rail-body']) {
+      await makeTree(page, { className: cls, overflowing: true, wrapperClass: 'card' });
+      expect(await page.evaluate(() => !!window.__ts.findTouchScrollable(window.__tsTarget)), cls).toBe(false);
+      await makeTree(page, { className: cls, overflowing: true, wrapperClass: 'card is-selected' });
+      expect(await page.evaluate(() => !!window.__ts.findTouchScrollable(window.__tsTarget)), cls).toBe(true);
+    }
+  });
+
   test('an unrelated container is never claimed', async ({ page }) => {
     await loadLib(page);
     await makeTree(page, { className: 'some-other-box', overflowing: true, wrapperClass: 'card is-selected' });

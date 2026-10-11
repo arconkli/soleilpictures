@@ -266,6 +266,9 @@ function sameStringMap(a, b) {
   return true;
 }
 
+// A schedule card's inline scrollers (scheduleCard.css: overflow-y:auto).
+const SCHEDULE_SCROLL_PANES = '.rd-body, .schedt, .schedc-rail-body';
+
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
@@ -4359,7 +4362,10 @@ export function CanvasSurface({
       }, 140);
     };
     const onWheel = (e) => {
-      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
+      // .pdfv / .lightbox: the full-screen PDF viewer and image lightbox render
+      // inside this wrap, so without them here every wheel over a PDF's pages
+      // panned the board behind it instead of scrolling them.
+      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel, .pdfv, .lightbox')) return;
       // Public pages are pinned to pan semantics whatever the reader's own
       // preference says. They are scrollable documents — a canvas hero with an
       // article under it — so a plain wheel has to scroll the PAGE, and a
@@ -4427,6 +4433,14 @@ export function CanvasSurface({
           const isSelected = !!body.closest('.card')?.classList.contains('is-selected');
           if (isEditing || (isSelected && wheelMode === 'pan')) return;
         }
+        // Same carve-out for a schedule card's own scrolling panes — the List
+        // and Tiles bodies and the day rundown — which otherwise could never
+        // be wheel-scrolled inline: the board panned instead. Selected card,
+        // pan mode, like a clipped note (lib/touchScroll arms them the same way).
+        const pane = wheelMode === 'pan' && e.target.closest(SCHEDULE_SCROLL_PANES);
+        if (pane && pane.scrollHeight > pane.clientHeight + 1 &&
+            Math.abs(e.deltaY) >= Math.abs(e.deltaX) &&
+            pane.closest('.card')?.classList.contains('is-selected')) return;
       }
       // Public pages are scrollable documents (canvas hero + article below):
       // a plain wheel scrolls the PAGE — standard embedded-canvas behavior —
