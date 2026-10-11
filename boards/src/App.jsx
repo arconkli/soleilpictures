@@ -4654,12 +4654,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (currentSurface !== 'tag' || !activeTag?.id) return;
     const fresh = (wsTagsForSidebar.tags || []).find(t => t.id === activeTag.id);
+    // Gone from a loaded list = deleted or merged away (here or by a peer).
+    // Don't leave a profile up whose actions all hit a dead tag. (A merge
+    // made from the sidebar opens the surviving tag itself.)
+    if (!fresh) {
+      if (wsTagsForSidebar.loaded) { setActiveTag(null); setCurrentSurface('board'); }
+      return;
+    }
     if (fresh && (fresh.entity_type !== activeTag.entity_type
                   || fresh.name !== activeTag.name
                   || fresh.color !== activeTag.color)) {
       setActiveTag(fresh);
     }
-  }, [wsTagsForSidebar.tags, currentSurface, activeTag]);
+  }, [wsTagsForSidebar.tags, wsTagsForSidebar.loaded, currentSurface, activeTag]);
 
   // Tag suggester. AI engine on by default; legacy TF-IDF stays available
   // as a fallback if anyone explicitly opts out (`localStorage.soleil.ai_tagger = '0'`).

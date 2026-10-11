@@ -268,6 +268,9 @@ export function SidebarTags({
       const { mergeId } = await mergeTags({ fromTagId: mergePicker.fromTag.id, intoTagId: intoTag.id });
       try { logEvent(EV.TAG_MERGE, { from_tag_id: mergePicker.fromTag.id, into_tag_id: intoTag.id }); } catch (_) {}
       onWorkspaceTagsChanged?.();
+      // The profile you were looking at no longer exists: follow its
+      // applications to the tag they now live on.
+      if (activeTagId && activeTagId === mergePicker.fromTag.id) onOpenTag?.(intoTag);
       // merge_tags_v2 logs the whole operation — the Undo repoints every
       // rewritten application, revives the merged-away tag, and resurrects
       // any collision rows the merge absorbed.
