@@ -116,15 +116,6 @@
   --ok:     var(--msg-ok);
   --warn:   var(--msg-warn);
 
-  /* Aliases for names some component code reached for that were never
-     defined (cssTokens.test.mjs found them). Mapped onto the real scale so
-     those uses follow the theme; new code should use the canonical names. */
-  --text:      var(--ink-0);
-  --text-1:    var(--ink-1);
-  --text-soft: var(--ink-2);
-  --border:    var(--line-2);
-  --surface-2: var(--bg-2);
-
   --radius:    4px;
   --radius-sm: 6px;
   --radius-md: 8px;

@@ -93,10 +93,10 @@ function parseGscCsv(text) {
 
 const inputStyle = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid var(--border, #2a2722)', background: 'var(--bg-0, #0a0908)',
-  color: 'var(--text, #e8e4dc)', font: 'inherit',
+  border: '1px solid var(--line-2)', background: 'var(--bg-0, #0a0908)',
+  color: 'var(--ink-0)', font: 'inherit',
 };
-const labelStyle = { display: 'block', fontSize: '.8rem', fontWeight: 600, margin: '14px 0 5px', color: 'var(--text-soft, #b7b1a6)' };
+const labelStyle = { display: 'block', fontSize: '.8rem', fontWeight: 600, margin: '14px 0 5px', color: 'var(--ink-2)' };
 
 export function AdminDiscoverTab() {
   const feedback = useFeedback();
@@ -349,7 +349,7 @@ export function AdminDiscoverTab() {
                       style={{
                         width: '100%', textAlign: 'left', cursor: 'pointer',
                         padding: '9px 11px', borderRadius: 9, font: 'inherit',
-                        border: '1px solid ' + (active ? 'var(--soleil, #ffb000)' : 'var(--border, #2a2722)'),
+                        border: '1px solid ' + (active ? 'var(--soleil, #ffb000)' : 'var(--line-2)'),
                         background: active ? 'var(--soleil-soft, rgba(255,176,0,.12))' : 'var(--bg-1, #14110d)',
                         color: 'inherit',
                       }}>
@@ -360,7 +360,7 @@ export function AdminDiscoverTab() {
                         <span style={{
                           fontSize: '.68rem', fontWeight: 700, letterSpacing: '.03em', padding: '2px 7px', borderRadius: 999,
                           background: b.is_published ? 'rgba(80,200,120,.16)' : 'rgba(255,255,255,.08)',
-                          color: b.is_published ? '#74e39b' : 'var(--text-soft, #b7b1a6)',
+                          color: b.is_published ? '#74e39b' : 'var(--ink-2)',
                         }}>{b.is_published ? 'LIVE' : 'DRAFT'}</span>
                       </div>
                       <div className="t-meta admin-muted" style={{ marginTop: 2 }}>
@@ -416,7 +416,7 @@ export function AdminDiscoverTab() {
                          value={form.slug} onChange={onField('slug')}
                          onBlur={() => setForm((f) => ({ ...f, slug: slugify(f.slug) }))}
                          placeholder="backrooms-fanart" />
-                  <div className="t-meta" style={{ marginTop: 4, color: slugErr ? '#e06666' : 'var(--text-soft, #b7b1a6)' }}>
+                  <div className="t-meta" style={{ marginTop: 4, color: slugErr ? '#e06666' : 'var(--ink-2)' }}>
                     {slugErr || `${SITE_ORIGIN}/c/${form.slug || '…'}`}
                   </div>
 
@@ -459,7 +459,7 @@ export function AdminDiscoverTab() {
                   {/* SEO score / publish-quality gate (Phase C). */}
                   <div style={{
                     marginTop: 18, padding: '12px 14px', borderRadius: 10,
-                    border: '1px solid var(--border, #2a2722)', background: 'var(--bg-1, #14110d)',
+                    border: '1px solid var(--line-2)', background: 'var(--bg-1, #14110d)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <span style={{ fontWeight: 600 }}>SEO readiness</span>
@@ -473,7 +473,7 @@ export function AdminDiscoverTab() {
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 3 }}>
                       {checks.map((c, i) => (
                         <li key={i} className="t-meta" style={{
-                          color: c.pending ? 'var(--text-soft, #b7b1a6)' : (c.ok ? '#74e39b' : (c.required ? '#e06666' : '#e0a366')),
+                          color: c.pending ? 'var(--ink-2)' : (c.ok ? '#74e39b' : (c.required ? '#e06666' : '#e0a366')),
                         }}>
                           {c.pending ? '○' : (c.ok ? '✓' : (c.required ? '✗' : '!'))} {c.label}{!c.required ? ' (recommended)' : ''}
                         </li>
@@ -485,7 +485,7 @@ export function AdminDiscoverTab() {
                   {current && (() => {
                     const st = statsBySlug[current.slug];
                     return (
-                      <div className="t-meta" style={{ marginTop: 12, color: 'var(--text-soft, #b7b1a6)' }}>
+                      <div className="t-meta" style={{ marginTop: 12, color: 'var(--ink-2)' }}>
                         {st && st.impressions > 0
                           ? <>Search (last snapshot): <b style={{ color: '#74e39b' }}>{st.impressions}</b> impressions · {st.clicks} clicks · avg position {st.position ?? '—'}{st.top_query ? <> · top query “{st.top_query}”</> : null}</>
                           : (current.is_published
