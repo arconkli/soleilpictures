@@ -8853,6 +8853,13 @@ export function CanvasSurface({
     const off = new Set((everyCard || []).filter(isUnplaced).map((c) => c.id));
     return comments.filter((c) => !(c?.anchor_kind === 'card' && off.has(c.anchor_id)));
   }, [comments, everyCard, unplacedCount]);
+  // Same for votes: a vote on a card moved to Files has no bbox to hang from,
+  // and the bubble layout's fallback parked it at the board's top-left corner.
+  const votesOnBoard = useMemo(() => {
+    if (!unplacedCount || !voteCards?.length) return voteCards;
+    const off = new Set((everyCard || []).filter(isUnplaced).map((c) => c.id));
+    return voteCards.filter((v) => !(v?.anchor_kind === 'card' && off.has(v.anchor_id)));
+  }, [voteCards, everyCard, unplacedCount]);
   const [commentDraft, setCommentDraft] = useState(null);
   // Master comments-visibility toggle. Default ON — when the user
   // turns it off, the entire comment layer disappears from the canvas.
@@ -12037,7 +12044,7 @@ export function CanvasSurface({
             toggle as comments (layerVisible={commentsVisible}), so they
             hide when you hide comments. */}
         <CanvasVoteLayer
-          voteCards={voteCards}
+          voteCards={votesOnBoard}
           userId={userId}
           currentUser={currentUser}
           zoom={zoom}
