@@ -198,6 +198,13 @@
   --shadow-glow: 0 0 0 1px rgba(255,165,0,.32), 0 0 18px rgba(255,165,0,.14);
 }
 
+/* Frames opt out of the page's color-scheme. Third-party embeds (X, Spotify,
+   Instagram, TikTok …) declare none, and when a frame's inherited scheme
+   (dark, from :root) differs from its document's, Chromium paints an opaque
+   WHITE backdrop behind it — white boxes and corners around embeds that are
+   meant to be transparent. `normal` matches what they declare. */
+iframe { color-scheme: normal; }
+
 html, body, #root {
   /* Position-fixed locks the page from being pannable as a unit on
      iOS WebView — overflow:hidden + overscroll-behavior alone are
