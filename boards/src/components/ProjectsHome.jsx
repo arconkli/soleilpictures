@@ -113,7 +113,7 @@ function NewProjectTile({ onCreate, disabled }) {
 
 function WorkspaceHeader({
   workspace, workspaces, personalWorkspaceId, selfUserId, wsPeers,
-  onSwitch, onNew, onRemove, onOpenSettings,
+  onSwitch, onNew, onRemove, onOpenSettings, onShare,
 }) {
   const [place, setPlace] = useState(null);   // the open menu's position, or null
   const triggerRef = useRef(null);
@@ -168,7 +168,10 @@ function WorkspaceHeader({
   if (!workspace) return null;
   const isPersonal = workspace.id === personalWorkspaceId;
   const isOwner = workspace.created_by === selfUserId;
-  const sub = isPersonal ? 'Your personal workspace' : isOwner ? 'Your workspace' : 'Shared with you';
+  const sub = isPersonal ? 'Your personal workspace'
+    : isOwner ? 'Your workspace'
+    : workspace._myRole === 'coowner' ? 'You co-own this'
+    : 'Shared with you';
   const iconSrc = workspace.settings?.icon_url || '';
   const name = (workspace.name || '').trim() || 'Workspace';
 
@@ -216,6 +219,7 @@ function WorkspaceHeader({
             onAddNew={() => onNew?.()}
             onRemove={onRemove}
             onOpenSettings={onOpenSettings}
+            onShare={onShare}
             onClose={closeMenu}
           />
         </div>,
@@ -247,6 +251,7 @@ export function ProjectsHome({
   onNewWorkspace,          // () => void
   onRemoveWorkspace,       // (ws, 'delete'|'leave') => void
   onOpenWorkspaceSettings, // (ws) => void
+  onShareWorkspace,        // (ws) => void — the Share panel, set to the whole workspace
 }) {
   const root = boards?.[rootId] || null;
   const projects = useMemo(() => projectList(boards, rootId, { workspaceId }), [boards, rootId, workspaceId]);
@@ -272,6 +277,7 @@ export function ProjectsHome({
             onNew={onNewWorkspace}
             onRemove={onRemoveWorkspace}
             onOpenSettings={onOpenWorkspaceSettings}
+            onShare={onShareWorkspace}
           />
           {jump.length > 0 && (
             <div className="ph-section">

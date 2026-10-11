@@ -71,8 +71,9 @@ and what becomes of anything you share:
   comment, tag and uploaded file in them — and so is a workspace where everyone
   else can only view.
 - **Workspaces you created where someone else can edit** are *not* deleted.
-  Ownership passes to the longest-standing of the people who can edit, who is
-  named on the confirmation screen and becomes its owner. A viewer never
+  Ownership passes to a co-owner if there is one, and otherwise to the
+  longest-standing of the people who can edit, who is named on the
+  confirmation screen and becomes its owner. A viewer never
   inherits a workspace. Their work is never destroyed by your leaving.
 - **Workspaces you were only a member of** simply lose you.
 - **Comments, tags and votes you left on other people's clusters** stay where

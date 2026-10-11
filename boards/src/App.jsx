@@ -93,6 +93,7 @@ import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import {
   markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch,
   markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
+  markShareAfterSwitch, shareAfterSwitchFor, clearShareAfterSwitch,
 } from './lib/homeAfterSwitch.js';
 import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
@@ -3964,6 +3965,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // here would open it on the instance about to be thrown away (it did, from
   // the sidebar, since 222745e1): the note opens it in the new mount instead.
   // `thenHome`: asked for from Home, so that mount opens on Home too.
+  // "Share workspace…" from a workspace's ⋯ / right-click menu. Same switch-
+  // first dance as Settings: the remount would throw an open panel away.
+  const shareWorkspace = (ws, { thenHome = false } = {}) => {
+    if (!ws?.id) return;
+    if (ws.id !== workspace?.id) {
+      markShareAfterSwitch(ws.id);
+      if (thenHome === true) markHomeAfterSwitch(ws.id);
+      onSwitchWorkspace?.(ws.id);
+      return;
+    }
+    shareSurfaceRef.current = 'workspace_menu';
+    setShareScope('workspace');
+    setShareInitialSection(null);
+    setShareOpen(true);
+  };
+
   const openWorkspaceSettings = (ws, { thenHome = false } = {}) => {
     if (ws?.id && ws.id !== workspace?.id) {
       markSettingsAfterSwitch(ws.id, 'general');
@@ -4514,14 +4531,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //  reference to keep the import linked even before the wsPeers
   //  hook resolves on first render.)
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
-  const [shareOpen, setShareOpen] = useState(false);
+  // A "Share workspace" asked for on a workspace we weren't in (its ⋯ /
+  // right-click menu) switched us here, which remounts all of this: the note
+  // opens the panel in this mount instead (lib/homeAfterSwitch).
+  const [shareOpen, setShareOpen] = useState(() => shareAfterSwitchFor(workspace.id));
+  // 'cluster' (the cluster on screen) or 'workspace' (the whole workspace, from
+  // the workspace menu: the panel shares its root cluster and starts on
+  // "Whole workspace"). Back to 'cluster' whenever the panel closes.
+  const [shareScope, setShareScope] = useState(() => (shareAfterSwitchFor(workspace.id) ? 'workspace' : 'cluster'));
+  useEffect(() => { clearShareAfterSwitch(); }, []);
   // Which section ShareModal scrolls to on open ('invite-link' from the
   // collab nudge CTA); cleared on close so plain opens start at the top.
   const [shareInitialSection, setShareInitialSection] = useState(null);
   // Which entry point opened the panel, so the share funnel can tell a toolbar
   // click from a context-menu click from the nudge CTA. Set by the caller
   // immediately before setShareOpen(true); read (and reset) by the effect below.
-  const shareSurfaceRef = useRef('topbar');
+  const shareSurfaceRef = useRef(shareAfterSwitchFor(workspace.id) ? 'workspace_menu' : 'topbar');
   // Collaboration-loop signal: fire when the share surface opens (any path).
   useEffect(() => {
     if (!shareOpen) return;
@@ -8570,6 +8595,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 onAddNew={addNewWorkspace}
                 onRemove={(ws, action) => removeWorkspace(ws, action)}
                 onOpenSettings={(ws) => openWorkspaceSettings(ws)}
+                onShare={(ws) => shareWorkspace(ws)}
                 onClose={() => setWsMenuOpen(false)}
               />
             )}
@@ -8581,15 +8607,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
             const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
             const ownerPeer = peerById.get(workspace.created_by);
+            const sharedBy = maskEmail(ownerPeer?.user?.email, workspace.created_by)
+                             || maskName(ownerPeer?.user?.name, workspace.created_by)
+                             || 'someone';
             const subtitle = isPersonal
               ? 'Personal'
               : isOwner
                 ? 'Yours'
                 // A shared workspace names its owner by address, right under
                 // the workspace title — the most prominent leak on the screen.
-                : `Shared by ${maskEmail(ownerPeer?.user?.email, workspace.created_by)
-                             || maskName(ownerPeer?.user?.name, workspace.created_by)
-                             || 'someone'}`;
+                : workspace._myRole === 'coowner'
+                  ? `Co-owner · shared by ${sharedBy}`
+                  : `Shared by ${sharedBy}`;
             const visibleMembers = workspaceMembers.slice(0, 6);
             const overflow = workspaceMembers.length - visibleMembers.length;
             return (
@@ -8947,6 +8976,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             }}
             onRemoveWorkspace={(ws, action) => removeWorkspace(ws, action, { thenHome: true })}
             onOpenWorkspaceSettings={(ws) => openWorkspaceSettings(ws, { thenHome: true })}
+            onShareWorkspace={(ws) => shareWorkspace(ws, { thenHome: true })}
             /* Phones get the panel only: no graph to float over, and no reason
                to load the 3D bundle for scenery. */
             graph={mobileShell ? null : (
@@ -9200,26 +9230,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         />
       ), document.body)}
 
-      {shareOpen && (
-        <ShareModal
-          board={currentBoard}
-          workspace={workspace}
-          workspaceMembers={workspaceMembers}
-          wsPeers={wsPeers}
-          selfUserId={user.id}
-          canManage={canEditCurrent}
-          initialSection={shareInitialSection}
-          onClose={() => { setShareOpen(false); setShareInitialSection(null); }}
-          onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
-          onSharesChanged={() => { refreshSharedBoards?.(); }}
-          onLinkCreated={() => {
-            try {
-              const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
-              if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
-            } catch (_) {}
-          }}
-        />
-      )}
+      {shareOpen && (() => {
+        // Sharing the WORKSPACE shares its root cluster (links then cover
+        // every cluster under it) and starts on "Whole workspace".
+        const shareTarget = shareScope === 'workspace' ? (boards[rootBoard.id] || rootBoard) : currentBoard;
+        return (
+          <ShareModal
+            board={shareTarget}
+            workspace={workspace}
+            workspaceMembers={workspaceMembers}
+            wsPeers={wsPeers}
+            selfUserId={user.id}
+            myWorkspaceRole={workspace._myRole || null}
+            scope={shareScope}
+            canManage={shareScope === 'workspace' ? canEditBoard(rootBoard.id) : canEditCurrent}
+            initialSection={shareInitialSection}
+            onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); }}
+            onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
+            onSharesChanged={() => { refreshSharedBoards?.(); }}
+            onLinkCreated={() => {
+              try {
+                const yd = yb.ready && yb.boardId === shareTarget.id ? yb.ydoc : null;
+                if (yd) forceBoardThumbnail(shareTarget.id, yd, { workspaceId: workspace.id, userId: user.id });
+              } catch (_) {}
+            }}
+          />
+        );
+      })()}
       {backlinksRef && (
         <EntityBacklinksPanel
           ref={backlinksRef}

@@ -19,10 +19,16 @@
 // that across too: "Rename & icon…" on a workspace you are not in switches you
 // into it and has to open its Settings in the NEW mount, not the dying one.
 //
+// And a third carries "Share workspace" from a workspace's ⋯ / right-click
+// menu: sharing a workspace you are not in switches you into it, and the Share
+// panel has to open in the new mount, on its root cluster, set to invite to
+// the whole workspace.
+//
 // Pure apart from the storage handed in.
 
 export const HOME_AFTER_SWITCH_KEY = 'soleil.home.afterSwitch';
 export const SETTINGS_AFTER_SWITCH_KEY = 'soleil.settings.afterSwitch';
+export const SHARE_AFTER_SWITCH_KEY = 'soleil.share.afterSwitch';
 
 function store(storage) {
   if (storage) return storage;
@@ -72,4 +78,24 @@ export function clearSettingsAfterSwitch(storage) {
   const s = store(storage);
   if (!s) return;
   try { s.removeItem(SETTINGS_AFTER_SWITCH_KEY); } catch (_) { /* nothing to clear */ }
+}
+
+// Open the workspace Share panel in the workspace being switched to.
+export function markShareAfterSwitch(workspaceId, storage) {
+  const s = store(storage);
+  if (!s || !workspaceId) return false;
+  try { s.setItem(SHARE_AFTER_SWITCH_KEY, String(workspaceId)); return true; } catch (_) { return false; }
+}
+
+// Is there a share note for THIS workspace? Reads only.
+export function shareAfterSwitchFor(workspaceId, storage) {
+  const s = store(storage);
+  if (!s || !workspaceId) return false;
+  try { return s.getItem(SHARE_AFTER_SWITCH_KEY) === String(workspaceId); } catch (_) { return false; }
+}
+
+export function clearShareAfterSwitch(storage) {
+  const s = store(storage);
+  if (!s) return;
+  try { s.removeItem(SHARE_AFTER_SWITCH_KEY); } catch (_) { /* nothing to clear */ }
 }

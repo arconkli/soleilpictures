@@ -5,7 +5,7 @@ h1: Collaborating
 navLabel: Overview
 section: collaborate
 order: 0
-updated: 2026-10-02
+updated: 2026-10-10
 answer: Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 faq:
   - q: Do collaborators need to pay?
@@ -29,6 +29,7 @@ it is for.
 | Role | Can |
 |---|---|
 | **Owner** | Everything, including deleting the cluster and managing members and shares |
+| **Co-owner** | Runs a workspace alongside its owner — invites and removes members, changes roles, manages every share and link, renames it — but cannot delete it, hand it over, or remove the owner |
 | **Editor** | Add, change and remove content; comment; invite if permitted |
 | **Viewer** | Open, read, [comment](/docs/collaborate/comments) and [vote](/docs/canvas/vote-cards) — never change content |
 | **Workspace member** | The same two levels, editor or viewer, granted for every cluster in the workspace at once |
@@ -38,7 +39,8 @@ cluster it is invited to, with no restriction on what it can do there.
 
 ## Whose quota
 
-Always the **cluster owner's**.
+Always the **cluster owner's**. A co-owner is not the owner for this purpose:
+what they add counts against the owner's allowance, like an editor's.
 
 Cards added to someone else's cluster count against their
 [card allowance](/docs/canvas/cards); files uploaded there use their
@@ -60,7 +62,14 @@ always view-only.
 
 Access can be granted at the [workspace](/docs/concepts) level instead of per
 board, which is the right shape for a team that works together continuously
-rather than on one project.
+rather than on one project. To share a whole workspace, right-click it in the
+workspace switcher — or use its **⋯** — and choose **Share workspace…**: the
+share panel opens already set to invite people to every cluster in it.
+
+A workspace has one owner, and can have any number of **co-owners**. The owner
+or a co-owner makes someone a co-owner from **Settings → Members**. Co-owners
+share the running of the workspace; deleting it and handing it to someone else
+stay with the owner.
 
 Clusters shared with you appear under **Shared with me** in the sidebar, grouped
 by whose workspace they came from.

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   HOME_AFTER_SWITCH_KEY, markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch,
   SETTINGS_AFTER_SWITCH_KEY, markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
+  SHARE_AFTER_SWITCH_KEY, markShareAfterSwitch, shareAfterSwitchFor, clearShareAfterSwitch,
 } from './homeAfterSwitch.js';
 import { workspaceMenuPlacement } from './projectsHome.js';
 
@@ -129,4 +130,27 @@ test('the menu: focus goes in and comes back, it follows its trigger, and the â‹
     'a late callback can never reopen a closed menu');
   assert.match(home, /new ResizeObserver\(follow\)/);
   assert.match(read('styles.css'), /@media \(hover: none\) \{ \.ws-menu-row-more \{ opacity: 1; \} \}/);
+});
+
+test('"Share workspace" on a workspace you are not in opens the panel in the new mount, once', () => {
+  const s = mem();
+  assert.equal(markShareAfterSwitch('ws-b', s), true);
+  assert.equal(s.m.get(SHARE_AFTER_SWITCH_KEY), 'ws-b');
+  assert.equal(shareAfterSwitchFor('ws-b', s), true);
+  assert.equal(shareAfterSwitchFor('ws-b', s), true, 'StrictMode runs initializers twice â€” a read must not consume it');
+  assert.equal(shareAfterSwitchFor('ws-a', s), false, 'only the workspace it was asked for');
+  clearShareAfterSwitch(s);
+  assert.equal(shareAfterSwitchFor('ws-b', s), false);
+  assert.equal(markShareAfterSwitch(null, s), false);
+  const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  assert.equal(markShareAfterSwitch('ws-b', broken), false);
+  assert.equal(shareAfterSwitchFor('ws-b', broken), false);
+  assert.doesNotThrow(() => clearShareAfterSwitch(broken));
+
+  // The new mount reads the note in a state initializer and clears it in an
+  // effect, and the workspace menu routes "Share workspace" through it.
+  const app = read('App.jsx');
+  assert.match(app, /useState\(\(\) => shareAfterSwitchFor\(workspace\.id\)\)/);
+  assert.match(app, /useEffect\(\(\) => \{ clearShareAfterSwitch\(\); \}, \[\]\);/);
+  assert.match(app, /markShareAfterSwitch\(ws\.id\);[\s\S]{0,120}onSwitchWorkspace\?\.\(ws\.id\);/);
 });

@@ -69,13 +69,27 @@ export function ShareModal({
   onSharesChanged,        // refetch trigger after share / unshare
   onLinkCreated,          // a public link was minted — refresh the OG thumbnail
   initialSection = null,  // 'invite-link' → open on the edit mode (nudge CTA)
+  // 'workspace' when opened from a workspace's ⋯ / right-click menu: the panel
+  // is about the whole workspace (board is its root cluster), and the invite
+  // picker starts on "Whole workspace" instead of this one cluster.
+  scope = 'cluster',
+  // The caller's workspace_members.role, when the caller already knows it
+  // (the workspaces list carries it). workspaceMembers can still be loading
+  // on a panel that opens right after a workspace switch.
+  myWorkspaceRole = null,
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
+  // 0391: a co-owner manages the workspace like the owner — whole-workspace
+  // invites, removing members, everyone's shares and links. Only handing the
+  // workspace over ("Make owner") stays isOwner.
+  const myRole = myWorkspaceRole || workspaceMembers.find(m => m.user_id === selfUserId)?.role || null;
+  const isManager = isOwner || myRole === 'coowner';
   // Editors share too: anyone who can write the board may invite people and
-  // create public links. The owner-only affordances (workspace membership,
-  // managing OTHER people's invites/links) stay gated on isOwner below.
-  const canInvite = isOwner || canManage;
+  // create public links. The manager-only affordances (workspace membership,
+  // managing OTHER people's invites/links) stay gated on isManager below.
+  const canInvite = isManager || canManage;
+  const workspaceScope = scope === 'workspace';
   const [shares, setShares] = useState([]);          // per-board shares
   const [loadingShares, setLoadingShares] = useState(false);
   // Pending invites = rows in pending_invites (email-only, no account yet).
@@ -84,7 +98,14 @@ export function ShareModal({
   const [pendingBoardInvites, setPendingBoardInvites]     = useState([]);
   const [pendingWorkspaceInvites, setPendingWorkspaceInvites] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('editor');
+  const [inviteRole, setInviteRole] = useState(() => (workspaceScope && isManager ? 'workspace' : 'editor'));
+  // The manager check can resolve a beat after mount (members still loading
+  // after a switch). Until the person picks a role themselves, a workspace-
+  // scoped panel lands on "Whole workspace" as soon as it is allowed to.
+  const inviteRoleTouched = useRef(false);
+  useEffect(() => {
+    if (workspaceScope && isManager && !inviteRoleTouched.current) setInviteRole('workspace');
+  }, [workspaceScope, isManager]);
   // Two select values map to a workspace invite: 'workspace' (can edit) and
   // 'workspaceviewer' (read-only). Everything that used to test
   // inviteRole === 'workspace' tests isWorkspaceInvite now; the role that is
@@ -745,7 +766,7 @@ export function ShareModal({
           Loose in the row they wrapped one at a time and left a single orphaned
           "Revoke" on its own line. */}
       <div className="share-row-actions">
-        {linkKind(l) !== 'invite' && (isOwner || l.created_by === selfUserId) && (
+        {linkKind(l) !== 'invite' && (isManager || l.created_by === selfUserId) && (
           <>
             <button className="share-remove"
                     onClick={() => onToggleLinkSubboards(l)}
@@ -764,7 +785,7 @@ export function ShareModal({
         <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
           Copy
         </button>
-        {(isOwner || l.created_by === selfUserId) && (
+        {(isManager || l.created_by === selfUserId) && (
           <button className="share-remove" onClick={() => onRevokePublicLink(l.token)}>
             Revoke
           </button>
@@ -778,8 +799,10 @@ export function ShareModal({
            labelledBy="share-title" initialFocusRef={canInvite ? takeLinkRef : undefined}>
         <div className="share-head">
           <div>
-            <div className="share-eyebrow">SHARE</div>
-            <div className="share-title" id="share-title">{board?.name || 'Untitled cluster'}</div>
+            <div className="share-eyebrow">{workspaceScope ? 'SHARE WORKSPACE' : 'SHARE'}</div>
+            <div className="share-title" id="share-title">
+              {workspaceScope ? (workspace?.name || 'Workspace') : (board?.name || 'Untitled cluster')}
+            </div>
           </div>
           <button className="share-close" onClick={onClose} aria-label="Close">
             <Glyph as={XIcon} size={14} />
@@ -895,15 +918,15 @@ export function ShareModal({
                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
               <select className="share-role-select" aria-label="Access level for invitees"
                       value={inviteRole}
-                      onChange={(e) => setInviteRole(e.target.value)}>
+                      onChange={(e) => { inviteRoleTouched.current = true; setInviteRole(e.target.value); }}>
                 <option value="editor">Can edit</option>
                 <option value="viewer">Can view</option>
                 {/* Workspace membership grants access to every board, so
-                    only the owner may hand it out. */}
-                {isOwner && (
+                    only the owner or a co-owner may hand it out. */}
+                {isManager && (
                   <option value="workspace">Whole workspace — can edit</option>
                 )}
-                {isOwner && (
+                {isManager && (
                   <option value="workspaceviewer">Whole workspace — view only</option>
                 )}
               </select>
@@ -916,7 +939,7 @@ export function ShareModal({
             <div className="share-hint">
               They sign in to accept, and get the same access to this
               cluster&apos;s sub-clusters. Editors are free on every plan.
-              {isOwner && (isWorkspaceInvite && workspaceRole === 'viewer' ? ' Workspace viewers can open every cluster in this workspace, but change nothing.' : ' Workspace members can edit every cluster in this workspace, not just this one.')}
+              {isManager && (isWorkspaceInvite && workspaceRole === 'viewer' ? ' Workspace viewers can open every cluster in this workspace, but change nothing.' : ' Workspace members can edit every cluster in this workspace, not just this one.')}
             </div>
           </div>
         )}
@@ -954,16 +977,21 @@ export function ShareModal({
                       {meta.online && <span className="share-online" title="Online" />}
                     </div>
                     <div className="share-row-sub">
-                      {isWsOwner ? 'Owner' : m.role === 'viewer' ? 'Member — view only' : 'Member — can edit every cluster'}
+                      {isWsOwner ? 'Owner'
+                        : m.role === 'coowner' ? 'Co-owner — runs the workspace'
+                        : m.role === 'viewer' ? 'Member — view only'
+                        : 'Member — can edit every cluster'}
                       {meta.email && ` · ${meta.email}`}
                     </div>
                   </div>
-                  {isOwner && !isSelf && !isWsOwner && (
+                  {isManager && !isSelf && !isWsOwner && (
                     <div className="share-row-actions">
-                      <button className="share-remove" onClick={() => onMakeOwner(m)}
-                              title="Transfer workspace ownership">
-                        Make owner
-                      </button>
+                      {isOwner && (
+                        <button className="share-remove" onClick={() => onMakeOwner(m)}
+                                title="Transfer workspace ownership">
+                          Make owner
+                        </button>
+                      )}
                       <button className="share-remove" onClick={() => onRemoveMember(m)}>
                         Remove
                       </button>
@@ -984,7 +1012,7 @@ export function ShareModal({
                     Workspace invite sent — gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                {isOwner && (
+                {isManager && (
                   <button className="share-remove" onClick={() => onRevokePending(row)}>
                     Revoke
                   </button>
@@ -1007,7 +1035,7 @@ export function ShareModal({
                       {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role]} — this cluster
                     </div>
                   </div>
-                  {(isOwner || s.invited_by === selfUserId) && (
+                  {(isManager || s.invited_by === selfUserId) && (
                     <div className="share-row-actions">
                       <select className="share-role-select share-row-role"
                               value={s.role}
@@ -1035,7 +1063,7 @@ export function ShareModal({
                     {ROLE_LABEL[row.role] || row.role} · gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                {(isOwner || row.invited_by === selfUserId) && (
+                {(isManager || row.invited_by === selfUserId) && (
                   <button className="share-remove" onClick={() => onRevokePending(row)}>
                     Revoke
                   </button>

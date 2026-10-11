@@ -6,8 +6,10 @@
 // arbitrary. Card defaults is what new cards START as, which is a genuinely
 // different question and keeps its own tab.
 //
-// Editable by workspace editors and owners; viewers see the values for context
-// but the inputs are disabled. Naming and the icon are owner-only.
+// Editable by workspace editors, co-owners and owners; viewers see the values
+// for context but the inputs are disabled. Naming and the icon belong to the
+// owner and co-owners (0391/0392 enforce it server-side); Recovery stays the
+// owner's alone — it rewinds every cluster at once.
 import { useEffect, useState } from 'react';
 import { updateWorkspaceSettings, renameWorkspace } from '../../lib/boardsApi.js';
 import { uploadImage } from '../../lib/uploads.js';
@@ -17,10 +19,12 @@ import { HARDCODED_FALLBACKS } from '../../hooks/useResolvedDefaults.js';
 import { SHAPES, DASH_STYLES } from '../../lib/shapeOptions.js';
 import { Field, SettingsCategory, SwatchInput, FontField, AvatarUploadRow } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
+import { canManageWorkspace, canWriteWorkspace } from '../../lib/workspaceRoles.js';
 
 const ROLE_COPY = {
-  owner:  'Owner — you can rename it, change the icon, and delete it.',
-  editor: 'Editor — you can change what new cards start as, but not the name or icon.',
+  owner:   'Owner — you can rename it, change the icon, and delete it.',
+  coowner: 'Co-owner — you can rename it and change the icon. Only the owner can delete it or hand it over.',
+  editor:  'Editor — you can change what new cards start as, but not the name or icon.',
   viewer: 'Viewer — you can see these settings but not change them.',
 };
 
@@ -31,6 +35,7 @@ export function WorkspaceGeneralTab({
   const feedback = useFeedback();
   const save = useSettingsSave();
   const isOwner = role === 'owner';
+  const canManage = canManageWorkspace(role);
 
   // Name is a text field, so it holds a draft and commits on blur/Enter
   // rather than per keystroke. Re-seeds when the active workspace changes
@@ -40,7 +45,7 @@ export function WorkspaceGeneralTab({
 
   const commitName = () => {
     const trimmed = name.trim();
-    if (!isOwner || !workspaceId) return;
+    if (!canManage || !workspaceId) return;
     if (!trimmed) { setName(workspaceName || ''); return; }
     if (trimmed === (workspaceName || '')) return;
     save(async () => {
@@ -51,12 +56,12 @@ export function WorkspaceGeneralTab({
 
   // Workspace icon upload — top-level key on workspaces.settings so the
   // sidebar can read it from the workspace row without an extra query.
-  // Owner-only edit; everyone else sees the section read-only so the icon
-  // is at least visible.
+  // Owner / co-owner edit; everyone else sees the section read-only so the
+  // icon is at least visible.
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const iconSrc = workspaceSettings?.icon_url || '';
   const setIcon = async (nextSrc) => {
-    if (!isOwner || !workspaceId) return;
+    if (!canManage || !workspaceId) return;
     await save(async () => {
       await updateWorkspaceSettings(workspaceId, { icon_url: nextSrc || null });
       await refresh?.();
@@ -90,7 +95,7 @@ export function WorkspaceGeneralTab({
           <input className="settings-input"
                  value={name}
                  placeholder="e.g. Soleil Studio"
-                 disabled={!isOwner}
+                 disabled={!canManage}
                  onChange={(e) => setName(e.target.value)}
                  onBlur={commitName}
                  onKeyDown={(e) => {
@@ -104,7 +109,7 @@ export function WorkspaceGeneralTab({
             fallbackColor={pickPresenceColor(workspaceId || '')}
             fallbackInitial={((name || workspaceName || '?').trim().charAt(0) || '?').toUpperCase()}
             uploading={uploadingIcon}
-            disabled={!isOwner}
+            disabled={!canManage}
             shape="square"
             onPick={onIconPick}
             onRemove={() => setIcon('')}
@@ -127,7 +132,7 @@ export function WorkspaceGeneralTab({
 
 export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh }) {
   const save = useSettingsSave();
-  const canEdit = role === 'editor' || role === 'owner';
+  const canEdit = canWriteWorkspace(role) && role !== 'service';
   const disabled = !canEdit;
 
   // What we have written but not yet seen come back. merge_workspace_settings
@@ -162,7 +167,7 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
         These set the starting look of every new card on this workspace.
         {canEdit
           ? ' Anything you create now will pick these up; existing cards aren’t changed.'
-          : ' You have viewer access — only editors and owners can change them.'}
+          : ' You have viewer access — only editors, co-owners and owners can change them.'}
       </p>
 
       {/* NOTES */}
