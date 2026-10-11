@@ -192,13 +192,19 @@ behaviour, read the archive or `crawler_hits`, not the live table.
 - **Deleting shows an undo toast.** That is the convention; match it.
 - **Never `.catch()` a `supabase.rpc()` builder** — it is a thenable, not a promise, and the catch swallows the query.
 - `move_boards_under` is the only path that may write `parent_board_id` **as a
-  move**. Two repair paths in `0275` also write it, deliberately:
-  `_ensure_workspace_root` lifts boards stranded under a deleted parent, and
-  `soft_delete_board` re-homes a deleted board's live children onto its own
-  parent. Both only touch rows that are already unreachable from `board_tree`,
-  which anchors on a live `parent_board_id is null` row — a workspace with no
-  live root returns an empty tree, and the app renders a spinner forever on one.
-  Every workspace must always have a live root cluster.
+  move**. Repair paths also write it, deliberately: `_ensure_workspace_root`
+  (0275) lifts boards stranded under a deleted parent; `soft_delete_board`
+  re-homes a deleted *workspace root's* children (0275 — any other delete
+  trashes the whole subtree as one batch since 0396); `restore_board` brings a
+  board back under its nearest live ancestor when its parent is still trashed,
+  and the `boards_rehome_live_children` trigger lifts live children before a
+  trashed board is hard-deleted (both 0396). All of them only touch rows that
+  are already unreachable from `board_tree`, which anchors on a live
+  `parent_board_id is null` row — a workspace with no live root returns an
+  empty tree, and the app renders a spinner forever on one. The
+  `boards_parent_must_be_live` trigger refuses any write that would park a
+  board under a trashed parent. Every workspace must always have a live root
+  cluster.
 - Dev-only QA harnesses (`?docqa=1`, `?gridqa`, …) are guarded by
   `import.meta.env.DEV` so the bundler drops them from production. Keep new ones
   behind the same literal guard.

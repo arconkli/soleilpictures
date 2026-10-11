@@ -22146,6 +22146,15 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "A cluster goes to the trash with everything inside it, the clusters nested in it included, and it comes back the same way: restoring it brings them all back in place. The trash lists it once, with a count of what is inside. If you restore a cluster whose parent is still in the trash, it comes back under the nearest cluster that isn't, or at the top of your workspace."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "strong",
      "v": "A cluster in the trash does not count against your card limit.",
      "children": [
@@ -41308,7 +41317,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Descendants are deliberately not touched — deleting a parent does not cascade."
+     "v": "Deleting a board takes the boards inside it to the trash with it, as one batch, so nothing is left orphaned under a trashed parent. "
+    },
+    {
+     "t": "code",
+     "v": "POST /boards/:id/restore"
+    },
+    {
+     "t": "text",
+     "v": " brings the whole batch back, nested as it was. Restoring a board whose parent is still in the trash puts it under its nearest ancestor that isn't, or at the top level."
     }
    ]
   },
