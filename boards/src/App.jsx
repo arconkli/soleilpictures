@@ -465,7 +465,15 @@ export function App() {
   // useYBoard paint the previous workspace's root cards until the stack
   // filter effect corrects it. Better to show LoadingShell for that
   // tick than to flash the wrong canvas.
-  if (wsLoading || (!activeWorkspaceId && wsListLoading) || !activeWorkspace || !activeRoot || activeRoot.workspace_id !== activeWorkspace.id) return <LoadingShell />;
+  //
+  // Same for a stored team workspace whose membership row hasn't arrived yet:
+  // activeWorkspace falls back to the personal one while the list is empty,
+  // which mounted the personal workspace (its board, its PartyKit room) for a
+  // beat before the team one replaced it.
+  const storedWsPending = !!activeWorkspaceId && wsListLoading
+    && activeWorkspaceId !== personalWorkspace?.id
+    && !workspaces.some((w) => w.id === activeWorkspaceId);
+  if (wsLoading || (!activeWorkspaceId && wsListLoading) || storedWsPending || !activeWorkspace || !activeRoot || activeRoot.workspace_id !== activeWorkspace.id) return <LoadingShell />;
 
   return (
     <Workspace
