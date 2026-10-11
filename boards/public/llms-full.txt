@@ -6036,7 +6036,7 @@ Including changes made in the app. That is the part worth stating plainly: event
 
 Register one
 
-Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old.
+Only the workspace's owner can add, change, replay or delete its webhooks — a webhook carries every event in the workspace, so where those go is the owner's call. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old.
 
 curl -X POST "$SOLEIL_API/webhooks" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \

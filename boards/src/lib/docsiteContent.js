@@ -50939,7 +50939,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old."
+     "v": "Only the workspace's "
+    },
+    {
+     "t": "strong",
+     "v": "owner",
+     "children": [
+      {
+       "t": "text",
+       "v": "owner"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can add, change, replay or delete its webhooks — a webhook carries every event in the workspace, so where those go is the owner's call. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old."
     }
    ]
   },
