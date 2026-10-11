@@ -6149,6 +6149,17 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
+/* The chip sits near INT_MAX so it clears the canvas chrome, and only the
+   topbar reserves room for it (--upgrade-chip-gutter). A full-screen surface
+   reserves nothing: the chip landed on Quick Look's Close button (a click
+   there opened pricing instead of closing the preview) and on the top-right
+   controls of the doc, schedule, photo editor and lightbox overlays. While
+   one is open the chip steps aside. visibility, not display: the chip keeps
+   its width, so the gutter it publishes doesn't collapse and reflow the
+   topbar behind the overlay. */
+body:has(.ql, .doc-card-modal-full, .doc-card-modal-side, .schedc-fs, .iem, .lightbox) .upgrade-chip {
+  visibility: hidden;
+}
 .upgrade-chip:hover {
   background: var(--soleil-soft);
   color: var(--soleil);
