@@ -22480,3 +22480,8 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   border: 1px dashed var(--line-2); background: var(--bg-2);
   font: 400 13.5px/1.4 var(--font-sans); color: var(--ink-1); text-align: center;
 }
+
+/* Clear-formatting glyph (doc toolbar + note bar): a "Tx", the convention from
+   Docs/Word, sized to sit with the B / I / U / S letter buttons. */
+.tb-clear-fmt { font-size: 12px; line-height: 1; letter-spacing: 0; }
+.tb-clear-fmt sub { font-size: 8px; vertical-align: -2px; margin-left: 1px; }

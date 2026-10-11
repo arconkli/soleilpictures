@@ -2993,6 +2993,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⌘\\"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Clear formatting — links and comments stay"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "@"
       }
      ],
@@ -3151,6 +3165,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Highlight · inline code"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘\\"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Clear formatting — links and comments stay"
       }
      ]
     ],
@@ -7411,7 +7439,38 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment."
+     "v": " for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and "
+    },
+    {
+     "t": "strong",
+     "v": "Tx",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tx"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — clear formatting ("
+    },
+    {
+     "t": "code",
+     "v": "⌘\\"
+    },
+    {
+     "t": "text",
+     "v": "), which strips the selection back to the note's own font and size while keeping links and comments."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note."
     }
    ]
   },
@@ -20066,6 +20125,43 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A document reopens "
+    },
+    {
+     "t": "strong",
+     "v": "where you left it",
+     "children": [
+      {
+       "t": "text",
+       "v": "where you left it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the same page, scrolled to the same spot — even after you close the tab. That position is remembered per browser, not synced between devices. Following a collaborator's avatar into a document still takes you to where "
+    },
+    {
+     "t": "em",
+     "v": "they",
+     "children": [
+      {
+       "t": "text",
+       "v": "they"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "The three panes",
@@ -20203,6 +20299,51 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Text pasted from Google Docs, Word or a web page keeps its structure and emphasis — headings, lists, links, bold, italic, real colours — but drops the source's font, size, background and default black ink, so it takes on the document's own typography instead of arriving as a patch of 11pt Arial. Text copied from another Clusters note or document keeps everything. "
+    },
+    {
+     "t": "strong",
+     "v": "Clear formatting",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clear formatting"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "⌘\\"
+    },
+    {
+     "t": "text",
+     "v": ", or the "
+    },
+    {
+     "t": "strong",
+     "v": "Tx",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tx"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button) strips the selection back to plain; links and comments stay."
     }
    ]
   },

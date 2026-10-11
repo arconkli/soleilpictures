@@ -321,6 +321,7 @@ Key | Action
 Double-click | Edit a note or a title
 ⌘Z / ⌘⇧Z | Undo · redo text — history survives closing the note
 ⌘B / ⌘I / ⌘U | Bold · italic · underline
+⌘\ | Clear formatting — links and comments stay
 @ | Mention a board, doc, or card
 
 Document
@@ -332,6 +333,7 @@ Key | Action
 ⌘⌥1 / ⌘⌥0 | Heading 1 · body
 ⌘⇧7 / ⌘⇧8 / ⌘⇧9 | Numbered · bullet · task list
 ⌘⇧H / ⌘E | Highlight · inline code
+⌘\ | Clear formatting — links and comments stay
 ⌘⇧L / ⌘⇧E / ⌘⇧R | Align left · center · right
 ⌘K / ⌘⌥M | Link · comment
 ⌘F | Find and replace
@@ -739,7 +741,9 @@ Writing
 
 Double-click a note to start editing. Click away — or press Esc — to finish; your edits are shared live with collaborators as you type, so there is no separate "cancel". ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it.
 
-Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment.
+Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and Tx — clear formatting (⌘\), which strips the selection back to the note's own font and size while keeping links and comments.
+
+Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note.
 
 With the caret merely placed in a note and nothing selected, formatting applies to the whole note rather than doing nothing. This is deliberate — it is almost always what you meant.
 
@@ -2292,6 +2296,8 @@ Double-clicking a document card opens it in whichever mode you used last, so if 
 
 A docked document is held by the workspace, not by the canvas underneath it. You can open other clusters, drill into nested ones, and move around the sidebar with the document still open beside you — it stays put until you close it. One document is docked at a time; opening another hands it the pane. Docking a document also takes over the split view pane, since there is only one.
 
+A document reopens where you left it — the same page, scrolled to the same spot — even after you close the tab. That position is remembered per browser, not synced between devices. Following a collaborator's avatar into a document still takes you to where they are.
+
 The three panes
 
 Pages on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A new page is created automatically when the current one fills up, so long-form writing does not stop to manage pagination.
@@ -2307,6 +2313,8 @@ Writing and formatting
 The toolbar carries the usual: headings, bold, italic, underline, highlight, lists, task lists, alignment, colour, font and size. Every one has a keyboard shortcut.
 
 ⌘F opens find and replace.
+
+Text pasted from Google Docs, Word or a web page keeps its structure and emphasis — headings, lists, links, bold, italic, real colours — but drops the source's font, size, background and default black ink, so it takes on the document's own typography instead of arriving as a patch of 11pt Arial. Text copied from another Clusters note or document keeps everything. Clear formatting (⌘\, or the Tx button) strips the selection back to plain; links and comments stay.
 
 The footer shows a live word and character count, and an honest save status — it reports what has actually been persisted rather than an optimistic tick.
 

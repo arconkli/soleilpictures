@@ -12,6 +12,7 @@ import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
+import { cleanPastedStyle } from '../lib/pasteScrub.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
 import { surfaceTone } from '../lib/paletteLayout.js';
@@ -43,9 +44,6 @@ function scrubNoteHtml(html, { dropChrome = false } = {}) {
     while (bad.firstChild) bad.parentNode.insertBefore(bad.firstChild, bad);
     bad.parentNode.removeChild(bad);
   }
-  const styleRe = dropChrome
-    ? /(?:font-weight|font-style|text-decoration[\w-]*)\s*:\s*[^;]+/gi
-    : /(?:font-weight|font-style|text-decoration[\w-]*|color)\s*:\s*[^;]+/gi;
   // Strip attributes from the surviving allowed elements.
   root.querySelectorAll('*').forEach(el => {
     const href = el.tagName === 'A' ? el.getAttribute('href') : null;
@@ -56,7 +54,12 @@ function scrubNoteHtml(html, { dropChrome = false } = {}) {
       el.setAttribute('target', '_blank');
       el.setAttribute('rel', 'noopener noreferrer');
     }
-    const safe = (style.match(styleRe) || []).join('; ');
+    // Same policy as the Tiptap editors (lib/pasteScrub). The regex this
+    // replaced matched the `color:` inside `background-color:`, so a Google
+    // Docs highlight pasted in as yellow TEXT and `transparent` as invisible
+    // text. The copy-out path additionally drops colour (see above).
+    let safe = cleanPastedStyle(style);
+    if (dropChrome) safe = safe.split('; ').filter(d => d && !d.startsWith('color:')).join('; ');
     if (safe) el.setAttribute('style', safe);
   });
   return root.innerHTML;

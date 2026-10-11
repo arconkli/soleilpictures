@@ -6,6 +6,7 @@
 // is rebuilt — Tiptap's Collaboration extension cannot re-bind to a different
 // fragment on the same instance.
 
+import { scrubPastedHtml } from '../lib/pasteScrub.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
@@ -847,6 +848,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         if (ed) files.forEach(f => uploadAndInsert(ed, f, pos));
         return true;
       },
+      // Foreign pastes (Google Docs, Word, the web) lose their typography —
+      // font, size, default black ink, backgrounds — so they take the doc's
+      // own formatting instead of planting 11pt Arial marks. See pasteScrub.
+      transformPastedHTML: scrubPastedHtml,
       handlePaste: (_view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
         const imgs = items.filter(it => it.type.startsWith('image/'));

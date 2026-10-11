@@ -23,6 +23,7 @@ import { FontSize } from '../docExtensions/FontSize.js';
 import { CommentMark } from '../docExtensions/CommentMark.js';
 import { NoteMention } from './NoteMention.js';
 import { NoteChecklist, NoteChecklistItem } from './NoteChecklist.js';
+import { ClearFormatting } from '../docExtensions/ClearFormatting.js';
 
 export const noteExtensions = [
   StarterKit.configure({
@@ -60,6 +61,7 @@ export const noteExtensions = [
   // here would be silently stripped from card.html on the next keystroke —
   // i.e. every comment anchor in the note would evaporate.
   CommentMark,
+  ClearFormatting,
   // Custom nodes — must keep their exact html contract (see each file).
   NoteMention,
   NoteChecklist,
