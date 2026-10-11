@@ -366,6 +366,9 @@ const ERASER_DEFAULT_WIDTH = 16;
 // byte-identical (paths still draw at their board coords).
 const SVG_ANCHOR_PX = 1;
 const STROKE_HIT_PADDING = 12; // invisible hit region added around each stroke
+// Largest selection whose off-screen cards the viewport cull still keeps
+// mounted (see the cards-layer filter).
+const SELECTED_MOUNT_CAP = 50;
 
 // Stroke path building, eraser splitting and the point/polyline distance math
 // all live in lib/strokeModel.js + lib/strokeRender.js now — the board layer,
@@ -10698,6 +10701,32 @@ export function CanvasSurface({
   // pointerdown snapshot, so a stroke a collaborator drew mid-drag was wiped.
   const [strokeXform, setStrokeXform] = useState(null);
 
+  // Cards whose <audio>/<video> is playing right now, so the viewport cull
+  // keeps them mounted: unmounting removes the media element, and that
+  // stopped the music the moment you panned or zoomed somewhere else. Media
+  // events don't bubble, so listen in the capture phase. A ref, not state —
+  // the cull only re-runs on a render (pan/zoom settle), which reads it fresh.
+  const playingMediaRef = useRef(new Set());
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const playing = playingMediaRef.current;
+    playing.clear();
+    const idOf = (e) => e.target?.closest?.('[data-card-id]')?.getAttribute('data-card-id') || null;
+    const onPlay = (e) => { const id = idOf(e); if (id) playing.add(id); };
+    const onStop = (e) => { const id = idOf(e); if (id) playing.delete(id); };
+    el.addEventListener('play', onPlay, true);
+    el.addEventListener('pause', onStop, true);
+    el.addEventListener('ended', onStop, true);
+    el.addEventListener('emptied', onStop, true);
+    return () => {
+      el.removeEventListener('play', onPlay, true);
+      el.removeEventListener('pause', onStop, true);
+      el.removeEventListener('ended', onStop, true);
+      el.removeEventListener('emptied', onStop, true);
+    };
+  }, [board.id]);
+
   // Stroke geometry memo: SVG path string + padded bbox per stroke. The
   // strokes array identity changes only on Y.Doc edits (useYBoard snapshot /
   // the public bundle decode), so this survives every pan/zoom/selection
@@ -11111,9 +11140,16 @@ export function CanvasSurface({
           const mrLive = multiResize?.live;
           const resizeId = resize?.id;
           const ctxCardId = ctx.open ? ctx.cardId : null;
+          const playing = playingMediaRef.current;
+          // A selected card stays mounted so panning away doesn't drop its
+          // editing state — but only for a hand-sized selection. ⌘A on a big
+          // board used to mount every card at once (every image fetching and
+          // decoding in one commit); bulk keyboard ops work from data anyway.
+          const keepSelected = selected.size <= SELECTED_MOUNT_CAP;
           return sortedCards.filter(c => {
             if (visibleIds.has(c.id)) return true;
-            if (selected.has(c.id)) return true;
+            if (keepSelected && selected.has(c.id)) return true;
+            if (playing.has(c.id)) return true;
             if (dragIds && dragIds.includes(c.id)) return true;
             if (editingNoteId === c.id) return true;
             if (resizeId === c.id) return true;
