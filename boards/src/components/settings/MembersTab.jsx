@@ -139,7 +139,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
                 )}
                 {canManage && !isOwnerRow && !self && m.role !== 'service' && (
                   <span className="settings-member-actions">
-                    {isOwner && (
+                    {isOwner && m.role !== 'viewer' && (
                       <button type="button" className="settings-link-btn" onClick={() => transfer(m)}>Make owner</button>
                     )}
                     <button type="button" className="settings-link-btn is-danger" onClick={() => remove(m)}>Remove</button>

@@ -299,3 +299,15 @@ test('0321: latestPolicy resolves doc_page_index write to the 0321 file', () => 
   assert.ok(p, 'policy not found in any migration');
   assert.equal(p.file, '0321_ancillary_write_policies.sql');
 });
+
+test('0397: a workspace goes only to someone who can edit it, and its storage goes with it', () => {
+  const def = latestDefinition('transfer_workspace_ownership');
+  assert.ok(def.file >= '0397');
+  assert.match(def.body, /if v_role not in \('coowner', 'admin', 'editor'\) then/,
+    'a viewer or a service account cannot be handed a workspace');
+  assert.match(def.body, /_storage_usage_apply\(v_old, -v_bytes, -v_objects\)/);
+  assert.match(def.body, /_storage_usage_apply\(p_new_owner, v_bytes, v_objects\)/);
+  // The 0395 notice and the owner-only rule survive the re-emit.
+  assert.match(def.body, /'workspace\.ownership_received'/);
+  assert.match(def.body, /if v_old <> auth\.uid\(\) then/);
+});
