@@ -10,7 +10,7 @@
 // top so the user can either acknowledge them or use them as a target
 // timestamp for the rewind.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal.jsx';
 import {
   previewWorkspaceRewind,
@@ -47,6 +47,10 @@ function ymdhmLocal(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function defaultTargetLocal() {
+  return ymdhmLocal(new Date(Date.now() - 15 * 60 * 1000));
+}
+
 function localToIso(local) {
   if (!local) return null;
   const d = new Date(local);
@@ -66,16 +70,36 @@ function deltaBadge(currentLen, targetLen) {
 export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindComplete = null }) {
   // Default target: 15 minutes ago. Catastrophic deletes typically happen
   // within a recent window, and "15 min back" is a sensible starting point.
-  const defaultTarget = useMemo(() => ymdhmLocal(new Date(Date.now() - 15 * 60 * 1000)), []);
-  const [targetLocal, setTargetLocal] = useState(defaultTarget);
+  const [targetLocal, setTargetLocal] = useState(() => defaultTargetLocal());
 
   const [alerts, setAlerts] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
+  // The exact time that produced previewRows. The rewind restores the
+  // snapshots in previewRows, so its confirm, reason and toast must name THIS
+  // time — never the input's, which can have moved since.
+  const [previewIso, setPreviewIso] = useState(null);
+  // Latest preview request; an older one that resolves late is dropped.
+  const previewSeq = useRef(0);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(null);
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
+
+  // App keeps this component mounted, so its state outlives a close. Every
+  // open starts fresh: a target 15 minutes before NOW (not before the page
+  // loaded), and no preview — a table left from an earlier visit could fire a
+  // rewind computed long ago.
+  useEffect(() => {
+    if (!open) return;
+    previewSeq.current += 1;
+    setTargetLocal(defaultTargetLocal());
+    setPreviewRows([]);
+    setPreviewIso(null);
+    setSelectedIds(new Set());
+    setPreviewError(null);
+    setPreviewLoading(false);
+  }, [open]);
 
   // Load alerts when modal opens.
   useEffect(() => {
@@ -85,32 +109,50 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       .catch((e) => console.warn('alerts fetch failed', e));
   }, [open, workspaceId]);
 
-  const runPreview = async () => {
+  // Takes the target explicitly: the alert's "One-click rewind" sets the input
+  // and previews in the same tick, when this render's targetLocal is still the
+  // OLD time. Reading it from the closure previewed (and so rewound) to that
+  // stale time while every label named the alert time.
+  const runPreview = async (iso = localToIso(targetLocal)) => {
     if (!workspaceId) return;
-    const iso = localToIso(targetLocal);
     if (!iso) {
       feedback.toast({ type: 'error', message: 'Invalid timestamp' });
       return;
     }
+    const seq = ++previewSeq.current;
     setPreviewLoading(true);
     setPreviewError(null);
     try {
       const rows = await previewWorkspaceRewind(workspaceId, iso);
+      if (seq !== previewSeq.current) return;
       setPreviewRows(rows);
+      setPreviewIso(iso);
       // Default-select boards that have a target snapshot AND meaningful delta.
       const auto = new Set(
         rows.filter((r) => r.target_snapshot_id != null).map((r) => r.board_id),
       );
       setSelectedIds(auto);
     } catch (e) {
+      if (seq !== previewSeq.current) return;
       setPreviewError(e?.message || String(e));
     } finally {
-      setPreviewLoading(false);
+      if (seq === previewSeq.current) setPreviewLoading(false);
     }
   };
 
+  // Moving the time invalidates the preview: rewind only what was previewed.
+  const changeTarget = (local) => {
+    previewSeq.current += 1;
+    setTargetLocal(local);
+    setPreviewRows([]);
+    setPreviewIso(null);
+    setSelectedIds(new Set());
+    setPreviewError(null);
+    setPreviewLoading(false);
+  };
+
   const runRewind = async () => {
-    if (!previewRows.length) return;
+    if (!previewRows.length || !previewIso) return;
     const targets = previewRows
       .filter((r) => selectedIds.has(r.board_id) && r.target_snapshot_id != null)
       .map((r) => ({ board_id: r.board_id, snapshot_id: r.target_snapshot_id }));
@@ -120,18 +162,18 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
     }
     const ok = await feedback.confirm({
       title: 'Rewind workspace',
-      message: `Atomically rewind ${targets.length} cluster${targets.length === 1 ? '' : 's'} to the state at ${fmtDate(localToIso(targetLocal))}? This is undoable per cluster (each gets a pre-restore snapshot), but it's a workspace-scale change.`,
+      message: `Atomically rewind ${targets.length} cluster${targets.length === 1 ? '' : 's'} to the state at ${fmtDate(previewIso)}? This is undoable per cluster (each gets a pre-restore snapshot), but it's a workspace-scale change.`,
       confirmLabel: `Rewind ${targets.length} cluster${targets.length === 1 ? '' : 's'}`,
     });
     if (!ok) return;
     setBusy(true);
     try {
       const result = await performWorkspaceRewind(workspaceId, targets, {
-        reason: `recovery modal rewind to ${fmtDate(localToIso(targetLocal))}`,
+        reason: `recovery modal rewind to ${fmtDate(previewIso)}`,
       });
       feedback.toast({
         type: 'success',
-        message: `Rewound ${result.targets_count} cluster${result.targets_count === 1 ? '' : 's'} to ${fmtDate(localToIso(targetLocal))}`,
+        message: `Rewound ${result.targets_count} cluster${result.targets_count === 1 ? '' : 's'} to ${fmtDate(previewIso)}`,
       });
       if (onRewindComplete) onRewindComplete();
       // Refresh alerts (the rewind itself logged one).
@@ -159,9 +201,13 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
     // i.e. just before the mass-delete fired.
     const t = new Date(alert.detected_at);
     t.setSeconds(t.getSeconds() - 60);
-    setTargetLocal(ymdhmLocal(t));
-    // Auto-kick the preview so the user sees the impact right away.
-    setTimeout(runPreview, 50);
+    // Round to the minute the input can show, so the preview, the input and
+    // the labels all name the same instant.
+    const local = ymdhmLocal(t);
+    changeTarget(local);
+    // Auto-kick the preview so the user sees the impact right away — with the
+    // new time passed in, not read back from state.
+    runPreview(localToIso(local));
   };
 
   const openCriticals = alerts.filter((a) => !a.acknowledged_at && a.severity === 'critical');
@@ -212,12 +258,12 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
               type="datetime-local"
               className="wsr-picker-input"
               value={targetLocal}
-              onChange={(e) => setTargetLocal(e.target.value)}
+              onChange={(e) => changeTarget(e.target.value)}
             />
             <button
               type="button"
               className="tb-btn"
-              onClick={runPreview}
+              onClick={() => runPreview()}
               disabled={previewLoading}
             >
               {previewLoading ? 'Computing…' : 'Preview impact'}
