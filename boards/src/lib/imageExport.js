@@ -7,7 +7,7 @@
 // preview ≈ file. Order matches the SVG filter: tone LUT → color matrix →
 // vibrance (exact) → clarity (exact, mid-tone-weighted) → sharpen.
 
-import { resolveSrc } from './r2.js';
+import { resolveSrc, getSignedUrl } from './r2.js';
 import { deliverFile } from './exportDelivery.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
@@ -25,32 +25,13 @@ function isPublicSurface() {
   } catch (_) { return false; }
 }
 import { loadCorsCleanImage } from './corsImage.js';
+import { filenameFor, originalFilename } from './imageFilename.js';
+
+export { filenameFor, originalFilename, imageExtFor } from './imageFilename.js';
 import {
   isAdjusted, normalizeAdjust, toneActive,
   buildToneLUT, buildColorMatrix, buildSharpenKernel, clarityParams, LUMA,
 } from './imageAdjust.js';
-
-const IMAGE_EXT_RE = /\.(jpe?g|jfif|png|gif|webp|avif|heic|heif|bmp|svg|tiff?|jxl)$/i;
-
-// Safe download filename. `forceExt` overrides the extension (used when the
-// baked blob is a PNG regardless of the source format).
-export function filenameFor(s, t, forceExt) {
-  let base = (t || '').toString().trim();
-  if (!base) {
-    const m = String(s || '').match(/([^/?#]+)(?:[?#]|$)/);
-    base = m ? decodeURIComponent(m[1]) : 'image';
-  }
-  base = base.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
-  // Kept files arrive with their own extension (fileIngest keeps the real
-  // name), so the list covers what cameras and scanners write — a scan.tif
-  // must not come down as scan.tif.jpg.
-  if (forceExt) {
-    base = base.replace(IMAGE_EXT_RE, '');
-    return `${base}.${forceExt}`;
-  }
-  if (!IMAGE_EXT_RE.test(base)) base += '.jpg';
-  return base;
-}
 
 // Hands the finished blob to the user. Routed through deliverFile rather than
 // a bare <a download> because <a download> does NOT save a file inside the
@@ -171,11 +152,39 @@ async function bakeAdjustedBlob(img, adjust) {
   return await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
 }
 
+// Fetch the bytes behind an image, re-signing ONCE if the cached URL is dead.
+// R2 sends no CORS header on an error, so an expired signature, a missing
+// object and an offline network all arrive as the same TypeError; a fresh
+// signature repairs the first for nothing (the same rule as cardDownload's
+// fetchCardBlob). Returns the Blob or null — never an error page's XML.
+async function fetchImageBlob(src, url) {
+  const attempt = async (u) => {
+    try {
+      const res = await fetch(u);
+      return res.ok ? await res.blob() : null;
+    } catch (_) { return null; }
+  };
+  const blob = await attempt(url);
+  if (blob) return blob;
+  if (typeof src !== 'string' || !src.startsWith('r2:')) return null;
+  let fresh = null;
+  try { fresh = await getSignedUrl(src.slice(3), { force: true }); } catch (_) { fresh = null; }
+  return (fresh && fresh !== url) ? attempt(fresh) : null;
+}
+
 // Public entry — download the (optionally edited) image behind a card.
+//
+// Resolves true when a file was handed over and false when it could not be
+// (no signed URL, storage unreadable after a re-sign). It never throws:
+// callers are click handlers, several without a catch, and cardDownload turns
+// a false into the toast-able AssetFetchError. It used to return silently on
+// a failed sign, save R2's XML error body as "<title>.jpg", or, after long
+// awaits, window.open the dead URL (popup-blocked, or a tab of AccessDenied
+// XML) — MEDIA-15.
 export async function downloadImage({ src, title, adjust }) {
   let url = null;
   try { url = await resolveSrc(src); } catch (_) { url = null; }
-  if (!url) return;
+  if (!url) return false;
 
   logEvent(EV.FILE_DOWNLOAD, {
     kind: 'image',
@@ -184,19 +193,23 @@ export async function downloadImage({ src, title, adjust }) {
   });
 
   const downloadOriginal = async () => {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    triggerDownload(blob, filenameFor(url, title));
+    const blob = await fetchImageBlob(src, url);
+    if (!blob) return false;
+    triggerDownload(blob, originalFilename(url, title, blob.type));
+    return true;
   };
 
   try {
-    if (!isAdjusted(adjust)) { await downloadOriginal(); return; }
+    if (!isAdjusted(adjust)) return await downloadOriginal();
     const img = await loadCorsCleanImage(url);
-    if (!img) { await downloadOriginal(); return; }
+    if (!img) return await downloadOriginal();
     const blob = await bakeAdjustedBlob(img, adjust);
-    if (!blob) { await downloadOriginal(); return; }
+    if (!blob) return await downloadOriginal();
     triggerDownload(blob, filenameFor(url, title, 'png'));
+    return true;
   } catch (_) {
-    try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (_) {}
+    // The bake itself failed (a canvas too big for this device): the
+    // untouched original is still worth having.
+    try { return await downloadOriginal(); } catch (_) { return false; }
   }
 }
