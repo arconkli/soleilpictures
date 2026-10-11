@@ -143,7 +143,7 @@ test('the index never counts an abandoned upload', () => {
 test('the sweep never deletes on a failed read, never touches a live upload, and refunds nothing it never counted', () => {
   const start = canvas.indexOf('// Abandoned uploads');
   assert.ok(start > 0, 'the sweep exists');
-  const sweep = canvas.slice(start, canvas.indexOf('}, [board?.id, everyCard, canEdit, isPublic, useLocalImages', start));
+  const sweep = canvas.slice(start, canvas.indexOf('}, [board?.id, pendingUploadsSig, canEdit, isPublic, useLocalImages', start));
   assert.match(sweep, /if \(error\) return;/, 'an unreadable images table must leave every card as it is');
   assert.match(sweep, /localImagePreviewRef\.current/, 'a card this tab is still uploading is excluded');
   assert.match(sweep, /m\?\.deleteCardsSilent\?\.\(plan\.remove, \{ refund: false \}\)/);
@@ -155,7 +155,7 @@ test('the sweep never deletes on a failed read, never touches a live upload, and
 
 test('the sweep judges from the server\'s snapshot and the live cards, not from a stale paint', () => {
   const start = canvas.indexOf('// Abandoned uploads');
-  const sweep = canvas.slice(start, canvas.indexOf('}, [board?.id, everyCard, canEdit, isPublic, useLocalImages', start));
+  const sweep = canvas.slice(start, canvas.indexOf('}, [board?.id, pendingUploadsSig, canEdit, isPublic, useLocalImages', start));
   assert.match(sweep, /if \(!canEdit \|\| isPublic \|\| useLocalImages \|\| !board\?\.id \|\| !boardSynced\) return undefined;/,
     'the instant cache paint can be a day old — never sweep from it');
   // Every card in the cluster, not just the board's: an upload waiting in Files
@@ -172,7 +172,7 @@ test('the sweep judges from the server\'s snapshot and the live cards, not from 
 test('a card looked up and left is not looked up again on every render, and nothing done is not logged', () => {
   assert.ok(SWEEP_RECHECK_MS >= 5 * 60_000 && SWEEP_RECHECK_MS < REMOVE_AFTER_MS);
   const start = canvas.indexOf('// Abandoned uploads');
-  const sweep = canvas.slice(start, canvas.indexOf('}, [board?.id, everyCard, canEdit, isPublic, useLocalImages', start));
+  const sweep = canvas.slice(start, canvas.indexOf('}, [board?.id, pendingUploadsSig, canEdit, isPublic, useLocalImages', start));
   assert.match(sweep, /&& !\(now - \(checked\.get\(c\.id\) \|\| 0\) < SWEEP_RECHECK_MS\)\);/);
   assert.match(sweep, /for \(const id of ids\) checked\.set\(id, at\);/);
   // The notice and the event report what happened, not what was planned.

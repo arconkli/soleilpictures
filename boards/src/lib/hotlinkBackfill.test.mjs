@@ -65,7 +65,7 @@ test('account- and route-level refusals stop the pass; picture-level ones do not
 test('the canvas runs it for writers only, after the server snapshot, and re-checks each card before moving it', () => {
   const canvas = readFileSync(resolve(SRC, 'components/CanvasSurface.jsx'), 'utf8');
   const fx = canvas.slice(canvas.indexOf('const hotlinkPassRef = useRef('));
-  const body = fx.slice(0, fx.indexOf('}, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);'));
+  const body = fx.slice(0, fx.indexOf('}, [board?.id, hotlinkSig, canEdit, isPublic, useLocalImages, boardSynced]);'));
   assert.match(body, /if \(!canEdit \|\| isPublic \|\| useLocalImages \|\| !board\?\.id \|\| !boardSynced\) return undefined;/);
   assert.match(body, /if \(!live \|\| live\.src !== c\.src\) continue;/, 'a card re-pointed meanwhile is left alone');
   assert.match(body, /sweepMutatorsRef\.current\?\.updateCardSilent\?\.\(c\.id, \{\s*src: res\.src, sourceUrl: c\.src/);

@@ -86,6 +86,15 @@ test('a cleared project name field puts the name back', () => {
   assert.match(commit, /if \(!t\) \{ setDraft\(named\); return; \}/);
 });
 
+// CANVAS-A-13 (canvas half): App hands down a fresh `cards` array on every
+// render, so effects keyed on it re-armed their idle timers constantly.
+test('the backfill, hotlink and sweep timers key on stable signatures, not on cards', () => {
+  assert.match(canvas, /\}, \[board\.id, previewKeysSig, canEdit, isPublic, useLocalImages\]\);/);
+  assert.match(canvas, /\}, \[board\?\.id, hotlinkSig, canEdit, isPublic, useLocalImages, boardSynced\]\);/);
+  assert.match(canvas, /\}, \[board\?\.id, pendingUploadsSig, canEdit, isPublic, useLocalImages, boardSynced\]\);/);
+  assert.doesNotMatch(canvas, /\}, \[board\??\.id, cards, canEdit, isPublic, useLocalImages/);
+});
+
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {
