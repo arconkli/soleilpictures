@@ -21,8 +21,9 @@ Files side of the switch counts the cards inside, not counting nested clusters.
 | Open or close Files beside the board | `F`, or **Files** / **Board** at the top |
 | Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it |
 | Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across |
-| Put full-screen Files back beside the board | **Beside board** in its toolbar |
-| Find a file on the board | Double-click it in the panel — the board flies to it |
+| Put full-screen Files back beside the board | The shrink button at the top right, beside **Download all** |
+| Find a file on the board | Click it in the panel — the board brings it into view and selects it |
+| Put a file somewhere on the board | Drag it from the panel onto the board |
 
 `⌘K` → "Show Files" does the same as `F`. Whether the panel is open, and how
 wide, is remembered on your device; it never changes the cluster for anyone
@@ -37,6 +38,62 @@ A cluster remembers which view it was left in. Clusters made from a folder you
 [drop in](/docs/clusters#dropping-a-folder) open in Files for you, because a
 dropped folder is files first; their cards are still laid out on each canvas,
 and on the parent board they keep their thumbnail.
+
+## Dragging files onto the board
+
+Drag anything from the panel onto the board and it lands where you let go.
+Select several first and they travel together.
+
+| Where the file is | What the drop does |
+|---|---|
+| This cluster | Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there |
+| Another cluster | Adds a **linked copy**: a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit |
+| Another cluster, and already copied here | Moves the copy that's already on the board instead of adding a second one. Hold `⌥` (`Alt`) while you drop to add another |
+
+A linked copy is its own card: retitling or captioning it leaves the original
+alone, and deleting either one leaves the other. While you browse another
+cluster in the panel, its files that already have a copy on this board are
+marked **On board**, and clicking one finds that copy.
+
+Notes, docs and grids can't be copied this way — their content lives in their
+cluster — so dropping one from another cluster offers **Move here** instead.
+Moving takes it out of the other cluster, and the toast that follows can undo
+it.
+
+## Not on board
+
+A file can be in a cluster without being on its board. Files you add in Files
+start that way, and so does a card you take off: right-click it on the board
+and choose **Remove from board**. Either way it waits in Files with a **Not on
+board** mark. **Not on board** in the **View** menu shows just those.
+
+To put one on the board, drag it there, or right-click it in Files — or use
+the selection bar, or Quick look — and choose **Put on board**, which places it
+in the clear space nearest the middle of where the board was last looking. A
+link or search result that points at a file that isn't on the board opens Files
+with it picked out instead.
+
+Files waiting off the board are still cards: they count toward your plan's
+card limit, and anyone the cluster is shared with sees them in Files.
+
+## Folders and the path bar
+
+A cluster's nested clusters are its folders. They sit first, as compact rows —
+the cluster's colour dot (or its cover), its name and how many items are inside —
+with the files after them.
+
+In the panel, **double-click a folder to step into it**. The path bar at the top
+shows where the panel is; click any step to go back up, or use the back arrow
+to retrace where you have been. The ▾ on the current step lists the clusters
+inside it, and its **Go to cluster…** jumps to any cluster in the workspace.
+**The board doesn't move** while you browse — the
+breadcrumb at the top of the screen still says where it is.
+
+Another cluster's files are read-only from the panel: browse, preview and
+download, but edits happen in that cluster. Double-click one of its files and
+the board goes there and flies to it. Expanding the panel while you are
+browsing takes you to that cluster, in Files. In full-screen Files, opening a
+folder goes there and stays in Files.
 
 ## Grid and list
 

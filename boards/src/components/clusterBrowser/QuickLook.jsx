@@ -116,7 +116,7 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
           {raw && <div className="ql-link-url" title={raw}>{raw}</div>}
           {href && (
             <a className="cbt-btn ql-open" href={href} target="_blank" rel="noopener noreferrer">
-              <Icon as={ArrowSquareOut} size={16} weight="light" />Open link
+              <Icon as={ArrowSquareOut} size={14} weight="light" />Open link
             </a>
           )}
         </div>
@@ -227,16 +227,6 @@ export default function QuickLook({
         {onPutOnBoard && item.unplaced && (
           <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
             <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
-          </button>
-        )}
-        {item.kind === 'video' && item.card?.src && item.boardId && !isPublicSurface() && (
-          <button type="button" className="ql-btn" title="Open in the review player"
-                  onClick={() => {
-                    const st = playerRef.current?.getState?.();
-                    playerRef.current?.pause?.();
-                    openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
-                  }}>
-            <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
           </button>
         )}
         {canDownload && (

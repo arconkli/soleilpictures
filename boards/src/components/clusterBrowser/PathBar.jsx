@@ -75,8 +75,7 @@ export function PathBar({
   return (
     <nav className={`pb${trail ? ' pb--trail' : ''}`} aria-label="Files path">
       {canBack && (
-        <button type="button" className={`cbt-iconbtn pb-back${spring.armed === 'back' ? ' is-springing' : ''}`} onClick={onBack} aria-label="Back" title="Back"
-                {...springProps('back', onSpringBack)}>
+        <button type="button" className="cbt-iconbtn pb-back" onClick={onBack} aria-label="Back" title="Back">
           <Icon as={ChevronLeft} size={16} weight="light" />
         </button>
       )}

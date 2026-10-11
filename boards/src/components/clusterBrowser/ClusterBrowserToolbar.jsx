@@ -2,7 +2,8 @@ import { useId, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
-import { Search, Filter, List, LayoutGrid, Plus, ChevronDown, X, Maximize2, Minimize2 } from '../../lib/icons.js';
+import { PathBar } from './PathBar.jsx';
+import { Search, List, LayoutGrid, Plus, X, ArrowsOutSimple, Check, SlidersHorizontal } from '../../lib/icons.js';
 
 const SORT_OPTIONS = [
   // The canvas read like a page — the default, so Files opens on the same
@@ -84,6 +85,12 @@ export function ClusterBrowserToolbar({
   compact = false,
   clusterName = '',
   dockControls = null,
+  // The panel's location (FilesPane) — replaces the plain title when present.
+  pathBar = null,
+  readOnlyNote = '',
+  // While files are dragged over Files: { text, blocked } — said in the
+  // header, in place of the search row.
+  dropBanner = null,
 }) {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -108,7 +115,7 @@ export function ClusterBrowserToolbar({
 
   const searchBox = (
     <div className="cbt-search">
-      <Icon as={Search} size={15} className="cbt-search-icon" />
+      <Icon as={Search} size={16} weight="light" className="cbt-search-icon" />
       <input
         ref={searchRef}
         className="cbt-input"
@@ -121,7 +128,7 @@ export function ClusterBrowserToolbar({
       />
       {query && (
         <button className="cbt-clear" onClick={() => onQueryChange('')} aria-label="Clear search">
-          <Icon as={X} size={13} />
+          <Icon as={X} size={12} weight="light" />
         </button>
       )}
     </div>

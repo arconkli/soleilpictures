@@ -1499,10 +1499,40 @@ export function ListSurface({
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}
-         onClick={() => { setSelectedBoards(new Set()); setSelectedCards(new Set()); }}>
-      <div className="list-inner" ref={listInnerRef} onClick={(e) => e.stopPropagation()}>
-        {isPanel && <div className="lp-head">{toolbarJsx}</div>}
-        {!isPanel && subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
+         onClick={(e) => {
+           // A click on empty floor clears the selection; one on a control,
+           // a tile or a menu is that thing's business.
+           if (e.target.closest?.('button, a, input, select, label, [role="menu"], [role="dialog"], .ct-tile, .ct-row, .ft, .cbt, .list-selbar, .cb-detail')) return;
+           setSelectedBoards(new Set()); setSelectedCards(new Set()); setSelectedGroupId(null);
+         }}>
+      <div className="list-inner" ref={listInnerRef} onContextMenu={onListContextMenu}>
+        {isPanel && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {isPanel && <div className={`lp-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
+        {/* Full Files opens on the cluster's name and what's in it — then the
+            toolbar, sticky, above everything it searches and sorts. */}
+        {!isPanel && (
+          <header className="cb-pagehead">
+            <h1 className="cb-pagehead-title">{board?.name || 'Untitled cluster'}</h1>
+            <span className="cb-pagehead-meta">{pageMeta}</span>
+            {canDownloadAll && (
+              <button type="button" className="list-section-act cb-pagehead-dl" onClick={downloadAll} disabled={zipping}>
+                <Icon as={Download} size={16} weight="light" />
+                <span>{zipping ? 'Preparing…'
+                     : narrowed ? `Download ${downloadableVisible.length}`
+                     : 'Download all'}</span>
+              </button>
+            )}
+            {dockControls?.canShrink && dockControls?.onShrink && (
+              <button type="button" className="cbt-iconbtn cbt-shrink" onClick={dockControls.onShrink}
+                      aria-label="Beside board" title="Put Files beside the board">
+                <Icon as={ArrowsInSimple} size={16} weight="light" />
+              </button>
+            )}
+          </header>
+        )}
+        {!isPanel && filesBlockShown && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {!isPanel && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
+        {!isPanel && clusterEmpty && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
             <div className="list-empty-sub">
@@ -1553,6 +1583,15 @@ export function ListSurface({
                 </div>
               ))}
             </div>
+            <div className="ft-grid is-panel" ref={ftGridRef}>
+              {subBoards.slice(0, folderShown).map(renderSubFolder)}
+              {linkedCards.slice(0, Math.max(0, folderShown - subBoards.length)).map(renderLinkedFolder)}
+            </div>
+            {folderCount > folderCapN && (
+              <button type="button" className="ft-more" onClick={toggleFolders} aria-expanded={foldersOpen}>
+                {foldersOpen ? 'Show fewer' : `Show all ${folderCount}`}
+                <Icon as={foldersOpen ? ChevronUp : ChevronDown} size={12} weight="light" />
+              </button>
             )}
           </>
         )}
@@ -1586,10 +1625,29 @@ export function ListSurface({
                    onDragStart={filesDraggable ? onFilesDragStart : undefined}
                    onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
                 {visibleItems.length === 0 && descHits.length === 0 ? (
-                  <div className="cluster-browser-empty">
-                    {query || filters.size ? 'No files match your search.'
-                      : isPanel ? 'No files here yet — drop some in.' : 'No files yet.'}
-                  </div>
+                  loading ? (
+                    <div className="list-loading" role="status">Loading files…</div>
+                  ) : query || filters.size || unplacedOnly ? (
+                    <div className="cluster-browser-empty">
+                      <div>No files match.</div>
+                      <button type="button" className="cbt-btn cb-empty-clear"
+                              onClick={() => { setQuery(''); onClearFilters(); }}>Clear filters</button>
+                    </div>
+                  ) : (
+                    <div className={`list-empty is-compact${canEdit ? "" : " is-readonly"}`}>
+                      {canEdit && <span className="list-empty-ico"><Icon as={Upload} size={16} weight="light" /></span>}
+                      <div className="list-empty-title">No files in {board?.name || 'this cluster'}</div>
+                      <div className="list-empty-sub">
+                        {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
+                          : browsingFrom ? `Open ${board?.name || 'it'} to add files.` : 'Nothing here yet.'}
+                      </div>
+                      {canEdit ? (
+                        <button type="button" className="cbt-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" />Add files</button>
+                      ) : browsingFrom && dockControls?.onExpand ? (
+                        <button type="button" className="cbt-btn" onClick={dockControls.onExpand}>Open {board?.name || 'cluster'}</button>
+                      ) : null}
+                    </div>
+                  )
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <JustifiedGallery tileSize={tileSize}
                     activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
@@ -1716,9 +1774,9 @@ export function ListSurface({
                 <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
               </button>
             )}
-            {totalSel > 0 && (
-              <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
-                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`}>
+            {!isPanel && totalSel === 1 && selectedCards.size === 1 && (
+              <button type="button" className={`list-selbar-act${infoOpen ? ' is-on' : ''}`} onClick={toggleInfo}
+                      aria-pressed={infoOpen} title={`Info (${cmdKey}I)`}>
                 <Icon as={Info} size={14} weight="light" /><span>Info</span>
               </button>
             )}

@@ -15,7 +15,8 @@ import { CardPreview } from './CardPreview.jsx';
 import { copyCardLink } from '../../lib/cardLink.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
-import { X, Download, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
+import { X, Download, Trash2 as TrashIcon, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
+import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { getMeta as getMetaDefault, primeFileFacts, subscribeMeta } from '../../lib/imageMeta.js';
 import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
@@ -159,8 +160,11 @@ export function DetailPanel({
   if (target.type === 'group') {
     const g = target.group;
     return (
-      <aside {...asideProps}>
-        {head(g.name, 'Grid family')}
+      <aside className="cb-detail surface-frosted">
+        <div className="cbd-head">
+          <span className="cbd-title" title={g.name}>{g.name}</span>
+          <button className="cbd-close" onClick={onClose} aria-label="Close"><Icon as={X} size={16} weight="light" /></button>
+        </div>
         <div className="cbd-body">
           <div className="cbd-preview"><CardPreview key={g.id} item={g} size="tile" /></div>
           <MetaRow label="Type" value="Grid family" />
@@ -222,8 +226,14 @@ export function DetailPanel({
   const sub = [info.details.find((r) => r.k === 'Kind')?.v || item.typeLabel, size].filter(Boolean).join(' · ');
 
   return (
-    <aside {...asideProps}>
-      {head(item.name, sub)}
+    <aside className={`cb-detail surface-frosted${inline ? ' is-inline' : ''}`} aria-label="Info">
+      <div className="cbd-head">
+        <div className="cbd-titles">
+          <span className="cbd-title" title={item.name}>{item.name}</span>
+          <span className="cbd-sub">{[item.typeLabel, item.sub || (item.sizeBytes != null ? humanSize(item.sizeBytes) : null)].filter(Boolean).join(' · ')}</span>
+        </div>
+        <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} weight="light" /></button>
+      </div>
       <div className="cbd-body">
         {!inline && <div className="cbd-preview"><CardPreview key={item.id} item={item} size="tile" /></div>}
         <Section label="Details">
@@ -269,8 +279,8 @@ export function DetailPanel({
             <Icon as={Download} size={16} weight="light" />
           </button>
         )}
-        {!isPublicSurface() && item.boardId && (
-          <button className="cbt-iconbtn cbd-icon" onClick={() => copyCardLink(item.id, item.boardId, feedback)} aria-label="Copy link" title="Copy link">
+        {!isPublicSurface() && (
+          <button className="cbt-iconbtn cbd-icon" onClick={() => copyLink(item.id, item.boardId)} aria-label="Copy link" title="Copy link">
             <Icon as={LinkIcon} size={16} weight="light" />
           </button>
         )}

@@ -18368,7 +18368,17 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " in its toolbar"
+       "v": "The shrink button at the top right, beside "
+      },
+      {
+       "t": "strong",
+       "v": "Download all",
+       "children": [
+        {
+         "t": "text",
+         "v": "Download all"
+        }
+       ]
       }
      ]
     ],
@@ -18447,6 +18457,354 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, and on the parent board they keep their thumbnail."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Dragging files onto the board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Dragging files onto the board"
+    }
+   ],
+   "id": "dragging-files-onto-the-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drag anything from the panel onto the board and it lands where you let go. Select several first and they travel together."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Where the file is"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What the drop does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "This cluster"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Another cluster"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Adds a "
+      },
+      {
+       "t": "strong",
+       "v": "linked copy",
+       "children": [
+        {
+         "t": "text",
+         "v": "linked copy"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ": a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Another cluster, and already copied here"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Moves the copy that's already on the board instead of adding a second one. Hold "
+      },
+      {
+       "t": "code",
+       "v": "⌥"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "Alt"
+      },
+      {
+       "t": "text",
+       "v": ") while you drop to add another"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A linked copy is its own card: retitling or captioning it leaves the original alone, and deleting either one leaves the other. While you browse another cluster in the panel, its files that already have a copy on this board are marked "
+    },
+    {
+     "t": "strong",
+     "v": "On board",
+     "children": [
+      {
+       "t": "text",
+       "v": "On board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and clicking one finds that copy."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notes, docs and grids can't be copied this way — their content lives in their cluster — so dropping one from another cluster offers "
+    },
+    {
+     "t": "strong",
+     "v": "Move here",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move here"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " instead. Moving takes it out of the other cluster, and the toast that follows can undo it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Not on board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Not on board"
+    }
+   ],
+   "id": "not-on-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file can be in a cluster without being on its board. Files you add in Files start that way, and so does a card you take off: right-click it on the board and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Remove from board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove from board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Either way it waits in Files with a "
+    },
+    {
+     "t": "strong",
+     "v": "Not on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " mark. "
+    },
+    {
+     "t": "strong",
+     "v": "Not on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the "
+    },
+    {
+     "t": "strong",
+     "v": "View",
+     "children": [
+      {
+       "t": "text",
+       "v": "View"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu shows just those."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To put one on the board, drag it there, or right-click it in Files — or use the selection bar, or Quick look — and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which places it in the clear space nearest the middle of where the board was last looking. A link or search result that points at a file that isn't on the board opens Files with it picked out instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files waiting off the board are still cards: they count toward your plan's card limit, and anyone the cluster is shared with sees them in Files."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Folders and the path bar",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Folders and the path bar"
+    }
+   ],
+   "id": "folders-and-the-path-bar"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cluster's nested clusters are its folders. They sit first, as compact rows — the cluster's colour dot (or its cover), its name and how many items are inside — with the files after them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In the panel, "
+    },
+    {
+     "t": "strong",
+     "v": "double-click a folder to step into it",
+     "children": [
+      {
+       "t": "text",
+       "v": "double-click a folder to step into it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The path bar at the top shows where the panel is; click any step to go back up, or use the back arrow to retrace where you have been. The ▾ on the current step lists the clusters inside it, and its "
+    },
+    {
+     "t": "strong",
+     "v": "Go to cluster…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Go to cluster…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " jumps to any cluster in the workspace. "
+    },
+    {
+     "t": "strong",
+     "v": "The board doesn't move",
+     "children": [
+      {
+       "t": "text",
+       "v": "The board doesn't move"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " while you browse — the breadcrumb at the top of the screen still says where it is."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files."
     }
    ]
   },
