@@ -77,8 +77,11 @@ export function useGridLayouts(userId) {
       .then((next) => { if (loadedFor.current === userId) setState(next); })
       // A library that fails to load leaves the built-in section intact; the
       // panel is still usable, which is better than an error state over a
-      // feature the user may not even be reaching for.
-      .catch(() => {});
+      // feature the user may not even be reaching for. Forget the attempt,
+      // though: loadedFor was set before the fetch, and leaving it set made
+      // every later open return early — one network blip hid the user's own
+      // templates until a reload.
+      .catch(() => { if (loadedFor.current === userId) loadedFor.current = null; });
   }, [userId]);
 
   // Call after any write. Busts the cache and re-reads, so the panel shows what
