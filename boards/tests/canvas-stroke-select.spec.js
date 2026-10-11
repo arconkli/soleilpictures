@@ -16,11 +16,29 @@ const cardPaths = (page) => page.locator('.card .card-strokes-overlay path').cou
 
 async function board(page) {
   await page.goto('/?local=1&reset=1&blank=1');
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  // Generous, as in canvas-pointer-fixes: under parallel load the first boot
+  // can outlast the default 5s.
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 20000 });
   await page.waitForTimeout(1000);
   await page.keyboard.press('d');
   await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
 }
+
+// Picks a draw mode (Pen / Lasso) on the tool bar. Not a Playwright click: when
+// its hit check misses a tool-bar button under load, the retry force-scrolls
+// the overflow-hidden .canvas-wrap to "reveal" it, which slides the bar into
+// mid-canvas and moves every page coordinate the test draws at afterwards.
+async function pickMode(page, name) {
+  const btn = page.getByRole('button', { name, exact: true });
+  await btn.dispatchEvent('click');
+  await expect(btn).toHaveClass(/is-active/);
+}
+
+// The canvas maps pointer coordinates assuming the wrap is never scrolled.
+const wrapUnscrolled = (page) => expect.poll(() => page.evaluate(() => {
+  const w = document.querySelector('.canvas-wrap');
+  return w.scrollLeft + w.scrollTop;
+})).toBe(0);
 
 async function drawStroke(page, x0, y0, x1, y1) {
   await page.mouse.move(x0, y0);
@@ -67,17 +85,26 @@ test('with a fresh drawing selected, a line drawn elsewhere stays on the board',
 });
 
 test('a stroke selection does not swallow the next line drawn inside its box', async ({ page }) => {
+  // Waits on state, not time: under load a fixed pause let the second line
+  // start before the selection box had gone.
+  const selBox = page.locator('.strokes-layer rect');
   await board(page);
   await drawStroke(page, 360, 300, 480, 380);
-  await page.getByRole('button', { name: 'Lasso' }).click();
-  await page.waitForTimeout(150);
+  await expect(boardStrokes(page)).toHaveCount(1);
+  await pickMode(page, 'Lasso');
+  await wrapUnscrolled(page);
   await lasso(page, [[520, 260], [520, 420], [RAIL_RIGHT + 20, 420], [RAIL_RIGHT + 20, 262], [518, 262]]);
   await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-select/);
+  // The lasso picked the stroke: its transform box is up under Select.
+  await expect.poll(() => selBox.count()).toBeGreaterThan(0);
   const before = await boardStrokes(page).first().getAttribute('d');
 
   await page.keyboard.press('d');
-  await page.getByRole('button', { name: 'Pen', exact: true }).click();
   await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
+  await pickMode(page, 'Pen');
+  await wrapUnscrolled(page);
+  // Under Draw the box is gone, so nothing in it can take the pointerdown.
+  await expect(selBox).toHaveCount(0);
   // Start INSIDE the old selection box.
   await drawStroke(page, 420, 330, 470, 300);
 
@@ -111,8 +138,8 @@ test('moving a pen-pressure stroke keeps its pressure, and one ⌘Z undoes the m
   await expect(line).not.toHaveAttribute('fill', 'none');
   const before = await line.getAttribute('d');
 
-  await page.getByRole('button', { name: 'Lasso' }).click();
-  await page.waitForTimeout(150);
+  await pickMode(page, 'Lasso');
+  await wrapUnscrolled(page);
   await lasso(page, [[520, 260], [520, 420], [RAIL_RIGHT + 20, 420], [RAIL_RIGHT + 20, 262], [518, 262]]);
   await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-select/);
 
