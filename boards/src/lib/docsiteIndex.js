@@ -2424,12 +2424,16 @@ export const DOCS_PAGES = [
     "answer": "Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.",
     "section": "publish",
     "order": 0,
-    "updated": "2026-10-07",
+    "updated": "2026-10-11",
     "navLabel": "Explore",
     "headings": [
       {
         "id": "publishing",
         "text": "Publishing"
+      },
+      {
+        "id": "unpublishing",
+        "text": "Unpublishing"
       },
       {
         "id": "what-a-published-board-gets",
@@ -2468,7 +2472,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I unpublish?",
-        "a": "Yes. Publishing is reversible from the same place you submitted it."
+        "a": "Yes. In the Share dialog, the Publish to Explore section shows Remove from Explore while the board is live and Withdraw submission while it is waiting for review. Either takes effect straight away, and you can submit the board again later — it goes back through review."
       }
     ]
   },

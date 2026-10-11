@@ -2,7 +2,7 @@
 
 > Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.
 
-_Source: https://clusters.soleilpictures.com/docs/publish/explore · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/publish/explore · Updated 2026-10-11_
 
 [Explore](https://clusters.soleilpictures.com/explore) is the public directory of boards people
 have chosen to publish.
@@ -16,9 +16,19 @@ Review is a real step: a human looks before it appears. Nothing becomes public
 because somebody clicked the wrong control, and the directory does not fill with
 half-finished boards.
 
-Publishing is reversible from the same place.
-
 Submitting opens up once an account is 72 hours old.
+
+## Unpublishing
+
+The same section takes it back:
+
+- **Remove from Explore** appears while the board is live. The public page
+  stops being served and the board leaves the directory straight away.
+- **Withdraw submission** appears while it is still waiting for review, and
+  cancels the submission.
+
+Either way the board is back to never having been submitted. You can submit it
+again later, and it goes back through review.
 
 ## What a published board gets
 
@@ -49,7 +59,7 @@ or alphabetical, and topic filters.
 | Discoverable | No | Yes, in the directory |
 | Indexed by search | No, unless you allow it | Yes |
 | Review | None | Reviewed before appearing |
-| Reversible | Revoke the link | Unpublish |
+| Reversible | Revoke the link | Remove from Explore |
 
 Use a share link for a client or a collaborator. Publish when you want the work
 found.
