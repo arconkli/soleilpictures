@@ -470,6 +470,35 @@ export function SidebarBoardTree({
                setMenu({ open: true, x: e.clientX, y: e.clientY, board });
              }}
              onClick={(e) => onRowClick(e, board)}
+             /* Rows were click-only divs, so Tab skipped every cluster and a
+                keyboard user couldn't open one from the sidebar. A tree item
+                now: Enter/Space opens, →/← expand/collapse, F2 renames,
+                Shift+F10 / the Menu key opens the row menu. */
+             role="treeitem"
+             tabIndex={isRenaming ? -1 : 0}
+             aria-level={depth + 1}
+             aria-expanded={hasKids ? isOpen : undefined}
+             aria-selected={isSelected || isActive}
+             aria-current={isActive ? 'page' : undefined}
+             onKeyDown={(e) => {
+               if (e.target !== e.currentTarget) return;
+               if (e.key === 'Enter' || e.key === ' ') {
+                 e.preventDefault();
+                 onRowClick(e, board);
+               } else if (e.key === 'ArrowRight' && hasKids && !isOpen) {
+                 e.preventDefault(); toggle(board.id);
+               } else if (e.key === 'ArrowLeft' && hasKids && isOpen) {
+                 e.preventDefault(); toggle(board.id);
+               } else if (e.key === 'F2' && canEditBoard?.(board.id) !== false) {
+                 e.preventDefault(); beginRename(board);
+               } else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+                 e.preventDefault();
+                 const r = e.currentTarget.getBoundingClientRect();
+                 setSelectedTreeBoards(new Set([board.id]));
+                 lastClickedRef.current = board.id;
+                 setMenu({ open: true, x: r.left + 24, y: r.bottom, board });
+               }
+             }}
              onDoubleClick={(e) => {
                // Double-click anywhere on the row enters rename mode.
                // Skip if the chevron caught it (let toggle do its thing).
@@ -481,7 +510,10 @@ export function SidebarBoardTree({
           <button className="sb-tree-chev"
                   onClick={(e) => { e.stopPropagation(); if (hasKids) toggle(board.id); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}
-                  tabIndex={hasKids ? 0 : -1}>
+                  /* The row itself takes focus and handles →/←, so the chevron
+                     would only be a second tab stop per row. */
+                  tabIndex={-1}
+                  aria-hidden="true">
             {isOpen ? '▾' : '▸'}
           </button>
           <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />
@@ -519,7 +551,7 @@ export function SidebarBoardTree({
           )}
         </div>
         {hasKids && isOpen && (
-          <div className="sb-tree-children">
+          <div className="sb-tree-children" role="group">
             {kids.map(c => renderRow(c, depth + 1))}
           </div>
         )}
@@ -532,12 +564,26 @@ export function SidebarBoardTree({
   // tree root that detects a hold-and-drag on a board row, follows the
   // pointer with a small ghost element, and on release dispatches a
   // 'soleil-touch-board-drop' CustomEvent that CanvasSurface listens for.
+  //
+  // A drag needs a HOLD first (LONG_PRESS_MS without moving). Rows keep the
+  // page's pan touch-action so the drawer list scrolls, and a swipe that
+  // started on a row used to cross the 10px threshold, start a "drag", and
+  // then — when the browser claimed the pan and sent pointercancel — run the
+  // full DROP at the cancel point, nesting the cluster into whatever row was
+  // under the finger. Now a move before the hold is a scroll and is left
+  // alone, once armed the touchmove is preventDefault-ed so the browser can't
+  // take the gesture, and pointercancel only ever cancels.
+  //
+  // A hold released without moving opens the row menu: iOS Safari never fires
+  // contextmenu for a touch long-press, so this is the only way to rename,
+  // recolor or delete a cluster from the phone drawer.
   const treeRef = useRef(null);
   useEffect(() => {
     const el = treeRef.current;
     if (!el) return;
     let drag = null;
     const THRESHOLD = 10;
+    const LONG_PRESS_MS = 350;
 
     const startGhost = (name) => {
       const g = document.createElement('div');
@@ -557,31 +603,70 @@ export function SidebarBoardTree({
       return g;
     };
 
+    // Swallow the click a touch gesture can leave behind, so finishing a
+    // drag or a hold doesn't also open the cluster (and close the drawer).
+    const suppressClick = () => {
+      dragGestureRef.current.dragged = true;
+      setTimeout(() => { dragGestureRef.current.dragged = false; }, 400);
+    };
+
+    const reset = () => {
+      if (!drag) return;
+      clearTimeout(drag.timer);
+      drag.ghost?.remove();
+      if (drag.active) setDropTargetId(null);
+      drag = null;
+    };
+
     const onDown = (e) => {
       if (e.pointerType !== 'touch') return;
       const row = e.target.closest?.('.sb-tree-row');
       if (!row) return;
       // Ignore taps on the chevron toggle — that's expand/collapse, not drag.
       if (e.target.closest?.('.sb-tree-chev')) return;
+      // Inline rename owns its own touches (caret placement, selection).
+      if (e.target.closest?.('input')) return;
       const boardId = row.dataset.boardId;
       if (!boardId) return;
+      reset();
       const name = row.querySelector('.sb-row-label')?.textContent || boardId;
-      drag = { boardId, name, startX: e.clientX, startY: e.clientY, active: false, ghost: null };
+      const mine = {
+        boardId, name, row, startX: e.clientX, startY: e.clientY,
+        armed: false, active: false, nativeMenu: false, ghost: null, timer: 0,
+      };
+      mine.timer = setTimeout(() => { if (drag === mine) mine.armed = true; }, LONG_PRESS_MS);
+      drag = mine;
     };
     const onMove = (e) => {
       if (!drag) return;
       const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
-      if (!drag.active && (dx * dx + dy * dy) > THRESHOLD * THRESHOLD) {
+      const moved = (dx * dx + dy * dy) > THRESHOLD * THRESHOLD;
+      if (!drag.armed) {
+        // Moved before the hold completed: a scroll, not a drag.
+        if (moved) reset();
+        return;
+      }
+      if (!drag.active && moved) {
         drag.active = true;
         dragGestureRef.current.dragged = true;
         drag.ghost = startGhost(drag.name);
+        // Android may have opened the row menu on the hold; a drag wins.
+        if (drag.nativeMenu) setMenu(m => (m.open ? { ...m, open: false } : m));
       }
       if (drag.active) {
         drag.ghost.style.left = (e.clientX + 10) + 'px';
         drag.ghost.style.top  = (e.clientY + 10) + 'px';
       }
     };
+    // Once armed, keep the browser from turning the gesture into a scroll,
+    // which is what would send pointercancel in the middle of the drag.
+    const onTouchMove = (e) => {
+      if (drag?.armed && e.cancelable) e.preventDefault();
+    };
+    // Android fires a native contextmenu on the hold; the row's own handler
+    // opens the menu from it, so the release must not open it a second time.
+    const onNativeMenu = () => { if (drag) drag.nativeMenu = true; };
     const onUp = (e) => {
       if (!drag) return;
       if (drag.active) {
@@ -601,23 +686,40 @@ export function SidebarBoardTree({
             detail: { boardId: drag.boardId, name: drag.name, clientX: e.clientX, clientY: e.clientY },
           }));
         }
-        setDropTargetId(null);
-        drag.ghost?.remove();
-        setTimeout(() => { dragGestureRef.current.dragged = false; }, 0);
+        suppressClick();
+      } else if (drag.armed) {
+        const board = boardsRef.current?.[drag.boardId];
+        if (board && !drag.nativeMenu) {
+          const r = drag.row.getBoundingClientRect();
+          setSelectedTreeBoards(new Set([board.id]));
+          lastClickedRef.current = board.id;
+          setMenu({ open: true, x: Math.min(e.clientX, r.right - 8), y: r.bottom, board });
+        }
+        suppressClick();
       }
-      drag = null;
+      reset();
+    };
+    // The browser took the gesture (a scroll, a system interruption): put
+    // everything back and drop NOTHING.
+    const onCancel = () => {
+      if (drag?.active) setTimeout(() => { dragGestureRef.current.dragged = false; }, 0);
+      reset();
     };
 
     el.addEventListener('pointerdown', onDown, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('contextmenu', onNativeMenu, true);
     document.addEventListener('pointermove', onMove, { passive: true });
     document.addEventListener('pointerup', onUp, { passive: true });
-    document.addEventListener('pointercancel', onUp, { passive: true });
+    document.addEventListener('pointercancel', onCancel, { passive: true });
     return () => {
       el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('contextmenu', onNativeMenu, true);
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
-      document.removeEventListener('pointercancel', onUp);
-      if (drag?.ghost) drag.ghost.remove();
+      document.removeEventListener('pointercancel', onCancel);
+      reset();
     };
   }, []);
 
@@ -635,7 +737,7 @@ export function SidebarBoardTree({
   }
 
   return (
-    <div className="sb-tree" ref={treeRef}>
+    <div className="sb-tree" ref={treeRef} role="tree" aria-label="Clusters">
       {roots.map(b => renderRow(b, 0))}
       {/* Portal to <body>: the sidebar list (.sb-list) has a scroll-edge
           mask-image + overflow-x:hidden that would otherwise CLIP this
