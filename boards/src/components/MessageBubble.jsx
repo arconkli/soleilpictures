@@ -52,6 +52,16 @@ export function MessageBubble({
     || 'Member';
   const senderColor = profile?.color || pickPresenceColor(msg.sender_id || '');
 
+  // Names the body's @mention pills match against. Without them a pill had
+  // nothing to stop at and swallowed the rest of the sentence (COMMS-05).
+  // Both the display name and the address: the composer inserts whichever
+  // the picker showed. Re-renders on profile load via the subscribe above.
+  const mentionNames = {};
+  for (const id of (msg.mentions || [])) {
+    const p = userProfiles.resolve(id);
+    mentionNames[id] = [p?.name, p?.email].filter(Boolean);
+  }
+
   const time = formatRelTime(msg.created_at);
   const fullTime = msg.created_at
     ? new Date(msg.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -158,6 +168,7 @@ export function MessageBubble({
         <div className="msg-bubble-body">
           {renderMessageBody(msg.body, {
             mentions: msg.mentions || [],
+            userNamesById: mentionNames,
             attachments: msg.attachments || [],
             highlight,
             trie,

@@ -21,13 +21,13 @@
 import React from 'react';
 import { EntityLink } from '../components/EntityLink.jsx';
 import { scanForAutoLinks } from './scanForAutoLinks.js';
+import { scanMentions, hasUnresolvedMention } from './messageMentions.js';
 
 const URL_RE = /https?:\/\/[^\s<>]+/g;
 const FENCE_RE = /```([\s\S]*?)```/g;
 const INLINE_CODE_RE = /`([^`\n]+)`/g;
 const BOLD_RE = /\*\*([^*\n]+)\*\*/g;
 const ITALIC_RE = /(^|[^*\w])\*([^*\n]+)\*(?!\w)/g;
-const MENTION_RE = /@([a-zA-Z0-9_'’\- ]{1,40})/g;
 
 function escapeReg(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function truncateUrl(u, max = 50) {
@@ -42,41 +42,31 @@ function truncateUrl(u, max = 50) {
 function renderInline(str, ctx, keyPrefix = 'i') {
   if (!str) return [];
 
-  // 1. @mentions — pull out as pills (or plain text if not resolved
-  //    in the message's mentions[]/attachments[] context).
-  const mentionMap = new Map();
+  // 1. @mentions — pull out as pills. A pill covers only a name the
+  //    message carries (its mentioned people, its attached entities), so
+  //    the words after it stay text and keep their markdown and links.
+  //    userNamesById[id] may be one name or several (display name, email).
+  const targets = [];
   for (const userId of (ctx.mentions || [])) {
-    const name = ctx.userNamesById?.[userId];
-    if (name) mentionMap.set(name.toLowerCase(), { kind: 'user', id: userId });
+    const names = [].concat(ctx.userNamesById?.[userId] || []);
+    for (const name of names) if (name) targets.push({ name, kind: 'user', id: userId });
   }
   for (const att of (ctx.attachments || [])) {
-    if (att.title || att.name) {
-      mentionMap.set((att.title || att.name).toLowerCase(), { kind: att.kind, ref: att });
-    }
+    if (att.title || att.name) targets.push({ name: att.title || att.name, kind: att.kind, ref: att });
   }
-  const looksLikeMention = (ctx.mentions?.length || 0) > 0 || (ctx.attachments?.length || 0) > 0;
+  // A mentioned person whose profile hasn't resolved yet still gets a
+  // one-word pill rather than none — but only while one hasn't.
+  const allowUnresolved = hasUnresolvedMention(ctx.mentions, ctx.userNamesById);
 
   const out = [];
-  let i = 0; let m; let counter = 0;
-  MENTION_RE.lastIndex = 0;
-  while ((m = MENTION_RE.exec(str)) != null) {
-    if (m.index > i) {
-      // Process the in-between text through inline markdown.
-      out.push(...renderTextSegment(str.slice(i, m.index), ctx, `${keyPrefix}-${counter++}`));
-    }
-    const tokenName = m[1].trim().toLowerCase();
-    const hit = mentionMap.get(tokenName);
-    if (hit) {
-      out.push(<span key={`${keyPrefix}-mn${counter++}`} className={`msg-pill msg-pill-${hit.kind}`}>{m[0]}</span>);
-    } else if (looksLikeMention) {
-      out.push(<span key={`${keyPrefix}-mn${counter++}`} className="msg-pill msg-pill-user">{m[0]}</span>);
+  let counter = 0;
+  for (const seg of scanMentions(str, targets, { allowUnresolved })) {
+    if (!('mention' in seg)) {
+      out.push(...renderTextSegment(seg.text, ctx, `${keyPrefix}-${counter++}`));
     } else {
-      out.push(...renderTextSegment(m[0], ctx, `${keyPrefix}-${counter++}`));
+      const kind = seg.mention?.kind || 'user';
+      out.push(<span key={`${keyPrefix}-mn${counter++}`} className={`msg-pill msg-pill-${kind}`}>{seg.text}</span>);
     }
-    i = m.index + m[0].length;
-  }
-  if (i < str.length) {
-    out.push(...renderTextSegment(str.slice(i), ctx, `${keyPrefix}-${counter++}`));
   }
   return out;
 }

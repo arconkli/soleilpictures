@@ -10,7 +10,7 @@
 // nodes — a doc that never instantiates it is unaffected.
 
 import { Node, mergeAttributes } from '@tiptap/core';
-import { ELEMENTS, detectElementFromText, shouldUppercase } from './screenplayFlow.js';
+import { ELEMENTS, SP_MEMORY } from './screenplayFlow.js';
 
 export const ScreenplayBlock = Node.create({
   name: 'screenplayBlock',
@@ -50,6 +50,22 @@ export const ScreenplayBlock = Node.create({
     };
   },
 
+  // A screenplay line turned into a paragraph by leaving Screenplay mode
+  // remembers what it was, so coming back restores it instead of re-guessing
+  // every line as Action. Bookkeeping only: never rendered or exported, and not
+  // kept on split — a new paragraph typed in Doc mode is new prose.
+  addGlobalAttributes() {
+    const memory = () => ({ default: null, rendered: false, keepOnSplit: false });
+    return [{
+      types: ['paragraph'],
+      attributes: {
+        [SP_MEMORY.element]: memory(),
+        [SP_MEMORY.sceneNumber]: memory(),
+        [SP_MEMORY.dual]: memory(),
+      },
+    }];
+  },
+
   parseHTML() {
     return [{ tag: 'div[data-screenplay-element]' }];
   },
@@ -72,52 +88,10 @@ export const ScreenplayBlock = Node.create({
       // Convert a screenplayBlock back to a normal paragraph.
       clearScreenplayElement: () => ({ commands }) =>
         commands.setNode('paragraph'),
-      // Entering screenplay mode on a doc with existing prose: convert every
-      // TOP-LEVEL textblock (paragraph, heading, …) to a screenplayBlock so
-      // the toolbar/Tab/Enter/export all work on it. Sluglines and transitions
-      // are detected and promoted (+ uppercased when that's a pure same-length
-      // transform); everything else becomes Action. Nested textblocks (lists,
-      // tables) stay prose — their containers' content specs require it.
-      // Idempotent, so concurrent peers converge on the same doc.
-      convertProseToScreenplay: () => ({ state, tr, dispatch }) => {
-        const spType = state.schema.nodes.screenplayBlock;
-        if (!spType) return false;
-        let changed = false;
-        state.doc.forEach((node, offset) => {
-          if (!node.isTextblock || node.type.name === 'screenplayBlock') return;
-          const text = node.textContent;
-          const element = detectElementFromText('action', text) || 'action';
-          if (shouldUppercase(element)) {
-            const upper = text.toUpperCase();
-            let plain = true;
-            node.content.forEach((child) => { if (!child.isText || child.marks.length) plain = false; });
-            if (plain && upper !== text && upper.length === text.length) {
-              tr.insertText(upper, tr.mapping.map(offset) + 1, tr.mapping.map(offset) + 1 + node.content.size);
-            }
-          }
-          tr.setNodeMarkup(tr.mapping.map(offset), spType, { element });
-          changed = true;
-        });
-        if (!changed) return false;
-        if (dispatch) dispatch(tr);
-        return true;
-      },
-      // Leaving screenplay mode: screenplayBlocks become plain paragraphs so
-      // the prose toolbar applies again (text and marks are untouched).
-      convertScreenplayToProse: () => ({ state, tr, dispatch }) => {
-        const paraType = state.schema.nodes.paragraph;
-        if (!paraType) return false;
-        let changed = false;
-        state.doc.descendants((node, pos) => {
-          if (node.type.name !== 'screenplayBlock') return true;
-          tr.setNodeMarkup(tr.mapping.map(pos), paraType, {});
-          changed = true;
-          return false;
-        });
-        if (!changed) return false;
-        if (dispatch) dispatch(tr);
-        return true;
-      },
+      // Converting existing content across a mode switch is NOT an editor
+      // command: it runs once, on the Y fragments, in the transaction that
+      // flips the mode — see screenplayModeSwitch.js for why.
+
       // Lock scene numbers: stamp each scene heading, in order, with its current
       // auto number so later inserts get A/B suffixes instead of renumbering.
       // NOTE: no UI calls lock/unlock today (the "Scene #" pill only toggles

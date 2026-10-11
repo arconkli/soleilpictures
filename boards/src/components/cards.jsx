@@ -43,6 +43,7 @@ import { RENDER_VERSION as THUMB_RENDER_VERSION } from '../lib/renderThumbnail.j
 import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/paletteLayout.js';
 import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
+import { noteSourceHtml } from '../lib/noteBody.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
@@ -250,7 +251,8 @@ function describeListItem(card, boards = {}) {
     return { ...base, name: text || 'Empty note', meta: 'note' };
   }
   if (card.kind === 'link') {
-    const url = card.link || card.source || null;
+    // `url` is where /api/v1 and manifest imports put the address.
+    const url = card.link || card.source || card.url || null;
     return { ...base, url, name: card.title || url || 'Untitled link', meta: url || 'link' };
   }
   if (card.kind === 'palette') {
@@ -885,6 +887,21 @@ function noteCollabOn() {
   } catch (_) { return true; }
 }
 
+// Flip the `index`-th .ck-box in a note's STORED html (never the rendered
+// display; see onBodyClick). Only for a note with no Y.Doc to toggle in.
+// Returns null when there is no such box.
+function toggleChecklistInHtml(source, index) {
+  if (!source || typeof document === 'undefined') return null;
+  const root = document.createElement('template');
+  root.innerHTML = source;
+  const box = root.content.querySelectorAll('.ck-box')[index];
+  if (!box) return null;
+  const checked = !box.classList.contains('is-checked');
+  box.classList.toggle('is-checked', checked);
+  box.setAttribute('aria-checked', checked ? 'true' : 'false');
+  return root.innerHTML;
+}
+
 // Collaborative note card. Renders the derived card.html read-only by default
 // and mounts the live Tiptap editing surface only when THIS note is being
 // edited (one at a time on the canvas), so there is never a Tiptap instance per
@@ -928,7 +945,9 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // Read-only display html with every run made readable on this note's surface
   // (per-span colors + highlights). Memoized so it only recomputes on edits or
   // a theme flip. The live editing surface uses the ReadableColors plugin.
-  const display = html || (body ? `<div>${body}</div>` : '');
+  // noteSourceHtml: the same html-or-body choice the editor seeds from, so
+  // opening a body-only note shows exactly the text it displayed.
+  const display = noteSourceHtml(html, body);
   const safeDisplay = useMemo(() => remapHtmlColors(display, effBg), [display, effBg]);
   // A note that uses a Google font only loaded it when opened for editing, so
   // on a fresh load its text sat in the fallback face until someone clicked
@@ -940,7 +959,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
       <div ref={ref} className={cls} style={noteStyle}>
         <Suspense fallback={<div className="note-body" />}>
           <NoteTiptapSurface
-            ydoc={ydoc} cardYMap={cardYMap} html={html}
+            ydoc={ydoc} cardYMap={cardYMap} html={html} body={body}
             cardId={cardId} boardId={boardId} awareness={awareness}
             currentUser={currentUser}
             manuallyResized={manuallyResized} autoFocus={autoFocus}
@@ -968,28 +987,38 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     if (!box || !ref.current) return;
     e.preventDefault();
     e.stopPropagation();
-    const checked = !box.classList.contains('is-checked');
-    box.classList.toggle('is-checked', checked);
-    box.setAttribute('aria-checked', checked ? 'true' : 'false');
-    const bodyEl = ref.current.querySelector('.note-body');
-    const newHtml = bodyEl ? bodyEl.innerHTML : html;
-    // Write the html cache + keep the fragment (source of truth) in step with
-    // the toggle. The helpers transact under NOTE_ORIGIN, but we wrap BOTH in
-    // one outer 'local' transaction (Yjs reentrancy — the outer origin wins)
-    // so the board UndoManager captures cache + fragment as a single canvas
-    // Cmd+Z step. This is the only undo a read-only toggle can have: no note
-    // editor is mounted, and undoing just the fragment would leave the canvas
-    // rendering the stale html cache. Lazy import keeps the heavy serializer
-    // off the canvas chunk until a box is toggled.
+    // Which box, by position. The display is a RENDERING of the note (sanitized,
+    // colours remapped for this viewer's theme, auto-link chips swapped in), so
+    // it must never be saved back: doing that stripped mentions and comment
+    // anchors and baked one viewer's colours into the note (NOTES-02). The
+    // toggle is applied to the stored source instead, and the display follows.
+    const index = Array.from(ref.current.querySelectorAll('.note-body .ck-box')).indexOf(box);
+    if (index < 0) return;
+    // Flip the item in the fragment (source of truth) and re-derive the html
+    // cache from it, exactly as the editor's write-through does. The helpers
+    // transact under NOTE_ORIGIN, but BOTH run inside one outer 'local'
+    // transaction (Yjs reentrancy — the outer origin wins) so the board
+    // UndoManager captures fragment + cache as a single canvas Cmd+Z step. This
+    // is the only undo a read-only toggle can have: no note editor is mounted,
+    // and undoing just the fragment would leave the canvas rendering the stale
+    // html cache. The seed (a note never opened in the editor) runs first,
+    // outside that step, so Cmd+Z un-ticks the box rather than un-seeding.
+    // Lazy import keeps the heavy serializer off the canvas chunk until a box
+    // is toggled.
     if (ydoc && cardYMap) {
-      import('../lib/noteDocState.js').then((m) => {
+      Promise.all([import('../lib/noteDocState.js'), import('../lib/noteLinkify.js')]).then(([m, l]) => {
+        m.seedNoteFragmentFromHtml(ydoc, cardYMap, html, body);
         ydoc.transact(() => {
-          m.setNoteCacheFields(ydoc, cardYMap, { html: newHtml, body: null });
-          m.applyHtmlToNoteFragment(ydoc, cardYMap, newHtml);
+          if (m.toggleNoteChecklistItem(ydoc, cardYMap, index, html, body) == null) return;
+          const next = m.noteFragmentToHtml(m.getNoteFragment(cardYMap));
+          // noteFragmentToHtml answers '' when it can't serialize; never let
+          // that blank the cache the canvas renders.
+          if (next) m.setNoteCacheFields(ydoc, cardYMap, { html: l.linkifyNoteHtml(next), body: null });
         }, 'local');
       }).catch(() => {});
     } else {
-      onUpdate({ html: newHtml, body: null });
+      const next = toggleChecklistInHtml(noteSourceHtml(html, body), index);
+      if (next != null) onUpdate({ html: next, body: null });
     }
   };
   const onPointerUp = (e) => {
@@ -1054,7 +1083,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   const roHasBg = !!bgColor && bgColor !== 'transparent';
   const roTone = surfaceTone(bgColor);
   const roEffBg = roHasBg ? bgColor : (roTheme === 'light' ? '#f5f5f7' : '#0a0a0c');
-  const roDisplay = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
+  const roDisplay = peerLiveHtml ?? noteSourceHtml(html, body);
   const roSafeDisplay = useMemo(() => remapHtmlColors(roDisplay, roEffBg), [roDisplay, roEffBg]);
   useEffect(() => { try { ensureFontsFromHtml(roDisplay); } catch (_) {} }, [roDisplay]);
   if (!onUpdate) {
@@ -1103,7 +1132,12 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   );
 }
 
-function LinkCard({ title, source, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+  // The app writes the address to `source` (and `link`); cards made through
+  // /api/v1 or a manifest import carry it only as `url`. Reading just `source`
+  // left those cards with no address, no open button and no way to fix it
+  // short of retyping the link (API-05).
+  const source = sourceProp || link || url || null;
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
@@ -1539,7 +1573,17 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   );
 }
 
-function DocCard({ title, lines, author, date, onUpdate, autoFocus = false }) {
+function DocCard({ title, lines, author, date, html = null, body = null, onUpdate, autoFocus = false }) {
+  // A doc made through /api/v1 or MCP arrives as title + body/html with no
+  // doc store (docPages), so it lands here rather than in RichDocCard. This
+  // card used to render only the old static `lines`, so the text the caller
+  // sent was invisible (API-04). With no lines, show that text as a read-only
+  // preview, sanitized like a note (the html rides the CRDT unchecked).
+  const hasLines = Array.isArray(lines) && lines.length > 0;
+  const textHtml = useMemo(
+    () => (hasLines ? '' : sanitizeNoteHtml(noteSourceHtml(html, body))),
+    [hasLines, html, body],
+  );
   return (
     <div className="doc">
       <div className="doc-hd">
@@ -1554,17 +1598,23 @@ function DocCard({ title, lines, author, date, onUpdate, autoFocus = false }) {
                           selectAllOnFocus={autoFocus} />
           : <div className="doc-title">{title}</div>}
       </div>
-      <div className="doc-body">
-        {(lines || []).map((l, i) => (
-          <div key={i} className={`doc-line ${l.h ? `doc-h${l.h}` : ''}`}>
-            {l.bullet && <span className="doc-bullet">·</span>}
-            {l.text}
+      {textHtml
+        ? <div className="doc-body doc-body-html" dangerouslySetInnerHTML={{ __html: textHtml }} />
+        : (
+          <div className="doc-body">
+            {(lines || []).map((l, i) => (
+              <div key={i} className={`doc-line ${l.h ? `doc-h${l.h}` : ''}`}>
+                {l.bullet && <span className="doc-bullet">·</span>}
+                {l.text}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="doc-ft">
-        <span>{author}</span><span className="doc-dot">·</span><span>{date}</span>
-      </div>
+        )}
+      {(author || date) && (
+        <div className="doc-ft">
+          <span>{author}</span><span className="doc-dot">·</span><span>{date}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1646,6 +1696,9 @@ function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', s
   const [editingLabel, setEditingLabel] = useState(false);
   useEffect(() => { if (editLabelAt > 0 && !isStrokeOnly) setEditingLabel(true); }, [editLabelAt, isStrokeOnly]);
   const showLabel = !!onUpdate && !isStrokeOnly && (!!label || editingLabel);
+  // Anyone who can't edit (a public link, a view-only member) still reads the
+  // label: it is half of what a labelled diagram says.
+  const showReadOnlyLabel = !onUpdate && !isStrokeOnly && !!label;
   return (
     <div className="shape"
          onDoubleClick={onUpdate && !isStrokeOnly ? (e) => { e.stopPropagation(); setEditingLabel(true); } : undefined}>
@@ -1656,6 +1709,7 @@ function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', s
                       setEditing={setEditingLabel}
                       onChange={(v) => onUpdate({ label: v || null })} />
       )}
+      {showReadOnlyLabel && <div className="shape-label">{label}</div>}
     </div>
   );
 }

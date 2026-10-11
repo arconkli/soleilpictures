@@ -35,7 +35,9 @@ import {
   setNoteCacheFields,
   noteCommentScope,
   getNoteUndoManager,
+  noteFragmentIsBlank,
 } from '../lib/noteDocState.js';
+import { bodyHasText } from '../lib/noteBody.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
@@ -51,6 +53,7 @@ export function NoteTiptapSurface({
   ydoc,
   cardYMap,
   html,
+  body,
   cardId = null,
   boardId = null,
   currentUser = null,
@@ -66,7 +69,9 @@ export function NoteTiptapSurface({
   const fragment = useMemo(() => {
     if (!ydoc || !cardYMap) return null;
     ensureNoteFragment(ydoc, cardYMap);
-    seedNoteFragmentFromHtml(ydoc, cardYMap, html);
+    // body too: a note dropped as text, or made by the API/MCP, has no html,
+    // and seeding from html alone opened it empty and saved that over its text.
+    seedNoteFragmentFromHtml(ydoc, cardYMap, html, body);
     return ensureNoteFragment(ydoc, cardYMap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, cardYMap]);
@@ -162,6 +167,20 @@ export function NoteTiptapSurface({
   // ydoc → readCards path.
   const writeCache = (patch) => {
     if (ydoc && cardYMap) setNoteCacheFields(ydoc, cardYMap, patch);
+  };
+
+  // The text write-through. `body: null` is what makes a deliberate emptying
+  // stick (seedNoteFragmentFromHtml heals a blank fragment from a leftover
+  // body), so it is written with the html, always together. The one write it
+  // refuses: a blank fragment over a card that still has body text, before
+  // this session ever saw the fragment hold anything. That is a failed seed,
+  // not an edit, and saving it is how body-only notes were wiped (NOTES-01).
+  const sawContentRef = useRef(false);
+  const writeTextCache = () => {
+    if (!fragment) return;
+    if (!noteFragmentIsBlank(fragment)) sawContentRef.current = true;
+    else if (!sawContentRef.current && bodyHasText(cardYMap?.get?.('body'))) return;
+    writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null });
   };
 
   // @-mention picker state, driven by the suggestion plugin.
@@ -300,9 +319,7 @@ export function NoteTiptapSurface({
     const flush = () => {
       writeRaf.current = 0;
       if (!fragment) return;
-      try {
-        writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null });
-      } catch (_) { /* noop */ }
+      try { writeTextCache(); } catch (_) { /* noop */ }
       if (!manualRef.current && editor?.view?.dom) {
         try {
           const h = Math.min(NOTE_AUTOSIZE_MAX, cardHeightForBody(editor.view.dom));
@@ -327,23 +344,68 @@ export function NoteTiptapSurface({
   // a popover, or the @-mention picker is open (clicking a row blurs the editor).
   const mentionOpenRef = useRef(false);
   mentionOpenRef.current = !!mention;
+  // The comment composer and the thread popover belong to this editing
+  // session: both portal to <body>, and both take focus (the composer focuses
+  // its textarea on mount). Treating that as "left the note" unmounted this
+  // surface and the composer with it, so a note comment could never be
+  // written (NOTES-03). While either is open, a blur never exits.
+  const commentUiOpen = !!addComment.node || !!openThread;
+  const commentUiOpenRef = useRef(false);
+  commentUiOpenRef.current = commentUiOpen;
+  const exitEdit = () => {
+    if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
+    try { writeTextCache(); } catch (_) {}
+    onExitRef.current?.();
+  };
   useEffect(() => {
     if (!editor) return undefined;
     const onBlur = ({ event }) => {
       const next = event?.relatedTarget;
-      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker') || next.closest?.('.cand-pop'))) {
+      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker') || next.closest?.('.cand-pop')
+          || next.closest?.('.inline-composer') || next.closest?.('.comment-inline-pop'))) {
         return;
       }
-      if (mentionOpenRef.current) return;
-      if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
-      if (fragment) {
-        try { writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null }); } catch (_) {}
-      }
-      onExitRef.current?.();
+      if (mentionOpenRef.current || commentUiOpenRef.current) return;
+      exitEdit();
     };
     editor.on('blur', onBlur);
     return () => editor.off('blur', onBlur);
   }, [editor, fragment]);
+
+  // When the comment UI closes the editor no longer has focus, so the blur
+  // that normally ends editing will never come. A click somewhere else on the
+  // page (what closes the thread popover) was the user leaving the note: exit.
+  // Posting, cancelling or Escape hands the caret back to the note instead.
+  const clickedAwayRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  useEffect(() => {
+    if (!commentUiOpen) return undefined;
+    clickedAwayRef.current = false;
+    const onDown = (e) => {
+      const t = e.target;
+      clickedAwayRef.current = !(
+        t?.closest?.('.inline-composer') || t?.closest?.('.comment-inline-pop')
+        || t?.closest?.('.entity-picker') || t?.closest?.('.feedback-bg')
+        || (editor?.view?.dom && editor.view.dom.contains(t))
+      );
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      if (!editor || editor.isDestroyed) return;
+      // Let the closing click land first: it may itself focus the editor.
+      setTimeout(() => {
+        if (!mountedRef.current || editor.isDestroyed || editor.isFocused || commentUiOpenRef.current) return;
+        if (clickedAwayRef.current) exitEdit();
+        else editor.commands.focus();
+      }, 0);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commentUiOpen, editor]);
 
   // Escape exits edit mode (collaborative edits are already shared — there is
   // no "revert" like the legacy note had).

@@ -23,8 +23,12 @@ import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { lastMessageId } from '../lib/messagePaging.js';
+import { showingConversation } from '../lib/threadAttention.js';
 
 const STICK_THRESHOLD_PX = 80;
+// Start fetching the previous page this far before the reader hits the top.
+const LOAD_OLDER_THRESHOLD_PX = 120;
 
 // conversation = { id, title, participants: [{ user_id, left_at, ... }] }
 export function MessageThread({
@@ -36,12 +40,16 @@ export function MessageThread({
   const conversationId = conversation?.id;
   const feedback = useFeedback();
 
-  const { messages, typingUsers, refetch } = useMessageThread({
+  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
   });
 
   const scrollRef = useRef(null);
+
+  // Tell the inbox this conversation is on screen, so its toast and OS
+  // notification stay quiet only while it really is (COMMS-03).
+  useEffect(() => showingConversation(conversationId), [conversationId]);
 
   // ── Active participants (for title + group menu) ─────────────────────
   const activeParticipants = useMemo(
@@ -70,16 +78,36 @@ export function MessageThread({
   // ── Sticky-scroll behavior ───────────────────────────────────────────
   const wasAtBottomRef = useRef(true);
   const [unseenCount, setUnseenCount] = useState(0);
-  const prevLenRef = useRef(0);
+  const prevLastIdRef = useRef(null);
+  // Scroll height captured just before an older page is prepended, so the
+  // message the reader is looking at stays put instead of jumping down.
+  const anchorRef = useRef(null);
 
   const isNearBottom = () => {
     const el = scrollRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < STICK_THRESHOLD_PX;
   };
+  const requestOlder = () => {
+    const el = scrollRef.current;
+    if (!hasOlder || loadingOlder || !el) return;
+    const anchor = { height: el.scrollHeight, top: el.scrollTop };
+    anchorRef.current = anchor;
+    // A bail (mid-switch) brings no page: a stale anchor would shift the
+    // next arrival by its height.
+    loadOlder().then(started => { if (!started && anchorRef.current === anchor) anchorRef.current = null; });
+  };
+  const lastScrollTopRef = useRef(0);
   const onScroll = () => {
     wasAtBottomRef.current = isNearBottom();
     if (wasAtBottomRef.current) setUnseenCount(0);
+    const el = scrollRef.current;
+    if (!el) return;
+    // Only an UPWARD scroll near the top pages back: the opening jump to the
+    // bottom starts at scrollTop 0 and must not fetch history on its way down.
+    const goingUp = el.scrollTop < lastScrollTopRef.current;
+    lastScrollTopRef.current = el.scrollTop;
+    if (goingUp && el.scrollTop < LOAD_OLDER_THRESHOLD_PX && !searchOpen && !replyParent) requestOlder();
   };
   const jumpToBottom = (smooth = true) => {
     const el = scrollRef.current;
@@ -92,22 +120,39 @@ export function MessageThread({
   useEffect(() => {
     wasAtBottomRef.current = true;
     setUnseenCount(0);
-    prevLenRef.current = 0;
+    prevLastIdRef.current = null;
+    anchorRef.current = null;
     requestAnimationFrame(() => jumpToBottom(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
+  // New messages land at the END, so "something arrived" is the newest id
+  // moving — not the length, which also grows when older history is
+  // prepended and stays flat once a thread holds a full page.
+  const lastId = lastMessageId(messages);
   useEffect(() => {
-    const prev = prevLenRef.current;
-    const now = messages.length;
-    prevLenRef.current = now;
-    if (now <= prev) return;
-    if (wasAtBottomRef.current) {
+    const prevId = prevLastIdRef.current;
+    prevLastIdRef.current = lastId;
+    if (!lastId || lastId === prevId) return;
+    if (wasAtBottomRef.current || !prevId) {
       requestAnimationFrame(() => jumpToBottom(true));
     } else {
-      setUnseenCount(c => c + (now - prev));
+      const at = messages.findIndex(m => m.id === prevId);
+      const added = at >= 0 ? messages.length - 1 - at : 1;
+      if (added > 0) setUnseenCount(c => c + added);
     }
-  }, [messages.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastId]);
+
+  // After an older page is prepended, push the scroll position down by the
+  // height it added so the reader's place doesn't move.
+  useLayoutEffect(() => {
+    const a = anchorRef.current;
+    const el = scrollRef.current;
+    if (!a || !el || loadingOlder) return;
+    anchorRef.current = null;
+    el.scrollTop = el.scrollHeight - a.height + a.top;
+  }, [messages, loadingOlder]);
 
   // ── Search ───────────────────────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
@@ -183,6 +228,33 @@ export function MessageThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jumpToMessageId, messages.length]);
 
+  // A target older than the loaded pages is paged back to, a few pages at
+  // most, so a permalink, pinned or search jump into old history still lands.
+  // seekId is an in-thread jump (pinned / search) still waiting on its page;
+  // a permalink is flashed by the effect above once its page arrives.
+  const PERMALINK_MAX_PAGES = 5;
+  const [seekId, setSeekId] = useState(null);
+  const permalinkPagesRef = useRef(0);
+  const seekTarget = seekId || jumpToMessageId;
+  useEffect(() => { permalinkPagesRef.current = 0; }, [seekTarget, conversationId]);
+  useEffect(() => { setSeekId(null); }, [conversationId]);
+  useEffect(() => {
+    if (!seekTarget) return;
+    if (messages[0]?.conversation_id !== conversationId) return; // switch still loading
+    if (messages.some(m => m.id === seekTarget)) {
+      if (seekId) { setSeekId(null); flashMessage(seekId); }
+      return;
+    }
+    if (loadingOlder) return;
+    if (!hasOlder || permalinkPagesRef.current >= PERMALINK_MAX_PAGES) {
+      if (seekId) setSeekId(null);
+      return;
+    }
+    permalinkPagesRef.current += 1;
+    loadOlder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seekTarget, messages.length, hasOlder, loadingOlder, conversationId]);
+
   // ⌘F + j/k/r/e/Esc keyboard shortcuts.
   const [focusedId, setFocusedId] = useState(null);
   useEffect(() => {
@@ -248,6 +320,12 @@ export function MessageThread({
     for (const x of messages || []) m.set(x.id, x);
     return m;
   }, [messages]);
+  // Jump within the thread: flash it if it's loaded, else page back to it.
+  const jumpTo = (msgId) => {
+    if (messagesById.has(msgId)) { flashMessage(msgId); return; }
+    closeSearch();
+    setSeekId(msgId);
+  };
 
   // ── Day-divider + consecutive-sender grouping ───────────────────────
   // A message is a "continuation" of the one above it when it's from the
@@ -378,9 +456,13 @@ export function MessageThread({
 
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
-    await toggleReaction({ messageId: msg.id, emoji, userId });
-    refetch();
-  }, [userId, refetch]);
+    try {
+      await toggleReaction({ messageId: msg.id, emoji, userId });
+      refetch();
+    } catch (e) {
+      feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
+    }
+  }, [userId, refetch, feedback]);
 
   const handleReply = useCallback((msg) => {
     setReplyParent(msg);
@@ -584,7 +666,7 @@ export function MessageThread({
                 <button
                   key={p.id}
                   className="msg-pinned-item"
-                  onClick={() => flashMessage(p.id)}
+                  onClick={() => jumpTo(p.id)}
                   title={`Jump to message · ${new Date(p.created_at).toLocaleString()}`}
                 >
                   <span className="msg-pinned-item-body">{(p.body || '').slice(0, 80)}</span>
@@ -596,6 +678,16 @@ export function MessageThread({
       )}
 
       <div className="msg-thread-body" ref={scrollRef} onScroll={onScroll}>
+        {!searchOpen && !replyParent && hasOlder && (
+          <button
+            type="button"
+            className="msg-load-older t-meta"
+            onClick={requestOlder}
+            disabled={loadingOlder}
+          >
+            {loadingOlder ? 'Loading earlier messages…' : 'Load earlier messages'}
+          </button>
+        )}
         {searchOpen && searchQuery.trim() ? (
           <>
             <div className="msg-search-summary t-meta">
@@ -608,7 +700,7 @@ export function MessageThread({
               <button
                 key={m.id}
                 className="msg-search-result"
-                onClick={() => flashMessage(m.id)}
+                onClick={() => jumpTo(m.id)}
               >
                 <MessageBubble msg={m} selfId={userId} highlight={searchQuery}
                   onDelete={handleDelete}

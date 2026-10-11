@@ -5356,6 +5356,12 @@ body {
 .doc-h1 { font-size: 14px; font-weight: 600; color: var(--ink-0); margin-top: 2px; }
 .doc-h3 { font-size: 11px; color: var(--ink-2); margin-top: 6px; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
 .doc-bullet { color: var(--ink-3); }
+/* A doc made through the API (title + body/html, no doc store): its text as a
+   read-only preview, sized like the legacy lines above. */
+.doc-body-html { display: block; font-size: 11.5px; color: var(--ink-1); line-height: 1.45; overflow-wrap: anywhere; }
+.doc-body-html > * { margin: 0 0 4px; }
+.doc-body-html h1, .doc-body-html h2, .doc-body-html h3 { font-size: 13px; font-weight: 600; color: var(--ink-0); }
+.doc-body-html ul, .doc-body-html ol { padding-left: 18px; }
 .doc-ft {
   margin-top: 8px; padding-top: 8px;
   border-top: 1px solid var(--line-1);
@@ -15839,6 +15845,23 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   gap: 0; /* sender-grouping owns the vertical rhythm via per-bubble margins */
   position: relative;
 }
+
+/* "Load earlier messages" — first row of a thread that holds more history
+   than its newest page. Scrolling up to it loads the page too; the button is
+   the keyboard and no-overflow path. Neutral ink: it is not a selection. */
+.msg-load-older {
+  align-self: center;
+  appearance: none;
+  background: none;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink-2);
+  padding: 4px 12px;
+  margin: 2px 0 10px;
+  cursor: pointer;
+}
+.msg-load-older:hover:not(:disabled) { color: var(--ink-0); border-color: var(--line-3); }
+.msg-load-older:disabled { cursor: default; opacity: .7; }
 
 /* Day divider — pill-style label on a hairline. */
 .msg-day-divider {

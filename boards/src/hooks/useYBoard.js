@@ -59,12 +59,29 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   //
   // 600ms dedupe so a single restore that fires via all three doesn't
   // remount three times.
+  //
+  // Every reset means the server's copy was REPLACED (a version restore, a
+  // move into this board, a room reset), so the live handle is discarded the
+  // moment the signal lands — not when the jittered remount fires. Its doc is
+  // the pre-reset state in the same Yjs lineage; left alone, its teardown
+  // re-saved it to the draft and board_state, the remount re-applied that
+  // draft, and every restore of an open cluster was silently undone
+  // (APP-CORE-01). The remount after a discard then reads only the server.
   const lastResetAtRef = useRef(0);
   const resetTimerRef = useRef(0);
-  const triggerReset = (reason) => {
+  const freshLoadRef = useRef(null);   // boardId whose next mount must skip local copies
+  const triggerReset = (reason, { force = false, discard = true } = {}) => {
     const now = Date.now();
-    if (now - lastResetAtRef.current < 600) return;
+    // A corruption heal is its own event, not a 2nd/3rd copy of a restore
+    // signal: deduping it against a restore requested <600ms earlier left the
+    // fresh handle poisoned with no remount coming (APP-CORE-13).
+    if (!force && now - lastResetAtRef.current < 600) return;
     lastResetAtRef.current = now;   // dedupe NOW so the 3 sources still coalesce
+    const h = handleRef.current;
+    if (h && h.boardId === boardId) {
+      if (discard) { try { h.discard?.(); } catch (_) {} }
+      freshLoadRef.current = boardId;
+    }
     // Jitter the actual remount. A server /reset (or a restore that fans out to
     // every viewer) fires this on all clients at once; without spreading, every
     // client tears down + re-attaches its Y.Doc + PartyKit socket in lockstep —
@@ -128,7 +145,8 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
       try {
         window.dispatchEvent(new CustomEvent('soleil-board-selfhealed', { detail: { boardId } }));
       } catch (_) {}
-      triggerReset('yjs-corruption');
+      // poisoned + purged above (with the draft stashed) — no discard here
+      triggerReset('yjs-corruption', { force: true, discard: false });
     };
     window.addEventListener('soleil:yjs-corruption', onCorruption);
     return () => window.removeEventListener('soleil:yjs-corruption', onCorruption);
@@ -140,6 +158,8 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
       return;
     }
     if (handleRef.current) handleRef.current.destroy();
+    const fresh = freshLoadRef.current === boardId;
+    freshLoadRef.current = null;
     setSnapshot(emptySnapshot(boardId));
     // Prime blur/preview metadata for the whole board IN PARALLEL with the
     // snapshot fetch — keyed by board id, since card keys aren't known until
@@ -160,7 +180,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     // after the instant cache/draft paint so the board renders ahead of the
     // network snapshot.
     let earlyRefresh = () => {};
-    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb, onEarlyContent: () => earlyRefresh() });
+    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb, fresh, onEarlyContent: () => earlyRefresh() });
     handleRef.current = handle;
 
     let unmounted = false;

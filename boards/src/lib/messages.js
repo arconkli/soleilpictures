@@ -59,16 +59,44 @@ export async function listMessageableUsers({ workspaceId, query = null } = {}) {
 
 // ── Message fetching ────────────────────────────────────────────────
 
-export async function fetchConversationMessages({ conversationId, limit = 200 }) {
+// The NEWEST `limit` messages (or the newest ones strictly before `before`,
+// for "load older"), returned oldest-first for rendering. Ordering ascending
+// with a limit returned the first 200 ever sent, so a long thread froze at
+// message 200 (COMMS-06). Resolves null on a failed read so the caller can
+// keep what it already shows instead of painting an empty thread.
+export async function fetchConversationMessages({ conversationId, limit = 200, before = null }) {
   if (!conversationId) return [];
+  let q = supabase
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .is('deleted_at', null);
+  if (before) q = q.lt('created_at', before);
+  const { data, error } = await q
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) { console.warn('fetchConversationMessages', error); return null; }
+  return (data || []).reverse();
+}
+
+// Re-read a range the reader already paged back to (ascending), so changes to
+// old messages reach the screen. Null on error, or when the range is too long
+// to read in one go: a truncated re-read would drop real messages, so the
+// caller keeps what it has instead.
+export const RANGE_READ_MAX = 1000;
+export async function fetchConversationRange({ conversationId, from, to }) {
+  if (!conversationId || !from || !to) return null;
   const { data, error } = await supabase
     .from('messages')
     .select('*')
     .eq('conversation_id', conversationId)
     .is('deleted_at', null)
+    .gte('created_at', from)
+    .lte('created_at', to)
     .order('created_at', { ascending: true })
-    .limit(limit);
-  if (error) { console.warn('fetchConversationMessages', error); return []; }
+    .limit(RANGE_READ_MAX);
+  if (error) { console.warn('fetchConversationRange', error); return null; }
+  if ((data || []).length >= RANGE_READ_MAX) return null;
   return data || [];
 }
 
@@ -204,15 +232,47 @@ export async function listPinnedForConversation({ conversationId }) {
 
 // ── Reactions ───────────────────────────────────────────────────────
 
+// Toggles the caller's own reaction through toggle_message_reaction (0398).
+// It was a client read-modify-write UPDATE, which the author-only UPDATE
+// policy turned into a silent zero-row no-op on anyone else's message — so
+// reactions to other people never saved (COMMS-02). The RPC checks the caller
+// may post in the conversation, locks the row, and returns the new map.
+// Throws on failure so the caller can say so.
 export async function toggleReaction({ messageId, emoji, userId }) {
-  const { data: msg } = await supabase.from('messages').select('reactions').eq('id', messageId).maybeSingle();
-  const reactions = { ...(msg?.reactions || {}) };
-  const existing = new Set(reactions[emoji] || []);
-  if (existing.has(userId)) existing.delete(userId);
-  else existing.add(userId);
-  if (existing.size === 0) delete reactions[emoji];
-  else reactions[emoji] = [...existing];
-  await supabase.from('messages').update({ reactions }).eq('id', messageId);
+  const { data, error } = await supabase.rpc('toggle_message_reaction', {
+    p_message_id: messageId,
+    p_emoji: emoji,
+  });
+  if (error && isMissingFunction(error)) return toggleOwnReactionLegacy({ messageId, emoji, userId });
+  if (error) { console.warn('toggleReaction', error); throw error; }
+  return data || {};
+}
+
+// PostgREST's "no such function in the schema cache", or Postgres's own.
+function isMissingFunction(error) {
+  return error?.code === 'PGRST202' || error?.code === '42883';
+}
+
+// Until 0398 is applied (a preview build shares the production database), the
+// old author-only path keeps reactions to your OWN messages working instead of
+// failing them all. It now reads back the row it wrote: on anyone else's
+// message RLS matches nothing, and that throws instead of passing silently.
+// Delete once 0398 is live everywhere.
+async function toggleOwnReactionLegacy({ messageId, emoji, userId }) {
+  const missing = new Error('toggle_message_reaction is not available yet');
+  if (!userId) throw missing;
+  const { data: msg, error: readErr } = await supabase.from('messages')
+    .select('reactions').eq('id', messageId).maybeSingle();
+  if (readErr || !msg) throw readErr || missing;
+  const reactions = { ...(msg.reactions || {}) };
+  const who = new Set(reactions[emoji] || []);
+  if (who.has(userId)) who.delete(userId); else who.add(userId);
+  if (who.size === 0) delete reactions[emoji]; else reactions[emoji] = [...who];
+  const { data: rows, error } = await supabase.from('messages')
+    .update({ reactions }).eq('id', messageId).select('id');
+  if (error) { console.warn('toggleReaction (legacy)', error); throw error; }
+  if (!rows || rows.length === 0) throw missing;
+  return reactions;
 }
 
 // ── Unread counts ───────────────────────────────────────────────────

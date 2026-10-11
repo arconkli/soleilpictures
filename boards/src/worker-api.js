@@ -2342,8 +2342,8 @@ async function dispatch(url, request, env, ctx) {
       // than their own UI does is a trap; going through the same RPC means the
       // Trash and restore paths keep working on whatever this leaves behind.
       //
-      // Descendants are deliberately NOT touched, matching the app: this marks
-      // one board, and children remain reachable by id.
+      // Like the app, this trashes the board together with every board inside
+      // it, as one batch that POST /boards/:id/restore brings back (0396).
       await userRpc(env, token, 'soft_delete_board', { p_board_id: id });
       return json({
         deleted: true,

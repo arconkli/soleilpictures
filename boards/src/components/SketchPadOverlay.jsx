@@ -1026,9 +1026,11 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <span style={{ flex: 1 }} />
               {cancelBtn}
               {commitBtn}
+              {/* Same confirm as Cancel, Escape and the compact X. This one sat
+                  beside "Add to canvas" and threw the drawing away unasked. */}
               <button type="button"
                       className="sp-x"
-                      onClick={() => onClose?.()}
+                      onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
                       aria-label="Close">
                 <Icon as={X} size={14} />
               </button>

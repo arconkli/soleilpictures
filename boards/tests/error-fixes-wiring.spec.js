@@ -22,11 +22,13 @@ test.describe('Fix 1 — Yjs corruption self-heal', () => {
 
   test('yboard stamps boardId, poisons on corruption, and purges local caches', () => {
     const s = read('src/lib/yboard.js');
-    expect(s).toContain('ydoc._soleilBoardId = boardId');
+    // Every board doc is built by boardDoc(), which stamps the id (temporary
+    // docs built from another board's snapshot corrupt the same way).
+    expect(s).toContain('doc._soleilBoardId = boardId ?? null');
     expect(s).toContain('poison: () =>');
     expect(s).toContain('export function purgeLocalBoardState');
     // A poisoned handle skips ALL persistence on teardown (no re-seeding).
-    expect(s).toMatch(/if \(initialized && !poisoned\)/);
+    expect(s).toMatch(/const destroy = \(\) => \{[\s\S]*?if \(poisoned\) \{/);
     expect(s).toContain('deleteSnapshot');
   });
 
@@ -40,7 +42,9 @@ test.describe('Fix 1 — Yjs corruption self-heal', () => {
     expect(s).toContain('CORRUPTION_MAX_RESYNCS');
     expect(s).toContain('purgeLocalBoardState');
     expect(s).toContain('poison?.()');
-    expect(s).toContain("triggerReset('yjs-corruption')");
+    // APP-CORE-13: the heal bypasses the reset dedupe (force) and skips the
+    // restore-style discard, because it has already poisoned and purged.
+    expect(s).toContain("triggerReset('yjs-corruption', { force: true, discard: false })");
     // Exact-board guard: an unknown/null-board corruption must NOT remount every open board.
     expect(s).toMatch(/e\.detail\.boardId !== boardId/);
   });

@@ -16,6 +16,8 @@ import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from 'y-protoc
 import * as noteDocState from '../lib/noteDocState.js';
 import { getActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { NoteCardCollab, NoteCard } from '../components/cards.jsx';
+import { EntityTrieContext } from '../hooks/useEntityNameTrie.js';
+import { createNameIndex } from '../lib/entityNameTrie.js';
 
 const CARD_ID = 'noteqa-card';
 
@@ -89,6 +91,9 @@ function ClientCard({ label, ydoc, cardYMap, awareness }) {
     const update = () => setCard((c) => ({
       ...c,
       html: cardYMap.get('html') ?? c.html,
+      // body is plain note text (a text drop, an API note); the editor must
+      // seed from it when there is no html. null is a real value here.
+      body: cardYMap.has('body') ? cardYMap.get('body') : c.body,
       h: cardYMap.get('h') ?? c.h,
     }));
     cardYMap.observe(update);
@@ -103,6 +108,7 @@ function ClientCard({ label, ydoc, cardYMap, awareness }) {
       >
         <NoteCardCollab
           html={card.html}
+          body={card.body}
           bgColor={null}
           textColor={null}
           fontFamily={card.fontFamily}
@@ -172,7 +178,14 @@ export function NoteQaHarness() {
     return undefined;
   }, [docA, cardA, docB, cardB, sync, awA, awB]);
 
-  return (
+  // &trie=1 publishes an (empty) entity trie, as the signed-in app always does.
+  // That routes the read-only display through renderHtmlWithAutoLinks instead
+  // of plain innerHTML, which is the path real users see.
+  const [trieCtx] = useState(() => (
+    new URLSearchParams(window.location.search).get('trie') === '1'
+      ? { trie: createNameIndex(), workspaceId: null } : null
+  ));
+  const page = (
     <div style={{ padding: 24, color: '#eee', background: '#0a0a0c', minHeight: '100vh' }}>
       <h3 style={{ font: '13px monospace' }}>noteqa — two-client co-typing harness</h3>
       <div id="noteqa-ready" style={{ font: '11px monospace', opacity: 0.5 }} />
@@ -186,4 +199,5 @@ export function NoteQaHarness() {
       </div>
     </div>
   );
+  return trieCtx ? <EntityTrieContext.Provider value={trieCtx}>{page}</EntityTrieContext.Provider> : page;
 }

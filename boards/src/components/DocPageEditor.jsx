@@ -22,7 +22,7 @@ import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
-import { safeRun, safeCall } from '../lib/safeEditorCmd.js';
+import { safeRun } from '../lib/safeEditorCmd.js';
 import { extractParagraphTags } from '../lib/extractParagraphTags.js';
 import { splitSentences, wordContextSpan } from '../lib/sentenceSpan.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
@@ -182,7 +182,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -880,29 +880,24 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       },
     },
     // Seed a brand-new screenplay sheet's first block as a Scene Heading so
-    // the writer starts in the right element — and migrate EXISTING content
-    // across a mode switch: prose written before toggling Screenplay becomes
-    // real screenplayBlocks (else the element selector/Tab/Enter/export are
-    // all inert on it), and screenplayBlocks left after toggling back become
-    // paragraphs. The editor rebuilds on every mode change (deps below), so
-    // onCreate is exactly the mode-transition point. Both conversions no-op
-    // when there's nothing of the other flavor → idempotent under collab.
+    // the writer starts in the right element. Converting EXISTING content
+    // across a mode switch does not happen here any more: every client with
+    // the doc open remounts on a mode change, so every one of them converted,
+    // and the concurrent type changes duplicated the whole doc. It now runs
+    // once, in the flipping client's own transaction (docState.switchDocMode).
+    // Viewers write nothing.
     onCreate: ({ editor }) => {
-      // Guarded: these run during onCreate, so an uncaught RangeError out of
-      // setNode → clearNodes doesn't just fail the conversion, it takes the
-      // editor down before the page ever renders.
-      if (docMode === 'screenplay') {
-        if (editor.isEmpty) safeRun(editor.chain().setScreenplayElement('scene'), 'doc:seed-scene');
-        else safeCall(() => editor.commands.convertProseToScreenplay(), 'doc:to-screenplay');
-      } else {
-        safeCall(() => editor.commands.convertScreenplayToProse(), 'doc:to-prose');
+      // Guarded: this runs during onCreate, so an uncaught RangeError out of
+      // setNode doesn't take the editor down before the page ever renders.
+      if (docMode === 'screenplay' && editable && editor.isEmpty) {
+        safeRun(editor.chain().setScreenplayElement('scene'), 'doc:seed-scene');
       }
     },
     // Force a fresh editor when the bound page, doc mode, or page layout
     // changes. Flipping pageless adds/removes the DocPagination plugin, so the
-    // editor must rebuild. (Editor identity is ALSO keyed on the parent's
-    // key={sid:docMode:pageless} — see DocSurface.)
-  }, [pageId, docMode, pageless]);
+    // editor must rebuild — in prose only; screenplay ignores the layout.
+    // (Editor identity is ALSO keyed on the parent's key — see DocSurface.)
+  }, [pageId, docMode, docMode === 'screenplay' || pageless]);
 
   // Register this sheet's editor with the parent (toolbar wiring + the
   // sheet-editor registry for cross-sheet find/replace) on setup, and
@@ -918,6 +913,25 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     try { ensureFontsFromHtml(editor.getHTML()); } catch (_) {}
     return () => { onEditorDestroy?.(sheetId); };
   }, [editor, sheetId, onEditorReady, onEditorDestroy]);
+
+  // Put the caret back after a remount that a collaborator caused (a mode or
+  // layout flip) — DocSurface noted where it was. By this effect EditorContent
+  // (a child) has attached the view, and the old editor's DOM is gone, so
+  // focus is not contested. No scroll: the reader's place doesn't move.
+  useEffect(() => {
+    if (!editor || !takeRefocus) return;
+    const r = takeRefocus(sheetId);
+    if (!r || !editor.isEditable) return;
+    try {
+      const max = editor.state.doc.content.size;
+      const from = Math.max(0, Math.min(r.from, max));
+      const to = Math.max(0, Math.min(r.to, max));
+      // Two steps: focus(null) reads editor.state.selection, which inside a
+      // chain is still the pre-chain one.
+      editor.commands.setTextSelection({ from, to });
+      editor.commands.focus(null, { scrollIntoView: false });
+    } catch (_) {}
+  }, [editor, sheetId, takeRefocus]);
 
   // Touch-only selection bubble: on a phone/tablet the format toolbar scrolls
   // off-screen and tapping it can drop the selection, so a non-empty selection
@@ -1464,7 +1478,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             const editor = editorRef.current;
             if (!editor || !targets?.length) { setMention(null); return; }
             const linkId = uuid();
-            const text = (mention.query && mention.query.trim()) || (targets[0]?.name || 'mention');
+            // The picked names, not the query: the picker takes focus as it
+            // opens, so the editor's query is usually '' (which linked the
+            // literal word "mention") or a fragment typed before it mounted.
+            const names = targets.map(t => t?.title || t?.name).filter(Boolean).join(', ');
+            const text = names || (mention.query && mention.query.trim()) || 'mention';
             // Create the Link record FIRST so the renderer can resolve it on
             // the next transaction.
             addLink(ydoc, {
@@ -1476,9 +1494,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
               createdBy: userId || null,
             });
             // Replace the @text with the resolved text + apply the link mark.
+            // A text NODE, not a string: a string is parsed as HTML, so a title
+            // with '<' or runs of spaces inserts fewer than text.length
+            // characters and the link range covers what follows the mention.
             editor.chain().focus()
               .deleteRange(mention.range)
-              .insertContent(text)
+              .insertContent({ type: 'text', text })
               .setTextSelection({ from: mention.range.from, to: mention.range.from + text.length })
               .setMark('link', { linkId })
               .run();

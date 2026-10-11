@@ -15,7 +15,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -122,8 +122,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
 
   // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —
-  // page add/delete/move/rename, sheets, bookmarks, comment threads, mode
-  // flips). Text editing keeps its own y-undo stack inside Tiptap; these are
+  // page add/delete/move/rename, sheets, bookmarks, comment threads; not the
+  // Screenplay switch, which is its own inverse). Text editing keeps its own y-undo stack inside Tiptap; these are
   // separate by design (see docState.js). While this surface is mounted it
   // OWNS Cmd+Z: CanvasSurface stands down (lib/overlayRouting.js) so a
   // shortcut can never silently undo canvas ops hidden behind the overlay.
@@ -201,20 +201,73 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // toggle are display:none at <=640px, which stranded multi-page navigation).
   const [mobileRailOpen, setMobileRailOpen] = useState(false);
 
+  // A mode or page-layout change remounts every sheet editor (see the
+  // DocPageEditor key below). When a COLLABORATOR flips it, I may be mid-
+  // sentence: the old editor's DOM goes away with my caret in it and focus
+  // drops to <body>. So the meta observers below note the focused editor's
+  // selection BEFORE they re-render — Yjs runs these shallow observers ahead
+  // of y-prosemirror's deep observer, so the old editor still holds the
+  // pre-change state — and the new editor for that sheet puts the caret back
+  // and refocuses (DocPageEditor `takeRefocus`). The mode switch keeps every
+  // top-level block 1:1 and the same size, so the absolute positions hold.
+  const refocusRef = useRef(null);
+  const noteFocusedEditor = () => {
+    for (const [sid, ed] of editorsRef.current.entries()) {
+      try {
+        if (ed && !ed.isDestroyed && ed.view.hasFocus()) {
+          const { from, to } = ed.state.selection;
+          refocusRef.current = { sheetId: sid, from, to, at: Date.now() };
+          return;
+        }
+      } catch (_) {}
+    }
+  };
+  const takeRefocus = useCallback((sheetId) => {
+    const r = refocusRef.current;
+    if (!r || r.sheetId !== sheetId || Date.now() - r.at > 3000) return null;
+    refocusRef.current = null;
+    return r;
+  }, []);
+
   // Doc mode ('doc' | 'screenplay'). Lives in the per-scope docMeta map so it
   // persists + collaborates; observe it so a peer's toggle reflects here.
   const [docMode, setDocModeState] = useState(() => getDocMode(ydoc, scope));
+  const docModeRef = useRef(docMode);
   useEffect(() => {
     const m = metaMap(ydoc, scope);
-    setDocModeState(getDocMode(ydoc, scope));
+    const update = () => {
+      const next = getDocMode(ydoc, scope);
+      if (next !== docModeRef.current) noteFocusedEditor();
+      docModeRef.current = next;
+      setDocModeState(next);
+    };
+    update();
     if (!m) return;
-    const update = () => setDocModeState(getDocMode(ydoc, scope));
     m.observe(update);
     return () => m.unobserve(update);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, scope]);
+  // Heal content that reached this doc in the other mode's shape (a page
+  // restored by a structural undo, a peer's line that raced the flip, an old
+  // bundle mid-rollout) — editors used to convert on every mount and that is
+  // what duplicated docs, so exactly ONE client heals: the editor with the
+  // lowest awareness client id. Viewers write nothing. If the lowest is a
+  // viewer nobody heals this time, which is fine — the lines are still
+  // exported as Action. A no-op (no update at all) when nothing is stranded.
+  // (Two editors opening in the same instant, before either sees the other's
+  // awareness, could both heal — that needs stranded lines too, so it is
+  // vanishingly rare, which is not true of converting on every mount.)
+  useEffect(() => {
+    if (!canEdit || !awareness) return;
+    if (awareness.clientID !== Math.min(...awareness.getStates().keys())) return;
+    try { healDocMode(ydoc, scope); } catch (_) {}
+  }, [ydoc, scope, canEdit, awareness, docMode]);
+  // Only an editor converts, and only the one who flipped: switchDocMode
+  // rewrites the content in the same transaction as the mode.
   const toggleScreenplay = useCallback(() => {
-    setDocMode(ydoc, scope, docMode === 'screenplay' ? 'doc' : 'screenplay');
-  }, [ydoc, scope, docMode]);
+    if (!canEdit) return;
+    switchDocMode(ydoc, scope, docMode === 'screenplay' ? 'doc' : 'screenplay');
+  }, [ydoc, scope, docMode, canEdit]);
 
   // Screenplay title page (docMeta-backed). observeDeep so a peer's field edit
   // (nested Y.Map) reflects here, not just enable/disable. Single source of
@@ -248,13 +301,21 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // + collaborative — observe so a peer's toggle reflects here. Drives both the
   // toolbar pill and whether DocPageEditor mounts the paginator + page sheets.
   const [pageless, setPagelessState] = useState(() => getPageless(ydoc, scope));
+  const pagelessRef = useRef(pageless);
   useEffect(() => {
     const m = metaMap(ydoc, scope);
-    setPagelessState(getPageless(ydoc, scope));
+    const update = () => {
+      const next = getPageless(ydoc, scope);
+      // Screenplay ignores the layout, so its editors don't remount for it.
+      if (next !== pagelessRef.current && docModeRef.current !== 'screenplay') noteFocusedEditor();
+      pagelessRef.current = next;
+      setPagelessState(next);
+    };
+    update();
     if (!m) return;
-    const update = () => setPagelessState(getPageless(ydoc, scope));
     m.observe(update);
     return () => m.unobserve(update);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, scope]);
   const onTogglePageless = useCallback(() => setPageless(ydoc, scope, !pageless), [ydoc, scope, pageless]);
   const toggleTitlePage = useCallback(() => {
@@ -263,12 +324,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // Enabling: make sure screenplay mode is on, then scroll the new page into
     // view on the next frame.
     if (next) {
-      if (docMode !== 'screenplay') setDocMode(ydoc, scope, 'screenplay');
+      if (docMode !== 'screenplay' && canEdit) switchDocMode(ydoc, scope, 'screenplay');
       requestAnimationFrame(() => {
         paperRef.current?.querySelector('.sp-title-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     }
-  }, [titlePage.enabled, commitTitlePage, docMode, ydoc, scope]);
+  }, [titlePage.enabled, commitTitlePage, docMode, ydoc, scope, canEdit]);
 
   // Ref to .doc-paper — declared early because the zoom/pinch effect
   // below needs it. The DocPresence overlay also uses it later (cursor/
@@ -973,7 +1034,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               // key forces a fresh editor instance per sheet — Tiptap's
               // Collaboration extension can't re-bind to a different fragment.
               <DocPageEditor
-                key={`${sid}:${docMode}:${pageless ? 'pl' : 'pg'}`}
+                // Screenplay has its own page model, so the prose layout
+                // flag is no reason to rebuild (and lose the caret) there.
+                key={`${sid}:${docMode === 'screenplay' ? 'sp' : (pageless ? 'pl' : 'pg')}`}
                 ydoc={ydoc}
                 scope={scope}
                 docMode={docMode}
@@ -986,6 +1049,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 userId={userId}
                 currentUser={currentUser}
                 autofocus={!restoreRef.current}
+                takeRefocus={takeRefocus}
                 onEditorReady={onEditorReady}
                 onEditorDestroy={onEditorDestroy}
                 onEditorFocus={onEditorFocus}
@@ -1009,7 +1073,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           {/* Pages are now created automatically as content flows (DocPagination).
               The manual "+ New page" sheet button is obsolete in the reflow model. */}
         </div>
-        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={board.id} />
+        {/* Save state is reported per HOST board (yboard persists the board
+            that holds the doc); board.id here is the doc card's id. */}
+        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={scope?.boardId || (scope ? null : board.id)} />
       </section>
 
       {embedPickerOpen && (
