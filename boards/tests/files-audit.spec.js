@@ -204,6 +204,42 @@ test('FILES-LIST-08: the menu opened with Shift+F10 is driven from the keyboard'
   await expect(full(page).locator('input:focus')).toHaveCount(1);
 });
 
+test('FILES-LIST-11: with the board active, Files shows List and folder selections in ink, not gold', async ({ page }) => {
+  await go(page);
+  await openPanel(page);
+  await panel(page).getByRole('button', { name: /^View/ }).click();
+  await page.locator('.cbt-menu .ctx-item', { hasText: /^List$/ }).click();
+  await page.keyboard.press('Escape');
+  const row = panel(page).locator('.ct-body .ct-row:not(.ct-group)').first();
+  await row.click();
+  await expect(row).toHaveClass(/is-selected/);
+  const fdl = page.locator('.fdl-panel');
+  await expect(fdl).toHaveAttribute('data-active-pane', 'files');
+  const bg = () => row.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const activeBg = await bg();
+  // The pointer over the board hands it the keyboard.
+  const wrap = await page.locator('.canvas-wrap').boundingBox();
+  await page.mouse.move(wrap.x + 40, wrap.y + wrap.height / 2);
+  await expect(fdl).not.toHaveAttribute('data-active-pane', 'files');
+  await expect.poll(bg).not.toBe(activeBg);
+
+  const ink = await page.evaluate(() => {
+    const probe = document.createElement('i');
+    probe.style.color = 'var(--ink-2)';
+    document.body.appendChild(probe);
+    const c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
+  });
+  const folder = panel(page).locator('.ft[data-folder-id]').first();
+  await folder.click();
+  await expect(folder).toHaveClass(/is-selected/);
+  await page.mouse.move(wrap.x + 40, wrap.y + wrap.height / 2);
+  await expect(fdl).not.toHaveAttribute('data-active-pane', 'files');
+  // Polled: the folder's border eases between states.
+  await expect.poll(() => folder.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(ink);
+});
+
 test('FILES-LIST-X1: the phone bottom-nav + adds files in full Files, where no board is mounted', async ({ page }) => {
   await go(page, { width: 390, height: 844 });
   await openFull(page);
