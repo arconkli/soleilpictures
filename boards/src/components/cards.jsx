@@ -43,6 +43,7 @@ import { RENDER_VERSION as THUMB_RENDER_VERSION } from '../lib/renderThumbnail.j
 import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/paletteLayout.js';
 import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
+import { noteSourceHtml } from '../lib/noteBody.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
@@ -885,6 +886,21 @@ function noteCollabOn() {
   } catch (_) { return true; }
 }
 
+// Flip the `index`-th .ck-box in a note's STORED html (never the rendered
+// display; see onBodyClick). Only for a note with no Y.Doc to toggle in.
+// Returns null when there is no such box.
+function toggleChecklistInHtml(source, index) {
+  if (!source || typeof document === 'undefined') return null;
+  const root = document.createElement('template');
+  root.innerHTML = source;
+  const box = root.content.querySelectorAll('.ck-box')[index];
+  if (!box) return null;
+  const checked = !box.classList.contains('is-checked');
+  box.classList.toggle('is-checked', checked);
+  box.setAttribute('aria-checked', checked ? 'true' : 'false');
+  return root.innerHTML;
+}
+
 // Collaborative note card. Renders the derived card.html read-only by default
 // and mounts the live Tiptap editing surface only when THIS note is being
 // edited (one at a time on the canvas), so there is never a Tiptap instance per
@@ -928,7 +944,9 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // Read-only display html with every run made readable on this note's surface
   // (per-span colors + highlights). Memoized so it only recomputes on edits or
   // a theme flip. The live editing surface uses the ReadableColors plugin.
-  const display = html || (body ? `<div>${body}</div>` : '');
+  // noteSourceHtml: the same html-or-body choice the editor seeds from, so
+  // opening a body-only note shows exactly the text it displayed.
+  const display = noteSourceHtml(html, body);
   const safeDisplay = useMemo(() => remapHtmlColors(display, effBg), [display, effBg]);
   // A note that uses a Google font only loaded it when opened for editing, so
   // on a fresh load its text sat in the fallback face until someone clicked
@@ -940,7 +958,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
       <div ref={ref} className={cls} style={noteStyle}>
         <Suspense fallback={<div className="note-body" />}>
           <NoteTiptapSurface
-            ydoc={ydoc} cardYMap={cardYMap} html={html}
+            ydoc={ydoc} cardYMap={cardYMap} html={html} body={body}
             cardId={cardId} boardId={boardId} awareness={awareness}
             currentUser={currentUser}
             manuallyResized={manuallyResized} autoFocus={autoFocus}
@@ -968,28 +986,38 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     if (!box || !ref.current) return;
     e.preventDefault();
     e.stopPropagation();
-    const checked = !box.classList.contains('is-checked');
-    box.classList.toggle('is-checked', checked);
-    box.setAttribute('aria-checked', checked ? 'true' : 'false');
-    const bodyEl = ref.current.querySelector('.note-body');
-    const newHtml = bodyEl ? bodyEl.innerHTML : html;
-    // Write the html cache + keep the fragment (source of truth) in step with
-    // the toggle. The helpers transact under NOTE_ORIGIN, but we wrap BOTH in
-    // one outer 'local' transaction (Yjs reentrancy — the outer origin wins)
-    // so the board UndoManager captures cache + fragment as a single canvas
-    // Cmd+Z step. This is the only undo a read-only toggle can have: no note
-    // editor is mounted, and undoing just the fragment would leave the canvas
-    // rendering the stale html cache. Lazy import keeps the heavy serializer
-    // off the canvas chunk until a box is toggled.
+    // Which box, by position. The display is a RENDERING of the note (sanitized,
+    // colours remapped for this viewer's theme, auto-link chips swapped in), so
+    // it must never be saved back: doing that stripped mentions and comment
+    // anchors and baked one viewer's colours into the note (NOTES-02). The
+    // toggle is applied to the stored source instead, and the display follows.
+    const index = Array.from(ref.current.querySelectorAll('.note-body .ck-box')).indexOf(box);
+    if (index < 0) return;
+    // Flip the item in the fragment (source of truth) and re-derive the html
+    // cache from it, exactly as the editor's write-through does. The helpers
+    // transact under NOTE_ORIGIN, but BOTH run inside one outer 'local'
+    // transaction (Yjs reentrancy — the outer origin wins) so the board
+    // UndoManager captures fragment + cache as a single canvas Cmd+Z step. This
+    // is the only undo a read-only toggle can have: no note editor is mounted,
+    // and undoing just the fragment would leave the canvas rendering the stale
+    // html cache. The seed (a note never opened in the editor) runs first,
+    // outside that step, so Cmd+Z un-ticks the box rather than un-seeding.
+    // Lazy import keeps the heavy serializer off the canvas chunk until a box
+    // is toggled.
     if (ydoc && cardYMap) {
-      import('../lib/noteDocState.js').then((m) => {
+      Promise.all([import('../lib/noteDocState.js'), import('../lib/noteLinkify.js')]).then(([m, l]) => {
+        m.seedNoteFragmentFromHtml(ydoc, cardYMap, html, body);
         ydoc.transact(() => {
-          m.setNoteCacheFields(ydoc, cardYMap, { html: newHtml, body: null });
-          m.applyHtmlToNoteFragment(ydoc, cardYMap, newHtml);
+          if (m.toggleNoteChecklistItem(ydoc, cardYMap, index, html, body) == null) return;
+          const next = m.noteFragmentToHtml(m.getNoteFragment(cardYMap));
+          // noteFragmentToHtml answers '' when it can't serialize; never let
+          // that blank the cache the canvas renders.
+          if (next) m.setNoteCacheFields(ydoc, cardYMap, { html: l.linkifyNoteHtml(next), body: null });
         }, 'local');
       }).catch(() => {});
     } else {
-      onUpdate({ html: newHtml, body: null });
+      const next = toggleChecklistInHtml(noteSourceHtml(html, body), index);
+      if (next != null) onUpdate({ html: next, body: null });
     }
   };
   const onPointerUp = (e) => {
@@ -1054,7 +1082,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   const roHasBg = !!bgColor && bgColor !== 'transparent';
   const roTone = surfaceTone(bgColor);
   const roEffBg = roHasBg ? bgColor : (roTheme === 'light' ? '#f5f5f7' : '#0a0a0c');
-  const roDisplay = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
+  const roDisplay = peerLiveHtml ?? noteSourceHtml(html, body);
   const roSafeDisplay = useMemo(() => remapHtmlColors(roDisplay, roEffBg), [roDisplay, roEffBg]);
   useEffect(() => { try { ensureFontsFromHtml(roDisplay); } catch (_) {} }, [roDisplay]);
   if (!onUpdate) {

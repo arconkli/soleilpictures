@@ -20,6 +20,7 @@ import {
 } from 'y-prosemirror';
 import { noteExtensions } from '../components/noteExtensions/noteExtensions.js';
 import { pageFragmentToText } from './docState.js';
+import { noteSourceHtml, htmlHasText, bodyHasText } from './noteBody.js';
 
 // Origin for note STRUCTURAL ops (fragment create/seed) and the derived-html
 // write-through. Deliberately NOT 'local' so the board-level Y.UndoManager
@@ -178,12 +179,39 @@ export function noteFragmentToText(fragment, max = 500) {
   return pageFragmentToText(fragment, max);
 }
 
-// Seed an empty fragment from a note's legacy `card.html`. Idempotent: guarded
-// by NOTE_SEEDED_KEY and a fragment-length check so an intentionally-emptied
-// note is never re-seeded from stale html. Runs under NOTE_ORIGIN; the nested
-// prosemirror→fragment transact joins this outer transaction (Yjs reentrancy)
-// so the whole seed is a single non-'local' step.
-export function seedNoteFragmentFromHtml(ydoc, cardYMap, html) {
+// True when a fragment holds nothing a reader could see: no blocks, or only
+// empty paragraphs (what the editor leaves behind when it binds to an empty
+// fragment). A mention, a checklist or any other block counts as content.
+export function noteFragmentIsBlank(frag) {
+  if (!frag) return true;
+  return frag.toArray().every((n) => (
+    n instanceof Y.XmlElement && n.nodeName === 'paragraph'
+    && n.toArray().every((c) => (
+      c instanceof Y.XmlText
+      && c.toDelta().every((op) => typeof op.insert === 'string' && !op.insert.trim())
+    ))
+  ));
+}
+
+function seedFragmentFrom(frag, source) {
+  const clean = stripNoteChromeForSeed(source);
+  if (clean && clean.replace(/<[^>]+>/g, '').trim()) {
+    const json = generateJSON(clean, noteExtensions);
+    prosemirrorJSONToYXmlFragment(noteSchema(), json, frag);
+  }
+}
+
+// Seed an empty fragment from a note's legacy `card.html` or, when the html has
+// no text, from its plain `card.body` (a text drop, or an API/MCP note: see
+// noteBody.js). Idempotent: guarded by NOTE_SEEDED_KEY and a fragment-length
+// check so an intentionally-emptied note is never re-seeded from stale html.
+// Runs under NOTE_ORIGIN; the nested prosemirror→fragment transact joins this
+// outer transaction (Yjs reentrancy) so the whole seed is a single non-'local'
+// step.
+//
+// `body` defaults to the card's own field, so a caller that only knows the
+// html still can't seed a body-only note as empty.
+export function seedNoteFragmentFromHtml(ydoc, cardYMap, html, body = cardYMap?.get?.('body')) {
   if (!ydoc || !cardYMap) return null;
   const frag = ensureNoteFragment(ydoc, cardYMap);
   if (!frag) return null;
@@ -191,22 +219,70 @@ export function seedNoteFragmentFromHtml(ydoc, cardYMap, html) {
     if (!cardYMap.get(NOTE_SEEDED_KEY)) {
       ydoc.transact(() => cardYMap.set(NOTE_SEEDED_KEY, true), NOTE_ORIGIN);
     }
+    healBlankSeed(ydoc, cardYMap, frag, html, body);
     return frag;
   }
-  const clean = stripNoteChromeForSeed(html);
+  const source = noteSourceHtml(html, body);
   ydoc.transact(() => {
     // Re-check inside the transaction to lose cleanly to a concurrent seed.
     if (cardYMap.get(NOTE_SEEDED_KEY) || frag.length > 0) {
       cardYMap.set(NOTE_SEEDED_KEY, true);
       return;
     }
-    if (clean && clean.replace(/<[^>]+>/g, '').trim()) {
-      const json = generateJSON(clean, noteExtensions);
-      prosemirrorJSONToYXmlFragment(noteSchema(), json, frag);
-    }
+    seedFragmentFrom(frag, source);
     cardYMap.set(NOTE_SEEDED_KEY, true);
   }, NOTE_ORIGIN);
   return frag;
+}
+
+// One-time repair for a note the html-only seed marked seeded while leaving its
+// fragment empty (NOTES-01). Its body survives wherever the editor never got as
+// far as a write-through, and a body written AFTER the blanking (an API PATCH)
+// lands next to a fragment that would otherwise win over it forever.
+//
+// This cannot bring back text someone deleted on purpose. Every write-through
+// from the note editor (and the legacy editor's onChangeHTML) sets `body: null`
+// in the same transaction as the html, so a note emptied in the app has no body
+// left to heal from. Body text beside a blank fragment and a textless html only
+// exists when nothing in the app has written the note since.
+function healBlankSeed(ydoc, cardYMap, frag, html, body) {
+  if (!bodyHasText(body)) return;
+  if (htmlHasText(html) || htmlHasText(cardYMap.get('html'))) return;
+  if (!noteFragmentIsBlank(frag)) return;
+  ydoc.transact(() => {
+    if (!noteFragmentIsBlank(frag)) return; // a peer typed first
+    seedFragmentFrom(frag, noteSourceHtml('', body));
+  }, NOTE_ORIGIN);
+}
+
+// Flip the `index`-th checklist item, in document order (the same order as the
+// `.ck-box` elements the read-only display renders), directly in the fragment.
+//
+// The read-only toggle used to serialize the RENDERED display back into the
+// note (NOTES-02). That DOM has been through the sanitizer, the theme's colour
+// remap and the auto-link chip renderer, so saving it stripped @-mention refs
+// and comment anchors and baked one viewer's colours into everyone's note. One
+// attribute set on one node changes exactly one thing and syncs as one small
+// CRDT op, so a peer who is mid-edit loses nothing either.
+//
+// Seeds first if the note has never been opened in the collaborative editor.
+// Returns the new checked state, or null when there is no such item.
+export function toggleNoteChecklistItem(ydoc, cardYMap, index, html, body) {
+  if (!ydoc || !cardYMap || !(index >= 0)) return null;
+  const frag = seedNoteFragmentFromHtml(ydoc, cardYMap, html, body);
+  if (!frag) return null;
+  let seen = -1;
+  let target = null;
+  const walk = (node) => {
+    if (target) return;
+    if (node.nodeName === 'noteChecklistItem' && ++seen === index) { target = node; return; }
+    node.toArray().forEach((c) => { if (c instanceof Y.XmlElement) walk(c); });
+  };
+  frag.toArray().forEach((c) => { if (c instanceof Y.XmlElement) walk(c); });
+  if (!target) return null;
+  const next = !target.getAttribute('checked');
+  ydoc.transact(() => target.setAttribute('checked', next), NOTE_ORIGIN);
+  return next;
 }
 
 // Write derived cache fields (html / h) onto the card map under NOTE_ORIGIN, so

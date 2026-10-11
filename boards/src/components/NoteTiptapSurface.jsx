@@ -35,7 +35,9 @@ import {
   setNoteCacheFields,
   noteCommentScope,
   getNoteUndoManager,
+  noteFragmentIsBlank,
 } from '../lib/noteDocState.js';
+import { bodyHasText } from '../lib/noteBody.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
@@ -51,6 +53,7 @@ export function NoteTiptapSurface({
   ydoc,
   cardYMap,
   html,
+  body,
   cardId = null,
   boardId = null,
   currentUser = null,
@@ -66,7 +69,9 @@ export function NoteTiptapSurface({
   const fragment = useMemo(() => {
     if (!ydoc || !cardYMap) return null;
     ensureNoteFragment(ydoc, cardYMap);
-    seedNoteFragmentFromHtml(ydoc, cardYMap, html);
+    // body too: a note dropped as text, or made by the API/MCP, has no html,
+    // and seeding from html alone opened it empty and saved that over its text.
+    seedNoteFragmentFromHtml(ydoc, cardYMap, html, body);
     return ensureNoteFragment(ydoc, cardYMap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, cardYMap]);
@@ -162,6 +167,20 @@ export function NoteTiptapSurface({
   // ydoc → readCards path.
   const writeCache = (patch) => {
     if (ydoc && cardYMap) setNoteCacheFields(ydoc, cardYMap, patch);
+  };
+
+  // The text write-through. `body: null` is what makes a deliberate emptying
+  // stick (seedNoteFragmentFromHtml heals a blank fragment from a leftover
+  // body), so it is written with the html, always together. The one write it
+  // refuses: a blank fragment over a card that still has body text, before
+  // this session ever saw the fragment hold anything. That is a failed seed,
+  // not an edit, and saving it is how body-only notes were wiped (NOTES-01).
+  const sawContentRef = useRef(false);
+  const writeTextCache = () => {
+    if (!fragment) return;
+    if (!noteFragmentIsBlank(fragment)) sawContentRef.current = true;
+    else if (!sawContentRef.current && bodyHasText(cardYMap?.get?.('body'))) return;
+    writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null });
   };
 
   // @-mention picker state, driven by the suggestion plugin.
@@ -300,9 +319,7 @@ export function NoteTiptapSurface({
     const flush = () => {
       writeRaf.current = 0;
       if (!fragment) return;
-      try {
-        writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null });
-      } catch (_) { /* noop */ }
+      try { writeTextCache(); } catch (_) { /* noop */ }
       if (!manualRef.current && editor?.view?.dom) {
         try {
           const h = Math.min(NOTE_AUTOSIZE_MAX, cardHeightForBody(editor.view.dom));
@@ -336,9 +353,7 @@ export function NoteTiptapSurface({
       }
       if (mentionOpenRef.current) return;
       if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
-      if (fragment) {
-        try { writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null }); } catch (_) {}
-      }
+      try { writeTextCache(); } catch (_) {}
       onExitRef.current?.();
     };
     editor.on('blur', onBlur);
