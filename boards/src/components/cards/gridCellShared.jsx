@@ -113,7 +113,7 @@ export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoa
         disabled={missing}
         title={missing ? 'This cluster was removed' : `Open ${name}`}>
         {b?.thumb_key
-          ? <R2Image src={b.thumb_key} w={Math.round(rect.w)} h={Math.round(rect.h)} className="gc-board-thumb" draggable="false" />
+          ? <R2Image key={b.thumb_updated_at || b.thumb_key} src={b.thumb_key} bust={b.thumb_updated_at} w={Math.round(rect.w)} h={Math.round(rect.h)} className="gc-board-thumb" draggable="false" />
           : <span className="gc-board-ph" aria-hidden="true" />}
         <span className="gc-board-meta">
           <span className="gc-board-badge">{missing ? 'REMOVED' : 'CLUSTER'}</span>

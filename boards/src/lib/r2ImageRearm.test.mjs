@@ -19,3 +19,10 @@ test('the basic flavor re-arms once after giving up', () => {
   assert.match(basic, /return \(\) => \{ cancelled = true; dropOnline\(\);/);
   assert.match(basic, /rearmedRef\.current = false;[^\n]*\}, \[src\]\);/, 'a new src earns its own re-arm');
 });
+
+// MEDIA-16: thumb keys are overwritten in place and served immutable, so
+// every cluster-thumbnail surface must bust and remount on thumb_updated_at.
+test('a cluster thumbnail in a grid cell busts on thumb_updated_at like the board card', () => {
+  const cell = readFileSync(join(here, '..', 'components', 'cards', 'gridCellShared.jsx'), 'utf8');
+  assert.match(cell, /<R2Image key=\{b\.thumb_updated_at \|\| b\.thumb_key\} src=\{b\.thumb_key\} bust=\{b\.thumb_updated_at\}/);
+});
