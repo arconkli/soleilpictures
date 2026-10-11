@@ -1,6 +1,6 @@
 # Comments
 
-> A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. An eye toggle hides all of them when you want to see the board clean.
+> A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 
 _Source: https://clusters.soleilpictures.com/docs/collaborate/comments · Updated 2026-09-10_
 
@@ -36,7 +36,7 @@ navigable link rather than a description of where to look.
 
 ## Hiding them
 
-The eye toggle hides every comment bubble on the board — for you only, not for
+The comments toggle hides every comment bubble on the board — for you only, not for
 everyone. Use it when presenting or when the feedback has piled up and you want
 to see the work.
 

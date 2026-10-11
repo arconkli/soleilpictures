@@ -7,7 +7,7 @@
 // and stamps the v2 schema marker on every write.
 
 import { Icon } from './Icon.jsx';
-import { RotateCcw, Maximize2, X, Eye, FlipHorizontal, FlipVertical, CircleHalf } from '../lib/icons.js';
+import { RotateCcw, Maximize2, X, SquareSplitHorizontal, FlipHorizontal, FlipVertical, CircleHalf } from '../lib/icons.js';
 import { isAdjusted, normalizeAdjust, ADJUST_VERSION } from '../lib/imageAdjust.js';
 
 const SLIDERS = [
@@ -125,7 +125,7 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onExpand, onClose,
           <button type="button" className="iap-btn iap-btn-icon" title="Hold to compare original"
                   onPointerDown={(e) => { e.preventDefault(); onCompareStart?.(); }}
                   onPointerUp={endCompare} onPointerLeave={endCompare} onPointerCancel={endCompare}>
-            <Icon as={Eye} size={15} />
+            <Icon as={SquareSplitHorizontal} size={15} />
           </button>
         )}
         <button type="button" className="iap-btn" disabled={!dirty} onClick={onReset}>

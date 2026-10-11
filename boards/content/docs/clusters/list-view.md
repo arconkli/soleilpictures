@@ -43,7 +43,7 @@ Files side of the switch counts the cards inside, not counting nested clusters.
 | Open or close Files beside the board | `F`, or **Files** / **Board** at the top |
 | Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it |
 | Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across |
-| Put full-screen Files back beside the board | The shrink button at the right of its toolbar |
+| Put full-screen Files back beside the board | The shrink button at the top right, beside **Download all** |
 | Find a file on the board | Click it in the panel — the board brings it into view and selects it |
 | Put a file somewhere on the board | Drag it from the panel onto the board |
 
@@ -100,8 +100,9 @@ card limit, and anyone the cluster is shared with sees them in Files.
 
 ## Folders and the path bar
 
-A cluster's nested clusters are its folders. They sit first, as compact tiles —
-a cover, the name and how many items are inside — with the files after them.
+A cluster's nested clusters are its folders. They sit first, as compact rows —
+the cluster's colour dot (or its cover), its name and how many items are inside —
+with the files after them.
 
 In the panel, **double-click a folder to step into it**. The path bar at the top
 shows where the panel is; click any step to go back up, or use the back arrow

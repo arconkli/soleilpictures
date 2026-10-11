@@ -45,7 +45,7 @@ import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
-  Eye, EyeOff, MessageCircle,
+  MessageCircle, MessageCircleOff,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder,
   Calendar as CalendarPh, X,
@@ -11974,8 +11974,7 @@ export function CanvasSurface({
                 const r = e.currentTarget.getBoundingClientRect();
                 setCommentArchive({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
               }}>
-        <Icon as={MessageCircle} size={13} />
-        <Icon as={commentsVisible ? Eye : EyeOff} size={13} />
+        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={14} weight="light" />
         {/* Badge counts only currently-visible (open, non-archived)
             comments — resolved and hidden don't count, since they're
             archived and live in the popover instead. */}

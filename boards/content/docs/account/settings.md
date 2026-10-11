@@ -164,7 +164,7 @@ A few things live where they apply rather than in a settings screen:
 | Cluster cover / thumbnail | Right-click the [cluster](/docs/clusters) |
 | Canvas background colour | Right-click the [canvas](/docs/canvas) |
 | Public link expiry and indexing | The [Share](/docs/collaborate/sharing) dialog |
-| Hiding [comments](/docs/collaborate/comments) | The eye toggle on the board |
+| Hiding [comments](/docs/collaborate/comments) | The comments toggle at the top left of the board |
 | Deleting or leaving a workspace | The workspace switcher's ⋯ menu |
 
 ## On a phone

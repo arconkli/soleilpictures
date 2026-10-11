@@ -3,7 +3,7 @@ import { Icon } from '../Icon.jsx';
 import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { PathBar } from './PathBar.jsx';
-import { Search, List, LayoutGrid, Plus, ChevronDown, X, Maximize2, Minimize2, Check, SlidersHorizontal } from '../../lib/icons.js';
+import { Search, List, LayoutGrid, Plus, X, ArrowsOutSimple, Check, SlidersHorizontal } from '../../lib/icons.js';
 
 const SORT_OPTIONS = [
   // The canvas read like a page — the default, so Files opens on the same
@@ -89,7 +89,7 @@ export function ClusterBrowserToolbar({
   pathBar = null,
   readOnlyNote = '',
   // While files are dragged over Files: { text, blocked } — said in the
-  // header, where the eye already is, in place of the search row.
+  // header, in place of the search row.
   dropBanner = null,
 }) {
   const [viewOpen, setViewOpen] = useState(false);
@@ -123,7 +123,7 @@ export function ClusterBrowserToolbar({
   );
   const searchBox = (
     <div className="cbt-search">
-      <Icon as={Search} size={15} className="cbt-search-icon" />
+      <Icon as={Search} size={16} weight="light" className="cbt-search-icon" />
       <input
         ref={searchRef}
         className="cbt-input"
@@ -136,7 +136,7 @@ export function ClusterBrowserToolbar({
       />
       {query && (
         <button className="cbt-clear" onClick={() => onQueryChange('')} aria-label="Clear search">
-          <Icon as={X} size={13} />
+          <Icon as={X} size={12} weight="light" />
         </button>
       )}
     </div>
@@ -153,9 +153,8 @@ export function ClusterBrowserToolbar({
       <button type="button" className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeCount ? ' has-active' : ''}`}
               data-menu-trigger="view" aria-label={viewName} title={viewName}
               onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
-        <Icon as={SlidersHorizontal} size={14} className="cbt-btn-ico" />
+        <Icon as={SlidersHorizontal} size={16} weight="light" className="cbt-btn-ico" />
         <span className="cbt-btn-label">View{activeCount ? ` · ${activeCount}` : ''}</span>
-        <span className="cbt-btn-chev"><Icon as={ChevronDown} size={12} /></span>
       </button>
       <Menu open={viewOpen} onClose={() => setViewOpen(false)} trigger="view">
         {withLayout && (
@@ -209,13 +208,13 @@ export function ClusterBrowserToolbar({
           {dockControls?.onExpand && (
             <button type="button" className="cbt-iconbtn" onClick={dockControls.onExpand}
                     aria-label="Expand Files to full screen" title="Full screen (or drag the edge all the way)">
-              <Icon as={Maximize2} size={14} />
+              <Icon as={ArrowsOutSimple} size={16} weight="light" />
             </button>
           )}
           {dockControls?.onClose && (
             <button type="button" className="cbt-iconbtn" onClick={dockControls.onClose}
                     aria-label="Close Files" title="Close Files (F)">
-              <Icon as={X} size={15} />
+              <Icon as={X} size={16} weight="light" />
             </button>
           )}
         </div>
@@ -228,7 +227,7 @@ export function ClusterBrowserToolbar({
           {canEdit && (
             <button type="button" className="cbt-iconbtn cbt-add-ico" onClick={onAddFiles}
                     aria-label="Add files" title="Add files">
-              <Icon as={Plus} size={15} />
+              <Icon as={Plus} size={16} weight="light" />
             </button>
           )}
         </div>
@@ -263,9 +262,9 @@ export function ClusterBrowserToolbar({
           the default for any cluster that is not mostly audio. */}
       <div className="view-pill cbt-viewtoggle" role="group" aria-label="Layout">
         <button className={`view-pill-btn${viewMode === 'gallery' ? ' on' : ''}`} onClick={() => onViewMode('gallery')}
-                aria-label="Grid layout" aria-pressed={viewMode === 'gallery'} title="Grid"><Icon as={LayoutGrid} size={14} /></button>
+                aria-label="Grid layout" aria-pressed={viewMode === 'gallery'} title="Grid"><Icon as={LayoutGrid} size={16} weight="light" /></button>
         <button className={`view-pill-btn${viewMode === 'table' ? ' on' : ''}`} onClick={() => onViewMode('table')}
-                aria-label="List layout" aria-pressed={viewMode === 'table'} title="List"><Icon as={List} size={14} /></button>
+                aria-label="List layout" aria-pressed={viewMode === 'table'} title="List"><Icon as={List} size={16} weight="light" /></button>
       </div>
       {canEdit && showUpsell && (
         <button className="cbt-upsell" onClick={() => onUpsell?.()}>
@@ -273,14 +272,8 @@ export function ClusterBrowserToolbar({
         </button>
       )}
       {canEdit && (
-        <button className="cbt-btn cbt-add" onClick={onAddFiles}>
-          <Icon as={Plus} size={14} />Add files
-        </button>
-      )}
-      {dockControls?.mode === 'full' && dockControls.canShrink && dockControls.onShrink && (
-        <button type="button" className="cbt-iconbtn cbt-shrink" onClick={dockControls.onShrink}
-                aria-label="Beside board" title="Put Files beside the board">
-          <Icon as={Minimize2} size={14} />
+        <button type="button" className="cbt-add" onClick={onAddFiles}>
+          <Icon as={Plus} size={14} weight="regular" />Add files
         </button>
       )}
     </div>

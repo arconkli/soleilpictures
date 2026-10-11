@@ -1854,7 +1854,7 @@ To do this | Do this
 Open or close Files beside the board | F, or Files / Board at the top
 Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it
 Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across
-Put full-screen Files back beside the board | The shrink button at the right of its toolbar
+Put full-screen Files back beside the board | The shrink button at the top right, beside Download all
 Find a file on the board | Click it in the panel — the board brings it into view and selects it
 Put a file somewhere on the board | Drag it from the panel onto the board
 
@@ -1887,7 +1887,7 @@ Files waiting off the board are still cards: they count toward your plan's card 
 
 Folders and the path bar
 
-A cluster's nested clusters are its folders. They sit first, as compact tiles — a cover, the name and how many items are inside — with the files after them.
+A cluster's nested clusters are its folders. They sit first, as compact rows — the cluster's colour dot (or its cover), its name and how many items are inside — with the files after them.
 
 In the panel, double-click a folder to step into it. The path bar at the top shows where the panel is; click any step to go back up, or use the back arrow to retrace where you have been. The ▾ on the current step lists the clusters inside it, and its Go to cluster… jumps to any cluster in the workspace. The board doesn't move while you browse — the breadcrumb at the top of the screen still says where it is.
 
@@ -3033,7 +3033,7 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
 Updated: 2026-09-10
 
-A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. An eye toggle hides all of them when you want to see the board clean.
+A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 
 Comments attach to the thing they are about. This is the whole design: feedback that lives in a sidebar, ordered by time, loses the connection to what it referred to within a day.
 
@@ -3060,7 +3060,7 @@ You can also mention clusters, documents and cards, which turns a comment into a
 
 Hiding them
 
-The eye toggle hides every comment bubble on the board — for you only, not for everyone. Use it when presenting or when the feedback has piled up and you want to see the work.
+The comments toggle hides every comment bubble on the board — for you only, not for everyone. Use it when presenting or when the feedback has piled up and you want to see the work.
 
 Bubbles on a crowded board
 
@@ -3083,7 +3083,7 @@ Q: Can I comment on empty canvas?
 A: Yes. A comment can anchor to a point rather than an object, which is how you leave "something should go here".
 
 Q: How do I hide comments for a presentation?
-A: The eye toggle hides every comment bubble on the board. It affects only your view.
+A: The comments toggle hides every comment bubble on the board. It affects only your view.
 
 Q: Do resolved comments disappear?
 A: They are archived rather than deleted, so the record of a decision survives.
@@ -3518,7 +3518,7 @@ Setting | Where
 Cluster cover / thumbnail | Right-click the cluster
 Canvas background colour | Right-click the canvas
 Public link expiry and indexing | The Share dialog
-Hiding comments | The eye toggle on the board
+Hiding comments | The comments toggle at the top left of the board
 Deleting or leaving a workspace | The workspace switcher's ⋯ menu
 
 On a phone

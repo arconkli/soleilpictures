@@ -1,5 +1,6 @@
 // Folders in Files — a cluster's sub-clusters (and linked clusters) as compact
-// tiles that read like folders: a small cover, the name, how much is inside.
+// rows: the cluster's cover (or, without one, the same tint dot the sidebar
+// marks every cluster with), the name, how much is inside.
 // They replaced full BoardCard tiles at a fixed 200px, which in a narrow panel
 // stacked one huge card per row and on a wide screen left most of it empty.
 //
@@ -15,7 +16,7 @@ import { memo } from 'react';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS, Avatar } from '../primitives.jsx';
-import { Folder, Link as LinkIcon } from '../../lib/icons.js';
+import { Link as LinkIcon } from '../../lib/icons.js';
 import { InlineRename } from './InlineRename.jsx';
 
 // Unknown (no card_count yet) says nothing rather than claiming "Empty".
@@ -58,14 +59,20 @@ export const FolderTile = memo(function FolderTile({
           <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
                    bust={board.thumb_updated_at} className="ft-thumb" alt="" draggable={false} />
         ) : (
-          <span className="ft-glyph" aria-hidden="true"><Icon as={Folder} size={compact ? 16 : 20} weight="duotone" /></span>
+          <span className="ft-dot" aria-hidden="true" />
         )}
-        {linked && <span className="ft-badge" aria-label="Linked cluster"><Icon as={LinkIcon} size={compact ? 9 : 10} /></span>}
       </div>
       <div className="ft-text">
-        {rename
-          ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" />
-          : <div className="ft-name">{label}</div>}
+        <div className="ft-line">
+          {rename
+            ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" />
+            : <div className="ft-name">{label}</div>}
+          {linked && (
+            <span className="ft-link" role="img" aria-label="Linked cluster" title="Linked cluster">
+              <Icon as={LinkIcon} size={12} weight="light" />
+            </span>
+          )}
+        </div>
         {(missing || Number.isFinite(board?.card_count)) && (
           <div className="ft-meta">{missing ? 'Not available' : countLabel(board.card_count)}</div>
         )}

@@ -6,12 +6,12 @@ navLabel: Comments
 section: collaborate
 order: 3
 updated: 2026-09-10
-answer: A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. An eye toggle hides all of them when you want to see the board clean.
+answer: A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 faq:
   - q: Can I comment on empty canvas?
     a: Yes. A comment can anchor to a point rather than an object, which is how you leave "something should go here".
   - q: How do I hide comments for a presentation?
-    a: The eye toggle hides every comment bubble on the board. It affects only your view.
+    a: The comments toggle hides every comment bubble on the board. It affects only your view.
   - q: Do resolved comments disappear?
     a: They are archived rather than deleted, so the record of a decision survives.
 related:
@@ -52,7 +52,7 @@ navigable link rather than a description of where to look.
 
 ## Hiding them
 
-The eye toggle hides every comment bubble on the board — for you only, not for
+The comments toggle hides every comment bubble on the board — for you only, not for
 everyone. Use it when presenting or when the feedback has piled up and you want
 to see the work.
 

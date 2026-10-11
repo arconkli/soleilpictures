@@ -2249,7 +2249,7 @@ export const DOCS_PAGES = [
     "title": "Comments — Soleil Clusters",
     "metaDescription": "Comment anywhere in Soleil Clusters — on a card, a group, an empty point on the canvas, a whole board, or a range of text in a document.",
     "h1": "Comments",
-    "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. An eye toggle hides all of them when you want to see the board clean.",
+    "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
     "updated": "2026-09-10",
@@ -2296,7 +2296,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I hide comments for a presentation?",
-        "a": "The eye toggle hides every comment bubble on the board. It affects only your view."
+        "a": "The comments toggle hides every comment bubble on the board. It affects only your view."
       },
       {
         "q": "Do resolved comments disappear?",

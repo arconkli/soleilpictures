@@ -99,7 +99,7 @@ function Stage({ item }) {
           {raw && <div className="ql-link-url" title={raw}>{raw}</div>}
           {href && (
             <a className="cbt-btn ql-open" href={href} target="_blank" rel="noopener noreferrer">
-              <Icon as={ArrowSquareOut} size={13} />Open link
+              <Icon as={ArrowSquareOut} size={14} weight="light" />Open link
             </a>
           )}
         </div>
@@ -196,39 +196,39 @@ export default function QuickLook({
         </div>
         {onShowOnBoard && (
           <button type="button" className="ql-btn" onClick={() => onShowOnBoard(item)} title={showLabel}>
-            <Icon as={BoundingBox} size={14} /><span>{showLabel}</span>
+            <Icon as={BoundingBox} size={14} weight="light" /><span>{showLabel}</span>
           </button>
         )}
         {onPutOnBoard && item.unplaced && (
           <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
-            <Icon as={BoundingBox} size={14} /><span>Put on board</span>
+            <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
           </button>
         )}
         {canDownload && (
           <button type="button" className="ql-btn" onClick={() => onDownload(item)} title="Download">
-            <Icon as={Download} size={14} /><span>Download</span>
+            <Icon as={Download} size={14} weight="light" /><span>Download</span>
           </button>
         )}
         {onToggleInfo && (
           <button type="button" className={`ql-btn${infoOpen ? ' is-on' : ''}`} onClick={onToggleInfo}
                   aria-pressed={infoOpen} title="Info (⌘I)">
-            <Icon as={Info} size={14} /><span>Info</span>
+            <Icon as={Info} size={14} weight="light" /><span>Info</span>
           </button>
         )}
         <button type="button" className="ql-btn ql-x" onClick={onClose} aria-label="Close" title="Close (Esc)">
-          <Icon as={X} size={16} />
+          <Icon as={X} size={16} weight="light" />
         </button>
       </div>
       <div className="ql-body" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         {n > 1 && (
           <button type="button" className="ql-nav ql-prev" onClick={() => go(-1)} aria-label="Previous file" title="Previous (←)">
-            <Icon as={ChevronLeft} size={20} />
+            <Icon as={ChevronLeft} size={20} weight="light" />
           </button>
         )}
         <div className="ql-stage" key={item.id}><Stage item={item} /></div>
         {n > 1 && (
           <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label="Next file" title="Next (→)">
-            <Icon as={ChevronRight} size={20} />
+            <Icon as={ChevronRight} size={20} weight="light" />
           </button>
         )}
         {infoOpen && (
