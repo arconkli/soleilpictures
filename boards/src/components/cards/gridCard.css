@@ -240,10 +240,12 @@
 /* Live only while SHOWN. An opacity:0 control still takes a tap, and a touch
    screen has no hover to reveal it first: tapping a filled cell's corner to
    select the grid cleared the cell, and a tap near the bottom split it. At
-   rest the pill, the compact trigger and Clear are click-through. */
+   rest the pill, the compact trigger and Clear are click-through. Scoped to
+   .gridc-cell: the schedule card reuses .gridc-pill-mini in its own slot
+   tools, which have no .gridc-cell:hover to turn it back on. */
 .gridc-celltools > .gridc-pill,
-.gridc-pill-mini,
-.gridc-cell-x { pointer-events: none; }
+.gridc-cell .gridc-pill-mini,
+.gridc-cell .gridc-cell-x { pointer-events: none; }
 .gridc-cell:hover .gridc-celltools > .gridc-pill,
 .gridc-cell:hover .gridc-pill-mini,
 .gridc-cell:hover .gridc-cell-x { pointer-events: auto; }
