@@ -41,7 +41,7 @@ import {
   shallowEqualIgnoreFns,
 } from './cards.jsx';
 import { ScheduleCard } from './cards/ScheduleCard.jsx';
-import { RichDocCard } from './DocCard.jsx';
+import { RichDocCard as RichDocCardView } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 
@@ -376,7 +376,7 @@ const SELECTED_MOUNT_CAP = 50;
 // time. Both self-observe their own Y content, so the cards.jsx comparator
 // (ignore function identity) is safe for them too.
 const MemoScheduleCard = memo(ScheduleCard, shallowEqualIgnoreFns);
-const MemoRichDocCard = memo(RichDocCard, shallowEqualIgnoreFns);
+const RichDocCard = memo(RichDocCardView, shallowEqualIgnoreFns);
 const EMPTY_UPLOADS = Object.freeze({});
 const EMPTY_ITEMS = Object.freeze([]);
 // A "line": an arrow with no heads whose ends are both free points (not
@@ -9627,7 +9627,7 @@ export function CanvasSurface({
       // docPages/etc. initialized — fall back to a stub render.
       const isRich = !!cardYMap?.get('docPages');
       inner = isRich ? (
-        <MemoRichDocCard card={c} ydoc={ydoc} cardYMap={cardYMap}
+        <RichDocCard card={c} ydoc={ydoc} cardYMap={cardYMap}
                      workspaceId={workspaceId} userId={userId}
                      boards={boards}
                      getAwareness={getAwareness}
