@@ -3307,8 +3307,11 @@ export function CanvasSurface({
     return null;
   }, [cardsByGroup]);
 
-  const clientToCanvas = useCallback((clientX, clientY) => {
-    const rect = wrapRef.current.getBoundingClientRect();
+  // `wrapRect` is an optional pre-measured rect, for a caller converting on
+  // every pointer frame (a card drag): measuring here right after the last
+  // frame wrote card transforms can force a layout on dense boards.
+  const clientToCanvas = useCallback((clientX, clientY, wrapRect = null) => {
+    const rect = wrapRect || wrapRef.current.getBoundingClientRect();
     // Read live pan/zoom refs (not debounced state) so the conversion always
     // matches the currently-rendered transform. State lags refs by up to 140ms
     // after any wheel/trackpad pan or pinch (scheduleCommit), which otherwise
@@ -6075,7 +6078,10 @@ export function CanvasSurface({
     // screen delta by the render-time `zoom` drifted the card off the cursor
     // when the camera moved mid-drag (a wheel pan or zoom while holding it, or
     // a grab inside the 140 ms before a pinch commits its zoom).
-    const startWorld = clientToCanvas(startClient.x, startClient.y);
+    // The wrap doesn't move during a drag: measured once, here, rather than on
+    // every flush (see clientToCanvas). Pan and zoom are still read live.
+    const dragWrapRect = wrapRef.current.getBoundingClientRect();
+    const startWorld = clientToCanvas(startClient.x, startClient.y, dragWrapRect);
 
     // Snap targets, captured once at drag start (see lib/snapGuides.js). The
     // viewport gate keeps far-off-board cards out of the candidate pool — the
@@ -6293,12 +6299,12 @@ export function CanvasSurface({
           Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) <= 4) return;
       // A touch lift re-baselines the drag origin to the arm point so the card
       // doesn't jump by the finger's pre-lift drift. Mouse keeps startClient.
-      if (!dragArmed && touchHold) dragOriginWorld = clientToCanvas(ev.clientX, ev.clientY);
+      if (!dragArmed && touchHold) dragOriginWorld = clientToCanvas(ev.clientX, ev.clientY, dragWrapRect);
       dragArmed = true;
       perf.bump('drag.flush');
       const _t0 = perf.isEnabled() ? performance.now() : 0;
       const _origin = dragOriginWorld || startWorld;
-      const _at = clientToCanvas(ev.clientX, ev.clientY);
+      const _at = clientToCanvas(ev.clientX, ev.clientY, dragWrapRect);
       const rawDx = _at.x - _origin.x;
       const rawDy = _at.y - _origin.y;
       // Hold Alt/Option to bypass snap.
@@ -6459,7 +6465,7 @@ export function CanvasSurface({
       // Same origin flushMove used (lift point on touch, else startWorld) so
       // the committed position matches the live drag — no jump on release.
       const _origin = dragOriginWorld || startWorld;
-      const _at = clientToCanvas(ev.clientX, ev.clientY);
+      const _at = clientToCanvas(ev.clientX, ev.clientY, dragWrapRect);
       const rawDx = _at.x - _origin.x;
       const rawDy = _at.y - _origin.y;
       const skip = ev.altKey;
