@@ -374,6 +374,16 @@ export async function unshareBoard({ boardId, userId }) {
   if (error) throw error;
 }
 
+// The Undo for unshareBoard. Puts back the row exactly as it was (role,
+// inviter, date) and sends nothing: re-sharing instead emailed the person
+// "X shared Y with you" and spent an invite (0405). Only the person who
+// removed the access can put it back, and only for a few minutes.
+export async function restoreBoardShare({ boardId, userId }) {
+  const { error } = await supabase
+    .rpc('restore_board_share', { p_board_id: boardId, p_user_id: userId });
+  if (error) throw error;
+}
+
 // Owner-only. Returns rows: { user_id, email, role, invited_by, created_at }.
 export async function listBoardShares(boardId) {
   if (!boardId) return [];
