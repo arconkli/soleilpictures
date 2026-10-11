@@ -17,6 +17,21 @@ function schedExpandOf(card, ydoc) {
 import { isEditableTarget, isEditablePointerTarget } from '../lib/isEditableTarget.js';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
+
+// Full-screen surfaces that sit over the board and own the keyboard: Settings,
+// the pricing modal, the PDF viewer, the image lightbox, the photo editor, the
+// command palette, and anything aria-modal (sheets, the thumbnail crop). Not
+// all of them register with lib/modalGuard yet, and a focused button inside
+// one is not an "editable target", so Backspace there deleted the selected
+// cards behind it. Checked from the DOM as a backstop to the registry.
+// Deliberately NOT viewSwitch's broad role="dialog": the upgrade banner, the
+// share prompt and the onboarding tour carry it too and must not freeze the
+// canvas shortcuts while they sit in a corner.
+const BLOCKING_OVERLAY_SELECTOR = '.settings-bg, .upgrade-backdrop, .pdfv, .lightbox, .iem, .cmdk-bg, [aria-modal="true"]';
+function boardKeysBlocked() {
+  if (anyModalOpen()) return true;
+  try { return !!document.querySelector(BLOCKING_OVERLAY_SELECTOR); } catch (_) { return false; }
+}
 import { getDocUndoTarget } from '../lib/overlayRouting.js';
 import { undoToast } from '../lib/undoToast.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
@@ -4837,7 +4852,7 @@ export function CanvasSurface({
     const onPaste = async (e) => {
       // Dialog open → the board must not receive a paste (an image pasted
       // "into" the sketch pad used to land on the canvas behind it).
-      if (anyModalOpen()) return;
+      if (boardKeysBlocked()) return;
       // Same pane arbitration as the keydown listener — a split view must not
       // paste the clipboard onto both boards.
       if (hasSplit && getActivePane() !== paneId) return;
@@ -4974,7 +4989,9 @@ export function CanvasSurface({
       // sketch pad): every canvas shortcut stands down. A focused button in
       // a dialog is not an "editable target", so without this Backspace in
       // a confirm deleted the selected cards behind it (lib/modalGuard).
-      if (anyModalOpen()) return;
+      // Viewers that don't register (PDF, lightbox, photo editor) are caught
+      // from the DOM — see boardKeysBlocked.
+      if (boardKeysBlocked()) return;
       // Split view: both panes register this window listener — only the
       // pane the pointer last touched may act, or one Cmd+Z would undo on
       // BOTH boards (see lib/activePane.js).
@@ -5062,6 +5079,10 @@ export function CanvasSurface({
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Already consumed: an open comment thread deletes ITSELF on Delete
+        // (CanvasComment's document listener runs before this window one).
+        // Acting too deleted the selected cards with it.
+        if (e.defaultPrevented) return;
         if (selected.size > 0 || selectedStrokes.size > 0 || selectedArrows.size > 0) {
           e.preventDefault();
           if (!canEdit) { showEditBlockedToast(); return; }
