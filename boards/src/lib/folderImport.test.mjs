@@ -180,7 +180,7 @@ test('the canvas reads a dropped folder before its first await, and hands it to 
 
 test('App asks once for the whole folder, guards the tab, and writes clusters the move path way', () => {
   const app = read('App.jsx');
-  const fn = app.slice(app.indexOf('const importFolder = useCallback('));
+  const fn = app.slice(app.indexOf('const importFolderOnce = useCallback('));
   assert.match(fn, /preflightImport\?\.\(\{\s*n: plan\.cost, kinds: plan\.kinds, source: 'folder',\s*folder: \{ files: plan\.files, clusters: plan\.clusters \},/);
   assert.match(fn, /slicePlan\(plan\.nodes, Math\.min\(plan\.cost, Number\(take\) \|\| 0\)\)/);
   assert.match(fn, /window\.addEventListener\('beforeunload', guard\)/);
@@ -226,8 +226,17 @@ test('a subfolder that cannot be created costs that subfolder, not its parent', 
 
 test('a card-cap stop is not pitched as storage — the board already showed its wall', () => {
   const app = read('App.jsx');
-  const fn = app.slice(app.indexOf('const importFolder = useCallback('));
+  const fn = app.slice(app.indexOf('const importFolderOnce = useCallback('));
   assert.match(fn, /if \(res\.stopped && res\.stopped\.code !== 'cap'\) \{[\s\S]{0,400}?pitchStorageGate\(\);/);
   assert.match(fn, /const placed = muts\.addCard\?\.\(card\);[\s\S]{0,200}?return placed \?\? null;/,
     'placeTopCard hands back the refusal, so the import can stop on it');
+});
+
+test('one folder import runs at a time — a second drop is told to wait, not merged into the banner', () => {
+  const app = read('App.jsx');
+  const fn = app.slice(app.indexOf('const importFolder = useCallback('), app.indexOf('}, [importFolderOnce, feedback]);'));
+  const busy = fn.indexOf('if (folderImportBusyRef.current) {');
+  const run = fn.indexOf('try { return await importFolderOnce(args); }');
+  assert.ok(busy > 0 && run > busy, 'the guard comes before the run');
+  assert.match(fn, /finally \{ folderImportBusyRef\.current = false; \}/, 'released however the run ends');
 });
