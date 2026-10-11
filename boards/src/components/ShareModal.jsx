@@ -66,6 +66,11 @@ export function ShareModal({
   canManage = false,      // caller can write this board (owner OR editor) — mirrors can_write_board
   onClose,
   onMembersChanged,       // refetch trigger after remove-member
+  // Refetch the workspaces list (owner, _myRole) after a role change that
+  // moves who owns or manages the workspace — as MembersTab does. Without it
+  // the ex-owner's workspace object still said they owned it, and a reopened
+  // panel offered owner controls the server then refused.
+  onWorkspacesChanged,
   onSharesChanged,        // refetch trigger after share / unshare
   onLinkCreated,          // a public link was minted — refresh the OG thumbnail
   initialSection = null,  // 'invite-link' → open on the edit mode (nudge CTA)
@@ -696,6 +701,7 @@ export function ShareModal({
         await setWorkspaceMemberRole({ workspaceId: workspace.id, userId: member.user_id, role: 'coowner' });
         feedback.toast({ type: 'success', message: `${label} is now a co-owner of "${workspace.name}".` });
         onMembersChanged?.();
+        onWorkspacesChanged?.();
       } catch (e) {
         feedback.toast({ type: 'error', message: 'Could not make them a co-owner: ' + (e.message || e) });
       }
@@ -706,6 +712,7 @@ export function ShareModal({
       await transferWorkspaceOwnership({ workspaceId: workspace.id, newOwnerId: member.user_id });
       feedback.toast({ type: 'success', message: `Transferred "${workspace.name}" to ${label}.` });
       onMembersChanged?.();
+      onWorkspacesChanged?.();
       onClose?.();   // close modal — the user is no longer the owner; modal switches to read-only
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not transfer: ' + (e.message || e) });
