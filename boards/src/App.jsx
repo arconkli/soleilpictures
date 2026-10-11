@@ -631,6 +631,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace, so nothing here can carry it across). `linkRef` is what to
   // resume — the doc or card, not just its cluster. Resolves 'opened',
   // 'switched', or false (gone, or not yours to open — said so in a toast).
+  // A cluster RLS let us read but the boards map doesn't hold yet, waiting
+  // for the shared list to be refetched (see openBoardAnywhere).
+  const [pendingSharedOpen, setPendingSharedOpen] = useState(null);
   const openBoardAnywhere = useCallback(async (id, { linkRef = null } = {}) => {
     if (!id) return false;
     if (openBoardAt(id)) return 'opened';
@@ -650,9 +653,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       onSwitchWorkspace?.(wsId);
       return 'switched';
     }
+    if (wsId) {
+      // The row came back, so you CAN read it — most often a cluster shared
+      // with you after the shared list last loaded (a new share isn't a
+      // boards-table event, so nothing refetched it). Refetch, and let the
+      // effect below open it once it's in the map, or say it's gone if not.
+      await refreshSharedBoards?.();
+      setPendingSharedOpen(id);
+      return 'opened';
+    }
     feedback.toast({ type: 'error', message: "That cluster isn't available to you any more." });
     return false;
-  }, [openBoardAt, workspace.id, workspaces, onSwitchWorkspace, feedback]);
+  }, [openBoardAt, workspace.id, workspaces, onSwitchWorkspace, feedback, refreshSharedBoards]);
+  // refresh() set the shared list before the pending id was set, so the first
+  // render that sees the id already has the refetched map: decide at once.
+  useEffect(() => {
+    if (!pendingSharedOpen) return;
+    setPendingSharedOpen(null);
+    if (!openBoardAt(pendingSharedOpen)) {
+      feedback.toast({ type: 'error', message: "That cluster isn't available to you any more." });
+    }
+  }, [pendingSharedOpen, openBoardAt, feedback]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   // List-view file drops: a Set of the just-added card ids (drives the "just
   // added" row flash in the list), and a one-shot focus request so that when
