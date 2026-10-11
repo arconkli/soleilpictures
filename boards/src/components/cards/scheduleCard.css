@@ -348,7 +348,10 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   border-radius: 1.5px;
   background: var(--ink-3, #5a5a60);
 }
-.schedc-chip.is-board .schedc-chip-dot { background: var(--soleil, #ffa500); }
+/* A cluster chip reads apart from text / link chips by a brighter ink, not
+   gold: gold is reserved for active / selection / focus, and a calendar of
+   gold-dotted chips read as all selected. */
+.schedc-chip.is-board .schedc-chip-dot { background: var(--ink-1, #d0d0d4); }
 .schedc-chip-ico { flex: 0 0 auto; display: inline-flex; color: var(--ink-3, #5a5a60); }
 .schedc-chip-fav { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 2px; }
 .schedc-chip.is-more { justify-content: center; color: var(--ink-3, #5a5a60); font-weight: 600; }
