@@ -211,15 +211,19 @@ export async function listPinnedForConversation({ conversationId }) {
 
 // ── Reactions ───────────────────────────────────────────────────────
 
-export async function toggleReaction({ messageId, emoji, userId }) {
-  const { data: msg } = await supabase.from('messages').select('reactions').eq('id', messageId).maybeSingle();
-  const reactions = { ...(msg?.reactions || {}) };
-  const existing = new Set(reactions[emoji] || []);
-  if (existing.has(userId)) existing.delete(userId);
-  else existing.add(userId);
-  if (existing.size === 0) delete reactions[emoji];
-  else reactions[emoji] = [...existing];
-  await supabase.from('messages').update({ reactions }).eq('id', messageId);
+// Toggles the caller's own reaction through toggle_message_reaction (0398).
+// It was a client read-modify-write UPDATE, which the author-only UPDATE
+// policy turned into a silent zero-row no-op on anyone else's message — so
+// reactions to other people never saved (COMMS-02). The RPC checks the caller
+// may post in the conversation, locks the row, and returns the new map.
+// Throws on failure so the caller can say so.
+export async function toggleReaction({ messageId, emoji }) {
+  const { data, error } = await supabase.rpc('toggle_message_reaction', {
+    p_message_id: messageId,
+    p_emoji: emoji,
+  });
+  if (error) { console.warn('toggleReaction', error); throw error; }
+  return data || {};
 }
 
 // ── Unread counts ───────────────────────────────────────────────────
