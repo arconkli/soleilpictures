@@ -155,6 +155,30 @@ test('zoom widget buttons and ⌘0 keep the view centre in place', async ({ page
   expect((await readCamera(page)).zoom).toBeCloseTo(1, 2);
 });
 
+// CANVAS-A-10: pasted text and links were clamped to x,y >= 8, so a paste made
+// while looking at negative board space landed at the origin, out of view.
+test('pasted text lands in view over negative board space', async ({ page }) => {
+  await goBlank(page);
+  await page.mouse.move(640, 420);
+  // Wheel up/left pans toward negative board coordinates.
+  for (let i = 0; i < 5; i++) await page.mouse.wheel(-600, -600);
+  await page.waitForTimeout(400);
+  const cam = await readCamera(page);
+  expect(cam.x).toBeGreaterThan(1000);   // the origin is far off to the right
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'negative-space-paste');
+    window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  const note = page.locator('.card', { hasText: 'negative-space-paste' });
+  await expect(note).toBeVisible();
+  const box = await note.boundingBox();
+  const wrap = await page.locator('.canvas-wrap').boundingBox();
+  expect(box.x).toBeGreaterThanOrEqual(wrap.x);
+  expect(box.x + box.width).toBeLessThanOrEqual(wrap.x + wrap.width);
+  expect(Math.abs(box.x + box.width / 2 - 640)).toBeLessThan(40);
+});
+
 // CARDS-01: the PDF viewer renders inside .canvas-wrap, whose native wheel
 // listener preventDefaulted every wheel over its pages and panned the board.
 test('a wheel over the PDF viewer scrolls its pages, not the board', async ({ page }) => {
