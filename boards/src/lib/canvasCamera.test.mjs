@@ -39,6 +39,24 @@ test('copied cards paste at a live, in-view position', () => {
   assert.equal((paste.match(/pasteCopiedCards\(\);/g) || []).length, 2, 'sentinel and fallback branches');
 });
 
+// CANVAS-A-07: a Finder drop, a pasted screenshot or the phone's + on an empty
+// cluster let the first-card auto-fit zoom-frame what was just placed.
+test('drops, picks and pastes settle the view before they place anything', () => {
+  const ingest = between('const ingestFiles = useCallback(async (fileList, cx, cy, source = \'drop\') => {', 'const blockedForUpgrade = [];');
+  assert.match(ingest, /markViewSettled\(\);/);
+  assert.match(between('const notePasteCreate = (clamped) => {', '};'), /markViewSettled\(\);/);
+  assert.match(between('const pasteCopiedCards = () => {', 'doPaste(pos);'), /markViewSettled\(\);/);
+  // The picker behind the phone's + and the tour's "Add photos" lands in ingestFiles.
+  assert.match(between('const pickPhotosAt = useCallback(', 'useEffect'), /await ingestFiles\(input\.files,/);
+});
+
+// CANVAS-A-08: the automatic open-fit magnified a sparse cluster up to 500%.
+test('the opening fit never magnifies past 1:1', () => {
+  assert.match(canvas, /const OPEN_FIT_MAX_ZOOM = 1;/);
+  const fit = between('// 2) No saved view: fit everything into the viewport.', '// Phone rescue');
+  assert.match(fit, /let z = Math\.max\(ZOOM_MIN, Math\.min\(OPEN_FIT_MAX_ZOOM, Math\.min\(/);
+});
+
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {
