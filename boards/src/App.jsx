@@ -1096,6 +1096,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     toggle: () => setTweak('showMessages', !tweak.showMessages),
   }), [messagesUnread, tweak.showMessages, setTweak]);
 
+  // Messages and Schedule are one slot: both panels sit in the same box on the
+  // right at the same z-index, so with both open the later portal (Messages)
+  // covered the other completely and a click on Schedule looked like it did
+  // nothing. Opening either one closes the other, whichever path opened it.
+  useEffect(() => {
+    if (tweak.showMessages) setNotifOpen(false);
+  }, [tweak.showMessages]);
+  useEffect(() => {
+    if (notifOpen && tweak.showMessages) setTweak('showMessages', false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifOpen]);
 
   // "hasThumb" = has a CURRENT-version stored thumbnail. A stale version
   // (pre-rework render) counts as missing so the on-open backfill in
