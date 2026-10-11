@@ -16568,6 +16568,19 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   border-color: transparent;
   box-shadow: 0 0 0 2px var(--soleil-soft);
 }
+/* iOS Safari zooms the whole app on focus of any field under 16px and does
+   not zoom back out, leaving the fixed shell magnified and half off-screen.
+   Same coarse-pointer guard as .auth-input, for the other fields a phone
+   user types into. Placed after every base rule it overrides (the media
+   query adds no specificity, so source order decides). .cmdk-input is here
+   too for the iPad in landscape, which is outside the phone block's 16px. */
+@media (pointer: coarse) {
+  .msg-composer-input,
+  .share-input,
+  .canvas-comment-draft-input,
+  .canvas-comment-reply-input,
+  .cmdk-input { font-size: 16px; }
+}
 .msg-composer-actions { display: flex; align-items: center; gap: 6px; }
 .msg-composer-btn {
   background: transparent; border: 0; color: var(--ink-2);
