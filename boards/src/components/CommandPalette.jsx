@@ -248,10 +248,14 @@ export function CommandPalette({
   const localBoardIds = useMemo(() => new Set(localBoards.map(b => b.id)), [localBoards]);
 
   // Bucket the async rows; dedupe board rows already shown from the local map.
+  // Server hits obey the same rootId / excludeIds filter as the local list, or
+  // a pick could offer the very cluster the link is being made in.
   const asyncGroups = useMemo(() => {
     const asyncBoards = [], cards = [], tags = [], docs = [];
     for (const r of asyncRows) {
-      if (r.kind === 'board') { if (!localBoardIds.has(r.board_id)) asyncBoards.push(r); }
+      if (r.kind === 'board') {
+        if (!localBoardIds.has(r.board_id) && r.board_id !== rootId && !excludeIds.includes(r.board_id)) asyncBoards.push(r);
+      }
       else if (r.kind === 'tag') tags.push(r);
       else if (r.kind === 'doc') docs.push(r);
       else if (r.kind === 'user') { /* people are out of scope for the palette */ }
@@ -263,7 +267,7 @@ export function CommandPalette({
       tags: tags.slice(0, CAP.tags),
       docs: docs.slice(0, CAP.docs),
     };
-  }, [asyncRows, localBoardIds]);
+  }, [asyncRows, localBoardIds, rootId, excludeIds]);
 
   // Build sections in render order; each item carries its own activate().
   const sections = useMemo(() => {
