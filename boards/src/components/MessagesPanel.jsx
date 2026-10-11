@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { Plus, X } from '../lib/icons.js';
 import { useConversationList } from '../hooks/useConversationList.js';
@@ -47,22 +47,52 @@ export function MessagesPanel({
     }
   }, [initialOpenConversationId, jumpToMessageId, setOpenConversationId]);
 
+  // The parent passes these as fresh inline arrows on every render. Read
+  // them through refs so a re-render can't restart the effect below.
+  const onRefreshRequestedRef = useRef(onRefreshRequested);
+  onRefreshRequestedRef.current = onRefreshRequested;
+  const onPeerConsumedRef = useRef(onPeerConsumed);
+  onPeerConsumedRef.current = onPeerConsumed;
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // Avatar-click DM open: find/create a DM with the requested peer
   // and open the thread.
+  //
+  // Keyed on the peer and workspace ONLY (COMMS-01). It used to depend on
+  // those inline callbacks, so any parent re-render while find_or_create_dm
+  // was in flight (opening the panel itself triggers one) cancelled the run
+  // and started a second RPC; the first run's `finally` then cleared the
+  // pending peer, cancelling the second — and the panel landed on the list,
+  // not the DM. Two racing RPCs could also mint two DMs on a first contact.
+  // Now only the run that wasn't superseded consumes the peer; a run cut
+  // short by the panel closing still consumes it, so a later open doesn't
+  // jump into a DM nobody asked for any more.
   useEffect(() => {
     if (!pendingOpenPeerId || !workspaceId) return;
     let cancelled = false;
     (async () => {
+      let convId = null;
       try {
-        const convId = await findOrCreateDm({ workspaceId, peerId: pendingOpenPeerId });
-        if (cancelled || !convId) return;
-        setOpenConversationId(convId);
-        onRefreshRequested?.();
+        convId = await findOrCreateDm({ workspaceId, peerId: pendingOpenPeerId });
       } catch (e) { console.warn('[MessagesPanel] open peer failed', e); }
-      finally { onPeerConsumed?.(); }
+      if (cancelled) {
+        // Superseded by a newer peer: that run owns it. Panel closed: drop it.
+        if (!mountedRef.current) onPeerConsumedRef.current?.();
+        return;
+      }
+      if (convId) {
+        setOpenConversationId(convId);
+        onRefreshRequestedRef.current?.();
+      }
+      onPeerConsumedRef.current?.();
     })();
     return () => { cancelled = true; };
-  }, [pendingOpenPeerId, workspaceId, onPeerConsumed, onRefreshRequested]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingOpenPeerId, workspaceId]);
 
   // Resolve names for every participant we encounter so the list and
   // thread bar render real labels instead of "Member".
