@@ -8740,8 +8740,30 @@ export function CanvasSurface({
     if (!workspaceId || !board?.id || !cardId || !tag) return;
     const applied = (tagsByCard.get(cardId) || []).some(t => t.id === tag.id);
     try {
-      if (applied) await untagCard({ boardId: board.id, cardId, tagId: tag.id });
-      else         await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
+      if (!applied) {
+        await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
+        refreshTags?.();
+        return;
+      }
+      // Removing from the picker is the same act as the chip menu's "Remove
+      // tag": refresh explicitly (a realtime DELETE can't say which tag it
+      // was, so the chip and the ✓ used to stay), suppress re-auto-tagging,
+      // and offer an undo that lifts both.
+      await untagCard({ boardId: board.id, cardId, tagId: tag.id });
+      await dismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id, userId });
+      refreshTags?.();
+      undoToast(feedback, {
+        message: `Removed “${tag.name || 'tag'}”`,
+        onUndo: async () => {
+          try {
+            await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
+            await undismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id });
+            refreshTags?.();
+          } catch (err) {
+            feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+          }
+        },
+      });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) });
     }
@@ -8751,6 +8773,7 @@ export function CanvasSurface({
     try {
       const t = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
       await tagCard({ workspaceId, boardId: board.id, cardId, tagId: t.id });
+      refreshTags?.();
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) });
     }
