@@ -769,10 +769,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
-                     mediaJson = null, onExpand = null,
-                     cardId = null, selected = false, tapToPlay = false }) {
-  // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
-  const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
+                     pending = false, uploadProgress = null }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. The context menu's Edit title opens it.
@@ -948,7 +945,16 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
                 </div>
               )
               : <ImagePlaceholder label="VIDEO" tone="neutral" />)}
-        {durText && !autoplay && <span className="vc-dur" aria-hidden="true">{durText}</span>}
+        {/* A dropped clip is placed at once and uploads in the background —
+            same overlay as a photo's, so it never looks finished early. */}
+        {pending && !src && (
+          <div className="ic-upload-overlay" aria-label="Uploading video">
+            <Spinner size={22} tone="on-dark" label="Uploading video" />
+            {uploadProgress != null && (
+              <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
+            )}
+          </div>
+        )}
       </div>
       {showTitle && onUpdate && (
         <EditableText
