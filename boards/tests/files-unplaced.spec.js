@@ -33,7 +33,7 @@ async function removeFromBoard(page, id) {
 test('Remove from board takes a card off the canvas and keeps it in Files, marked; undo puts it back', async ({ page }) => {
   await go(page);
   await removeFromBoard(page, 'home-image');
-  await expect(page.getByText('Removed from board — it’s still in Files')).toBeVisible();
+  await expect(page.locator('.toast-msg').getByText('Removed from board — it’s still in Files')).toBeVisible();
   await page.keyboard.press('f');
   const tile = panel(page).locator('[data-item-id="home-image"]');
   await expect(tile).toBeVisible();
@@ -50,7 +50,8 @@ test('Put on board from Files places it again; ⌫ on the board still deletes', 
   await panel(page).locator('[data-item-id="home-image"]').click({ button: 'right' });
   await page.locator('.ctx-menu .ctx-item', { hasText: 'Put on board' }).click();
   await expect(onCanvas(page, 'home-image')).toHaveCount(1);
-  await expect(page.getByText('Put on the board')).toBeVisible();
+  // Scoped to the toast: the screen-reader announcer repeats toast text.
+  await expect(page.locator('.toast-msg').getByText('Put on the board')).toBeVisible();
   // Delete is unchanged: it deletes.
   await onCanvas(page, 'home-image').click();
   await page.keyboard.press('Backspace');
@@ -95,7 +96,7 @@ test('files added in the panel join the cluster but stay off the board', async (
   await expect(panel(page)).toBeVisible();
   const before = await canvasCount(page);
   await addFilesInput(page).setInputFiles(pngs('moodboard-ref-a.png', 'moodboard-ref-b.png'));
-  await expect(page.getByText('Added 2 files to Files — not on the board')).toBeVisible();
+  await expect(page.locator('.toast-msg').getByText('Added 2 files to Files — not on the board')).toBeVisible();
   // No "Open beside board" offer: the board is already beside it.
   await expect(page.getByRole('button', { name: 'Open beside board' })).toHaveCount(0);
   const added = panel(page).locator('[data-item-id]').filter({ has: page.locator('.ct-tile-flag.is-off') });
@@ -113,7 +114,7 @@ test('full Files: added files stay off the board, and the toast offers the board
   const before = await canvasCount(page);
   await openFullFiles(page);
   await addFilesInput(page).setInputFiles(pngs('still-01.png'));
-  await expect(page.getByText('Added 1 file to Files — not on the board')).toBeVisible();
+  await expect(page.locator('.toast-msg').getByText('Added 1 file to Files — not on the board')).toBeVisible();
   await page.getByRole('button', { name: 'Open beside board' }).click();
   await expect(panel(page)).toBeVisible();
   await expect(panel(page).locator('.ct-tile-flag.is-off')).toHaveCount(1);
