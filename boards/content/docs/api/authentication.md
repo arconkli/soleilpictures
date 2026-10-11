@@ -84,6 +84,12 @@ Three: {{fact:apiScopes}}.
 | `write` | Creating and changing — `POST`, `PATCH` |
 | `delete` | Removing — `DELETE` |
 
+`POST /api/v1/mcp` is the one exception to "the method decides": it is the
+[MCP](/docs/mcp) transport, and every message on it is a `POST`, so any token
+may open it. Each tool is then held to the scope its own call would need — a
+`read`-only token can connect and run the read tools, and is refused
+`add_cards` or `delete_board` with the same `insufficient_scope` sentence.
+
 **Deleting is deliberately separate from writing.** "Can add cards to my
 moodboard" and "can destroy my moodboard" are different levels of trust to hand
 out, and the distinction matters most when the caller is a language model

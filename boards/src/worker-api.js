@@ -718,6 +718,21 @@ function paginate(rows, limit, offset) {
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
+// The scope a request needs, from its method — except the MCP transport.
+//
+// POST /mcp is an envelope, not a write: every MCP message, the handshake and
+// tools/list included, arrives as a POST. Gating it on `write` meant a token
+// with only `read` — what docs/mcp.md recommends for a research agent — got 403
+// on `initialize` and could not connect at all, while the stdio package worked
+// with the same token because it speaks REST with GET. Any token may open the
+// transport; each tool's real call comes back through dispatch() via
+// internalCall with its own method and meets the ordinary gate there, so a
+// read-only token still cannot run add_cards or delete_board.
+export function scopeFor(method, pathname) {
+  if (/^\/api\/v1\/mcp\/?$/.test(pathname)) return 'read';
+  return method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : 'write';
+}
+
 export async function handleApiRoute(url, request, env, ctx) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
@@ -760,9 +775,7 @@ export async function handleApiRoute(url, request, env, ctx) {
   // budget by being rejected has to hit the wall to find it.
   const rl = rateHeaders(auth.rate);
 
-  const need = request.method === 'GET' ? 'read'
-    : request.method === 'DELETE' ? 'delete'
-      : 'write';
+  const need = scopeFor(request.method, url.pathname);
   if (!hasScope(auth, need)) {
     return json({
       error: need === 'delete'
@@ -982,7 +995,7 @@ async function dispatch(url, request, env, ctx) {
   // so a token without the delete scope could run delete_board and
   // delete_cards (2026-10-06 audit). Checked again here, every path into the
   // dispatcher — REST and MCP alike — meets the same scope for the same method.
-  const need = method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : 'write';
+  const need = scopeFor(method, url.pathname);
   if (!hasScope(auth, need)) {
     throw fail(403, 'insufficient_scope', need === 'delete'
       ? 'this token cannot delete — mint one with the delete scope if that was the intent'
