@@ -91,8 +91,11 @@ export function MessageThread({
   const requestOlder = () => {
     const el = scrollRef.current;
     if (!hasOlder || loadingOlder || !el) return;
-    anchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
-    loadOlder();
+    const anchor = { height: el.scrollHeight, top: el.scrollTop };
+    anchorRef.current = anchor;
+    // A bail (mid-switch) brings no page: a stale anchor would shift the
+    // next arrival by its height.
+    loadOlder().then(started => { if (!started && anchorRef.current === anchor) anchorRef.current = null; });
   };
   const lastScrollTopRef = useRef(0);
   const onScroll = () => {
@@ -225,6 +228,33 @@ export function MessageThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jumpToMessageId, messages.length]);
 
+  // A target older than the loaded pages is paged back to, a few pages at
+  // most, so a permalink, pinned or search jump into old history still lands.
+  // seekId is an in-thread jump (pinned / search) still waiting on its page;
+  // a permalink is flashed by the effect above once its page arrives.
+  const PERMALINK_MAX_PAGES = 5;
+  const [seekId, setSeekId] = useState(null);
+  const permalinkPagesRef = useRef(0);
+  const seekTarget = seekId || jumpToMessageId;
+  useEffect(() => { permalinkPagesRef.current = 0; }, [seekTarget, conversationId]);
+  useEffect(() => { setSeekId(null); }, [conversationId]);
+  useEffect(() => {
+    if (!seekTarget) return;
+    if (messages[0]?.conversation_id !== conversationId) return; // switch still loading
+    if (messages.some(m => m.id === seekTarget)) {
+      if (seekId) { setSeekId(null); flashMessage(seekId); }
+      return;
+    }
+    if (loadingOlder) return;
+    if (!hasOlder || permalinkPagesRef.current >= PERMALINK_MAX_PAGES) {
+      if (seekId) setSeekId(null);
+      return;
+    }
+    permalinkPagesRef.current += 1;
+    loadOlder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seekTarget, messages.length, hasOlder, loadingOlder, conversationId]);
+
   // ⌘F + j/k/r/e/Esc keyboard shortcuts.
   const [focusedId, setFocusedId] = useState(null);
   useEffect(() => {
@@ -290,6 +320,12 @@ export function MessageThread({
     for (const x of messages || []) m.set(x.id, x);
     return m;
   }, [messages]);
+  // Jump within the thread: flash it if it's loaded, else page back to it.
+  const jumpTo = (msgId) => {
+    if (messagesById.has(msgId)) { flashMessage(msgId); return; }
+    closeSearch();
+    setSeekId(msgId);
+  };
 
   // ── Day-divider + consecutive-sender grouping ───────────────────────
   // A message is a "continuation" of the one above it when it's from the
@@ -630,7 +666,7 @@ export function MessageThread({
                 <button
                   key={p.id}
                   className="msg-pinned-item"
-                  onClick={() => flashMessage(p.id)}
+                  onClick={() => jumpTo(p.id)}
                   title={`Jump to message · ${new Date(p.created_at).toLocaleString()}`}
                 >
                   <span className="msg-pinned-item-body">{(p.body || '').slice(0, 80)}</span>
@@ -664,7 +700,7 @@ export function MessageThread({
               <button
                 key={m.id}
                 className="msg-search-result"
-                onClick={() => flashMessage(m.id)}
+                onClick={() => jumpTo(m.id)}
               >
                 <MessageBubble msg={m} selfId={userId} highlight={searchQuery}
                   onDelete={handleDelete}

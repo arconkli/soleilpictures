@@ -79,6 +79,27 @@ export async function fetchConversationMessages({ conversationId, limit = 200, b
   return (data || []).reverse();
 }
 
+// Re-read a range the reader already paged back to (ascending), so changes to
+// old messages reach the screen. Null on error, or when the range is too long
+// to read in one go: a truncated re-read would drop real messages, so the
+// caller keeps what it has instead.
+export const RANGE_READ_MAX = 1000;
+export async function fetchConversationRange({ conversationId, from, to }) {
+  if (!conversationId || !from || !to) return null;
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .is('deleted_at', null)
+    .gte('created_at', from)
+    .lte('created_at', to)
+    .order('created_at', { ascending: true })
+    .limit(RANGE_READ_MAX);
+  if (error) { console.warn('fetchConversationRange', error); return null; }
+  if ((data || []).length >= RANGE_READ_MAX) return null;
+  return data || [];
+}
+
 export async function fetchMessageById(id) {
   if (!id) return null;
   const { data, error } = await supabase.from('messages')

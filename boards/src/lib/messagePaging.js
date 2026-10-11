@@ -16,12 +16,27 @@ const at = (m) => Date.parse(m?.created_at || '') || 0;
 // leak the previous thread's rows) and is no newer than the page's oldest row.
 // A page shorter than the page size IS the whole conversation, so it replaces
 // the list outright (that is also how a deleted old message drops out).
-export function mergeNewestPage(prev, fresh, { conversationId, pageSize = MESSAGE_PAGE } = {}) {
+//
+// `history` is a fresh re-read of the paged-back range. Given, it stands in
+// for the held rows, so a delete, an undo, an edit or a reaction to an old
+// message shows up; kept as they were, those rows never changed again. Null
+// (nothing paged back, or the re-read failed) keeps what is on screen.
+// `historyFrom` is where the re-read started: rows older than that (a page
+// that landed while the re-read was in flight) are kept, not dropped.
+export function mergeNewestPage(prev, fresh, {
+  conversationId, pageSize = MESSAGE_PAGE, history = null, historyFrom = null,
+} = {}) {
   const page = Array.isArray(fresh) ? fresh : [];
   if (page.length < pageSize || page.length === 0) return page;
   const boundary = at(page[0]);
   const freshIds = new Set(page.map(m => m.id));
-  const older = (prev || []).filter(m =>
+  let held = prev || [];
+  if (Array.isArray(history)) {
+    const from = Date.parse(historyFrom || '') || 0;
+    const reread = new Set(history.map(m => m.id));
+    held = held.filter(m => at(m) < from && !reread.has(m.id)).concat(history);
+  }
+  const older = held.filter(m =>
     m.conversation_id === conversationId && !freshIds.has(m.id) && at(m) <= boundary);
   return older.length ? older.concat(page) : page;
 }
