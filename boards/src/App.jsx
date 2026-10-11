@@ -2769,8 +2769,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // attempts anyway — the server upload gate re-checks and the caller
       // rolls back the optimistic card.
       const csFiles = capSource();
+      // The tier through myTierRef, like capSource: the closed-over myTier is
+      // whatever it was when this board's mutators were built — often null
+      // (get_my_tier still in flight behind the instant cache paint), or the
+      // plan before an upgrade — and a Creator's large file was refused with
+      // the free plan's size wall.
+      const tierNow = (myTierRef.current || myTier).tier;
       const canAttemptFiles = csFiles.own
-        ? (myTier.tier === 'paid' || myTier.tier === 'admin')
+        ? (tierNow === 'paid' || tierNow === 'admin')
         : !csFiles.capped;
 
       // 1) Classify — split blocked (paid-only) from accepted, and set aside
