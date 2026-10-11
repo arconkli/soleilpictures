@@ -233,7 +233,11 @@ A **soft delete**, requiring the `delete` scope. The board goes to the
 { "deleted": true, "board": { … }, "restorable": true }
 ```
 
-Descendants are deliberately not touched — deleting a parent does not cascade.
+Deleting a board takes the boards inside it to the trash with it, as one batch,
+so nothing is left orphaned under a trashed parent. `POST /boards/:id/restore`
+brings the whole batch back, nested as it was. Restoring a board whose parent is
+still in the trash puts it under its nearest ancestor that isn't, or at the top
+level.
 
 ## `POST /boards/move` — restructure in one call
 

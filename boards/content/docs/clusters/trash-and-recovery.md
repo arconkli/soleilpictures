@@ -5,7 +5,7 @@ h1: Trash and recovery
 navLabel: Trash and recovery
 section: clusters
 order: 3
-updated: 2026-09-17
+updated: 2026-10-11
 answer: Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 faq:
   - q: How long do I have to restore a deleted cluster?
@@ -48,6 +48,12 @@ stays restorable for **30 days**, then is purged.
 The trash is workspace-wide — open it from the sidebar or `⌘K` → "trash". From
 there, **restore** puts a cluster back where it was, or **remove permanently**
 if you are sure.
+
+A cluster goes to the trash with everything inside it, the clusters nested in
+it included, and it comes back the same way: restoring it brings them all back
+in place. The trash lists it once, with a count of what is inside. If you
+restore a cluster whose parent is still in the trash, it comes back under the
+nearest cluster that isn't, or at the top of your workspace.
 
 **A cluster in the trash does not count against your card limit.** Deleting one
 frees its cards the moment you delete it, so if you cleared a cluster to make

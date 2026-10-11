@@ -10,12 +10,17 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './Modal.jsx';
 import { listDeletedBoards, restoreBoard, hardDeleteBoard } from '../lib/boardsApi.js';
+import { groupTrashBatches } from '../lib/trashBatches.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
   return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function insideLabel(n) {
+  return n === 1 ? '1 cluster inside' : `${n} clusters inside`;
 }
 
 function relTime(iso) {
@@ -38,6 +43,7 @@ function relTime(iso) {
 export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored = null }) {
   const [trash, setTrash] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const feedback = useFeedback();
 
@@ -45,25 +51,45 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
     if (!open || !workspaceId) return;
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     listDeletedBoards(workspaceId)
       .then((rows) => { if (!cancelled) setTrash(rows); })
-      .catch((e) => console.warn('trash fetch failed', e))
+      .catch((e) => {
+        // A failed load is not an empty trash: saying "Nothing in the trash"
+        // here would tell someone their deleted cluster is gone for good.
+        console.warn('trash fetch failed', e);
+        if (!cancelled) setLoadError(true);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [open, workspaceId]);
 
   const refreshTrash = async () => {
-    try { setTrash(await listDeletedBoards(workspaceId)); }
-    catch (e) { console.warn(e); }
+    try { setTrash(await listDeletedBoards(workspaceId)); setLoadError(false); }
+    catch (e) { console.warn(e); setLoadError(true); }
   };
 
-  const onRestoreTrashBoard = async (b) => {
+  const retryLoad = async () => {
+    setLoading(true);
+    await refreshTrash();
+    setLoading(false);
+  };
+
+  // One row per deletion: a cluster deleted with others inside it brings them
+  // back with it (0396), so those are counted on its row, not listed again.
+  const batches = groupTrashBatches(trash);
+
+  const onRestoreTrashBoard = async (b, inside = 0) => {
     setBusyId(b.id);
     try {
       await restoreBoard(b.id);
       refreshTrash();
       onBoardRestored?.();
-      feedback.toast({ type: 'success', message: `Restored "${b.name || 'Untitled cluster'}"` });
+      const name = `"${b.name || 'Untitled cluster'}"`;
+      feedback.toast({
+        type: 'success',
+        message: inside > 0 ? `Restored ${name} and the ${insideLabel(inside)}` : `Restored ${name}`,
+      });
     } catch (e) {
       // A cap refusal (0333: restoring would carry the account past its
       // ceiling) already arrives as a full sentence naming the numbers and the
@@ -78,10 +104,12 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
     }
   };
 
-  const onHardDeleteBoard = async (b) => {
+  const onHardDeleteBoard = async (b, inside = 0) => {
     const ok = await feedback.confirm({
       title: 'Permanently delete cluster?', confirmLabel: 'Delete forever', danger: true,
-      message: `"${b.name || 'Untitled cluster'}" and ALL its content will be permanently removed. This cannot be undone.`,
+      message: inside > 0
+        ? `"${b.name || 'Untitled cluster'}", the ${insideLabel(inside)} and ALL their content will be permanently removed. This cannot be undone.`
+        : `"${b.name || 'Untitled cluster'}" and ALL its content will be permanently removed. This cannot be undone.`,
     });
     if (!ok) return;
     setBusyId(b.id);
@@ -110,14 +138,20 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
       </div>
       <div className="modal-body">
         {loading && <div className="modal-empty">Loading…</div>}
-        {!loading && trash.length === 0 && (
+        {!loading && loadError && (
           <div className="modal-empty">
-            Nothing in the trash. Deleted boards land here automatically.
+            Couldn’t load the trash.{' '}
+            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}>Retry</button>
           </div>
         )}
-        {!loading && trash.length > 0 && (
+        {!loading && !loadError && batches.length === 0 && (
+          <div className="modal-empty">
+            Nothing in the trash. Deleted clusters land here automatically.
+          </div>
+        )}
+        {!loading && !loadError && batches.length > 0 && (
           <div className="hist-list">
-            {trash.map((b) => (
+            {batches.map(({ board: b, inside }) => (
               <div key={b.id} className="hist-row">
                 <div className="hist-meta">
                   <div className="hist-when" title={fmtDate(b.deleted_at)}>
@@ -125,15 +159,16 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
                   </div>
                   <div className="hist-sub">
                     <span>deleted {relTime(b.deleted_at)}</span>
+                    {inside > 0 && <span>{insideLabel(inside)}</span>}
                     <span className="hist-label">{b.view || 'canvas'}</span>
                   </div>
                 </div>
-                <button className="tb-btn" disabled={busyId === b.id} onClick={() => onRestoreTrashBoard(b)}>
+                <button className="tb-btn" disabled={busyId === b.id} onClick={() => onRestoreTrashBoard(b, inside)}>
                   {busyId === b.id ? 'Restoring…' : 'Restore'}
                 </button>
                 <button className="tb-btn tb-btn-sm tb-btn-danger"
                         disabled={busyId === b.id}
-                        onClick={() => onHardDeleteBoard(b)}>Delete now</button>
+                        onClick={() => onHardDeleteBoard(b, inside)}>Delete now</button>
               </div>
             ))}
           </div>

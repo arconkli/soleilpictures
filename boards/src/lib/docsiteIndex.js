@@ -1600,7 +1600,7 @@ export const DOCS_PAGES = [
     "answer": "Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.",
     "section": "clusters",
     "order": 3,
-    "updated": "2026-09-17",
+    "updated": "2026-10-11",
     "navLabel": "Trash and recovery",
     "headings": [
       {
