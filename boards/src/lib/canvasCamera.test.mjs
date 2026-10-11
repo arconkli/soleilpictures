@@ -66,6 +66,18 @@ test('drags run in world space and resizes read the live zoom', () => {
   assert.doesNotMatch(canvas, /\(mv\.clientX - startClient\.x\) \/ zoom;/);
 });
 
+// CANVAS-A-12: a cross-cluster paste read groups and comments from the board it
+// pasted INTO, so the copies came out ungrouped and without their comments.
+test('a paste takes groups and comments from the board it was copied from', () => {
+  assert.match(between('const doCopy = useCallback(', 'const doCut = useCallback('), /setClipboard\(items, board\.id\);\s*noteCopiedGroups\(items, ydoc\);/);
+  assert.match(between('const doCut = useCallback(', 'const doPaste = useCallback('), /noteCopiedGroups\(items, ydoc\);[^\n]*\n\s*mutators\.breakUndo/);
+  const paste = between('const doPaste = useCallback(', 'const doDuplicate = useCallback(');
+  assert.match(paste, /const fromCopy = copiedGroups\.at === clipboardCopiedAt\(\) \? copiedGroups\.byId : \{\};/);
+  assert.match(paste, /const g = fromCopy\[gid\] \|\| sgm\.get\(gid\);/);
+  assert.match(paste, /\.eq\('board_id', clipboardOrigin\(\) \|\| board\.id\)/);
+  assert.match(paste, /const sameWs = srcComments\.filter\(c => c\.workspace_id === workspaceId\);/);
+});
+
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {

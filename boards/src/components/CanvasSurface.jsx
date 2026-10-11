@@ -122,7 +122,7 @@ import { probeFile } from '../lib/mediaProbe.js';
 import { openPlayer, takeCardPlayer } from '../lib/playerBus.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
-import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
+import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
@@ -264,6 +264,30 @@ function sameStringMap(a, b) {
   if (ka.length !== kb.length) return false;
   for (const k of ka) if (a[k] !== b[k]) return false;
   return true;
+}
+
+// The groups the copied cards belonged to, read from the SOURCE board's doc at
+// copy time. A paste reads groups from the doc it pastes into, which for a
+// cross-cluster paste doesn't hold them, so the copies came out ungrouped.
+// Module scope, like the clipboard itself (the other pane, or this surface on
+// another cluster, pastes it); `at` ties it to one copy (clipboardCopiedAt).
+let copiedGroups = { at: 0, byId: {} };
+function noteCopiedGroups(items, ydoc) {
+  const byId = {};
+  try {
+    const gm = ydoc?.getMap?.('groups');
+    for (const c of items) {
+      if (!c.groupId || byId[c.groupId]) continue;
+      const g = gm?.get?.(c.groupId);
+      if (!g) continue;
+      const read = (k) => g?.get?.(k) ?? g?.[k];
+      byId[c.groupId] = {
+        name: read('name'), outline: read('outline'), color: read('color'),
+        width: read('width'), options: read('options'),
+      };
+    }
+  } catch (_) {}
+  copiedGroups = { at: clipboardCopiedAt(), byId };
 }
 
 // A schedule card's inline scrollers (scheduleCard.css: overflow-y:auto).
@@ -4768,7 +4792,8 @@ export function CanvasSurface({
     const items = [...selected].map(id => cardById[id]).filter(Boolean);
     if (items.length === 0) return;
     setClipboard(items, board.id);
-  }, [selected, cardById, board.id]);
+    noteCopiedGroups(items, ydoc);
+  }, [selected, cardById, board.id, ydoc]);
 
   const doCut = useCallback(async () => {
     // A card still uploading is not cut: the paste re-ids it, and its upload,
@@ -4777,9 +4802,10 @@ export function CanvasSurface({
     const items = keepUploadsInPlace(all) ? all.filter((c) => !isStillUploading(c)) : all;
     if (items.length === 0) return;
     setClipboard(items, board.id, { cut: true });
+    noteCopiedGroups(items, ydoc);   // before the delete takes the groups' cards
     mutators.breakUndo?.();
     await doDeleteIds(items.map((c) => c.id));
-  }, [selected, cardById, board.id, doDeleteIds, mutators]);
+  }, [selected, cardById, board.id, doDeleteIds, mutators, ydoc]);
 
   const doPaste = useCallback(async (atCanvas) => {
     const items = getClipboard();
@@ -4818,18 +4844,19 @@ export function CanvasSurface({
     if (!newCards.length) return;
 
     // ── Recreate groups so a copy-paste of a grouped selection
-    //    "stays together" as its own group, not the original. Reads
-    //    the source ydoc's groups map for metadata; the source is
-    //    THIS canvas (clipboard items came from board.id).
+    //    "stays together" as its own group, not the original. Group
+    //    metadata comes from the copy (noteCopiedGroups — the source may
+    //    be another cluster), falling back to this doc's groups map.
     try {
       const sourceGroupIds = new Set();
       for (const c of items) if (c.groupId) sourceGroupIds.add(c.groupId);
       if (sourceGroupIds.size && ydoc) {
         const sgm = ydoc.getMap('groups');
         const tgm = ydoc.getMap('groups');
+        const fromCopy = copiedGroups.at === clipboardCopiedAt() ? copiedGroups.byId : {};
         ydoc.transact(() => {
           for (const gid of sourceGroupIds) {
-            const g = sgm.get(gid);
+            const g = fromCopy[gid] || sgm.get(gid);
             if (!g) continue;
             const newGid = `g-${stamp}-${Math.floor(Math.random() * 1e6).toString(36)}`;
             groupMap[gid] = newGid;
@@ -4879,10 +4906,12 @@ export function CanvasSurface({
       const oldGroupIds = Object.keys(groupMap);
       const anchorIds = [...oldCardIds, ...oldGroupIds];
       if (anchorIds.length && workspaceId && currentUser?.id) {
+        // From the board the cards were COPIED from — for a cross-cluster
+        // paste that isn't this one, and querying this one found nothing.
         const { data: srcComments } = await supabase
           .from('comments')
           .select('*')
-          .eq('board_id', board.id)
+          .eq('board_id', clipboardOrigin() || board.id)
           .is('deleted_at', null)
           .in('anchor_kind', ['card', 'group'])
           .in('anchor_id', anchorIds);
@@ -4892,8 +4921,12 @@ export function CanvasSurface({
           const cmtIdMap = {};
           // First pass: insert top-level (non-reply) comments and
           // capture id mapping.
-          const tops = srcComments.filter(c => !c.reply_to);
-          const replies = srcComments.filter(c => c.reply_to);
+          // Other people's comments travel only within the workspace: pasting
+          // into another workspace carries the cards, not their discussion to
+          // a different audience.
+          const sameWs = srcComments.filter(c => c.workspace_id === workspaceId);
+          const tops = sameWs.filter(c => !c.reply_to);
+          const replies = sameWs.filter(c => c.reply_to);
           for (const c of tops) {
             const newAnchorId = idMap[c.anchor_id] || groupMap[c.anchor_id];
             if (!newAnchorId) continue;
