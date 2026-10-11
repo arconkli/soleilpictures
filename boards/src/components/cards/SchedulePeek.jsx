@@ -77,11 +77,15 @@ export function SchedulePeek({ cardId, title, sourceRect, contentH, hourMode = f
     return () => { cancelAnimationFrame(id); window.removeEventListener('resize', place); };
   }, [aKey, panelH]);
 
+  // The portal bubbles through the React tree, so presses and double-clicks on
+  // an empty part of the panel are stopped at its root: they reached the
+  // schedule card's wrapper and dragged the card across the board behind it.
   const node = (
     <div className="schedc-peekpanel" ref={ref} role="dialog" aria-label={title}
          data-grid-id={cardId}
          style={{ ...style, width: SCHED_TUNING.PEEK_W, maxHeight: panelH }}
-         onWheel={stop} onContextMenu={swallowContextMenu}>
+         onWheel={stop} onContextMenu={swallowContextMenu}
+         onPointerDown={stop} onMouseDown={stop} onDoubleClick={stop}>
       <div className="schedc-peekhead" onPointerDown={stop}>
         {onBack && (
           <button type="button" className="schedc-peeknav" title="Back to day" aria-label="Back to day"

@@ -13,7 +13,6 @@
 // edits re-render. Layout / templateId / seqId arrive as plain props.
 
 import { useState } from 'react';
-import { createPortal } from 'react-dom';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { readGridModel, effectiveCellStyle, readGridHints } from '../../lib/gridState.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
@@ -436,18 +435,18 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     })()}
     {lightbox && (() => {
       // Full-screen VIEWER (zoom/pan) for a cell image, with its own Download.
-      // Portal to <body>: ImageLightbox doesn't portal itself, and GridCard lives
-      // inside the transformed .canvas / contain:paint .card — which would trap its
-      // position:fixed to the grid's box. At <body> it's truly full-screen.
+      // ImageLightbox portals itself to <body> (the transformed .canvas /
+      // contain:paint .card would trap its position:fixed to the grid's box) and
+      // stops its presses from bubbling back to this card.
       const c = model.cells[lightbox.cellId];
       if (!c || c.type !== 'image' || !c.src) return null;
-      return createPortal(
+      return (
         <ImageLightbox
           src={c.src} title={c.title || ''} alt={c.title || ''} adjust={c.adjust}
           cardId={`${card.id}:${lightbox.cellId}`}
           onClose={() => setLightbox(null)}
-        />,
-        document.body);
+        />
+      );
     })()}
     {/* Directional "+" live OUTSIDE .gridc (a sibling overlay in the card box) so
         they straddle the edges and never cover interior cell tools. Shown when the

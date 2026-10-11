@@ -9,12 +9,24 @@
 // `src` is the ORIGINAL pdf reference ('r2:<key>' or a plain URL). It is
 // resolved through resolveSrc, which honors the public-share presigned-URL
 // override — so this works on /share boards without hitting the auth endpoint.
+//
+// The full-screen viewer portals to <body> and registers with lib/modalGuard.
+// Rendered in place it sat inside .canvas-wrap, whose native wheel listener
+// panned the board instead of scrolling the pages, whose touch-action:none
+// killed finger scrolling, and whose key handler deleted the selected card
+// when Backspace was pressed with a viewer button focused.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { resolveSrc } from '../lib/r2.js';
 import { downloadCardAsset } from '../lib/cardDownload.js';
 import { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } from '../lib/pdfEngine.js';
 import { Spinner } from './Spinner.jsx';
+import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
+
+// A portal still bubbles through the React tree to the card and canvas
+// handlers that rendered it; presses on the viewer are the viewer's own.
+const stopBubble = (e) => e.stopPropagation();
 
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 4;
@@ -86,6 +98,7 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
   const scrollRef = useRef(null);
   const pageEls = useRef(new Map());
   const fittedRef = useRef(false);
+  const guardRef = useRef(null);
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? Math.min(2, window.devicePixelRatio) : 1;
 
   // Load the document (re-runs on retry via reloadKey).
@@ -175,11 +188,21 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
     return () => el.removeEventListener('wheel', onWheel);
   }, [status]);
 
+  // Embedded, the host (Quick look) is the registered layer.
+  useEffect(() => {
+    if (embedded) return undefined;
+    const unregister = registerModalOpen();
+    guardRef.current = unregister;
+    return () => { guardRef.current = null; unregister(); };
+  }, [embedded]);
+
   // Keyboard. Capture-phase so this top-most modal owns Escape (and nav/zoom
   // keys) before the canvas's own handlers (e.g. selection-clear) can consume
   // them — otherwise Escape would clear a selected card instead of closing.
+  // A dialog opened over the viewer owns the keys while it is on top.
   useEffect(() => {
     const onKey = (e) => {
+      if (guardRef.current && !isTopModal(guardRef.current)) return;
       if (e.key === 'Escape') { if (embedded) return; e.stopPropagation(); onClose?.(); return; }
       if (status !== 'ready') return;
       if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); e.stopPropagation(); scrollToPage(current + 1); }
@@ -210,10 +233,14 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
     finally { setDownloading(false); }
   }, [src, downloading, filename]);
 
-  return (
+  const node = (
     <div className={`pdfv${embedded ? ' pdfv--embedded' : ''}`}
          role={embedded ? undefined : 'dialog'} aria-label={name || 'PDF preview'}
-         onClick={embedded ? undefined : () => onClose?.()}>
+         onClick={embedded ? undefined : (e) => { e.stopPropagation(); onClose?.(); }}
+         onPointerDown={embedded ? undefined : stopBubble}
+         onMouseDown={embedded ? undefined : stopBubble}
+         onDoubleClick={embedded ? undefined : stopBubble}
+         onContextMenu={embedded ? undefined : stopBubble}>
       <div className="pdfv-bar" onClick={(e) => e.stopPropagation()}>
         <span className="pdfv-title" title={name || ''}>{name || 'PDF'}</span>
         <span className="pdfv-spacer" />
@@ -268,6 +295,9 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
       </div>
     </div>
   );
+
+  if (embedded || typeof document === 'undefined') return node;
+  return createPortal(node, document.body);
 }
 
 export default PdfViewer;
