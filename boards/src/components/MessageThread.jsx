@@ -24,6 +24,7 @@ import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
+import { showingConversation } from '../lib/threadAttention.js';
 
 const STICK_THRESHOLD_PX = 80;
 // Start fetching the previous page this far before the reader hits the top.
@@ -45,6 +46,10 @@ export function MessageThread({
   });
 
   const scrollRef = useRef(null);
+
+  // Tell the inbox this conversation is on screen, so its toast and OS
+  // notification stay quiet only while it really is (COMMS-03).
+  useEffect(() => showingConversation(conversationId), [conversationId]);
 
   // ── Active participants (for title + group menu) ─────────────────────
   const activeParticipants = useMemo(

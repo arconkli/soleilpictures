@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchConversationMessages, markRead } from '../lib/messages.js';
 import { subscribeConversation } from '../lib/messageRealtime.js';
 import { MESSAGE_PAGE, mergeNewestPage, prependOlder, lastMessageId } from '../lib/messagePaging.js';
+import { tabIsAttended } from '../lib/threadAttention.js';
 
 // Returns { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder }
 // for a single conversation. `messages` is the newest page plus whatever
@@ -64,13 +65,29 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     }
   }, [conversationId]);
 
-  // Mark read whenever the conversation opens or a new message arrives —
-  // keyed on the newest id, not the length, which stops moving at a full
-  // page and jumps when older history loads. After marking, notify the
-  // parent so unread counts refresh.
+  // Whether anyone can see this thread: tab visible and focused. A thread
+  // left open in a background tab used to mark every arrival read at once,
+  // so the title badge never showed (COMMS-03). Coming back marks it read.
+  const [attended, setAttended] = useState(() => tabIsAttended());
+  useEffect(() => {
+    const sync = () => setAttended(tabIsAttended());
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('focus', sync);
+    window.addEventListener('blur', sync);
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('blur', sync);
+    };
+  }, []);
+
+  // Mark read whenever the conversation opens, a new message arrives, or the
+  // reader comes back to the tab — keyed on the newest id, not the length,
+  // which stops moving at a full page and jumps when older history loads.
+  // After marking, notify the parent so unread counts refresh.
   const lastId = lastMessageId(messages);
   useEffect(() => {
-    if (!userId || !conversationId) return;
+    if (!userId || !conversationId || !attended) return;
     let cancelled = false;
     (async () => {
       const ok = await markRead({ conversationId, userId });
@@ -78,7 +95,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
       if (ok) onMarkedReadRef.current?.();
     })();
     return () => { cancelled = true; };
-  }, [userId, conversationId, lastId]);
+  }, [userId, conversationId, lastId, attended]);
 
   // Realtime subscribe.
   useEffect(() => {

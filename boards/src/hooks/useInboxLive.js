@@ -4,7 +4,8 @@
 //   1. inboxBus  — so the conversation list + unread badge can bump
 //                  optimistically without a refetch round-trip
 //   2. feedback.toast — in-app banner with an "Open" action (suppressed
-//                  when the message lands in the currently-open thread)
+//                  only while that thread is on screen in a visible,
+//                  focused tab — see threadAttention.js)
 //   3. browser Notifications API — when the tab isn't visible
 //
 // Mounted once near the top of the app. A single Supabase channel for
@@ -16,15 +17,16 @@ import { publishInbox } from '../lib/inboxBus.js';
 import { publishNotification } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
 import * as userProfiles from '../lib/userProfiles.js';
+import { isWatchingConversation } from '../lib/threadAttention.js';
 
-export function useInboxLive({ userId, openConversationId, onOpenConversation, feedback }) {
+// openConversationId is no longer read: App's copy outlives the panel (it is
+// not cleared on close), so it said "watching" when nobody was (COMMS-03).
+export function useInboxLive({ userId, onOpenConversation, feedback }) {
   // Use refs for the moving parts so we don't re-subscribe on every
   // parent re-render (the channel and its handler close over fresh
   // values via the refs).
-  const openConvRef = useRef(openConversationId);
   const onOpenRef = useRef(onOpenConversation);
   const feedbackRef = useRef(feedback);
-  useEffect(() => { openConvRef.current = openConversationId; }, [openConversationId]);
   useEffect(() => { onOpenRef.current = onOpenConversation; }, [onOpenConversation]);
   useEffect(() => { feedbackRef.current = feedback; }, [feedback]);
 
@@ -37,10 +39,11 @@ export function useInboxLive({ userId, openConversationId, onOpenConversation, f
       // Always publish so the inbox list / unread badge can react.
       publishInbox(userId, payload);
 
-      // Suppress in-app toast + OS notification when the user is
-      // already looking at this thread — the conv:{id} channel
-      // handles that surface.
-      if (payload.conversation_id === openConvRef.current) return;
+      // Suppress in-app toast + OS notification only when the user is
+      // looking at this thread right now — on screen, tab visible and
+      // focused. The conv:{id} channel handles that surface. Panel closed,
+      // back on the list, or the tab behind another app: they hear it.
+      if (isWatchingConversation(payload.conversation_id)) return;
 
       // Warm the profile cache so the name renders on the next paint.
       try { userProfiles.resolve(payload.sender_id); } catch (_) {}
