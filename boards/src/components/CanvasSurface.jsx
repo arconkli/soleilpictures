@@ -318,6 +318,8 @@ const NARROW_FIT_MAX_W = 640;
 const NARROW_CARDS_ACROSS = 2.4;
 // Never magnify past 1:1 — a board of small cards should not open zoomed in.
 const NARROW_MAX_ZOOM = 1;
+// The same rule for every automatic opening fit (desktop and app too).
+const OPEN_FIT_MAX_ZOOM = 1;
 // …and only step in when fitting everything would render the median card
 // narrower than this many screen pixels — i.e. when it is genuinely too small
 // to make out. A board that already fits legibly keeps the centred
@@ -1852,6 +1854,9 @@ export function CanvasSurface({
     return { pos: clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2), clamped: true };
   };
   const notePasteCreate = (clamped) => {
+    // A paste onto an empty cluster must not be zoom-framed by the first-card
+    // auto-fit (CANVAS-A-07) — every other create path settles the view too.
+    markViewSettled();
     noteCreateIntent('paste');
     if (clamped) {
       noteCreateBlocked('stale_paste', 'paste');
@@ -2048,7 +2053,10 @@ export function CanvasSurface({
     let contentW = Math.max(1, maxX - minX);
     let contentH = Math.max(1, maxY - minY);
     const margin = fitMargin(r);
-    let z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
+    // Capped at 1:1 (OPEN_FIT_MAX_ZOOM), not ZOOM_MAX: a cluster of one note or
+    // two thumbnails used to open at 300-400%, huge soft text and pixelated
+    // images. Explicit Fit (Shift+1, double-click the %) still goes to ZOOM_MAX.
+    let z = Math.max(ZOOM_MIN, Math.min(OPEN_FIT_MAX_ZOOM, Math.min(
       (r.width - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,
     )));
@@ -4013,6 +4021,11 @@ export function CanvasSurface({
   const ingestFiles = useCallback(async (fileList, cx, cy, source = 'drop') => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
+    // Dropped, picked or pasted files are the user's own placement: an empty
+    // cluster must not then auto-fit and zoom-frame the first one (the Files
+    // drag path always did this; Finder drops, the photo picker — the phone's
+    // + on an empty cluster — and pasted files didn't).
+    markViewSettled();
     const blockedForUpgrade = [];
 
     // Classify everything FIRST, then lay the whole drop out as one block.
@@ -4160,7 +4173,7 @@ export function CanvasSurface({
     }
     reportSkippedFiles(skipped, { surface: 'canvas', toast: feedback.toast });
   }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
-      onRequestUpgrade, feedback, board?.id, mutators]);
+      onRequestUpgrade, feedback, board?.id, mutators, markViewSettled]);
 
   // Unified "Add → File" picker: opens a native file chooser with NO accept
   // filter (any type) and routes the chosen file(s) through ingestFiles — the
@@ -5087,6 +5100,7 @@ export function CanvasSurface({
       // doPaste() used the canvas point of the last mousemove, which a wheel
       // pan or a cluster switch leaves pointing out of view.
       const pasteCopiedCards = () => {
+        markViewSettled();
         const { pos, clamped } = resolvePastePos();
         if (clamped) {
           noteCreateBlocked('stale_paste', 'paste');
@@ -5137,7 +5151,7 @@ export function CanvasSurface({
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
   }, [feedback, dispatchIngestOne, canAttemptFiles, doPaste, mutators,
-      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId]);
+      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId, markViewSettled]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
