@@ -105,8 +105,10 @@ export function AdminLandingScorecard({ rows }) {
                     {CLASS_ORDER.filter((k) => p.referrers?.[k]).map((k) => (
                       <span key={k} style={{
                         font: '500 10px/1 var(--font-sans)', padding: '2px 6px', borderRadius: 999,
-                        border: '1px solid var(--line-2)', marginRight: 5,
-                        color: k === 'ai' ? 'var(--soleil)' : 'var(--ink-2)',
+                        // Weight and ground for AI, not gold (see PILL_AI).
+                        border: `1px solid ${k === 'ai' ? 'var(--ink-3)' : 'var(--line-2)'}`, marginRight: 5,
+                        background: k === 'ai' ? 'var(--bg-2)' : undefined,
+                        color: k === 'ai' ? 'var(--ink-0)' : 'var(--ink-2)',
                       }}>
                         {CLASS_LABELS[k]} {p.referrers[k]}
                       </span>
