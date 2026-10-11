@@ -22736,9 +22736,13 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 }
 /* Two panes, one keyboard: the pane that doesn't have it shows its
    selection in ink, not gold (Finder's inactive selection). */
-.fdl-panel[data-active-pane='files'] .fdl-canvas .card.is-selected { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-3)); box-shadow: var(--shadow-2); }
-.fdl-panel:not([data-active-pane='files']) .ct-jg .ct-tile.is-selected .ct-tile-preview { outline-color: var(--ink-3); box-shadow: none; }
-.fdl-panel:not([data-active-pane='files']) .ct-tile.is-selected .ct-tile-check { background: var(--ink-3); border-color: var(--ink-3); }
+.fdl-panel[data-active-pane='files'] .fdl-canvas .card.is-selected:not(.card-kind-shape) { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-2)); box-shadow: var(--shadow-2); }
+.fdl-panel[data-active-pane='files'] .fdl-canvas .card.card-kind-shape.is-selected { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-2)); box-shadow: none; }
+.fdl-panel:not([data-active-pane='files']) .ct-jg .ct-tile.is-selected .ct-tile-preview { outline-color: var(--ink-2); box-shadow: none; }
+.fdl-panel:not([data-active-pane='files']) .ct-tile.is-selected .ct-tile-check { background: var(--ink-2); border-color: var(--ink-2); }
+.fdl-panel:not([data-active-pane='files']) .ct-table { --ct-sel-line: var(--line-3); }
+.fdl-panel:not([data-active-pane='files']) .ct-row.is-selected { background: color-mix(in srgb, var(--ink-2) 12%, transparent); }
+.fdl-panel:not([data-active-pane='files']) .ft.is-selected { border-color: var(--ink-2); box-shadow: 0 0 0 1px var(--ink-2); }
 
 /* ── Full Files: the cluster's name over its meta line, Download all and
    Beside board at the right; then the toolbar. Buttons only make columns
