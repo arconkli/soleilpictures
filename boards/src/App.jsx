@@ -3881,11 +3881,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Direct postgres delete for boards by id (used by ListSurface where the
   // canvas card may not exist in the current Y.Doc).
-  const deleteBoardsById = async (ids) => {
-    if (!ids?.length) return;
-    for (const id of ids) {
-      try { await deleteBoard(id); } catch (e) { console.error(e); }
+  const deleteBoardsById = async (requested) => {
+    if (!requested?.length) return;
+    // Only what the server actually deleted goes on: the card strip, the
+    // toast and its Undo. It used to say "Cluster deleted" and strip the card
+    // even when every delete failed (offline, or refused) — and the reconcile
+    // effect then put the cluster back at some other spot.
+    const ids = [];
+    let lastError = null;
+    for (const id of requested) {
+      try { await deleteBoard(id); ids.push(id); } catch (e) { console.error(e); lastError = e; }
     }
+    if (lastError) {
+      const failed = requested.length - ids.length;
+      feedback.toast({
+        type: 'error',
+        message: (failed === 1 ? "Couldn't delete the cluster" : `Couldn't delete ${failed} clusters`)
+          + (lastError?.message ? ': ' + lastError.message : '.'),
+      });
+    }
+    if (!ids.length) return;
     await refreshBoards();
     // Since 0333 a soft-deleted cluster stops counting against the cap, so the
     // room is free the moment this returns — but only on the server. The

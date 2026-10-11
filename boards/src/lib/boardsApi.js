@@ -1016,11 +1016,16 @@ export async function deleteBoard(boardId) {
       .from('boards')
       .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', boardId)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .select('id');
     if (upd.error) {
       console.warn('[delete] soft-delete fallback also failed', upd.error);
       throw upd.error;
     }
+    // RLS filters an UPDATE it won't allow down to zero rows, with no error.
+    // Reporting that as a delete is how "Cluster deleted" showed for a
+    // cluster that was still there.
+    if (!upd.data?.length) throw error;
   }
   console.log('[delete] deleteBoard (soft) ok', { boardId });
 }
