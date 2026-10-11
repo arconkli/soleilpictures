@@ -206,3 +206,47 @@ test('an empty grid costs nothing — in the trigger, in the index row and at th
   assert.match(app, /requested: cost, limit: cs\.limit/);
   assert.match(app, /if \(cost > 0 && cs\.own\) myTier\.notePlaced\?\.\(cost\);/, 'and never moves the count');
 });
+
+// ── 0403: no side doors (audit DB-07, DB-08, DB-09) ─────────────────────────
+
+test('the cap prices the weight that is stored, a change of kind and a move to another owner', () => {
+  // DB-07. BEFORE ROW triggers fire in byte order of their names. The weight
+  // rule (0389) has to run before the meter, or the meter prices whatever the
+  // client sent: {kind:'note', weight:0} cost nothing and was stored as 1.
+  const rename = latestMatch(/alter trigger card_index_weight_by_kind on public\.card_index rename to (\w+);/);
+  assert.ok(rename, 'the weight trigger must be renamed so it fires first');
+  assert.ok(rename.match[1] < 'card_index_demo_cap_ins',
+    `${rename.match[1]} must sort before card_index_demo_cap_ins`);
+  // A kind-only PATCH (empty grid -> note) never fired a cap that listened only
+  // for weight, and a move (DB-08) changes only board_id.
+  const cap = latestMatch(/create or replace trigger card_index_demo_cap_ins\s+before insert or update of ([\w, ]+) on public\.card_index/);
+  assert.ok(cap, 'the cap trigger must be re-created');
+  const cols = cap.match[1].split(',').map((s) => s.trim());
+  for (const col of ['weight', 'kind', 'board_id']) assert.ok(cols.includes(col), `the cap must fire on ${col}`);
+  // DB-08. A card that lands on a meter which never counted it pays in full.
+  const trg = latestDefinition('enforce_demo_card_cap_trg');
+  assert.match(trg.body, /new\.board_id is distinct from old\.board_id/);
+  assert.match(trg.body, /board_workspace_owner\(new\.board_id\) is distinct from public\.board_workspace_owner\(old\.board_id\)/);
+  // …and the API asks before writing, because the trigger refuses only after
+  // moveCardsBetweenBoards has written the destination board.
+  const api = readSrc('worker-api.js');
+  const move = api.slice(api.indexOf("trace.route = '/boards/:id/cards/move'"));
+  assert.ok(move.indexOf("'get_board_capacity'") > 0
+    && move.indexOf("'get_board_capacity'") < move.indexOf('moveCardsBetweenBoards('),
+    'cards/move must check the destination owner\'s capacity before it moves anything');
+});
+
+test('only restore_board takes a cluster out of the Trash', () => {
+  // DB-09. The RLS UPDATE policy on boards cannot see which column changes, so
+  // a direct PATCH of deleted_at = null skipped restore_board's cap check.
+  const fn = latestDefinition('_boards_restore_by_rpc_only');
+  assert.ok(fn, 'the restore guard must exist');
+  assert.match(fn.body, /old\.deleted_at is not null and new\.deleted_at is null/);
+  assert.match(fn.body, /current_user in \('authenticated', 'anon'\)/,
+    'definer functions (restore_board) run as their owner and pass; a caller\'s own UPDATE does not');
+  assert.doesNotMatch(fn.body, /security definer/i,
+    'a definer trigger function always sees its owner as current_user and would refuse nothing');
+  assert.ok(latestMatch(/create or replace trigger boards_restore_by_rpc_only\s+before update of deleted_at on public\.boards/));
+  const file = readFileSync(join(MIGRATIONS_DIR, fn.file), 'utf8');
+  assert.match(file, /revoke execute on function public\._boards_restore_by_rpc_only\(\) from public, anon, authenticated/);
+});

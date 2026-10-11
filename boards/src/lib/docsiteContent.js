@@ -42771,6 +42771,52 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving cards to a board that "
+    },
+    {
+     "t": "strong",
+     "v": "someone else owns",
+     "children": [
+      {
+       "t": "text",
+       "v": "someone else owns"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " counts them against that owner's "
+    },
+    {
+     "t": "link",
+     "v": "card allowance",
+     "href": "#card-caps",
+     "children": [
+      {
+       "t": "text",
+       "v": "card allowance"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", the same as creating them there. If they don't fit, nothing moves and the call returns "
+    },
+    {
+     "t": "code",
+     "v": "402 limit_reached"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "DELETE /boards/:id/cards/:cardId",
