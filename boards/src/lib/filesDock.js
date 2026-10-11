@@ -156,3 +156,14 @@ export function writeFoldersExpanded(on, storage) {
     if (on) s?.setItem(FOLDERS_KEY, '1'); else s?.removeItem(FOLDERS_KEY);
   } catch (_) {}
 }
+
+// Browsing beside the board: useBoardPreview hands back the LAST cluster's
+// snapshot for the render after its id changes (its effect swaps it in), and
+// for that render the new folder's name sat over the old folder's files — and
+// its default layout was decided from them. A snapshot belongs to the cluster
+// it was first shown for; under any other one it reads as still loading.
+export function previewOwnedBy(owners, data, id) {
+  if (!data || !id) return null;
+  if (!owners.has(data)) owners.set(data, id);
+  return owners.get(data) === id ? data : null;
+}

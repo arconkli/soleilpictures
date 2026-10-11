@@ -6,7 +6,9 @@ import assert from 'node:assert/strict';
 import {
   DOCK, canDock, filesModeOf, planFilesEvent, switchSegments,
   clampWidth, dragPreview, releaseDock, readDockPrefs, writeDockPrefs,
-  dockHintSeen, markDockHintSeen,
+  dockHintSeen, markDockHintSeen, collapsePath, ELLIPSIS,
+  FOLDER_ROWS, folderColumns, folderCap, readFoldersExpanded, writeFoldersExpanded,
+  previewOwnedBy,
 } from './filesDock.js';
 
 test('the panel needs a desktop pane wide enough for a board and a panel', () => {
@@ -101,4 +103,79 @@ test('the first-open hint shows once, and never when storage is broken', () => {
   markDockHintSeen(storage);
   assert.equal(dockHintSeen(storage), true);
   assert.equal(dockHintSeen({ getItem: () => { throw new Error('x'); } }), true);
+});
+
+test('the path bar keeps the root and the last steps, and elides the middle', () => {
+  assert.deepEqual(collapsePath(['a', 'b']), ['a', 'b']);
+  assert.deepEqual(collapsePath(['a', 'b', 'c']), ['a', 'b', 'c']);
+  assert.deepEqual(collapsePath(['a', 'b', 'c', 'd', 'e']), ['a', ELLIPSIS, 'd', 'e']);
+  assert.deepEqual(collapsePath(['a', 'b', 'c', 'd', 'e'], 4), ['a', ELLIPSIS, 'c', 'd', 'e']);
+  assert.deepEqual(collapsePath([null, 'a', undefined]), ['a']);
+  assert.deepEqual(collapsePath(null), []);
+});
+
+test('a panel at its widest never expands on a release that barely moved', () => {
+  for (const pane of [700, 1000, 1200, 1300, 1600, 2400]) {
+    const widest = clampWidth(1e6, pane);
+    for (const w of [widest - 3, widest, widest + 4, widest + DOCK.CLICK_SLOP]) {
+      assert.notEqual(releaseDock(w, pane).action, 'expand', `pane ${pane}, w ${w}`);
+    }
+  }
+});
+
+test('reveal opens Files for a file that is not on the board, and leaves an open Files alone', () => {
+  assert.equal(planFilesEvent('off', 'reveal').next, 'panel');
+  assert.equal(planFilesEvent('off', 'reveal', { canDock: false }).next, 'full');
+  assert.equal(planFilesEvent('panel', 'reveal').next, 'panel');
+  assert.equal(planFilesEvent('full', 'reveal').next, 'full');
+});
+
+test('panel folders: two rows of columns, unless only one would be hidden', () => {
+  assert.equal(folderColumns(0), 1);
+  assert.equal(folderColumns(FOLDER_ROWS.MIN_W), 1);
+  assert.equal(folderColumns(FOLDER_ROWS.MIN_W * 2 + FOLDER_ROWS.GAP), 2);
+  assert.equal(folderColumns(376), 2);            // a 400px panel, less its gutters
+  assert.equal(folderCap(3, 376), 3);
+  assert.equal(folderCap(4, 376), 4);
+  assert.equal(folderCap(5, 376), 5);             // hiding one buys nothing
+  assert.equal(folderCap(6, 376), 4);
+  assert.equal(folderCap(40, 900), 12);
+  assert.equal(folderCap(-1, 376), 0);
+  assert.equal(folderCap('x', 376), 0);
+});
+
+test('the folder cap counts the same columns the stylesheet draws', () => {
+  const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.ft-grid\.is-panel\s*\{([^}]*)\}/);
+  assert.ok(rule, '.ft-grid.is-panel rule not found in styles.css');
+  const min = rule[1].match(/minmax\(\s*(\d+)px/);
+  const gap = rule[1].match(/(?:^|[;\s])gap:\s*(\d+)px/);
+  assert.equal(Number(min?.[1]), FOLDER_ROWS.MIN_W, 'minmax() column width');
+  assert.equal(Number(gap?.[1]), FOLDER_ROWS.GAP, 'gap');
+});
+
+test('Show all folders is remembered per device, and broken storage reads collapsed', () => {
+  const mem = new Map();
+  const storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+  assert.equal(readFoldersExpanded(storage), false);
+  writeFoldersExpanded(true, storage);
+  assert.equal(readFoldersExpanded(storage), true);
+  writeFoldersExpanded(false, storage);
+  assert.equal(readFoldersExpanded(storage), false);
+  const broken = { getItem: () => { throw new Error('denied'); } };
+  assert.equal(readFoldersExpanded(broken), false);
+});
+
+test("browsing from one folder into another never shows the last folder's snapshot under the new name", () => {
+  const owners = new WeakMap();
+  const b = { cards: [{ id: 'loop' }] };
+  const c = { cards: [{ id: 'photo' }] };
+  assert.equal(previewOwnedBy(owners, b, 'B'), b);
+  // The hook still holds B's snapshot for the first render after the id moves.
+  assert.equal(previewOwnedBy(owners, b, 'C'), null);
+  assert.equal(previewOwnedBy(owners, c, 'C'), c);
+  // Back to B: C's snapshot is not B's, and B's own still is.
+  assert.equal(previewOwnedBy(owners, c, 'B'), null);
+  assert.equal(previewOwnedBy(owners, b, 'B'), b);
+  assert.equal(previewOwnedBy(owners, null, 'B'), null);
 });
