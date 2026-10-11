@@ -77,7 +77,7 @@ import { fetchMessageById } from './lib/messages.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
 import { OpenDmContext, MessagesUiContext } from './hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
-import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
+import { entityToken, refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
 // Side-effect import: registers the v1 entity kinds so any surface
 // that resolves a kind sees the same registry.
 import './lib/entityKinds.js';
@@ -607,6 +607,45 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ? saved
       : [rootBoard.id, ...saved.filter((id) => id !== rootBoard.id)];
   });
+  // Open a cluster with its whole breadcrumb (root → … → it), the way the
+  // sidebar does. Links, notifications and search hits used to setStack([id]),
+  // which left a one-crumb trail with no way up but the sidebar. Reads through
+  // boardsRef: several callers are memoized or fire from timers. False when
+  // the id isn't in this workspace's map (nor shared into it).
+  const openBoardAt = useCallback((id) => {
+    const map = boardsRef.current || {};
+    if (!id || !map[id]) return false;
+    setStack(ancestorPath(map, id));
+    return true;
+  }, []);
+  // openBoardAt, plus a cluster that lives in ANOTHER of your workspaces: the
+  // link is left in the URL as ?to=<token> and the workspace switched, so the
+  // new Workspace mount's ?to= resolver opens it (a switch remounts all of
+  // Workspace, so nothing here can carry it across). `linkRef` is what to
+  // resume — the doc or card, not just its cluster. Resolves 'opened',
+  // 'switched', or false (gone, or not yours to open — said so in a toast).
+  const openBoardAnywhere = useCallback(async (id, { linkRef = null } = {}) => {
+    if (!id) return false;
+    if (openBoardAt(id)) return 'opened';
+    let wsId = null;
+    try {
+      const { data, error } = await supabase
+        .from('boards').select('workspace_id').eq('id', id).is('deleted_at', null).maybeSingle();
+      if (!error) wsId = data?.workspace_id || null;
+    } catch (_) {}
+    if (wsId && wsId !== workspace.id && (workspaces || []).some((w) => w.id === wsId)) {
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('m');
+        u.searchParams.set('to', entityToken(linkRef || { kind: 'board', id }));
+        window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+      } catch (_) {}
+      onSwitchWorkspace?.(wsId);
+      return 'switched';
+    }
+    feedback.toast({ type: 'error', message: "That cluster isn't available to you any more." });
+    return false;
+  }, [openBoardAt, workspace.id, workspaces, onSwitchWorkspace, feedback]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   // List-view file drops: a Set of the just-added card ids (drives the "just
   // added" row flash in the list), and a one-shot focus request so that when
@@ -632,7 +671,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //                      over the wire AFTER the page has loaded.
   const cardLinkDone = useRef(false);
   useEffect(() => {
-    if (cardLinkDone.current || !boardsReady) return;
+    if (cardLinkDone.current || !boardsReady || !sharedLoaded) return;
     try {
       const p = new URLSearchParams(window.location.search);
       const bid = p.get('board');
@@ -641,7 +680,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         .split(',').map(s => s.trim()).filter(Boolean).slice(0, 200);
       if (!bid || !boards[bid] || (!cid && !many.length)) return;
       cardLinkDone.current = true;
-      setStack([bid]);
+      openBoardAt(bid);
       setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
       // A link to a frame of a clip (&t= seconds, &v= version): the review
       // player opens there, paused.
@@ -659,7 +698,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       url.searchParams.delete('t'); url.searchParams.delete('v');
       window.history.replaceState({}, '', url.pathname + (url.search || ''));
     } catch (_) {}
-  }, [boardsReady, boards]);
+  }, [boardsReady, sharedLoaded, boards, openBoardAt]);
   // Mirror of the guided-tour `fire` fn (the hook is defined far below, but the
   // card/nav/rename mutators above need to emit tour events). Assigned in render
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
@@ -1041,7 +1080,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const notifications = useNotifications({
     userId: user.id,
     feedback,
-    onOpenBoard: (id) => { if (id) { setStack([id]); setCurrentSurface('board'); } },
+    onOpenBoard: (id) => { if (id) { openBoardAnywhere(id); setCurrentSurface('board'); } },
   });
 
   // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +
@@ -1067,6 +1106,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     open: !!tweak.showMessages,
     toggle: () => setTweak('showMessages', !tweak.showMessages),
   }), [messagesUnread, tweak.showMessages, setTweak]);
+
 
   // "hasThumb" = has a CURRENT-version stored thumbnail. A stale version
   // (pre-rework render) counts as missing so the on-open backfill in
@@ -4602,7 +4642,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // push onto it) — openBoard treats the target as a sub-board and would
     // leave a bogus breadcrumb trail when sharing from a different branch.
     if (boardId !== currentId || currentSurface !== 'board') {
-      setStack([boardId]);
+      if (!openBoardAt(boardId)) setStack([boardId]);
       setCurrentSurface('board');
     }
     shareSurfaceRef.current = 'sidebar_menu';
@@ -4653,151 +4693,136 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, setTweak]);
 
-  // ?to=<token> / ?m=<id> — universal entity permalink resolver.
-  // Resolves once on mount (after user is ready) and strips the param
-  // so refresh doesn't re-trigger. Each kind dispatches via the
-  // EntityNavigate provider below.
-  useEffect(() => {
-    const ref = refFromCurrentUrl();
-    if (!ref || !user?.id) return;
-    let cancelled = false;
-    (async () => {
-      // Defer one tick so the EntityNavigate provider is mounted.
-      await new Promise(r => setTimeout(r, 0));
-      if (cancelled) return;
-      // Inline dispatch — we can't use the hook here (we're outside
-      // the provider), so call the same handlers directly.
-      switch (ref.kind) {
-        case 'message': await openMessageThread(ref.id); break;
-        case 'board':   if (boards[ref.id]) setStack([ref.id]); break;
-        case 'card':    if (boards[ref.boardId]) setStack([ref.boardId]); break;
-        case 'doc':
-        case 'docPos': {
-          let boardId = ref.boardId;
-          if (!boardId) {
-            try {
-              const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.docCardId).maybeSingle();
-              boardId = data?.board_id;
-            } catch (_) {}
-          }
-          if (boardId && boards[boardId]) setStack([boardId]);
-          if (ref.pageId) {
-            try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
-          }
-          setTimeout(() => {
-            document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
-              detail: { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 },
-            }));
-          }, 200);
-          break;
-        }
-        case 'url': window.open(ref.href, '_blank', 'noopener,noreferrer'); break;
-        default: break;
-      }
-      stripLinkParamsFromUrl();
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
   // Navigate handlers exposed to every linking surface via
-  // EntityNavigateProvider. Mirror of the URL resolver above; this
-  // version is what `<EntityLink onClick>` and other in-app callers
-  // invoke. Keep both in sync.
-  const navHandlers = useMemo(() => ({
-    board:   (ref) => { if (boards[ref.id]) { setStack([ref.id]); recents.push(ref.id); } },
-    card: async (ref) => {
-      // Resolve missing boardId via card_index — the "appears in"
-      // rows for canvas cards only carry cardId.
-      let boardId = ref.boardId;
-      if (!boardId && ref.cardId) {
-        try {
-          const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.cardId).maybeSingle();
-          boardId = data?.board_id;
-        } catch (_) {}
+  // EntityNavigateProvider, and run by the ?to= resolver below, so a copied
+  // link and a click take one path. A cluster opens with its breadcrumb, and
+  // one in another of your workspaces is reached by switching there
+  // (openBoardAnywhere). The cluster-bound handlers resolve 'opened',
+  // 'switched' or false, which the resolver needs to know whether to keep the
+  // link in the URL for the new mount.
+  const navHandlers = useMemo(() => {
+    // The "appears in" rows for canvas cards and docs carry only a card id.
+    const boardOfCard = async (cardId) => {
+      if (!cardId) return null;
+      try {
+        const { data } = await supabase.from('card_index').select('board_id').eq('card_id', cardId).maybeSingle();
+        return data?.board_id || null;
+      } catch (_) { return null; }
+    };
+    const openDoc = async (ref, { atPos }) => {
+      const boardId = ref.boardId || await boardOfCard(ref.docCardId);
+      if (boardId) {
+        const r = await openBoardAnywhere(boardId, { linkRef: ref });
+        if (r !== 'opened') return r;
+        recents.push(boardId);
       }
-      if (!boardId || !boards[boardId]) return;
-      setStack([boardId]);
-      recents.push(boardId);
-      if (ref.cardId) {
-        // Tell the canvas to flash this card once the new board mounts.
-        setTimeout(() => {
-          document.dispatchEvent(new CustomEvent('soleil-flash-card', {
-            detail: { boardId, cardId: ref.cardId },
-          }));
-        }, 200);
-      }
-    },
-    doc: async (ref) => {
-      let boardId = ref.boardId;
-      if (!boardId) {
-        try {
-          const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.docCardId).maybeSingle();
-          boardId = data?.board_id;
-        } catch (_) {}
-      }
-      if (boardId && boards[boardId]) { setStack([boardId]); recents.push(boardId); }
-      setTimeout(() => {
-        document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
-          detail: { cardId: ref.docCardId, pageId: null, scrollTop: 0 },
-        }));
-      }, 200);
-    },
-    docPos: async (ref) => {
-      let boardId = ref.boardId;
-      if (!boardId) {
-        try {
-          const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.docCardId).maybeSingle();
-          boardId = data?.board_id;
-        } catch (_) {}
-      }
-      if (boardId && boards[boardId]) { setStack([boardId]); recents.push(boardId); }
-      if (ref.pageId) {
+      if (atPos && ref.pageId) {
         try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
       }
       setTimeout(() => {
         document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
-          detail: { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 },
+          detail: atPos
+            ? { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 }
+            : { cardId: ref.docCardId, pageId: null, scrollTop: 0 },
         }));
       }, 200);
-    },
-    message: (ref) => openMessageThread(ref.id),
-    user: (ref) => {
-      // Clicking a user entity opens a DM with them.
-      if (ref?.id) openDmWith(ref.id);
-      else setTweak('showMessages', true);
-    },
-    url: (ref) => { window.open(ref.href, '_blank', 'noopener,noreferrer'); },
-    group: async (ref) => {
-      // Resolve boardId via group_index if not provided.
-      let boardId = ref.boardId;
-      if (!boardId && ref.id) {
-        try {
-          const { data } = await supabase.from('group_index').select('board_id').eq('group_id', ref.id).maybeSingle();
-          boardId = data?.board_id;
-        } catch (_) {}
+      return 'opened';
+    };
+    return {
+      board: async (ref) => {
+        const r = await openBoardAnywhere(ref.id, { linkRef: ref });
+        if (r === 'opened') recents.push(ref.id);
+        return r;
+      },
+      card: async (ref) => {
+        const boardId = ref.boardId || await boardOfCard(ref.cardId);
+        if (!boardId) return false;
+        const r = await openBoardAnywhere(boardId, {
+          linkRef: ref.cardId ? { kind: 'card', boardId, cardId: ref.cardId } : null,
+        });
+        if (r !== 'opened') return r;
+        recents.push(boardId);
+        if (ref.cardId) {
+          // Tell the canvas to flash this card once the new board mounts.
+          setTimeout(() => {
+            document.dispatchEvent(new CustomEvent('soleil-flash-card', {
+              detail: { boardId, cardId: ref.cardId },
+            }));
+          }, 200);
+        }
+        return r;
+      },
+      doc: (ref) => openDoc(ref, { atPos: false }),
+      docPos: (ref) => openDoc(ref, { atPos: true }),
+      message: (ref) => openMessageThread(ref.id),
+      user: (ref) => {
+        // Clicking a user entity opens a DM with them.
+        if (ref?.id) openDmWith(ref.id);
+        else setTweak('showMessages', true);
+      },
+      url: (ref) => { window.open(ref.href, '_blank', 'noopener,noreferrer'); },
+      group: async (ref) => {
+        // Resolve boardId via group_index if not provided.
+        let boardId = ref.boardId;
+        if (!boardId && ref.id) {
+          try {
+            const { data } = await supabase.from('group_index').select('board_id').eq('group_id', ref.id).maybeSingle();
+            boardId = data?.board_id;
+          } catch (_) {}
+        }
+        if (!boardId) return false;
+        const r = await openBoardAnywhere(boardId);
+        if (r !== 'opened') return r;
+        recents.push(boardId);
+        // Flash every member card once the board mounts.
+        setTimeout(() => {
+          document.dispatchEvent(new CustomEvent('soleil-flash-group', {
+            detail: { boardId, groupId: ref.id },
+          }));
+        }, 250);
+        return r;
+      },
+      tag: (ref) => {
+        // A tag is a full-pane surface (TagDetailView). Route through the
+        // existing `soleil-open-tag` document listener, which resolves the id
+        // to the full tag row and opens it — so this needs no extra memo deps.
+        // Fixes the prior no-op: coerceRef already understood tag refs, but
+        // navHandlers had no `tag` key, so navigate({kind:'tag'}) (e.g. from
+        // DocPageTagChips / EntityHoverPopover) silently warned and did nothing.
+        if (ref?.id) {
+          document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: ref.id } }));
+        }
+      },
+    };
+  }, [recents, openBoardAnywhere, openMessageThread, openDmWith, setTweak]);
+
+  // ?to=<token> / ?m=<id> — universal entity permalink resolver. Resolves
+  // once and strips the param so a refresh doesn't re-trigger. It used to run
+  // once at mount, against the first render's EMPTY boards map, so every
+  // cluster, card and doc link was dropped and its param stripped: a copied
+  // entity link never navigated anywhere. Anything that names a cluster now
+  // waits for both board lists. A link into another of your workspaces keeps
+  // its param across the switch ('switched') and resolves in the new mount.
+  const linkResolvedRef = useRef(false);
+  useEffect(() => {
+    if (linkResolvedRef.current || !user?.id) return;
+    const ref = refFromCurrentUrl();
+    if (!ref) return;
+    const resolvable = ['message', 'board', 'card', 'doc', 'docPos', 'url'].includes(ref.kind);
+    const needsBoards = resolvable && ref.kind !== 'message' && ref.kind !== 'url';
+    if (needsBoards && (!boardsReady || !sharedLoaded)) return;
+    linkResolvedRef.current = true;
+    (async () => {
+      // Defer one tick so the EntityNavigate provider is mounted.
+      await new Promise(r => setTimeout(r, 0));
+      let result = null;
+      if (resolvable) {
+        try { result = await navHandlers[ref.kind](ref); }
+        catch (e) { console.warn('[permalink] resolve failed', e); }
       }
-      if (!boardId || !boards[boardId]) return;
-      setStack([boardId]); recents.push(boardId);
-      // Flash every member card once the board mounts.
-      setTimeout(() => {
-        document.dispatchEvent(new CustomEvent('soleil-flash-group', {
-          detail: { boardId, groupId: ref.id },
-        }));
-      }, 250);
-    },
-    tag: (ref) => {
-      // A tag is a full-pane surface (TagDetailView). Route through the
-      // existing `soleil-open-tag` document listener, which resolves the id
-      // to the full tag row and opens it — so this needs no extra memo deps.
-      // Fixes the prior no-op: coerceRef already understood tag refs, but
-      // navHandlers had no `tag` key, so navigate({kind:'tag'}) (e.g. from
-      // DocPageTagChips / EntityHoverPopover) silently warned and did nothing.
-      if (ref?.id) {
-        document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: ref.id } }));
-      }
-    },
-  }), [boards, recents, openMessageThread, openDmWith, setTweak]);
+      if (result !== 'switched') stripLinkParamsFromUrl();
+    })();
+  }, [user?.id, boardsReady, sharedLoaded, navHandlers]);
 
   // Surface "X shared a board with you" notifications as toasts on
   // first load. Each toast has a "View" action that opens the board
@@ -9207,7 +9232,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           unread={notifications.unread}
           loading={notifications.loading}
           onMarkRead={notifications.markRead}
-          onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); setNotifOpen(false); }}
+          onOpenBoard={(id) => { openBoardAnywhere(id); setCurrentSurface('board'); setNotifOpen(false); }}
           onClose={() => setNotifOpen(false)}
         />
       ), document.body)}
