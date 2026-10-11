@@ -37,7 +37,9 @@ export class AppErrorBoundary extends Component {
       if (reloading) { this.setState({ info }); return; }
       // Guard says we already reloaded and it's STILL failing (broken deploy or
       // a real bug that merely looks like a chunk error) — surface the panel.
-      this.setState({ recovering: false, info });
+      // A chunk that won't load is a connection or deploy problem, not a bug
+      // the visitor can act on: say so plainly instead of a stack trace.
+      this.setState({ recovering: false, chunkFailed: true, info });
       return;
     }
 
@@ -98,6 +100,29 @@ export class AppErrorBoundary extends Component {
           <div>
             <div style={{ font: '600 16px/1.2 system-ui, sans-serif' }}>Updating…</div>
             <div style={{ marginTop: 4, opacity: 0.7 }}>A new version is loading.</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (this.state.chunkFailed) {
+      return (
+        <div className="app-error-boundary">
+          <div className="app-error-panel" role="alertdialog" aria-modal="true">
+            <div className="app-error-header">
+              <span className="app-error-title">Couldn't load this page.</span>
+              <span className="app-error-sub">
+                Part of it didn't download. Check your connection and try again.
+              </span>
+            </div>
+            <div className="app-error-actions">
+              <button className="app-error-btn" onClick={this.copy}>
+                Copy error
+              </button>
+              <button className="app-error-btn is-primary" onClick={this.reload}>
+                Reload
+              </button>
+            </div>
           </div>
         </div>
       );

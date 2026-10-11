@@ -73,6 +73,23 @@ function guardedReloadOnce() {
   return true;
 }
 
+// True when the shared guard says a chunk-recovery reload happened inside the
+// window, i.e. guardedReloadOnce() would now refuse. main.jsx uses it to let a
+// lazy route render WITHOUT its CSS on the second failure (vite:preloadError)
+// rather than throw it into the crash panel.
+export function reloadedRecently() {
+  if (typeof window === 'undefined') return false;
+  let last = 0;
+  try { last = Number(sessionStorage.getItem(RELOAD_KEY)) || 0; } catch (_) { /* private mode */ }
+  return Date.now() - last < RELOAD_WINDOW_MS;
+}
+
+// A route stylesheet that failed to load — the one preload failure a page can
+// survive (it renders unstyled-ish) as opposed to a missing JS module.
+export function isCssPreloadError(err) {
+  return /Unable to preload CSS/i.test(String((err && err.message) || err || ''));
+}
+
 // Shared recovery used by both lazyWithReload() and importWithReload(). Re-throws
 // anything that isn't a stale-chunk load failure so real runtime errors still
 // surface. On a stale-chunk error it reloads ONCE (guarded) and returns a

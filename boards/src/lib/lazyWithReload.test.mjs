@@ -10,7 +10,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { looksLikeStaleChunk } from './lazyWithReload.js';
+import { looksLikeStaleChunk, isCssPreloadError, reloadedRecently } from './lazyWithReload.js';
 
 // ── module chunks ──────────────────────────────────────────────────────
 
@@ -64,4 +64,35 @@ test('non-Error inputs do not throw', () => {
   assert.equal(looksLikeStaleChunk(undefined), false);
   assert.equal(looksLikeStaleChunk(null), false);
   assert.equal(looksLikeStaleChunk('Unable to preload CSS for /assets/x.css'), true);
+});
+
+// ── the second CSS failure renders instead of crashing ─────────────────
+//
+// main.jsx prevents vite:preloadError for a stylesheet that fails again right
+// after the recovery reload, so the page renders with the CSS it has instead
+// of the red panel. That decision is these two predicates.
+
+test('only the route stylesheet failure counts as a CSS preload error', () => {
+  assert.equal(isCssPreloadError(new Error('Unable to preload CSS for /assets/LegalPage-DlZ4kV4w.css')), true);
+  assert.equal(isCssPreloadError(new Error('Failed to fetch dynamically imported module: /assets/LegalPage-x.js')), false);
+  assert.equal(isCssPreloadError(undefined), false);
+});
+
+test('reloadedRecently reads the shared reload guard', () => {
+  const store = new Map();
+  globalThis.window = {};
+  globalThis.sessionStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+  };
+  try {
+    assert.equal(reloadedRecently(), false, 'no reload yet: let the error reload the page');
+    store.set('soleil:chunk-reload-at', String(Date.now() - 2_000));
+    assert.equal(reloadedRecently(), true, 'just reloaded: a reload would be refused');
+    store.set('soleil:chunk-reload-at', String(Date.now() - 60_000));
+    assert.equal(reloadedRecently(), false, 'an old reload no longer counts');
+  } finally {
+    delete globalThis.window;
+    delete globalThis.sessionStorage;
+  }
 });

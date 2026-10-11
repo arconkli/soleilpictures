@@ -12,7 +12,7 @@ import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
 import { logClientError } from './lib/errorReporting.js';
 import { describeReason } from './lib/describeReason.js';
 import { initPerfReport } from './lib/perfReport.js';
-import { lazyWithReload } from './lib/lazyWithReload.js';
+import { lazyWithReload, isCssPreloadError, reloadedRecently } from './lib/lazyWithReload.js';
 import { installDomMutationGuard } from './lib/domMutationGuard.js';
 import './styles/breakpoints.css';
 import './styles.css';
@@ -79,9 +79,21 @@ if (typeof window !== 'undefined') {
   // rejecting — React's lazy initializer then reads `undefined.default` and
   // throws "Cannot read properties of undefined (reading 'default')" into the
   // error boundary, while an async reload races (and loses). Letting the error
-  // propagate hands it cleanly to lazyWithReload's .catch instead. This listener
-  // is now just observability. No-op in dev (no preload helper).
+  // propagate hands it cleanly to lazyWithReload's .catch instead. No-op in dev
+  // (no preload helper).
+  //
+  // The one exception is a route STYLESHEET that fails again right after the
+  // recovery reload (blocked, timed out, a flaky proxy). Reloading can't help
+  // and throwing puts a page that could render behind the crash panel. For a
+  // CSS failure Vite's helper does not resolve `undefined` — after a prevented
+  // CSS error it goes on to import the JS module — so preventing it here
+  // renders the page with whatever CSS did load. JS failures keep the path above.
   window.addEventListener('vite:preloadError', (e) => {
+    if (isCssPreloadError(e?.payload) && reloadedRecently()) {
+      e.preventDefault();
+      console.warn('[vite:preloadError] route CSS failed again after a reload; rendering without it', e?.payload);
+      return;
+    }
     console.warn('[vite:preloadError] lazy chunk load failed; lazyWithReload will recover', e?.payload || e);
   });
 }
