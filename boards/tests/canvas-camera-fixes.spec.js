@@ -94,3 +94,29 @@ test('one ctrl+wheel notch steps the zoom by about x0.78, not to the floor', asy
   const c = await readCamera(page);
   expect(c.zoom).toBeCloseTo(a.zoom, 2);
 });
+
+// CARDS-01: the PDF viewer renders inside .canvas-wrap, whose native wheel
+// listener preventDefaulted every wheel over its pages and panned the board.
+test('a wheel over the PDF viewer scrolls its pages, not the board', async ({ page }) => {
+  await goBlank(page);
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    const wrap = document.querySelector('.canvas-wrap');
+    const v = document.createElement('div');
+    v.className = 'pdfv'; v.id = 'fake-pdfv';
+    v.style.cssText = 'position:fixed;inset:80px;z-index:9999;background:#222';
+    const sc = document.createElement('div');
+    sc.className = 'pdfv-scroll';
+    sc.style.cssText = 'position:absolute;inset:0;overflow:auto';
+    const tall = document.createElement('div');
+    tall.style.cssText = 'height:5000px;min-height:5000px;flex:none';   // .pdfv-scroll is a flex column
+    sc.appendChild(tall); v.appendChild(sc); wrap.appendChild(v);
+  });
+  const a = await readCamera(page);
+  await page.mouse.move(600, 400);
+  await page.mouse.wheel(0, 400);
+  await page.waitForTimeout(400);
+  const b = await readCamera(page);
+  expect(b).toEqual(a);
+  expect(await page.evaluate(() => document.querySelector('#fake-pdfv .pdfv-scroll').scrollTop)).toBeGreaterThan(0);
+});

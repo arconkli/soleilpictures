@@ -28,3 +28,18 @@ test('peer note edits ignore our own awareness changes and keep an unchanged map
 test('ctrl+wheel belongs to the custom wheel handler, not use-gesture', () => {
   assert.match(canvas, /pinch: \{ scaleBounds: \{[^}]*\}, rubberband: true, pinchOnWheel: false \}/);
 });
+
+// CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own
+// panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
+test('the wheel stands down over the viewers and over a selected schedule pane', () => {
+  const wheel = between('const onWheel = (e) => {', "e.preventDefault();\n      perf.bump('wheel.events');");
+  assert.match(wheel, /e\.target\.closest\('[^']*\.pdfv, \.lightbox'\)\) return;/);
+  assert.match(canvas, /const SCHEDULE_SCROLL_PANES = '\.rd-body, \.schedt, \.schedc-rail-body';/);
+  assert.match(wheel, /const pane = wheelMode === 'pan' && e\.target\.closest\(SCHEDULE_SCROLL_PANES\);/);
+  assert.match(wheel, /pane\.closest\('\.card'\)\?\.classList\.contains\('is-selected'\)\) return;/);
+  const ts = readFileSync(join(here, 'touchScroll.js'), 'utf8');
+  for (const sel of ['.rd-body', '.schedt', '.schedc-rail-body']) {
+    assert.ok(ts.includes(`{ sel: '${sel}', requireActive: true }`), sel);
+  }
+  assert.ok(ts.includes("{ sel: '.pdfv-scroll', requireActive: false }"));
+});
