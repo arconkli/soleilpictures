@@ -4817,7 +4817,9 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 }
 .bc-tag {
   font: 700 9px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
-  color: var(--ink-1);
+  /* Fixed light ink: the pill is a fixed dark chip over a cover image, so
+     theme ink (#2c2c30 in light) disappears into it. */
+  color: rgba(245,245,246,.92);
   background: rgba(10,10,12,.7);
   backdrop-filter: blur(8px);
   padding: 3px 8px;
@@ -5281,7 +5283,8 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--ink-2);
+  /* Fixed light ink on a fixed dark chip over the embed, in either theme. */
+  color: rgba(245, 245, 246, 0.7);
   background: rgba(20, 20, 22, 0.78);
   border: 1px solid var(--line-1);
   border-radius: 4px;
@@ -5290,7 +5293,7 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   cursor: pointer;
 }
 .lc.lc-embed:hover .lc-embed-title-add { opacity: 1; }
-.lc-embed-title-add:hover { color: var(--ink-1); background: rgba(20, 20, 22, 0.95); }
+.lc-embed-title-add:hover { color: #fff; background: rgba(20, 20, 22, 0.95); }
 .lc-provider-badge {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -8147,7 +8150,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   background: rgba(10,10,12,.75);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  color: var(--ink-0);
+  /* #fff like .ic-expand / .ic-act: the chip is dark in both themes, so the
+     theme's --ink-0 (near-black in light) drew a black icon on black. */
+  color: #fff;
   width: 22px; height: 22px;
   display: grid; place-items: center;
   border-radius: 4px;
@@ -8448,7 +8453,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ic:hover .ic-cap.is-placeholder { opacity: .35; }
 .ic .ic-link {
   text-decoration: none;
-  color: var(--ink-0);
+  color: #fff;
   pointer-events: auto;
   cursor: pointer;
 }
