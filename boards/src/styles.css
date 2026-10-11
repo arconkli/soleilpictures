@@ -22631,6 +22631,10 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
    below it. */
 .list-wrap .ct-head { top: var(--lp-head-h, 0px); }
 .list-wrap .ct-row { scroll-margin-top: calc(var(--lp-head-h, 0px) + 40px); }
+/* Grid tiles too: the cursor and a reveal (Show in Files) scroll with
+   block 'nearest', which counts a tile behind the toolbar, or behind the
+   selection bar at the bottom, as already in view. */
+.list-wrap .ct-tile { scroll-margin-top: calc(var(--lp-head-h, 0px) + 12px); scroll-margin-bottom: 80px; }
 .cb-head {
   position: sticky; top: 0; z-index: 8;
   margin: 0 calc(-1 * var(--files-gutter)); padding: 12px var(--files-gutter);
