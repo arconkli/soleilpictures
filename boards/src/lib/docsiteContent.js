@@ -37622,6 +37622,74 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "code",
+     "v": "POST /api/v1/mcp"
+    },
+    {
+     "t": "text",
+     "v": " is the one exception to \"the method decides\": it is the "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " transport, and every message on it is a "
+    },
+    {
+     "t": "code",
+     "v": "POST"
+    },
+    {
+     "t": "text",
+     "v": ", so any token may open it. Each tool is then held to the scope its own call would need — a "
+    },
+    {
+     "t": "code",
+     "v": "read"
+    },
+    {
+     "t": "text",
+     "v": "-only token can connect and run the read tools, and is refused "
+    },
+    {
+     "t": "code",
+     "v": "add_cards"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "delete_board"
+    },
+    {
+     "t": "text",
+     "v": " with the same "
+    },
+    {
+     "t": "code",
+     "v": "insufficient_scope"
+    },
+    {
+     "t": "text",
+     "v": " sentence."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "strong",
      "v": "Deleting is deliberately separate from writing.",
      "children": [
