@@ -1,6 +1,6 @@
 // Workspace-wide tag list + per-board card/board tag associations, with
 // realtime subscription so the right-click "Tag" picker shows up-to-date
-// suggestions across peers. Returns { tags, byCard, byBoard, refresh }.
+// suggestions across peers. Returns { tags, loaded, byCard, byBoard, refresh }.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
@@ -12,6 +12,10 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
   const [tags, setTags] = useState([]);
   const [cardTagRows, setCardTagRows] = useState([]);
   const [boardTagRows, setBoardTagRows] = useState([]);
+  // True once a fetch has landed, so "this tag isn't in the list" can be
+  // told apart from "the list hasn't loaded yet" (App closes the profile of
+  // a tag that was deleted or merged away).
+  const [loaded, setLoaded] = useState(false);
 
   // The params the NEXT fetch should use. Read at run time (not closed over)
   // so a fetch that started on the board you just left can tell its rows are
@@ -41,6 +45,7 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
         setTags(t || []);
         setCardTagRows(c || []);
         setBoardTagRows(b || []);
+        setLoaded(true);
       } catch (err) {
         console.warn('[tags] refresh failed', err);
       }
@@ -119,5 +124,5 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
     return m;
   }, [tags, boardTagRows]);
 
-  return { tags, byCard, byBoard, refresh };
+  return { tags, loaded, byCard, byBoard, refresh };
 }
