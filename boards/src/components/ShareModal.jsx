@@ -28,7 +28,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal.jsx';
 import {
   shareBoard, unshareBoard, listBoardShares,
-  removeWorkspaceMember, transferWorkspaceOwnership,
+  removeWorkspaceMember, transferWorkspaceOwnership, setWorkspaceMemberRole,
   createCollabLink, revokePublicLink, listPublicLinks, ensurePublicLink,
   setPublicLinkSubboards, setPublicLinkIndexing,
   inviteWorkspaceMember,
@@ -682,12 +682,25 @@ export function ShareModal({
   const onMakeOwner = async (member) => {
     const meta = userMeta(member.user_id);
     const label = meta.email || meta.name;
+    // Every limit follows the owner: say so, and offer co-owner (which keeps
+    // this plan covering the workspace) instead. Never name their plan.
     const ok = await feedback.confirm({
       title: `Transfer ownership to ${label}?`,
-      message: `${label} becomes the new owner of "${workspace.name}". You'll be demoted to editor and can then leave if you want. This can't be undone without their cooperation.`,
+      message: `Its cards, files and storage will count against ${label}'s plan instead of yours, and everyone in it will work within that plan's limits. To let them run it while your plan keeps covering it, make them a co-owner instead. If you transfer, you'll be an editor of "${workspace.name}" and only they can transfer it back.`,
       confirmLabel: 'Transfer ownership',
+      altLabel: member.role === 'coowner' ? null : 'Make co-owner instead',
       danger: true,
     });
+    if (ok === 'alt') {
+      try {
+        await setWorkspaceMemberRole({ workspaceId: workspace.id, userId: member.user_id, role: 'coowner' });
+        feedback.toast({ type: 'success', message: `${label} is now a co-owner of "${workspace.name}".` });
+        onMembersChanged?.();
+      } catch (e) {
+        feedback.toast({ type: 'error', message: 'Could not make them a co-owner: ' + (e.message || e) });
+      }
+      return;
+    }
     if (!ok) return;
     try {
       await transferWorkspaceOwnership({ workspaceId: workspace.id, newOwnerId: member.user_id });
