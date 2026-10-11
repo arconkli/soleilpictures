@@ -171,6 +171,11 @@ test('another cluster\'s file drags in as a linked copy; a doc is copied too, or
   await expect(page.locator('[data-card-id="s-doc"]')).toHaveCount(1);
   await expect(p.locator('[data-item-id="s-doc"]')).toHaveCount(0);
   await expect(cards).toHaveCount(n0 + 2);
+  // The copy was taken back as part of the move: Redo can't put it back.
+  await page.locator('.canvas-wrap').click({ position: { x: 30, y: 300 } });
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await page.waitForTimeout(300);
+  await expect(cards).toHaveCount(n0 + 2);
 });
 
 test('a note from another cluster is copied with its words, and ⌘Z takes the copy back', async ({ page }) => {

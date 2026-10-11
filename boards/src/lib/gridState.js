@@ -121,6 +121,31 @@ export function unlinkGridForCopy(card, templates) {
   return out;
 }
 
+// What a move takes off a linked grid (unlinkGridForCopy), kept with its
+// placement so the move's undo can put the link back — the grid rejoins its
+// family and its sequence instead of staying a frozen copy.
+export function gridLinkOf(card) {
+  return {
+    templateId: card?.templateId || null,
+    seqId: card?.seqId || null,
+    hadLayout: card?.layout != null,
+    hadTextStyle: card?.textStyle != null,
+  };
+}
+export function relinkGrid(card, place, { hasTemplate = () => false, hasSequence = () => false } = {}) {
+  if (!card || (!place?.templateId && !place?.seqId)) return card;
+  const out = { ...card };
+  // Only to a template / sequence that still exists there — otherwise the
+  // layout the move wrote onto the card is the best it has.
+  if (place.templateId && hasTemplate(place.templateId)) {
+    out.templateId = place.templateId;
+    if (!place.hadLayout) delete out.layout;
+    if (!place.hadTextStyle) delete out.textStyle;
+  }
+  if (place.seqId && hasSequence(place.seqId)) out.seqId = place.seqId;
+  return out;
+}
+
 // Resolve the effective text style for one cell: the family (shared) style with the
 // cell's own `style` override (a "pinned / only this box" cell) layered on top.
 export function effectiveCellStyle(familyTextStyle, cell) {

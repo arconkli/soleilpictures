@@ -73,7 +73,7 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
-import { unlinkGridForCopy } from '../lib/gridState.js';
+import { unlinkGridForCopy, gridLinkOf, relinkGrid } from '../lib/gridState.js';
 import { yMapToCard } from '../lib/yhelpers.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
@@ -9524,6 +9524,10 @@ export function CanvasSurface({
               return;
             }
             mutators.undo?.();
+            // The copy is taken back as part of the move — not an undo the
+            // person can redo, which would put it back beside the original.
+            try { um?.clear?.(false, true); } catch (_) {}
+            mutators.clearRedo?.();
             moveHereFromCluster(sourceBoardId, ids, at);
           },
         },
@@ -9587,7 +9591,7 @@ export function CanvasSurface({
     d.live = {
       cards: moving,
       templates: gridTemplates || {},
-      originals: new Map(moving.map((c) => [c.id, { x: c.x, y: c.y, w: c.w, h: c.h, z: c.z, groupId: c.groupId, unplaced: c.unplaced === true }])),
+      originals: new Map(moving.map((c) => [c.id, { x: c.x, y: c.y, w: c.w, h: c.h, z: c.z, groupId: c.groupId, unplaced: c.unplaced === true, link: gridLinkOf(c) }])),
       arrowsBetween: (idMap) => arrowsBetween(arrows || [], idMap),
       // Let go of what landed — the untracked move-delete, so ⌘Z here can't
       // bring back half a move.
@@ -9609,11 +9613,11 @@ export function CanvasSurface({
     const place = (id) => d.originals?.get?.(id) || {};
     const cardsBack = (d.entries || []).map(({ id, card }) => {
       const p = place(id);
-      return {
+      return relinkGrid({
         ...card, id, x: p.x ?? card.x, y: p.y ?? card.y, w: p.w ?? card.w, h: p.h ?? card.h, groupId: p.groupId ?? null,
         // Undo puts a file that was waiting in Files back there, not on the board.
         unplaced: p.unplaced === true,
-      };
+      }, p.link, { hasTemplate: (t) => !!gridTemplates?.[t], hasSequence: (q) => !!gridSequences?.[q] });
     }).filter((c) => !(everyCard || []).some((x) => x.id === c.id));
     mutators.addCards?.(cardsBack, { moveFrom: d.targetBoardId, untracked: true, arrows: d.arrows || [] });
   };

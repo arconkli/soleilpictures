@@ -33,3 +33,29 @@ test('a card with no links comes back as it was', () => {
   assert.equal(unlinkGridForCopy(card, templates), card);
   assert.equal(unlinkGridForCopy(null, templates), null);
 });
+
+import { gridLinkOf, relinkGrid } from './gridState.js';
+
+test("a move's undo puts the link back: the grid rejoins its family and sequence", () => {
+  const before = { id: 'g', kind: 'grid', templateId: 't1', seqId: 's1' };
+  const place = gridLinkOf(before);
+  const moved = unlinkGridForCopy(before, templates);           // what arrived on the other board
+  const back = relinkGrid(moved, place, { hasTemplate: (t) => t === 't1', hasSequence: (q) => q === 's1' });
+  assert.equal(back.templateId, 't1');
+  assert.equal(back.seqId, 's1');
+  assert.equal('layout' in back, false);      // the family's layout, not a frozen copy
+  assert.equal('textStyle' in back, false);
+});
+
+test('a template or sequence that has gone since keeps the layout the move wrote', () => {
+  const before = { id: 'g', kind: 'grid', templateId: 't1', seqId: 's1' };
+  const back = relinkGrid(unlinkGridForCopy(before, templates), gridLinkOf(before), {});
+  assert.deepEqual(back.layout, LAYOUT);
+  assert.equal('templateId' in back, false);
+  assert.equal('seqId' in back, false);
+});
+
+test('an unlinked card is left alone', () => {
+  const card = { id: 'n', kind: 'note' };
+  assert.equal(relinkGrid(card, gridLinkOf(card), { hasTemplate: () => true }), card);
+});

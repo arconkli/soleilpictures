@@ -394,4 +394,9 @@ test('full Files: holding over a folder browses into it mid-drag; the drop lands
   await page.mouse.up();
   await expect(page.locator('.crumb.here')).toContainText('Halcyon');
   await expect(w.locator(`.ct-tile-name[title="${name}"]`)).toHaveCount(1);
+  // Done springing: the way up above the title opens Studio in the app again
+  // (not a read-only browse inside Files).
+  await page.locator('.cb-pagehead-trail').getByRole('button', { name: 'Studio' }).click();
+  await expect(page.locator('.crumb.here')).toContainText('Studio');
+  await expect(page.locator('.cb-pagehead-title')).toHaveText('Studio');
 });

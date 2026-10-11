@@ -62,6 +62,30 @@ test('moving to another target restarts the hold; leaving cancels it', () => {
   assert.deepEqual(hits, ['b']);
 });
 
+test('after a spring fires, a still pointer does not arm the next target until it moves', () => {
+  const t = fakeTimers();
+  const win = { listeners: {}, addEventListener(ty, f) { (this.listeners[ty] ||= new Set()).add(f); }, removeEventListener(ty, f) { this.listeners[ty]?.delete(f); } };
+  const over = (x, y) => [...(win.listeners.dragover || [])].forEach((f) => f({ clientX: x, clientY: y }));
+  beginDragSession(null, { kind: 'files' }, win);
+  const s = createSpring(t);
+  const hits = [];
+  over(100, 100);
+  s.enter('folder:a', () => hits.push('a'));
+  t.advance(SPRING_DELAY);
+  assert.deepEqual(hits, ['a']);
+  // The new folder now under the same point doesn't arm…
+  over(101, 100);
+  s.enter('folder:b', () => hits.push('b'));
+  t.advance(SPRING_DELAY * 2);
+  assert.deepEqual(hits, ['a']);
+  // …until the pointer moves.
+  over(130, 120);
+  s.enter('folder:b', () => hits.push('b'));
+  t.advance(SPRING_DELAY);
+  assert.deepEqual(hits, ['a', 'b']);
+  endDragSession(false, win);
+});
+
 test('a drag session tells listeners it started and how it ended, and clears the side channels', () => {
   const win = { listeners: {}, addEventListener(t, f) { (this.listeners[t] ||= new Set()).add(f); }, removeEventListener(t, f) { this.listeners[t]?.delete(f); } };
   const events = [];

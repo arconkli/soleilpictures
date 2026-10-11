@@ -1125,17 +1125,16 @@ export function ListSurface({
       e.preventDefault();
       const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
       if (!payload || payload.sourceBoardId !== homeSrc.boardId) return;
-      spring?.drop?.(moveCardsTo(payload.cards.map((c) => c.id), board.id, homeSrc));
+      const moved = moveCardsTo(payload.cards.map((c) => c.id), board.id, homeSrc);
+      spring?.drop?.(moved);
       return;
     }
     if (foldersHere(t)) {
       e.preventDefault();
       const childIds = readBoardRefIds(e.dataTransfer).filter((id) => id !== board.id && !wouldCreateCycle(boards, id, board.id));
       if (!childIds.length) return;
-      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
-        detail: { childIds, targetId: board.id, sourceSurface: 'list' },
-      }));
-      spring?.drop?.(Promise.resolve(true));
+      const nested = reparentInto(childIds, board.id);
+      spring?.drop?.(nested);
       return;
     }
     if (!isRecognizedDrag(t)) return;
@@ -1381,6 +1380,25 @@ export function ListSurface({
   // Click, double-click, drag (reparent) and drop handlers for one sub-cluster
   // tile — shared by the full-mode cluster cards and the panel's folder tiles.
   const springTimer = useSpring();
+  // Never spring into a folder that is itself being dragged, or into one of
+  // its descendants — nothing could be dropped there.
+  const springable = (id) => {
+    const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
+    return !ids.some((x) => wouldCreateCycle(boards, x, id));
+  };
+  const armFolder = (id) => { if (spring && springable(id)) springTimer.enter(`folder:${id}`, () => spring.into(id)); };
+  // Nest clusters under a cluster; resolves whether anything moved — after
+  // App has finished (and taken the cluster card off this board), so a sprung
+  // full Files only goes there once it's safe to leave.
+  const reparentInto = (childIds, targetId) => new Promise((res) => {
+    document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+      detail: {
+        childIds, targetId, sourceSurface: 'list',
+        onDone: (r) => res(!!r?.moved?.length),
+        onFailed: () => res(false),
+      },
+    }));
+  });
   // Full Files' way back up: shown when there's an ancestor, or a spring to undo.
   const hasTrail = !isPanel && !!fullPathBar && (fullPathBar.canBack || (fullPathBar.path?.length || 0) > 1);
   const folderProps = (b) => ({
@@ -1398,11 +1416,11 @@ export function ListSurface({
       } catch (_) {}
     },
     onDragEnd: () => { try { window.__soleilBoardDrag = null; } catch (_) {} setDropTileId(null); },
-    onDragEnter: () => { if (spring) springTimer.enter(`folder:${b.id}`, () => spring.into(b.id)); },
+    onDragEnter: () => armFolder(b.id),
     onDragOver: (e) => {
       const t = e.dataTransfer.types;
       // Hold here and Files opens this folder, mid-drag (lib/springLoad.js).
-      if (spring) springTimer.enter(`folder:${b.id}`, () => spring.into(b.id));
+      armFolder(b.id);
       // This cluster's files dropped on one of its folders move into it — and
       // so do the home cluster's, after a drag has sprung in here.
       if (t.includes(FILES_DRAG_MIME)) {
@@ -1450,10 +1468,8 @@ export function ListSurface({
       if (!childIds.length) return;
       e.preventDefault();
       e.stopPropagation();
-      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
-        detail: { childIds, targetId: b.id, sourceSurface: 'list' },
-      }));
-      spring?.drop?.(Promise.resolve(true));
+      const nested = reparentInto(childIds, b.id);
+      spring?.drop?.(nested);
     },
   });
 
@@ -1476,8 +1492,8 @@ export function ListSurface({
                   selected={selectedCards.has(c.id)}
                   springing={springTimer.armed === `folder:${c.target}`}
                   // Hold a drag over it and Files opens the cluster it links to.
-                  onDragEnter={t && spring ? () => springTimer.enter(`folder:${c.target}`, () => spring.into(c.target)) : undefined}
-                  onDragOver={t && spring ? () => springTimer.enter(`folder:${c.target}`, () => spring.into(c.target)) : undefined}
+                  onDragEnter={t && spring ? () => armFolder(c.target) : undefined}
+                  onDragOver={t && spring ? () => armFolder(c.target) : undefined}
                   onDragLeave={t && spring ? (e) => springTimer.leave(`folder:${c.target}`, e) : undefined}
                   data-link-id={c.id}
                   onClick={(e) => onTileClick(e, 'boardlink', c.id)}
