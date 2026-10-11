@@ -13,7 +13,7 @@ import { yXmlFragmentToProseMirrorRootNode, prosemirrorToYXmlFragment } from 'y-
 import { ScreenplayBlock } from '../components/docExtensions/screenplay/ScreenplayBlock.js';
 import {
   initCardDocStore, cardScope, writeScriptBody, readPages, pageContentMap,
-  switchDocMode, getDocMode, getDocUndoManager, metaMap,
+  switchDocMode, getDocMode, getDocUndoManager, metaMap, renamePage, healDocMode,
 } from './docState.js';
 
 // The doc editor's schema for these nodes (see scriptImport.test.mjs).
@@ -134,14 +134,70 @@ test('a collaborator gets the mode and the converted content in ONE update, and 
   assert.equal(bFrag().length, SCRIPT.content.length, 'nothing duplicated');
 });
 
-test('one doc undo takes back the mode and the conversion together', () => {
-  const { ydoc, scope, pm } = scriptDoc();
-  const before = blocks(pm());
+// y-prosemirror's binding transacts with its PluginKey as the origin.
+const TYPING = { key: 'y-sync$' };
+const typeInto = (ydoc, el, text) => ydoc.transact(() => {
+  const t = el.toArray().find((c) => typeof c.toDelta === 'function');
+  t.insert(t.length, text);
+}, TYPING);
+
+test('the switch is not a doc-structure undo step', () => {
+  const { ydoc, scope } = scriptDoc();
   const um = getDocUndoManager(ydoc, scope());
   switchDocMode(ydoc, scope(), 'doc');
+  assert.equal(um.undoStack.length, 0, 'the Screenplay pill is its own (lossless) inverse');
+});
+
+test('a structural undo after the switch never takes back what was typed into the converted lines', () => {
+  const { ydoc, scope, frag, pm } = scriptDoc();
+  const um = getDocUndoManager(ydoc, scope());
+  // Something earlier on the structure stack for Cmd+Z to reach.
+  renamePage(ydoc, readPages(ydoc, scope())[0].id, 'Night 2', scope());
+  um.stopCapturing();
+  switchDocMode(ydoc, scope(), 'doc');
+  typeInto(ydoc, frag().toArray()[4], ' Right now.');       // my typing
+  ydoc.transact(() => {                                       // a peer's new line
+    const p = new Y.XmlElement('paragraph');
+    const t = new Y.XmlText(); t.insert(0, 'A whole new line');
+    p.insert(0, [t]);
+    frag().insert(frag().length, [p]);
+  }, TYPING);
+  const before = blocks(pm());
+
   um.undo();
-  assert.equal(getDocMode(ydoc, scope()), 'screenplay');
-  assert.deepEqual(blocks(pm()), before);
+  assert.equal(readPages(ydoc, scope())[0].name, 'Night', 'the undo reached the rename');
+  assert.equal(getDocMode(ydoc, scope()), 'doc');
+  assert.deepEqual(blocks(pm()), before, 'every typed word, in order, still in Doc mode');
+  assert.ok(before.some((b) => b.text === 'We should go. Right now.'));
+});
+
+test('a remembered line rewritten in Doc mode keeps its casing on the way back', () => {
+  const { ydoc, scope, frag, pm } = scriptDoc();
+  switchDocMode(ydoc, scope(), 'doc');
+  // The MAYA cue, rewritten as ordinary prose (typing in a paragraph keeps its memory).
+  ydoc.transact(() => {
+    const t = frag().toArray()[2].toArray()[0];
+    t.delete(0, t.length);
+    t.insert(0, 'Maya hesitates at the door.');
+  }, TYPING);
+  switchDocMode(ydoc, scope(), 'screenplay');
+  assert.deepEqual(blocks(pm())[2], { type: 'screenplayBlock', element: 'character', sceneNumber: null, dual: 'left', text: 'Maya hesitates at the door.' });
+});
+
+test('healDocMode brings stranded lines into the current mode, and writes nothing when there are none', () => {
+  const { ydoc, scope, frag, pm } = scriptDoc();
+  // A screenplay line left behind in Doc mode (say, a page restored by undo).
+  metaMap(ydoc, scope()).set('mode', 'doc');
+  const updates = [];
+  ydoc.on('update', (u) => updates.push(u));
+  assert.equal(healDocMode(ydoc, scope()), true);
+  assert.equal(updates.length, 1);
+  assert.deepEqual(pm().content.content.map((n) => n.type.name), Array(SCRIPT.content.length).fill('paragraph'));
+  const first = frag().toArray()[0];
+  assert.equal(healDocMode(ydoc, scope()), false);
+  assert.equal(updates.length, 1, 'idempotent: no update at all');
+  assert.equal(frag().toArray()[0], first);
+  assert.equal(getDocUndoManager(ydoc, scope()).undoStack.length, 0, 'not a structural undo step either');
 });
 
 test('switching to the mode a doc is already in changes nothing', () => {
@@ -163,4 +219,11 @@ test('no editor converts on mount any more, and only an editor can switch', () =
   const ds = read('../components/DocSurface.jsx');
   assert.match(ds, /const toggleScreenplay = useCallback\(\(\) => \{\s*if \(!canEdit\) return;\s*switchDocMode\(/);
   assert.doesNotMatch(ds, /\bsetDocMode\(/, 'the person-facing switches all convert');
+});
+
+test('only one editor heals, so two clients never convert the same lines', () => {
+  const ds = read('../components/DocSurface.jsx');
+  const heal = ds.slice(ds.indexOf('// Heal content'), ds.indexOf('healDocMode(ydoc, scope)') + 30);
+  assert.match(heal, /if \(!canEdit \|\| !awareness\) return/, 'viewers write nothing');
+  assert.match(heal, /Math\.min\(\.\.\.awareness\.getStates\(\)\.keys\(\)\)/, 'the lowest client id heals');
 });

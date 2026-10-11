@@ -31,7 +31,8 @@ export { DOC_ORIGIN };
 // ── Doc STRUCTURAL undo ──────────────────────────────────────────────────────
 // One Y.UndoManager per doc scope, tracking DOC_ORIGIN over that scope's own
 // types. This is what makes page delete/move/rename, sheets, bookmarks,
-// comment threads and mode flips reversible: deletePage cascades an entire
+// comment threads and scene-number/layout flips reversible (the Screenplay
+// switch is NOT — see DOC_MODE_ORIGIN): deletePage cascades an entire
 // subtree (pages + content + sheets + bookmarks + comments) in ONE DOC_ORIGIN
 // transaction, so one undo() reverses the whole cascade atomically —
 // including nested Y.XmlFragment contents.
@@ -194,23 +195,51 @@ export function setDocMode(ydoc, scope, mode) {
 }
 
 // The person-facing mode switch (the Screenplay pill, enabling a title page):
-// flips the mode AND converts every page's content, in ONE DOC_ORIGIN
-// transaction. One writer — only the client that flipped converts, so peers'
-// editors never race each other into duplicating the doc — and one update, so
-// a peer never sees the new mode over unconverted content. Lossless both ways
-// and a single doc-structure undo step. setDocMode stays the raw setter for
+// flips the mode AND converts every page's content, in ONE transaction. One
+// writer — only the client that flipped converts, so peers' editors never race
+// each other into duplicating the doc — and one update, so a peer never sees
+// the new mode over unconverted content. setDocMode stays the raw setter for
 // content that is already in the right shape (a dropped script's body).
+//
+// Deliberately NOT a doc-structure undo step, so it runs under its own origin
+// that getDocUndoManager doesn't track. The conversion deletes every top-level
+// block and inserts a clone; undoing that at the Yjs level deletes the clones
+// — and with them every word typed into them since, by you or a peer — and
+// restores the old blocks under the new mode, where nothing converts them.
+// The pill itself is the lossless inverse. Still persisted, broadcast and
+// counted as your own save (yboard treats this origin as local).
+export const DOC_MODE_ORIGIN = 'doc-mode';
 export function switchDocMode(ydoc, scope, mode) {
   const m = metaMap(ydoc, scope);
   if (!m) return;
   const next = mode === 'screenplay' ? 'screenplay' : 'doc';
   ydoc.transact(() => {
-    for (const map of [pageContentMap(ydoc, scope), sheetContentMap(ydoc, scope)]) {
-      if (!map || typeof map.forEach !== 'function') continue;
-      map.forEach((frag) => { convertFragmentDocMode(frag, next); });
-    }
+    convertAllFragments(ydoc, scope, next);
     m.set('mode', next);
-  }, DOC_ORIGIN);
+  }, DOC_MODE_ORIGIN);
+}
+
+function convertAllFragments(ydoc, scope, mode) {
+  let changed = false;
+  for (const map of [pageContentMap(ydoc, scope), sheetContentMap(ydoc, scope)]) {
+    if (!map || typeof map.forEach !== 'function') continue;
+    map.forEach((frag) => { if (convertFragmentDocMode(frag, mode)) changed = true; });
+  }
+  return changed;
+}
+
+// Bring content that arrived in the other mode's shape into line with the
+// current mode — a page restored by a structural undo, a peer's Enter that
+// raced the flip, an old bundle mid-rollout. Editors used to convert on every
+// mount; that is what duplicated docs, so DocSurface calls this from ONE
+// client only (see its heal effect). Idempotent: a doc already in shape writes
+// nothing at all.
+export function healDocMode(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return false;
+  let changed = false;
+  ydoc.transact(() => { changed = convertAllFragments(ydoc, scope, getDocMode(ydoc, scope)); }, DOC_MODE_ORIGIN);
+  return changed;
 }
 
 // Screenplay scene-number visibility (the lock state itself lives on the scene
