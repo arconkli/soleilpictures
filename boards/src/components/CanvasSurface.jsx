@@ -101,7 +101,7 @@ import { parseLoopMeta, canonicalKey } from '../lib/loopMeta.js';
 import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
-import { eraseStrokes, eraseOnCard, appendStrokeToCard, readCardStrokes, strokeInPolygon, pickArtStrokeTarget, applyStrokeTransform, mapStrokePoints } from '../lib/strokeModel.js';
+import { eraseStrokes, eraseOnCard, appendStrokeToCard, readCardStrokes, strokeInPolygon, pickArtStrokeTarget, applyStrokeTransform } from '../lib/strokeModel.js';
 import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
 import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeLineCap } from '../lib/strokeRender.js';
 import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
@@ -12062,8 +12062,12 @@ export function CanvasSurface({
                 pointerId: ev.pointerId,
                 onSample: (mv) => {
                   fn = mapFor(startC, clientToCanvas(mv.clientX, mv.clientY));
-                  setStrokeXform({ preview: new Map(picked.map(({ idx, stroke }) =>
-                    [idx, { ...stroke, points: mapStrokePoints(stroke.points, fn) }])) });
+                  // Resolved against the live array like the commit, not by
+                  // the pointerdown indexes: a peer erasing an earlier stroke
+                  // mid-drag shifts them, and the preview painted the moved
+                  // stroke over a different one.
+                  const r = applyStrokeTransform(strokesRef.current, picked, fn);
+                  setStrokeXform(r ? { preview: new Map(r.indexes.map(at => [at, r.next[at]])) } : null);
                 },
                 onEnd: (_e, { canceled }) => {
                   if (pointerOpAbortRef.current === abort) pointerOpAbortRef.current = null;
