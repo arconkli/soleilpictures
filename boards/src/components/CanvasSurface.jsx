@@ -89,7 +89,7 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
-import { unlinkGridForCopy, gridLinkOf, relinkGrid } from '../lib/gridState.js';
+import { unlinkGridForCopy, gridLinkOf, relinkGrid, readGridModel } from '../lib/gridState.js';
 import { yMapToCard } from '../lib/yhelpers.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
@@ -152,7 +152,7 @@ import { supabase } from '../lib/supabase.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { loadBoardView, saveBoardView, clearBoardView,
          markViewRestoreInFlight, viewRestoreCrashed, clearViewRestoreInFlight } from '../lib/boardViewState.js';
-import { fetchLinkPreview } from '../lib/linkPreview.js';
+import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
@@ -5140,13 +5140,8 @@ export function CanvasSurface({
       mutators.addCard?.(card);
       if (!embed) {
         fetchLinkPreview(url).then(p => {
-          if (!p) return;
-          const patch = {};
-          if (p.title) patch.title = p.title;
-          if (p.image) patch.image = p.image;
-          if (p.description) patch.description = p.description;
-          if (p.favicon) patch.favicon = p.favicon;
-          if (p.image) { patch.w = 280; patch.h = 290; }
+          // Only what the user hasn't changed since (lib/linkPreview.js).
+          const patch = previewPatch(p, cardByIdRef.current[newId], card, { grow: { w: 280, h: 290 } });
           // Silent: the async preview backfill must not add an undo step
           // between the card-create and whatever the user does next.
           if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
@@ -8488,13 +8483,8 @@ export function CanvasSurface({
       // OG enrichment for embeds since the iframe is the preview.
       if (!embed) {
         fetchLinkPreview(url).then(p => {
-          if (!p) return;
-          const patch = {};
-          if (p.title) patch.title = p.title;
-          if (p.image) patch.image = p.image;
-          if (p.description) patch.description = p.description;
-          if (p.favicon) patch.favicon = p.favicon;
-          if (p.image) { patch.w = 280; patch.h = 290; }
+          // Only what the user hasn't changed since (lib/linkPreview.js).
+          const patch = previewPatch(p, cardByIdRef.current[newId], card, { grow: { w: 280, h: 290 } });
           // Silent: the async preview backfill must not add an undo step
           // between the card-create and whatever the user does next.
           if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
@@ -9344,6 +9334,9 @@ export function CanvasSurface({
     if (fc && !cards.some((c) => c.id === fc.gridId)) focusCell(null, null);
     setEditingCell((ec) => (ec && !cards.some((c) => c.id === ec.gridId) ? null : ec));
   }, [cards, focusCell]);
+  // A grid cell as it is NOW — an async backfill (the link preview) must not
+  // land on a cell that was replaced or cleared while it was in flight.
+  const liveCell = (gridId, cellId) => readGridModel(cardByIdRef.current[gridId], ydoc, null).cells[cellId] || null;
   // The key a WRITE should land on. Grid cells write in place. A schedule
   // SLOT key (day/hour/minute path) mints a fresh `<slot>/i:<uid>` so writes
   // APPEND (multi-item slots); a schedule ITEM key writes in place (replace
@@ -9410,7 +9403,7 @@ export function CanvasSurface({
       const patch = { type: 'link', source: url, link: url, title };
       if (embed) patch.embed = embed;
       mutators.setGridCellContent?.(gridId, cellId, patch);
-      if (!embed) fetchLinkPreview(url).then((p) => { if (!p) return; const np = {}; if (p.title) np.title = p.title; if (p.image) np.image = p.image; if (p.favicon) np.favicon = p.favicon; if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np); });
+      if (!embed) fetchLinkPreview(url).then((p) => { const { description: _d, ...np } = previewPatch(p, liveCell(gridId, cellId), patch); if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np); });
       return true;
     }
     if (text.trim().length) {
@@ -9491,11 +9484,8 @@ export function CanvasSurface({
       if (embed) patch.embed = embed;
       mutators.setGridCellContent?.(gridId, cellId, patch);
       if (!embed) fetchLinkPreview(url).then((p) => {
-        if (!p) return;
-        const np = {};
-        if (p.title) np.title = p.title;
-        if (p.image) np.image = p.image;
-        if (p.favicon) np.favicon = p.favicon;
+        // A cell replaced or cleared meanwhile takes nothing (lib/linkPreview.js).
+        const { description: _d, ...np } = previewPatch(p, liveCell(gridId, cellId), patch);
         if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
       });
     },
@@ -9585,7 +9575,7 @@ export function CanvasSurface({
     // their editor mount on onUpdate presence too). Without this, demo
     // users could type into notes / rename titles / etc. and watch each
     // keystroke flash locally and snap back when RLS rejects the save.
-    const onUpdate = canEdit ? (patch) => mutators.updateCard?.(c.id, patch) : null;
+    const onUpdate = canEdit ? (patch, opts) => ((opts?.silent && mutators.updateCardSilent) || mutators.updateCard)?.(c.id, patch) : null;
     const af = (autoFocusId === c.id);
 
     let inner = null;
@@ -10476,13 +10466,7 @@ export function CanvasSurface({
         mutators.addCard?.(dropCard);
         if (embed) return;
         fetchLinkPreview(url).then(p => {
-          if (!p) return;
-          const patch = {};
-          if (p.title) patch.title = p.title;
-          if (p.image) patch.image = p.image;
-          if (p.description) patch.description = p.description;
-          if (p.favicon) patch.favicon = p.favicon;
-          if (p.image) { patch.w = 280; patch.h = 290; }
+          const patch = previewPatch(p, cardByIdRef.current[newId], dropCard, { grow: { w: 280, h: 290 } });
           if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
         });
       };

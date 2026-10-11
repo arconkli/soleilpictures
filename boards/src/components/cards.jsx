@@ -57,6 +57,8 @@ import {
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
+import { detectEmbed } from '../lib/oembed.js';
+import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
@@ -1266,6 +1268,30 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [embedActive]);
+  // A new address is a new link. The old site's image, blurb and favicon
+  // (and an embed's player) used to stay while the card opened the new one;
+  // they go with the old address now, the embed is re-detected, and the
+  // preview is fetched again — applied silently, like the creation path, and
+  // only onto what hasn't changed meanwhile (previewPatch). A title that was
+  // just the old hostname follows the new one; a title someone typed stays.
+  const liveRef = useRef(null);
+  liveRef.current = { source, title, image, description, favicon };
+  const changeSource = (v) => {
+    const next = (v || '').trim();
+    if (next === (source || '')) return;
+    const host = (u) => { try { return new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, ''); } catch (_) { return null; } };
+    const nextEmbed = next ? detectEmbed(next) : null;
+    const patch = { source: next, link: next, image: null, description: null, favicon: null, embed: nextEmbed || null };
+    if (title && title === host(source || '')) patch.title = nextEmbed ? '' : (host(next) || next);
+    onUpdate(patch);
+    if (!next || nextEmbed) return;
+    const created = { source: next, title: patch.title ?? title };
+    fetchLinkPreview(next).then((p) => {
+      const np = previewPatch(p, liveRef.current, created);
+      if (patch.title === undefined) delete np.title;   // a kept title is the user's
+      if (Object.keys(np).length) onUpdate(np, { silent: true });
+    });
+  };
   const onBodyDouble = (e) => {
     if (!onUpdate) return;
     if (e.target.closest && e.target.closest('.editable')) return; // let inner editors win
@@ -1453,7 +1479,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
               </svg>
             )}
           {onUpdate
-            ? <EditableText className="lc-src-text" value={source || ''} placeholder="https://…" onChange={(v) => onUpdate({ source: v, link: v })} />
+            ? <EditableText className="lc-src-text" value={source || ''} placeholder="https://…" onChange={changeSource} />
             : <span>{source}</span>}
           {openHref && (
             <button type="button" className="lc-open" title="Open link"
