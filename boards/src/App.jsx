@@ -8699,7 +8699,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <OpenDmContext.Provider value={openDmWith}>
     <MessagesUiContext.Provider value={messagesUi}>
     <AppTrieProvider workspaceId={workspace.id}>
-    <div className={`app ${sidebarOpen ? '' : 'sb-collapsed'}`}
+    {/* The collapsed-sidebar preference is a desktop layout. In the mobile
+        shell the sidebar IS the drawer, and .sb-collapsed hides every row in
+        it: a preference set on the desktop (it is saved to the account) left
+        the phone drawer with no Home, no Messages and no clusters. */}
+    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -8755,9 +8759,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
+            {/* In the drawer this is the drawer's close. It used to write the
+                desktop collapse preference (to the account) and leave the
+                drawer open with every row hidden. */}
             <button className="sb-mid-collapse"
-                    onClick={() => setSidebarOpen(false)}
-                    title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
+                    onClick={() => (mobileShell ? setMobileNavOpen(false) : setSidebarOpen(false))}
+                    title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
+                    aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
               <Icon as={PanelLeftClose} size={14} />
             </button>
             {wsMenuOpen && (

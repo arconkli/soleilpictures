@@ -20091,6 +20091,13 @@ button, [role="button"], a {
      position:fixed below) so .main takes the full viewport width. */
   .app { grid-template-columns: 1fr; --sb-w: 0px; }
   .app.sb-collapsed { grid-template-columns: 1fr; --sb-w: 0px; }
+  /* The drawer never inherits the desktop collapse: .sb-collapsed hides every
+     row, which emptied the drawer of Home, Messages and every cluster. App.jsx
+     leaves the class off in the mobile shell; this covers any frame where the
+     JS breakpoint and this media query disagree. */
+  .sb-collapsed .sb-group,
+  .sb-collapsed .sb-row,
+  .sb-collapsed .sb-me { display: flex; }
 
   /* Sidebar becomes a slide-out drawer. JSX wires .is-mobile-open
      from App.jsx mobileNavOpen state. Same DOM, different layout. */
