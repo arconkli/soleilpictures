@@ -109,7 +109,7 @@ test('upload progress is coalesced per frame and only on a whole-percent change'
 // panes sit inside .canvas-wrap, whose wheel listener panned the board over them.
 test('the wheel stands down over the viewers and over a selected schedule pane', () => {
   const wheel = between('const onWheel = (e) => {', "e.preventDefault();\n      perf.bump('wheel.events');");
-  assert.match(wheel, /e\.target\.closest\('[^']*\.pdfv, \.lightbox'\)\) return;/);
+  assert.match(wheel, /if \(e\.target\.closest && e\.target\.closest\('\.pdfv, \.lightbox'\)\) \{\s*if \(e\.ctrlKey \|\| e\.metaKey\) e\.preventDefault\(\);\s*return;\s*\}/);
   assert.match(canvas, /const SCHEDULE_SCROLL_PANES = '\.rd-body, \.schedt, \.schedc-rail-body';/);
   assert.match(wheel, /const pane = wheelMode === 'pan' && e\.target\.closest\(SCHEDULE_SCROLL_PANES\);/);
   assert.match(wheel, /pane\.closest\('\.card'\)\?\.classList\.contains\('is-selected'\)\) return;/);

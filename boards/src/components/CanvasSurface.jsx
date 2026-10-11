@@ -4446,10 +4446,15 @@ export function CanvasSurface({
       }, 140);
     };
     const onWheel = (e) => {
-      // .pdfv / .lightbox: the full-screen PDF viewer and image lightbox render
-      // inside this wrap, so without them here every wheel over a PDF's pages
-      // panned the board behind it instead of scrolling them.
-      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel, .pdfv, .lightbox')) return;
+      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
+      // The full-screen PDF viewer and image lightbox render inside this wrap:
+      // without this every wheel over a PDF's pages panned the board behind it
+      // instead of scrolling them. A ctrl/⌘-wheel is still kept from the
+      // browser's page zoom (the PDF viewer's own listener zooms its pages).
+      if (e.target.closest && e.target.closest('.pdfv, .lightbox')) {
+        if (e.ctrlKey || e.metaKey) e.preventDefault();
+        return;
+      }
       // Public pages are pinned to pan semantics whatever the reader's own
       // preference says. They are scrollable documents — a canvas hero with an
       // article under it — so a plain wheel has to scroll the PAGE, and a
