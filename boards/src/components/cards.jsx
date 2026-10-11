@@ -251,7 +251,8 @@ function describeListItem(card, boards = {}) {
     return { ...base, name: text || 'Empty note', meta: 'note' };
   }
   if (card.kind === 'link') {
-    const url = card.link || card.source || null;
+    // `url` is where /api/v1 and manifest imports put the address.
+    const url = card.link || card.source || card.url || null;
     return { ...base, url, name: card.title || url || 'Untitled link', meta: url || 'link' };
   }
   if (card.kind === 'palette') {
@@ -1131,7 +1132,12 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   );
 }
 
-function LinkCard({ title, source, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+  // The app writes the address to `source` (and `link`); cards made through
+  // /api/v1 or a manifest import carry it only as `url`. Reading just `source`
+  // left those cards with no address, no open button and no way to fix it
+  // short of retyping the link (API-05).
+  const source = sourceProp || link || url || null;
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
@@ -1567,7 +1573,17 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   );
 }
 
-function DocCard({ title, lines, author, date, onUpdate, autoFocus = false }) {
+function DocCard({ title, lines, author, date, html = null, body = null, onUpdate, autoFocus = false }) {
+  // A doc made through /api/v1 or MCP arrives as title + body/html with no
+  // doc store (docPages), so it lands here rather than in RichDocCard. This
+  // card used to render only the old static `lines`, so the text the caller
+  // sent was invisible (API-04). With no lines, show that text as a read-only
+  // preview, sanitized like a note (the html rides the CRDT unchecked).
+  const hasLines = Array.isArray(lines) && lines.length > 0;
+  const textHtml = useMemo(
+    () => (hasLines ? '' : sanitizeNoteHtml(noteSourceHtml(html, body))),
+    [hasLines, html, body],
+  );
   return (
     <div className="doc">
       <div className="doc-hd">
@@ -1582,17 +1598,23 @@ function DocCard({ title, lines, author, date, onUpdate, autoFocus = false }) {
                           selectAllOnFocus={autoFocus} />
           : <div className="doc-title">{title}</div>}
       </div>
-      <div className="doc-body">
-        {(lines || []).map((l, i) => (
-          <div key={i} className={`doc-line ${l.h ? `doc-h${l.h}` : ''}`}>
-            {l.bullet && <span className="doc-bullet">·</span>}
-            {l.text}
+      {textHtml
+        ? <div className="doc-body doc-body-html" dangerouslySetInnerHTML={{ __html: textHtml }} />
+        : (
+          <div className="doc-body">
+            {(lines || []).map((l, i) => (
+              <div key={i} className={`doc-line ${l.h ? `doc-h${l.h}` : ''}`}>
+                {l.bullet && <span className="doc-bullet">·</span>}
+                {l.text}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="doc-ft">
-        <span>{author}</span><span className="doc-dot">·</span><span>{date}</span>
-      </div>
+        )}
+      {(author || date) && (
+        <div className="doc-ft">
+          <span>{author}</span><span className="doc-dot">·</span><span>{date}</span>
+        </div>
+      )}
     </div>
   );
 }

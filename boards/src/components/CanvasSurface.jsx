@@ -9147,7 +9147,7 @@ export function CanvasSurface({
                                                 currentUser={currentUser} isPublic={isPublic}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
-    else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target}
+    else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} link={c.link} url={c.url} target={c.target}
                                                        image={c.image} description={c.description} favicon={c.favicon}
                                                        embed={c.embed}
                                                        isSelected={isSelected}
@@ -9198,7 +9198,7 @@ export function CanvasSurface({
                      isDocked={dockedDocCardId === c.id}
                      autoFocus={af}
                      onUpdate={onUpdate} />
-      ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;
+      ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} html={c.html} body={c.body} onUpdate={onUpdate} autoFocus={af} />;
     }
     else if (c.kind === 'schedule' && !c.schedView)
       // LEGACY schedule (static rows table) — generator-seeded cards keep
