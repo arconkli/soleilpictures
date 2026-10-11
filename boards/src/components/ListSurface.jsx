@@ -345,13 +345,19 @@ export function ListSurface({
 
   // A sort key that only exists in audio mode must not survive leaving it, or
   // the table sorts by a column nobody can see.
+  //
+  // Only on evidence, though: an empty list says nothing about the pack. A
+  // search that matches nothing, a reload before the doc syncs and a folder
+  // still loading all render zero rows for a beat — and this reset is written
+  // to prefs, so it used to wipe the sort for good.
   useEffect(() => {
-    if (!audioMode && ['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
+    if (loading || !visibleItems.length) return;
+    if (!audioMode &&['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
       setSortKey('board');
       setSortDir('asc');
       writeBrowserPrefs({ sortKey: 'board', sortDir: 'asc' });
     }
-  }, [audioMode, sortKey]);
+  }, [audioMode, sortKey, loading, visibleItems.length]);
 
   // A one-line read on the pack, assembled from the rows already on screen:
   // how many, what tempo range, how much material. It follows the search and
