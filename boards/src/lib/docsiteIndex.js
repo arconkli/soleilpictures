@@ -237,7 +237,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-08",
+    "updated": "2026-10-11",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -247,6 +247,10 @@ export const DOCS_PAGES = [
       {
         "id": "navigate",
         "text": "Navigate"
+      },
+      {
+        "id": "sidebar",
+        "text": "Sidebar"
       },
       {
         "id": "edit",
@@ -1292,7 +1296,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-10-04",
+    "updated": "2026-10-11",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2824,7 +2828,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-10-04",
+    "updated": "2026-10-11",
     "navLabel": "Mobile and tablet",
     "headings": [
       {

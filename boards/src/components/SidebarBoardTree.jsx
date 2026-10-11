@@ -483,6 +483,11 @@ export function SidebarBoardTree({
              onKeyDown={(e) => {
                if (e.target !== e.currentTarget) return;
                if (e.key === 'Enter' || e.key === ' ') {
+                 // A click leaves focus on the row, and Space is also the
+                 // canvas's hold-to-pan key: a held key must not re-open the
+                 // cluster on every repeat, and Space on the cluster that is
+                 // already open is left to the canvas.
+                 if (e.repeat || (e.key === ' ' && isActive)) return;
                  e.preventDefault();
                  onRowClick(e, board);
                } else if (e.key === 'ArrowRight' && hasKids && !isOpen) {
@@ -574,9 +579,9 @@ export function SidebarBoardTree({
   // alone, once armed the touchmove is preventDefault-ed so the browser can't
   // take the gesture, and pointercancel only ever cancels.
   //
-  // A hold released without moving opens the row menu: iOS Safari never fires
-  // contextmenu for a touch long-press, so this is the only way to rename,
-  // recolor or delete a cluster from the phone drawer.
+  // A long hold (MENU_HOLD_MS) released without moving opens the row menu:
+  // iOS Safari never fires contextmenu for a touch long-press, so this is the
+  // only way to rename, recolor or delete a cluster from the phone drawer.
   const treeRef = useRef(null);
   useEffect(() => {
     const el = treeRef.current;
@@ -584,6 +589,9 @@ export function SidebarBoardTree({
     let drag = null;
     const THRESHOLD = 10;
     const LONG_PRESS_MS = 350;
+    // Opening the row menu on release needs the platform's long-press length:
+    // a slow tap (350–500ms) is still a tap and opens the cluster.
+    const MENU_HOLD_MS = 500;
 
     const startGhost = (name) => {
       const g = document.createElement('div');
@@ -631,7 +639,7 @@ export function SidebarBoardTree({
       reset();
       const name = row.querySelector('.sb-row-label')?.textContent || boardId;
       const mine = {
-        boardId, name, row, startX: e.clientX, startY: e.clientY,
+        boardId, name, row, startX: e.clientX, startY: e.clientY, startAt: Date.now(),
         armed: false, active: false, nativeMenu: false, ghost: null, timer: 0,
       };
       mine.timer = setTimeout(() => { if (drag === mine) mine.armed = true; }, LONG_PRESS_MS);
@@ -687,7 +695,7 @@ export function SidebarBoardTree({
           }));
         }
         suppressClick();
-      } else if (drag.armed) {
+      } else if (drag.armed && Date.now() - drag.startAt >= MENU_HOLD_MS) {
         const board = boardsRef.current?.[drag.boardId];
         if (board && !drag.nativeMenu) {
           const r = drag.row.getBoundingClientRect();

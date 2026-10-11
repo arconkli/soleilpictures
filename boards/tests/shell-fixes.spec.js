@@ -111,13 +111,35 @@ test('a hold released without moving opens the row menu, not the cluster', async
   await mountTree(page);
   const dropped = await touchGesture(page, 'Alpha', [
     { type: 'pointerdown' },
-    { wait: 450 },
+    { wait: 600 },
     { type: 'pointerup' },
   ]);
   expect(dropped).toEqual([]);
   await expect(page.locator('.ctx-menu').first()).toBeVisible();
   await expect(page.locator('.ctx-menu').first()).toContainText('Rename');
   expect(await page.evaluate(() => window.__treeQa.opened)).toEqual([]);
+});
+
+test('a slow tap (under the long-press length) does not open the row menu', async ({ page }) => {
+  await mountTree(page);
+  const dropped = await touchGesture(page, 'Alpha', [
+    { type: 'pointerdown' },
+    { wait: 400 },
+    { type: 'pointerup' },
+  ]);
+  expect(dropped).toEqual([]);
+  await expect(page.locator('.ctx-menu')).toHaveCount(0);
+});
+
+test('a held Enter opens the cluster once, not on every key repeat', async ({ page }) => {
+  await mountTree(page);
+  const row = page.locator('#tree-qa .sb-tree-row[data-board-id="b"]');
+  await row.focus();
+  await row.dispatchEvent('keydown', { key: 'Enter', repeat: false, bubbles: true, cancelable: true });
+  for (let i = 0; i < 5; i++) {
+    await row.dispatchEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
+  }
+  expect(await page.evaluate(() => window.__treeQa.opened)).toEqual(['b']);
 });
 
 test('tree rows are reachable and openable from the keyboard', async ({ page }) => {

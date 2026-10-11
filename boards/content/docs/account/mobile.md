@@ -5,7 +5,7 @@ h1: Mobile and tablet
 navLabel: Mobile and tablet
 section: account
 order: 4
-updated: 2026-10-04
+updated: 2026-10-11
 answer: Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 faq:
   - q: Is there a real app?
@@ -45,7 +45,13 @@ makes drawing on touch unusable.
 **Bottom navigation** replaces the sidebar — Home, the current board, Messages,
 and more.
 
-**A drawer** holds navigation that does not fit.
+**A drawer** holds navigation that does not fit, including the cluster tree.
+Tap a cluster to open it. Hold one to pick it up, then drag it onto another
+cluster to nest it there; hold and let go without moving for its menu —
+rename, colour, delete. A swipe that starts on a row just scrolls the list.
+
+**Back** — the phone's gesture or button — closes whatever is open on top, the
+drawer, a sheet or Settings, instead of leaving the app.
 
 **The add sheet** replaces the tool rail's `+` menu with a full-width sheet,
 sized for thumbs.
