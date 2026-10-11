@@ -49,8 +49,14 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   // pick an action.
   const [appliedTags, setAppliedTags] = useState([]);
 
+  // A different card's menu must not show the last card's count and tags
+  // while its own load.
+  useEffect(() => { setRefCount(null); setAppliedTags([]); }, [card?.id]);
+  // Fetched when the menu OPENS (and fresh on every open), not whenever a card
+  // was once right-clicked — the menu stays mounted and these ran on mount and
+  // on every card/title change for a menu that may never be shown.
   useEffect(() => {
-    if (!supabase || !workspaceId || !boardId || !card?.id) return;
+    if (!open || !supabase || !workspaceId || !boardId || !card?.id) return;
     let cancelled = false;
     (async () => {
       let n = 0;
@@ -102,7 +108,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
       } catch (_) { if (!cancelled) setAppliedTags([]); }
     })();
     return () => { cancelled = true; };
-  }, [workspaceId, boardId, card?.id, card?.title, card?.name]);
+  }, [open, workspaceId, boardId, card?.id, card?.title, card?.name]);
 
   const openTag = (tagId) => {
     onClose();
@@ -131,9 +137,13 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   }, [open, onClose]);
 
   if (!open) return null;
-  const w = 220, hEst = items.length * 30 + 8;
-  const px = Math.min(x, window.innerWidth  - w  - 8);
-  const py = Math.min(y, window.innerHeight - hEst - 8);
+  // The TAGS block (head + chip row + divider) is ~44px on top of the rows.
+  const w = 220, hEst = items.length * 30 + 8 + (appliedTags.length ? 44 : 0);
+  const px = Math.max(8, Math.min(x, window.innerWidth  - w  - 8));
+  // Floored at the top edge: on a short window (a landscape phone, or an image
+  // card's ~20 rows) this went negative and the first rows started above the
+  // viewport. A menu taller than the window scrolls instead (.is-scrollable).
+  const py = Math.max(8, Math.min(y, window.innerHeight - hEst - 8));
 
   // "Linked from N places" row. Callers can position it explicitly by placing a
   // { backlinks: true } item in their menu (preferred — keeps Delete last); if
@@ -156,7 +166,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   const hasBacklinksPlaceholder = items.some(it => it.backlinks);
 
   return (
-    <div className="ctx-menu" style={{ left: px, top: py }} role="menu" onKeyDown={onMenuKeyDown}>
+    <div className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={onMenuKeyDown}>
       {card?.id && appliedTags.length > 0 && (
         <>
           <div className="ctx-tags-head">TAGS</div>
@@ -250,7 +260,7 @@ function SubmenuItem({ item, onClose, claimFire = () => true }) {
         <span className="ctx-chevron" aria-hidden="true">›</span>
       </button>
       {open && pos && createPortal(
-        <div className="ctx-menu ctx-submenu"
+        <div className="ctx-menu ctx-submenu is-scrollable"
              role="menu"
              style={{ position: 'fixed', left: pos.left, top: pos.top, maxHeight: pos.maxHeight, overflowY: 'auto' }}
              onMouseEnter={handleEnter}

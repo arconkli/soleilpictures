@@ -11,8 +11,11 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
   // AND text occurrences of the board's name across the workspace.
   const [refCount, setRefCount] = useState(null);
 
+  // Fetched when the menu OPENS (fresh each time). The menu is always mounted,
+  // so this used to fire an entity_links count and a get_entity_mentions RPC
+  // on every board open, for a menu that usually never opens.
   useEffect(() => {
-    if (!supabase || !workspaceId || !boardId) return;
+    if (!open || !supabase || !workspaceId || !boardId) return;
     let cancelled = false;
     (async () => {
       let n = 0;
@@ -35,7 +38,9 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
       if (!cancelled) setRefCount(n);
     })();
     return () => { cancelled = true; };
-  }, [workspaceId, boardId, boardName]);
+  }, [open, workspaceId, boardId, boardName]);
+  // Another board's count must not show while this one's loads.
+  useEffect(() => { setRefCount(null); }, [boardId]);
 
   useEffect(() => {
     if (!open) return;
@@ -57,11 +62,13 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
 
   if (!open) return null;
   const w = 240, hEst = items.length * 30 + 8;
-  const px = Math.min(x, window.innerWidth  - w  - 8);
-  const py = Math.min(y, window.innerHeight - hEst - 8);
+  const px = Math.max(8, Math.min(x, window.innerWidth  - w  - 8));
+  // Floored at the top edge — see CardContextMenu: a menu taller than a short
+  // window scrolls (.is-scrollable) instead of starting above the viewport.
+  const py = Math.max(8, Math.min(y, window.innerHeight - hEst - 8));
 
   return (
-    <div className="ctx-menu" style={{ left: px, top: py }} role="menu">
+    <div className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu">
       {items.map((it, i) => {
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
         if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
@@ -142,7 +149,7 @@ function SubmenuItem({ item, onClose }) {
         <span className="ctx-chevron" aria-hidden="true">›</span>
       </button>
       {open && pos && createPortal(
-        <div className="ctx-menu ctx-submenu"
+        <div className="ctx-menu ctx-submenu is-scrollable"
              role="menu"
              style={{ position: 'fixed', left: pos.left, top: pos.top, maxHeight: pos.maxHeight, overflowY: 'auto' }}
              onMouseEnter={handleEnter}

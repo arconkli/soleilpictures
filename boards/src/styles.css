@@ -8036,6 +8036,11 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   transform-origin: top left;
 }
 [data-theme='light'] .ctx-menu { background: var(--bg-3); border-color: rgba(10,10,12,.10); box-shadow: 0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08); }
+/* The card and canvas menus (and their portaled submenus) can outgrow a short
+   window: scroll, rather than letting the max-height flex column crush every
+   32px row toward its 13px text. */
+.ctx-menu.is-scrollable { overflow-y: auto; }
+.ctx-menu.is-scrollable > * { flex-shrink: 0; }
 @keyframes ctx-menu-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }

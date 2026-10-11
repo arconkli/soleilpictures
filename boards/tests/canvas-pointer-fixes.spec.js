@@ -215,6 +215,42 @@ test('slowly dragging an arrow end onto a card attaches it', async ({ page }) =>
   expect(end.x).toBeLessThan(targetX - 10);
 });
 
+test('right-clicking a text field on the canvas keeps the browser menu', async ({ page }) => {
+  await blank(page);
+  // Stand-in for a comment draft or a vote label: a textarea floating in the
+  // canvas wrap, outside any card.
+  const prevented = await page.evaluate(() => {
+    const wrap = document.querySelector('.canvas-wrap');
+    const ta = document.createElement('textarea');
+    ta.style.cssText = 'position:absolute;left:500px;top:300px;width:200px;height:60px;z-index:50';
+    wrap.appendChild(ta);
+    const r = ta.getBoundingClientRect();
+    const ev = new MouseEvent('contextmenu', {
+      bubbles: true, cancelable: true, button: 2, clientX: r.left + 20, clientY: r.top + 20,
+    });
+    ta.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  });
+  expect(prevented).toBe(false);
+  await expect(page.locator('.ctx-menu')).toHaveCount(0);
+});
+
+test('a card menu on a short window starts on screen and scrolls instead of crushing its rows', async ({ page }) => {
+  await blank(page);
+  const card = await addNote(page, 'short-menu', 420, 200);
+  await page.setViewportSize({ width: 1100, height: 420 });
+  await page.waitForTimeout(300);
+  const box = await card.boundingBox();
+  await page.mouse.click(box.x + 20, box.y + 20, { button: 'right' });
+  const menu = page.locator('.ctx-menu').first();
+  await expect(menu).toBeVisible();
+  const m = await menu.boundingBox();
+  expect(m.y).toBeGreaterThanOrEqual(0);
+  expect(m.y + m.height).toBeLessThanOrEqual(420 + 1);
+  const rowH = await menu.locator('button.ctx-item').first().evaluate((el) => el.getBoundingClientRect().height);
+  expect(rowH).toBeGreaterThanOrEqual(30);
+});
+
 async function zoomIntoCentre(page, notches = 12) {
   await page.evaluate((n) => {
     const wrap = document.querySelector('.canvas-wrap');
