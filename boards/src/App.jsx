@@ -490,7 +490,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
   // section in the sidebar reads from the same source.
-  const { shared: sharedBoards, refresh: refreshSharedBoards } = useSharedBoards(user.id);
+  const { shared: sharedBoards, loaded: sharedLoaded, refresh: refreshSharedBoards } = useSharedBoards(user.id);
+  // Anything that decides a board id is GONE (the stack and split prunes, the
+  // recents prune) must wait for both lists: the shared ones arrive by a
+  // separate RPC, and pruning before it lands threw a reload inside a shared
+  // cluster back to the root.
+  const boardListsLoading = boardsLoading || !sharedLoaded;
   // Effective boards map = workspace boards + shared boards from other
   // workspaces (normalized to the boards table shape so the rest of
   // the app can look them up by id transparently).
@@ -763,13 +768,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // delete a parent board with descendants while you're inside one of
   // them). Falls back to the root if everything in the stack is gone.
   useEffect(() => {
-    if (boardsLoading) return;
+    if (boardListsLoading) return;
     setStack(prev => {
       const filtered = prev.filter(id => boards[id]);
       if (filtered.length === prev.length) return prev;
       return filtered.length ? filtered : [rootBoard.id];
     });
-  }, [boards, boardsLoading, rootBoard.id]);
+  }, [boards, boardListsLoading, rootBoard.id]);
 
   // A new device (or a cleared browser) has no persisted stack and lands on
   // the root, where yesterday's cluster is one card among others. Once the
@@ -1223,9 +1228,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // parent instead of closing the split entirely; the split only closes when
   // every board it was showing is gone.
   useEffect(() => {
-    if (boardsLoading) return;
+    if (boardListsLoading) return;
     setSplitStack(prev => prunePane(prev, id => !!boards[id]));
-  }, [boards, boardsLoading]);
+  }, [boards, boardListsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [trashOpen, setTrashOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -1351,10 +1356,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Prune recents when boards are deleted so the sidebar list stays clean.
   useEffect(() => {
-    if (boardsLoading) return;
+    if (boardListsLoading) return;
     recents.prune(Object.keys(boards));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boards, boardsLoading]);
+  }, [boards, boardListsLoading]);
 
   // Track the currently-open root-board access too — top of stack is "active".
   useEffect(() => { if (currentId) recents.push(currentId); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [currentId]);

@@ -13,18 +13,26 @@ import { supabase } from '../lib/supabase.js';
 export function useSharedBoards(userId) {
   const [shared, setShared] = useState([]);
   const [loading, setLoading] = useState(false);
+  // True once the first fetch has settled (either way). App prunes its
+  // navigation stack of ids it can't find; before this, a reload inside a
+  // shared cluster could prune it in the gap between the workspace's own list
+  // arriving and this one, and land the user on their root.
+  const [loaded, setLoaded] = useState(!userId);
 
   const refresh = useCallback(async () => {
-    if (!userId) { setShared([]); return; }
+    if (!userId) { setShared([]); setLoaded(true); return; }
     setLoading(true);
     try {
       const rows = await listSharedBoards();
       setShared(rows);
     } catch (e) {
+      // Keep the last good list. A failed refetch (one of the realtime-driven
+      // ones, mid-session) used to clear it, so a network blip dropped every
+      // shared cluster from the boards map and ejected anyone inside one.
       console.warn('[shared-boards] fetch failed', e);
-      setShared([]);
     } finally {
       setLoading(false);
+      setLoaded(true);
     }
   }, [userId]);
 
@@ -58,5 +66,5 @@ export function useSharedBoards(userId) {
     };
   }, [userId, refresh]);
 
-  return { shared, loading, refresh };
+  return { shared, loading, loaded, refresh };
 }
