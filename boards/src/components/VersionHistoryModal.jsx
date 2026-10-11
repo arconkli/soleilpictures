@@ -19,7 +19,7 @@
 // Second tab: the board_meta_history audit log (written since 0053, never
 // read) — rename/color/cover/view changes, each with a one-click revert.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { Modal } from './Modal.jsx';
 import {
@@ -105,6 +105,11 @@ export function VersionHistoryModal({
   onClose,
   // Fired after a successful restore / meta revert so App can refresh.
   onRestored = null,
+  // False for a view-only member. Browsing and previews stay available, but
+  // Restore / Revert are disabled: board_state and the meta writes need
+  // can_write_board, so a viewer's restore confirmed and then failed with a
+  // raw row-level-security message.
+  canEdit = true,
 }) {
   const [tab, setTab] = useState('versions');
   const [rows, setRows] = useState([]);
@@ -115,6 +120,9 @@ export function VersionHistoryModal({
   const [expanded, setExpanded] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();
+  // The row whose preview we want. Downloads can resolve out of order, and
+  // an older one landing last left the selected row on "loading preview…".
+  const previewReq = useRef(null);
 
   useEffect(() => {
     if (!open || !boardId) return;
@@ -122,6 +130,7 @@ export function VersionHistoryModal({
     setLoading(true);
     setSelectedId(null);
     setPreview(null);
+    previewReq.current = null;
     Promise.all([
       listBoardVersions(boardId).catch(() => []),
       listBoardMetaHistory(boardId).catch(() => []),
@@ -130,7 +139,7 @@ export function VersionHistoryModal({
       setRows(v);
       setMeta(m);
     }).finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; previewReq.current = null; };
   }, [open, boardId]);
 
   const groups = useMemo(() => groupBySession(rows), [rows]);
@@ -150,8 +159,11 @@ export function VersionHistoryModal({
   const selectRow = async (row) => {
     setSelectedId(row.id);
     setPreview(null);
+    previewReq.current = row.id;
+    const stale = () => previewReq.current !== row.id;
     try {
       const b64 = await loadBoardVersionDoc(row.id);
+      if (stale()) return;
       if (!b64) { setPreview({ id: row.id, error: 'Snapshot unavailable' }); return; }
       const tmp = boardDoc(boardId);
       Y.applyUpdate(tmp, b64ToBytes(b64));
@@ -170,11 +182,13 @@ export function VersionHistoryModal({
       });
       tmp.destroy();
     } catch (e) {
+      if (stale()) return;
       setPreview({ id: row.id, error: String(e?.message || e) });
     }
   };
 
   const restoreVersion = async (row) => {
+    if (!canEdit) return;
     const ok = await feedback.confirm({
       title: 'Restore this version?',
       message: `“${boardName || 'This cluster'}” goes back to how it was ${relTime(row.snapshot_at)} (${fmtDate(row.snapshot_at)}). The current state is snapshotted first, so this restore is itself restorable. Collaborators see the change immediately.`,
@@ -233,6 +247,7 @@ export function VersionHistoryModal({
     try { return JSON.parse(JSON.stringify(v)); } catch (_) { return v; }
   };
   const revertMeta = async (row) => {
+    if (!canEdit) return;
     setBusy(true);
     try {
       const before = jsonbToPlain(row.before_value);
@@ -300,7 +315,8 @@ export function VersionHistoryModal({
             {isSel && preview?.id !== row.id && <span> · loading preview…</span>}
           </div>
         </div>
-        <button className="tb-btn" disabled={busy}
+        <button className="tb-btn" disabled={busy || !canEdit}
+                title={canEdit ? undefined : 'View only — ask an editor to restore'}
                 onClick={(e) => { e.stopPropagation(); restoreVersion(row); }}>
           Restore
         </button>
@@ -321,7 +337,9 @@ export function VersionHistoryModal({
         <button className={`tb-btn ${tab === 'versions' ? 'is-active' : ''}`} onClick={() => setTab('versions')}>Snapshots</button>
         <button className={`tb-btn ${tab === 'changes' ? 'is-active' : ''}`} onClick={() => setTab('changes')}>Name & appearance</button>
         <span className="modal-hint">
-          {tab === 'versions'
+          {!canEdit
+            ? 'View only — you can browse and preview. Ask an editor to restore or revert.'
+            : tab === 'versions'
             ? 'Snapshots are saved automatically while you work and before risky operations. Restoring always snapshots the current state first.'
             : 'Rename, color, cover, view and shoot-day date changes — each can be reverted. Reverting a published day notifies the crew like any other move.'}
         </span>
@@ -369,7 +387,9 @@ export function VersionHistoryModal({
                   <div className="hist-sub"><span>{relTime(row.changed_at)}</span></div>
                 </div>
                 {REVERTIBLE.has(row.field) && (
-                  <button className="tb-btn tb-btn-sm" disabled={busy} onClick={() => revertMeta(row)}>
+                  <button className="tb-btn tb-btn-sm" disabled={busy || !canEdit}
+                          title={canEdit ? undefined : 'View only — ask an editor to revert'}
+                          onClick={() => revertMeta(row)}>
                     Revert
                   </button>
                 )}
