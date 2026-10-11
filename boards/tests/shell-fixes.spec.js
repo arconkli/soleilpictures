@@ -185,6 +185,7 @@ async function mountLayers(page) {
       qa.openModal = () => setModal(true);
       return h(React.Fragment, null,
         h(Sheet, { open: sheet, title: 'Add to cluster', onClose: () => { qa.closed.push('sheet'); setSheet(false); } },
+          h('input', { type: 'search', id: 'sheet-search', placeholder: 'Search' }),
           h('button', { type: 'button', id: 'sheet-tile' }, 'Note')),
         h(Modal, { open: modal, ariaLabel: 'Trash', onClose: () => { qa.closed.push('modal'); setModal(false); } },
           rows.map(r => h('button', { key: r, type: 'button', className: 'qa-restore', onClick: () => setRows(x => x.filter(y => y !== r)) }, `Restore ${r}`))));
@@ -202,7 +203,9 @@ test('the bottom sheet is a named layer: canvas shortcuts stand down, focus move
   const sheet = page.getByRole('dialog', { name: 'Add to cluster' });
   await expect(sheet).toBeVisible();
   expect(await page.evaluate(() => window.__layerQa.guard.anyModalOpen())).toBe(true);
+  // The first control that won't raise a phone keyboard, not the search field.
   await expect(page.locator('#sheet-tile')).toBeFocused();
+  await expect(page.locator('#sheet-search')).not.toBeFocused();
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
   expect(await page.evaluate(() => window.__layerQa.closed)).toEqual(['sheet']);

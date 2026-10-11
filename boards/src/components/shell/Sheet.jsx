@@ -6,6 +6,15 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 function focusables(root) {
   return Array.from(root.querySelectorAll(FOCUSABLE)).filter(n => n.getClientRects().length > 0);
 }
+// Fields that raise the phone's soft keyboard when focused. A sheet must not
+// land on one when it opens: Android shows the keyboard for a programmatic
+// focus during the opening tap, and it covers a half-height sheet (Templates
+// opens on its search field).
+const NON_TEXT_INPUT = new Set(['button', 'checkbox', 'radio', 'range', 'color', 'file', 'submit', 'reset', 'image']);
+function isTextEntry(n) {
+  if (n.isContentEditable || n.tagName === 'TEXTAREA') return true;
+  return n.tagName === 'INPUT' && !NON_TEXT_INPUT.has((n.type || 'text').toLowerCase());
+}
 
 // Bottom sheet primitive. Used as the phone-width alternative to
 // modals and side drawers in P2 (MessagesPanel, SettingsPanel,
@@ -42,8 +51,9 @@ export function Sheet({ open, onClose, title, children, snap = 'full', className
   // A layer in lib/modalGuard while open, like Modal: the canvas's window
   // shortcuts (Backspace = delete the selection) stand down behind it,
   // Escape closes only the top layer, and the phone's Back closes the sheet
-  // instead of leaving the app. Focus moves into the sheet and goes back to
-  // whatever opened it (the + puck) on close.
+  // instead of leaving the app. Focus moves into the sheet (its first control
+  // that isn't a text field, else the panel) and goes back to whatever opened
+  // it (the + puck) on close.
   useEffect(() => {
     if (!open) return undefined;
     const unregister = registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } });
@@ -52,7 +62,7 @@ export function Sheet({ open, onClose, title, children, snap = 'full', className
     const raf = requestAnimationFrame(() => {
       const panel = sheetRef.current;
       if (!panel || panel.contains(document.activeElement)) return;
-      const target = focusables(panel)[0] || panel;
+      const target = focusables(panel).find(n => !isTextEntry(n)) || panel;
       try { target.focus({ preventScroll: true }); } catch (_) { /* noop */ }
     });
     return () => {
