@@ -1949,7 +1949,7 @@ body {
   flex-shrink: 0;
 }
 .tag-detail-block-attr.is-count { color: var(--ink-1); background: var(--bg-1); letter-spacing: 0; }
-.tag-detail-block-attr.is-auto  { color: var(--soleil); background: var(--soleil-soft); }
+.tag-detail-block-attr.is-auto  { color: var(--ink-1); background: var(--bg-3); }
 .tag-detail-block-attr.is-ai    { color: #a78bfa; background: rgba(167,139,250,.14); }
 .tag-detail-block-open {
   font: 600 11px/1 var(--font-sans);
@@ -2187,7 +2187,7 @@ body {
   background: var(--bg-2);
   color: var(--ink-3);
 }
-.tag-detail-row-attr.is-auto  { color: var(--soleil); background: var(--soleil-soft); }
+.tag-detail-row-attr.is-auto  { color: var(--ink-1); background: var(--bg-3); }
 .tag-detail-row-attr.is-ai    { color: #a78bfa; background: rgba(167,139,250,.14); }
 .tag-detail-row-attr.is-count { color: var(--ink-1); background: var(--bg-2); letter-spacing: 0; }
 /* Path crumb under each row — board / group context for items
@@ -4100,7 +4100,8 @@ body {
 .picker-row:hover { background: var(--bg-hov); }
 .picker-row-icon { width: 18px; display: grid; place-items: center; }
 .picker-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
-.picker-dot.list { background: var(--soleil); }
+/* List vs canvas reads by shape, not by the reserved gold: a ring for list. */
+.picker-dot.list { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-1); }
 .picker-dot.canvas { background: var(--ink-1); }
 .picker-row-meta { flex: 1; min-width: 0; }
 .picker-row-name { font: 500 13px/1.4 var(--font-sans); color: var(--ink-0); }
@@ -10915,9 +10916,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--bg-2);
   color: var(--ink-3);
 }
-.tag-picker-kind-auto { color: var(--soleil); }
+.tag-picker-kind-auto { color: var(--ink-1); }
 .tag-picker-kind-ai { color: #a78bfa; }
-.tag-picker-kind-new { color: var(--soleil); }
+.tag-picker-kind-new { color: var(--ink-1); }
 /* "Create" row dot doubles as a + badge so the row reads as an action,
    not another existing tag. */
 .tag-picker-dot-new {
@@ -11012,9 +11013,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   cursor: pointer;
   padding: 4px 6px;
 }
-.tag-disambig-yes { color: var(--soleil); }
+.tag-disambig-yes { color: var(--ink-0); }
 .tag-disambig-no { color: var(--ink-3); }
-.tag-disambig-yes:hover { color: #f5c075; }
+.tag-disambig-yes:hover,
+.tag-disambig-yes:focus-visible { color: var(--soleil); }
 .tag-disambig-no:hover { color: var(--ink-1); }
 
 /* ──────────────────────────── Video card ────────────────────────────────── */
@@ -11209,11 +11211,17 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   justify-content: center;
   border-radius: 50%;
   border: none;
-  background: var(--soleil);
-  color: #1a1a1a;
+  /* Neutral at rest; gold only while this card is playing (the button is
+     labelled Pause exactly then — cards.jsx sets no playing class). */
+  background: var(--bg-act);
+  color: var(--ink-0);
   cursor: pointer;
   flex-shrink: 0;
   transition: transform var(--dur-fast) var(--ease), filter var(--dur-fast) var(--ease);
+}
+.ac-play[aria-label='Pause'] {
+  background: var(--soleil);
+  color: var(--on-soleil);
   box-shadow: var(--soleil-glow, 0 0 12px rgba(255,165,0,0.18));
 }
 .ac-play:hover {
@@ -15189,7 +15197,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .entity-picker-row.is-active { background: var(--bg-hov); color: var(--ink-0); }
 .entity-picker-row.is-selected { background: var(--soleil-soft); color: var(--ink-0); }
 .entity-picker-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.entity-picker-url { color: var(--soleil); font-style: italic; }
+.entity-picker-url { color: var(--ink-2); font-style: italic; }
 .entity-picker-foot {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px;
@@ -17489,8 +17497,8 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   font: 700 9px/1 var(--font-sans);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--soleil);
-  background: var(--soleil-soft);
+  color: var(--ink-1);
+  background: var(--bg-3);
   padding: 1px 5px;
   border-radius: var(--radius);
   margin-left: auto;
@@ -20732,8 +20740,12 @@ button, [role="button"], a {
   width: 40px; height: 40px;
   border-radius: 999px;
   background: var(--bg-1);
-  color: var(--soleil);
+  /* Neutral at rest like the desktop empty-cluster tiles: gold is for the
+     tile under the finger or the keyboard, not ten resting icons. */
+  color: var(--ink-1);
 }
+.mobile-add-tile:active .mobile-add-ico,
+.mobile-add-tile:focus-visible .mobile-add-ico { color: var(--soleil); }
 .mobile-add-lbl {
   font: 600 12px/1.2 var(--font-sans);
   color: var(--ink-1);
