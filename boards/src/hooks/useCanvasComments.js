@@ -12,7 +12,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listComments, listMyCommentViews, markCommentViewed } from '../lib/commentsApi.js';
 
-export function useCanvasComments(boardId) {
+// `enabled: false` skips the list fetches and the realtime channel entirely.
+// The signed-out public viewer can't read comments (RLS returns nothing), so
+// for it the queries and the socket were pure overhead on every /c/ view.
+export function useCanvasComments(rawBoardId, { enabled = true } = {}) {
+  const boardId = enabled ? rawBoardId : null;
   const [comments, setComments] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [viewsByRootId, setViewsByRootId] = useState(new Map());

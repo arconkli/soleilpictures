@@ -8498,11 +8498,11 @@ export function CanvasSurface({
   // empty-canvas points; a right-click menu item shows an inline draft
   // input (no popup) at the click position.
   const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds,
-          viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id);
+          viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id, { enabled: !isPublic });
   // Live vote cards — a separate annotation type sharing the comment
   // anchoring/drag/hide machinery. They hide with the comments eye toggle
   // (CanvasVoteLayer gets layerVisible={commentsVisible}).
-  const { voteCards, removeLocally: removeVoteLocally } = useVoteCards(board?.id);
+  const { voteCards, removeLocally: removeVoteLocally } = useVoteCards(board?.id, { enabled: !isPublic });
   // Inline-draft state. When the user picks "Add comment" from a
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.
