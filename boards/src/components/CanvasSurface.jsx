@@ -375,6 +375,12 @@ const OPEN_FIT_MAX_ZOOM = 1;
 // see-everything view, which is the better opening shot when it's available.
 const NARROW_MIN_CARD_PX = 90;
 const DRAW_DEFAULT_COLOR = '#f5f5f6';
+// The default ink is the dark theme's text colour, saved into every stroke and
+// line drawn with it; in the light theme that is near-white on near-white. Paint
+// that one value as the theme's ink, as ShapeGlyph does for shapes (VS-CANVAS-04);
+// any other colour is someone's choice and paints as stored.
+const isDefaultInk = (c) => typeof c === 'string' && c.trim().toLowerCase() === DRAW_DEFAULT_COLOR;
+const THEME_INK_STYLE = { color: 'var(--ink-0)' };
 const DRAW_DEFAULT_WIDTH = 3;
 const ERASER_DEFAULT_WIDTH = 16;
 // The stroke/arrow/snap/shape SVGs are positioned at (0,0) in canvas space with
@@ -11712,10 +11718,11 @@ export function CanvasSurface({
           // so the on-screen preview matches the line that will be
           // committed (preserving the user's drag direction).
           <svg className="shape-preview" width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
-               style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', overflow: 'visible' }}>
+               style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', overflow: 'visible',
+                        ...(isDefaultInk(shapeOptions.stroke || DRAW_DEFAULT_COLOR) ? THEME_INK_STYLE : null) }}>
             <line x1={activeShape.from.x} y1={activeShape.from.y}
                   x2={activeShape.to.x}   y2={activeShape.to.y}
-                  stroke={shapeOptions.stroke || '#f5f5f6'}
+                  stroke={isDefaultInk(shapeOptions.stroke || DRAW_DEFAULT_COLOR) ? 'currentColor' : shapeOptions.stroke}
                   strokeWidth={Math.max(0.5, shapeOptions.strokeWidth || 2)}
                   strokeDasharray={shapeOptions.dash === 'dashed' ? '6,4'
                                   : shapeOptions.dash === 'dotted' ? '2,3'
@@ -13244,9 +13251,11 @@ export function CanvasSurface({
 // length and `stroke-width` is a single number. Getting that backwards paints a
 // hairline outline of the shape instead of the shape, so the choice lives here
 // rather than being repeated at each call site.
-function StrokePath({ s, d, ...rest }) {
+function StrokePath({ s, d, style, ...rest }) {
   const filled = isFilledPath(s);
-  const color = s.color || DRAW_DEFAULT_COLOR;
+  const stored = s.color || DRAW_DEFAULT_COLOR;
+  const themeInk = isDefaultInk(stored);
+  const color = themeInk ? 'currentColor' : stored;
   const alpha = strokeOpacity(s);
   return (
     <path d={d ?? toPathD(s)}
@@ -13256,6 +13265,7 @@ function StrokePath({ s, d, ...rest }) {
           strokeLinecap={filled ? undefined : strokeLineCap(s)}
           strokeLinejoin={filled ? undefined : 'round'}
           opacity={alpha === 1 ? undefined : alpha}
+          style={themeInk ? { ...style, ...THEME_INK_STYLE } : style}
           {...rest} />
   );
 }
