@@ -92,6 +92,46 @@ test('the text colour bar follows the caret out of coloured text', async ({ page
   await expect(bar).toHaveCSS('background-color', plainInk);
 });
 
+// NOTES-13: a caret-only size typed into the size box never handed focus back,
+// and the note only leaves edit mode on its own blur, so it stayed "editing"
+// with nothing focused and a click elsewhere no longer closed it.
+test('Enter in the size box hands the caret back to the note', async ({ page }) => {
+  await editA(page);
+  const size = page.locator('.tob-size-combo');
+  await size.click();
+  await size.fill('20');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(20);
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+});
+
+test('clicking away from the size box applies the size and ends editing', async ({ page }) => {
+  await editA(page);
+  const size = page.locator('.tob-size-combo');
+  await size.click();
+  await size.fill('22');
+  await page.mouse.click(5, 5);
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(22);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  await expect(page.locator('.tob')).toHaveCount(0);
+});
+
+// NOTES-14: a press on the bar's padding, a separator or a popover label
+// moved focus to <body>, which read as leaving the note.
+test('clicking the toolbar between buttons keeps the note in edit mode', async ({ page }) => {
+  await editA(page);
+  await page.locator('.tob .tob-sep').first().click({ force: true });
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await expect(page.locator('.tob')).toBeVisible();
+
+  await page.getByTitle('Font family').click();
+  await page.locator('.font-pop-label', { hasText: 'FONTS' }).click();
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await expect(page.locator('.font-pop')).toBeVisible();
+});
+
 test('Add custom font from the legacy note editor stays open too', async ({ page }) => {
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();

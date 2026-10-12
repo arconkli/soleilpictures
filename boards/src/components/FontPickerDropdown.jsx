@@ -149,6 +149,10 @@ export function FontPickerDropdown({
           className="font-pop surface-frosted"
           style={{ top: pos.top, left: pos.left, maxHeight: pos.maxHeight, width: POP_WIDTH }}
           onMouseLeave={() => onPreview?.(null)}
+          // Rows already keep the editor's focus; a press on a section label
+          // or a divider would hand it to <body> instead, which ends a note
+          // edit and takes this list down with the toolbar (NOTES-14).
+          onMouseDown={(e) => e.preventDefault()}
         >
           {recentFonts.length > 0 && (
             <>
