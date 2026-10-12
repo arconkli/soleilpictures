@@ -545,8 +545,13 @@ export function SignInBackdrop({ children, exploreHref }) {
     } catch (_) {}
   };
 
+  // public-dark: the front door is committed to the dark brand world like every
+  // other public page. The scene was only ever drawn dark (frost slab, gold CTA
+  // with --bg-0 ink, a dark halo on the tagline, dark card feet), so on a light
+  // theme the tokens flipped underneath it and left white-on-gold text and a
+  // dark slab on a light page.
   return (
-    <div className="sb-scene" ref={sceneRef}>
+    <div className="sb-scene public-dark" ref={sceneRef}>
       <div className="sb-scroll" ref={scrollRef}>
         <div className="sb-runway" ref={runwayRef}>
           {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
