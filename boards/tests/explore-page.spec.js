@@ -149,3 +149,32 @@ test('browse state hydrates from the URL and card clicks are instrumented', asyn
   expect(click.props.sort).toBe('az');
   expect(click.props.has_query).toBe(true);
 });
+
+test('a failed load says so and retries, instead of claiming there are no boards', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await page.route('**/api/public-thumb/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1PX }));
+  let fail = true;
+  await page.route('**/rest/v1/rpc/list_public_boards**', (route) => (fail
+    ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"upstream"}' })
+    : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(BOARDS) })));
+  await page.goto('/explore');
+
+  const retry = page.getByRole('button', { name: 'Retry' });
+  await expect(retry).toBeVisible();
+  await expect(page.getByText('No public boards yet')).toHaveCount(0);
+  await expect(page.locator('.exp-count')).toHaveCount(0);
+
+  fail = false;
+  await retry.click();
+  await expect(page.locator('.exp-grid .pubcard')).toHaveCount(4);
+  await expect(page.locator('.exp-count')).toHaveText('4 boards');
+});
+
+test('a genuinely empty catalogue still reads as empty', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeExplore(page, []);
+  await page.goto('/explore');
+  await expect(page.getByText('No public boards yet', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+});

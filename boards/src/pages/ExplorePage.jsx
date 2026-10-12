@@ -81,6 +81,11 @@ function readUrlState() {
 
 export function ExplorePage() {
   const [boards, setBoards] = useState(null);   // null = loading, [] = none
+  // A failed fetch is not an empty catalogue. It used to set boards to [], so
+  // a network or RPC blip told the visitor there were no public boards at all,
+  // with no way to try again. `attempt` re-runs the fetch from Retry.
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [{ q, sort, topic }, setBrowse] = useState(readUrlState);
 
   // Uniform lp_* engagement package; the page scrolls .seo-scroll (shared with
@@ -94,14 +99,18 @@ export function ExplorePage() {
   const setSort = (v) => setBrowse((s) => ({ ...s, sort: v }));
   const setTopic = (v) => setBrowse((s) => ({ ...s, topic: v }));
 
+  useEffect(() => { document.title = 'Explore Boards — Soleil Clusters'; }, []);
+
   useEffect(() => {
     let cancelled = false;
-    document.title = 'Explore Boards — Soleil Clusters';
-    getPublicBoards()
-      .then((rows) => { if (!cancelled) setBoards(rows); })
-      .catch(() => { if (!cancelled) setBoards([]); });
+    getPublicBoards().then(
+      (rows) => { if (!cancelled) setBoards(rows); },
+      () => { if (!cancelled) setLoadError(true); },
+    );
     return () => { cancelled = true; };
-  }, []);
+  }, [attempt]);
+
+  const retryLoad = () => { setLoadError(false); setAttempt((n) => n + 1); };
 
   useEffect(() => {
     if (boards) logEventOnce('explore_view', EV.EXPLORE_VIEW, { count: boards.length });
@@ -247,7 +256,12 @@ export function ExplorePage() {
             </div>
           )}
 
-          {shown === null ? (
+          {shown === null && loadError ? (
+            <div className="exp-noresults" role="alert">
+              <p>Couldn’t load boards. Check your connection and try again.</p>
+              <button className="exp-chip" onClick={retryLoad}>Retry</button>
+            </div>
+          ) : shown === null ? (
             <ul className="pubgrid exp-grid" aria-hidden="true">
               {Array.from({ length: 6 }, (_, i) => (
                 <li key={i} className="exp-skel">
