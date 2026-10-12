@@ -75,6 +75,7 @@ import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
+import { messagingAccess } from './lib/messageAccess.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
 import { OpenDmContext, MessagesUiContext } from './hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
@@ -5088,6 +5089,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
   myTierRef.current = myTier;
+  // Messaging follows SQL can_write_workspace: by role, not plan (COMMS-08).
+  const msgAccess = messagingAccess({
+    tier: myTier.tier, workspace, userId: user.id,
+    role: workspace?._myRole || workspaceRole || null,
+  });
   // New versions uploaded from Files or Info (lib/versionUpload.js) need to
   // know where and on what plan; the board passes its own.
   useEffect(() => {
@@ -9550,16 +9556,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
-          canSendMessages={
-            // Mirrors SQL can_write_workspace: demo users can only send
-            // messages in their OWN workspace; admin/paid get the
-            // workspace-membership check; waitlist is blocked.
-            myTier.tier === 'waitlist'
-              ? false
-              : (myTier.tier === 'admin' || myTier.tier === 'paid')
-                ? workspaceMembers.some(m => m.user_id === user.id)
-                : workspace?.created_by === user.id
-          }
+          canSendMessages={msgAccess.canSend}
+          readOnlyReason={msgAccess.reason}
           refreshTick={msgRefreshTick}
           openConversationId={openConversationId}
           setOpenConversationId={setOpenConversationId}
