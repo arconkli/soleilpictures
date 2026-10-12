@@ -337,3 +337,31 @@ test('VS-PANELS-12: Members role menus line up in one column and use the panel c
   await setTheme(page, 'light');
   await page.screenshot({ path: test.info().outputPath('members-1440-light.png') });
 });
+
+test('VS-PANELS-13: the Share invite field shows its whole placeholder', async ({ page }) => {
+  await answerShareReads(page);
+  for (const vp of [DESKTOP, PHONE]) {
+    await page.setViewportSize(vp);
+    await page.goto('/?local=1&reset=1&blank=1');
+    await probe(page, 'mountShare');
+    const input = page.locator('.share-invite-row .share-input');
+    await expect(input).toBeVisible();
+    const fit = await input.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const content = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      // At touch sizes inputs go to 16px; check the larger size too.
+      const at16 = (() => { ctx.font = `${cs.fontWeight} 16px ${cs.fontFamily}`; return ctx.measureText(el.placeholder).width; })();
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      return { text: ctx.measureText(el.placeholder).width, at16, content };
+    });
+    expect(fit.text, `placeholder fits at ${vp.width}`).toBeLessThanOrEqual(fit.content);
+    if (vp === PHONE) expect(fit.at16).toBeLessThanOrEqual(fit.content);
+  }
+  await page.setViewportSize(DESKTOP);
+  await page.goto('/?local=1&reset=1&blank=1');
+  await probe(page, 'mountShare');
+  await expect(page.locator('.share-invite-row .share-input')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('share-1440-dark.png') });
+});
