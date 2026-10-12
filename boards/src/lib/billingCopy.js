@@ -657,7 +657,10 @@ export function planLabel({ tier, plan, demoCardCount, grantBacked, cardLimit, s
     const cap = Number.isFinite(cardLimit) && cardLimit > 0 ? cardLimit : DEMO_CARD_LIMIT;
     return `Free Demo · ${n}/${cap} cards`;
   }
-  return 'Waitlist · not yet active';
+  if (tier === 'waitlist') return 'Waitlist · not yet active';
+  // An unknown tier is a failed get_my_tier, not a waitlist account: this used
+  // to tell a paying customer they were on the waitlist. Claim nothing.
+  return '—';
 }
 
 // Copy for a complimentary (admin-granted) Creator pass. `grantExpiresAt` null
