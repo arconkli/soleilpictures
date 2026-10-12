@@ -495,6 +495,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const seededRef = useRef(false);
   useEffect(() => {
     if (!ready || seededRef.current) return;
+    // A reader's seed would exist only in their tab (the board room drops a
+    // viewer's writes) — they get the "Nothing open yet" state instead.
+    if (!canEdit) return;
     if (pages.length === 0) {
       seededRef.current = true;
       const id = addPage(ydoc, { name: titleOverride || board.name || 'Untitled', scope });
@@ -952,6 +955,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             onSelectPage={(id) => { setActivePageId(id); setMobileRailOpen(false); }}
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
+            canEdit={canEdit && !isPublic}
           />
         )}
         {rails.left && docMode === 'screenplay' && (
@@ -1005,11 +1009,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     fitMode={fitMode}
                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
                     onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
-                    onZoomReset={resetZoom} />
+                    onZoomReset={resetZoom}
+                    canEdit={canEdit} />
         )}
         <DocFindReplace editor={editorRef.current}
                         editors={activePageId ? sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean) : []}
                         open={findOpen}
+                        canEdit={canEdit && !isPublic}
                         onClose={() => setFindOpen(false)} />
         <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && pageless ? ' is-pageless' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': effectiveZoom }}>

@@ -43,6 +43,11 @@ function createDocStore() {
   }, 'local');
   docState.initCardDocStore(ydoc, cardYMap);
   const scope = { ...docState.cardScope(cardYMap), cardId: CARD_ID, docCardId: CARD_ID };
+  // A reader never seeds the first page (it would exist only in their tab),
+  // so the viewer harness arrives with one already there, as a real doc does.
+  if (new URLSearchParams(window.location.search).get('viewer') === '1') {
+    docState.addPage(ydoc, { name: 'Page one', scope });
+  }
   return { ydoc, cardYMap, scope };
 }
 

@@ -96,7 +96,10 @@ function findMatches(doc, query) {
   return ranges;
 }
 
-export function DocFindReplace({ editor, editors = [], open, onClose }) {
+export function DocFindReplace({ editor, editors = [], open, onClose,
+                                 // false → view-only reader: Find only. A Replace would apply to
+                                 // their local copy and never save (the board room drops it).
+                                 canEdit = true }) {
   const [q, setQ] = useState('');
   const [r, setR] = useState('');
   const [showReplace, setShowReplace] = useState(false);
@@ -263,9 +266,11 @@ export function DocFindReplace({ editor, editors = [], open, onClose }) {
       </span>
       <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title="Previous (⇧⏎)" aria-label="Previous match">↑</button>
       <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title="Next (⏎)" aria-label="Next match">↓</button>
+      {canEdit && (
       <button className={`doc-find-btn ${showReplace ? 'is-active' : ''}`}
               onClick={() => setShowReplace(s => !s)} title="Replace" aria-label="Toggle replace" aria-pressed={showReplace}>⇄</button>
-      {showReplace && (
+      )}
+      {canEdit && showReplace && (
         <>
           <span className="doc-find-sep" aria-hidden="true" />
           <input ref={replaceInputRef}
