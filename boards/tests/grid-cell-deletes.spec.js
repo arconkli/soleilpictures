@@ -47,7 +47,8 @@ async function typeInto(page, n, text) {
 async function removeBottomLine(page) {
   await select(page);
   const line = grid(page).locator('.gridc-divider-x.is-grabbable').first();
-  await line.hover();
+  // The line is a few px wide between two cells; hover its middle directly.
+  await line.hover({ force: true });
   await line.locator('.gridc-divider-rm').click();
   await expect(grid(page).locator('.gridc-cell')).toHaveCount(2);
 }
