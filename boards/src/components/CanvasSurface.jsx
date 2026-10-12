@@ -115,13 +115,7 @@ import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
-import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
-import { canVersion, liveVersions, currentOf, versionLabel } from '../lib/cardVersions.js';
-import { kindFromMime } from '../lib/versionUpload.js';
-import { uploadContext } from '../lib/uploadContext.js';
-import { probeFile } from '../lib/mediaProbe.js';
-import { openPlayer, takeCardPlayer } from '../lib/playerBus.js';
-import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
+import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
@@ -5353,14 +5347,11 @@ export function CanvasSurface({
       }
       // Info on whatever is selected — the cluster itself when nothing is. A
       // note's own ⌘I (italic) never gets here: isEditorTarget returned above.
-      // A shared canvas has no Info drawer: ⌘I stays the browser's there.
-      if (!isPublic && cmd && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+      if (cmd && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault();
         openInfo({ boardId: board?.id, follow: infoFollow, toggle: true });
         return;
       }
-      // Keys typed in the Info drawer are its own (lib/infoBus.inInfoDrawer).
-      if (inInfoDrawer(e)) return;
       if (cmd && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
       if (cmd && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); doDuplicate(); return; }
       if (cmd && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); doCopy(); return; }
@@ -5464,7 +5455,7 @@ export function CanvasSurface({
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
       ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
-      hasSplit, paneId, board?.id, isPublic]);
+      hasSplit, paneId, board?.id]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
   // On each undoable action the UndoManager fires 'stack-item-added'; we stash

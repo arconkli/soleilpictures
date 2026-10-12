@@ -74,9 +74,3 @@ export function targetForSelection(sel, base = {}) {
   const clusterId = folders.length === 1 ? folders[0] : sel.boardId;
   return { ...base, boardId: sel.boardId, cardIds: null, clusterId, groupId: null, cards: clusterId === sel.boardId ? cards : null };
 }
-
-// A key pressed inside the Info drawer is the drawer's — ⌘C copies its text,
-// ⌘A selects its text, Backspace deletes nothing on the board behind it.
-export function inInfoDrawer(e) {
-  return !!e?.target?.closest?.('.info-host');
-}

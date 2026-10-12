@@ -93,8 +93,7 @@ cluster gets the cluster's: what it holds, where it sits, and who made it.
 
 Info follows the selection while it's open, so clicking through cards walks
 it through them. `⌘I` again, the **×**, or `Esc` while it has focus closes it.
-On a [shared link](/docs/collaborate/sharing), Info is in Files, and it shows
-dates but never names; a shared board itself has no right-click menu.
+On a [shared link](/docs/collaborate/sharing) Info shows dates but never names.
 
 ## Removing a card from the board
 

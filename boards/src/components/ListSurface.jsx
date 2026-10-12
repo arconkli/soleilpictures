@@ -35,7 +35,7 @@ import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
 import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
-import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
+import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
 
 // Quick look ships in its own chunk: most visits to Files never open it.
 // Files' scroll position per cluster (and size of Files), for this session.
@@ -1328,8 +1328,17 @@ export function ListSurface({
       const link = (cards || []).find((c) => c.id === cIds[0] && c.kind === 'boardlink');
       if (link && boards[link.target]) return { type: 'cluster', board: boards[link.target] };
     }
-    return null;
-  }, [isPanel, selectedGroupId, selectedCards, displayItems, items]);
+    if (bIds.length === 1 && !cIds.length && boards[bIds[0]]) return { type: 'cluster', board: boards[bIds[0]] };
+    if (cIds.length + bIds.length > 1) {
+      const picked = (cards || []).filter((c) => selectedCards.has(c.id));
+      for (const id of bIds) {
+        const b = boards[id];
+        if (b) picked.push({ id, kind: 'board', name: b.name, createdAt: b.created_at || null });
+      }
+      return { type: 'selection', cards: picked };
+    }
+    return { type: 'cluster', board, cards };
+  }, [isPanel, infoOpen, selectedGroupId, selectedCards, selectedBoards, displayItems, items, cards, boards, board]);
 
   // The topbar's Files button, pressed while Files is already open beside the
   // board, asks for its search box (App applyFilesEvent → focusSearch).
@@ -1493,6 +1502,96 @@ export function ListSurface({
       dockControls={dockControls ? { ...dockControls, mode } : null}
     />
   );
+
+  // ── Right-click menu ──────────────────────────────────────────────────────
+  // It acts on the selection; right-clicking something outside the selection
+  // selects just that first, as Finder does. ⇧F10 opens it from the keyboard.
+  const onListContextMenu = (e) => {
+    if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
+    const fileId = e.target.closest?.('[data-item-id]')?.getAttribute('data-item-id')
+      || e.target.closest?.('[data-link-id]')?.getAttribute('data-link-id');
+    const folderId = e.target.closest?.('[data-folder-id]')?.getAttribute('data-folder-id');
+    if (!fileId && !folderId) return;   // empty floor keeps the browser's menu
+    if (fileId && navItems.find((n) => n.id === fileId)?.isGroup) return;
+    e.preventDefault();
+    if (folderId) {
+      if (!selectedBoards.has(folderId)) { setSelectedBoards(new Set([folderId])); setSelectedCards(new Set()); }
+    } else if (!selectedCards.has(fileId)) {
+      setSelectedCards(new Set([fileId])); setSelectedBoards(new Set());
+    }
+    setSelectedGroupId(null);
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  };
+  const menuItems = () => {
+    const cIds = [...selectedCards];
+    const bIds = [...selectedBoards];
+    const n = cIds.length + bIds.length;
+    const canMove = canEdit && !!onPickCluster;
+    // The menu's header already says how many; Delete needn't repeat it.
+    const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
+    // Info on anything: in full Files it's the panel beside the list, which
+    // describes the selection; docked, it's the app's Info drawer.
+    const info = (req) => (isPanel
+      ? req && { id: 'info', label: 'Get info', shortcut: `${cmdKey}I`, run: () => showInfo(req) }
+      : { id: 'info', label: infoOpen ? 'Hide info' : 'Get info', shortcut: `${cmdKey}I`, run: toggleInfo });
+    if (n === 1 && bIds.length) {
+      const id = bIds[0];
+      return composeMenuSections([
+        { items: [{ id: 'open', label: 'Open', run: () => onOpenBoard(id) }] },
+        { items: [
+          renamable(id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(id) },
+          canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          info({ clusterId: id }),
+        ] },
+        { items: [del] },
+      ]);
+    }
+    const card = n === 1 ? (cards || []).find((c) => c.id === cIds[0]) : null;
+    if (card?.kind === 'boardlink') {
+      return composeMenuSections([
+        { items: [boards[card.target] && { id: 'open', label: 'Open', run: () => onOpenBoard(card.target) }] },
+        { items: [boards[card.target] && info({ clusterId: card.target })] },
+        { items: [canEdit && { id: 'unlink', label: 'Remove link', danger: true, run: deleteSelection }] },
+      ]);
+    }
+    const item = card ? items.find((it) => it.id === card.id) : null;
+    if (item) {
+      return composeMenuSections([
+        { items: [
+          { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
+          onRevealOnCanvas && !item.unplaced && { id: 'show', label: browsingFrom ? 'Show in cluster' : 'Show on board', run: () => onRevealOnCanvas([item.id]) },
+          canEdit && item.unplaced && { id: 'put', label: 'Put on board', run: () => putOnBoard([item.id]) },
+        ] },
+        { items: [
+          renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
+          DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: 'Download', run: () => downloadOne(item) },
+          // An app action: a signed-out visitor's link wouldn't resolve.
+          onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
+          canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          info({ boardId: board.id, cardIds: [item.id] }),
+        ] },
+        // "Linked from N places" — placed, so Delete stays last and the menu's
+        // height (it keeps itself on screen) counts the row.
+        { items: [onRevealOnCanvas && { id: 'bl', backlinks: true }, del] },
+      ]);
+    }
+    const offSel = cIds.filter((id) => items.find((it) => it.id === id)?.unplaced);
+    return composeMenuSections([
+      { header: `${n} selected`, items: [
+        canEdit && offSel.length > 0 && { id: 'put', label: offSel.length === 1 ? 'Put 1 on board' : `Put ${offSel.length} on board`, run: () => putOnBoard(offSel) },
+        downloadableSelected.length > 0 && {
+          // "Download" when it's all of them; else say which part can go.
+          id: 'dl', label: downloadableSelected.length === n ? 'Download' : `Download ${downloadableSelected.length} of ${n}`, run: downloadSelected,
+        },
+        canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+        info({ boardId: board.id, cardIds: cIds, clusterIds: bIds }),
+      ] },
+      { items: [del] },
+    ]);
+  };
+  const menuCard = ctxMenu && onRevealOnCanvas && selectedCards.size === 1 && !selectedBoards.size
+    ? (cards || []).find((c) => c.id === [...selectedCards][0] && c.kind !== 'boardlink') || null
+    : null;
 
   return (
     <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`}
@@ -1695,8 +1794,6 @@ export function ListSurface({
                 <DetailPanel
                   target={detailTarget} boards={boards} canEdit={canEdit}
                   selfId={selfId} gridTemplates={gridTemplates}
-                  writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
-                  versionEnv={canVersionHere ? versionEnv() : null}
                   onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
                   onClose={toggleInfo}
                   onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
@@ -1774,9 +1871,9 @@ export function ListSurface({
                 <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
               </button>
             )}
-            {!isPanel && totalSel === 1 && selectedCards.size === 1 && (
-              <button type="button" className={`list-selbar-act${infoOpen ? ' is-on' : ''}`} onClick={toggleInfo}
-                      aria-pressed={infoOpen} title={`Info (${cmdKey}I)`}>
+            {totalSel > 0 && (
+              <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
+                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`}>
                 <Icon as={Info} size={14} weight="light" /><span>Info</span>
               </button>
             )}

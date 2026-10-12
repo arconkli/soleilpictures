@@ -280,6 +280,7 @@ View
 
 Key | Action
 F | Show or hide Files beside the board
+⌘I | Info — the selection, or the cluster when nothing is selected
 ⌘0 | Reset zoom
 ⌘+ / ⌘− | Zoom in · out
 ⇧1 | Fit everything
@@ -673,7 +674,7 @@ Location | The cluster it's in, and whether it's on the board or waiting in File
 
 Several cards together get a summary — how many of each kind, their total size, and the oldest and newest. The empty board, a folder or a sidebar cluster gets the cluster's: what it holds, where it sits, and who made it.
 
-Info follows the selection while it's open, so clicking through cards walks it through them. ⌘I again, the ×, or Esc while it has focus closes it. On a shared link, Info is in Files, and it shows dates but never names; a shared board itself has no right-click menu.
+Info follows the selection while it's open, so clicking through cards walks it through them. ⌘I again, the ×, or Esc while it has focus closes it. On a shared link Info shows dates but never names.
 
 Removing a card from the board
 

@@ -61,6 +61,7 @@ const SECTIONS = [
     title: 'View',
     rows: [
       [['F'], 'Show or hide Files beside the board'],
+      [[`${CMD}I`], 'Info — the selection, or the cluster when nothing is selected'],
       [[`${CMD}0`], 'Reset zoom'],
       [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],
       [['⇧1'], 'Fit everything'],

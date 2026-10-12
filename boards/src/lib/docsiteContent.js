@@ -2353,6 +2353,31 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⌘I"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Info",
+       "href": "/docs/canvas/cards#info",
+       "children": [
+        {
+         "t": "text",
+         "v": "Info"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — the selection, or the cluster when nothing is selected"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌘0"
       }
      ],
@@ -7440,7 +7465,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", Info is in Files, and it shows dates but never names; a shared board itself has no right-click menu."
+     "v": " Info shows dates but never names."
     }
    ]
   },

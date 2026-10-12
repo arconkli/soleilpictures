@@ -22774,3 +22774,50 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
    Docs/Word, sized to sit with the B / I / U / S letter buttons. */
 .tb-clear-fmt { font-size: 12px; line-height: 1; letter-spacing: 0; }
 .tb-clear-fmt sub { font-size: 8px; vertical-align: -2px; margin-left: 1px; }
+
+/* ── Info: the drawer every right-click and ⌘I opens (info/InfoHost.jsx), and
+   the sections every Info shares. It sits under the topbar beside the docked
+   Files panel (--files-dock-w) rather than over it, below context menus so a
+   menu can still open on top, and pushes the toasts aside (--info-drawer-w). */
+.info-host { display: contents; }
+.cb-detail.is-drawer {
+  position: fixed;
+  top: calc(56px + env(safe-area-inset-top, 0px));
+  right: calc(8px + var(--files-dock-w, 0px));
+  width: 340px; max-width: calc(100vw - 16px); min-width: 0;
+  max-height: calc(100dvh - 64px - env(safe-area-inset-top, 0px));
+  /* Over the board and Files (their chrome tops out near 100), under every
+     overlay — modals (200), sheets (1000), Quick look (1090), ⌘K (1200) —
+     and the context menus and toasts. */
+  z-index: 150;
+  outline: none;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-3); border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-3);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  animation: info-drawer-in var(--dur-fast) var(--ease);
+}
+.cb-detail.is-drawer .cbd-body { flex: 1; min-height: 0; }
+.cb-detail.is-drawer .cbd-preview { background: var(--bg-1); border: 0; }
+@keyframes info-drawer-in { from { opacity: 0; transform: translateX(8px); } }
+@media (prefers-reduced-motion: reduce) { .cb-detail.is-drawer { animation: none; } }
+@media (max-width: 640px) {
+  /* A sheet that stops above the bottom nav. */
+  .cb-detail.is-drawer {
+    top: auto; left: 0; right: 0; bottom: calc(56px + var(--safe-bottom, 0px)); width: auto; max-width: none;
+    max-height: calc(72vh - 56px); border-radius: 16px 16px 0 0;
+  }
+  /* Full-screen Files on a phone: Info is for what you picked, not a sheet
+     over the cluster you're looking at. */
+  .cb-split .cb-detail[data-target='cluster'] { display: none; }
+}
+.cbd-section + .cbd-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-1); }
+.cbd-section-label {
+  margin: 0 0 6px; font: 600 10px/1 var(--font-sans); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-2);
+}
+.cbd-person { align-items: flex-start; }
+.cbd-person-v { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; text-align: right; }
+.cbd-person-name { color: var(--ink-0); font: 500 12px/1.3 var(--font-sans); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cbd-person-when { color: var(--ink-2); font: 400 11px/1.3 var(--font-sans); white-space: nowrap; }
+

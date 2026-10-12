@@ -61,9 +61,7 @@ import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
-import { probeFile } from '../lib/mediaProbe.js';
 import { InfoHost } from '../components/info/InfoHost.jsx';
-import { PlayerHost } from '../components/film/PlayerHost.jsx';
 import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
 
 const TWEAK_DEFAULTS = {
@@ -2068,11 +2066,9 @@ export function LocalBoardsApp({ user, signOut }) {
       <InfoHost
         boards={boards}
         selfId={user?.id ?? 'local-user'}
-        // Like App's: only the cluster open on screen is "live".
-        resolveBoard={(id) => (id === currentId && boardState[id] ? {
+        resolveBoard={(id) => (boardState[id] ? {
           cards: boardState[id].cards || [], groups: boardState[id].groups || [],
           gridTemplates: gridTplState[id] || {}, canEdit: !readOnlyQa,
-          mutators: id === currentId ? surfaceMutators : null,
         } : null)}
         onOpenCluster={(id) => { if (boards[id]) { setStack(ancestorPath(boards, id)); recents.push(id); setCurrentSurface('board'); } }}
         onReveal={(boardId, ids) => {
@@ -2081,7 +2077,6 @@ export function LocalBoardsApp({ user, signOut }) {
           setFocusRequest({ boardId, ids, token: Date.now() });
         }}
       />
-      <PlayerHost resolveBoard={(id) => (id === currentId && boardState[id] ? { cards: boardState[id].cards || [] } : null)} />
 
       {ONBOARD_PREVIEW && onboardCoachOpen && currentId === ROOT_ID && currentSurface === 'board' && (
         <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} arm="B" />

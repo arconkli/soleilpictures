@@ -15,20 +15,12 @@ import { CardPreview } from './CardPreview.jsx';
 import { copyCardLink } from '../../lib/cardLink.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
-import { X, Download, Trash2 as TrashIcon, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
-import { humanSize } from '../cards/FileCard.jsx';
+import { X, Download, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { getMeta as getMetaDefault, primeFileFacts, subscribeMeta } from '../../lib/imageMeta.js';
 import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
 import * as userProfiles from '../../lib/userProfiles.js';
 import { describeCard, describeCluster, describeSelection, describeGroup, fileKeyOf, formatSize, formatWhen } from '../../lib/cardInfo.js';
-import { useMediaFacts } from '../../hooks/useMediaFacts.js';
-import { VersionsSection } from '../info/VersionsSection.jsx';
-import { openPlayer } from '../../lib/playerBus.js';
-import { canVersion } from '../../lib/cardVersions.js';
-import { pickVersionFile, makeCurrent, deleteVersion, restoreVersion, labelVersion } from '../../lib/versionActions.js';
-
-const FILE_KINDS = new Set(['image', 'video', 'audio', 'pdf', 'file']);
 
 function MetaRow({ label, value, title }) {
   if (!value) return null;
@@ -112,18 +104,11 @@ function useFileMeta(key, getMeta) {
 export function DetailPanel({
   target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false, onPutOnBoard = null,
   variant = 'split', selfId = null, onOpenCluster = null, gridTemplates = {}, getMeta = getMetaDefault,
-  writeMeta = null,
-  // { mutators, feedback, userId, getCard, ctx } — lib/versionActions.js. Null: Versions is read-only.
-  versionEnv = null,
 }) {
   const feedback = useFeedback();
-  const rawCard = target?.type === 'card' ? (target.item?.card || {}) : null;
-  const key = rawCard ? fileKeyOf(rawCard) : '';
+  const card = target?.type === 'card' ? (target.item?.card || {}) : null;
+  const key = card ? fileKeyOf(card) : '';
   useFileMeta(key, getMeta);
-  // A clip uploaded before Info read containers is probed now (lib/mediaProbe.js);
-  // an editor's result is kept on the card (writeMeta = mutators.updateCardMeta).
-  const media = useMediaFacts(rawCard?.kind === 'video' ? rawCard : null, { writeMeta: canEdit ? writeMeta : null });
-  const card = rawCard && media && rawCard.media !== media ? { ...rawCard, media } : rawCard;
 
   const info = !target ? null
     : target.type === 'card' ? describeCard(card, { getMeta, boards, gridTemplates })
@@ -160,11 +145,8 @@ export function DetailPanel({
   if (target.type === 'group') {
     const g = target.group;
     return (
-      <aside className="cb-detail surface-frosted">
-        <div className="cbd-head">
-          <span className="cbd-title" title={g.name}>{g.name}</span>
-          <button className="cbd-close" onClick={onClose} aria-label="Close"><Icon as={X} size={16} weight="light" /></button>
-        </div>
+      <aside {...asideProps}>
+        {head(g.name, 'Grid family')}
         <div className="cbd-body">
           <div className="cbd-preview"><CardPreview key={g.id} item={g} size="tile" /></div>
           <MetaRow label="Type" value="Grid family" />
@@ -226,14 +208,8 @@ export function DetailPanel({
   const sub = [info.details.find((r) => r.k === 'Kind')?.v || item.typeLabel, size].filter(Boolean).join(' · ');
 
   return (
-    <aside className={`cb-detail surface-frosted${inline ? ' is-inline' : ''}`} aria-label="Info">
-      <div className="cbd-head">
-        <div className="cbd-titles">
-          <span className="cbd-title" title={item.name}>{item.name}</span>
-          <span className="cbd-sub">{[item.typeLabel, item.sub || (item.sizeBytes != null ? humanSize(item.sizeBytes) : null)].filter(Boolean).join(' · ')}</span>
-        </div>
-        <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} weight="light" /></button>
-      </div>
+    <aside {...asideProps}>
+      {head(item.name, sub)}
       <div className="cbd-body">
         {!inline && <div className="cbd-preview"><CardPreview key={item.id} item={item} size="tile" /></div>}
         <Section label="Details">
@@ -241,21 +217,6 @@ export function DetailPanel({
           <MetaRow label="Location" value={location ? (item.unplaced ? `${location} · not on the board` : location) : null} />
         </Section>
         <People people={info.people} selfId={selfId} />
-        {FILE_KINDS.has(item.kind) && (card.src || card.fileSrc || card.pdfSrc) && (
-          <VersionsSection
-            card={card}
-            canEdit={canEdit && !!versionEnv && canVersion(card)}
-            getMeta={getMeta}
-            personName={(id) => (isPublicSurface() ? null : personName(id, selfId))}
-            onUpload={versionEnv ? () => pickVersionFile(versionEnv, card.id) : null}
-            onMakeCurrent={versionEnv ? (v) => makeCurrent(versionEnv, card.id, v.id) : null}
-            onDelete={versionEnv ? (v) => deleteVersion(versionEnv, card.id, v.id) : null}
-            onRestore={versionEnv ? (v) => restoreVersion(versionEnv, card.id, v.id) : null}
-            onLabel={versionEnv ? (v) => labelVersion(versionEnv, card.id, v.id) : null}
-            onOpen={item.kind === 'video' && item.boardId && !isPublicSurface() ? (v) => openPlayer({ boardId: item.boardId, cardId: card.id, versionId: v.id, card }) : null}
-            onDownload={(v) => downloadCardAsset({ ...card, src: v.src ?? card.src, fileSrc: v.fileSrc ?? card.fileSrc, pdfSrc: v.pdfSrc ?? card.pdfSrc, fileName: v.fileName || card.fileName, name: v.name || card.name }, item.kind, { surface: 'cluster_browser' }).catch(() => {})}
-          />
-        )}
       </div>
       <div className="cbd-actions">
         {/* Both of these used to render unconditionally, and both are dead on a
@@ -279,8 +240,8 @@ export function DetailPanel({
             <Icon as={Download} size={16} weight="light" />
           </button>
         )}
-        {!isPublicSurface() && (
-          <button className="cbt-iconbtn cbd-icon" onClick={() => copyLink(item.id, item.boardId)} aria-label="Copy link" title="Copy link">
+        {!isPublicSurface() && item.boardId && (
+          <button className="cbt-iconbtn cbd-icon" onClick={() => copyCardLink(item.id, item.boardId, feedback)} aria-label="Copy link" title="Copy link">
             <Icon as={LinkIcon} size={16} weight="light" />
           </button>
         )}

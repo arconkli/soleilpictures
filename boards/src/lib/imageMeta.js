@@ -48,9 +48,7 @@ function notifyAll() {
 // board open would otherwise carry them for every image, other workspaces'
 // included.
 const META_COLS = 'storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height,size_bytes';
-// The facts query reads the meta columns too, so an entry it creates is a
-// whole one — R2Image never re-primes a key that's already cached.
-const FACT_COLS = `${META_COLS},uploaded_by,created_at,original_name`;
+const FACT_COLS = 'storage_path,size_bytes,uploaded_by,created_at,original_name,width,height';
 
 function rowToMeta(row) {
   return {
@@ -202,8 +200,8 @@ export async function primeFileFacts(keys) {
     if (error) { for (const k of todo) factsDone.delete(k); return; }
     for (const row of data || []) {
       const facts = {
-        ...rowToMeta(row),
-        uploadedBy: row.uploaded_by || null, uploadedAt: row.created_at || null, originalName: row.original_name || null,
+        sizeBytes: row.size_bytes ?? null, uploadedBy: row.uploaded_by || null, uploadedAt: row.created_at || null,
+        originalName: row.original_name || null, w: row.width ?? null, h: row.height ?? null,
       };
       cache.set(row.storage_path, fillMissing(cache.get(row.storage_path) || {}, facts));
       notify(row.storage_path);

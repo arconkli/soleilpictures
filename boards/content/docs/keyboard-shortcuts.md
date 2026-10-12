@@ -80,6 +80,7 @@ In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused 
 | Key | Action |
 |---|---|
 | `F` | Show or hide [Files](/docs/clusters/list-view) beside the board |
+| `⌘I` | [Info](/docs/canvas/cards#info) — the selection, or the cluster when nothing is selected |
 | `⌘0` | Reset zoom |
 | `⌘+` / `⌘−` | Zoom in · out |
 | `⇧1` | Fit everything |
