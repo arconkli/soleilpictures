@@ -42,6 +42,7 @@ import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
+import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
@@ -59,6 +60,30 @@ const NOTE_AUTOSIZE_MAX = 480;
 // portaled out of .tob, so they are named too.
 const EDIT_SESSION_UI = '.tob, .tob-pop, .font-pop, .size-combo-pop, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
 const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
+
+// Card height the READ-ONLY note needs when its html carries link previews.
+// The live editor never contains the .note-link-preview blocks linkify
+// appends to the cached html, so sizing from the editor alone left every note
+// with a URL clipped after editing, behind a "Show all" chip (NOTES-07).
+// Lays the html out once in a hidden .note-body inside the same note (same
+// width, fonts and preview styles) and measures its natural height. That
+// height doesn't depend on the card's, so taking the max with the editor's
+// measure settles instead of growing on every flush. 0 when nothing to add.
+function displayHeightWithPreviews(editorDom, html) {
+  if (!html || html.indexOf('note-link-preview') < 0) return 0;
+  const note = editorDom?.closest?.('.note');
+  if (!note) return 0;
+  const probe = document.createElement('div');
+  probe.className = 'note-body';
+  probe.setAttribute('aria-hidden', 'true');
+  Object.assign(probe.style, {
+    position: 'absolute', left: '0', top: '0', visibility: 'hidden', pointerEvents: 'none',
+    width: `${editorDom.clientWidth}px`, height: 'auto', flex: 'none', overflow: 'visible',
+  });
+  probe.innerHTML = sanitizeNoteHtml(html);
+  note.appendChild(probe);
+  try { return cardHeightForBody(probe); } finally { probe.remove(); }
+}
 
 export function NoteTiptapSurface({
   ydoc,
@@ -197,7 +222,9 @@ export function NoteTiptapSurface({
     // this build's schema doesn't know, say from a newer peer). From a
     // fragment that holds text that is a failure, not an edit: keep the cache.
     if (!serialized && !blank) return;
-    writeCache({ html: linkifyNoteHtml(serialized), body: null });
+    const html = linkifyNoteHtml(serialized);
+    writeCache({ html, body: null });
+    return html;
   };
 
   // @-mention picker state, driven by the suggestion plugin.
@@ -336,10 +363,14 @@ export function NoteTiptapSurface({
     const flush = () => {
       writeRaf.current = 0;
       if (!fragment) return;
-      try { writeTextCache(); } catch (_) { /* noop */ }
+      let html = null;
+      try { html = writeTextCache(); } catch (_) { /* noop */ }
       if (!manualRef.current && editor?.view?.dom) {
         try {
-          const h = Math.min(NOTE_AUTOSIZE_MAX, cardHeightForBody(editor.view.dom));
+          const h = Math.min(NOTE_AUTOSIZE_MAX, Math.max(
+            cardHeightForBody(editor.view.dom),
+            displayHeightWithPreviews(editor.view.dom, html),
+          ));
           writeCache({ h: Math.round(h) });
         } catch (_) { /* noop */ }
       }
