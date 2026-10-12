@@ -43,14 +43,19 @@ export function MessagesPanel({
     conversations, participantsByConv, myStateByConv, unreadByConv, loaded, failed, retry,
   } = useConversationList({ workspaceId, userId, refreshTick });
 
-  const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
+  // A permalinked message to flash once, tied to ITS conversation: it used to
+  // outlive the jump and follow you into other threads, closing their search
+  // on every arrival (COMMS-09). Cleared once the thread has flashed it.
+  const [pendingJump, setPendingJump] = useState(() => (
+    jumpToMessageId ? { convId: initialOpenConversationId || null, messageId: jumpToMessageId } : null
+  ));
   const [composeAnchor, setComposeAnchor] = useState(null);
 
   // First-mount permalink: open whatever the parent says is open.
   useEffect(() => {
     if (initialOpenConversationId) {
       setOpenConversationId(initialOpenConversationId);
-      setPendingJumpMessageId(jumpToMessageId || null);
+      setPendingJump(jumpToMessageId ? { convId: initialOpenConversationId, messageId: jumpToMessageId } : null);
     }
   }, [initialOpenConversationId, jumpToMessageId, setOpenConversationId]);
 
@@ -195,11 +200,12 @@ export function MessagesPanel({
           title: conv?.title || null,
           participants: parts,
         }}
-        jumpToMessageId={pendingJumpMessageId}
+        jumpToMessageId={pendingJump?.convId === openConversationId ? pendingJump.messageId : null}
+        onJumpConsumed={() => setPendingJump(null)}
         onChanged={onRefreshRequested}
         onBack={() => {
           setOpenConversationId(null);
-          setPendingJumpMessageId(null);
+          setPendingJump(null);
           onPermalinkConsumed?.();
         }}
         onClose={() => { onPermalinkConsumed?.(); onClose?.(); }}

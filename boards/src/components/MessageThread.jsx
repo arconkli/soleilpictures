@@ -35,7 +35,7 @@ const LOAD_OLDER_THRESHOLD_PX = 120;
 // conversation = { id, title, participants: [{ user_id, left_at, ... }] }
 export function MessageThread({
   workspaceId, currentUser, conversation,
-  onBack, onClose, onChanged, jumpToMessageId,
+  onBack, onClose, onChanged, jumpToMessageId, onJumpConsumed,
   canSend = true, readOnlyReason = null,
 }) {
   const userId = currentUser?.id;
@@ -226,12 +226,24 @@ export function MessageThread({
   }, [conversationId, messages.length, pinnedSig]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
+  // Once, when the target's page is on screen. It re-ran on every new
+  // message, so each arrival — your own sends too — yanked the view back up
+  // to the permalinked message and closed an open search (COMMS-09). Keyed
+  // on whether the target is loaded, not on the message count.
+  const jumpTargetLoaded = !!jumpToMessageId && messages.some(m => m.id === jumpToMessageId);
+  const jumpDoneRef = useRef(null);
   useEffect(() => {
-    if (!jumpToMessageId) return;
-    const t = setTimeout(() => flashMessage(jumpToMessageId), 150);
+    if (!jumpToMessageId || !jumpTargetLoaded) return;
+    const key = `${conversationId}:${jumpToMessageId}`;
+    if (jumpDoneRef.current === key) return;
+    const t = setTimeout(() => {
+      jumpDoneRef.current = key;
+      flashMessage(jumpToMessageId);
+      onJumpConsumed?.();
+    }, 150);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jumpToMessageId, messages.length]);
+  }, [jumpToMessageId, jumpTargetLoaded, conversationId]);
 
   // A target older than the loaded pages is paged back to, a few pages at
   // most, so a permalink, pinned or search jump into old history still lands.
