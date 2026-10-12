@@ -167,12 +167,18 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
                 ) : (
                   <span className="settings-member-role">{ROLE_LABEL[m.role] || m.role}</span>
                 )}
-                {canManage && !isOwnerRow && !self && m.role !== 'service' && (
+                {/* Every row of a managed list carries the same action slots,
+                    hidden where they don't apply, so the role menus line up in
+                    one column. 'Make owner' showing on some rows only used to
+                    shift those rows' menus 80px left of the others. */}
+                {canManage && (
                   <span className="settings-member-actions">
-                    {isOwner && m.role !== 'viewer' && (
-                      <button type="button" className="settings-link-btn" onClick={() => transfer(m)}>Make owner</button>
-                    )}
-                    <button type="button" className="settings-link-btn is-danger" onClick={() => remove(m)}>Remove</button>
+                    {isOwner && (!isOwnerRow && !self && m.role !== 'service' && m.role !== 'viewer'
+                      ? <button type="button" className="settings-link-btn" onClick={() => transfer(m)}>Make owner</button>
+                      : <span className="settings-link-btn is-placeholder" aria-hidden="true">Make owner</span>)}
+                    {!isOwnerRow && !self && m.role !== 'service'
+                      ? <button type="button" className="settings-link-btn is-danger" onClick={() => remove(m)}>Remove</button>
+                      : <span className="settings-link-btn is-placeholder" aria-hidden="true">Remove</span>}
                   </span>
                 )}
               </li>
@@ -186,6 +192,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
               </span>
               {canManage && (
                 <span className="settings-member-actions">
+                  {isOwner && <span className="settings-link-btn is-placeholder" aria-hidden="true">Make owner</span>}
                   <button type="button" className="settings-link-btn is-danger"
                           onClick={() => revokePending(row)}>Revoke</button>
                 </span>

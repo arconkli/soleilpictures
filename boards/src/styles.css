@@ -17944,6 +17944,17 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   font: 400 13px/1.3 var(--font-sans);
   min-width: 0;
 }
+/* Selects draw the same chevron as the Share panel's role menus, so one
+   control does not look like two different ones in the two places. */
+select.settings-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 26px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none'><path d='M2 4 L5 7 L8 4' stroke='%2399a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
 .settings-input:focus { outline: 0; border-color: var(--soleil); }
 .settings-input:disabled { opacity: 0.5; cursor: not-allowed; }
 .settings-readonly {
@@ -18107,8 +18118,17 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   margin-bottom: 8px;
   border-bottom: 1px dashed var(--line-2);
 }
-.settings-cat-title { font: 600 13px/1 var(--font-sans); color: var(--ink-0); }
-.settings-cat-desc { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); }
+/* The title keeps its line and the description takes what is left. Both used
+   to shrink alike, so a long description squeezed "People in this workspace"
+   into a 68px column, one word per line. */
+.settings-cat-title { font: 600 13px/1 var(--font-sans); color: var(--ink-0); flex: 0 0 auto; white-space: nowrap; }
+.settings-cat-desc { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); flex: 1 1 auto; min-width: 0; }
+/* Phone: too narrow for a column beside the title; the description goes
+   under it. */
+@media (max-width: 640px) {
+  .settings-cat-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .settings-cat-title { white-space: normal; }
+}
 .settings-cat-body { display: flex; flex-direction: column; }
 .settings-size-row { display: flex; align-items: center; gap: 8px; }
 .settings-size-input { width: 72px; }
@@ -22249,7 +22269,10 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .settings-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-1); }
 .settings-member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-member-role { color: var(--ink-2); font-size: 13px; }
-.settings-member-actions { display: flex; gap: 8px; }
+.settings-member-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+/* Holds a slot that does not apply to this row, so every row's role menu
+   ends at the same x (MembersTab renders it). */
+.settings-link-btn.is-placeholder { visibility: hidden; pointer-events: none; }
 .settings-link-btn.is-danger { color: #ef4444; }
 .settings-invite-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .settings-invite-row input.settings-input { flex: 1; min-width: 180px; }
