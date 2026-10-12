@@ -1025,8 +1025,10 @@ export function ShareModal({
                     {(meta.name || '?').charAt(0).toUpperCase()}
                   </span>
                   <div className="share-row-text">
-                    <div className="share-row-name">
-                      {meta.name}{isSelf && ' · You'}
+                    {/* The name truncates in its own span so the online dot
+                        after it is never the part the ellipsis cuts off. */}
+                    <div className="share-row-name has-dot">
+                      <span className="share-row-name-text">{meta.name}{isSelf && ' · You'}</span>
                       {meta.online && <span className="share-online" title="Online" />}
                     </div>
                     <div className="share-row-sub">

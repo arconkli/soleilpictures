@@ -283,6 +283,27 @@ test('VS-PANELS-09: a long name in the Share list ends in an ellipsis, not a cut
   await page.screenshot({ path: test.info().outputPath('share-390-dark.png') });
 });
 
+test('VS-PANELS-09: a long member name ellipsises and keeps its online dot', async ({ page }) => {
+  await answerShareReads(page);
+  await page.setViewportSize(PHONE);
+  await probe(page, 'mountShare', { onlinePeerName: `Jordan ${'Longname-'.repeat(8)}Director` });
+  const name = page.locator('.share-row-name', { hasText: 'Jordan Longname' });
+  await expect(name).toBeVisible();
+  const text = name.locator('.share-row-name-text');
+  const t = await text.evaluate((el) => ({
+    overflow: getComputedStyle(el).textOverflow, clipped: el.scrollWidth > el.clientWidth,
+  }));
+  expect(t.clipped).toBe(true);
+  expect(t.overflow).toBe('ellipsis');
+  // The dot sits inside the line, after the cut name, not clipped away.
+  const dot = name.locator('.share-online');
+  const d = await rect(dot);
+  const n = await rect(name);
+  expect(d.w).toBeGreaterThan(0);
+  expect(d.r).toBeLessThanOrEqual(n.r + 0.5);
+  expect(d.l).toBeGreaterThanOrEqual((await rect(text)).r);
+});
+
 const SELF = '00000000-0000-4000-8000-000000000001';
 const U2 = '00000000-0000-4000-8000-000000000002';
 const U3 = '00000000-0000-4000-8000-000000000003';
