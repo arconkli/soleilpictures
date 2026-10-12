@@ -763,6 +763,16 @@ async function dropStaleForeignMatches(env, token, matches, boardId) {
   }
 }
 
+// Keyset cursors carry a timestamp, and they get pasted into URLs — often by
+// hand, often unencoded. PostgREST writes timestamps as `…:00.123456+00:00`,
+// and an unencoded `+` in a query string decodes to a space, so a cursor this
+// API had just issued came back as a 400 (2026-10-11 audit, API-13). Issued as
+// `Z` instead (same instant, every microsecond kept, nothing to encode), and a
+// space where an offset's `+` was is put back, so cursors already handed out
+// still work.
+const cursorTs = (ts) => String(ts).replace(/\+00:00$/, 'Z');
+const readCursorTs = (ts) => (ts == null ? ts : String(ts).replace(/ (\d\d:?\d\d)$/, '+$1'));
+
 // What a test or a redelivery did, for the caller. Null outcome means the row
 // could not be claimed just now (another drain holds it); it is still due and
 // goes out with the next one.
@@ -1374,8 +1384,9 @@ async function dispatch(url, request, env, ctx) {
       // `created_at|id`. A bare timestamp — what this route issued before —
       // is still accepted and continues from that instant.
       const raw = url.searchParams.get('cursor');
-      const [cursorTs, cursorId] = raw ? String(raw).split('|') : [null, null];
-      if (cursorTs && Number.isNaN(Date.parse(cursorTs))) {
+      const [rawTs, cursorId] = raw ? String(raw).split('|') : [null, null];
+      const afterTs = readCursorTs(rawTs);
+      if (afterTs && Number.isNaN(Date.parse(afterTs))) {
         throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
       }
       if (cursorId && !isUuid(cursorId)) {
@@ -1392,14 +1403,14 @@ async function dispatch(url, request, env, ctx) {
       try {
         rows = await userRpc(env, token, 'webhook_deliveries_page', {
           p_webhook_id: id, p_limit: limit + 1,
-          p_cursor_ts: cursorTs || null, p_cursor_id: cursorId || null,
+          p_cursor_ts: afterTs || null, p_cursor_id: cursorId || null,
         });
       } catch (e) {
         if (!(e?.status === 404 && /PGRST202|could not find the function/i.test(e?.detail || ''))) throw e;
         // Before 0409: the old function, inside its own 200-row cap.
         limit = Math.min(limit, 199);
         rows = await userRpc(env, token, 'webhook_deliveries_list', {
-          p_webhook_id: id, p_limit: limit + 1, p_cursor: cursorTs || null,
+          p_webhook_id: id, p_limit: limit + 1, p_cursor: afterTs || null,
         });
       }
       const all = rows || [];
@@ -1410,7 +1421,7 @@ async function dispatch(url, request, env, ctx) {
         deliveries: items,
         limit,
         has_more: hasMore,
-        next_cursor: hasMore && last ? `${last.created_at}|${last.id}` : null,
+        next_cursor: hasMore && last ? `${cursorTs(last.created_at)}|${last.id}` : null,
       });
     }
 
@@ -1863,8 +1874,11 @@ async function dispatch(url, request, env, ctx) {
     }
     const cursor = url.searchParams.get('cursor');
     if (cursor) {
-      const [cAt, cId] = String(cursor).split('|');
-      if (!cAt || !isUuid(cId || '')) throw fail(400, 'bad_request', 'cursor is not one this endpoint issued');
+      const [rawAt, cId] = String(cursor).split('|');
+      const cAt = readCursorTs(rawAt);
+      if (!cAt || Number.isNaN(Date.parse(cAt)) || !isUuid(cId || '')) {
+        throw fail(400, 'bad_request', 'cursor is not one this endpoint issued');
+      }
       // (created_at, id) > (cAt, cId), spelled as PostgREST understands it.
       q += `&or=${encodeURIComponent(`(created_at.gt.${cAt},and(created_at.eq.${cAt},id.gt.${cId}))`)}`;
     }
@@ -1885,7 +1899,7 @@ async function dispatch(url, request, env, ctx) {
       })),
       limit,
       has_more: page.has_more,
-      next_cursor: page.has_more && last ? `${last.created_at}|${last.id}` : null,
+      next_cursor: page.has_more && last ? `${cursorTs(last.created_at)}|${last.id}` : null,
     });
   }
 
@@ -1994,7 +2008,8 @@ async function dispatch(url, request, env, ctx) {
           q += `&updated_at=gte.${encodeURIComponent(since)}`;
         }
         if (cursor) {
-          const [ts, cid] = String(cursor).split('|');
+          const [rawTs, cid] = String(cursor).split('|');
+          const ts = readCursorTs(rawTs);
           if (!ts || !cid || Number.isNaN(Date.parse(ts))) {
             throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
           }
@@ -2028,7 +2043,7 @@ async function dispatch(url, request, env, ctx) {
         boards,
         limit,
         has_more: page.has_more,
-        next_cursor: page.has_more && last ? `${last.updated_at}|${last.id}` : null,
+        next_cursor: page.has_more && last ? `${cursorTs(last.updated_at)}|${last.id}` : null,
       });
     }
 
@@ -2976,8 +2991,11 @@ async function dispatch(url, request, env, ctx) {
         }
         q += `&updated_at=gte.${encodeURIComponent(since)}&order=updated_at.asc,card_id.asc`;
         if (after) {
-          const [ts, cid] = String(after).split('|');
-          if (!ts || !cid) throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
+          const [rawTs, cid] = String(after).split('|');
+          const ts = readCursorTs(rawTs);
+          if (!ts || !cid || Number.isNaN(Date.parse(ts))) {
+            throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
+          }
           q += `&or=(updated_at.gt.${encodeURIComponent(ts)},`
              + `and(updated_at.eq.${encodeURIComponent(ts)},card_id.gt.${encodeURIComponent(cid)}))`;
         }
@@ -3016,7 +3034,7 @@ async function dispatch(url, request, env, ctx) {
         limit,
         has_more: page.has_more,
         next_cursor: page.has_more && last
-          ? (delta ? `${last.updated_at}|${last.card_id}` : last.card_id)
+          ? (delta ? `${cursorTs(last.updated_at)}|${last.card_id}` : last.card_id)
           : null,
       });
     }

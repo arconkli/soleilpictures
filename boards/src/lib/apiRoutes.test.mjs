@@ -441,7 +441,7 @@ test('a 500-row page asks for 501 and reports has_more from the extra row', asyn
   assert.equal(r.body.deliveries.length, 500);
   assert.equal(r.body.has_more, true);
   const last = r.body.deliveries[499];
-  assert.equal(r.body.next_cursor, `${last.created_at}|${last.id}`);
+  assert.equal(r.body.next_cursor, `${last.created_at.replace('+00:00', 'Z')}|${last.id}`);
 });
 
 test('the cursor carries the id, so a run of deliveries sharing a timestamp is not skipped', async () => {
@@ -529,4 +529,24 @@ test('deleting a grid or an app-written doc names them as not restorable by POST
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.deepEqual(r.body.not_restorable.sort(), ['d1', 'g1']);
   assert.match(r.body.recover, /Version history/);
+});
+
+// ── API-13: a cursor survives being pasted into a URL unencoded ──────────────
+
+test('next_cursor has nothing a URL would mangle', async () => {
+  putBoard(B1, [], { updated_at: '2026-08-09T12:00:00.123456+00:00' });
+  putBoard(B2, [], { updated_at: '2026-08-09T12:00:01.5+00:00' });
+  const r = await api('GET', '/boards?since=2026-08-01T00:00:00Z&limit=1');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.has_more, true);
+  assert.doesNotMatch(r.body.next_cursor, /[+ ]/);
+  assert.match(r.body.next_cursor, /^2026-08-09T12:00:00\.123456Z\|/, 'same instant, microseconds kept');
+});
+
+test('a cursor whose + arrived as a space (pasted unencoded) still pages', async () => {
+  const pasted = `2026-08-09T12:00:00.123456 00:00|${B1}`;
+  const r = await api('GET', `/boards?since=2026-08-01T00:00:00Z&cursor=${pasted.replace(/ /g, '+')}`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const or = calls.filter((c) => c.path === 'boards').pop().query.get('or');
+  assert.match(or, /updated_at\.gt\.2026-08-09T12:00:00\.123456\+00:00/);
 });

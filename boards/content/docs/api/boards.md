@@ -123,7 +123,9 @@ curl "$SOLEIL_API/boards?workspace=$WS&since=2026-08-09T00:00:00Z" \
 ```
 
 Pass `next_cursor` back as `cursor` until `has_more` is false, then keep the
-last `updated_at` you saw as the `since` for your next run.
+last `updated_at` you saw as the `since` for your next run. A cursor is safe to
+put in a URL exactly as it arrives — its time is written in UTC with a `Z`, so
+there is no `+` for a query string to turn into a space.
 
 **The feed includes deletions.** Deleting a cluster bumps its `updated_at`, so a
 board someone moved to the Trash comes through with `"deleted": true` — drop it

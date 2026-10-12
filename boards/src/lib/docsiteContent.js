@@ -39090,7 +39090,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for your next run."
+     "v": " for your next run. A cursor is safe to put in a URL exactly as it arrives — its time is written in UTC with a "
+    },
+    {
+     "t": "code",
+     "v": "Z"
+    },
+    {
+     "t": "text",
+     "v": ", so there is no "
+    },
+    {
+     "t": "code",
+     "v": "+"
+    },
+    {
+     "t": "text",
+     "v": " for a query string to turn into a space."
     }
    ]
   },

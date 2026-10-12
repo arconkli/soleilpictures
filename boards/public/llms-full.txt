@@ -4552,7 +4552,7 @@ curl "$SOLEIL_API/boards?workspace=$WS&since=2026-08-09T00:00:00Z" \
 { "boards": [ … ], "limit": 100, "has_more": true,
   "next_cursor": "2026-08-09T12:00:00Z|3b7e…" }
 
-Pass next_cursor back as cursor until has_more is false, then keep the last updated_at you saw as the since for your next run.
+Pass next_cursor back as cursor until has_more is false, then keep the last updated_at you saw as the since for your next run. A cursor is safe to put in a URL exactly as it arrives — its time is written in UTC with a Z, so there is no + for a query string to turn into a space.
 
 The feed includes deletions. Deleting a cluster bumps its updated_at, so a board someone moved to the Trash comes through with "deleted": true — drop it on your side. Restoring it brings it through again with "deleted": false. A board purged from the Trash after 30 days is not reported; by then it has already been in the feed as deleted.
 
