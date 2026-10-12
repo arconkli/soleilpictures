@@ -602,17 +602,29 @@ export const TOOLS = [
     inputSchema: schema({
       board_id: uuid('The board the card is on'),
       card_id: str('The card'),
-      kind: str('Change the kind', { enum: ['note', 'image', 'link', 'doc', 'video', 'file'] }),
+      // Mirrors add_cards' item schema. This one drifted behind it — no audio
+      // or pdf kind, no group_id, z, rotation, section_header, file_name or
+      // mime — and with additionalProperties false a validating client refused
+      // the call outright, so a card could be grouped, layered or rotated when
+      // created and never afterwards (2026-10-11 audit, API-18). The test in
+      // mcpServer.test.mjs keeps the two in step.
+      kind: str('Change the kind', { enum: ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'] }),
       title: str('A heading'),
       body: str('The text of the card'),
       html: str('Rich text'),
       url: str('For kind=link'),
       image_key: str('Point an image card at different bytes'),
-      file_key: str('For kind=video or file'),
+      file_key: str('For kind=video, audio, pdf or file'),
+      file_name: str('The file’s own name — what the Files view shows and what Download names the file'),
+      mime: str('For kind=file'),
       alt: str('Alt text'),
       color: str('A colour for the card'),
       x: num('Left position'), y: num('Top position'),
       w: num('Width'), h: num('Height'),
+      z: num('Stacking order — higher is in front'),
+      rotation: num('Degrees'),
+      group_id: str('Put this card in a group, from create_group; an empty string takes it out'),
+      section_header: bool('Render as a full-width heading; also becomes an <h2> if the board is published'),
       identifiers: IDENTIFIER,
       props: PROPS,
     }, ['board_id', 'card_id']),

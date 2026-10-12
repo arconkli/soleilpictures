@@ -194,7 +194,7 @@ quietly failing.
 | `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
 | `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?`, `scheduled_date?`, `scheduled_end?`, `day_label?`, `notify?` |
 | `move_boards` | `board_ids[]`, `parent_board_id` |
-| `update_card` | `board_id`, `card_id`, plus any writable field |
+| `update_card` | `board_id`, `card_id`, plus any field `add_cards` takes — `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, and any of the eight kinds |
 | `update_cards` | `board_id`, `cards[]` — many at once |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
 | `set_metadata` | `board_id`, `card_id?`, `identifiers?`, `props?` |
