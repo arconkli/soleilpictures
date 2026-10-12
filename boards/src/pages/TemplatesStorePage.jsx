@@ -245,7 +245,7 @@ export function TemplatesStorePage() {
             <button type="button" className="exp-clear" aria-label="Clear search" onClick={() => set({ q: '' })}>×</button>
           )}
         </div>
-        <div className="exp-sorts">
+        <div className="exp-sorts exp-sorts-four">
           {SORTS.map((s) => (
             <button
               key={s.key}
