@@ -9,6 +9,14 @@
 // that read old.target_kind therefore never matched a removal: the row went
 // away server-side and the chip, the count and the profile list stayed put.
 // A DELETE we can't attribute has to be treated as "maybe ours".
+//
+// In practice the entity_links channels never see a DELETE at all: they are
+// filtered on source_workspace, and realtime only passes a row through a
+// filter when the filter column is in it — a DELETE's `old` is just `id`.
+// (Unfiltered, a channel would get every DELETE on the platform.) So the
+// DELETE branch below is a safety net, and this tab's removals reach the
+// chips, counts and tag page through TAG_LINKS_CHANGED (tagsApi.js). A
+// peer's removal is not pushed; it shows on the next load.
 
 export function isDeleteEvent(payload) {
   return payload?.eventType === 'DELETE';
