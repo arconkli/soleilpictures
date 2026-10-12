@@ -2034,7 +2034,20 @@ export function ListSurface({
           <Suspense fallback={null}>
             <QuickLook
               items={quickItems} index={quickIndex}
-              onIndex={(i) => { const it = quickItems[i]; if (it) { setQuickId(it.id); setActiveId(it.id); } }}
+              onIndex={(i) => {
+                const it = quickItems[i];
+                if (!it) return;
+                const shown = quickId;
+                setQuickId(it.id); setActiveId(it.id);
+                // A selection of just the file on show follows it, as Finder's
+                // does: otherwise closing leaves the cursor bar on one row and
+                // the selection (and the bar's Download/Delete) on another. A
+                // selection built on purpose stays as it is.
+                if (selectedCards.size === 1 && selectedCards.has(shown) && !selectedBoards.size) {
+                  setSelectedCards(new Set([it.id]));
+                  anchorRef.current = { kind: 'file', id: it.id };
+                }
+              }}
               onClose={() => setQuickId(null)}
               onShowOnBoard={onRevealOnCanvas && !quickItems[quickIndex]?.unplaced ? (it) => { setQuickId(null); onRevealOnCanvas([it.id]); } : null}
               showLabel={browsingFrom ? 'Show in cluster' : 'Show on board'}
