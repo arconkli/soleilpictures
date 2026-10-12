@@ -190,8 +190,14 @@ export function AdminErrorsTab() {
         hasData={hasData}
         onRetry={refresh}
         skeleton={<><AdminSkeleton variant="cards" rows={3} /><AdminSkeleton variant="table" /><AdminSkeleton variant="list" /></>}
-        isEmpty={summary.length === 0 && recent.length === 0}
-        empty={{
+        // VISIBLE groups: with every group muted, Active mode hides them all and
+        // the stream is filtered server-side, so `summary` alone left a blank body.
+        isEmpty={visibleSummary.length === 0 && recent.length === 0}
+        empty={mutedCount > 0 && !showMuted ? {
+          icon: Warning,
+          title: 'Nothing unmuted',
+          body: `Every error in the last ${days} days is muted (${formatCount(mutedCount)} group${mutedCount === 1 ? '' : 's'}). Choose All to see them.`,
+        } : {
           icon: Warning,
           title: 'No errors logged',
           body: `No client-side errors in the last ${days} days. New crashes from the app appear here.`,
@@ -246,8 +252,10 @@ export function AdminErrorsTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleSummary.map((g, i) => {
-                        const key = `${g.message}-${i}`;
+                      {visibleSummary.map((g) => {
+                        // By identity, not position: muting a row above used to
+                        // shift every index, collapsing the stack you had open.
+                        const key = `${g.kind || 'error'}|${g.message}`;
                         const isOpen = openGroup.has(key);
                         return (
                           <Fragment key={key}>

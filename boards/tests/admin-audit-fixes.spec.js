@@ -298,6 +298,43 @@ test.describe('admin segment filter (ADMIN-14)', () => {
   });
 });
 
+test.describe('admin Errors tab (ADMIN-15)', () => {
+  const G = (message, kind, extra = {}) => ({
+    message, kind, occurrences: 5, sessions: 2, users: 1, first_seen: new Date().toISOString(),
+    last_seen: new Date().toISOString(), sample_stack: `${message}\n    at somewhere (x.js:1:1)`, ...extra,
+  });
+
+  test('an open stack stays with its group when a group above it goes away', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
+    const all = [G('First error', 'window'), G('Second error', 'window'), G('Third error', 'react')];
+    await patchRpc(page, {
+      admin_error_summary: { data: all, error: null },
+      admin_recent_errors: { data: [], error: null },
+    });
+    await switchTab(page, 'Errors');
+    await page.locator('tr.admin-error-grouprow', { hasText: 'Third error' }).click();
+    await expect(page.locator('pre.admin-error-stack', { hasText: 'Third error' })).toBeVisible();
+
+    // What muting the first group does to Active mode: it leaves the list.
+    await patchRpc(page, { admin_error_summary: { data: all.slice(1), error: null }, admin_recent_errors: { data: [], error: null } });
+    await page.getByRole('button', { name: 'Refresh' }).first().click();
+    await expect(page.locator('tr.admin-error-grouprow', { hasText: 'First error' })).toHaveCount(0);
+    await expect(page.locator('pre.admin-error-stack', { hasText: 'Third error' })).toBeVisible();
+  });
+
+  test('when everything is muted, Active mode says so instead of rendering nothing', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
+    await patchRpc(page, {
+      admin_error_summary: { data: [G('Muted one', 'window', { muted: true })], error: null },
+      admin_recent_errors: { data: [], error: null },
+    });
+    await switchTab(page, 'Errors');
+    await expect(page.getByText('Nothing unmuted')).toBeVisible();
+  });
+});
+
 test.describe('admin cohort matrix (ADMIN-11)', () => {
   test('the week still under way is outlined and kept out of the All row', async ({ page }) => {
     // This UTC Monday and the one before, from the clock, as the RPC would.
