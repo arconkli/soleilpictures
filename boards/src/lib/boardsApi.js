@@ -561,8 +561,12 @@ export async function adminPublicBoardStats(days = 90) {
   return Array.isArray(data) ? data : [];
 }
 // rows: [{ page|slug, clicks, impressions, ctr, position }]; asOf: 'YYYY-MM-DD'.
+// p_as_of is OMITTED when not given, never sent as null: an explicit null
+// overrides the SQL `default current_date` and lands in seo_board_stats.day, a
+// NOT NULL key column, so every import without a date failed.
 export async function adminImportGscCsv(rows, asOf = null) {
-  const { data, error } = await supabase.rpc('admin_import_gsc_csv', { p_rows: rows, p_as_of: asOf });
+  const { data, error } = await supabase.rpc('admin_import_gsc_csv',
+    asOf ? { p_rows: rows, p_as_of: asOf } : { p_rows: rows });
   if (error) throw error;
   return data; // count imported
 }
