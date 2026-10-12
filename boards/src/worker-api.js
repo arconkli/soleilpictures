@@ -38,11 +38,11 @@ import {
 import {
   normalizeProps, normalizeIdentifiers, matchIdentifiers, loadMeta, loadBoardsMeta,
   saveMeta, saveMetaBulk, withMeta, parseInclude, purgeCardMeta, repointCardMeta,
-  resolveUpsert, OBJECT_TYPES,
+  resolveUpsert, OBJECT_TYPES, pgInList,
 } from './lib/objectMeta.js';
 import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.js';
 import {
-  addCardsToBoard, moveCardsBetweenBoards, readBoardCards,
+  addCardsToBoard, moveCardsBetweenBoards, readBoardCards, readBoardCardsChecked,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
   readBoardGroups, writeBoardGroups,
 } from './lib/scoutBoard.js';
@@ -754,13 +754,27 @@ async function dropStaleForeignMatches(env, token, matches, boardId) {
     byBoard.get(row.board_id).push([key, row]);
   }
   for (const [bid, entries] of byBoard) {
-    const live = new Set((await readBoardCards(env, bid, token)).map((c) => String(c.id)));
+    // A board whose document did not load reads as empty, and "empty" would
+    // strip every live card on it of its identifiers. Leave its matches in
+    // place; they refuse with the usual 409, and a retry can tell properly.
+    const { cards, loaded } = await readBoardCardsChecked(env, bid, token);
+    if (!loaded) continue;
+    const live = new Set(cards.map((c) => String(c.id)));
     const dead = entries.filter(([, row]) => !live.has(String(row.object_id)));
     if (!dead.length) continue;
-    await purgeCardMeta(env, token, {
-      boardId: bid, cardIds: [...new Set(dead.map(([, row]) => String(row.object_id)))],
-    });
-    for (const [key] of dead) matches.delete(key);
+    const cardIds = [...new Set(dead.map(([, row]) => String(row.object_id)))];
+    await purgeCardMeta(env, token, { boardId: bid, cardIds });
+    // purgeCardMeta is best-effort and RLS turns a refused delete into zero
+    // rows, so only a match whose row is really gone is dropped. One still
+    // there would collide on insert after this item's card had been written.
+    let still;
+    try {
+      still = new Set((await userSelect(env, token, 'object_identifiers',
+        `board_id=eq.${bid}&object_type=eq.card`
+        + `&object_id=in.${encodeURIComponent(pgInList(cardIds))}&select=object_id`) || [])
+        .map((r) => String(r.object_id)));
+    } catch (_) { continue; }
+    for (const [key, row] of dead) if (!still.has(String(row.object_id))) matches.delete(key);
   }
 }
 

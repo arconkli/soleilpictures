@@ -366,8 +366,12 @@ async function openBoard(env, boardId, accessToken) {
   const doc = new Y.Doc();
   const rows = await scoutSelect(env, 'board_state', `board_id=eq.${boardId}&select=doc`).catch(() => []);
   const baseline = rows?.[0]?.doc;
+  // Whether this doc holds the board's real contents. A failed select and a
+  // failed sync both leave it empty, which reads exactly like an empty board;
+  // a caller that would act on a card's ABSENCE needs to tell them apart.
+  let loaded = false;
   if (baseline) {
-    try { Y.applyUpdate(doc, b64ToBytes(baseline), 'snapshot'); } catch (_) { /* corrupt → start clean */ }
+    try { Y.applyUpdate(doc, b64ToBytes(baseline), 'snapshot'); loaded = true; } catch (_) { /* corrupt → start clean */ }
   }
 
   let ws = null;
@@ -377,12 +381,13 @@ async function openBoard(env, boardId, accessToken) {
       ws = await connectPeer(env, boardId, accessToken);
       await syncPeer(ws, doc);
       live = true;
+      loaded = true;
     } catch (_) {
       try { ws?.close(); } catch (_) { /* already gone */ }
       ws = null;
     }
   }
-  return { doc, ws, live };
+  return { doc, ws, live, loaded };
 }
 
 // Commit a doc mutation everywhere: live push then board_state.
@@ -771,9 +776,16 @@ export async function deleteCardsFromBoard(env, {
 // Read a board's cards without mutating anything — the confirmation step needs
 // to know what's in the Bin before it can ask about it.
 export async function readBoardCards(env, boardId, accessToken = null) {
-  const { doc, ws } = await openBoard(env, boardId, accessToken);
+  return (await readBoardCardsChecked(env, boardId, accessToken)).cards;
+}
+
+// The same read, saying whether anything was actually loaded. `loaded: false`
+// means neither board_state nor the live room answered, so a card missing from
+// `cards` proves nothing about whether it exists.
+export async function readBoardCardsChecked(env, boardId, accessToken = null) {
+  const { doc, ws, loaded } = await openBoard(env, boardId, accessToken);
   try {
-    return readCards(doc);
+    return { cards: readCards(doc), loaded };
   } finally {
     try { ws?.close(); } catch (_) { /* already gone */ }
     doc.destroy();

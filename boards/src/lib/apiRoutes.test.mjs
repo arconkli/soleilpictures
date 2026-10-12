@@ -299,6 +299,37 @@ test('an identifier left behind on another board by a deleted card no longer blo
   assert.equal(row.board_id, B1);
 });
 
+test('a foreign board whose document did not load keeps its identifiers', async () => {
+  // Neither board_state nor the room answered for B2, so its doc reads empty.
+  // That is not proof its cards are gone: the match stands and refuses.
+  putBoard(B1, []);
+  idents = [ident(B2, 'Z', 'u9')];
+  on('GET', 'board_state', (c) => (c.query.get('board_id') === `eq.${B2}`
+    ? reply({ message: 'upstream timeout' }, 504)
+    : reply(boards.has(B1) ? [{ doc: boards.get(B1).doc }] : [])));
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    on_conflict: 'identifier',
+    cards: [{ kind: 'note', body: 'nine', identifiers: [{ scope: 'src', value: 'u9' }] }],
+  });
+  assert.equal(r.status, 409, JSON.stringify(r.body));
+  assert.equal(holderOf('u9'), 'Z', 'the identifier was not purged');
+  assert.equal(cardsOn(B1).length, 0, 'nothing was written');
+});
+
+test('a stale foreign identifier the caller cannot delete still refuses, before any card is written', async () => {
+  putBoard(B1, []);
+  putBoard(B2, [{ id: 'live', kind: 'note' }]);
+  idents = [ident(B2, 'Z', 'u9')];
+  // RLS on a board you can read but not write: the DELETE succeeds, deleting nothing.
+  on('DELETE', 'object_identifiers', () => reply(undefined, 204));
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    on_conflict: 'identifier',
+    cards: [{ kind: 'note', body: 'nine', identifiers: [{ scope: 'src', value: 'u9' }] }],
+  });
+  assert.equal(r.status, 409, JSON.stringify(r.body));
+  assert.equal(cardsOn(B1).length, 0, 'no card is written ahead of a certain collision');
+});
+
 test('a LIVE card on another board still refuses the item, naming where it is', async () => {
   putBoard(B1, []);
   putBoard(B2, [{ id: 'Z', kind: 'note' }]);
