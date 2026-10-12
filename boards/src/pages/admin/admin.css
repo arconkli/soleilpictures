@@ -2959,7 +2959,16 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
     padding-top: 64px;
     pointer-events: auto;   /* restore scroll; universe is a static backdrop here */
   }
-  .cc-rail { overflow: visible; }
+  /* The even flex split above needs a rail with a real height to divide. In
+     the stack the rail is an auto row of an overflowing frame, and with
+     min-height 0 the grid let that row shrink to almost nothing: flex-basis 0
+     then shared out nothing and every panel collapsed to its title strip, with
+     "Time in app" spilling its digits over the neighbours. Here the rail takes
+     its content height, and each panel a fixed (definite) one: the charts are
+     height=100% and need one to measure, and the DOM-row panels already scroll
+     inside their body. */
+  .cc-rail { overflow: visible; min-height: auto; }
+  .cc-rail .cc-panel { flex: none; height: 180px; }
   .cc-bottom { grid-template-columns: 1fr; }
 }
 
