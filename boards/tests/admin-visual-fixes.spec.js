@@ -186,3 +186,18 @@ test('bare <code> in the admin uses the app mono, not the browser default (VS-AD
   const families = await paths.evaluateAll((els) => els.map((e) => getComputedStyle(e).fontFamily));
   for (const f of families) expect(f).not.toBe('monospace');
 });
+
+test('the selected range segment shows the focus glow when tabbed to (VS-ADMIN-09)', async ({ page }) => {
+  await openAdmin(page, { tab: 'api' });
+  const active = page.locator('.admin-range button.is-active').first();
+  await expect(active).toBeVisible({ timeout: 15000 });
+  // Reach it the way a keyboard user does, so :focus-visible really matches.
+  for (let i = 0; i < 40; i++) {
+    await page.keyboard.press('Tab');
+    if (await active.evaluate((el) => el === document.activeElement)) break;
+  }
+  const [visible, shadow] = await active.evaluate((el) => [el.matches(':focus-visible'), getComputedStyle(el).boxShadow]);
+  expect(visible).toBe(true);
+  // The glow is the gold ring; the resting is-active shadow is a black hairline.
+  expect(shadow).toMatch(/rgba\(255, 165, 0/);
+});
