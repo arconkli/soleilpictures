@@ -67,17 +67,24 @@ function Media({ kind, src, poster, title }) {
   return <audio ref={ref} className="ql-audio-el" src={url} controls autoPlay aria-label={title} />;
 }
 
-function Stage({ item }) {
+function Stage({ item, playerRef = null, modalHandle = null }) {
   const card = item?.card || {};
   const name = item?.name || '';
   if (item.kind === 'image' && card.src) {
     return <ImageZoomStage src={card.src} alt={name} adjust={card.adjust} cardId={card.id} />;
   }
   if (item.kind === 'video' && card.src) {
-    // The film player without its keys — Quick look's own arrows step
-    // between files. Its buttons step frames; ⤢ opens the review player.
-    return <div className="ql-media ql-film"><FilmPlayer mode="full" src={card.src} poster={card.poster} media={card.media || null} title={name} autoPlay
-                                                             probe={() => probeCardVideo(card)} /></div>;
+    // The film player sized to the picture, its controls over the bottom
+    // edge. Only , . and J/K/L are its keys — ←/→ still step between files.
+    const open = (st) => openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
+    return (
+      <div className="ql-media ql-film">
+        <FilmPlayer ref={playerRef} mode="preview" keyboard="preview" modalHandle={modalHandle}
+                    src={card.src} poster={card.poster} media={card.media || null} title={name} autoPlay
+                    onOpenPlayer={item.boardId ? open : null}
+                    probe={() => probeCardVideo(card)} />
+      </div>
+    );
   }
   if (item.kind === 'audio' && card.src) {
     return (
@@ -133,7 +140,11 @@ export default function QuickLook({
   const item = items[index] || null;
   const n = items.length;
 
-  useEffect(() => registerModalOpen(), []);
+  // Kept: the film player in here takes its keys only while Quick look is the
+  // top layer (the review player opened from it sits above).
+  const modalRef = useRef(null);
+  useEffect(() => { const u = registerModalOpen(); modalRef.current = u; return u; }, []);
+  const playerRef = useRef(null);
 
   // Focus moves in, and goes back where it was on close.
   useEffect(() => {
@@ -211,7 +222,12 @@ export default function QuickLook({
           </button>
         )}
         {item.kind === 'video' && item.card?.src && item.boardId && (
-          <button type="button" className="ql-btn" onClick={() => openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card })} title="Open in the review player">
+          <button type="button" className="ql-btn" title="Open in the review player"
+                  onClick={() => {
+                    const st = playerRef.current?.getState?.();
+                    playerRef.current?.pause?.();
+                    openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
+                  }}>
             <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
           </button>
         )}
@@ -236,7 +252,7 @@ export default function QuickLook({
             <Icon as={ChevronLeft} size={20} weight="light" />
           </button>
         )}
-        <div className="ql-stage" key={item.id}><Stage item={item} /></div>
+        <div className="ql-stage" key={item.id}><Stage item={item} playerRef={playerRef} modalHandle={modalRef} /></div>
         {n > 1 && (
           <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label="Next file" title="Next (→)">
             <Icon as={ChevronRight} size={20} weight="light" />

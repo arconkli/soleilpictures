@@ -116,6 +116,7 @@ import { probeFile } from './lib/mediaProbe.js';
 import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 import { PlayerHost } from './components/film/PlayerHost.jsx';
+import { openPlayer } from './lib/playerBus.js';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
 // dead since the settings unification.
@@ -715,13 +716,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       cardLinkDone.current = true;
       openBoardAt(bid);
       setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
+      // A link to a frame of a clip (&t= seconds, &v= version): the review
+      // player opens there, paused.
+      const t = Number(p.get('t'));
+      const vid = p.get('v');
       if (many.length) {
         setFocusRequest({ boardId: bid, ids: many, token: `url-${Date.now()}` });
+      } else if (cid && p.has('t') && Number.isFinite(t) && t >= 0) {
+        setTimeout(() => openPlayer({ boardId: bid, cardId: cid, versionId: vid || null, time: t, playing: false }), 300);
       } else {
         setTimeout(() => document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId: bid, cardId: cid } })), 300);
       }
       const url = new URL(window.location.href);
       url.searchParams.delete('board'); url.searchParams.delete('card'); url.searchParams.delete('cards');
+      url.searchParams.delete('t'); url.searchParams.delete('v');
       window.history.replaceState({}, '', url.pathname + (url.search || ''));
     } catch (_) {}
   }, [boardsReady, sharedLoaded, boards, openBoardAt]);

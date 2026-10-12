@@ -29,38 +29,80 @@ need to look at it frame by frame.
 ## Video
 
 A video card plays inline. Move it, resize it, group it and comment on it like
-anything else. Hover it for its controls: play, one frame back and forward, a
-scrubber that lands on exact frames, the timecode, mute, and **⤢** to open the
-review player. Click the picture to play or pause; dragging the card doesn't.
+anything else. At rest it shows its poster frame and its length in the corner.
+Hover it for its controls: play, one frame back and forward, a scrubber along
+the bottom edge that lands on exact frames, the timecode, mute, and **⤢** to
+open the review player. The controls stay a usable size at any zoom.
+
+Clicking a clip you haven't selected selects it, like any card. Click it again
+to play or pause, or use the play button in its middle. Double-click it to open
+the review player on that frame. On a board you can only view, one click plays.
+Dragging the card never starts it.
 
 ### The review player
 
-**⤢** on a video card, **Open in player** in its right-click menu (on the board
-or in [Files](/docs/clusters/list-view)), or **Player** in Quick look opens the
-clip full size, made for looking closely:
+**⤢** on a video card, a double-click on it, **Open in player** in its
+right-click menu (on the board or in [Files](/docs/clusters/list-view)), or
+**Open in player** in Quick look opens the clip full size in a dark room, on the
+frame you were on. Click the picture to play or pause; double-click for full
+screen. When you close it, the card shows the frame you left on.
 
-- **Frame by frame.** `←` and `→` step one frame, `⇧←` and `⇧→` one second. The
-  timecode counts the frame actually on screen, in the clip's own frame rate
-  and from its own start timecode when it has one.
-- **J, K, L.** Play backward, stop, and play forward; press again to go faster.
-  Hold `K` and tap `J` or `L` to inch a frame at a time.
-- **A better scrubber.** Hover the timeline for a preview of that frame and its
-  timecode. Pinch, or `⌘`-scroll, over it to zoom in around the pointer — far
-  enough in, it shows every frame — then scroll to move along. Hold `⇧` while
-  dragging to scrub slowly.
-- **Jump to a frame.** Click the timecode and type `01:00:10:12`, a frame number
-  like `240`, seconds like `10.5s`, or a nudge like `+12` or `-1s`. Right-click
-  it to switch between timecode, frames and seconds.
-- **In, out and loop.** `I` and `O` set an in and an out point; `⌥L` loops
-  between them; `⌥X` clears them.
-- **Speed** from a quarter to double, **framing guides** for 2.39, 1.85, 16:9,
-  4:3, 1:1 and 9:16 with action and title safe (`G`), and **full screen** (`F`).
-- **Versions.** A clip with [versions](/docs/files#versions) can play any of
-  them, and **Compare** puts a second one behind it: `\` flips between the two
-  on the same frame.
+Under the picture, the timeline fills the width. Below it, from left to right:
+- the timecode, the clip's length and its frame rate;
+- the transport: set in, a frame back, play, a frame forward, set out;
+- loop, speed, framing guides, volume and full screen.
 
-`Esc` closes it. Every key is listed under
+- **Frame by frame.** `←` and `→` (or `,` and `.`) step one frame, `⇧←` and `⇧→`
+  one second. Hold the step buttons to keep going. The timecode counts the frame
+  actually on screen, in the clip's own frame rate. Until that rate is read, it
+  counts at 24 and shows the rate as `≈24`. A phone clip with a variable frame
+  rate says **VFR**: its frame numbers are close, not exact.
+- **J, K, L.** Play backward, stop, and play forward; press again to go faster —
+  the speed shows over the picture. Hold `K` and tap `J` or `L` to inch a frame;
+  keep holding to play slowly.
+- **The timeline.** Hover it for a preview of that frame, its timecode, and how
+  far it is from the playhead. Drag to scrub; hold `⇧` while dragging to move a
+  frame at a time. **+** and **−** (or `⌥=`, `⌥−`, pinch, `⌘`-scroll) zoom in
+  around the playhead until every frame has its own tick, with seconds marked
+  above. The strip above the timeline shows where you are in the whole clip:
+  drag it to move along. `⌥0` fits the whole clip again. While playing zoomed in,
+  the timeline follows the playhead.
+- **Jump to a frame.** Click the timecode, or just start typing, and enter
+  `01:00:10:12`, a frame number like `240`, seconds like `10.5s`, or a nudge like
+  `+12` or `-1s`.
+- **Timecode, frames or seconds.** The chip next to the length switches the
+  readout. **Source timecode** counts from the start timecode the camera or
+  editor wrote into the file. **Clip timecode** counts from `00:00:00:00`.
+  Click the length to show the time left instead. `⌘C` copies the timecode.
+- **In, out and loop.** `I` and `O` set an in and an out point. They show as
+  brackets on the timeline that you can drag, and as a chip with the length
+  between them. `⇧I` and `⇧O` go to them, and `⇧Space` plays from in to out once.
+  `⌥L` loops between them, or the whole clip when neither is set. `⌥X` clears
+  them.
+- **Speed** from a quarter to double, from its button or `⇧<` and `⇧>`. The
+  speed is remembered, and so are the volume and how the timecode reads.
+- **Framing guides** for 2.39, 2.00, 1.90, 1.85, 16:9, 4:3, 1:1 and 9:16, action
+  and title safe, thirds and a centre cross. `G` steps through them.
+- **Look closer.** `Z` zooms the picture from fit to 100% (one pixel of the file
+  per pixel of your screen) to 200%; drag to look around. `Z` again fits it.
+- **Share a frame.** `⇧⌘C`, or **Copy link to this frame** in the picture's
+  right-click menu, copies a link that opens this player paused on this frame,
+  for anyone who can open the cluster.
+- **Versions.** A clip with [versions](/docs/files#versions) shows them along
+  the top. Switching keeps the frame, in, out and loop. **Compare** puts a second
+  version behind the one on show: `\` or the **A | B** buttons flip between the
+  two on the same frame.
+
+`Esc` closes it. `?` lists every key, and so does
 [Player](/docs/keyboard-shortcuts#player).
+
+In [Quick look](/docs/clusters/list-view#quick-look) a clip plays with lighter
+controls over its bottom edge: play, frame steps (`,` and `.`), J/K/L, the
+scrubber with its preview, and **Open in player**. `←` and `→` still move
+between files there.
+
+A file the browser can't decode — ProRes outside Safari, for instance — says
+so, rather than showing a black frame, and offers the download.
 
 ### Autoplay and looping
 
@@ -191,6 +233,11 @@ people to see.
 
 The [photo adjustments](/docs/canvas/images) available on image cards have no
 video equivalent.
+
+The review player plays the file as it is. It does not manage colour or show
+HDR, it can't play sound while you scrub, and backward play steps through
+frames rather than running smoothly. Compared versions line up by time from
+their first frame, so two cuts with different heads won't match frame for frame.
 
 ## Storage
 

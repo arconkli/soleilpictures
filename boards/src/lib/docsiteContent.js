@@ -3109,7 +3109,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is open, it has the keyboard — nothing reaches the board behind it."
+     "v": " is open, it has the keyboard — nothing reaches the board behind it. Press "
+    },
+    {
+     "t": "code",
+     "v": "?"
+    },
+    {
+     "t": "text",
+     "v": " in the player for this list."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Transport",
+     "children": [
+      {
+       "t": "text",
+       "v": "Transport"
+      }
+     ]
     }
    ]
   },
@@ -3192,7 +3215,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "One frame back · forward"
+       "v": "Tap: one frame back · forward. Hold: play slowly"
       }
      ]
     ],
@@ -3209,6 +3232,28 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "→"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One frame back · forward"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": ","
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "."
       }
      ],
      [
@@ -3266,6 +3311,76 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⇧<"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⇧>"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Slower · faster"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "0–9"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Type a timecode, frame or seconds to jump to"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Marking",
+     "children": [
+      {
+       "t": "text",
+       "v": "Marking"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
        "v": "I"
       },
       {
@@ -3288,13 +3403,49 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⇧I"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⇧O"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Go to in · out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧Space"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Play from in to out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌥L"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Loop between in and out"
+       "v": "Loop (between in and out, or the whole clip)"
       }
      ]
     ],
@@ -3311,18 +3462,116 @@ export const DOCS_CONTENT = {
        "v": "Clear in and out"
       }
      ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "View",
+     "children": [
+      {
+       "t": "text",
+       "v": "View"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
     ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
     [
      [
       {
        "t": "code",
-       "v": "M"
+       "v": "⌥="
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌥−"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Mute"
+       "v": "Zoom the timeline in · out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌥0"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Fit the whole clip in the timeline"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧Z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Zoom the timeline to in and out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Z"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Zoom the picture: fit · 100% · 200% — drag to look around"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "G"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Framing guides — again for the next one"
       }
      ]
     ],
@@ -3344,16 +3593,72 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "G"
+       "v": "M"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Framing guides"
+       "v": "Mute"
       }
      ]
     ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⇧↓"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Volume up · down"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Review",
+     "children": [
+      {
+       "t": "text",
+       "v": "Review"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
     [
      [
       {
@@ -3365,6 +3670,48 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Flip to the version you compare with"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘C"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copy the timecode"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧⌘C"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copy a link to this frame"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "?"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Show these shortcuts"
       }
      ]
     ],
@@ -15090,7 +15437,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A video card plays inline. Move it, resize it, group it and comment on it like anything else. Hover it for its controls: play, one frame back and forward, a scrubber that lands on exact frames, the timecode, mute, and "
+     "v": "A video card plays inline. Move it, resize it, group it and comment on it like anything else. At rest it shows its poster frame and its length in the corner. Hover it for its controls: play, one frame back and forward, a scrubber along the bottom edge that lands on exact frames, the timecode, mute, and "
     },
     {
      "t": "strong",
@@ -15104,7 +15451,16 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to open the review player. Click the picture to play or pause; dragging the card doesn't."
+     "v": " to open the review player. The controls stay a usable size at any zoom."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clicking a clip you haven't selected selects it, like any card. Click it again to play or pause, or use the play button in its middle. Double-click it to open the review player on that frame. On a board you can only view, one click plays. Dragging the card never starts it."
     }
    ]
   },
@@ -15135,7 +15491,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on a video card, "
+     "v": " on a video card, a double-click on it, "
     },
     {
      "t": "strong",
@@ -15168,18 +15524,51 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Player",
+     "v": "Open in player",
      "children": [
       {
        "t": "text",
-       "v": "Player"
+       "v": "Open in player"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in Quick look opens the clip full size, made for looking closely:"
+     "v": " in Quick look opens the clip full size in a dark room, on the frame you were on. Click the picture to play or pause; double-click for full screen. When you close it, the card shows the frame you left on."
     }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Under the picture, the timeline fills the width. Below it, from left to right:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "the timecode, the clip's length and its frame rate;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the transport: set in, a frame back, play, a frame forward, set out;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "loop, speed, framing guides, volume and full screen."
+     }
+    ]
    ]
   },
   {
@@ -15215,7 +15604,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " step one frame, "
+      "v": " (or "
+     },
+     {
+      "t": "code",
+      "v": ","
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "."
+     },
+     {
+      "t": "text",
+      "v": ") step one frame, "
      },
      {
       "t": "code",
@@ -15231,7 +15636,29 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " one second. The timecode counts the frame actually on screen, in the clip's own frame rate and from its own start timecode when it has one."
+      "v": " one second. Hold the step buttons to keep going. The timecode counts the frame actually on screen, in the clip's own frame rate. Until that rate is read, it counts at 24 and shows the rate as "
+     },
+     {
+      "t": "code",
+      "v": "≈24"
+     },
+     {
+      "t": "text",
+      "v": ". A phone clip with a variable frame rate says "
+     },
+     {
+      "t": "strong",
+      "v": "VFR",
+      "children": [
+       {
+        "t": "text",
+        "v": "VFR"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": its frame numbers are close, not exact."
      }
     ],
     [
@@ -15247,7 +15674,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " Play backward, stop, and play forward; press again to go faster. Hold "
+      "v": " Play backward, stop, and play forward; press again to go faster — the speed shows over the picture. Hold "
      },
      {
       "t": "code",
@@ -15271,31 +15698,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " to inch a frame at a time."
+      "v": " to inch a frame; keep holding to play slowly."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "A better scrubber.",
+      "v": "The timeline.",
       "children": [
        {
         "t": "text",
-        "v": "A better scrubber."
+        "v": "The timeline."
        }
       ]
      },
      {
       "t": "text",
-      "v": " Hover the timeline for a preview of that frame and its timecode. Pinch, or "
-     },
-     {
-      "t": "code",
-      "v": "⌘"
-     },
-     {
-      "t": "text",
-      "v": "-scroll, over it to zoom in around the pointer — far enough in, it shows every frame — then scroll to move along. Hold "
+      "v": " Hover it for a preview of that frame, its timecode, and how far it is from the playhead. Drag to scrub; hold "
      },
      {
       "t": "code",
@@ -15303,7 +15722,67 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " while dragging to scrub slowly."
+      "v": " while dragging to move a frame at a time. "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "−",
+      "children": [
+       {
+        "t": "text",
+        "v": "−"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (or "
+     },
+     {
+      "t": "code",
+      "v": "⌥="
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "⌥−"
+     },
+     {
+      "t": "text",
+      "v": ", pinch, "
+     },
+     {
+      "t": "code",
+      "v": "⌘"
+     },
+     {
+      "t": "text",
+      "v": "-scroll) zoom in around the playhead until every frame has its own tick, with seconds marked above. The strip above the timeline shows where you are in the whole clip: drag it to move along. "
+     },
+     {
+      "t": "code",
+      "v": "⌥0"
+     },
+     {
+      "t": "text",
+      "v": " fits the whole clip again. While playing zoomed in, the timeline follows the playhead."
      }
     ],
     [
@@ -15319,7 +15798,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " Click the timecode and type "
+      "v": " Click the timecode, or just start typing, and enter "
      },
      {
       "t": "code",
@@ -15359,7 +15838,67 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ". Right-click it to switch between timecode, frames and seconds."
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Timecode, frames or seconds.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Timecode, frames or seconds."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " The chip next to the length switches the readout. "
+     },
+     {
+      "t": "strong",
+      "v": "Source timecode",
+      "children": [
+       {
+        "t": "text",
+        "v": "Source timecode"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " counts from the start timecode the camera or editor wrote into the file. "
+     },
+     {
+      "t": "strong",
+      "v": "Clip timecode",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clip timecode"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " counts from "
+     },
+     {
+      "t": "code",
+      "v": "00:00:00:00"
+     },
+     {
+      "t": "text",
+      "v": ". Click the length to show the time left instead. "
+     },
+     {
+      "t": "code",
+      "v": "⌘C"
+     },
+     {
+      "t": "text",
+      "v": " copies the timecode."
      }
     ],
     [
@@ -15391,7 +15930,31 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " set an in and an out point; "
+      "v": " set an in and an out point. They show as brackets on the timeline that you can drag, and as a chip with the length between them. "
+     },
+     {
+      "t": "code",
+      "v": "⇧I"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "⇧O"
+     },
+     {
+      "t": "text",
+      "v": " go to them, and "
+     },
+     {
+      "t": "code",
+      "v": "⇧Space"
+     },
+     {
+      "t": "text",
+      "v": " plays from in to out once. "
      },
      {
       "t": "code",
@@ -15399,7 +15962,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " loops between them; "
+      "v": " loops between them, or the whole clip when neither is set. "
      },
      {
       "t": "code",
@@ -15423,21 +15986,39 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " from a quarter to double, "
+      "v": " from a quarter to double, from its button or "
      },
      {
+      "t": "code",
+      "v": "⇧<"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "⇧>"
+     },
+     {
+      "t": "text",
+      "v": ". The speed is remembered, and so are the volume and how the timecode reads."
+     }
+    ],
+    [
+     {
       "t": "strong",
-      "v": "framing guides",
+      "v": "Framing guides",
       "children": [
        {
         "t": "text",
-        "v": "framing guides"
+        "v": "Framing guides"
        }
       ]
      },
      {
       "t": "text",
-      "v": " for 2.39, 1.85, 16:9, 4:3, 1:1 and 9:16 with action and title safe ("
+      "v": " for 2.39, 2.00, 1.90, 1.85, 16:9, 4:3, 1:1 and 9:16, action and title safe, thirds and a centre cross. "
      },
      {
       "t": "code",
@@ -15445,29 +16026,77 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": "), and "
-     },
+      "v": " steps through them."
+     }
+    ],
+    [
      {
       "t": "strong",
-      "v": "full screen",
+      "v": "Look closer.",
       "children": [
        {
         "t": "text",
-        "v": "full screen"
+        "v": "Look closer."
        }
       ]
      },
      {
       "t": "text",
-      "v": " ("
+      "v": " "
      },
      {
       "t": "code",
-      "v": "F"
+      "v": "Z"
      },
      {
       "t": "text",
-      "v": ")."
+      "v": " zooms the picture from fit to 100% (one pixel of the file per pixel of your screen) to 200%; drag to look around. "
+     },
+     {
+      "t": "code",
+      "v": "Z"
+     },
+     {
+      "t": "text",
+      "v": " again fits it."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Share a frame.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share a frame."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "⇧⌘C"
+     },
+     {
+      "t": "text",
+      "v": ", or "
+     },
+     {
+      "t": "strong",
+      "v": "Copy link to this frame",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link to this frame"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the picture's right-click menu, copies a link that opens this player paused on this frame, for anyone who can open the cluster."
      }
     ],
     [
@@ -15498,7 +16127,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " can play any of them, and "
+      "v": " shows them along the top. Switching keeps the frame, in, out and loop. "
      },
      {
       "t": "strong",
@@ -15512,7 +16141,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " puts a second one behind it: "
+      "v": " puts a second version behind the one on show: "
      },
      {
       "t": "code",
@@ -15520,7 +16149,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " flips between the two on the same frame."
+      "v": " or the "
+     },
+     {
+      "t": "strong",
+      "v": "A | B",
+      "children": [
+       {
+        "t": "text",
+        "v": "A | B"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " buttons flip between the two on the same frame."
      }
     ]
    ]
@@ -15534,7 +16177,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " closes it. Every key is listed under "
+     "v": " closes it. "
+    },
+    {
+     "t": "code",
+     "v": "?"
+    },
+    {
+     "t": "text",
+     "v": " lists every key, and so does "
     },
     {
      "t": "link",
@@ -15550,6 +16201,85 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In "
+    },
+    {
+     "t": "link",
+     "v": "Quick look",
+     "href": "/docs/clusters/list-view#quick-look",
+     "children": [
+      {
+       "t": "text",
+       "v": "Quick look"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a clip plays with lighter controls over its bottom edge: play, frame steps ("
+    },
+    {
+     "t": "code",
+     "v": ","
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "."
+    },
+    {
+     "t": "text",
+     "v": "), J/K/L, the scrubber with its preview, and "
+    },
+    {
+     "t": "strong",
+     "v": "Open in player",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open in player"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "←"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "→"
+    },
+    {
+     "t": "text",
+     "v": " still move between files there."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file the browser can't decode — ProRes outside Safari, for instance — says so, rather than showing a black frame, and offers the download."
     }
    ]
   },
@@ -16411,6 +17141,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " available on image cards have no video equivalent."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The review player plays the file as it is. It does not manage colour or show HDR, it can't play sound while you scrub, and backward play steps through frames rather than running smoothly. Compared versions line up by time from their first frame, so two cuts with different heads won't match frame for frame."
     }
    ]
   },
