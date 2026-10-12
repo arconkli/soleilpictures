@@ -16,6 +16,7 @@ import { SettingsPanel } from '../../src/components/SettingsPanel.jsx';
 import { VersionHistoryModal } from '../../src/components/VersionHistoryModal.jsx';
 import { TrashModal } from '../../src/components/TrashModal.jsx';
 import { NotificationsPanel } from '../../src/components/NotificationsPanel.jsx';
+import { ShareModal } from '../../src/components/ShareModal.jsx';
 
 const h = React.createElement;
 
@@ -79,6 +80,17 @@ export function mountVersionHistory() {
 
 export function mountTrash() {
   mountInto(h(TrashModal, { open: true, workspaceId: 'ws-probe', onClose: () => {} }));
+}
+
+export function mountShare() {
+  const self = '00000000-0000-4000-8000-000000000001';
+  mountInto(h(ShareModal, {
+    board: { id: 'b-probe', name: 'Reference wall', workspace_id: 'ws-probe' },
+    workspace: { id: 'ws-probe', name: 'Probe studio', created_by: self },
+    workspaceMembers: [{ user_id: self, role: 'owner' }],
+    selfUserId: self, canManage: true, myWorkspaceRole: 'owner',
+    onClose: () => {},
+  }));
 }
 
 export function mountNotifications() {
