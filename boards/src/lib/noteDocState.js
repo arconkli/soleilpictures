@@ -21,6 +21,7 @@ import {
 import { noteExtensions } from '../components/noteExtensions/noteExtensions.js';
 import { pageFragmentToText } from './docState.js';
 import { noteSourceHtml, htmlHasText, bodyHasText } from './noteBody.js';
+import { hiddenPreviewMarkers } from './noteLinkify.js';
 
 // Origin for note STRUCTURAL ops (fragment create/seed) and the derived-html
 // write-through. Deliberately NOT 'local' so the board-level Y.UndoManager
@@ -241,9 +242,23 @@ export function seedNoteFragmentFromHtml(ydoc, cardYMap, html, body = cardYMap?.
       return;
     }
     seedFragmentFrom(frag, source);
+    carryHiddenPreviews(cardYMap, source);
     cardYMap.set(NOTE_SEEDED_KEY, true);
   }, NOTE_ORIGIN);
   return frag;
+}
+
+// The legacy editor recorded a removed link preview as a hidden marker span
+// in the html. The seed strips those (the schema can't hold them), so without
+// this every dismissed preview came back the first time the note was edited
+// (NOTES-08). Additive: merged into whatever the field already lists.
+function carryHiddenPreviews(cardYMap, source) {
+  const urls = hiddenPreviewMarkers(source);
+  if (!urls.length) return;
+  const prev = cardYMap.get('hiddenPreviews');
+  const list = Array.isArray(prev) ? prev : [];
+  const next = [...new Set([...list, ...urls])];
+  if (next.length !== list.length) cardYMap.set('hiddenPreviews', next);
 }
 
 // One-time repair for a note the html-only seed marked seeded while leaving its

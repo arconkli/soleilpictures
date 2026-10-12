@@ -222,7 +222,8 @@ export function NoteTiptapSurface({
     // this build's schema doesn't know, say from a newer peer). From a
     // fragment that holds text that is a failure, not an edit: keep the cache.
     if (!serialized && !blank) return;
-    const html = linkifyNoteHtml(serialized);
+    // Previews the user removed stay removed (the card's hiddenPreviews).
+    const html = linkifyNoteHtml(serialized, cardYMap?.get?.('hiddenPreviews'));
     writeCache({ html, body: null });
     return html;
   };

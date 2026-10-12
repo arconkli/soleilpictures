@@ -13,9 +13,12 @@ import { EntityLink } from '../components/EntityLink.jsx';
 import { scanForAutoLinks } from './scanForAutoLinks.js';
 import { sanitizeNoteHtml } from './sanitizeNoteHtml.js';
 
+// 'button' is the link preview's remove (x): rendered as a classless span it
+// was no longer a .note-preview-remove, so the click found nothing (NOTES-08).
 const ALLOWED_TAGS = new Set([
   'div','p','span','strong','em','u','s','b','i','br','a','code','pre',
   'ul','ol','li','h1','h2','h3','h4','blockquote','img','small','sup','sub',
+  'button',
 ]);
 
 // Everything sanitizeNoteHtml lets through that the note display relies on.
