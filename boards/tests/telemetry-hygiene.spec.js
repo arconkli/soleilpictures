@@ -31,7 +31,9 @@ test.describe('telemetry hygiene', () => {
     const s = appFeedback();
     // toast() accepts + stores onDismiss on the item.
     expect(s).toMatch(/onDismiss = null/);
-    expect(s).toMatch(/\{ id, type, message, action, onDismiss, exiting: false \}/);
+    // (The item also carries actions and a group key since grouped toasts;
+    // what matters here is that onDismiss rides on the item itself.)
+    expect(s).toMatch(/const item = \{[^}]*\bonDismiss\b[^}]*exiting: false \}/);
     // The expiry timer keeps calling the PLAIN dismiss — never the manual one.
     expect(s).toMatch(/setTimeout\(\(\) => dismissToast\(id\)/);
     // The manual wrapper reads the item through a ref (no side effects inside a
