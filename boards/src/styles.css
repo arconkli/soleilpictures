@@ -19429,6 +19429,14 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   letter-spacing: -0.005em;
 }
 .tag-pop:hover .tag-pop-footer { opacity: 1; }
+/* Hover was the only reveal, so on touch (the gutter dot opens this on tap)
+   and under keyboard focus the footer, including the destructive "Remove
+   tag", was tappable but invisible. */
+.tag-pop:focus-within .tag-pop-footer,
+.tag-pop-footer:focus-visible { opacity: 1; }
+@media (hover: none) and (pointer: coarse) {
+  .tag-pop-footer { opacity: 1; }
+}
 .tag-pop-footer:hover {
   color: var(--ink-0);
   background: color-mix(in oklab, var(--tag-color, var(--soleil)) 10%, transparent);
