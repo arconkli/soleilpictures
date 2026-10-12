@@ -16,6 +16,20 @@ const GAP = 10;   // gap between the image edge and the panel
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// The bottom of the space the panel may use. On the phone shell the bottom
+// nav and its raised + button are fixed over the page; clamping to the window
+// alone parked Reset on top of the nav with the gold + glowing through it.
+function usableHeight() {
+  const vh = window.innerHeight;
+  let bottom = vh;
+  for (const el of document.querySelectorAll('.mb-nav, .mb-nav-create, .mb-nav-create-fab')) {
+    const r = el.getBoundingClientRect();
+    if (r.height > 0 && r.top < bottom) bottom = r.top;
+  }
+  // Never let a stray fixed bar squeeze the panel to nothing.
+  return Math.max(bottom, Math.min(vh, 240));
+}
+
 // Place the panel flush beside the image rect, never overlapping it.
 function placeBeside(rect, w, h, vw, vh) {
   const topAligned = clamp(rect.top, PAD, vh - h - PAD);
@@ -40,7 +54,7 @@ export function ImageEditPopover({ anchorRect, adjust, onChange, onReset, onExpa
   const [style, setStyle] = useState(() => anchorRect ? {
     position: 'fixed',
     left: clamp(anchorRect.right + GAP, PAD, window.innerWidth - PANEL_W - PAD),
-    top: clamp(anchorRect.top, PAD, window.innerHeight - PAD),
+    top: clamp(anchorRect.top, PAD, usableHeight() - PAD),
     visibility: 'hidden',
   } : undefined);
 
@@ -50,23 +64,30 @@ export function ImageEditPopover({ anchorRect, adjust, onChange, onReset, onExpa
     const place = () => {
       const el = ref.current;
       if (!el) return;
-      const vw = window.innerWidth, vh = window.innerHeight;
+      const vw = window.innerWidth, vh = usableHeight();
       const w = el.offsetWidth || PANEL_W;
-      const h = el.offsetHeight || 0;
+      // Natural height (scrollHeight: a capped panel still reports its full
+      // content), then capped to the usable height so a panel taller than a
+      // phone's space scrolls inside instead of running under the nav.
+      const maxH = vh - 2 * PAD;
+      const capped = el.scrollHeight > maxH;
+      const h = capped ? maxH : (el.offsetHeight || 0);
+      const fit = capped ? { maxHeight: maxH, overflowY: 'auto' } : {};
       if (movedRef.current) {
         // keep the user's position, just re-clamp into the viewport
         setStyle((prev) => {
           if (!prev) return prev;
           const left = clamp(parseFloat(prev.left) || PAD, PAD, vw - w - PAD);
           const top = clamp(parseFloat(prev.top) || PAD, PAD, vh - h - PAD);
-          return { position: 'fixed', left, top };
+          return { position: 'fixed', left, top, ...fit };
         });
         return;
       }
       const { left, top } = placeBeside(anchorRect, w, h, vw, vh);
       setStyle((prev) => {
-        if (prev && prev.left === left && prev.top === top && prev.position === 'fixed' && !prev.visibility) return prev;
-        return { position: 'fixed', left, top };
+        if (prev && prev.left === left && prev.top === top && prev.position === 'fixed' && !prev.visibility
+          && prev.maxHeight === fit.maxHeight) return prev;
+        return { position: 'fixed', left, top, ...fit };
       });
     };
     place();
@@ -90,13 +111,15 @@ export function ImageEditPopover({ anchorRect, adjust, onChange, onReset, onExpa
     const sx = e.clientX, sy = e.clientY;
     const startLeft = r.left, startTop = r.top;
     const w = el.offsetWidth, h = el.offsetHeight;
+    const vh = usableHeight();
     const move = (ev) => {
       movedRef.current = true;
-      setStyle({
+      setStyle((prev) => ({
         position: 'fixed',
         left: clamp(startLeft + (ev.clientX - sx), PAD, window.innerWidth - w - PAD),
-        top: clamp(startTop + (ev.clientY - sy), PAD, window.innerHeight - h - PAD),
-      });
+        top: clamp(startTop + (ev.clientY - sy), PAD, vh - h - PAD),
+        ...(prev?.maxHeight ? { maxHeight: prev.maxHeight, overflowY: 'auto' } : {}),
+      }));
     };
     const up = () => {
       window.removeEventListener('pointermove', move);

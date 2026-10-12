@@ -276,3 +276,38 @@ test.describe('VS-CANVAS-07 overlay controls are at least 40px on a phone', () =
     await ctx.close();
   });
 });
+
+test.describe('VS-CANVAS-08 the phone photo popover stays above the bottom nav', () => {
+  test('its bottom clears the nav and the raised + button, and Reset is reachable', async ({ browser }) => {
+    const ctx = await browser.newContext(PHONE);
+    const page = await ctx.newPage();
+    await page.emulateMedia({ colorScheme: 'light' });
+    // The image sits LOW on the screen (a shape above it takes the top of the
+    // fit), so the panel can't go beside, below or above it and falls back to
+    // clamping against the bottom — where it used to run under the nav.
+    await plant(page, [
+      { id: 'top', kind: 'shape', shape: 'rect', x: 0, y: 0, w: 240, h: 160 },
+      { ...MEDIA[0], y: 200 },
+    ]);
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+    await expect(page.locator('[data-card-id="img1"] .ic-img')).toBeVisible();
+    await cardAction(page, 'img1', '.ic-edit');
+    const pop = page.locator('.iep-pop');
+    await expect(pop).toBeVisible();
+    // Let the open animation and the rAF re-place settle.
+    await pop.evaluate(async (el) => { await Promise.all(el.getAnimations().map((a) => a.finished)); });
+    await page.waitForTimeout(100);
+    const navTop = await page.evaluate(() => Math.min(...[...document.querySelectorAll('.mb-nav, .mb-nav-create, .mb-nav-create-fab')]
+      .map((el) => el.getBoundingClientRect()).filter((r) => r.height > 0).map((r) => r.top)));
+    expect(Number.isFinite(navTop)).toBe(true);
+    const p = await rect(page, '.iep-pop');
+    expect(p.b).toBeLessThanOrEqual(navTop);
+    expect(p.y).toBeGreaterThanOrEqual(0);
+    const reset = pop.getByRole('button', { name: 'Reset' });
+    await reset.scrollIntoViewIfNeeded();
+    const rb = await reset.boundingBox();
+    expect(rb.y + rb.height).toBeLessThanOrEqual(navTop);
+    await page.screenshot({ path: test.info().outputPath('phone-popover-light.png') });
+    await ctx.close();
+  });
+});
