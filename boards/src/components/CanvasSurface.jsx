@@ -11372,7 +11372,7 @@ export function CanvasSurface({
       {/* Who's-here facepile + hover roster. The authoritative presence list at
           scale (canvas cursors are culled/capped); floats top-right. */}
       <div className="canvas-presence-roster">
-        <PresenceStack getAwareness={presenceAwareness} />
+        <PresenceStack getAwareness={presenceAwareness} selfId={currentUser?.id} />
       </div>
       <div ref={canvasRef}
            className={`canvas ${smoothXform ? 'is-smooth' : ''}`}

@@ -18,6 +18,9 @@ export function PresenceQaHarness() {
 
   useEffect(() => {
     window.__soleilPresenceTest = makePresenceTestBridge({ aw: awRef.current, boardId });
+    // The raw fake awareness, for specs that need a state the bridge doesn't
+    // seed (e.g. YOUR user id on another client — tests/presence-self.spec.js).
+    window.__soleilPresenceAw = awRef.current;
     const root = document.getElementById('root');
     if (root) root.setAttribute('data-presenceqa-ready', '1');
   }, []);
@@ -33,7 +36,7 @@ export function PresenceQaHarness() {
         getCardById={getCardByIdRef.current}
       />
       <div className="canvas-presence-roster">
-        <PresenceStack getAwareness={getAwarenessRef.current} />
+        <PresenceStack getAwareness={getAwarenessRef.current} selfId={'self'} />
       </div>
     </div>
   );
