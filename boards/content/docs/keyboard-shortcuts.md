@@ -69,6 +69,7 @@ contents, notes, docs and tags, and it also runs commands — "share", "trash",
 | Key | Action |
 |---|---|
 | `F` | Show or hide [Files](/docs/clusters/list-view) beside the board |
+| `⌘I` | [Info](/docs/canvas/cards#info) — the selection, or the cluster when nothing is selected |
 | `⌘0` | Reset zoom |
 | `⌘+` / `⌘−` | Zoom in · out |
 | `⇧1` | Fit everything |
@@ -105,7 +106,7 @@ the board, these keys go to whichever side the pointer was last over.
 | `Enter` | Select the highlighted file |
 | `⇧Space` | Add the highlighted file to the selection, or take it out — the keyboard version of a tile's round check |
 | `Space` or double-click | Quick look — `←` / `→` step through the files, `Space` or `Esc` closes |
-| `⌘I` | Info for the selected file — remembered on your device |
+| `⌘I` | Info for the selection, or the cluster — in full-screen Files, remembered on your device |
 | `F2` | Rename the selected file or folder — `Enter` saves, `Esc` cancels |
 | `⇧F10` | The right-click menu, for the selection |
 | `⌘A` | Select every file showing — search and filters apply |

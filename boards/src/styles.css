@@ -1231,47 +1231,6 @@ body {
   font-style: italic;
 }
 
-/* Card info popover — opens from right-click → Info. Lists creator
-   + creation time + card kind. Compact panel anchored at the click. */
-.card-info-popover {
-  background: rgba(20,20,24,.96);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex; flex-direction: column;
-  gap: 4px;
-  min-width: 220px;
-  box-shadow: 0 12px 28px rgba(0,0,0,.36);
-  font: 500 12px/1.4 var(--font-sans);
-  color: var(--ink-1);
-  animation: ctx-menu-in var(--dur-base) var(--ease);
-}
-[data-theme='light'] .card-info-popover {
-  background: var(--bg-3);
-  border-color: rgba(0,0,0,.10);
-  color: #1a1a1f;
-}
-.card-info-popover-row {
-  display: flex; align-items: center; gap: 10px;
-  justify-content: space-between;
-}
-.card-info-popover-label {
-  font-size: 10px;
-  font-family: var(--font-mono, monospace);
-  text-transform: uppercase; letter-spacing: .14em;
-  color: var(--ink-3);
-}
-.card-info-popover-value {
-  display: inline-flex; align-items: center; gap: 6px;
-  color: var(--ink-0);
-}
-[data-theme='light'] .card-info-popover-value { color: #1a1a1f; }
-.card-info-popover-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
 /* Doc context-menu text color row — swatches + custom picker. Sits
    between formatting marks and structural items. */
 .doc-ctx-color-row {
@@ -11986,7 +11945,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   position: fixed;
   /* --files-dock-w: the docked Files panel at the window's right edge
      (FilesDockLayout), so a toast never sits on the panel's ⤢ and ×. */
-  right: calc(16px + var(--files-dock-w, 0px));
+  right: calc(16px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px));
   transition: right var(--dur-base) var(--ease);
   top: 54px;
   z-index: 1100;
@@ -19081,7 +19040,6 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .sb-tags-suggestions,
 .sb-tag-menu,
 .sb-tag-suggest-list,
-.card-info-popover,
 .merge-picker,
 .ws-presence-audit,
 .picker,
@@ -19157,7 +19115,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .tag-detail-block-attr::after, .tag-detail-block-open::after, .tag-detail-group-block::after,
 .tag-picker::after, .surface-card::after,
 .sb-tags-suggestions::after, .sb-tag-menu::after, .sb-tag-suggest-list::after,
-.card-info-popover::after, .merge-picker::after, .ws-presence-audit::after,
+.merge-picker::after, .ws-presence-audit::after,
 .picker::after, .public-card::after, .rb-swatch-pop::after,
 .folder-body::after, .folder-slot::after, .folder-tab::after, .hist-comment-card::after,
 .list-selbar::after, .split-bar::after, .toast::after,
@@ -22790,3 +22748,50 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
    Docs/Word, sized to sit with the B / I / U / S letter buttons. */
 .tb-clear-fmt { font-size: 12px; line-height: 1; letter-spacing: 0; }
 .tb-clear-fmt sub { font-size: 8px; vertical-align: -2px; margin-left: 1px; }
+
+/* ── Info: the drawer every right-click and ⌘I opens (info/InfoHost.jsx), and
+   the sections every Info shares. It sits under the topbar beside the docked
+   Files panel (--files-dock-w) rather than over it, below context menus so a
+   menu can still open on top, and pushes the toasts aside (--info-drawer-w). */
+.info-host { display: contents; }
+.cb-detail.is-drawer {
+  position: fixed;
+  top: calc(56px + env(safe-area-inset-top, 0px));
+  right: calc(8px + var(--files-dock-w, 0px));
+  width: 340px; max-width: calc(100vw - 16px); min-width: 0;
+  max-height: calc(100dvh - 64px - env(safe-area-inset-top, 0px));
+  /* Over the board and Files (their chrome tops out near 100), under every
+     overlay — modals (200), sheets (1000), Quick look (1090), ⌘K (1200) —
+     and the context menus and toasts. */
+  z-index: 150;
+  outline: none;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-3); border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-3);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  animation: info-drawer-in var(--dur-fast) var(--ease);
+}
+.cb-detail.is-drawer .cbd-body { flex: 1; min-height: 0; }
+.cb-detail.is-drawer .cbd-preview { background: var(--bg-1); border: 0; }
+@keyframes info-drawer-in { from { opacity: 0; transform: translateX(8px); } }
+@media (prefers-reduced-motion: reduce) { .cb-detail.is-drawer { animation: none; } }
+@media (max-width: 640px) {
+  /* A sheet that stops above the bottom nav. */
+  .cb-detail.is-drawer {
+    top: auto; left: 0; right: 0; bottom: calc(56px + var(--safe-bottom, 0px)); width: auto; max-width: none;
+    max-height: calc(72vh - 56px); border-radius: 16px 16px 0 0;
+  }
+  /* Full-screen Files on a phone: Info is for what you picked, not a sheet
+     over the cluster you're looking at. */
+  .cb-split .cb-detail[data-target='cluster'] { display: none; }
+}
+.cbd-section + .cbd-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-1); }
+.cbd-section-label {
+  margin: 0 0 6px; font: 600 10px/1 var(--font-sans); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-2);
+}
+.cbd-person { align-items: flex-start; }
+.cbd-person-v { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; text-align: right; }
+.cbd-person-name { color: var(--ink-0); font: 500 12px/1.3 var(--font-sans); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cbd-person-when { color: var(--ink-2); font: 400 11px/1.3 var(--font-sans); white-space: nowrap; }
+

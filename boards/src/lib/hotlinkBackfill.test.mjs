@@ -68,6 +68,8 @@ test('the canvas runs it for writers only, after the server snapshot, and re-che
   const body = fx.slice(0, fx.indexOf('}, [board?.id, cards, canEdit, isPublic, useLocalImages, boardSynced]);'));
   assert.match(body, /if \(!canEdit \|\| isPublic \|\| useLocalImages \|\| !board\?\.id \|\| !boardSynced\) return undefined;/);
   assert.match(body, /if \(!live \|\| live\.src !== c\.src\) continue;/, 'a card re-pointed meanwhile is left alone');
-  assert.match(body, /sweepMutatorsRef\.current\?\.updateCardSilent\?\.\(c\.id, \{\s*src: res\.src, sourceUrl: c\.src/);
+  // Through updateCardMeta: rehosting isn't an edit, so it leaves Info's
+  // "Modified" alone (updateCardSilent where a shell has no updateCardMeta).
+  assert.match(body, /\(m\?\.updateCardMeta \|\| m\?\.updateCardSilent\)\?\.\(c\.id, \{\s*src: res\.src, sourceUrl: c\.src/);
   assert.match(body, /if \(stopsThePass\(code\)\) return;/);
 });

@@ -420,7 +420,7 @@ export const DOCS_PAGES = [
     "answer": "A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
     "section": "canvas",
     "order": 1,
-    "updated": "2026-10-02",
+    "updated": "2026-10-11",
     "navLabel": "Cards",
     "headings": [
       {
@@ -434,6 +434,10 @@ export const DOCS_PAGES = [
       {
         "id": "what-every-card-does",
         "text": "What every card does"
+      },
+      {
+        "id": "info",
+        "text": "Info"
       },
       {
         "id": "removing-a-card-from-the-board",

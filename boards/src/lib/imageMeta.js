@@ -19,7 +19,7 @@
 import { supabase } from './supabase.js';
 import * as perf from './perf.js';
 
-const cache = new Map();        // storage_path → { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH, w, h }
+const cache = new Map();        // storage_path → { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH, w, h, sizeBytes, uploadedBy, uploadedAt, originalName }
 const inflight = new Set();     // storage_path currently being fetched (dedupe)
 const subscribers = new Map();  // storage_path → Set<cb>
 
@@ -42,6 +42,14 @@ function notifyAll() {
   for (const key of subscribers.keys()) notify(key);
 }
 
+// size_bytes rides along: Files' Size column read blank for every image,
+// video and PDF because it was never selected. Who uploaded a file, when, and
+// under what name are fetched only when Info asks (primeFileFacts) — every
+// board open would otherwise carry them for every image, other workspaces'
+// included.
+const META_COLS = 'storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height,size_bytes';
+const FACT_COLS = 'storage_path,size_bytes,uploaded_by,created_at,original_name,width,height';
+
 function rowToMeta(row) {
   return {
     blur:         row.blur_hash || null,
@@ -55,7 +63,17 @@ function rowToMeta(row) {
     previewSmH:   row.preview_sm_h ?? null,
     w:            row.width ?? null,
     h:            row.height ?? null,
+    sizeBytes:    row.size_bytes ?? null,
   };
+}
+
+// The fields a row brings that an entry doesn't have yet — so a row never
+// overwrites a fresher local value, but does fill in what's missing (an entry
+// setMetaLocal made after an upload knows its preview, not its size).
+function fillMissing(prev, row) {
+  const next = { ...prev };
+  for (const [k, v] of Object.entries(row)) if (next[k] == null && v != null) next[k] = v;
+  return next;
 }
 
 // Prime metadata for a list of original storage_path keys. Dedupes against
@@ -88,7 +106,7 @@ export async function primeImageMeta(keys) {
     await Promise.all(chunks.map(async (chunk) => {
       const { data, error } = await supabase
         .from('images')
-        .select('storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height')
+        .select(META_COLS)
         .in('storage_path', chunk);
       if (error) { for (const k of chunk) inflight.delete(k); return; }
       const seen = new Set();
@@ -134,7 +152,7 @@ export async function primeImageMetaForBoard(boardId) {
   if (primedBoards.has(boardId)) return;
   primedBoards.add(boardId);
   const _t0 = perf.isEnabled() ? performance.now() : 0;
-  const COLS = 'storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height';
+  const COLS = META_COLS;
   try {
     // Two queries, not one .or(). PostgREST turns
     //   .or('board_id.eq.X,referenced_in_board_ids.cs.{X}')
@@ -154,8 +172,10 @@ export async function primeImageMetaForBoard(boardId) {
     ]);
     if (own.error && ref.error) { primedBoards.delete(boardId); return; }
     for (const row of [...(own.data || []), ...(ref.data || [])]) {
-      if (cache.has(row.storage_path)) continue;
-      cache.set(row.storage_path, rowToMeta(row));
+      const prev = cache.get(row.storage_path);
+      const next = prev ? fillMissing(prev, rowToMeta(row)) : rowToMeta(row);
+      if (prev && Object.keys(next).every((k) => next[k] === prev[k])) continue;
+      cache.set(row.storage_path, next);
       notify(row.storage_path);
     }
     if (_t0) {
@@ -164,6 +184,30 @@ export async function primeImageMetaForBoard(boardId) {
     }
   } catch (_) {
     primedBoards.delete(boardId);
+  }
+}
+
+// Who uploaded a file, when, under what name, and its size — for Info only,
+// fetched when it opens on a card (one small query per file, once a session).
+const factsDone = new Set();
+export async function primeFileFacts(keys) {
+  if (_resolver) return;  // public viewer: Info shows what the bundle has
+  const todo = (keys || []).filter((k) => k && typeof k === 'string' && !factsDone.has(k));
+  if (!todo.length) return;
+  for (const k of todo) factsDone.add(k);
+  try {
+    const { data, error } = await supabase.from('images').select(FACT_COLS).in('storage_path', todo.slice(0, 200));
+    if (error) { for (const k of todo) factsDone.delete(k); return; }
+    for (const row of data || []) {
+      const facts = {
+        sizeBytes: row.size_bytes ?? null, uploadedBy: row.uploaded_by || null, uploadedAt: row.created_at || null,
+        originalName: row.original_name || null, w: row.width ?? null, h: row.height ?? null,
+      };
+      cache.set(row.storage_path, fillMissing(cache.get(row.storage_path) || {}, facts));
+      notify(row.storage_path);
+    }
+  } catch (_) {
+    for (const k of todo) factsDone.delete(k);
   }
 }
 

@@ -38,6 +38,7 @@ import { R2Image } from './R2Image.jsx';
 import { fetchTagVisuals } from '../lib/tagVisuals.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { openInfo } from '../lib/infoBus.js';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -576,6 +577,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     const menuTarget = {
       kind: c.kind, id: c.card_id, boardId: c.board_id,
       source: directSource, // null if it's a child preview, not directly tagged
+      title: c.title || null,
     };
     // Pull the registry's rich preview ONLY for visual kinds
     // (image, palette). Text kinds (note / card / doc) have a
@@ -1124,6 +1126,17 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
                     });
                   }}>
             Open
+          </button>
+          {/* Info (lib/infoBus.js): the live card when its cluster is open in
+              a pane, else what the tag index knows about it. */}
+          <button className="tag-detail-menu-item" role="menuitem"
+                  onClick={() => {
+                    const m = menu; setMenu(null);
+                    if (m.kind === 'board') openInfo({ clusterId: m.id });
+                    else if (m.kind === 'group') openInfo({ boardId: m.boardId, groupId: m.id });
+                    else openInfo({ boardId: m.boardId, cardIds: [m.id], cards: [{ id: m.id, kind: m.kind, title: m.title || undefined }] });
+                  }}>
+            Info
           </button>
           {menu.source && menu.source !== 'user' && (
             <button className="tag-detail-menu-item" role="menuitem"

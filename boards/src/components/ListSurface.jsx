@@ -35,6 +35,7 @@ import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
 import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
+import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
 
 // Quick look ships in its own chunk: most visits to Files never open it.
 // Files' scroll position per cluster (and size of Files), for this session.
@@ -621,6 +622,23 @@ export function ListSurface({
   const [selectedBoards, setSelectedBoards] = useState(() => new Set());
   const [selectedCards, setSelectedCards] = useState(() => new Set());
 
+  // Info: beside the list in full Files; the app's Info drawer from the panel
+  // docked beside the board, which has no room for a split (lib/infoBus.js).
+  // A cluster Files is only browsing isn't open in any pane, so its cards ride
+  // along for the drawer to describe.
+  const infoFollow = `files:${paneId}`;
+  const browsedCards = browsingFrom ? cards : null;
+  useEffect(() => {
+    reportSelection(infoFollow, board.id, [...selectedCards], { clusterIds: [...selectedBoards], cards: browsedCards });
+  }, [infoFollow, board.id, selectedCards, selectedBoards, browsedCards]);
+  const showInfo = useCallback((req = null) => {
+    // Full screen has its own Info beside the list; a drawer left open from
+    // the board would sit on top of it.
+    if (!isPanel) { closeInfo(); toggleInfo(); return; }
+    openInfo({ ...(req || { boardId: board.id }), follow: infoFollow, toggle: !req, cards: req?.clusterId ? null : browsedCards });
+  }, [isPanel, toggleInfo, board.id, infoFollow, browsedCards]);
+  useEffect(() => () => { closeInfo({ follow: infoFollow }); clearSelection(infoFollow); }, [infoFollow]);
+
   // Reset selection on board switch.
   useEffect(() => {
     setSelectedBoards(new Set());
@@ -1016,7 +1034,7 @@ export function ListSurface({
       // ⌘I: Info for the selection.
       if (mod && !e.altKey && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault();
-        toggleInfo();
+        showInfo();
         return;
       }
       if (e.key === 'Enter' && activeId && !onControl) {
@@ -1040,7 +1058,7 @@ export function ListSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedBoards, selectedCards, selectedGroupId, mutators, hasSplit, paneId, visibleItems,
-      navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo,
+      navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo, showInfo,
       renamable, startRename]);
 
   // Board order puts a fresh upload last (it waits off the board, after
@@ -1264,19 +1282,33 @@ export function ListSurface({
 
   // What the right-side detail popout shows: a single selected card, or a
   // selected grid family. Nothing selected (or multi-select) → no popout.
+  // Info describes whatever is selected — a file, a folder, several things —
+  // and the cluster itself when nothing is, the way an inspector does.
   const detailTarget = useMemo(() => {
     if (isPanel || !infoOpen) return null;
     if (selectedGroupId) {
       const g = displayItems.find(d => d.isGroup && d.id === selectedGroupId);
       if (g) return { type: 'group', group: g };
     }
-    if (selectedCards.size === 1) {
-      const id = [...selectedCards][0];
-      const it = items.find(i => i.id === id);
+    const cIds = [...selectedCards];
+    const bIds = [...selectedBoards];
+    if (cIds.length === 1 && !bIds.length) {
+      const it = items.find(i => i.id === cIds[0]);
       if (it) return { type: 'card', item: it };
+      const link = (cards || []).find((c) => c.id === cIds[0] && c.kind === 'boardlink');
+      if (link && boards[link.target]) return { type: 'cluster', board: boards[link.target] };
     }
-    return null;
-  }, [isPanel, infoOpen, selectedGroupId, selectedCards, displayItems, items]);
+    if (bIds.length === 1 && !cIds.length && boards[bIds[0]]) return { type: 'cluster', board: boards[bIds[0]] };
+    if (cIds.length + bIds.length > 1) {
+      const picked = (cards || []).filter((c) => selectedCards.has(c.id));
+      for (const id of bIds) {
+        const b = boards[id];
+        if (b) picked.push({ id, kind: 'board', name: b.name, createdAt: b.created_at || null });
+      }
+      return { type: 'selection', cards: picked };
+    }
+    return { type: 'cluster', board, cards };
+  }, [isPanel, infoOpen, selectedGroupId, selectedCards, selectedBoards, displayItems, items, cards, boards, board]);
 
   // The topbar's Files button, pressed while Files is already open beside the
   // board, asks for its search box (App applyFilesEvent → focusSearch).
@@ -1564,6 +1596,11 @@ export function ListSurface({
     const canMove = canEdit && !!onPickCluster;
     // The menu's header already says how many; Delete needn't repeat it.
     const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
+    // Info on anything: in full Files it's the panel beside the list, which
+    // describes the selection; docked, it's the app's Info drawer.
+    const info = (req) => (isPanel
+      ? req && { id: 'info', label: 'Get info', shortcut: `${cmdKey}I`, run: () => showInfo(req) }
+      : { id: 'info', label: infoOpen ? 'Hide info' : 'Get info', shortcut: `${cmdKey}I`, run: toggleInfo });
     if (n === 1 && bIds.length) {
       const id = bIds[0];
       return composeMenuSections([
@@ -1571,6 +1608,7 @@ export function ListSurface({
         { items: [
           renamable(id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(id) },
           canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          info({ clusterId: id }),
         ] },
         { items: [del] },
       ]);
@@ -1579,6 +1617,7 @@ export function ListSurface({
     if (card?.kind === 'boardlink') {
       return composeMenuSections([
         { items: [boards[card.target] && { id: 'open', label: 'Open', run: () => onOpenBoard(card.target) }] },
+        { items: [boards[card.target] && info({ clusterId: card.target })] },
         { items: [canEdit && { id: 'unlink', label: 'Remove link', danger: true, run: deleteSelection }] },
       ]);
     }
@@ -1596,7 +1635,7 @@ export function ListSurface({
           // An app action: a signed-out visitor's link wouldn't resolve.
           onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
           canMove && { id: 'move', label: 'Move to…', run: moveSelection },
-          !isPanel && { id: 'info', label: infoOpen ? 'Hide info' : 'Get info', shortcut: `${cmdKey}I`, run: toggleInfo },
+          info({ boardId: board.id, cardIds: [item.id] }),
         ] },
         // "Linked from N places" — placed, so Delete stays last and the menu's
         // height (it keeps itself on screen) counts the row.
@@ -1612,6 +1651,7 @@ export function ListSurface({
           id: 'dl', label: downloadableSelected.length === n ? 'Download' : `Download ${downloadableSelected.length} of ${n}`, run: downloadSelected,
         },
         canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+        info({ boardId: board.id, cardIds: cIds, clusterIds: bIds }),
       ] },
       { items: [del] },
     ]);
@@ -1790,6 +1830,8 @@ export function ListSurface({
               {detailTarget && (
                 <DetailPanel
                   target={detailTarget} boards={boards} canEdit={canEdit}
+                  selfId={selfId} gridTemplates={gridTemplates}
+                  onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
                   onClose={toggleInfo}
                   onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
                   onPutOnBoard={canEdit && !browsingFrom ? (id) => putOnBoard([id]) : null}
@@ -1866,9 +1908,9 @@ export function ListSurface({
                 <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
               </button>
             )}
-            {!isPanel && totalSel === 1 && selectedCards.size === 1 && (
-              <button type="button" className={`list-selbar-act${infoOpen ? ' is-on' : ''}`} onClick={toggleInfo}
-                      aria-pressed={infoOpen} title={`Info (${cmdKey}I)`}>
+            {totalSel > 0 && (
+              <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
+                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`}>
                 <Icon as={Info} size={14} weight="light" /><span>Info</span>
               </button>
             )}

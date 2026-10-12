@@ -52,6 +52,7 @@ const SECTIONS = [
     title: 'View',
     rows: [
       [['F'], 'Show or hide Files beside the board'],
+      [[`${CMD}I`], 'Info — the selection, or the cluster when nothing is selected'],
       [[`${CMD}0`], 'Reset zoom'],
       [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],
       [['⇧1'], 'Fit everything'],
@@ -68,7 +69,7 @@ const SECTIONS = [
       [['Enter'], 'Select the highlighted file'],
       [['⇧Space'], 'Add the highlighted file to the selection · take it out'],
       [['Space'], 'Quick look — ← → step through, Space or Esc closes'],
-      [[`${CMD}I`], 'Info for the selected file'],
+      [[`${CMD}I`], 'Info for the selection, or the cluster'],
       [['F2'], 'Rename'],
       [['⇧F10'], 'The right-click menu'],
       [[`${CMD}A`], 'Select every file showing'],
