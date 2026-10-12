@@ -224,6 +224,11 @@ assertEq(
   `Free Demo · 42/${DEMO_CARD_LIMIT} cards`,
   'demo label falls back to DEMO_CARD_LIMIT when no cap is threaded',
 );
+// A failed get_my_tier leaves tier null. That is not a waitlist account, and
+// Settings told a paying customer it was (ACCOUNT-14).
+assertEq(planLabel({ tier: 'waitlist' }), 'Waitlist · not yet active', 'waitlist label');
+assertEq(planLabel({ tier: null }), '—', 'an unknown tier claims no plan');
+assertEq(planLabel(), '—', 'no tier at all claims no plan');
 assertEq(planBilling('annual').save, 'Save $60/yr', 'annual savings line');
 assertEq(planBilling('monthly').save, null, 'monthly has no savings line');
 
