@@ -659,7 +659,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
         b64 = await loadBoardSnapshot(boardId);
       } else if (b64 == null) {
         const _tFetch0 = perf.isEnabled() ? performance.now() : 0;
-        b64 = await prefetchBoard(boardId, { lane: 'high' });
+        b64 = await prefetchBoard(boardId, { lane: 'high', warmImages: false });
         if (_tFetch0) {
           const ms = performance.now() - _tFetch0;
           perf.mark('yboard.prefetch.ms', ms);
