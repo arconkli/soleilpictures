@@ -103,7 +103,11 @@ export function PricingPageView({
               plans because the page never put two plans next to each other. */}
           <section className="pp-plans" id="plans">
             <article className="pp-plan pp-plan-free">
-              <div className="pp-plan-name">{PRICING_PAGE.freeCardName}</div>
+              {/* The same head row as Creator's, so the two names and the two
+                  prices sit level although only Creator's row holds a toggle. */}
+              <div className="pp-plan-head">
+                <div className="pp-plan-name">{PRICING_PAGE.freeCardName}</div>
+              </div>
               <div className="pp-plan-price">
                 {PRICING_PAGE.freeCardPrice}
                 <span className="pp-plan-unit">{PRICING_PAGE.freeCardUnit}</span>
