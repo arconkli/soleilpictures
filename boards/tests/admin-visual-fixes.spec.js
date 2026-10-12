@@ -117,3 +117,36 @@ test.describe('the 8/4 deck between 1001 and 1400px (VS-ADMIN-04)', () => {
     });
   }
 });
+
+/** Each element's text colour and its own (possibly translucent) ground laid over the page. */
+async function pillColours(locator) {
+  return locator.evaluateAll((els) => {
+    const rgba = (s) => (s.match(/[\d.]+/g) || []).map(Number);
+    const page = rgba(getComputedStyle(document.body).backgroundColor);
+    return els.map((e) => {
+      const [r, g, b, a = 1] = rgba(getComputedStyle(e).backgroundColor);
+      const bg = [r, g, b].map((v, i) => Math.round(v * a + page[i] * (1 - a)));
+      return { cls: e.className, fg: getComputedStyle(e).color, bg: `rgb(${bg.join(',')})` };
+    });
+  });
+}
+
+test.describe('light-theme pills (VS-ADMIN-05)', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('tier, source and contacted pills on the Users list read at 4.5:1', async ({ page }) => {
+    await openAdmin(page, { tab: 'users', theme: 'light' });
+    const pills = page.locator('.admin-user-tierdot:not(.tier-waitlist), .admin-src-badge:not(.src-direct), .admin-badge-contacted');
+    await expect(pills.first()).toBeVisible({ timeout: 15000 });
+    const all = await pillColours(pills);
+    expect(all.length).toBeGreaterThan(4);
+    for (const p of all) expect(contrast(p.fg, p.bg), p.cls).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test('status pills on the Waitlist read at 4.5:1', async ({ page }) => {
+    await openAdmin(page, { tab: 'waitlist', theme: 'light' });
+    const pills = page.locator('.admin-status:not(.admin-status-waitlist):not(.admin-status-canceled)');
+    await expect(pills.first()).toBeVisible({ timeout: 15000 });
+    for (const p of await pillColours(pills)) expect(contrast(p.fg, p.bg), p.cls).toBeGreaterThanOrEqual(4.5);
+  });
+});

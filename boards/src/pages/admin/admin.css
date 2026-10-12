@@ -1078,6 +1078,48 @@
 
 .admin-src-badge.src-public    .admin-src-dot { color: rgb(170,150,235); }
 
+/* ── Light theme: the same hues, dark enough to read ──
+   Every tier, source and status colour above was tuned on a dark ground and
+   had no light counterpart, so on the light page they landed at about 2:1
+   (pale blue DEMO, mint PAID, peach REDDIT, gold PENDING). These keep each
+   pill's hue and tinted ground and darken only the text, to at least 4.5:1
+   on a 15% tint over the light page. The dots and brand glyphs are marks,
+   not text, and stay as they are. */
+[data-theme='light'] .admin-status-accepted,
+[data-theme='light'] .admin-status-paid,
+[data-theme='light'] .admin-tier-pill-paid.is-active,
+[data-theme='light'] .admin-user-tierdot.tier-paid,
+[data-theme='light'] .admin-src-badge.src-search { color: #1a6e36; }
+
+[data-theme='light'] .admin-status-pending,
+[data-theme='light'] .admin-status-admin,
+[data-theme='light'] .admin-tier-pill-admin.is-active,
+[data-theme='light'] .admin-user-tierdot.tier-admin,
+[data-theme='light'] .admin-src-badge.src-snapchat { color: #8a5a00; }
+
+[data-theme='light'] .admin-status-rejected,
+[data-theme='light'] .admin-src-badge.src-pinterest,
+[data-theme='light'] .admin-src-badge.src-youtube { color: #a73447; }
+
+[data-theme='light'] .admin-status-demo,
+[data-theme='light'] .admin-tier-pill-demo.is-active,
+[data-theme='light'] .admin-user-tierdot.tier-demo,
+[data-theme='light'] .admin-src-badge.src-facebook,
+[data-theme='light'] .admin-src-badge.src-instagram,
+[data-theme='light'] .admin-src-badge.src-twitter,
+[data-theme='light'] .admin-src-badge.src-google,
+[data-theme='light'] .admin-src-badge.src-linkedin,
+[data-theme='light'] .admin-src-badge.src-share { color: #2f5fb8; }
+
+[data-theme='light'] .admin-src-badge.src-reddit { color: #9c3f0e; }
+
+[data-theme='light'] .admin-src-badge.src-bing,
+[data-theme='light'] .admin-src-badge.src-tiktok { color: #0d6e62; }
+
+[data-theme='light'] .admin-src-badge.src-public { color: #6a4fc2; }
+
+[data-theme='light'] .admin-badge-contacted { color: #17664c; }
+
 /* ── Detail header ── */
 .admin-detail-header {
   position: sticky; top: 0; z-index: 2;
