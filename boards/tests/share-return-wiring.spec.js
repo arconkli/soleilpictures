@@ -42,6 +42,18 @@ test.describe('share return wiring', () => {
     expect(s).toMatch(/signedIn \? null : \(\s*<SharePrompt/);
   });
 
+  test('the dead-link and empty-board states offer a signed-in viewer Open Clusters, not sign-up (SHARE-16)', () => {
+    const s = view();
+    for (const surface of ['invalid_page', 'empty_board']) {
+      const at = s.indexOf(`ctaHref(ctx, '${surface}')`);
+      expect(at, `${surface} CTA is gone`).toBeGreaterThan(-1);
+      const block = s.slice(s.lastIndexOf('<div className="public-empty-actions">', at), at);
+      expect(block).toMatch(/\{signedIn \? \(\s*<a className="public-cta" href="\/">Open Clusters<\/a>\s*\) : \(/);
+    }
+    // Every Sign in link on the page is behind the signed-out branch.
+    expect(s).not.toMatch(/public-empty-actions">\s*<a className="public-signin-quiet"/);
+  });
+
   test('the catalog names the landing event', () => {
     expect(events()).toMatch(/SHARE_RETURN_LANDED:\s*'share_return_landed'/);
   });
