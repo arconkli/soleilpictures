@@ -285,6 +285,19 @@ test.describe('admin live console (ADMIN-13)', () => {
   });
 });
 
+test.describe('admin segment filter (ADMIN-14)', () => {
+  test('a campaign with no traffic in the window still shows as the applied filter', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel', query: '&camp=spring-old' });
+    const select = page.getByRole('combobox', { name: 'Campaign' });
+    await expect(select).toBeVisible({ timeout: 15000 });
+    await expect(select).toHaveValue('spring-old');
+    expect(await select.evaluate((el) => el.options[el.selectedIndex].text)).toBe('spring-old (none in this window)');
+    // A value that IS in the window is listed once, with its count.
+    await select.selectOption('launch-q3');
+    await expect(select.locator('option', { hasText: 'spring-old' })).toHaveCount(0);
+  });
+});
+
 test.describe('admin cohort matrix (ADMIN-11)', () => {
   test('the week still under way is outlined and kept out of the All row', async ({ page }) => {
     // This UTC Monday and the one before, from the clock, as the RPC would.
