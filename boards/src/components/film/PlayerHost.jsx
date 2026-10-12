@@ -4,7 +4,7 @@
 // card on every render, so a new version arriving while it's open shows up in
 // its picker.
 //
-//   openPlayer({ boardId, cardId, versionId?, frame?, time?, playing?, card?, onDownload? })
+//   openPlayer({ boardId, cardId, versionId?, frame?, time?, playing?, card? })
 //   time     where the opener was (seconds) — a moment, so it lands on the
 //            same picture whatever rate each side counted in
 //   playing  whether to carry on playing (default: start playing, unless a
@@ -39,10 +39,18 @@ export function PlayerHost({ resolveBoard, renderRail = null }) {
     }
     setReq(null);
   }, []);
-  if (!req) return null;
-  const live = resolveBoard?.(req.boardId);
-  const card = (live?.cards || []).find((c) => c.id === req.cardId) || req.card || null;
-  if (!card || card.kind !== 'video') return null;
+  const live = req ? resolveBoard?.(req.boardId) : null;
+  const card = req ? ((live?.cards || []).find((c) => c.id === req.cardId) || req.card || null) : null;
+  const ok = !!card && card.kind === 'video';
+  // The card it was showing is gone (deleted, or moved away): the request
+  // ends with it, rather than waiting to reopen the player if it comes back.
+  const shownRef = useRef(null);
+  useEffect(() => {
+    if (!req) return;
+    if (ok) shownRef.current = req;
+    else if (shownRef.current === req) setReq(null);
+  }, [req, ok]);
+  if (!req || !ok) return null;
   const title = card.title || card.fileName || 'Video';
   const hasPos = Number.isFinite(req.frame) || Number.isFinite(req.time);
   return (
@@ -54,7 +62,6 @@ export function PlayerHost({ resolveBoard, renderRail = null }) {
         initialFrame={Number.isFinite(req.frame) && !Number.isFinite(req.time) ? req.frame : null}
         initialTime={Number.isFinite(req.time) ? req.time : null}
         autoPlay={req.playing != null ? !!req.playing : !hasPos}
-        onDownload={req.onDownload || null}
         boardId={req.boardId} cardId={req.cardId}
         onClose={close}
         playerRef={playerRef}

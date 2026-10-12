@@ -20,6 +20,7 @@ import { FilmPlayer } from './FilmPlayer.jsx';
 import { FilmMenu } from './FilmMenu.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { cardLinkUrl } from '../../lib/cardLink.js';
+import { downloadCardAsset } from '../../lib/cardDownload.js';
 import { Icon } from '../Icon.jsx';
 import { X, Keyboard, SquareSplitHorizontal, ChevronDown } from '../../lib/icons.js';
 
@@ -43,7 +44,7 @@ const noFocus = (e) => { if (e.pointerType === 'mouse') e.preventDefault(); };
 export function FilmReview({
   card, title = '', onClose, initialVersionId = null, initialFrame = null, initialTime = null, autoPlay = true,
   rail = null, playerRef: externalRef = null, onFrameChange, markers = [], ghostMarkers = [], overlay = null, overlayLive = false,
-  onAction, onDownload = null, boardId = null, cardId = null,
+  onAction, boardId = null, cardId = null,
 }) {
   const versions = useMemo(() => liveVersions(card), [card]);
   const current = useMemo(() => currentOf(card), [card]);
@@ -91,15 +92,26 @@ export function FilmReview({
     };
   }, []);
 
-  // Where you were, so a version switch lands on the same frame.
+  // Where you were, so a version switch lands on the same moment — read from
+  // the player at the switch (it's playing, or paused on a frame), with the
+  // in/out and loop it reported.
   const session = useRef({ time: initialTime, frame: initialFrame, range: null, looping: false, versionId: v?.id });
   const [mountSession, setMountSession] = useState({ time: initialTime, frame: initialFrame, range: null, looping: false, autoPlay });
   const showVersion = (id) => {
     if (id === v?.id) return;
     const s = session.current;
-    setMountSession({ time: s.time, frame: null, range: s.range, looping: s.looping, autoPlay: false });
+    const st = playerRef.current?.getState?.();
+    const time = Number.isFinite(st?.time) ? st.time : s.time;
+    setMountSession({ time, frame: null, range: s.range, looping: s.looping, autoPlay: !!st?.playing });
     setCompareId((c) => swapCompare(id, c, v?.id));
     setVersionId(id);
+  };
+
+  // A clip that won't play offers the file instead: the version on show,
+  // which is the one that failed.
+  const downloadShown = () => {
+    const file = { ...card, src: a.src, poster: a.poster, fileName: v?.fileName || card?.fileName, mime: v?.mime || card?.mime };
+    downloadCardAsset(file, 'video', { surface: 'player' }).catch(() => playerRef.current?.hud?.('Download failed'));
   };
 
   const handleAction = (action, payload) => {
@@ -125,9 +137,11 @@ export function FilmReview({
     media?.dur ? formatLength(media.dur) : null,
   ].filter(Boolean).join(' · ');
 
-  const openMenu = (id, el, items, align = 'start') => {
+  // The rows are built on every render (menuItems), so they follow the live
+  // versions.
+  const openMenu = (id, el, align = 'start') => {
     if (menu?.id === id) { setMenu(null); return; }
-    setMenu({ id, anchor: el.getBoundingClientRect(), items, align });
+    setMenu({ id, anchor: el.getBoundingClientRect(), ignore: el, align });
   };
   const versionItems = () => [...versions].reverse().map((x) => ({
     id: x.id, label: `${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}`, checked: x.id === v?.id,
@@ -142,6 +156,7 @@ export function FilmReview({
     })),
     ...(compareId ? [{ divider: true }, { id: 'stop', label: 'Stop comparing', run: () => setCompareId(null) }] : []),
   ];
+  const menuItems = { versions: versionItems, compare: compareItems };
 
   return createPortal(
     <div className="frv" ref={rootRef} role="dialog" aria-modal="true" aria-label={`Review: ${title}`} tabIndex={-1}>
@@ -164,7 +179,7 @@ export function FilmReview({
             </div>
           ) : (
             <button type="button" onPointerDown={noFocus} className="frv-pill frv-pill--menu is-shown" aria-haspopup="menu"
-                    onClick={(e) => openMenu('versions', e.currentTarget, versionItems(), 'center')}>
+                    onClick={(e) => openMenu('versions', e.currentTarget, 'center')}>
               {versionLabel(v)} <Icon as={ChevronDown} size={10} weight="bold" />
             </button>
           )
@@ -174,7 +189,7 @@ export function FilmReview({
             <button type="button" onPointerDown={noFocus} className={`frv-iconbtn frv-compare${compareId ? ' is-on' : ''}`} aria-haspopup="menu"
                     aria-label={compareId ? `Comparing with ${versionLabel(cmp)}` : 'Compare with another version'}
                     title={compareId ? `Comparing with ${versionLabel(cmp)} — \\ flips between them` : 'Compare with another version'}
-                    onClick={(e) => openMenu('compare', e.currentTarget, compareItems(), 'end')}>
+                    onClick={(e) => openMenu('compare', e.currentTarget, 'end')}>
               <Icon as={SquareSplitHorizontal} size={18} weight="regular" />
               <span>{compareId ? `vs ${versionLabel(cmp)}` : 'Compare'}</span>
             </button>
@@ -198,7 +213,7 @@ export function FilmReview({
                       label={many ? versionLabel(v) : ''}
                       compareSrc={b?.src || null} compareMedia={b?.media || null} compareLabel={cmp ? versionLabel(cmp) : ''}
                       markers={markers} ghostMarkers={ghostMarkers} overlay={overlay} overlayLive={overlayLive}
-                      onAction={handleAction} onFrameChange={onFrameChange} onDownload={onDownload}
+                      onAction={handleAction} onFrameChange={onFrameChange} onDownload={a.src ? downloadShown : null}
                       canCopyLink={!!(boardId && cardId)}
                       onSessionChange={(s) => { session.current = { ...session.current, ...s }; }}
                       probe={() => probeCardVideo({ kind: 'video', src: a.src })} />
@@ -206,7 +221,7 @@ export function FilmReview({
         {rail && <aside className="frv-rail">{typeof rail === 'function' ? rail({ versionId: v?.id, player: playerRef }) : rail}</aside>}
       </div>
       {menu && (
-        <FilmMenu anchor={menu.anchor} container={rootRef.current} items={menu.items} label={menu.id}
+        <FilmMenu anchor={menu.anchor} container={rootRef.current} items={menuItems[menu.id]?.() || []} label={menu.id} ignore={menu.ignore}
                   placement="below" align={menu.align} onClose={() => setMenu(null)} className="film-menu--head" />
       )}
     </div>,

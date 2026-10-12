@@ -79,9 +79,10 @@ Under the picture, the timeline fills the width. Below it, from left to right:
 [Player](/docs/keyboard-shortcuts#player).
 
 In [Quick look](/docs/clusters/list-view#quick-look) a clip plays with lighter
-controls over its bottom edge: play, frame steps (`,` and `.`), J/K/L, the
-scrubber with its preview, and **Open in player**. `←` and `→` still move
-between files there.
+controls over its bottom edge: play, frame steps (`,` and `.`), J/K/L, mute
+(`M`), the scrubber with its preview, and **Open in player**. `K` pauses there;
+`Space` closes Quick look as it does for any file, and `←` and `→` still move
+between files.
 
 A file the browser can't decode — ProRes outside Safari, for instance — says
 so, rather than showing a black frame, and offers the download.

@@ -10,7 +10,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { registerModalOpen, isTopModal } from '../../lib/modalGuard.js';
+import * as modalGuard from '../../lib/modalGuard.js';
+import { filmLayerOpen } from '../../lib/filmLayers.js';
+import { isPublicSurface } from '../../lib/cardDownload.js';
 import { resolveSrc } from '../../lib/r2.js';
 import * as audioBus from '../../lib/audioBus.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
@@ -75,13 +77,15 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
   }
   if (item.kind === 'video' && card.src) {
     // The film player sized to the picture, its controls over the bottom
-    // edge. Only , . and J/K/L are its keys — ←/→ still step between files.
+    // edge. Only , . J/K/L and M are its keys — Space closes, ←/→ still step
+    // between files. A public page has no review player to open.
     const open = (st) => openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
+    const canOpen = !!item.boardId && !isPublicSurface();
     return (
       <div className="ql-media ql-film">
         <FilmPlayer ref={playerRef} mode="preview" keyboard="preview" modalHandle={modalHandle}
                     src={card.src} poster={card.poster} media={card.media || null} title={name} autoPlay
-                    onOpenPlayer={item.boardId ? open : null}
+                    onOpenPlayer={canOpen ? open : null}
                     probe={() => probeCardVideo(card)} />
       </div>
     );
@@ -143,7 +147,7 @@ export default function QuickLook({
   // Kept: the film player in here takes its keys only while Quick look is the
   // top layer (the review player opened from it sits above).
   const modalRef = useRef(null);
-  useEffect(() => { const u = registerModalOpen(); modalRef.current = u; return u; }, []);
+  useEffect(() => { const u = modalGuard.registerModalOpen(); modalRef.current = u; return u; }, []);
   const playerRef = useRef(null);
 
   // Focus moves in, and goes back where it was on close.
@@ -162,7 +166,10 @@ export default function QuickLook({
   // standing.
   useEffect(() => {
     const onKey = (e) => {
-      if (guardRef.current && !isTopModal(guardRef.current)) return;
+      // Anything layered above — the player's menu, the review player, a
+      // confirm — owns the keyboard, wherever the focus happens to be.
+      if (modalGuard.isTopModal && !modalGuard.isTopModal(modalRef.current)) return;
+      if (filmLayerOpen()) return;
       // A dialog opened on top (a delete confirm) owns the keyboard.
       const focusDialog = document.activeElement?.closest?.('[role="dialog"], [role="alertdialog"]');
       if (focusDialog && focusDialog !== rootRef.current) return;
@@ -226,7 +233,7 @@ export default function QuickLook({
             <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
           </button>
         )}
-        {item.kind === 'video' && item.card?.src && item.boardId && (
+        {item.kind === 'video' && item.card?.src && item.boardId && !isPublicSurface() && (
           <button type="button" className="ql-btn" title="Open in the review player"
                   onClick={() => {
                     const st = playerRef.current?.getState?.();
