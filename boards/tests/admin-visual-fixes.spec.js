@@ -161,3 +161,20 @@ test('the Waitlist gate switch draws a track when off in the light theme (VS-ADM
     .toBeGreaterThanOrEqual(1.6);
   expect(contrast(track.bg, 'rgb(255,255,255)')).toBeGreaterThanOrEqual(1.6);
 });
+
+test.describe('the heading after a stat strip (VS-ADMIN-07)', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  for (const tab of ['grants', 'waitlist', 'errors', 'tagging', 'api']) {
+    test(`${tab}: what follows the strip does not sit on its last line`, async ({ page }) => {
+      await openAdmin(page, { tab });
+      const grid = page.locator('.admin-stat-grid').first();
+      await expect(grid.locator('.admin-stat-card').first()).toBeVisible({ timeout: 15000 });
+      const gap = await grid.evaluate((g) => {
+        const n = g.nextElementSibling;
+        return n.getBoundingClientRect().top - g.getBoundingClientRect().bottom;
+      });
+      expect(gap).toBeGreaterThanOrEqual(20);
+    });
+  }
+});

@@ -3984,6 +3984,13 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
    own, too: they used to touch. */
 .admin-stat-grid { margin-inline: -26px; overflow-x: clip; row-gap: 22px; }
 
+/* A strip owns the space under it. Neither it nor the panel or title that
+   follows had a margin there, so "Issue a grant", "Top errors", "Calls per
+   day" and the rest sat on the strip's last line and read as one more
+   caption under a figure. A larger section-title margin still wins, by
+   collapsing; a strip that ends its well adds nothing. */
+.admin-stat-grid:not(:last-child) { margin-bottom: 30px; }
+
 .admin-stat-card { margin-left: -1px; }
 
 .admin-stat-card.is-accent { border-color: var(--adm-line); }
