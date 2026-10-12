@@ -67,3 +67,37 @@ test.describe('admin header (VS-ADMIN-02)', () => {
     await page.locator('.admin-header-right .auth-link').click();
   });
 });
+
+test.describe('stat strips that wrap (VS-ADMIN-03)', () => {
+  /** Per row of a stat grid: its top, bottom, and the left of its first label. */
+  async function rows(grid) {
+    return grid.evaluate((g) => {
+      const byTop = new Map();
+      for (const c of g.children) {
+        const r = c.getBoundingClientRect();
+        const l = (c.querySelector('.admin-stat-label') || c).getBoundingClientRect().left;
+        const key = Math.round(r.top);
+        const row = byTop.get(key) || { top: r.top, bottom: r.bottom, left: Infinity };
+        row.bottom = Math.max(row.bottom, r.bottom);
+        row.left = Math.min(row.left, l);
+        byTop.set(key, row);
+      }
+      return [...byTop.values()].sort((a, b) => a.top - b.top);
+    });
+  }
+
+  for (const [tab, width] of [['api', 1440], ['overview', 1024]]) {
+    test(`${tab} at ${width}: every row starts flush, and rows do not touch`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openAdmin(page, { tab });
+      const grid = page.locator('.admin-stat-grid').first();
+      await expect(grid.locator('.admin-stat-card').nth(5)).toBeVisible({ timeout: 15000 });
+      const r = await rows(grid);
+      expect(r.length).toBeGreaterThan(1);
+      for (let i = 1; i < r.length; i++) {
+        expect(Math.abs(r[i].left - r[0].left)).toBeLessThan(1);
+        expect(r[i].top - r[i - 1].bottom).toBeGreaterThanOrEqual(12);
+      }
+    });
+  }
+});
