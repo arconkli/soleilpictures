@@ -2358,6 +2358,10 @@
   color: var(--ink-0);
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
+  /* A duration ("1.3 yr") has a space in it. On a narrow HUD the cell broke
+     there, dropping the unit under the number and the caption out of line
+     with its neighbours. */
+  white-space: nowrap;
 }
 
 .universe-ticker-cell.is-accent .universe-ticker-value { color: var(--soleil); }

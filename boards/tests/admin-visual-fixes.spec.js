@@ -245,3 +245,17 @@ test('header text buttons are neutral ink at rest, not gold (VS-ADMIN-12)', asyn
     expect(color, theme).not.toBe(gold);
   }
 });
+
+test.describe('Universe HUD at tablet width (VS-ADMIN-13)', () => {
+  test.use({ viewport: { width: 1024, height: 768 } });
+
+  test('every value sits on one line, so the captions stay level', async ({ page }) => {
+    await openAdmin(page, { tab: 'universe' });
+    const values = page.locator('.universe-ticker-cell .universe-ticker-value');
+    await expect(values.last()).toContainText(/\S/, { timeout: 20000 });
+    const heights = await values.evaluateAll((els) => els
+      .filter((e) => e.textContent.trim())
+      .map((e) => e.getBoundingClientRect().height));
+    for (const h of heights) expect(h).toBeLessThan(20);
+  });
+});
