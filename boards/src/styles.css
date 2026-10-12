@@ -8640,30 +8640,23 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .rb-swatch-cell:hover { transform: scale(1.15); }
 
 /* Shape card */
-/* Optional centered label inside fillable shapes — double-click (or
-   right-click → Add label) to edit, same convention as other cards. */
-.shape-label {
-  position: absolute;
-  left: 50%; top: 50%;
-  transform: translate(-50%, -50%);
-  max-width: calc(100% - 20px);
-  text-align: center;
-  font: 500 13px/1.4 var(--font-sans);
-  color: var(--ink-0);
-  overflow-wrap: anywhere;
-}
-.shape-label:empty::before { content: none; }
-
 .shape {
   width: 100%; height: 100%;
   background: transparent;
   display: block;
   position: relative;
 }
+/* Optional centered label inside fillable shapes — double-click (or
+   right-click → Add label) to edit, same convention as other cards.
+   ONE rule: the inset box + grid centring is the whole positioning. A second,
+   older rule here used to add left/top 50% + translate(-50%,-50%); the inset
+   overrode the left/top but the translate survived, so every label slid half
+   its own size up and left and the card clipped its first letters. */
 .shape-label {
   position: absolute; inset: 8px;
   display: grid; place-items: center;
   text-align: center;
+  font-family: var(--font-sans); line-height: 1.4;
   font-size: 13px; font-weight: 600;
   color: var(--ink-0);
   letter-spacing: -0.005em;
