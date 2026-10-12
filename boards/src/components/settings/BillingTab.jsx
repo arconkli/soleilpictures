@@ -15,6 +15,7 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { useMyTier } from '../../hooks/useMyTier.js';
 import { useStorageUsage } from '../../hooks/useStorageUsage.js';
 import { PricingModal } from '../PricingModal.jsx';
+import { useBfcacheRestore } from '../../auth/useBfcacheRestore.js';
 
 export function BillingTab({ user }) {
   const feedback = useFeedback();
@@ -29,6 +30,8 @@ export function BillingTab({ user }) {
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
+  // Back from the Stripe portal restores the page with Manage billing busy.
+  useBfcacheRestore(() => setBusy(false));
 
   useEffect(() => {
     if (!user?.id) return;

@@ -19,6 +19,7 @@ import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from './AuthGate.jsx';
+import { useBfcacheRestore } from './useBfcacheRestore.js';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingPageView } from './PricingPageView.jsx';
 import { CTA, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
@@ -33,6 +34,8 @@ export function PricingPage() {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const rootRef = useRef(null);
+  // Back from Stripe restores the page with the CTA still busy.
+  useBfcacheRestore(() => setBusy(false));
 
   // up_* exposure telemetry (summary fires on tab-hide/pagehide/unmount).
   // Card counts gate on a RESOLVED tier — useMyTier's pre-fetch placeholders
