@@ -70,3 +70,34 @@ test('a doc change, or the refresh meta, recomputes', () => {
   state.apply(state.tr.setMeta(AUTO_DETECT_KEY, true));
   assert.ok(index.calls > calls, 'refresh meta did not recompute');
 });
+
+// The applied-tag-range boxes move with the text, and the owner used to refresh
+// them only after the plugin's apply — so a doc change was suppressed against
+// boxes one edit old. The plugin must ask for the ranges of the doc it builds.
+test('auto-detect suppresses under applied ranges of the NEW doc', () => {
+  const index = countingIndex('Ada');
+  // A box over the second paragraph's "Ada", computed from whichever doc is
+  // passed in (as DocPageEditor's refreshAppliedRangeBoxes now does).
+  const boxesFor = (doc) => {
+    let box = null;
+    doc.forEach((node, offset, i) => {
+      if (i !== 1) return;
+      const at = node.textContent.indexOf('Ada');
+      box = { from: offset + 1 + at, to: offset + 1 + at + 3 };
+    });
+    return box ? [box] : [];
+  };
+  const doc = schema.node('doc', null, [
+    schema.node('paragraph', null, [schema.text('Ada met Bob.')]),
+    schema.node('paragraph', null, [schema.text('Later, Ada left.')]),
+  ]);
+  const plugin = makeAutoDetectPlugin({ getIndex: () => index, getAppliedRangeSet: boxesFor });
+  const state = EditorState.create({ schema, doc, plugins: [plugin] });
+  assert.equal(AUTO_DETECT_KEY.getState(state).find().length, 1, 'covered match suppressed');
+  // A paste above shifts the covered "Ada"; suppression must follow it.
+  const pasted = state.apply(state.tr.insertText('A long pasted line. ', 1));
+  const decos = AUTO_DETECT_KEY.getState(pasted).find();
+  assert.equal(decos.length, 1, 'still exactly one hairline (the uncovered first "Ada")');
+  assert.equal(pasted.doc.textBetween(decos[0].from, decos[0].to), 'Ada');
+  assert.ok(decos[0].from < pasted.doc.child(0).nodeSize, 'the hairline is in the first paragraph');
+});

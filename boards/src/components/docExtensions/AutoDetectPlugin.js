@@ -10,8 +10,9 @@ export const AUTO_DETECT_KEY = new PluginKey('autoDetect');
 //   options = {
 //     getIndex(): NameIndex | null,
 //     getIgnored?(): Set<string>           // per-doc ignored terms, lowered
-//     getAppliedRangeSet?(): Set<string>   // serialized "from-to" keys of
-//                                          // applied tag ranges. Decorations
+//     getAppliedRangeSet?(doc): Array<{from,to}> // applied tag ranges, as
+//                                          // absolute positions in `doc` (the
+//                                          // doc being decorated). Decorations
 //                                          // whose [start,end) overlap any
 //                                          // active range are suppressed —
 //                                          // the colored underline wins.
@@ -23,7 +24,7 @@ export function makeAutoDetectPlugin({ getIndex, getIgnored, getAppliedRangeSet 
     const decos = [];
     // Build the suppression range list once per recompute. Each
     // entry is an absolute [from, to) range in doc positions.
-    const applied = getAppliedRangeSet?.() || [];
+    const applied = getAppliedRangeSet?.(doc) || [];
     doc.descendants((node, pos, parent) => {
       if (node.type.name === 'codeBlock') return false;
       if (!node.isText) return;

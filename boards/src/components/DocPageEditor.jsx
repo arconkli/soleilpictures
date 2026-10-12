@@ -325,14 +325,21 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // AutoDetectPlugin can suppress decorations that overlap them. Re-runs
   // on every editor transaction so paragraphs that move (because a
   // paragraph above grew/shrank) keep their boxes accurate.
-  const refreshAppliedRangeBoxes = () => {
-    const ed = editorRef.current;
-    if (!ed?.state?.doc) { appliedRangeBoxesRef.current = []; return; }
+  // AutoDetectPlugin also calls this from its apply with the NEW doc: the
+  // transaction listener runs after apply, so reading the ref there saw boxes
+  // one edit old, and since the plugin no longer rebuilds on a caret move a
+  // paste above a tagged range left a hairline over its coloured underline.
+  // Memoized on (doc, ranges), so the listener's call after it is free.
+  const appliedBoxesKeyRef = useRef({ doc: null, ranges: null });
+  const refreshAppliedRangeBoxes = (doc = editorRef.current?.state?.doc) => {
     const ranges = appliedTagRangesRef.current || [];
-    if (ranges.length === 0) { appliedRangeBoxesRef.current = []; return; }
+    const key = appliedBoxesKeyRef.current;
+    if (doc && key.doc === doc && key.ranges === ranges) return appliedRangeBoxesRef.current;
+    appliedBoxesKeyRef.current = { doc: doc || null, ranges };
+    if (!doc || ranges.length === 0) { appliedRangeBoxesRef.current = []; return appliedRangeBoxesRef.current; }
     // Walk the doc, hash each paragraph, look up matching ranges.
     const byHash = new Map();
-    ed.state.doc.descendants((node, pos) => {
+    doc.descendants((node, pos) => {
       if (node.type?.name !== 'paragraph') return true;
       const text = (node.textContent || '').trim();
       if (text.length < 20) return false;
@@ -354,6 +361,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       boxes.push({ from: paraFrom + r.startOffset, to: paraFrom + r.startOffset + r.length });
     }
     appliedRangeBoxesRef.current = boxes;
+    return boxes;
   };
 
   // Per-doc ignore set: terms the user has marked "don't auto-link
@@ -739,8 +747,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           getIndex:   () => nameIndexRef.current,
           getIgnored: () => docIgnoreRef.current,
           // Suppress dotted-underline decorations inside any applied
-          // tag range — the colored underline wins.
-          getAppliedRangeSet: () => appliedRangeBoxesRef.current || [],
+          // tag range — the colored underline wins. Boxes for the doc being
+          // decorated, not the last one the transaction listener saw.
+          getAppliedRangeSet: (doc) => refreshAppliedRangeBoxes(doc) || [],
         })],
       }),
       // Discover recurring proper nouns that aren't tags yet and mark them
