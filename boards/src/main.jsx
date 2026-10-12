@@ -125,8 +125,10 @@ installSpaPageViews();
 // Diagnostic: confirm the panel grain is actually rendering on each
 // dark surface. Logs once after first paint with each surface's
 // computed background-image + blend mode. Toggle off via
-// window.__SOLEIL_GRAIN_DEBUG__ = false.
-if (typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
+// window.__SOLEIL_GRAIN_DEBUG__ = false. Dev builds only (the house rule for
+// QA harnesses): in production it logged ~30 lines, fetched /grain.gif and
+// forced style recalcs 1.5s into every page load, often mid hero animation.
+if (import.meta.env.DEV && typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
   setTimeout(() => {
     const surfaces = ['.topbar', '.sidebar', '.sb-mid', '.rail', '.share-modal', '.modal', '.twk-panel',
       '.bc', '.cnv-tools', '.tob', '.tob-pop', '.doc-tb', '.sketchpad-toolbar', '.sketchpad-frame',
