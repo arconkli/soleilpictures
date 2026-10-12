@@ -15,6 +15,7 @@ import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
 import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { useOptionalFeedback } from './AppFeedback.jsx';
 
 // A portal still BUBBLES through the React tree: without this a press, drag or
 // double-click on the viewer reached the card that opened it (a grid cell's
@@ -145,6 +146,7 @@ export function ImageZoomStage({ src, alt = '', adjust, cardId, onModeChange = n
 export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null }) {
   const [mode, setMode] = useState('fit');
   const [downloading, setDownloading] = useState(false);
+  const feedback = useOptionalFeedback();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -158,7 +160,12 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
     setDownloading(true);
     // Delegates to the shared module, which bakes any photo adjustments into
     // the file (or streams the original when there are none).
-    try { await downloadImage({ src, title: downloadName || title, adjust }); }
+    try {
+      // downloadImage resolves false rather than throwing; say so instead of
+      // leaving the click to do nothing (audit MEDIA-15).
+      const ok = await downloadImage({ src, title: downloadName || title, adjust });
+      if (!ok) feedback?.toast?.({ type: 'error', message: 'Couldn’t download this image. Try again.' });
+    }
     finally { setDownloading(false); }
   };
 
