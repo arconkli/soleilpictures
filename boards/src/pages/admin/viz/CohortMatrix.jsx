@@ -23,6 +23,12 @@
 //            impossible, since you cannot sign up and be absent from your own
 //            first week. Finding that is what put this state here.
 //
+// And one qualifier on a measured cell: PARTIAL, the week is still under way
+// (see cohortWeeks.js). The RPC emits each cohort's current week, so on a
+// Monday the newest diagonal was one day of counting drawn as a full week and
+// read as a collapse. A partial cell prints its count so far, outlined and
+// unfilled, and is kept out of the ramp's peak and the "All" row.
+//
 // Colour is the sequential ramp scaled to the largest measured cell, not to
 // 100%. Retention lives between 0 and ~0.8 and an absolute scale would paint
 // the whole grid the bottom step. The percentage is printed in every cell
@@ -31,6 +37,7 @@
 
 import { useState } from 'react';
 import { VAR } from './palette.js';
+import { weekComplete, utcToday } from './cohortWeeks.js';
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? null : Number(x));
 
@@ -60,7 +67,11 @@ export function CohortMatrix({
   const byKey = new Map(rows.map((r) => [`${r.cohort_week}|${r.week_offset}`, r]));
   const sizeOf = new Map(rows.map((r) => [r.cohort_week, num(r.cohort_size) ?? 0]));
 
-  const measured = rows.filter((r) => r.measurable && num(r.active_pct) != null);
+  const today = utcToday();
+  const isPartial = (r) => !weekComplete(r.cohort_week, num(r.week_offset) ?? 0, today);
+  // Complete, measured weeks only: a partial week would set the ramp and the
+  // weighted average from a count that is still rising.
+  const measured = rows.filter((r) => r.measurable && num(r.active_pct) != null && !isPartial(r));
   const peak = Math.max(0.0001, ...measured.map((r) => num(r.active_pct) || 0));
   const workFloor = rows.find((r) => r.work_floor)?.work_floor || null;
 
@@ -111,6 +122,20 @@ export function CohortMatrix({
                 );
               }
               const pct = num(r.active_pct) || 0;
+              if (isPartial(r)) {
+                return (
+                  <div
+                    className="adm-cohort-cell is-partial"
+                    key={c}
+                    title={`${weekLabel(wk)} · W${c} — this week is still under way`}
+                    onPointerEnter={() => setHover({
+                      wk, c, pct, n: num(r.active_n) || 0, size: num(r.cohort_size) || 0, partial: true,
+                    })}
+                  >
+                    {Math.round(pct * 100)}
+                  </div>
+                );
+              }
               const si = step(pct);
               return (
                 <div
@@ -156,10 +181,11 @@ export function CohortMatrix({
             ? <>
                 <b>{weekLabel(hover.wk)} · W{hover.c}</b>
                 {' · '}{Math.round(hover.pct * 100)}%
-                {' · '}{hover.n} of {hover.size} did work that week
+                {' · '}{hover.n} of {hover.size} did work {hover.partial ? 'so far — the week is still under way' : 'that week'}
               </>
             : <span className="adm-cohort-hint">
                 hatched = before work tracking{workFloor ? ` (${weekLabel(workFloor)})` : ''};
+                outlined = this week, still counting;
                 blank = that week has not happened yet
               </span>}
       </div>

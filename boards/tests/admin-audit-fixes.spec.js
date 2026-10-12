@@ -203,3 +203,37 @@ test.describe('admin Retention return curve (ADMIN-10)', () => {
     await expect(page.locator('.admin-error')).toHaveCount(0);
   });
 });
+
+test.describe('admin cohort matrix (ADMIN-11)', () => {
+  test('the week still under way is outlined and kept out of the All row', async ({ page }) => {
+    // This UTC Monday and the one before, from the clock, as the RPC would.
+    const monday = (weeksAgo) => {
+      const d = new Date();
+      const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      const dow = (new Date(day).getUTCDay() + 6) % 7;
+      return new Date(day - (dow + 7 * weeksAgo) * 86_400_000).toISOString().slice(0, 10);
+    };
+    const cell = (wk, off, size, n) => ({
+      cohort_week: wk, week_offset: off, cohort_size: size, active_n: n,
+      active_pct: n / size, measurable: true, work_floor: '2026-08-17',
+    });
+    const rows = [
+      cell(monday(1), 0, 40, 30), // complete: 75%
+      cell(monday(1), 1, 40, 2),  // this week, so far
+      cell(monday(0), 0, 20, 1),  // this week, so far
+    ];
+
+    await openAdmin(page, { view: 'retention' });
+    await expect(page.locator('.adm-cohort-grid')).toBeVisible({ timeout: 15000 });
+    await patchRpc(page, { admin_retention_cohort_matrix: { data: rows, error: null } });
+    await page.getByRole('button', { name: 'Refresh' }).first().click();
+
+    const grid = page.locator('.adm-cohort-grid');
+    await expect(grid.locator('.adm-cohort-cell.is-partial')).toHaveCount(2);
+    const avg = grid.locator('.adm-cohort-row.is-avg .adm-cohort-cell');
+    // W0 is last week's cohort alone (30/40), not pooled with this week's 1/20.
+    await expect(avg.nth(0)).toHaveText('75');
+    // W1 has only a week in progress: nothing measurable yet.
+    await expect(avg.nth(1)).toHaveText('·');
+  });
+});
