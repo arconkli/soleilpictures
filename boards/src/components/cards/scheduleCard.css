@@ -28,6 +28,9 @@
   gap: calc(4px * var(--chrome-k));
   padding: 0 calc(8px * var(--chrome-k));
   min-width: 0;
+  /* Backstop for ScheduleCard's header squeeze: whatever still doesn't fit is
+     clipped at the card's edge instead of painting past it onto the canvas. */
+  overflow: hidden;
   border-bottom: 1px solid var(--line-1, #212126);
   background: var(--bg-1, #111114);
   user-select: none;

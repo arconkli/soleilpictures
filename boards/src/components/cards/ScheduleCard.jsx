@@ -16,7 +16,7 @@
 // gridMeta (expand). Legacy schedule cards (rows table, no schedView) never
 // reach this component (CanvasSurface renders the old table for them).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { readSchedModel } from '../../lib/schedState.js';
 import {
@@ -998,7 +998,32 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
     );
   });
 
-  const title = viewTitle(model.view, anchor, anchorHour, months);
+  const fullTitle = viewTitle(model.view, anchor, anchorHour, months);
+
+  // HEADER SQUEEZE. The header's chrome counter-scales with zoom (--chrome-k)
+  // and grows on touch, but every control in it is rigid, so the title was the
+  // one flex item that gave way: 'Oct 1…' at 80%, nothing at all on a touch
+  // tablet, and past that the view pill painted off the card's right edge.
+  // When the rendered header overflows, shed the least-needed parts in turn:
+  //   1 — the density pill (a set-once preference; zoom in to change it)
+  //   2 — the title's year ('Oct 12–18, 2026' → 'Oct 12–18')
+  //   3 — the full-screen button (never while full screen: it's the way out)
+  // MEASURED, not estimated: the controls' sizes depend on the pointer, the
+  // zoom and the font. It steps up synchronously before paint, and any change
+  // to what the header holds or how wide it is starts again from 0.
+  const headRef = useRef(null);
+  const squeezeKey = [model.view, lod, Math.round(effW), chromeK.toFixed(2), isTouch, editable, canNav, full, months, fullTitle].join('|');
+  const [squeezeState, setSqueezeState] = useState({ key: '', level: 0 });
+  const squeeze = squeezeState.key === squeezeKey ? squeezeState.level : 0;
+  useLayoutEffect(() => {
+    const head = headRef.current;
+    if (!head || squeeze >= 3) return;
+    const txt = head.querySelector('.schedc-title-txt, span.schedc-title');
+    const over = head.scrollWidth > head.clientWidth + 1
+      || (txt && txt.scrollWidth > txt.clientWidth + 1);
+    if (over) setSqueezeState({ key: squeezeKey, level: squeeze + 1 });
+  });
+  const title = squeeze >= 2 ? (fullTitle.replace(/,?\s+\d{4}$/, '') || fullTitle) : fullTitle;
 
   // Peek geometry — the SAME pure layout engine as the card body, just fed a
   // GENEROUS height (PEEK_ROW_H per hour / PEEK_MINUTE_ROW_H per quarter) so
@@ -1060,8 +1085,8 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
       <div className="schedc-poster">
         <span className="schedc-poster-title"
           style={{ fontSize: lodPx(SCHED_TUNING.LOD_TITLE_PX * 1.25, 40) }}
-          title={title}>
-          {title}
+          title={fullTitle}>
+          {fullTitle}
         </span>
         {cells ? (
           <div className="schedc-poster-grid">
@@ -1133,13 +1158,13 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
         {lod === 'far' ? renderPoster() : (<>
         {lod === 'mid' ? (
           <div className="schedc-head is-lod">
-            <span className="schedc-title schedc-lod-title" title={title}
+            <span className="schedc-title schedc-lod-title" title={fullTitle}
               style={{ fontSize: lodPx(SCHED_TUNING.LOD_TITLE_PX, 24) }}>
-              {title}
+              {fullTitle}
             </span>
           </div>
         ) : (
-        <div className="schedc-head" style={{ flexBasis: headerH, '--chrome-k': chromeK }}>
+        <div ref={headRef} className="schedc-head" style={{ flexBasis: headerH, '--chrome-k': chromeK }}>
           {/* ‹ › / Today / the date jump are for everyone: they only move this
               viewer's local anchor (goTo), so a view-only member or a public
               link can page to next month too. What writes the card (view,
@@ -1151,7 +1176,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             </button>
           )}
           {canNav ? (
-            <button type="button" className="schedc-title" title={`${title} — jump to date`}
+            <button type="button" className="schedc-title" title={`${fullTitle} — jump to date`}
               aria-haspopup="dialog"
               onPointerDown={stop}
               onClick={(e) => {
@@ -1165,7 +1190,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               <Icon as={ChevronDown} size={9} />
             </button>
           ) : (
-            <span className="schedc-title" title={title}>{title}</span>
+            <span className="schedc-title" title={fullTitle}>{title}</span>
           )}
           {canNav && (
             <button type="button" className="schedc-nav" title="Next" aria-label="Next"
@@ -1201,15 +1226,17 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               ))}
             </span>
           )}
-          <button type="button" className="schedc-nav schedc-full"
-            title={full ? 'Exit full screen (Esc)' : 'Full screen'}
-            aria-label={full ? 'Exit full screen' : 'Full screen'}
-            aria-pressed={full}
-            onPointerDown={stop}
-            onClick={(e) => { e.stopPropagation(); setFull((v) => !v); }}>
-            <Icon as={full ? Minimize2 : Maximize2} size={14} />
-          </button>
-          {editable && model.view !== 'day' && lod === 'full' && (
+          {(squeeze < 3 || full) && (
+            <button type="button" className="schedc-nav schedc-full"
+              title={full ? 'Exit full screen (Esc)' : 'Full screen'}
+              aria-label={full ? 'Exit full screen' : 'Full screen'}
+              aria-pressed={full}
+              onPointerDown={stop}
+              onClick={(e) => { e.stopPropagation(); setFull((v) => !v); }}>
+              <Icon as={full ? Minimize2 : Maximize2} size={14} />
+            </button>
+          )}
+          {editable && model.view !== 'day' && lod === 'full' && squeeze < 1 && (
             <span className="schedc-pill schedc-dens" role="group" aria-label="Calendar density">
               {DENSITIES.map((d) => (
                 <button key={d.id} type="button"
