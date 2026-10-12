@@ -67,10 +67,14 @@ and to avoid stacking on each other, so a heavily-reviewed board stays readable.
 
 ## Who can comment
 
-Anyone who can open the board, including viewers. Editing a card is a
-different right from talking about it, and feedback is the point of sharing
+On the canvas, anyone who can open the board, including viewers. Editing a card
+is a different right from talking about it, and feedback is the point of sharing
 a board with someone. Public links are the exception: they are anonymous, and
 comments need an account.
+
+A comment on a **text range** is different: it lives inside the document's text,
+so it follows edit access. A viewer can open a document's comment threads and
+read them, but adding, replying to, resolving or deleting one needs edit access.
 
 ## Comments versus votes
 

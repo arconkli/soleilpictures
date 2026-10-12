@@ -1856,7 +1856,7 @@ export const DOCS_PAGES = [
     "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
     "section": "documents",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-10-12",
     "navLabel": "Comments and tags",
     "headings": [
       {
@@ -2080,7 +2080,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-10-10",
+    "updated": "2026-10-12",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2124,7 +2124,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can a viewer comment?",
-        "a": "Yes. Viewers can read, comment and vote; they cannot add, move or change cards."
+        "a": "Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move or change cards. Text comments inside a document need edit access — a viewer can read those threads but not add to them."
       }
     ]
   },

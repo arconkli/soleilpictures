@@ -148,7 +148,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
     <div className="settings-tab-body">
       <SettingsCategory title="People in this workspace"
                         desc={canManage
-                          ? 'Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment, and vote.'
+                          ? 'Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment on the canvas, and vote; in a document they can read comments but not add them.'
                           : 'Only the owner or a co-owner can change roles or remove members.'}>
         {loading && members.length === 0 && <div className="settings-empty">Loading…</div>}
         <ul className="settings-member-list">

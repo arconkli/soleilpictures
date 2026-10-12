@@ -119,7 +119,8 @@ the rewind itself is reversible. See
 
 Everyone in the workspace, with their level: **Owner**, **Co-owner** (runs the
 workspace alongside the owner), **Editor** (adds and changes content) or
-**Viewer** (opens, reads, comments and votes, but does not change anything).
+**Viewer** (opens, reads, comments on the canvas and votes, but does not change
+anything — including a document's text comments, which they can only read).
 The owner and co-owners can move anyone else between co-owner, editor and
 viewer, remove a member — which also removes any cluster shared to them
 directly in this workspace — and invite someone by email as an editor or a
