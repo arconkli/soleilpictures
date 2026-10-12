@@ -32,11 +32,21 @@ import { publicHttpsUrlProblem } from './safeUrl.js';
 // be tested for real rather than described in a comment.
 const REAL_DB = { select: scoutSelect, insert: scoutInsert, patch: scoutPatch, rpc: scoutRpc };
 
-// How long a claimed delivery stays out of every other drain's reach. Longer
-// than any invocation that could be holding it — a cron run is capped at 15
-// minutes — so a slow batch is never re-claimed under the drain still sending
-// it, and a drain that dies hands its rows back when this runs out.
+// How long a claimed delivery stays out of every other drain's reach. It must
+// outlast the invocation holding it, or a slow batch is re-claimed under the
+// drain still sending it. It should not outlast it by much, because a drain
+// that dies mid-batch strands its unsent rows until the lease runs out. So the
+// lease follows the caller: the cron drain can run up to 15 minutes, and gets
+// 900s; the drain after an API write lives inside waitUntil, which Cloudflare
+// stops about 30s after the response, so it gets 60s — never re-claimed under
+// itself, and what it could not reach goes back out about as fast as the
+// minute cron would have sent it anyway (2026-10-11 review of API-10).
 const DELIVERY_LEASE_SECONDS = 900;
+export const AFTER_WRITE_LEASE_SECONDS = 60;
+
+// The drain an API write kicks off. One object so worker-api.js and the test
+// that pins its lease cannot drift apart.
+export const AFTER_WRITE_DRAIN = { limit: 50, leaseSeconds: AFTER_WRITE_LEASE_SECONDS };
 
 // The claim RPCs arrive with 0409. Until it is applied, PostgREST answers
 // "no such function" and the unclaimed path below still works, so this file
@@ -193,11 +203,11 @@ export async function fanOutEvents(env, { limit = 500, db = REAL_DB } = {}) {
 // next_attempt_at pushed out under SKIP LOCKED before anything is POSTed — so a
 // second drain running at the same moment takes different rows instead of the
 // same ones. `id` narrows the claim to one delivery.
-async function claimDue(env, { limit, now, db, id = null }) {
+async function claimDue(env, { limit, now, db, id = null, leaseSeconds = DELIVERY_LEASE_SECONDS }) {
   if (db.rpc) {
     try {
       return await db.rpc(env, 'webhook_deliveries_claim', {
-        p_limit: limit, p_lease_seconds: DELIVERY_LEASE_SECONDS, p_id: id,
+        p_limit: limit, p_lease_seconds: leaseSeconds, p_id: id,
       }) || [];
     } catch (e) {
       if (!missingFunction(e)) throw e;
@@ -210,8 +220,10 @@ async function claimDue(env, { limit, now, db, id = null }) {
     + `&order=next_attempt_at.asc&limit=${limit}`) || [];
 }
 
-export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Date.now(), db = REAL_DB } = {}) {
-  const due = await claimDue(env, { limit, now, db });
+export async function deliverDue(env, {
+  limit = 100, fetchImpl = fetch, now = Date.now(), db = REAL_DB, leaseSeconds,
+} = {}) {
+  const due = await claimDue(env, { limit, now, db, leaseSeconds });
   const { outcomes: _perRow, ...counts } = await deliverRows(env, due, { fetchImpl, db });
   return counts;
 }

@@ -13,8 +13,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  signBody, verifySignature, webhookUrlProblem, fanOutEvents, deliverDue, deliverOne,
-  WEBHOOK_EVENTS, MAX_ATTEMPTS, DISABLE_AFTER_FAILURES, REPLAY_WINDOW_SECONDS,
+  signBody, verifySignature, webhookUrlProblem, fanOutEvents, deliverDue, deliverOne, runWebhooks,
+  WEBHOOK_EVENTS, MAX_ATTEMPTS, DISABLE_AFTER_FAILURES, REPLAY_WINDOW_SECONDS, AFTER_WRITE_DRAIN,
 } from './webhooks.js';
 
 // ── signing ──────────────────────────────────────────────────────────────────
@@ -354,6 +354,24 @@ test('two drains at once never send the same delivery twice', async () => {
   assert.equal(new Set(sent).size, sent.length, `duplicates sent: ${sent.join(',')}`);
   const lease = db.rpcCalls.find((c) => c.fn === 'webhook_deliveries_claim').args.p_lease_seconds;
   assert.ok(lease >= 900, 'a lease shorter than an invocation lets a second drain re-take a slow batch');
+});
+
+test('the drain after an API write leases only as long as waitUntil can run', async () => {
+  // waitUntil is stopped ~30s after the response. A 900s lease there strands
+  // every row the drain could not reach for 15 minutes behind a slow receiver;
+  // shorter than the 30s it can run, and a second drain re-takes rows it is
+  // still sending.
+  const deliveries = Array.from({ length: 3 }, (_, i) => pending({ id: `w-${i}` }));
+  const db = claimingDb({ deliveries, hooks: [hook()] });
+  await runWebhooks({}, { ...AFTER_WRITE_DRAIN, db, fetchImpl: async () => ({ ok: true, status: 200 }) });
+  const lease = db.rpcCalls.find((c) => c.fn === 'webhook_deliveries_claim').args.p_lease_seconds;
+  assert.ok(lease > 30, 'must outlast the waitUntil window or the batch is re-claimed under itself');
+  assert.ok(lease <= 120, `a ${lease}s lease strands unsent rows far longer than the minute cron would`);
+
+  const { readFileSync } = await import('node:fs');
+  const api = readFileSync(new URL('../worker-api.js', import.meta.url), 'utf8');
+  assert.match(api, /runWebhooks\(env, AFTER_WRITE_DRAIN\)/,
+    'worker-api.js must drain with the short lease, not the cron one');
 });
 
 test('a test delivery is sent by id, whatever else is due, and reports only itself', async () => {

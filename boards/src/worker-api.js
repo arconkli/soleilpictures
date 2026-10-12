@@ -55,6 +55,7 @@ import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
   webhookUrlProblem, runWebhooks, deliverOne, hasPendingWork, WEBHOOK_EVENTS,
+  AFTER_WRITE_DRAIN,
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
 import {
@@ -989,7 +990,7 @@ export async function handleApiRoute(url, request, env, ctx) {
   // workspaces — which have no webhooks — pay almost nothing.
   if (request.method !== 'GET' && ctx?.waitUntil) {
     ctx.waitUntil(hasPendingWork(env)
-      .then((pending) => (pending ? runWebhooks(env, { limit: 50 }) : null))
+      .then((pending) => (pending ? runWebhooks(env, AFTER_WRITE_DRAIN) : null))
       .catch(() => {}));
   }
 
