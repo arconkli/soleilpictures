@@ -963,7 +963,9 @@ export function ShareModal({
               <input className="share-input"
                      type="text"
                      aria-label="Email addresses to invite"
-                     placeholder="Email address — add several, separated by commas"
+                     // Short enough for the ~200px the field gets beside the
+                     // role menu; the longer wording was cut off mid-word.
+                     placeholder="Emails, separated by commas"
                      value={inviteEmail}
                      onChange={(e) => setInviteEmail(e.target.value)}
                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
