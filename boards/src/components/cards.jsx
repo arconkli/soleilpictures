@@ -769,12 +769,13 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
-                     mediaJson = null, onExpand = null }) {
+                     mediaJson = null, onExpand = null,
+                     cardId = null, selected = false, tapToPlay = false }) {
   // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
   const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
-  // video. Double-click to edit instead.
+  // video. The context menu's Edit title opens it.
   const [editingTitle, setEditingTitle] = useState(false);
   // Canvas context menu "Edit title" remote-trigger (same as Image/Link).
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
@@ -833,8 +834,60 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
     return () => { io.disconnect(); try { el.pause(); } catch (_) {} };
   }, [autoplay, resolvedUrl]);
 
+  // ── The film player, mounted when it's wanted ───────────────────────────
+  // At rest a clip with a poster is just its poster — no <video>, no clock, no
+  // observers — so a board of thirty clips costs what thirty stills do. The
+  // player comes in on hover, selection, or a play click, and goes again a few
+  // seconds after you leave it, unless you've moved it to a frame.
+  const playerRef = useRef(null);
+  const [live, setLive] = useState(!poster);
+  const [playOnMount, setPlayOnMount] = useState(false);
+  const hoverRef = useRef(false);
+  const timers = useRef({ on: null, off: null });
+  useEffect(() => { if (!poster) setLive(true); }, [poster]);
+  useEffect(() => { if (selected) setLive(true); }, [selected]);
+  const scheduleOff = () => {
+    clearTimeout(timers.current.off);
+    if (!poster) return;
+    timers.current.off = setTimeout(() => {
+      const st = playerRef.current?.getState?.();
+      if (hoverRef.current || selected || st?.playing || st?.touched) return;
+      setLive(false);
+      setPlayOnMount(false);
+    }, 5000);
+  };
+  useEffect(() => { if (!selected) scheduleOff(); }, [selected]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { clearTimeout(timers.current.on); clearTimeout(timers.current.off); }, []);
+  const onEnter = () => {
+    hoverRef.current = true;
+    clearTimeout(timers.current.off);
+    if (!live) timers.current.on = setTimeout(() => setLive(true), 80);
+  };
+  const onLeave = () => {
+    hoverRef.current = false;
+    clearTimeout(timers.current.on);
+    scheduleOff();
+  };
+  // A click on a card you only meant to select doesn't start it: the first
+  // click selects, the next one plays. Where you can't select (a view-only
+  // board) a clean tap plays.
+  const wasSelected = useRef(false);
+  const onDownCapture = (e) => { wasSelected.current = selected; hoverRef.current = true; if (!live) setLive(true); void e; };
+  const clickGate = (e) => !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && (wasSelected.current || tapToPlay);
+  // The review player closed on another frame: this card follows it there.
+  useEffect(() => {
+    if (!cardId) return undefined;
+    const on = (e) => {
+      const d = e.detail || {};
+      if (d.cardId !== cardId || !Number.isFinite(d.time)) return;
+      playerRef.current?.seekTime?.(d.time);
+    };
+    document.addEventListener('soleil-player-closed', on);
+    return () => document.removeEventListener('soleil-player-closed', on);
+  }, [cardId]);
+
+  const durText = Number.isFinite(media?.dur) && media.dur > 0 ? formatClipLength(media.dur) : '';
   const showTitle = !!title || editingTitle;
-  const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
     <div className="vc">
       {/* Video had no download affordance ANYWHERE — not on the card, not in
@@ -849,22 +902,34 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
           <Icon as={Download} size={14} />
         </button>
       )}
-      <div className="vc-vidwrap" onDoubleClick={onDbl}>
+      <div className="vc-vidwrap" onPointerEnter={onEnter} onPointerLeave={onLeave} onPointerDownCapture={onDownCapture}>
         {/* A clip that plays itself is a moving still — it keeps the plain
             element. Every other clip gets the film player: frame steps, a
             frame-accurate scrubber, timecode, and ⤢ into the review player. */}
-        {resolvedUrl && !autoplay
-          ? <FilmPlayer mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
+        {resolvedUrl && !autoplay && live
+          ? <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
+                        clickGate={clickGate} autoPlay={playOnMount}
                         probe={() => probeCardVideo({ kind: 'video', src })} />
-          : resolvedUrl
+          : resolvedUrl && autoplay
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
                    {...(posterUrl ? { poster: posterUrl } : {})}
                    {...(loop ? { loop: true } : {})}
-                   {...(autoplay ? { muted: true } : {})}
-                   controls preload="metadata" playsInline />
+                   muted controls preload="metadata" playsInline />
           : (posterUrl
-              ? <img className="vc-video" src={posterUrl} alt="" draggable="false" />
+              ? (
+                <div className="vc-facade">
+                  <img className="vc-video vc-poster" src={posterUrl} alt="" draggable="false" />
+                  {resolvedUrl && (
+                    <button type="button" className="film-centre-play" tabIndex={-1} aria-label="Play"
+                            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                            onClick={(e) => { e.stopPropagation(); setPlayOnMount(true); setLive(true); }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.52.85l10.6-6.8a1 1 0 0 0 0-1.7L9.52 4.35A1 1 0 0 0 8 5.2Z" fill="currentColor" /></svg>
+                    </button>
+                  )}
+                </div>
+              )
               : <ImagePlaceholder label="VIDEO" tone="neutral" />)}
+        {durText && !autoplay && <span className="vc-dur" aria-hidden="true">{durText}</span>}
       </div>
       {showTitle && onUpdate && (
         <EditableText
@@ -880,6 +945,13 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
       {showTitle && !onUpdate && <div className="vc-title">{title}</div>}
     </div>
   );
+}
+
+// 0:07 · 4:05 · 1:02:03 — a clip's length on its card.
+function formatClipLength(sec) {
+  const t = Math.round(sec);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), ss = String(t % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
 // Rollout gate for the collaborative (Tiptap + Y.XmlFragment) note editor.
