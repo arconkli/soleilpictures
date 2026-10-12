@@ -239,7 +239,10 @@ export function removeDivider(tree, path, childIndex) {
 //
 // `cells` is { cellId: record } for (at least) the ids involved. Returns
 // { moves: { keptId: record }, dropped }. Carry vs count follows rehomeCells:
-// any non-'empty' record is carried, only isCellFilled ones are counted.
+// any non-'empty' record is carried, only isCellFilled ones are counted. An
+// empty heir can still carry a pinned text style ("only this box"); style is
+// display state that survives a content replace (setGridCell), so the heir
+// keeps its own unless the moved record brings one.
 export function carryRemovedCells(removedIds, keptIds, cells) {
   const src = cells || {};
   const has = (rec) => !!(rec && rec.type && rec.type !== 'empty');
@@ -249,7 +252,11 @@ export function carryRemovedCells(removedIds, keptIds, cells) {
   (removedIds || []).forEach((id) => {
     const rec = src[id];
     if (!has(rec)) return;
-    if (heir && !moves[heir]) { moves[heir] = rec; return; }
+    if (heir && !moves[heir]) {
+      const keep = src[heir] && src[heir].style;
+      moves[heir] = keep && !rec.style ? { ...rec, style: keep } : rec;
+      return;
+    }
     if (isCellFilled(rec)) dropped += 1;
   });
   return { moves, dropped };

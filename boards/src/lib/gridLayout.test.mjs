@@ -39,3 +39,16 @@ test('only the first record moves into a single empty heir', () => {
   const b = { type: 'link', source: 'https://example.com' };
   assert.deepEqual(carryRemovedCells(['R1', 'R2'], ['L'], { R1: img, R2: b }), { moves: { L: img }, dropped: 1 });
 });
+
+test('an empty heir keeps its pinned style when content moves in', () => {
+  const style = { font: 'serif' };
+  assert.deepEqual(
+    carryRemovedCells(['R'], ['L'], { L: { type: 'empty', style }, R: img }),
+    { moves: { L: { ...img, style } }, dropped: 0 },
+  );
+  const own = { ...img, style: { font: 'mono' } };
+  assert.deepEqual(
+    carryRemovedCells(['R'], ['L'], { L: { type: 'empty', style }, R: own }),
+    { moves: { L: own }, dropped: 0 },
+  );
+});
