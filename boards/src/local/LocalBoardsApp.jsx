@@ -61,6 +61,7 @@ import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
+import { probeFile } from '../lib/mediaProbe.js';
 import { InfoHost } from '../components/info/InfoHost.jsx';
 import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
 
@@ -1535,12 +1536,17 @@ export function LocalBoardsApp({ user, signOut }) {
       const url = URL.createObjectURL(it.file);
       const ext = (it.file.name.split('.').pop() || '').toLowerCase();
       const base = { id: createId(it.kind), kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, unplaced: true };
-      if (it.kind === 'image' || it.kind === 'video') return { ...base, src: url, ...fileMetaFor(it.file) };
+      if (it.kind === 'video') return { ...base, src: url, ...fileMetaFor(it.file), sizeBytes: it.file.size, mime: it.file.type, _probe: it.file };
+      if (it.kind === 'image') return { ...base, src: url, ...fileMetaFor(it.file) };
       if (it.kind === 'audio') return { ...base, src: url, title: it.file.name, fileName: it.file.name, mime: it.file.type, ext, sizeBytes: it.file.size };
       if (it.kind === 'pdf') return { ...base, src: url, pdfSrc: url, name: it.file.name };
       return { ...base, fileSrc: url, fileName: it.file.name, mime: it.file.type, ext, sizeBytes: it.file.size };
     });
+    // Twin of the app's upload probe (lib/mediaProbe.js): a video's own facts.
+    const probes = made.filter((c) => c._probe).map((c) => [c.id, c._probe]);
+    for (const c of made) delete c._probe;
     addCards(made);
+    for (const [id, file] of probes) probeFile(file).then((media) => { if (media) mutators.updateCardMeta(id, { media }); });
     setLocalRecentlyAdded({ boardId: currentId, ids: new Set(made.map((c) => c.id)) });
     feedback.toast({
       type: 'success',
@@ -1669,6 +1675,21 @@ export function LocalBoardsApp({ user, signOut }) {
     window.__soleilAudioLive = { addAudio: (pos, overrides) => addAudioAt(pos, overrides) };
     return () => { delete window.__soleilAudioLive; };
   }, []);
+
+  // The same for video (the film player and Info specs): a video card from a
+  // URL — a fixture's blob — with no facts on it, so Info and the player have
+  // to read its container themselves, as they do for a clip uploaded before.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    window.__soleilVideoLive = {
+      addVideo: ({ src, x = 200, y = 200, w = 384, h = 216, ...rest } = {}) => {
+        const id = rest.id || createId('vid');
+        addCard({ id, kind: 'video', src, x, y, w, h, ...rest });
+        return id;
+      },
+    };
+    return () => { delete window.__soleilVideoLive; };
+  });
 
   // Target half of a move into another cluster — App.jsx's
   // 'soleil-card-into-board-drop' listener reduced to what this shell stores.
@@ -2124,6 +2145,7 @@ export function LocalBoardsApp({ user, signOut }) {
         resolveBoard={(id) => (boardState[id] ? {
           cards: boardState[id].cards || [], groups: boardState[id].groups || [],
           gridTemplates: gridTplState[id] || {}, canEdit: !readOnlyQa,
+          mutators: id === currentId ? surfaceMutators : null,
         } : null)}
         onOpenCluster={(id) => { if (boards[id]) { setStack(ancestorPath(boards, id)); recents.push(id); setCurrentSurface('board'); } }}
         onReveal={(boardId, ids) => {

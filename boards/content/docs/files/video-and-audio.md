@@ -5,7 +5,7 @@ h1: Video and audio
 navLabel: Video and audio
 section: files
 order: 2
-updated: 2026-10-07
+updated: 2026-10-12
 answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at {{fact:freeVideoCap}} and audio at {{fact:freeAudioCap}}; {{fact:planName}} removes both caps.
 faq:
   - q: Why does starting one audio card stop another?
@@ -45,6 +45,26 @@ own controls when you want to hear it.
 A clip only plays while it is **on screen**. Scroll it out of view and it pauses.
 On a board holding twenty takes, autoplaying all of them at once is what makes a
 canvas stutter, so this is the behaviour rather than a setting.
+
+### What Clusters knows about a clip
+
+Right-click a video and choose [**Info**](/docs/canvas/cards#info), or select it
+and press `⌘I`. Clusters reads the file's own container — MP4, MOV and M4V —
+and reports what an editor would look for:
+
+| | |
+|---|---|
+| **Resolution** | The picture's size, turned the right way up for a phone clip shot on its side |
+| **Duration** | The length, to the second |
+| **Frame rate** | Exactly — 23.976 is not 24 — and marked *variable* for a phone recording whose frames don't arrive evenly |
+| **Codec** | H.264 and its profile, HEVC, ProRes (by flavour), AV1, VP9 |
+| **Start timecode** | When the camera or editor wrote one, drop-frame at 29.97 and 59.94 |
+| **Audio** | Its codec, sample rate and channels — or *None* |
+
+A clip is read as it uploads, from the file on your computer. One uploaded
+before this existed is read the first time someone opens Info on it, a few
+kilobytes from the start (and end) of the file rather than the whole clip, and
+what it finds is kept on the card. WebM and other containers report less.
 
 Free accounts cap video at **{{fact:freeVideoCap}}**. That is enough for a
 reference clip or a cut-down, not for a full-resolution master.

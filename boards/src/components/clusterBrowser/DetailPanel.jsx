@@ -21,6 +21,7 @@ import { getMeta as getMetaDefault, primeFileFacts, subscribeMeta } from '../../
 import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
 import * as userProfiles from '../../lib/userProfiles.js';
 import { describeCard, describeCluster, describeSelection, describeGroup, fileKeyOf, formatSize, formatWhen } from '../../lib/cardInfo.js';
+import { useMediaFacts } from '../../hooks/useMediaFacts.js';
 
 function MetaRow({ label, value, title }) {
   if (!value) return null;
@@ -104,11 +105,16 @@ function useFileMeta(key, getMeta) {
 export function DetailPanel({
   target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false, onPutOnBoard = null,
   variant = 'split', selfId = null, onOpenCluster = null, gridTemplates = {}, getMeta = getMetaDefault,
+  writeMeta = null,
 }) {
   const feedback = useFeedback();
-  const card = target?.type === 'card' ? (target.item?.card || {}) : null;
-  const key = card ? fileKeyOf(card) : '';
+  const rawCard = target?.type === 'card' ? (target.item?.card || {}) : null;
+  const key = rawCard ? fileKeyOf(rawCard) : '';
   useFileMeta(key, getMeta);
+  // A clip uploaded before Info read containers is probed now (lib/mediaProbe.js);
+  // an editor's result is kept on the card (writeMeta = mutators.updateCardMeta).
+  const media = useMediaFacts(rawCard?.kind === 'video' ? rawCard : null, { writeMeta: canEdit ? writeMeta : null });
+  const card = rawCard && media && rawCard.media !== media ? { ...rawCard, media } : rawCard;
 
   const info = !target ? null
     : target.type === 'card' ? describeCard(card, { getMeta, boards, gridTemplates })

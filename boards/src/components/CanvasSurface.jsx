@@ -99,6 +99,7 @@ import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
+import { probeFile } from '../lib/mediaProbe.js';
 import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
@@ -3701,7 +3702,7 @@ export function CanvasSurface({
       w = Math.max(240, Math.min(560, meta.w || 360));
       const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
       h = Math.max(160, Math.round(w * aspect));
-      extra = { ...fileMetaFor(file) };
+      extra = { ...fileMetaFor(file), sizeBytes: file.size || null, mime: file.type || null };
     } else {
       const meta = await readAudioMeta(file);
       ({ w, h } = FALLBACK_DIMS.audio);
@@ -3726,6 +3727,7 @@ export function CanvasSurface({
       // the whole clip back — and this route exists precisely for the clips too
       // big to want that. After the src patch so playback is never gated on it.
       if (kind === 'video') {
+        probeFile(file).then((media) => { if (media && boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { media }); });
         const poster = await captureAndUploadPoster({ file, workspaceId, boardId: dropBoardId, userId });
         if (poster && boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { poster });
       } else if (kind === 'audio') {
@@ -3778,12 +3780,17 @@ export function CanvasSurface({
     const w = Math.max(240, Math.min(560, up.width || 360));
     const aspect = up.height && up.width ? (up.height / up.width) : 9 / 16;
     const h = Math.max(160, Math.round(w * aspect));
+    // Frame rate, codec, start timecode… read from the local File's own
+    // container (lib/mediaProbe.js) — Info counts frames by it.
+    const media = await probeFile(file);
     mutators.addCard?.({
       id: `vid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
       kind: 'video',
       src: up.src,
       ...(up.poster ? { poster: up.poster } : {}),
       ...fileMetaFor(file),
+      sizeBytes: file.size || null, mime: file.type || null,
+      ...(media ? { media } : {}),
       x: rect && Number.isFinite(rect.x) ? Math.round(rect.x) : Math.round(cx - w / 2),
       y: rect && Number.isFinite(rect.y) ? Math.round(rect.y) : Math.round(cy - h / 2),
       w, h,

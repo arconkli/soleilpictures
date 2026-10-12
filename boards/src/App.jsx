@@ -111,6 +111,7 @@ import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
+import { probeFile } from './lib/mediaProbe.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -2863,6 +2864,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // as the canvas drop — so a folder's worth dropped in list view comes back
         // out of Download under the names it went in with.
         if (it.kind === 'image' || it.kind === 'video') Object.assign(card, fileMetaFor(it.file));
+        if (it.kind === 'video') Object.assign(card, { sizeBytes: it.file.size || null, mime: it.file.type || null });
         if (it.kind === 'pdf') card.name = it.file.name || 'PDF';
         else if (it.kind === 'audio') {
           // `title` is the editable display name; fileName/ext/mime/sizeBytes
@@ -2941,7 +2943,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               if (a) updateCardSilent(id, { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 });
               else if (analyzable({ sizeBytes: it.file.size || 0, durationSec: meta?.duration, lowMemory: lowMemoryDevice() })) updateCardSilent(id, { analyzed: 1 });
             }
-            else if (it.kind === 'video') updateCardSilent(id, { src: up.src, pending: false });
+            else if (it.kind === 'video') {
+              updateCardSilent(id, { src: up.src, pending: false });
+              // The clip's own facts — frame rate, codec, timecode (lib/mediaProbe.js).
+              probeFile(it.file).then((media) => { if (media) updateCardSilent(id, { media }); });
+            }
             else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
           }
         } catch (err) {
@@ -9287,9 +9293,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           if (!id) return null;
           const pane = yb.ready && yb.boardId === id ? yb : (splitYb.ready && splitYb.boardId === id ? splitYb : null);
           if (!pane) return null;
+          const isMain = id === currentBoard.id;
           return {
             cards: pane.cards, groups: pane.groups || [], gridTemplates: pane.gridTemplates || {},
-            canEdit: id === currentBoard.id ? canEditCurrent : !!(splitBoard?.id === id && splitBoardPerm.canEdit),
+            canEdit: isMain ? canEditCurrent : !!(splitBoard?.id === id && splitBoardPerm.canEdit),
+            mutators: isMain ? mainMutatorsFull : splitMutatorsFull,
           };
         }}
         onOpenCluster={(id) => {

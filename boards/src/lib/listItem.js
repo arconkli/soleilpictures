@@ -167,7 +167,9 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       item.name = card.title || card.fileName || 'Video';
       item.ext = extOf(card.fileName);
       item.preview = card.poster ? { mode: 'r2', src: card.poster, kind } : { mode: 'icon', kind };
-      item.sizeBytes = mediaSizeFrom(getMeta, card.src);
+      item.sizeBytes = card.sizeBytes ?? mediaSizeFrom(getMeta, card.src);
+      // From the clip's own container (lib/mediaProbe.js), once known.
+      item.durationSec = Number.isFinite(card.media?.dur) ? card.media.dur : (Number.isFinite(card.duration) ? card.duration : null);
       break;
     case 'audio': {
       item.name = card.title || card.fileName || 'Audio';

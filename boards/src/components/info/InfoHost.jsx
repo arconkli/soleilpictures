@@ -152,6 +152,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
         target={target}
         boards={boards}
         canEdit={!!live?.canEdit}
+        writeMeta={live?.mutators?.updateCardMeta || null}
         selfId={selfId}
         gridTemplates={live?.gridTemplates || {}}
         onClose={close}

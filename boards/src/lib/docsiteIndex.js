@@ -1240,7 +1240,7 @@ export const DOCS_PAGES = [
     "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
     "section": "files",
     "order": 2,
-    "updated": "2026-10-07",
+    "updated": "2026-10-12",
     "navLabel": "Video and audio",
     "headings": [
       {
