@@ -76,6 +76,38 @@ test('a pasted hyperlink keeps its URL', async ({ page }) => {
   expect(frag).toContain('>the spec</a>');
 });
 
+// NOTES-07: the auto-size measured the live editor, which never contains the
+// link preview the read-only note appends, so every note with a URL came out
+// of editing clipped, with a "Show all" chip.
+test('a note with a URL is sized to fit its link preview after editing', async ({ page }) => {
+  await ready(page);
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.type('Research https://example.com/deck');
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  const preview = page.locator(`${A} .note-link-preview`);
+  await expect(preview).toHaveCount(1);
+  await expect(page.locator(`${A}.is-overflowing`)).toHaveCount(0);
+  await expect(page.locator(`${A} .note-more-chip`)).toHaveCount(0);
+  const fits = await page.evaluate(() => {
+    const note = document.querySelector('[data-client="A"] .note');
+    const p = note.querySelector('.note-link-preview').getBoundingClientRect();
+    return p.bottom <= note.getBoundingClientRect().bottom;
+  });
+  expect(fits).toBe(true);
+
+  // A second edit keeps it fitting rather than growing it again.
+  const h1 = await page.evaluate(() => window.__soleilNoteTest.cardA.get('h'));
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  const h2 = await page.evaluate(() => window.__soleilNoteTest.cardA.get('h'));
+  expect(h2).toBe(h1);
+});
+
 test('a javascript: link is not kept', async ({ page }) => {
   await ready(page);
   await setLegacyHtml(page, '<p><a href="javascript:alert(1)">click</a></p>');
