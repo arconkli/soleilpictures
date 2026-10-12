@@ -203,7 +203,10 @@ test('the speed menu: arrows move the menu not the frame, Esc closes only the me
   await review.getByRole('button', { name: /^Speed/ }).click();
   const menu = page.locator('.film-menu[role="menu"]');
   await expect(menu).toBeVisible();
+  await expect(menu).toBeFocused();
+  await expect(menu.locator('.film-menu-item.is-active')).toHaveText(/Normal/);
   await page.keyboard.press('ArrowDown');
+  await expect(menu.locator('.film-menu-item.is-active')).toHaveText(/1\.25×/);
   await expect(review.locator('.film-tc')).toHaveText('00:00:00:04');
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
