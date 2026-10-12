@@ -23,6 +23,22 @@
    draws no ring (its controls keep theirs). */
 .ntf-panel:focus { outline: none; }
 body[data-doc-overlay='1'] .ntf-panel { z-index: 2147483602; }
+/* Mobile shell (the query `mobileShell` uses): a full-width sheet ending above
+   the bottom nav, the shape the messages panel takes there. The floating
+   desktop card ran 41px down over the nav, whose labels showed through its
+   translucent bottom edge. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .ntf-panel {
+    position: fixed;
+    inset: var(--safe-top, 0px) 0 calc(56px + var(--safe-bottom, 0px)) 0;
+    width: auto;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+}
 
 .ntf-head {
   flex: 0 0 auto;
