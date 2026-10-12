@@ -109,7 +109,7 @@ export function AdminErrorsTab() {
     return { summary: val(sum) || [], recent: val(rec) || [] };
   }, [days, showMuted]);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(fetchErrors, [days, showMuted]);
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(fetchErrors, [days, showMuted]);
   const summary = data?.summary || [];
   const recent = data?.recent || [];
 
@@ -187,6 +187,7 @@ export function AdminErrorsTab() {
       <AdminAsync
         loading={loading}
         error={error}
+        hasData={hasData}
         onRetry={refresh}
         skeleton={<><AdminSkeleton variant="cards" rows={3} /><AdminSkeleton variant="table" /><AdminSkeleton variant="list" /></>}
         isEmpty={summary.length === 0 && recent.length === 0}

@@ -85,3 +85,22 @@ test.describe('admin Discover (ADMIN-3)', () => {
     expect(calls).not.toContain('admin_set_public_board');
   });
 });
+
+test.describe('admin background refresh (ADMIN-5)', () => {
+  test('a failed refresh keeps the view and a half-typed note, under a notice', async ({ page }) => {
+    await openAdmin(page, { view: 'today' });
+    const form = page.getByRole('form', { name: 'Add a dated note' });
+    await expect(form).toBeVisible({ timeout: 15000 });
+    const field = form.getByRole('textbox', { name: 'Label', exact: true });
+    await field.fill('half-typed note');
+
+    await patchRpc(page, { admin_kpi_summary: { data: null, error: { message: 'statement timeout' } } });
+    await page.getByRole('button', { name: 'Refresh' }).first().click();
+    await expect.poll(() => page.evaluate(() => window.__patchedRpc.length)).toBeGreaterThan(0);
+
+    await expect(page.locator('.admin-stale-notice')).toBeVisible();
+    await expect(page.locator('.admin-error')).toHaveCount(0);
+    await expect(page.getByText('The last seven days')).toBeVisible();
+    await expect(field).toHaveValue('half-typed note');
+  });
+});

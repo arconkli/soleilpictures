@@ -15,8 +15,13 @@
 //    state, so races resolve to the latest inputs, not the latest to return.
 //  • `loading` is the first-load flag; `refreshing` is true for refetches
 //    once data exists (lets tabs dim rather than blank on refresh).
+//  • `hasData` is true when `data` came from the CURRENT deps. Pass it to
+//    AdminAsync so a failed background refresh keeps the view on screen under
+//    a "couldn't refresh" strip. It is false after a filter change until the
+//    new read lands, so a failed switch to 90 days never shows the 30-day data
+//    under a 90-day label.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export function useAdminData(fetchFn, deps = [], opts = {}) {
   const { refetchOnFocus = false, pollIntervalMs = null } = opts;
@@ -26,11 +31,17 @@ export function useAdminData(fetchFn, deps = [], opts = {}) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]           = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [dataKey, setDataKey]       = useState(0);
 
   // Always call the freshest fetchFn (callers pass an inline closure that
   // changes every render); `deps` controls *when* we refetch.
   const fnRef = useRef(fetchFn);
   useEffect(() => { fnRef.current = fetchFn; });
+
+  // A new key whenever deps change: what `hasData` compares the data's key to.
+  const depsSeqRef = useRef(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const depsKey = useMemo(() => ++depsSeqRef.current, deps);
 
   const epochRef = useRef(0);
   const hasDataRef = useRef(false);
@@ -45,6 +56,7 @@ export function useAdminData(fetchFn, deps = [], opts = {}) {
       const result = await fnRef.current();
       if (epoch !== epochRef.current) return;          // a newer request superseded us
       setData(result);
+      setDataKey(depsKey);
       hasDataRef.current = true;
       setLastUpdated(Date.now());
     } catch (e) {
@@ -88,5 +100,6 @@ export function useAdminData(fetchFn, deps = [], opts = {}) {
     return () => clearInterval(id);
   }, [pollIntervalMs, run]);
 
-  return { data, loading, error, refreshing, lastUpdated, refresh: run };
+  const hasData = data !== undefined && dataKey === depsKey;
+  return { data, loading, error, refreshing, lastUpdated, hasData, refresh: run };
 }

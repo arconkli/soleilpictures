@@ -69,7 +69,7 @@ export function AdminFeedbackTab() {
     return data || [];
   }, [kind, debounced, page]);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(fetchFeedback, [kind, debounced, page]);
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(fetchFeedback, [kind, debounced, page]);
   const rows = data || [];
 
   const firstIdx = rows.length === 0 ? 0 : page * PAGE_SIZE + 1;
@@ -157,6 +157,7 @@ export function AdminFeedbackTab() {
         <AdminAsync
           loading={loading}
           error={error}
+          hasData={hasData}
           onRetry={refresh}
           skeleton={<AdminSkeleton variant="list" rows={6} />}
           isEmpty={rows.length === 0}

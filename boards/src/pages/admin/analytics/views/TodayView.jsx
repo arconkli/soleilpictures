@@ -455,6 +455,7 @@ export function TodayView() {
     <AdminAsync
       loading={q.loading}
       error={q.error}
+      hasData={q.hasData}
       onRetry={q.refresh}
       skeleton={<><AdminSkeleton variant="cards" rows={4} /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}
     >

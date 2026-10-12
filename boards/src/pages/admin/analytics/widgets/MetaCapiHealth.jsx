@@ -25,7 +25,7 @@ export function MetaCapiHealth() {
         <span className="admin-chart-sub t-meta">server-side conversion sends · success/failure · last 7d</span>
       </header>
       <div className="admin-chart-body">
-        <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh}
+        <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh}
           skeleton={<AdminSkeleton variant="table" rows={4} />}>
           {rows.length === 0 ? (
             <div className="admin-empty">No CAPI sends logged in this window yet.</div>

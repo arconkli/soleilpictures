@@ -149,7 +149,7 @@ export function FunnelView() {
   const segmented = !!(f.source || f.campaign || f.content);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
       <div className="adm-view">
         <h2 className="admin-section-title">Landing to paid</h2>
         <div className="admin-section-sub">
@@ -214,7 +214,7 @@ function LazyPaths({ days, f }) {
   }, [days, f.excludeInternal]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
       <FunnelSteps
         steps={q.data?.fbSteps || []}
         days={days}
@@ -240,7 +240,7 @@ function LazyAudience({ days, f }) {
   }, [days, f.excludeInternal]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <DeviceBreakdown data={q.data?.device} days={days} />
       <GeoBreakdown data={q.data?.geo} days={days} />
     </AdminAsync>
@@ -278,7 +278,7 @@ function LazyMoney({ days, f }) {
   const paid = Number(f.stats?.tier_counts?.paid) || 0;
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       {/* Said once, plainly, instead of drawn as three zero-valued tiles. */}
       <p className="admin-section-sub">
         {paid > 0

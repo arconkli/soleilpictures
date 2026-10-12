@@ -60,7 +60,7 @@ export function AdminDiscountsTab() {
 
   const preview = useMemo(() => discountPreviewLine({ percentOff: percent }), [percent]);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
     // Codes come from Stripe; redemptions from our own ledger. Neither can
     // stand in for the other — Stripe knows the count, we know the people.
     const [listed, reds] = await Promise.all([
@@ -250,6 +250,7 @@ export function AdminDiscountsTab() {
         <AdminAsync
           loading={loading}
           error={error}
+          hasData={hasData}
           onRetry={refresh}
           skeleton={<AdminSkeleton variant="table" rows={5} cols={8} />}
           isEmpty={codes.length === 0}

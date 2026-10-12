@@ -100,7 +100,7 @@ const labelStyle = { display: 'block', fontSize: '.8rem', fontWeight: 600, margi
 
 export function AdminDiscoverTab() {
   const feedback = useFeedback();
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(adminListPublicBoards, []);
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(adminListPublicBoards, []);
   const boards = data || [];
 
   const [selected, setSelected] = useState(null);  // board_id | NEW | null
@@ -343,7 +343,7 @@ export function AdminDiscoverTab() {
           </label>
         </AdminToolbar>
 
-        <AdminAsync loading={loading} error={error} onRetry={refresh}
+        <AdminAsync loading={loading} error={error} hasData={hasData} onRetry={refresh}
                     skeleton={<AdminSkeleton variant="table" rows={4} />} isEmpty={false}>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 320px) 1fr', gap: 20, alignItems: 'start' }}>
             {/* Left: list */}
