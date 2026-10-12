@@ -8,6 +8,7 @@
 // to a generic "·" glyph — and carries the columns the browser needs (size,
 // created/updated, z, a preview descriptor consumed by CardPreview).
 
+import { liveVersions, currentOf, versionLabel } from './cardVersions.js';
 import { computeCellRects } from './gridLayout.js';
 import { schedItems, schedLegacyRows } from './schedLayout.js';
 import { monthTitle } from './schedDates.js';
@@ -143,7 +144,13 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
     // In the cluster but not on its board (lib/placement.js).
     unplaced: card.unplaced === true,
     ext: '',   // the file's own extension, when it has one (captionOf)
+    // More than one version (lib/cardVersions.js): which is on show — "v3".
+    version: null,
   };
+  if (Array.isArray(card.versions) && card.versions.length > 1) {
+    const live = liveVersions(card);
+    if (live.length > 1) item.version = versionLabel(currentOf(card));
+  }
 
   switch (kind) {
     case 'image':

@@ -1124,7 +1124,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-07",
+    "updated": "2026-10-12",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1146,6 +1146,10 @@ export const DOCS_PAGES = [
       {
         "id": "how-files-are-stored",
         "text": "How files are stored"
+      },
+      {
+        "id": "versions",
+        "text": "Versions"
       },
       {
         "id": "downloading",
@@ -1181,6 +1185,10 @@ export const DOCS_PAGES = [
       {
         "q": "What happens if the page closes while photos are still uploading?",
         "a": "Photos upload from your device while the page is open. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas."
+      },
+      {
+        "q": "How do I upload a new version of a file?",
+        "a": "Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version…. Info lists every version, and any of them can be made current again."
       }
     ]
   },

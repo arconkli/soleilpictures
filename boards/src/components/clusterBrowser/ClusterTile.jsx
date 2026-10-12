@@ -100,7 +100,7 @@ export const ClusterTile = memo(function ClusterTile({
         {flag && !rename && <span className={`ct-tile-flag ${flag.cls}`} role="img" aria-label={flag.label} title={flag.title} />}
         {rename
           ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
-          : <div className="ct-tile-name" title={item.name}>{caption}</div>}
+          : <div className="ct-tile-name" title={item.name}>{caption}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
         <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
       </div>
     </div>

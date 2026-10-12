@@ -51,16 +51,18 @@ export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismi
               <Icon as={TOAST_ICON[item.type] || Info} size={16} weight="bold" />
             </span>
             <span className="toast-msg">{item.message}</span>
-            {item.action && (
-              <button type="button"
+            {/* `actions` for a toast that offers more than one way on (Undo ·
+                Keep as separate file); `action` for the usual one. */}
+            {(item.actions || (item.action ? [item.action] : [])).map((a, i) => (
+              <button type="button" key={i}
                       className="toast-action"
                       onClick={() => {
-                        try { item.action.onClick?.(); } catch (_) {}
+                        try { a.onClick?.(); } catch (_) {}
                         onDismissToast(item.id);
                       }}>
-                {item.action.label || 'Undo'}
+                {a.label || 'Undo'}
               </button>
-            )}
+            ))}
             {/* The X is the HAND-dismiss: it takes the manual path so a toast's
                 onDismiss fires ("seen and closed") — unlike the action button
                 above and the TTL expiry, which both use the plain path. */}

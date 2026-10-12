@@ -115,6 +115,10 @@ import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
+import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
+import { canVersion, liveVersions, currentOf, versionLabel } from '../lib/cardVersions.js';
+import { kindFromMime } from '../lib/versionUpload.js';
+import { uploadContext } from '../lib/uploadContext.js';
 import { probeFile } from '../lib/mediaProbe.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
@@ -7280,6 +7284,10 @@ export function CanvasSurface({
     }
 
     if (!multi) {
+      // A new version of a video, audio, PDF or file (an image's is in its Edit menu).
+      if (canVersion(c) && c.kind !== 'image') {
+        items.push({ id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), c.id) });
+      }
       if (c.kind === 'image') {
         items.push({ id: 'image-edit', label: 'Edit', submenu: [
           { id: 'title', label: c.title ? 'Edit title' : 'Add title', run: () => triggerInlineEdit(c.id, 'title') },
@@ -7295,7 +7303,9 @@ export function CanvasSurface({
             if (v == null) return;
             mutators.updateCard?.(c.id, { link: v.trim() || null });
           }},
-          { id: 'replace', label: 'Replace image…', run: () => {
+          // A new version keeps the old file (Info → Versions). A card stuck
+          // "Uploading…" has no file to keep: Replace image… gives it one.
+          c.pending ? { id: 'replace', label: 'Replace image…', run: () => {
             const input = document.createElement('input');
             input.type = 'file'; input.accept = 'image/*';
             input.onchange = async () => {
@@ -7313,7 +7323,7 @@ export function CanvasSurface({
               }
             };
             input.click();
-          }},
+          }} : { id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), c.id) },
         ]});
         if (canEdit && c.src) {
           items.push({ id: 'image-edit-photo', label: 'Edit photo…',
@@ -9518,6 +9528,7 @@ export function CanvasSurface({
     }
     const kindCls = `card-kind-${c.kind || 'unknown'}`;
     const isTagDropHover = tagDropTarget?.cardId === c.id;
+    const isVersionDrop = versionDropTarget?.cardId === c.id;
     const isLinkTarget = linkHoverIds.has(c.id);
     const isBoardDropTarget = boardDropTarget && (
       (c.kind === 'board' && c.id === boardDropTarget) ||
@@ -9543,8 +9554,9 @@ export function CanvasSurface({
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}${isVersionDrop ? ' is-version-drop' : ''}`,
       'data-card-id': c.id,
+      'data-version-drop': isVersionDrop ? versionDropTarget.label : undefined,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onPointerUp: (e) => onCardPointerUp(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
@@ -9757,6 +9769,20 @@ export function CanvasSurface({
       <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
         <CardStrokesOverlay card={c} w={w} h={h} />
+        {/* A file with more than one version says which is on show; the
+            chip opens Info at its Versions. */}
+        {Array.isArray(c.versions) && c.versions.length > 1 && (() => {
+          const live = liveVersions(c);
+          if (live.length < 2) return null;
+          return (
+            <button type="button" className="card-version-chip"
+                    title={`${live.length} versions — Info shows them all`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }); }}>
+              {versionLabel(currentOf(c))}
+            </button>
+          );
+        })()}
         {cardTags.length > 0 && (
           <div className="card-tags-strip" data-card-id={c.id}>
             {cardTags.slice(0, 4).map(t => (
@@ -10133,6 +10159,14 @@ export function CanvasSurface({
   // SidebarTags onDragStart since dataTransfer payload isn't readable
   // during dragOver (only types).
   const [tagDropTarget, setTagDropTarget] = useState(null); // { cardId, color }
+  // One file held over a file card of its kind: the drop adds a version
+  // (lib/versionActions.js). ⌥ makes it a separate file, as before.
+  const [versionDropTarget, setVersionDropTarget] = useState(null); // { cardId, label }
+  const versionEnv = () => ({
+    mutators, feedback, userId: currentUser?.id || userId || null,
+    getCard: (id) => (allCardsRef.current || []).find((x) => x.id === id) || null,
+    ctx: uploadContext({ workspaceId, boardId: board?.id, userId: currentUser?.id || userId || null, allowLong: !!isPaidPlan, canAttemptFiles, ...(useLocalImages ? { local: true } : {}) }),
+  });
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
     if (!types.includes(INBOX_MIME) &&
@@ -10180,15 +10214,36 @@ export function CanvasSurface({
     } else if (tagDropTarget) {
       setTagDropTarget(null);
     }
+    const vt = versionTargetAt(e);
+    if ((vt?.cardId || null) !== (versionDropTarget?.cardId || null)) setVersionDropTarget(vt);
+  };
+  // The file card under the pointer that one dragged file could be the next
+  // version of. During a drag only the item's type is known; the drop checks
+  // the file itself. An item with no type (Safari, some folders) can't be
+  // judged yet, and doesn't highlight.
+  const versionTargetAt = (e) => {
+    const types = e.dataTransfer?.types || [];
+    if (!types.includes('Files') || e.altKey) return null;
+    const items = e.dataTransfer.items;
+    if (!items || items.length !== 1 || items[0].kind !== 'file') return null;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const id = el?.closest?.('[data-card-id]')?.getAttribute('data-card-id');
+    const c = id ? cardByIdRef.current[id] : null;
+    if (!c || !canVersion(c) || c.locked) return null;
+    if (kindFromMime(items[0].type) !== c.kind) return null;
+    const n = liveVersions(c).length + 1;
+    return { cardId: c.id, label: `Drop to add as v${n}` };
   };
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     setDragOver(false);
     setTagDropTarget(null);
+    setVersionDropTarget(null);
   };
   const handleDrop = async (e) => {
     setDragOver(false);
     setTagDropTarget(null);
+    setVersionDropTarget(null);
     // View-only board: swallow the drop (so the browser never navigates) and
     // tell the user, rather than silently no-op'ing the mutators.
     if (!canEdit) {
@@ -10561,6 +10616,18 @@ export function CanvasSurface({
     // Files (images / videos / audio / anything dragged from Finder). Shares
     // the same routing as the "Add → File" menu picker.
     const files = e.dataTransfer.files;
+    // One file onto a file card of its kind: a new version of it.
+    if (files && files.length === 1 && !e.altKey) {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const overId = el?.closest?.('[data-card-id]')?.getAttribute('data-card-id');
+      const over = overId ? cardByIdRef.current[overId] : null;
+      if (over && canVersion(over) && !over.locked && kindFromMime(files[0].type) === over.kind) {
+        e.preventDefault();
+        setVersionDropTarget(null);
+        await addVersionFromFile(versionEnv(), over.id, files[0]);
+        return;
+      }
+    }
     if (files && files.length > 0) {
       e.preventDefault();
       await ingestFiles(files, cx, cy);

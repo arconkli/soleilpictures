@@ -298,6 +298,11 @@ link — there is no canvas for them to open, and the deep link would not resolv
 For an audio clip the panel also reports its **length, tempo, key and format**,
 which is most of the reason to open it at all.
 
+A file with more than one version lists them under **Versions**, where you can
+make an older one current again, download it, label it, or delete it — see
+[Versions](/docs/files#versions). Its right-click menu here offers **Upload new
+version…** too.
+
 ## Adding files here
 
 Drag files into Files, or use **Add files** in the toolbar. They join the
@@ -307,6 +312,10 @@ cluster without going on its board: they wait in Files, marked
 dropping on the canvas is how you put files straight on the board. An empty
 cluster offers **Add files**, **New cluster** and **Link a cluster** right
 where its contents would be.
+
+Drop a single file onto a file of the same kind instead, and it becomes that
+file's [next version](/docs/files#versions) — the file lights up and says so
+first. Hold `⌥` to add it as a separate file.
 
 ## Presence
 

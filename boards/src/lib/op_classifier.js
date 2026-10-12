@@ -119,6 +119,8 @@ export function classifyUpdate(beforeState, updateBytes) {
           cardDeletes++;
         } else if (change.action === 'update') {
           cardOtherUpdates++;
+          const newYMap = cards.get(key);
+          if (newYMap) pickCardR2Keys(newYMap, r2Keys);
         }
       });
     } else if (target instanceof Y.Map) {
@@ -131,11 +133,14 @@ export function classifyUpdate(beforeState, updateBytes) {
       if (k && k.size > 0) {
         let posChange = false;
         let nonPosChange = false;
-        k.forEach((_change, key) => {
+        k.forEach((change, key) => {
           if (key === 'x' || key === 'y' || key === 'z' || key === 'w' || key === 'h') {
             posChange = true;
           } else {
             nonPosChange = true;
+            // A file written onto an existing card — a new version, or a
+            // finished upload — is as new to storage as a new card's.
+            if (change.action !== 'delete') collectR2Keys(target.get(key), r2Keys);
           }
         });
         if (posChange && !nonPosChange) cardMoves++;
