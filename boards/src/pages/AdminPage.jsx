@@ -81,7 +81,7 @@ const STORAGE_KEY = 'admin.tab';
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
 const PRIMARY_IDS = ['overview', 'users', 'approvals', 'waitlist'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
-const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'tagging', 'universe'];
+const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
