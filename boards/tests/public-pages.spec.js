@@ -137,3 +137,14 @@ test('an idle /scout does not run a frame loop forever', async ({ page }) => {
   });
   await expect.poll(visibleKeys).not.toBe(atTop);
 });
+
+test('a template item page puts its CTA at the right edge of the topbar', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await page.goto('/templates/shot-list-template');
+  const cta = page.locator('.public-topbar a.public-cta');
+  await expect(cta).toBeVisible();
+  const bar = await page.locator('.public-topbar').boundingBox();
+  const box = await cta.boundingBox();
+  // Within the topbar's own right padding of its right edge, not beside the logo.
+  expect(bar.x + bar.width - (box.x + box.width)).toBeLessThan(40);
+});

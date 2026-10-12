@@ -102,10 +102,14 @@ export function PublicTemplatePage({ slug }) {
     <div className="public-shell seo-shell public-dark">
       <div className="public-topbar">
         <a className="public-brand" href="/" title="Clusters home">
-          <ClustersMark size={18} />
-          <span>Soleil Clusters</span>
+          <ClustersMark size={20} />
+          <span className="public-brand-name">Clusters</span>
         </a>
-        <div className="public-topbar-right">
+        {/* The shared topbar markup: the spacer is what pushes the CTA to the
+            right edge (an unstyled wrapper left it beside the logo), and
+            .public-brand-name is what folds the label away on a narrow phone. */}
+        <div className="public-topbar-spacer" />
+        <div className="public-topbar-actions">
           {item && <a className="public-cta" href={addHref(item.slug)} {...lp.ctaProps('topbar', addHref(item.slug))}>Use this template</a>}
         </div>
       </div>
