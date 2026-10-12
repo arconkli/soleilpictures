@@ -82,12 +82,17 @@ export function mountTrash() {
   mountInto(h(TrashModal, { open: true, workspaceId: 'ws-probe', onClose: () => {} }));
 }
 
-export function mountShare() {
+// onlinePeerName: also list an editor who is online (live presence) under
+// that display name.
+export function mountShare({ onlinePeerName } = {}) {
   const self = '00000000-0000-4000-8000-000000000001';
+  const peer = '00000000-0000-4000-8000-000000000002';
   mountInto(h(ShareModal, {
     board: { id: 'b-probe', name: 'Reference wall', workspace_id: 'ws-probe' },
     workspace: { id: 'ws-probe', name: 'Probe studio', created_by: self },
-    workspaceMembers: [{ user_id: self, role: 'owner' }],
+    workspaceMembers: [{ user_id: self, role: 'owner' },
+      ...(onlinePeerName ? [{ user_id: peer, role: 'editor' }] : [])],
+    wsPeers: onlinePeerName ? [{ user: { id: peer, name: onlinePeerName } }] : [],
     selfUserId: self, canManage: true, myWorkspaceRole: 'owner',
     onClose: () => {},
   }));

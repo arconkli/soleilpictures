@@ -2491,14 +2491,19 @@ body {
 }
 /* Block, not flex: text-overflow does nothing to the text of a flex
    container, so a long address was cut mid-letter with no ellipsis. The
-   online dot that the flex row was aligning is inline-block below. */
+   one row with an online dot is flex again (.has-dot) with its text in a
+   span that does the ellipsis. */
 .share-row-name {
   font: 600 12.5px/1.3 var(--font-sans);
   color: var(--ink-0);
   display: block;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.share-row-name .share-online { display: inline-block; margin-left: 6px; vertical-align: 1px; }
+/* A member row with an online dot: the text truncates in its own span and
+   the dot stays, so a long name never loses its presence indicator. */
+.share-row-name.has-dot { display: flex; align-items: center; gap: 6px; }
+.share-row-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-row-name.has-dot .share-online { flex: 0 0 auto; }
 .share-row-sub {
   font: 500 10.5px/1.3 var(--font-sans);
   color: var(--ink-3);
