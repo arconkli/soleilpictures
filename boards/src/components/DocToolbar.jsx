@@ -95,8 +95,15 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
     bar.addEventListener('wheel', onWheel, { passive: false });
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
     ro?.observe(bar);
+    // The bar's own box doesn't change when a control inside it does (the Font
+    // label going from "Inter" to "Playfair Display", the zoom readout), but
+    // its scrollWidth does — watch the controls too, or the fades go stale
+    // until the next scroll. Re-observing an observed element is a no-op.
+    const observeControls = () => { for (const el of bar.children) ro?.observe(el); };
+    observeControls();
     // Controls come and go with the mode (screenplay, view-only) — re-measure.
-    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(sync) : null;
+    const mo = typeof MutationObserver !== 'undefined'
+      ? new MutationObserver(() => { observeControls(); sync(); }) : null;
     mo?.observe(bar, { childList: true });
     return () => {
       bar.removeEventListener('scroll', sync);
