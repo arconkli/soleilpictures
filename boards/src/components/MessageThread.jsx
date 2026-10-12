@@ -9,7 +9,7 @@ import {
   searchMessagesInConversation,
   fetchReplies, replyCountsFor, togglePin,
   listPinnedForConversation,
-  addParticipants, leaveConversation, renameConversation,
+  addParticipants, leaveConversation, rejoinConversation, renameConversation,
 } from '../lib/messages.js';
 import {
   broadcastConversationMessage, broadcastConversationTyping, broadcastConversationChange,
@@ -549,14 +549,24 @@ export function MessageThread({
       danger: true,
     });
     if (!ok) return;
-    try {
-      await leaveConversation({ conversationId, userId });
-      onChanged?.();
-      onBack?.();
-    } catch (e) {
-      console.warn('leave failed', e);
+    // leaveConversation resolves false on a failed write (it never threw, so
+    // a failure used to pass as a leave).
+    const convId = conversationId;
+    const left = await leaveConversation({ conversationId: convId, userId });
+    if (!left) {
       feedback.toast({ type: 'error', message: 'Could not leave the conversation — try again.' });
+      return;
     }
+    onChanged?.();
+    onBack?.();
+    undoToast(feedback, {
+      message: 'You left the conversation',
+      onUndo: async () => {
+        const back = await rejoinConversation({ conversationId: convId, userId });
+        if (!back) { feedback.toast({ type: 'error', message: "Couldn't bring the conversation back — try again." }); return; }
+        onChanged?.();
+      },
+    });
   };
 
   // ── Render ───────────────────────────────────────────────────────────
