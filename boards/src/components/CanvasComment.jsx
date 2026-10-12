@@ -144,6 +144,15 @@ export function CanvasCommentLayer({
 
 function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
   const [body, setBody] = useState('');
+  // onSubmit may be async. The draft stays mounted (with its text) when a
+  // post fails, so it must not take a second press while one is in flight.
+  const [busy, setBusy] = useState(false);
+  const post = async () => {
+    if (busy || !body.trim()) return;
+    setBusy(true);
+    try { await onSubmit?.(body); }
+    finally { setBusy(false); }
+  };
   const ref = useRef(null);
   // Outside click + Escape cancel.
   useEffect(() => {
@@ -173,7 +182,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
          onMouseDown={(e) => e.stopPropagation()}
          onPointerDown={(e) => e.stopPropagation()}>
       <form className="canvas-comment-card canvas-comment-card-draft"
-            onSubmit={(e) => { e.preventDefault(); onSubmit?.(body); }}>
+            onSubmit={(e) => { e.preventDefault(); post(); }}>
         <textarea className="canvas-comment-draft-input"
                   autoFocus
                   rows={2}
@@ -190,7 +199,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      onSubmit?.(body);
+                      post();
                     }
                   }} />
         <div className="canvas-comment-draft-actions">
@@ -200,7 +209,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
                   onClick={onCancel}>Cancel</button>
           <button type="submit"
                   className="canvas-comment-draft-post"
-                  disabled={!body.trim()}>Post</button>
+                  disabled={!body.trim() || busy}>{busy ? 'Posting…' : 'Post'}</button>
         </div>
       </form>
     </div>
