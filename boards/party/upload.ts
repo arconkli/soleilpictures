@@ -520,6 +520,12 @@ export default class UploadParty implements Party.Server {
       // same 403 over_quota answer as the board branch — only over_quota
       // refuses here (owner_not_paid is the multipart file-size gate, not an
       // image one). Current clients already handle this response.
+      // Deliberate consequence: a profile picture or workspace icon is
+      // uploaded into the ACTIVE workspace (ProfileTab, WorkspaceTab), so an
+      // editor working inside someone else's over-quota workspace is refused
+      // an avatar change there, with the cluster-owner wording. The bytes
+      // would be billed to that owner, so the refusal is right; uploading
+      // avatars to the user's own workspace is the fix if it ever bites.
       const authRows = body.boardId
         ? await supabaseRpc("authorize_image_upload", { p_board_id: body.boardId, p_bytes: declared }, accessToken)
         : await supabaseRpc("authorize_upload", { p_workspace_id: workspaceId, p_bytes: declared }, accessToken);
