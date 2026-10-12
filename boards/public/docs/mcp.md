@@ -251,8 +251,9 @@ bodies, and expect it to be large. Both `read_board` and `list_boards` paginate
 
 **Deleting returns the card.** `delete_card` responds with the card it
 removed. That object is the undo — pass it back to `add_cards` to restore it.
-Worth keeping in context before destructive work. Grids, palettes, schedules
-and docs written in the app are the exception: the response lists them in
+Worth keeping in context before destructive work. Card kinds `add_cards` does
+not create (grids, palettes, schedules, cluster cards and the like) and docs
+written in the app are the exception: the response lists them in
 `not_restorable`, and they come back from the board's Version history in the
 app instead.
 
