@@ -4836,6 +4836,12 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 }
 
 .adm-cohort-cell.is-future { background: transparent; }
+/* The current week: measured so far, not finished. Unfilled so it is not read
+   against the ramp, outlined so it is not read as absent. */
+.adm-cohort-cell.is-partial {
+  background: transparent; color: var(--adm-plot-ink-2);
+  box-shadow: inset 0 0 0 1px var(--adm-plot-ink-3);
+}
 
 /* The shared "not measured" hatch — the token is defined with the weekly
    consistency rules at the end of this file, where the streak strip draws its
