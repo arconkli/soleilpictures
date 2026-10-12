@@ -265,3 +265,75 @@ test('VS-PANELS-09: a long name in the Share list ends in an ellipsis, not a cut
   expect(m.display).not.toMatch(/flex/);
   await page.screenshot({ path: test.info().outputPath('share-390-dark.png') });
 });
+
+const SELF = '00000000-0000-4000-8000-000000000001';
+const U2 = '00000000-0000-4000-8000-000000000002';
+const U3 = '00000000-0000-4000-8000-000000000003';
+
+async function answerMembers(page) {
+  await answerRest(page, 'workspace_members', [
+    { user_id: SELF, role: 'owner', created_at: '2026-01-01T00:00:00Z' },
+    { user_id: U2, role: 'editor', created_at: '2026-01-02T00:00:00Z' },
+    { user_id: U3, role: 'viewer', created_at: '2026-01-03T00:00:00Z' },
+  ]);
+  const rpc = (name, rows) => page.route(`**/rest/v1/rpc/${name}*`, (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(rows),
+  }));
+  await rpc('workspace_user_directory', [
+    { workspace_id: 'ws-probe', user_id: U2, title: 'Maya Okonkwo', email: 'maya@example.com' },
+    { workspace_id: 'ws-probe', user_id: U3, title: 'Sam', email: 'sam@example.com' },
+  ]);
+  await rpc('list_pending_invites_for_workspace', []);
+}
+
+test('VS-PANELS-10: Settings section titles stay on one line beside their descriptions', async ({ page }) => {
+  await answerMembers(page);
+  for (const vp of [DESKTOP, { width: 1024, height: 768 }]) {
+    await page.setViewportSize(vp);
+    await page.goto('/?local=1&reset=1&blank=1');
+    await probe(page, 'mountSettings', 'members', 'owner');
+    await page.locator('.probe-settings-trigger').click();
+    const title = page.locator('.settings-cat-title', { hasText: 'People in this workspace' });
+    await expect(title).toBeVisible();
+    expect((await rect(title)).h, `one line at ${vp.width}`).toBeLessThan(20);
+  }
+  await page.screenshot({ path: test.info().outputPath('members-1024-dark.png') });
+  // Phone: the description goes under the title rather than beside it.
+  await page.setViewportSize(PHONE);
+  await page.goto('/?local=1&reset=1&blank=1');
+  await probe(page, 'mountSettings', 'docs', 'owner');
+  await page.locator('.probe-settings-trigger').click();
+  const titles = page.locator('.settings-cat-title');
+  await expect(titles.first()).toBeVisible();
+  for (const t of await titles.all()) {
+    const r = await rect(t);
+    expect(r.h, 'a title is one line').toBeLessThan(20);
+  }
+  const head = await rect(page.locator('.settings-cat-head').first());
+  const desc = await rect(page.locator('.settings-cat-head .settings-cat-desc').first());
+  expect(desc.w).toBeGreaterThan(head.w * 0.8);
+  await setTheme(page, 'light');
+  await page.screenshot({ path: test.info().outputPath('docs-390-light.png') });
+});
+
+test('VS-PANELS-12: Members role menus line up in one column and use the panel chevron', async ({ page }) => {
+  await answerMembers(page);
+  await page.setViewportSize(DESKTOP);
+  await probe(page, 'mountSettings', 'members', 'owner');
+  await page.locator('.probe-settings-trigger').click();
+  const selects = page.locator('.settings-member-row select.settings-input');
+  await expect(selects).toHaveCount(2);
+  const a = await rect(selects.nth(0));
+  const b = await rect(selects.nth(1));
+  expect(Math.abs(a.r - b.r), 'Editor and Viewer menus end at the same x').toBeLessThan(1);
+  expect(Math.abs(a.l - b.l)).toBeLessThan(1);
+  // The owner's plain-text role sits in the same column too.
+  const ownerRole = await rect(page.locator('.settings-member-row .settings-member-role').first());
+  expect(Math.abs(ownerRole.r - a.r)).toBeLessThan(1);
+  // Hidden slots are not reachable.
+  await expect(page.locator('.settings-member-row button', { hasText: 'Make owner' })).toHaveCount(1);
+  expect(await selects.nth(0).evaluate((el) => getComputedStyle(el).appearance)).toBe('none');
+  await page.screenshot({ path: test.info().outputPath('members-1440-dark.png') });
+  await setTheme(page, 'light');
+  await page.screenshot({ path: test.info().outputPath('members-1440-light.png') });
+});
