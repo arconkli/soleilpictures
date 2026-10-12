@@ -46,6 +46,22 @@ test.describe('the signed-out front door on a light theme', () => {
   });
 });
 
+test('the gold sign-in button shows a visible keyboard focus ring', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await page.goto('/');
+  const input = page.getByLabel('Email address');
+  await input.fill('focus-ring@example.com');
+  await input.focus();
+  await page.keyboard.press('Tab');
+  const btn = page.locator('.sb-frost .auth-btn').first();
+  await expect(btn).toBeFocused();
+  // A 1px glow at 32% gold on a gold fill was the old "ring": invisible.
+  await expect(btn).toHaveCSS('outline-style', 'solid');
+  await expect(btn).toHaveCSS('outline-width', '2px');
+  expect(await btn.evaluate((el) => getComputedStyle(el).outlineColor)).not.toBe(
+    await btn.evaluate((el) => getComputedStyle(el).backgroundColor));
+});
+
 // Rects of the footer and of what must never be drawn over it. A footer that
 // has stepped aside (visibility:hidden) cannot be overlapped.
 function footerClashes(page, selectors) {

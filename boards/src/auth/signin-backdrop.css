@@ -182,6 +182,10 @@
 .sb-frost .auth-form { gap: 12px; max-width: none; }
 .sb-frost .auth-btn { background: var(--soleil); color: var(--bg-0); }
 .sb-frost .auth-btn:hover:not(:disabled) { box-shadow: var(--shadow-2); transform: translateY(-1px); }
+/* The app-wide focus ring is a faint gold glow, which disappears on a gold
+   fill: a keyboard user tabbing to Continue / Sign in saw the button exactly
+   as at rest. A light-ink outline clear of the fill reads on gold and frost. */
+.sb-frost .auth-btn:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 2px; }
 /* A secondary action in the frost (the code step's "Open Gmail") is outlined in
    light ink: the frost is dark in both themes, and gold stays with the one
    primary control on the step. */
