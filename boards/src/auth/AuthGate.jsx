@@ -435,6 +435,10 @@ export function AuthGate({ children, signedOut = null }) {
   const devWithoutSupabase = !isSupabaseConfigured;
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(isSupabaseConfigured && !localMode);
+  // Whether this mount has ever held a session. `signedOut` answers only a
+  // restore that never produced one; a sign-out from a live session (Use a
+  // different email on the account pricing page) still wants the email box.
+  const hadSession = useRef(false);
 
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
@@ -465,6 +469,7 @@ export function AuthGate({ children, signedOut = null }) {
           await consumeScoutClaim(data.session.user.id);
           if (consumeShareReturn()) return;
         }
+        if (data.session) hadSession.current = true;
         if (!cancelled) setSession(data.session);
       } catch (error) {
         console.warn('Auth session could not be restored', error);
@@ -502,6 +507,7 @@ export function AuthGate({ children, signedOut = null }) {
           await consumeScoutClaim(sess.user.id);
           if (consumeShareReturn()) return;
         }
+        if (sess) hadSession.current = true;
         if (!cancelled) setSession(sess);
       })();
     });
@@ -537,10 +543,12 @@ export function AuthGate({ children, signedOut = null }) {
     );
   }
 
-  if (loading) return <SplashLoading />;
+  // A route that supplies `signedOut` (only /pricing) is dark whichever way the
+  // restore goes, so its splash is too.
+  if (loading) return <SplashLoading dark={!!signedOut} />;
   // `signedOut` lets a public route (main.jsx: /pricing) stand in for the wall
   // when a cached session turns out not to restore.
-  if (!session) return signedOut || <SignIn />;
+  if (!session) return (!hadSession.current && signedOut) || <SignIn />;
 
   const signOut = async () => { await supabase.auth.signOut(); };
 
