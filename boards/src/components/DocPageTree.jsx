@@ -10,7 +10,7 @@
 //   - "+" button on a row → insert new child
 //   - "+ New page" at the bottom → root-level page
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   buildPageTree, addPage, deletePage, renamePage, movePage, setPageExpanded,
   getDocUndoManager, readPages, DOC_ORIGIN,
@@ -33,20 +33,40 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   const feedback = useFeedback();
 
   const startRename = (p) => { if (!canEdit) return; setRenaming(p.id); setDraftName(p.name || ''); };
+  // A page just made with "+" is selected with { keepOpen, naming }: the phone
+  // drawer stays up while it is named (selecting normally closes it, which
+  // hid the auto-focused name field and left the page "Untitled"), and its
+  // editor doesn't take the caret from the name field. Finishing the name —
+  // or cancelling it — selects it again the normal way.
+  const justAddedRef = useRef(null);
+  const finishAdded = (id) => {
+    if (justAddedRef.current !== id) return;
+    justAddedRef.current = null;
+    onSelectPage(id);
+  };
   const commitRename = () => {
-    if (renaming) renamePage(ydoc, renaming, draftName.trim() || 'Untitled', scope);
+    const id = renaming;
+    if (id) renamePage(ydoc, id, draftName.trim() || 'Untitled', scope);
     setRenaming(null);
+    if (id) finishAdded(id);
+  };
+  const cancelRename = () => {
+    const id = renaming;
+    setRenaming(null);
+    if (id) finishAdded(id);
   };
 
   const onAddRoot = () => {
     const id = addPage(ydoc, { scope });
-    onSelectPage(id);
+    justAddedRef.current = id;
+    onSelectPage(id, { keepOpen: true, naming: true });
     setTimeout(() => { setRenaming(id); setDraftName(''); }, 0);
   };
   const onAddChild = (parentId) => {
     const id = addPage(ydoc, { parent_id: parentId, scope });
     setPageExpanded(ydoc, parentId, true, scope);
-    onSelectPage(id);
+    justAddedRef.current = id;
+    onSelectPage(id, { keepOpen: true, naming: true });
     setTimeout(() => { setRenaming(id); setDraftName(''); }, 0);
   };
 
@@ -208,7 +228,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                    onBlur={commitRename}
                    onKeyDown={(e) => {
                      if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
-                     if (e.key === 'Escape') { e.preventDefault(); setRenaming(null); }
+                     if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
                    }}
                    onClick={(e) => e.stopPropagation()} />
           ) : (

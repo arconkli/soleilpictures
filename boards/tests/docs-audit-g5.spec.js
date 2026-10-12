@@ -235,6 +235,28 @@ test('DOCS-20: renaming a cue updates the on-screen "(CONT\'D)" page-break marke
   await expect(contd.first()).toHaveText("JOHN (CONT'D)", { timeout: 5000 });
 });
 
+// ── DOCS-21 ───────────────────────────────────────────────────────────────
+test('DOCS-21: on a phone, "+" keeps the page drawer open to name the new page', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openDoc(page);
+  const surface = page.locator('.doc-card-modal .doc-surface');
+  await page.locator('.doc-card-modal .doc-mobile-pages-btn').click();
+  await expect(surface).toHaveClass(/mobile-rail-open/);
+  await page.locator('.doc-card-modal .doc-tree-add-root').click();
+  const name = page.locator('.doc-card-modal .doc-tree-rename');
+  await expect(name).toBeVisible();
+  await expect(name).toBeFocused();
+  await expect(surface).toHaveClass(/mobile-rail-open/);
+  await name.fill('Act Two');
+  await name.press('Enter');
+  await expect(surface).not.toHaveClass(/mobile-rail-open/);
+  const names = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    return T.readPages(T.ydoc, T.getScope()).map(p => p.name);
+  });
+  expect(names).toContain('Act Two');
+});
+
 // ── DOCS-14 ───────────────────────────────────────────────────────────────
 // A collaborator's edit arrives while the comment composer is open. It lands
 // as a whole-document replace, so raw offsets captured at "Add comment" no
