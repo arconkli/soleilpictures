@@ -98,6 +98,7 @@ the board, these keys go to whichever side the pointer was last over.
 
 | Key | Action |
 |---|---|
+| `Tab` | Into the folders — one stop each, where `Enter` opens it and `Space` selects it — then the files, as a single stop |
 | `←` `→` `↑` `↓` | Move through files — in the grid, `↑` / `↓` go to the nearest tile in the next row |
 | `Enter` | Select the highlighted file |
 | `⇧Space` | Add the highlighted file to the selection, or take it out — the keyboard version of a tile's round check |

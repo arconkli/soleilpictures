@@ -69,6 +69,58 @@ test('VS-FILES-03: the audio list Format column is set in --ink-2, like Time', a
   expect(await fmt.evaluate((el) => getComputedStyle(el).color)).toBe(ink2);
 });
 
+test('VS-FILES-04: the focused Grid/List button shows a ring, and Tab reaches the folders and the files', async ({ page }) => {
+  await go(page);
+  await openFullFiles(page);
+  const grid = full(page).getByRole('button', { name: 'Grid layout' });
+  await expect(grid).toHaveClass(/\bon\b/);
+  // Into the toolbar from the search field, then Tab to the on segment.
+  await full(page).getByLabel('Search files in this cluster').focus();
+  for (let i = 0; i < 6; i++) {
+    if (await grid.evaluate((el) => el === document.activeElement)) break;
+    await page.keyboard.press('Tab');
+  }
+  await expect(grid).toBeFocused();
+  expect(await grid.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('solid');
+
+  // Tab on: every folder is a stop, then exactly one file.
+  const folders = await full(page).locator('[data-folder-id]').count();
+  expect(folders).toBeGreaterThan(0);
+  const seen = [];
+  for (let i = 0; i < 20; i++) {
+    await page.keyboard.press('Tab');
+    const at = await page.evaluate(() => {
+      const a = document.activeElement;
+      return a?.dataset?.folderId ? 'folder' : a?.dataset?.itemId ? 'file' : null;
+    });
+    if (at) seen.push(at);
+    if (at === 'file') break;
+  }
+  expect(seen.filter((s) => s === 'folder').length).toBe(folders);
+  expect(seen.at(-1)).toBe('file');
+  // Tabbing onto it puts the keyboard cursor there; ← → move focus with it.
+  const first = full(page).locator('[data-item-id]:focus');
+  await expect(first).toHaveClass(/is-active/);
+  const id = await first.getAttribute('data-item-id');
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.dataset?.itemId)).not.toBe(id);
+  await expect(full(page).locator('[data-item-id]:focus')).toHaveClass(/is-active/);
+  await expect(full(page).locator('[data-item-id][tabindex="0"]')).toHaveCount(1);
+  // Space is still Quick look on the focused file.
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('dialog', { name: /^Quick look/ })).toBeVisible();
+});
+
+test('VS-FILES-04: Enter on a focused folder opens it', async ({ page }) => {
+  await go(page);
+  await openFullFiles(page);
+  const folder = full(page).locator('[data-folder-id]').first();
+  const name = (await folder.locator('.ft-name').textContent()).trim();
+  await folder.focus();
+  await page.keyboard.press('Enter');
+  await expect(full(page).getByRole('heading', { level: 1, name })).toBeVisible();
+});
+
 test.describe('on a phone', () => {
   test.use({ hasTouch: true });
 

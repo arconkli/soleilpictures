@@ -2675,6 +2675,36 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "Tab"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Into the folders — one stop each, where "
+      },
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " opens it and "
+      },
+      {
+       "t": "code",
+       "v": "Space"
+      },
+      {
+       "t": "text",
+       "v": " selects it — then the files, as a single stop"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "←"
       },
       {
@@ -19641,7 +19671,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " adds it to the selection."
+     "v": " adds it to the selection. "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " reaches each folder ("
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " opens it) and then the files, which take one "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " stop between them: the arrows move inside it."
     }
    ]
   },
