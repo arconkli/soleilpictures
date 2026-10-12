@@ -90,7 +90,12 @@ export function FeedbackButton({ as = 'floating' }) {
   const hasText = message.trim().length >= 2;
   const canSend = (Boolean(topic) || hasText) && !busy;
 
-  const close = () => { if (!busy) setOpen(false); };
+  // Read `busy` through a ref: the Escape handler below is bound once per
+  // open and would otherwise see busy=false forever, closing the modal
+  // mid-send (which × and the backdrop refuse) and hiding a failed send.
+  const busyRef = useRef(false);
+  busyRef.current = busy;
+  const close = () => { if (!busyRef.current) setOpen(false); };
 
   // What will be attached, computed while the modal is open so the line the
   // person reads is the record that is sent.
@@ -162,6 +167,7 @@ export function FeedbackButton({ as = 'floating' }) {
 
   const submit = async () => {
     if (!topic && !hasText) { setError('Pick a topic, or write a few words.'); return; }
+    busyRef.current = true;   // before the re-render: an Escape in between must not close
     setBusy(true);
     setError('');
     const text = message.trim();
