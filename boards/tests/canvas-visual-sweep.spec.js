@@ -311,3 +311,44 @@ test.describe('VS-CANVAS-08 the phone photo popover stays above the bottom nav',
     await ctx.close();
   });
 });
+
+const SW = ['#E8D9B5', '#C26A3A', '#2D2A26', '#F4A14A', '#5B8FC7', '#7C5CC9', '#3FA39A'];
+const palette = (id, n, y) => ({
+  id, kind: 'palette', title: 'Act I', x: 120, y, w: 300, h: 130,
+  swatches: SW.slice(0, n).map((hex) => ({ name: 'Color', hex })),
+});
+
+test.describe('VS-CANVAS-09/10 palette card', () => {
+  test('the add-swatch sliver is neutral at rest, gold only on hover', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await plant(page, [palette('pal4', 4, 120)]);
+    const add = page.locator('[data-card-id="pal4"] .pc-add');
+    await expect(add).toBeVisible();
+    await page.mouse.move(5, 450);
+    const gold = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--soleil').trim());
+    const rest = await add.evaluate((el) => ({ border: getComputedStyle(el).borderTopColor, color: getComputedStyle(el).color }));
+    const goldRgb = await page.evaluate((c) => { const d = document.createElement('i'); d.style.color = c; document.body.append(d); const v = getComputedStyle(d).color; d.remove(); return v; }, gold);
+    expect(rest.border).not.toBe(goldRgb);
+    expect(rest.color).not.toBe(goldRgb);
+    await add.hover();
+    await expect.poll(() => add.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe(goldRgb);
+  });
+
+  for (const theme of ['dark', 'light']) {
+    test(`hex codes are never cut off in a default-width palette (${theme})`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await plant(page, [palette('pal4', 4, 120), palette('pal6', 6, 300), palette('pal7', 7, 480)]);
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+      for (const id of ['pal4', 'pal6', 'pal7']) {
+        const hexes = await page.locator(`[data-card-id="${id}"] .pc-hex`).evaluateAll((els) =>
+          els.map((el) => ({ t: el.textContent, sw: el.scrollWidth, cw: el.clientWidth, shown: !!el.offsetParent })));
+        // A code is either whole or not drawn (the narrowest cells defer to
+        // the tooltip) — never '#E8D9…'.
+        for (const h of hexes.filter((x) => x.shown)) expect(h.sw, `${id} ${h.t}`).toBeLessThanOrEqual(h.cw);
+        // The default 4- and 6-colour palettes show every code.
+        if (id !== 'pal7') expect(hexes.filter((x) => x.shown).length, `${id} shows its codes`).toBe(hexes.length);
+      }
+      await page.screenshot({ path: test.info().outputPath(`palette-${theme}.png`) });
+    });
+  }
+});
