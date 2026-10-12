@@ -37,6 +37,7 @@ import {
 } from '../lib/boardsApi.js';
 import {
   activeLinks, deriveAccessMode, inheritedAccessRows, linkForMode, linkKind, otherModeLinks,
+  revocableLinks,
 } from '../lib/shareAccess.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { maskName, maskEmail } from '../lib/captureIdentity.js';
@@ -333,23 +334,36 @@ export function ShareModal({
     if (next === from || busyLink) return;
 
     if (next === 'off') {
-      if (live.length > 0) {
+      // Only the links this person may revoke: the server refuses an editor
+      // on anyone else's, and trying them all made the switch fail forever.
+      // The rest are named, and the status line keeps counting them as live.
+      const { mine, others } = revocableLinks(publicLinks, { isManager, selfUserId });
+      const othersNote = others.length === 0 ? ''
+        : others.length === 1
+          ? ' 1 link someone else created stays live — only they or the workspace owner can revoke it.'
+          : ` ${others.length} links other people created stay live — only they or the workspace owner can revoke them.`;
+      if (mine.length > 0) {
         const ok = await feedback.confirm({
-          title: live.length === 1 ? 'Revoke this link?' : `Revoke all ${live.length} links?`,
-          message: 'Anyone using them will lose access immediately. People invited by email keep their access.',
+          title: others.length > 0
+            ? (mine.length === 1 ? 'Revoke your link?' : `Revoke your ${mine.length} links?`)
+            : (mine.length === 1 ? 'Revoke this link?' : `Revoke all ${mine.length} links?`),
+          message: 'Anyone using them will lose access immediately. People invited by email keep their access.' + othersNote,
           confirmLabel: 'Revoke',
           danger: true,
         });
         if (!ok) return;   // the picker does not move on a cancelled confirm
         setBusyLink(true);
-        const results = await Promise.allSettled(live.map(l => revokePublicLink(l.token)));
+        const results = await Promise.allSettled(mine.map(l => revokePublicLink(l.token)));
         setBusyLink(false);
         const failed = results.filter(r => r.status === 'rejected').length;
         await refreshLinks();
         feedback.toast(failed
-          ? { type: 'error', message: `Could not revoke ${failed} of ${live.length} — try again.` }
-          : { type: 'success', message: live.length === 1 ? 'Link revoked.' : 'Links revoked.' });
+          ? { type: 'error', message: `Could not revoke ${failed} of ${mine.length} — try again.` }
+          : { type: 'success', message: (mine.length === 1 ? 'Link revoked.' : 'Links revoked.') + othersNote,
+              ...(othersNote ? { ttl: 8000 } : {}) });
         if (failed) return;
+      } else if (others.length > 0) {
+        feedback.toast({ type: 'info', message: othersNote.trim(), ttl: 8000 });
       }
       setAccessMode('off');
     } else {
@@ -754,7 +768,9 @@ export function ShareModal({
   // What the general-access block says about itself. Built from rows, never
   // from the picker, so it can never claim a link that does not exist.
   const accessHint = accessMode === 'off'
-    ? 'Only the people listed below can open this cluster.'
+    ? (live.length > 0
+        ? 'Only the people listed below can open this cluster, plus anyone holding a link that is still live. Links other people created can only be revoked by them or the workspace owner.'
+        : 'Only the people listed below can open this cluster.')
     : accessMode === 'edit'
       ? 'Anyone with the link can preview this cluster and join as an editor with one click. They sign in to accept; sub-clusters are included.'
       : `Anyone with the link can open this cluster${linkIncludeSubboards ? ' and its sub-clusters' : ''} — view only, no account needed.`;

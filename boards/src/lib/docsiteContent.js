@@ -26936,7 +26936,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Revokes every link on the cluster"
+       "v": "Revokes every link on the cluster that you can revoke"
       }
      ],
      [
@@ -26996,6 +26996,29 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " revokes, and it asks first."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks "
+    },
+    {
+     "t": "strong",
+     "v": "Only invited people",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only invited people"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, or the workspace owner, revokes them."
     }
    ]
   },

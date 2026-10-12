@@ -2986,9 +2986,11 @@ One picker, three answers:
 Setting | What the link does | Account needed
 Anyone with the link · can view | Opens the cluster read-only | No
 Anyone with the link · can edit | Recipient confirms, signs in, and joins as an editor | Yes
-Only invited people | Revokes every link on the cluster | —
+Only invited people | Revokes every link on the cluster that you can revoke | —
 
 Choosing one hands you the link straight away; the button beside the picker copies it again any time. Switching between can view and can edit never revokes anything — a link you have already sent someone keeps working, and the panel tells you it is still live. Only Only invited people revokes, and it asks first.
+
+Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks Only invited people their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, or the workspace owner, revokes them.
 
 An edit link is not an editable public link. It grants nothing on its own: the person who opens it sees a preview and an explicit Join step, and access is created when they sign in and take it.
 

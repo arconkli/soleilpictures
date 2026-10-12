@@ -193,6 +193,16 @@ test.describe('the simplification did not weaken the permissions', () => {
     expect(body.indexOf('if (!ok) return;')).toBeLessThan(body.indexOf("setAccessMode('off')"));
   });
 
+  test("turning access off revokes only the links this person may revoke", () => {
+    // SHARE-7: revoke_public_link refuses an editor on someone else's link, so
+    // revoking every live link made "Only invited people" fail on every try.
+    const s = modal();
+    const body = s.slice(s.indexOf('const onPickAccess'), s.indexOf('const onCopyPublicLink'));
+    expect(body).toMatch(/const \{ mine, others \} = revocableLinks\(publicLinks, \{ isManager, selfUserId \}\);/);
+    expect(body).toContain('mine.map(l => revokePublicLink(l.token))');
+    expect(body).not.toContain('live.map(l => revokePublicLink');
+  });
+
   test('the panel and the topbar converge on one link', () => {
     // ensurePublicLink reuses by SCOPE, so a panel defaulting to
     // this-cluster-only while the topbar minted with sub-clusters left a board
