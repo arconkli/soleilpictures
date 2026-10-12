@@ -31,6 +31,11 @@ export function CommentInlinePopover({
   // notified through notify_comment_mention. Absent (e.g. a legacy view='doc'
   // board with no board id in scope) → plain-text replies, as before.
   workspaceId = null, boardId = null, cardId = null,
+  // False for a view-only reader. Their Y.Doc writes never leave the tab (the
+  // board room marks their socket readOnly and drops them), so a reply,
+  // resolve or delete would look saved and vanish on reload, and an
+  // @-mention would notify someone about a reply that doesn't exist.
+  editable = true,
 }) {
   const [thread, setThread] = useState(null);
   const [reply, setReply] = useState('');
@@ -129,6 +134,7 @@ export function CommentInlinePopover({
           {(thread.author || '?')[0]?.toUpperCase()}
         </span>
         <span className="comment-inline-name">{thread.author}</span>
+        {editable ? (<>
         <button
           className="comment-inline-x"
           title={thread.resolved ? 'Reopen' : 'Resolve'}
@@ -195,6 +201,9 @@ export function CommentInlinePopover({
             onClose?.();
           }}
         >×</button>
+        </>) : (
+          <span className="comment-inline-viewonly">View only</span>
+        )}
       </div>
       <div className="comment-inline-body">{thread.body}</div>
       {thread.replies.map((r, i) => (
@@ -203,7 +212,7 @@ export function CommentInlinePopover({
           <div>{r.body}</div>
         </div>
       ))}
-      {!thread.resolved && (
+      {editable && !thread.resolved && (
         <form className="comment-inline-replyform" onSubmit={(e) => {
           e.preventDefault();
           const body = reply.trim();
@@ -233,7 +242,7 @@ export function CommentInlinePopover({
                  placeholder={workspaceId ? 'Reply… (@ to mention)' : 'Reply…'} />
         </form>
       )}
-      {replyMention && workspaceId && (
+      {editable && replyMention && workspaceId && (
         <EntityPicker
           workspaceId={workspaceId}
           anchor={replyMention.anchor}

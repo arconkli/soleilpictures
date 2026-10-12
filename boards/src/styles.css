@@ -15320,6 +15320,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .comment-inline-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.comment-inline-viewonly { font: 500 11px/1 var(--font-sans); color: var(--ink-2); padding: 4px; }
 .comment-inline-body { font: 400 13px/1.5 var(--font-sans); color: var(--ink-1); }
 .comment-inline-reply {
   background: var(--bg-3);

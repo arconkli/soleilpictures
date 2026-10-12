@@ -1530,6 +1530,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           workspaceId={workspaceId}
           boardId={scope?.boardId || null}
           cardId={scope?.docCardId || null}
+          editable={editable}
           onClose={() => setOpenThread(null)}
         />
       )}

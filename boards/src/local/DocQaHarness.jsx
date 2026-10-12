@@ -57,6 +57,10 @@ export function DocQaHarness() {
   // button) are correctly suppressed there.
   const isPublicView = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('public') === '1';
+  // ?docqa=1&viewer=1 mounts it as a signed-in VIEW-ONLY member: not public,
+  // but canEdit false — the case whose writes the board room drops.
+  const isViewer = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('viewer') === '1';
   // Stub messages state for the doc-header button (see MessagesUiContext below).
   // A non-zero unread count so the badge dot renders and can be asserted.
   const [messagesOpen, setMessagesOpen] = useState(false);
@@ -121,7 +125,7 @@ export function DocQaHarness() {
           boards={{}}
           wsPeers={[]}
           onJumpToPeer={() => {}}
-          canEdit={!isPublicView}
+          canEdit={!isPublicView && !isViewer}
           isPublic={isPublicView}
           autoFocus={false}
           onUpdate={(patch) => { if (patch && 'title' in patch) setTitle(patch.title || ''); }}
