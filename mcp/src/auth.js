@@ -16,7 +16,7 @@
 
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir, unlink, open, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, unlink, open, stat, rename, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
@@ -55,7 +55,20 @@ async function saveCredentials(creds) {
   await mkdir(dirname(CREDENTIALS), { recursive: true, mode: 0o700 });
   // 0600: this file holds a live credential. Node does not apply the mode to an
   // existing file, so it is set explicitly afterwards too.
-  await writeFile(CREDENTIALS, JSON.stringify(creds, null, 2), { mode: 0o600 });
+  //
+  // Written aside and renamed into place: every tool call re-reads this file
+  // outside the refresh lock, and a plain writeFile truncates first, so a read
+  // landing mid-write saw empty JSON and failed that call as "Not signed in".
+  // rename() swaps the whole file at once.
+  const tmp = `${CREDENTIALS}.${process.pid}.tmp`;
+  try {
+    await writeFile(tmp, JSON.stringify(creds, null, 2), { mode: 0o600 });
+    await chmod(tmp, 0o600);
+    await rename(tmp, CREDENTIALS);
+  } catch (e) {
+    await unlink(tmp).catch(() => {});
+    throw e;
+  }
 }
 
 export async function clearCredentials() {
