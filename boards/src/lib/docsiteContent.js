@@ -38834,13 +38834,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "deleted="
+       "v": "deleted=1"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Include soft-deleted boards"
+       "v": "Only soft-deleted boards (the Trash), instead of live ones"
       }
      ]
     ],
@@ -39091,6 +39091,49 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " for your next run."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "The feed includes deletions.",
+     "children": [
+      {
+       "t": "text",
+       "v": "The feed includes deletions."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Deleting a cluster bumps its "
+    },
+    {
+     "t": "code",
+     "v": "updated_at"
+    },
+    {
+     "t": "text",
+     "v": ", so a board someone moved to the Trash comes through with "
+    },
+    {
+     "t": "code",
+     "v": "\"deleted\": true"
+    },
+    {
+     "t": "text",
+     "v": " — drop it on your side. Restoring it brings it through again with "
+    },
+    {
+     "t": "code",
+     "v": "\"deleted\": false"
+    },
+    {
+     "t": "text",
+     "v": ". A board purged from the Trash after 30 days is not reported; by then it has already been in the feed as deleted."
     }
    ]
   },
@@ -39919,7 +39962,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "GET /boards?deleted="
+     "v": "GET /boards?deleted=1"
     },
     {
      "t": "text",

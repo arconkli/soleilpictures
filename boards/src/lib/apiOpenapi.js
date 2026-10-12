@@ -254,8 +254,9 @@ export function openapiDocument(origin) {
               description: 'A board id, or "root" for top-level boards only.',
             },
             {
-              name: 'deleted', in: 'query', schema: { type: 'string', enum: ['1'] },
-              description: 'Pass 1 to list soft-deleted boards instead of live ones.',
+              name: 'deleted', in: 'query', schema: { type: 'string', enum: ['1', 'true'] },
+              description: 'Pass 1 (or true) to list only soft-deleted boards instead of live ones. '
+                + 'A since/cursor change feed already includes deleted boards, marked deleted: true.',
             },
             limitParam, offsetParam,
           ],

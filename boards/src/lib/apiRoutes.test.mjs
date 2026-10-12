@@ -370,3 +370,27 @@ test('new boards keep their identifiers even when a matched board refuses the re
   assert.equal(r.status, 403);
   assert.ok(idents.some((x) => x.value === '2'), 'the created board can be matched by the next run');
 });
+
+// ── API-12: the change feed reports deletions; deleted=true means the Trash ──
+
+const boardsQuery = () => calls.filter((c) => c.method === 'GET' && c.path === 'boards').pop().query;
+
+test('a since= change feed includes soft-deleted boards, marked deleted', async () => {
+  putBoard(B1, [], { deleted_at: '2026-10-02T00:00:00+00:00', updated_at: '2026-10-02T00:00:00+00:00' });
+  const r = await api('GET', '/boards?since=2026-10-01T00:00:00Z');
+  assert.equal(r.status, 200);
+  assert.equal(boardsQuery().get('deleted_at'), null, 'no deleted_at filter in a change feed');
+  assert.equal(r.body.boards[0].deleted, true);
+});
+
+test('the default listing is still live boards only', async () => {
+  await api('GET', '/boards');
+  assert.equal(boardsQuery().get('deleted_at'), 'is.null');
+});
+
+test('deleted=true and deleted=1 both list the Trash', async () => {
+  for (const v of ['true', '1']) {
+    await api('GET', `/boards?deleted=${v}`);
+    assert.equal(boardsQuery().get('deleted_at'), 'not.is.null', `deleted=${v}`);
+  }
+});

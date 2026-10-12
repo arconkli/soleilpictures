@@ -4530,7 +4530,7 @@ Query | Effect
 workspace=<uuid> | Only boards in that workspace
 parent=<uuid> | Only children of that board
 parent=root | Only top-level boards
-deleted= | Include soft-deleted boards
+deleted=1 | Only soft-deleted boards (the Trash), instead of live ones
 since=<ISO> | Only boards changed at or after that time — see below
 cursor= | Continue a since walk
 include= | props, identifiers — see Identifiers and properties
@@ -4553,6 +4553,8 @@ curl "$SOLEIL_API/boards?workspace=$WS&since=2026-08-09T00:00:00Z" \
   "next_cursor": "2026-08-09T12:00:00Z|3b7e…" }
 
 Pass next_cursor back as cursor until has_more is false, then keep the last updated_at you saw as the since for your next run.
+
+The feed includes deletions. Deleting a cluster bumps its updated_at, so a board someone moved to the Trash comes through with "deleted": true — drop it on your side. Restoring it brings it through again with "deleted": false. A board purged from the Trash after 30 days is not reported; by then it has already been in the feed as deleted.
 
 Offset paging is wrong for this and cursor paging is right, for a specific reason: rows are being written while you walk, so offsets shift under you and a page boundary both skips and repeats. The cursor carries a board id alongside the timestamp because two boards touched in the same transaction share a timestamp exactly, and a timestamp alone would drop whichever came second.
 
@@ -4661,7 +4663,7 @@ Soft, and restorable one at a time, exactly like the single delete. Sent as a JS
 
 POST /boards/:id/restore
 
-Puts a soft-deleted board back. Find deleted boards with GET /boards?deleted=.
+Puts a soft-deleted board back. Find deleted boards with GET /boards?deleted=1.
 
 Restoring a board that is already live is a no-op, so a retry is safe.
 
