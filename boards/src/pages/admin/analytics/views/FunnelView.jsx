@@ -275,15 +275,23 @@ function LazyMoney({ days, f }) {
     };
   }, [days, f.excludeInternal, f.verifiedOnly]);
 
-  const paid = Number(f.stats?.tier_counts?.paid) || 0;
+  // ACTIVE SUBSCRIPTIONS, as Today's MRR tile counts them. tier_counts.paid also
+  // holds comped accounts, so it printed "N paying accounts" on a product where
+  // nobody had ever paid. Comped accounts are named as what they are.
+  const paying = num(f.stats?.sub_counts?.active);
+  const anySubs = Object.values(f.stats?.sub_counts || {}).some((n) => num(n) > 0);
+  const comped = num(f.stats?.comped_paid);
+  const compedNote = comped > 0 ? ` ${formatCount(comped)} comped account${comped === 1 ? ' is' : 's are'} on the paid tier without paying.` : '';
 
   return (
     <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       {/* Said once, plainly, instead of drawn as three zero-valued tiles. */}
       <p className="admin-section-sub">
-        {paid > 0
-          ? `${formatCount(paid)} paying account${paid === 1 ? '' : 's'}.`
-          : 'No subscription has ever existed, so every rate below has a zero numerator by absence rather than by measurement.'}
+        {paying > 0
+          ? `${formatCount(paying)} paying account${paying === 1 ? '' : 's'} (active subscriptions).${compedNote}`
+          : `${anySubs
+            ? 'No subscription is active right now.'
+            : 'No subscription has ever existed, so every rate below has a zero numerator by absence rather than by measurement.'}${compedNote}`}
       </p>
       {/* The "Pricing path" funnel that used to sit here rendered the SAME
           `steps` array as the funnel at the top of this view, filtered to the
