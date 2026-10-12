@@ -27,7 +27,9 @@ export function useAddCommentFlow({
 
   const open = () => {
     const editor = getEditor?.();
-    if (!editor) return;
+    // A read-only editor is a view-only reader: their thread would never
+    // leave the tab (the board room drops a viewer's writes).
+    if (!editor || !editor.isEditable) return;
     const sel = editor.state.selection;
     if (sel.empty) return;
     const winSel = window.getSelection();
