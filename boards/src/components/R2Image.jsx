@@ -476,6 +476,12 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // show these bytes, so the card says so instead of re-downloading forever.
   const resignedForRef = useRef(null);
   const [unavailable, setUnavailable] = useState(false);
+  // The original failed to display after its one re-sign while a variant
+  // exists (a HEIC/TIFF whose preview Safari made, a gone original whose
+  // retention-locked previews remain). The card drops back to the preview and
+  // the scheduler never promotes it again: a card showing a good preview must
+  // not turn into "Preview not available" just because someone zoomed in.
+  const originalBrokenRef = useRef(false);
   // Fast-load fade skip: when fetch+decode completes quickly (bytes were in
   // the browser disk cache — the common case for a viewport-culling remount),
   // the 0.35s blur-fade would only delay an instant paint, so onImgLoad sets
@@ -518,6 +524,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     fellBackRef.current = false;
     rearmedRef.current = false;
     resignedForRef.current = null;
+    originalBrokenRef.current = false;
     fastLoadRef.current = false;
     setLoaded(false);
     setFailed(false);
@@ -708,7 +715,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
 
         // PROMOTE toward the best justified tier (jump sm→original directly).
         if (st.upgradeToFull) {
-          const wantOriginal = !upgradedRef.current && originalWorthUpgrade(m)
+          const wantOriginal = !upgradedRef.current && !originalBrokenRef.current && originalWorthUpgrade(m)
             && m.previewW && displayedPx >= m.previewW * 0.85;
           if ((atSm || atPreview) && wantOriginal) {
             return { kind: 'promote', area, inViewport, run: () => {
@@ -857,13 +864,20 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                // the browser cannot decode (TIFF/PSD everywhere but Safari, HEIC
                // on Chrome/Firefox) or a missing object used to re-download the
                // original every second or two for as long as the card lived. A
-               // second error on a variant drops to the original; on the
-               // original it is "Preview not available", with a Download.
+               // second error on a variant drops to the original; a second
+               // error on the original drops to a variant that has not failed
+               // (and pins it there); only with neither left is it "Preview
+               // not available", with a Download.
                const isR2 = typeof activeSrc === 'string' && activeSrc.startsWith('r2:');
                const giveUp = () => {
-                 if (originalKey && activeSrc !== src && !fellBackRef.current) {
+                 if (originalKey && activeSrc !== src && !fellBackRef.current && !originalBrokenRef.current) {
                    fellBackRef.current = true;
                    setActiveSrc(src);
+                 } else if (originalKey && activeSrc === src && meta?.previewKey
+                            && !fellBackRef.current && !originalBrokenRef.current) {
+                   originalBrokenRef.current = true;
+                   upgradedRef.current = true;   // keeps the pre-load switch + warm-up off too
+                   setActiveSrc(`r2:${meta.previewKey}`);
                  } else {
                    setUnavailable(true);
                  }
