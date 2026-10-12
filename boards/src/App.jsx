@@ -8998,6 +8998,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
           </div>
           )}
+          {/* The phone topbar has no room for these (SHELL-06), so the drawer
+              carries them. Search is above, Help is in the footer. */}
+          {mobileShell && currentSurface === 'board' && (
+            <div className="sb-row"
+                 {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
+              <Icon as={History} size={14} />
+              <span className="sb-row-label">Version history</span>
+            </div>
+          )}
+          {mobileShell && isTouch && currentSurface === 'board' && (
+            <div className="sb-row"
+                 {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
+              <Icon as={Maximize2} size={14} />
+              <span className="sb-row-label">Focus view</span>
+            </div>
+          )}
+          {mobileShell && myTier.tier === 'admin' && (
+            <div className="sb-row"
+                 {...rowButtonProps(() => window.location.assign('/admin'))}>
+              <Icon as={LayoutGrid} size={14} />
+              <span className="sb-row-label">Admin dashboard</span>
+            </div>
+          )}
           </div>{/* /.sb-top */}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
@@ -9142,20 +9165,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
             )}
-            <button className="tb-brand" title="Home" aria-label="Clusters home"
-                    onClick={() => setCurrentSurface('home')}>
-              <ClustersMark size={22} />
-              <span className="tb-brand-text">Clusters</span>
-            </button>
-            <span className="tb-brand-sep" aria-hidden="true" />
-            <button className="tb-icon" title="Back" aria-label="Back"
-                    disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
-              <Icon as={ChevronLeft} size={15} />
-            </button>
-            <button className="tb-icon" title="Forward" aria-label="Forward"
-                    disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
-              <Icon as={ChevronRight} size={15} />
-            </button>
+            {/* Not on a phone: the bar is 360-390px wide and these overflowed
+                Share off its right edge. Home is the bottom nav's first tab and
+                the drawer's first row; the crumbs below go up a level. */}
+            {!mobileShell && (
+              <>
+                <button className="tb-brand" title="Home" aria-label="Clusters home"
+                        onClick={() => setCurrentSurface('home')}>
+                  <ClustersMark size={22} />
+                  <span className="tb-brand-text">Clusters</span>
+                </button>
+                <span className="tb-brand-sep" aria-hidden="true" />
+                <button className="tb-icon" title="Back" aria-label="Back"
+                        disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
+                  <Icon as={ChevronLeft} size={15} />
+                </button>
+                <button className="tb-icon" title="Forward" aria-label="Forward"
+                        disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
+                  <Icon as={ChevronRight} size={15} />
+                </button>
+              </>
+            )}
             {/* The trail for whichever pane you last touched — see toolbarPane. */}
             <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
                  data-pane={toolbarPane}>
@@ -9177,40 +9207,59 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-right">
-            {myTier.tier === 'admin' && (
+            {/* A phone keeps Undo, Redo, presence and Share here. Admin,
+                Search, Version history, Focus view and Help (which holds Send
+                feedback) are in the drawer instead — the full set measured
+                ~540px in a 390px bar and pushed Share off-screen (SHELL-06). */}
+            {myTier.tier === 'admin' && !mobileShell && (
               <button className="tb-admin-btn"
                       title="Admin dashboard"
                       onClick={() => window.location.assign('/admin')}>
                 Admin
               </button>
             )}
-            <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
-                    onClick={() => setPaletteOpen(true)}>
-              <Icon as={Search} size={16} />
-            </button>
-            <button className="tb-icon" title="Undo (⌘Z)" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
-              <Icon as={Undo} size={16} />
-            </button>
-            <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
-              <Icon as={Redo} size={16} />
-            </button>
-            <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
-              <Icon as={History} size={16} />
-            </button>
-            <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
-              <Icon as={Trash2} size={16} />
-            </button>
-            <HelpButton as="tb" via="topbar" />
-            <FeedbackButton as="icon" />
+            {!mobileShell && (
+              <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
+                      onClick={() => setPaletteOpen(true)}>
+                <Icon as={Search} size={16} />
+              </button>
+            )}
+            {/* A viewer on a phone gets the VIEW ONLY pill in this room instead
+                of two buttons that can never be enabled. */}
+            {(!mobileShell || canEditCurrent) && (
+              <>
+                <button className="tb-icon" title="Undo (⌘Z)" aria-label="Undo" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
+                  <Icon as={Undo} size={16} />
+                </button>
+                <button className="tb-icon" title="Redo (⌘⇧Z)" aria-label="Redo" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
+                  <Icon as={Redo} size={16} />
+                </button>
+              </>
+            )}
+            {!mobileShell && (
+              <>
+                <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
+                  <Icon as={History} size={16} />
+                </button>
+                <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
+                  <Icon as={Trash2} size={16} />
+                </button>
+                <HelpButton as="tb" via="topbar" />
+                <FeedbackButton as="icon" />
+              </>
+            )}
             <span className="tb-divider" aria-hidden="true" />
+            {/* One face and a "+N" on a phone: four faces were ~100px of a
+                360px bar. */}
             <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
                                     workspaceId={workspace.id}
+                                    max={mobileShell ? 1 : 4}
                                     onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
             )}
-            {isTouch && (
+            {isTouch && !mobileShell && (
               <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
                       title="Focus view — hide everything but the cluster"
                       aria-label="Enter focus view">
