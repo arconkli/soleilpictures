@@ -209,6 +209,23 @@ export function EntityHoverPopover({
   // Default to the app-wide backlinks drawer (App listens for
   // soleil-open-backlinks). With nothing to anchor the drawer on, hide the
   // buttons rather than show a dead end.
+  // The auto-link kill switches. supabase-js RESOLVES with { error } rather
+  // than throwing, so an RLS refusal used to look like success; and the
+  // toasts used { kind, title }, which the toast API ignores, so neither
+  // outcome ever showed. 23505 = this term is already ignored here: done.
+  const ignoreTerm = async (scope, scopeId, okMessage) => {
+    try {
+      const { error } = await supabase.from('entity_ignore_terms').insert({
+        workspace_id: workspaceId, scope, scope_id: scopeId, term: term.trim(),
+      });
+      if (error && error.code !== '23505') throw error;
+      feedback?.toast?.({ type: 'success', message: okMessage });
+    } catch (_) {
+      feedback?.toast?.({ type: 'error', message: 'Could not save that' });
+    }
+    onClose?.();
+  };
+
   const seeAllRef = refs?.[0] || rowToRef(sortedEntities[0]);
   const canSeeAll = Boolean(onSeeAll || seeAllRef);
   const seeAll = () => {
@@ -334,15 +351,19 @@ export function EntityHoverPopover({
       <div className="ent-pop-foot">
         <button
           className="ent-pop-foot-btn"
-          onClick={() => {
+          onClick={async () => {
             const ref = refs?.[0] || rowToRef(sortedEntities[0]);
             if (!ref) return;
             const url = entityUrl(ref);
             if (!url) return;
+            // writeText is async and rejects (permission, insecure context),
+            // so it has to be awaited for the catch to mean anything.
             try {
-              navigator.clipboard.writeText(url);
-              feedback?.toast?.({ kind: 'success', title: 'Link copied' });
-            } catch (_) {}
+              await navigator.clipboard.writeText(url);
+              feedback?.toast?.({ type: 'success', message: 'Link copied' });
+            } catch (_) {
+              feedback?.toast?.({ type: 'error', message: 'Could not copy the link' });
+            }
             onClose?.();
           }}
           disabled={!sortedEntities.length && !refs?.length}
@@ -356,20 +377,7 @@ export function EntityHoverPopover({
         {term && !refs?.length && workspaceId && docScope?.docCardId && (
           <button
             className="ent-pop-foot-btn"
-            onClick={async () => {
-              try {
-                await supabase.from('entity_ignore_terms').insert({
-                  workspace_id: workspaceId,
-                  scope: 'doc',
-                  scope_id: docScope.docCardId,
-                  term: term.trim(),
-                });
-                feedback?.toast?.({ kind: 'success', title: `Won't auto-link "${term}" in this doc` });
-              } catch (_) {
-                feedback?.toast?.({ kind: 'error', title: 'Could not save' });
-              }
-              onClose?.();
-            }}
+            onClick={() => ignoreTerm('doc', docScope.docCardId, `Won't auto-link "${term}" in this doc`)}
             title="Stop auto-linking this term in this doc only"
           >
             Don't here
@@ -378,20 +386,7 @@ export function EntityHoverPopover({
         {term && !refs?.length && workspaceId && (
           <button
             className="ent-pop-foot-btn"
-            onClick={async () => {
-              try {
-                await supabase.from('entity_ignore_terms').insert({
-                  workspace_id: workspaceId,
-                  scope: 'workspace',
-                  scope_id: null,
-                  term: term.trim(),
-                });
-                feedback?.toast?.({ kind: 'success', title: `Won't auto-link "${term}" anywhere` });
-              } catch (_) {
-                feedback?.toast?.({ kind: 'error', title: 'Could not save' });
-              }
-              onClose?.();
-            }}
+            onClick={() => ignoreTerm('workspace', null, `Won't auto-link "${term}" anywhere`)}
             title="Stop auto-linking this term anywhere in the workspace"
           >
             Don't anywhere
