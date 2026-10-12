@@ -493,4 +493,11 @@
   .docs-nav.is-open { display: block; }
   .docs-main { padding: 28px clamp(16px, 4vw, 24px) 20px; }
   .docs-article { font-size: 0.95rem; }
+  /* A long inline span (a signature formula, a redeliver route, a JSON body)
+     is wider than a phone column, and nowrap made the whole reading pane pan
+     sideways. Prose may break it; tables keep nowrap — they scroll in their
+     own .docs-table-wrap. */
+  .docs-article p code,
+  .docs-article li code,
+  .docs-callout code { white-space: normal; overflow-wrap: anywhere; }
 }

@@ -49,3 +49,61 @@ test.describe('light-OS visitors stay in the dark brand world', () => {
     await expect(page.locator('.public-shell')).toHaveCSS('background-color', DARK_BG);
   });
 });
+
+test('a /docs/page#heading link lands on that heading, not the top of the page', async ({ page }) => {
+  await routeAnalytics(page, []);
+  const { path, id } = deepHeading();
+  await page.goto(`${path}#${id}`);
+
+  const scroller = page.locator('.docs-scroll');
+  await expect(page.locator(`#${id}`)).toBeVisible();
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  // At the top of the reading pane, give or take the scroll margin.
+  await expect.poll(() => page.evaluate((hid) => {
+    const s = document.querySelector('.docs-scroll').getBoundingClientRect().top;
+    return Math.abs(document.getElementById(hid).getBoundingClientRect().top - s);
+  }, id)).toBeLessThan(120);
+});
+
+test('without a fragment a docs page still opens at the top', async ({ page }) => {
+  await routeAnalytics(page, []);
+  const { path } = deepHeading();
+  await page.goto(path);
+  await expect(page.locator('.docs-article h1')).toBeVisible();
+  expect(await page.locator('.docs-scroll').evaluate((el) => el.scrollTop)).toBe(0);
+});
+
+test.describe('docs on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('typing in search shows the results, which live in the collapsed nav', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.goto('/docs');
+    await expect(page.locator('.docs-nav')).toBeHidden();
+
+    await page.locator('.docs-search').fill('webhooks');
+    await expect(page.locator('.docs-nav')).toBeVisible();
+    await expect(page.locator('.docs-nav a').first()).toBeVisible();
+
+    await page.locator('.docs-search').fill('zzzzqqqq');
+    await expect(page.locator('.docs-nav-empty')).toBeVisible();
+  });
+
+  test('long inline code wraps instead of panning the reading pane sideways', async ({ page }) => {
+    await routeAnalytics(page, []);
+    // Every page with inline code in prose, so this cannot pass by picking a
+    // page whose spans happen to be short.
+    const paths = Object.entries(DOCS_CONTENT)
+      .filter(([, blocks]) => blocks.some((b) => (b.type === 'para' || b.type === 'list')
+        && JSON.stringify(b).includes('"code"')))
+      .map(([p]) => p);
+    expect(paths.length).toBeGreaterThan(0);
+    for (const p of ['/docs/api/webhooks', '/docs/mcp'].filter((x) => paths.includes(x))) {
+      await page.goto(p);
+      await expect(page.locator('.docs-article h1')).toBeVisible();
+      const overflow = await page.locator('.docs-scroll')
+        .evaluate((el) => el.scrollWidth - el.clientWidth);
+      expect(overflow, `${p} pans sideways`).toBeLessThanOrEqual(0);
+    }
+  });
+});
