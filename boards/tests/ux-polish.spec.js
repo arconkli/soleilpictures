@@ -83,23 +83,30 @@ test('inputs use :focus-visible (not bare :focus) for the focus ring', async ({ 
   expect(hasFocusVisible).toBe(true);
 });
 
-test('reduced-motion guard neutralizes transforms', async ({ page }) => {
+// The guard reduces MOTION, not positions. It used to carry a universal
+// `transform: none !important`, which parked the phone drawer open, stacked
+// peer cursors at the origin and pushed panels off-centre (audit VIS-01/02);
+// reduced-motion-transforms.spec.js pins the behaviour, this pins the rule.
+test('reduced-motion guard clamps durations and leaves transforms alone', async ({ page }) => {
   await page.goto('/?local=1');
-  const ok = await page.evaluate(() => {
+  const found = await page.evaluate(() => {
+    const out = { clamp: false, universalTransformReset: false };
     for (const sheet of document.styleSheets) {
       try {
         for (const r of sheet.cssRules) {
-          if (r.type === CSSRule.MEDIA_RULE && (r.conditionText || '').includes('prefers-reduced-motion')) {
-            for (const inner of r.cssRules) {
-              if ((inner.style?.transform || '').toLowerCase() === 'none') return true;
-            }
+          if (r.type !== CSSRule.MEDIA_RULE || !(r.conditionText || '').includes('prefers-reduced-motion')) continue;
+          for (const inner of r.cssRules) {
+            const universal = /(^|,)\s*\*/.test(inner.selectorText || '');
+            if (universal && inner.style?.animationDuration && inner.style?.transitionDuration) out.clamp = true;
+            if (universal && (inner.style?.transform || '').toLowerCase() === 'none') out.universalTransformReset = true;
           }
         }
       } catch {}
     }
-    return false;
+    return out;
   });
-  expect(ok).toBe(true);
+  expect(found.clamp).toBe(true);
+  expect(found.universalTransformReset).toBe(false);
 });
 
 test('no page errors after the modal/toast/spinner refactor', async ({ page }) => {
