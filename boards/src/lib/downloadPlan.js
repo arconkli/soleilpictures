@@ -11,8 +11,11 @@ export const DIRECT_DOWNLOAD_MIN_BYTES = 20 * 1024 * 1024;
 // Should this card skip the Blob and go straight to the browser? Images never
 // do (they may need their adjustments baked in); on native there is no
 // download manager to hand to (deliverFile's share sheet needs the bytes).
-export function wantsDirectDownload(card, kind, { native = false } = {}) {
-  if (native || kind === 'image') return false;
+// iOS WebKit stays on the Blob path too: whether it saves an attachment that
+// arrives in a hidden frame is unverified, and if it ignores one the user gets
+// no file, no error and no fallback, where the Blob path is known to work.
+export function wantsDirectDownload(card, kind, { native = false, ios = false } = {}) {
+  if (native || ios || kind === 'image') return false;
   const size = Number(card?.sizeBytes);
   return !(Number.isFinite(size) && size > 0 && size < DIRECT_DOWNLOAD_MIN_BYTES);
 }
