@@ -1286,6 +1286,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           for buttons that all no-op. */}
       {!isPublic && editable && (
       <DocEditorContextMenu editor={editor}
+                            onNotice={(message) => feedback.toast({ type: 'info', message })}
                             onOpenLinkPicker={openLinkPicker}
                             onAddComment={addComment.open}
                             closeTagHover={() => setTagHover(null)}
@@ -1561,17 +1562,42 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
 // Right-click context menu — concise; quick formatting + comment + remove tag.
 // Headings/lists/quote/highlight/code/strikethrough live on the always-visible
 // top toolbar so they're not duplicated here.
-function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTagHover, onRemoveTag }) {
+// Is the pointer over a word (not whitespace, not an empty block)? Browsers
+// expose no spellcheck state, so "on a word, nothing selected" stands in for
+// "on a misspelled word" — that is exactly where the spelling suggestions live.
+function pointIsOnWord(x, y) {
+  try {
+    let node = null, offset = 0;
+    if (document.caretPositionFromPoint) {
+      const p = document.caretPositionFromPoint(x, y);
+      node = p?.offsetNode; offset = p?.offset ?? 0;
+    } else if (document.caretRangeFromPoint) {
+      const r = document.caretRangeFromPoint(x, y);
+      node = r?.startContainer; offset = r?.startOffset ?? 0;
+    }
+    if (!node || node.nodeType !== 3) return false;
+    const t = node.textContent || '';
+    // The caret position snaps to the nearest text, even from blank space
+    // past the end of a line — so check the letter's own box holds the point.
+    const hit = (i) => {
+      if (i < 0 || i >= t.length || !/\w/.test(t[i])) return false;
+      const r = document.createRange();
+      r.setStart(node, i); r.setEnd(node, i + 1);
+      const b = r.getBoundingClientRect();
+      return x >= b.left - 1 && x <= b.right + 1 && y >= b.top - 1 && y <= b.bottom + 1;
+    };
+    return hit(offset) || hit(offset - 1);
+  } catch (_) { return false; }
+}
+
+function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTagHover, onRemoveTag, onNotice }) {
   const [pos, setPos] = useState(null);
   useEffect(() => {
     const root = editor?.view?.dom;
     if (!root) return;
     const onCtx = (e) => {
-      // Only intercept when the cursor is inside the editor itself.
-      e.preventDefault();
-      // Close any hover popover (esp. the tag popover) so it doesn't
-      // overlap the right-click menu.
-      closeTagHover?.();
+      // Shift+right-click is always the browser's own menu.
+      if (e.shiftKey) return;
       // Capture tag-range data if the click landed on a tagged word so
       // we can offer "Remove tag" for it. Reuse readTagRangeFromEl —
       // same helper the popover uses — to keep parsing consistent.
@@ -1579,6 +1605,14 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       const tagInfo = tagRange && tagRange.tagId && tagRange.sourceAnchor
         ? { tagId: tagRange.tagId, tagName: tagRange.tagName, sourceAnchor: tagRange.sourceAnchor }
         : null;
+      // Right-clicking a word with nothing selected gets the browser's menu:
+      // spelling suggestions (spellcheck is on), Look Up, Cut/Copy/Paste.
+      // Ours stays for a selection, a tagged word, and empty space.
+      if (!tagInfo && editor.state.selection.empty && pointIsOnWord(e.clientX, e.clientY)) return;
+      e.preventDefault();
+      // Close any hover popover (esp. the tag popover) so it doesn't
+      // overlap the right-click menu.
+      closeTagHover?.();
       setPos({
         x: e.clientX, y: e.clientY,
         hasSelection: !editor.state.selection.empty,
@@ -1607,30 +1641,55 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
   const run = (fn) => () => { fn(); close(); };
   const isActive = (name, attrs) => editor.isActive(name, attrs);
 
+  // Clipboard. Cut / Copy run the editor's own clipboard handlers through
+  // execCommand (allowed inside this click). Paste can't be done that way on
+  // the web, so it reads plain text via the Clipboard API — which may ask for
+  // permission, or be refused; then say how to paste instead of doing nothing.
+  const clip = (cmd) => () => {
+    editor.view.focus();
+    let ok = false;
+    try { ok = document.execCommand(cmd); } catch (_) {}
+    if (!ok) onNotice?.(`Press ${cmd === 'cut' ? '⌘X' : '⌘C'} to ${cmd}.`);
+    close();
+  };
+  const paste = async () => {
+    close();
+    try {
+      const text = await navigator.clipboard.readText();
+      editor.commands.focus();
+      // pasteText runs the normal paste path (line breaks → paragraphs).
+      if (text) editor.view.pasteText(text);
+    } catch (_) {
+      editor.commands.focus();
+      onNotice?.('Press ⌘V to paste.');
+    }
+  };
+
   // Clamp menu inside viewport.
-  const W = 220, H = 220, PAD = 8;
+  const W = 220, H = 320, PAD = 8;
   const left = Math.max(PAD, Math.min(window.innerWidth - W - PAD, pos.x));
   const top  = Math.max(PAD, Math.min(window.innerHeight - H - PAD, pos.y));
 
-  const Item = ({ icon, label, shortcut, active, onClick, danger }) => (
-    <button className={`doc-ctx-item ${active ? 'is-active' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>
-      <span className="doc-ctx-icon">{icon}</span>
-      <span className="doc-ctx-label">{label}</span>
-      {shortcut && <span className="doc-ctx-kbd">{shortcut}</span>}
-    </button>
-  );
-  const Sep = () => <div className="doc-ctx-sep" />;
-
   return (
-    <div className="doc-ctx" style={{ position: 'fixed', left, top }} role="menu">
-      <Item icon={<b>B</b>} label="Bold" shortcut="⌘B" active={isActive('bold')}
+    // mousedown must not take focus from the editor: the blur re-rendered
+    // the menu between mousedown and mouseup, so no click ever fired and
+    // every item did nothing. (The colour input still needs its default.)
+    <div className="doc-ctx" style={{ position: 'fixed', left, top }} role="menu"
+         onMouseDown={(e) => { if (e.target.tagName !== 'INPUT') e.preventDefault(); }}>
+      {pos.hasSelection && (<>
+        <CtxItem icon={<CutIcon />} label="Cut" shortcut="⌘X" onClick={clip('cut')} />
+        <CtxItem icon={<CopyIcon />} label="Copy" shortcut="⌘C" onClick={clip('copy')} />
+      </>)}
+      <CtxItem icon={<PasteIcon />} label="Paste" shortcut="⌘V" onClick={paste} />
+      <CtxSep />
+      <CtxItem icon={<b>B</b>} label="Bold" shortcut="⌘B" active={isActive('bold')}
             onClick={run(() => editor.chain().focus().toggleBold().run())} />
-      <Item icon={<i>I</i>} label="Italic" shortcut="⌘I" active={isActive('italic')}
+      <CtxItem icon={<i>I</i>} label="Italic" shortcut="⌘I" active={isActive('italic')}
             onClick={run(() => editor.chain().focus().toggleItalic().run())} />
-      <Item icon={<u>U</u>} label="Underline" shortcut="⌘U" active={isActive('underline')}
+      <CtxItem icon={<u>U</u>} label="Underline" shortcut="⌘U" active={isActive('underline')}
             onClick={run(() => editor.chain().focus().toggleUnderline().run())} />
-      <Sep />
-      <Item icon={<LinkIcon />} label="Link" shortcut="⌘K"
+      <CtxSep />
+      <CtxItem icon={<LinkIcon />} label="Link" shortcut="⌘K"
             onClick={run(() => onOpenLinkPicker?.(editor))} />
       <div className="doc-ctx-color-row" role="group" aria-label="Text color">
         <span className="doc-ctx-color-label">Color</span>
@@ -1654,15 +1713,15 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       </div>
       {pos.hasSelection && (
         <>
-          <Sep />
-          <Item icon={<CommentIcon />} label="Add comment" shortcut="⌘⌥M"
+          <CtxSep />
+          <CtxItem icon={<CommentIcon />} label="Add comment" shortcut="⌘⌥M"
                 onClick={run(() => onAddComment?.())} />
         </>
       )}
       {pos.tagInfo && onRemoveTag && (
         <>
-          <Sep />
-          <Item icon={<RemoveTagIcon />}
+          <CtxSep />
+          <CtxItem icon={<RemoveTagIcon />}
                 label={pos.tagInfo.tagName ? `Remove "${pos.tagInfo.tagName}"` : 'Remove tag'}
                 danger
                 onClick={run(() => onRemoveTag(pos.tagInfo))} />
@@ -1671,6 +1730,19 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     </div>
   );
 }
+
+// Module-level so a re-render of the menu never remounts its buttons
+// mid-click (a component type created inside render is a new type each time).
+function CtxItem({ icon, label, shortcut, active, onClick, danger }) {
+  return (
+    <button className={`doc-ctx-item ${active ? 'is-active' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>
+      <span className="doc-ctx-icon">{icon}</span>
+      <span className="doc-ctx-label">{label}</span>
+      {shortcut && <span className="doc-ctx-kbd">{shortcut}</span>}
+    </button>
+  );
+}
+const CtxSep = () => <div className="doc-ctx-sep" />;
 
 // Shared icon set for context menu + toolbar — small, calm 14px line icons.
 function svg(props, children) { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>; }
@@ -1685,4 +1757,7 @@ const OlIcon    = () => svg({}, <><text x="1.4" y="5.5" fontSize="3.2" fontFamil
 const TaskIcon  = () => svg({}, <><rect x="2" y="2.5" width="4" height="4" rx="1" /><path d="M3 4.5 L4 5.5 L5.5 3.8" /><path d="M8 4.5 H12" /><rect x="2" y="8.5" width="4" height="4" rx="1" /><path d="M8 10.5 H12" /></>);
 const QuoteIcon = () => svg({}, <><path d="M2 5 Q2 3 4 3 V6 H2 V5 Q2 7 4 8" /><path d="M8 5 Q8 3 10 3 V6 H8 V5 Q8 7 10 8" /></>);
 const CommentIcon = () => svg({}, <><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 12 4 V9 A1 1 0 0 1 11 10 H6 L4 12 V10 H3 A1 1 0 0 1 2 9 Z" /></>);
+const CutIcon   = () => svg({}, <><circle cx="4" cy="11" r="1.6" /><circle cx="10" cy="11" r="1.6" /><path d="M5.2 9.8 L10 2 M8.8 9.8 L4 2" /></>);
+const CopyIcon  = () => svg({}, <><rect x="4.5" y="4.5" width="7" height="7.5" rx="1.2" /><path d="M2.5 9.5 V3 A1 1 0 0 1 3.5 2 H8.5" /></>);
+const PasteIcon = () => svg({}, <><rect x="3" y="3" width="8" height="9.5" rx="1.2" /><path d="M5.5 3 V2 H8.5 V3" /></>);
 const RemoveTagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /><path d="M4 9 L8 13 M8 9 L4 13" strokeWidth="1.6" /></>);

@@ -86,6 +86,10 @@ lists, task lists, alignment, colour, font and size. Every one has a
 
 `⌘F` opens **find and replace**.
 
+**Right-click** a selection for cut, copy, paste, formatting, links and
+comments. Right-click a word with nothing selected — or `⇧`-right-click
+anywhere — for your browser's own menu, with its spelling suggestions.
+
 Text pasted from Google Docs, Word or a web page keeps its structure and
 emphasis — headings, lists, links, bold, italic, real colours — but drops the
 source's font, size, background and default black ink, so it takes on the
