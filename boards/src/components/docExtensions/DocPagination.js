@@ -234,7 +234,16 @@ export const DocPagination = Extension.create({
             const meta = tr.getMeta(key);
             if (meta) return meta;
             // Keep decorations mapped through edits until the next measure.
-            return tr.docChanged ? { decos: prev.decos.map(tr.mapping, tr.doc), sig: prev.sig } : prev;
+            if (!tr.docChanged) return prev;
+            const decos = prev.decos.map(tr.mapping, tr.doc);
+            // y-prosemirror applies every REMOTE change as one whole-document
+            // replace, and mapping through it deletes every gap widget. The
+            // re-measure then finds the same breaks (natural offsets don't
+            // depend on the gaps), so a kept sig would read as "converged" and
+            // the gaps would never come back: a collaborator typing anywhere
+            // collapsed this tab's pages. Losing widgets forgets the sig.
+            const lost = decos.find().length < prev.decos.find().length;
+            return { decos, sig: lost ? '' : prev.sig };
           },
         },
         props: {
