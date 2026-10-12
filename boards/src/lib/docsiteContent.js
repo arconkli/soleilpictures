@@ -51114,10 +51114,8 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": "\\"
-      }
-     ],
-     [
+       "v": "|"
+      },
       {
        "t": "code",
        "v": "card"
@@ -51466,10 +51464,8 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": "\\"
-      }
-     ],
-     [
+       "v": "|"
+      },
       {
        "t": "code",
        "v": "omc"
