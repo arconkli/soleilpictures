@@ -421,3 +421,90 @@ test('the single-board upsert answers 403 when the matched board cannot be chang
   });
   assert.equal(r.status, 403, JSON.stringify(r.body));
 });
+
+// ── API-11: the delivery log pages by (created_at, id) ───────────────────────
+
+const H1 = '55555555-5555-4555-8555-555555555555';
+const delivery = (n, ts = '2026-10-10T00:00:00.000001+00:00') => ({
+  id: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`, event: 'card.created', created_at: ts,
+});
+
+test('a 500-row page asks for 501 and reports has_more from the extra row', async () => {
+  let args;
+  on('POST', 'rpc/webhook_deliveries_page', (c) => {
+    args = c.body;
+    return reply(Array.from({ length: 501 }, (_, i) => delivery(i)));
+  });
+  const r = await api('GET', `/webhooks/${H1}/deliveries?limit=500`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(args.p_limit, 501);
+  assert.equal(r.body.deliveries.length, 500);
+  assert.equal(r.body.has_more, true);
+  const last = r.body.deliveries[499];
+  assert.equal(r.body.next_cursor, `${last.created_at}|${last.id}`);
+});
+
+test('the cursor carries the id, so a run of deliveries sharing a timestamp is not skipped', async () => {
+  let args;
+  on('POST', 'rpc/webhook_deliveries_page', (c) => { args = c.body; return reply([]); });
+  const d = delivery(7);
+  const r = await api('GET', `/webhooks/${H1}/deliveries?cursor=${encodeURIComponent(`${d.created_at}|${d.id}`)}`);
+  assert.equal(r.status, 200);
+  assert.equal(args.p_cursor_ts, d.created_at);
+  assert.equal(args.p_cursor_id, d.id);
+  assert.equal(r.body.has_more, false);
+  assert.equal(r.body.next_cursor, null);
+});
+
+test('before 0409, the log falls back to the old function inside its 200-row cap', async () => {
+  on('POST', 'rpc/webhook_deliveries_page', () => reply({
+    code: 'PGRST202', message: 'Could not find the function public.webhook_deliveries_page',
+  }, 404));
+  let args;
+  on('POST', 'rpc/webhook_deliveries_list', (c) => {
+    args = c.body;
+    return reply(Array.from({ length: c.body.p_limit }, (_, i) => delivery(i)));
+  });
+  const r = await api('GET', `/webhooks/${H1}/deliveries?limit=500`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.ok(args.p_limit <= 200);
+  assert.equal(r.body.limit, args.p_limit - 1);
+  assert.equal(r.body.has_more, true, 'a full capped page is not reported as the end');
+});
+
+// ── API-17: a test delivery is sent and reported on its own ──────────────────
+
+function hookRoutes(receiver) {
+  on('POST', 'rpc/webhook_list', () => reply([{ id: H1, workspace_id: W1 }]));
+  on('POST', 'webhook_deliveries', (c) => reply([{ id: 'test-del', ...c.body[0] }], 201));
+  const claims = [];
+  on('POST', 'rpc/webhook_deliveries_claim', (c) => {
+    claims.push(c.body);
+    return reply([{ id: 'test-del', webhook_id: H1, event: 'webhook.test', payload: { type: 'webhook.test' }, attempt: 0 }]);
+  });
+  on('GET', 'webhooks', () => reply([{ id: H1, url: 'https://hooks.example.com/hook', secret: 's', active: true, failure_count: 0 }]));
+  on('PATCH', /^webhook/, () => reply(undefined, 204));
+  const hits = [];
+  on('POST', '/hook', (c) => { hits.push(c.headers['x-soleil-delivery']); return receiver(c); });
+  return { claims, hits };
+}
+
+test('POST /webhooks/:id/test sends that delivery and reports its own result', async () => {
+  const { claims, hits } = hookRoutes(() => reply(undefined, 204));
+  const r = await api('POST', `/webhooks/${H1}/test`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(claims[0].p_id, 'test-del', 'claimed by id, not "the 25 oldest due"');
+  assert.deepEqual(hits, ['test-del']);
+  assert.equal(r.body.sent, true);
+  assert.equal(r.body.delivery.id, 'test-del');
+  assert.equal(r.body.delivery.status, 204);
+  assert.equal('result' in r.body, false, 'no counts from other workspaces');
+});
+
+test('a test the receiver refuses is reported as not sent', async () => {
+  hookRoutes(() => reply({ nope: true }, 401));
+  const r = await api('POST', `/webhooks/${H1}/test`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.sent, false);
+  assert.match(r.body.delivery.error, /401/);
+});

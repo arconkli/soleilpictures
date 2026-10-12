@@ -23,14 +23,27 @@
 // redeliver — because that is what facilities actually rely on when something
 // did not arrive, and "we sent it" without a record is not an answer.
 
-import { scoutSelect, scoutInsert, scoutPatch } from './scoutDb.js';
+import { scoutSelect, scoutInsert, scoutPatch, scoutRpc } from './scoutDb.js';
 import { publicHttpsUrlProblem } from './safeUrl.js';
 
 // The database, injectable. Not for ceremony: fan-out and retry are the parts
 // where a mistake is a silent non-delivery or an infinite retry, and both are
 // pure decisions over rows. Passing the three calls in means those decisions can
 // be tested for real rather than described in a comment.
-const REAL_DB = { select: scoutSelect, insert: scoutInsert, patch: scoutPatch };
+const REAL_DB = { select: scoutSelect, insert: scoutInsert, patch: scoutPatch, rpc: scoutRpc };
+
+// How long a claimed delivery stays out of every other drain's reach. Longer
+// than any invocation that could be holding it — a cron run is capped at 15
+// minutes — so a slow batch is never re-claimed under the drain still sending
+// it, and a drain that dies hands its rows back when this runs out.
+const DELIVERY_LEASE_SECONDS = 900;
+
+// The claim RPCs arrive with 0409. Until it is applied, PostgREST answers
+// "no such function" and the unclaimed path below still works, so this file
+// can ship before the migration does. Once 0409 is live the fallbacks are dead
+// code and can go.
+const missingFunction = (e) => e?.status === 404
+  || /PGRST202|could not find the function/i.test(`${e?.body || ''} ${e?.message || ''}`);
 
 export const MAX_ATTEMPTS = 6;
 export const REPLAY_WINDOW_SECONDS = 300;
@@ -99,7 +112,24 @@ export function webhookUrlProblem(raw) {
 // One event becomes N deliveries, one per subscribed hook, because each has its
 // own secret, its own retry state and its own delivery record. A shared row
 // would make "did hook B get it?" unanswerable.
+//
+// Overlapping drains are the normal case — every API write ends with one, and
+// the cron runs beside them — so the events are CLAIMED: webhook_fan_out (0409)
+// takes them with FOR UPDATE SKIP LOCKED, marks them fanned and writes their
+// deliveries in one statement, building the same payload as the code below.
+// Selecting then marking afterwards let two drains fan out the same events and
+// every receiver got them twice (2026-10-11 audit, API-10).
 export async function fanOutEvents(env, { limit = 500, db = REAL_DB } = {}) {
+  if (db.rpc) {
+    try {
+      const rows = await db.rpc(env, 'webhook_fan_out', { p_limit: limit });
+      const r = (Array.isArray(rows) ? rows[0] : rows) || {};
+      return { events: Number(r.events) || 0, deliveries: Number(r.deliveries) || 0 };
+    } catch (e) {
+      if (!missingFunction(e)) throw e;
+    }
+  }
+
   const events = await db.select(env, 'webhook_events',
     `fanned_at=is.null&select=id,workspace_id,board_id,event,resource,created_at`
     + `&order=id.asc&limit=${limit}`);
@@ -159,12 +189,50 @@ export async function fanOutEvents(env, { limit = 500, db = REAL_DB } = {}) {
 
 // ── Delivery ─────────────────────────────────────────────────────────────────
 
-export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Date.now(), db = REAL_DB } = {}) {
-  const due = await db.select(env, 'webhook_deliveries',
+// Take the due deliveries this drain will send. With 0409 they are LEASED —
+// next_attempt_at pushed out under SKIP LOCKED before anything is POSTed — so a
+// second drain running at the same moment takes different rows instead of the
+// same ones. `id` narrows the claim to one delivery.
+async function claimDue(env, { limit, now, db, id = null }) {
+  if (db.rpc) {
+    try {
+      return await db.rpc(env, 'webhook_deliveries_claim', {
+        p_limit: limit, p_lease_seconds: DELIVERY_LEASE_SECONDS, p_id: id,
+      }) || [];
+    } catch (e) {
+      if (!missingFunction(e)) throw e;
+    }
+  }
+  return await db.select(env, 'webhook_deliveries',
     `delivered_at=is.null&next_attempt_at=lte.${new Date(now).toISOString()}`
+    + (id ? `&id=eq.${id}` : '')
     + '&select=id,webhook_id,event,payload,attempt'
-    + `&order=next_attempt_at.asc&limit=${limit}`);
-  if (!due?.length) return { attempted: 0, delivered: 0, failed: 0 };
+    + `&order=next_attempt_at.asc&limit=${limit}`) || [];
+}
+
+export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Date.now(), db = REAL_DB } = {}) {
+  const due = await claimDue(env, { limit, now, db });
+  const { outcomes: _perRow, ...counts } = await deliverRows(env, due, { fetchImpl, db });
+  return counts;
+}
+
+// Send ONE delivery now, and say what happened to it.
+//
+// POST /webhooks/:id/test used to insert its row and then run a general drain
+// of the 25 oldest due deliveries across every workspace. With a backlog of
+// retries anywhere, the test row was not among them: nothing was sent, and the
+// response still said `sent: true` beside counts that belonged to other
+// people's hooks (2026-10-11 audit, API-17). `outcome` is null when the row
+// was not claimable — already delivered, or held by another drain.
+export async function deliverOne(env, id, { fetchImpl = fetch, now = Date.now(), db = REAL_DB } = {}) {
+  const due = await claimDue(env, { limit: 1, now, db, id });
+  const out = await deliverRows(env, due.filter((d) => d.id === id), { fetchImpl, db });
+  return { ...out, outcome: out.outcomes[0] || null };
+}
+
+async function deliverRows(env, due, { fetchImpl = fetch, db = REAL_DB } = {}) {
+  const outcomes = [];
+  if (!due?.length) return { attempted: 0, delivered: 0, failed: 0, outcomes };
 
   const hookIds = [...new Set(due.map((d) => d.webhook_id))];
   const hooks = await db.select(env, 'webhooks',
@@ -180,6 +248,7 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
         delivered_at: new Date().toISOString(),
         error: 'webhook is inactive',
       });
+      outcomes.push({ id: d.id, delivered: false, status: null, attempt: d.attempt || 0, error: 'webhook is inactive' });
       continue;
     }
 
@@ -191,10 +260,12 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
     const urlProblem = webhookUrlProblem(hook.url);
     if (urlProblem) {
       failed++;
+      const notSent = `not sent: the webhook ${urlProblem}`.slice(0, 300);
       await db.patch(env, 'webhook_deliveries', `id=eq.${d.id}`, {
         delivered_at: new Date().toISOString(), attempt: (d.attempt || 0) + 1,
-        error: `not sent: the webhook ${urlProblem}`.slice(0, 300),
+        error: notSent,
       });
+      outcomes.push({ id: d.id, delivered: false, status: null, attempt: (d.attempt || 0) + 1, error: notSent });
       if (hook.active) {
         hook.active = false;
         await db.patch(env, 'webhooks', `id=eq.${hook.id}`, {
@@ -242,6 +313,7 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
     }
 
     const ms = Date.now() - started;
+    outcomes.push({ id: d.id, delivered: !error, status, attempt, response_ms: ms, error });
     if (!error) {
       delivered++;
       await db.patch(env, 'webhook_deliveries', `id=eq.${d.id}`, {
@@ -277,7 +349,7 @@ export async function deliverDue(env, { limit = 100, fetchImpl = fetch, now = Da
       }
     }
   }
-  return { attempted: due.length, delivered, failed };
+  return { attempted: due.length, delivered, failed, outcomes };
 }
 
 // One pass: fan out what is new, then deliver what is due. Called from the

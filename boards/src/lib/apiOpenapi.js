@@ -882,17 +882,17 @@ export function openapiDocument(origin) {
         delete: op('deleteWebhook', 'Remove a webhook', { parameters: [boardIdParam] }),
       },
       '/webhooks/{id}/test': {
-        post: op('testWebhook', 'Send a real delivery, to check signing end to end', {
+        post: op('testWebhook', 'Send a real delivery now, to check signing end to end, and report its result', {
           parameters: [boardIdParam],
         }),
       },
       '/webhooks/{id}/deliveries': {
         get: op('listWebhookDeliveries', 'Every delivery attempt, with its result', {
-          parameters: [boardIdParam, limitParam, q('cursor', 'From a previous next_cursor')],
+          parameters: [boardIdParam, limitParam, q('cursor', 'From a previous next_cursor (created_at|id)')],
         }),
       },
       '/webhooks/{id}/deliveries/{deliveryId}/redeliver': {
-        post: op('redeliverWebhook', 'Requeue a delivery', {
+        post: op('redeliverWebhook', 'Requeue a delivery and send it now', {
           parameters: [
             boardIdParam,
             { name: 'deliveryId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
