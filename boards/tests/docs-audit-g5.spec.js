@@ -90,6 +90,38 @@ test('DOCS-15: Print / Save as PDF closes the menu at once and leaves the other 
   expect(download.suggestedFilename()).toMatch(/\.md$/);
 });
 
+// ── DOCS-16 ───────────────────────────────────────────────────────────────
+test('DOCS-16: a bookmark shows under the page tree, jumps there, and removes with Undo', async ({ page }) => {
+  await openDoc(page);
+  const modal = page.locator('.doc-card-modal');
+  await expect(modal.locator('.doc-bookmarks')).toHaveCount(0);   // nothing to list yet
+  const pos = await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.commands.setContent('<p>Opening.</p>' + '<p>Filler line.</p>'.repeat(60) + '<p>The end of act two.</p>');
+    let pos = null;
+    ed.state.doc.descendants((n, p) => { if (pos == null && n.isText && n.text.startsWith('The end')) pos = p; });
+    ed.commands.setTextSelection(pos);
+    return pos;
+  });
+  await modal.locator('.doc-tb button[title="Bookmark this spot"]').click();
+  const dialog = page.locator('.feedback-bg');
+  await dialog.locator('input').fill('Act two out');
+  await dialog.getByRole('button', { name: 'Add' }).click();
+  const item = modal.locator('.doc-bookmarks-item');
+  await expect(item).toHaveText('Act two out');
+  // Move away, then jump back through the list.
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setTextSelection(2));
+  await item.click();
+  await expect.poll(() => page.evaluate(() => window.__soleilDocTest.editor.state.selection.from)).toBe(pos);
+  // Remove → Undo toast brings it back.
+  await modal.locator('.doc-bookmarks-row').hover();
+  await modal.locator('.doc-bookmarks-x').click();
+  await expect(modal.locator('.doc-bookmarks')).toHaveCount(0);
+  await page.locator('.toast').filter({ has: page.locator('.toast-msg', { hasText: 'Bookmark removed' }) })
+    .locator('.toast-action').click();
+  await expect(item).toHaveText('Act two out');
+});
+
 // ── DOCS-14 ───────────────────────────────────────────────────────────────
 // A collaborator's edit arrives while the comment composer is open. It lands
 // as a whole-document replace, so raw offsets captured at "Add comment" no

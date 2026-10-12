@@ -79,5 +79,5 @@ message thread that all pointed at it, without anybody maintaining an index.
 ## Bookmarks
 
 Not annotation but adjacent: bookmarks are durable anchors into specific places
-in a document, listed in the right pane. They survive edits around them, so a
+in a document, listed under the page tree. They survive edits around them, so a
 bookmark on "the end of act two" stays there as the act changes length.

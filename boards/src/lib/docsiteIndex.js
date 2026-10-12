@@ -1676,8 +1676,8 @@ export const DOCS_PAGES = [
         "text": "Opening"
       },
       {
-        "id": "the-three-panes",
-        "text": "The three panes"
+        "id": "layout",
+        "text": "Layout"
       },
       {
         "id": "writing-and-formatting",
