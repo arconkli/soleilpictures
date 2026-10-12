@@ -279,8 +279,8 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
                  aria-label="Replace with"
                  value={r}
                  onChange={(e) => setR(e.target.value)} />
-          <button className="doc-find-btn" onClick={replaceOne}>One</button>
-          <button className="doc-find-btn" onClick={replaceAll}>All</button>
+          <button className="doc-find-btn doc-find-btn--text" onClick={replaceOne}>One</button>
+          <button className="doc-find-btn doc-find-btn--text" onClick={replaceAll}>All</button>
         </>
       )}
       <button className="doc-find-x" onClick={close} title="Close (Esc)" aria-label="Close find">×</button>

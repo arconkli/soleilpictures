@@ -157,6 +157,29 @@ test('DOCS-17: the resize handle and align bar sit on the image, and a drag trac
   expect(Math.abs((mid.im.w - g.im.w) - 60)).toBeLessThan(4);
 });
 
+// ── DOCS-18 ───────────────────────────────────────────────────────────────
+test('DOCS-18: find & replace fits a phone-width screen with Replace open', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.focus());
+  await page.keyboard.press('ControlOrMeta+f');
+  const bar = page.locator('.doc-find');
+  await expect(bar).toBeVisible();
+  await bar.locator('button[aria-label="Toggle replace"]').click();
+  await expect(bar.locator('input[aria-label="Replace with"]')).toBeVisible();
+  const out = await page.evaluate(() => {
+    const vw = window.innerWidth;
+    return [...document.querySelectorAll('.doc-find input, .doc-find button')].map(el => {
+      const r = el.getBoundingClientRect();
+      return { label: el.getAttribute('aria-label') || el.textContent, l: r.left, r: r.right, w: r.width };
+    }).filter(x => x.l < 0 || x.r > vw);
+  });
+  expect(out).toEqual([]);
+  // The word buttons are wide enough for their words.
+  const one = bar.getByRole('button', { name: 'One' });
+  expect(await one.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+});
+
 // ── DOCS-14 ───────────────────────────────────────────────────────────────
 // A collaborator's edit arrives while the comment composer is open. It lands
 // as a whole-document replace, so raw offsets captured at "Add comment" no
