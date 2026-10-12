@@ -28,7 +28,7 @@
 // right default; add write only if the model should change things, and delete
 // only if it should remove them.
 
-import { readFile } from 'node:fs/promises';
+import { open, stat } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import { TOOLS } from './tools.js';
 import { handleMcpMessage, ERR } from './server.js';
@@ -181,49 +181,76 @@ const MIME_BY_EXT = {
 // The whole multipart dance, so the model does not have to orchestrate it.
 // Parts go straight to storage, never through the API — which is what makes
 // this usable for a file too big to hold in a message.
+//
+// Read a part at a time from an open handle, never the whole file. readFile
+// refuses anything over 2 GiB outright — exactly the camera masters and ProRes
+// this tool exists for — and below that it held the whole file in memory for
+// the length of the upload (2026-10-11 audit, API-16). At most eight parts are
+// in memory at once.
 async function uploadLocalFile({ board_id: boardId, path, content_type: contentType }) {
-  const bytes = await readFile(path);
+  const { size } = await stat(path);
   const filename = basename(path);
   const mime = contentType || MIME_BY_EXT[extname(path).toLowerCase()] || 'application/octet-stream';
 
   const created = await api(`/uploads/multipart?board=${boardId}`, {
     method: 'POST',
-    body: { bytes: bytes.length, content_type: mime, filename },
-    tool: 'upload_file', args: { path, size: bytes.length },
+    body: { bytes: size, content_type: mime, filename },
+    tool: 'upload_file', args: { path, size },
   });
   const { key, upload_id: uploadId, part_size: partSize, part_count: partCount } = created;
 
-  const etags = [];
-  // Signed URLs expire, so they are fetched in batches as the upload proceeds
-  // rather than all at once up front.
-  for (let start = 1; start <= partCount; start += 100) {
-    const numbers = [];
-    for (let n = start; n < Math.min(start + 100, partCount + 1); n++) numbers.push(n);
-    const signed = await api('/uploads/multipart/parts', {
-      method: 'POST',
-      body: { board_id: boardId, key, upload_id: uploadId, part_numbers: numbers },
-      tool: 'upload_file', args: { key, start },
-    });
-    // Eight at a time: enough to keep a connection busy without making a
-    // desktop machine's upload unusable while it runs.
-    for (let i = 0; i < numbers.length; i += 8) {
-      await Promise.all(numbers.slice(i, i + 8).map(async (n) => {
-        const from = (n - 1) * partSize;
-        const put = await fetch(signed.urls[String(n)], {
-          method: 'PUT',
-          body: bytes.subarray(from, Math.min(from + partSize, bytes.length)),
-        });
-        if (!put.ok) throw new Error(`part ${n} failed (${put.status})`);
-        etags[n - 1] = { part_number: n, etag: put.headers.get('etag') };
-      }));
+  const file = await open(path, 'r');
+  let done;
+  try {
+    const etags = [];
+    // Signed URLs expire, so they are fetched in batches as the upload proceeds
+    // rather than all at once up front.
+    for (let start = 1; start <= partCount; start += 100) {
+      const numbers = [];
+      for (let n = start; n < Math.min(start + 100, partCount + 1); n++) numbers.push(n);
+      const signed = await api('/uploads/multipart/parts', {
+        method: 'POST',
+        body: { board_id: boardId, key, upload_id: uploadId, part_numbers: numbers },
+        tool: 'upload_file', args: { key, start },
+      });
+      // Eight at a time: enough to keep a connection busy without making a
+      // desktop machine's upload unusable while it runs.
+      for (let i = 0; i < numbers.length; i += 8) {
+        await Promise.all(numbers.slice(i, i + 8).map(async (n) => {
+          const from = (n - 1) * partSize;
+          const length = Math.max(0, Math.min(partSize, size - from));
+          const chunk = Buffer.alloc(length);
+          let got = 0;
+          while (got < length) {
+            const { bytesRead } = await file.read(chunk, got, length - got, from + got);
+            if (!bytesRead) throw new Error(`${filename} changed size while it was uploading`);
+            got += bytesRead;
+          }
+          const put = await fetch(signed.urls[String(n)], { method: 'PUT', body: chunk });
+          if (!put.ok) throw new Error(`part ${n} failed (${put.status})`);
+          etags[n - 1] = { part_number: n, etag: put.headers.get('etag') };
+        }));
+      }
     }
-  }
 
-  const done = await api('/uploads/multipart/complete', {
-    method: 'POST',
-    body: { board_id: boardId, key, upload_id: uploadId, parts: etags },
-    tool: 'upload_file', args: { key },
-  });
+    done = await api('/uploads/multipart/complete', {
+      method: 'POST',
+      body: { board_id: boardId, key, upload_id: uploadId, parts: etags },
+      tool: 'upload_file', args: { key },
+    });
+  } catch (e) {
+    // An upload abandoned part-way keeps its parts in storage, invisibly and
+    // indefinitely, unless it is aborted. Best effort: the error the caller
+    // needs is the one that stopped the upload, not this.
+    await api('/uploads/multipart/abort', {
+      method: 'POST',
+      body: { board_id: boardId, key, upload_id: uploadId },
+      tool: 'upload_file', args: { key, abort: true },
+    }).catch(() => {});
+    throw e;
+  } finally {
+    await file.close().catch(() => {});
+  }
   return {
     ...done,
     file_name: filename,
