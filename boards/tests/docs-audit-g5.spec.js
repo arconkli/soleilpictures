@@ -68,3 +68,40 @@ test('DOCS-08: Undo on deleting the only page brings it back with its text', asy
   await expect(modal.locator('.doc-tree-name')).toHaveText('Chapter One');
   await expect(modal.locator('.ProseMirror')).toContainText('Every word of the only page.');
 });
+
+// ── DOCS-14 ───────────────────────────────────────────────────────────────
+// A collaborator's edit arrives while the comment composer is open. It lands
+// as a whole-document replace, so raw offsets captured at "Add comment" no
+// longer point at the selected word.
+test('DOCS-14: a comment posted after a collaborator edit still highlights the selected word', async ({ page }) => {
+  await openDoc(page);
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.commands.setContent('<p>The quick brown fox jumps.</p>');
+    const text = 'The quick brown fox jumps.';
+    const from = text.indexOf('brown') + 1;
+    ed.chain().focus().setTextSelection({ from, to: from + 'brown'.length }).run();
+  });
+  await page.locator('.doc-card-modal .doc-tb button[title^="Add comment"]').click();
+  const input = page.locator('.inline-composer-input');
+  await expect(input).toBeVisible();
+  await input.fill('Right animal?');
+  // The collaborator: a paragraph typed above, written straight into the Y
+  // fragment the way a remote update arrives.
+  await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const scope = T.getScope();
+    const [p] = T.readPages(T.ydoc, scope);
+    const frag = T.getOrCreatePageContent(T.ydoc, p.id, scope);
+    const para = new T.Y.XmlElement('paragraph');
+    const t = new T.Y.XmlText();
+    t.insert(0, 'A whole new opening line from someone else.');
+    para.insert(0, [t]);
+    T.ydoc.transact(() => { frag.insert(0, [para]); }, 'remote-peer');
+  });
+  await expect(page.locator('.doc-card-modal .ProseMirror')).toContainText('A whole new opening line');
+  await input.press('Enter');
+  const mark = page.locator('.doc-card-modal .tt-comment');
+  await expect(mark).toHaveCount(1);
+  await expect(mark).toHaveText('brown');
+});

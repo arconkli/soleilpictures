@@ -16,6 +16,7 @@ import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
+import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { uploadImage } from '../lib/uploads.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
@@ -684,10 +685,15 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   const uploadAndInsert = async (editor, file, pos = null) => {
     if (!file || !file.type?.startsWith('image/')) return;
     if (!workspaceId || !userId) return;
+    // The drop point as a Yjs relative anchor: typing (ours or a
+    // collaborator's) during the upload moves the text, and a raw position
+    // then landed mid-sentence — or past the end ("Position out of range").
+    const anchor = pos != null ? encodeAnchor(editor, pos) : null;
     try {
       const payload = await uploadImage({ file, workspaceId, userId });
       if (pos != null) {
-        editor.chain().focus().insertContentAt(pos, { type: 'image', attrs: { src: payload.publicUrl } }).run();
+        const at = Math.max(0, Math.min(resolveAnchor(editor, anchor) ?? pos, editor.state.doc.content.size));
+        editor.chain().focus().insertContentAt(at, { type: 'image', attrs: { src: payload.publicUrl } }).run();
       } else {
         editor.chain().focus().setImage({ src: payload.publicUrl }).run();
       }
