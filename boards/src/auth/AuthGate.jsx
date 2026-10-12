@@ -943,7 +943,7 @@ function SignIn() {
               pattern="[0-9]*"
               maxLength={6}
               required
-              placeholder="• • • • • •"
+              placeholder="••••••"
               value={code}
               onChange={(e) => {
                 if (!codeEngagedRef.current) { codeEngagedRef.current = true; logEvent(EV.LANDING_FIELD_ENGAGE, { field: 'code' }); }

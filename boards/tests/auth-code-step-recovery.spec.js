@@ -69,6 +69,28 @@ test('a wrong code empties the field and hands focus back', async ({ page }) => 
   await expect(page.locator('.auth-error')).toHaveCount(0);
 });
 
+// ACCOUNT-12: the placeholder must fit the field at phone width.
+test('the code placeholder fits the field on a 375px phone', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 740 });
+  await isolate(page);
+  await seed(page, { email: 'narrow@gmail.com', offset: 0 });
+  await page.goto('/');
+  const input = page.locator('.auth-code-input');
+  await expect(input).toBeVisible({ timeout: 15000 });
+  const fit = await input.evaluate((el) => {
+    const cs = getComputedStyle(el, '::placeholder');
+    const base = getComputedStyle(el);
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = `${base.fontWeight} ${base.fontSize} ${base.fontFamily}`;
+    const text = el.placeholder;
+    const ls = parseFloat(cs.letterSpacing) || 0;
+    const need = ctx.measureText(text).width + ls * text.length;
+    const have = el.clientWidth - parseFloat(base.paddingLeft) - parseFloat(base.paddingRight);
+    return { need, have };
+  });
+  expect(fit.need).toBeLessThanOrEqual(fit.have);
+});
+
 test('the explore-a-board exit is offered on the email step, not the code step', async ({ page }) => {
   await isolate(page);
   await page.goto('/');

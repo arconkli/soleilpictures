@@ -5675,6 +5675,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   font: 600 22px/1.4 var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
   letter-spacing: .42em;
 }
+/* Six dots, no spaces between them: the letter-spacing already spaces them as
+   wide as six typed digits. "• • • • • •" was eleven glyphs at this spacing,
+   wider than the field on a 375-390px phone, and clipped. */
 .auth-code-input::placeholder { letter-spacing: .42em; opacity: .35; }
 .auth-hint-sep { color: var(--ink-3); margin: 0 4px; }
 /* Code step: the inbox shortcut is a quiet secondary action under the hint
