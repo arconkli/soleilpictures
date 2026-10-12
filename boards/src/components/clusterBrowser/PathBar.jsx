@@ -130,8 +130,12 @@ export function PathBar({
           )}
         </div>
       )}
+      {/* Says where you are, not what you may do: the panel looks into another
+          cluster without opening it, so files are added there, not here. It
+          read "View only" — the words the app uses for a viewer's missing
+          edit rights — over a cluster the person owns. */}
       {readOnly && (
-        <span className="cbt-ro" title="Open this cluster to add or change files">View only</span>
+        <span className="cbt-ro" title="Browsing from the board. Open this cluster to add or change files">Browsing</span>
       )}
     </nav>
   );
