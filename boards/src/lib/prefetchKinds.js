@@ -20,15 +20,16 @@ const IMAGE_TTL = 5 * 60_000;   // 5 min — decoded image bytes stay hot
 //
 // Side effect: once the snapshot lands, fire-and-forget warm the
 // first ~6 image refs found in the doc so the canvas paints with
-// bytes already decoded by the browser. Not on the 'high' lane: that is
-// yboard's own cold open, which is about to decode this snapshot for real
-// and mount those images itself — warming them too only decoded the
-// snapshot a second time (PERF-06).
-export function prefetchBoard(boardId, { lane = 'normal' } = {}) {
+// bytes already decoded by the browser. yboard's own cold open passes
+// warmImages: false: it is about to decode this snapshot for real and mount
+// those images itself, so warming them too only decoded the snapshot a second
+// time (PERF-06). Keyed on its own flag, not the lane: entity-link hovers and
+// graph clicks also ride 'high' and do want the warm-up.
+export function prefetchBoard(boardId, { lane = 'normal', warmImages = true } = {}) {
   if (!boardId) return Promise.resolve(null);
   return prefetch(`board:${boardId}`, async () => {
     const b64 = await loadBoardSnapshot(boardId);
-    if (b64 && lane !== 'high') {
+    if (b64 && warmImages) {
       // Microtask defer so the await chain in the consumer (yboard
       // cold-load) gets the snapshot first, then the image warm-up
       // happens off the critical path.
