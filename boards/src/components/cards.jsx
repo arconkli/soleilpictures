@@ -63,7 +63,7 @@ import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
-import { ensureFontsFromHtml } from '../lib/googleFonts.js';
+import { ensureFontsFromHtml, ensureFontForCss } from '../lib/googleFonts.js';
 import { FilmPlayer } from './film/FilmPlayer.jsx';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
@@ -1075,6 +1075,9 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // on a fresh load its text sat in the fallback face until someone clicked
   // in — the chosen font appeared to "revert". Load whatever it names.
   useEffect(() => { try { ensureFontsFromHtml(display); } catch (_) {} }, [display]);
+  // The whole-note font is a card prop, not inline html, so the scan above
+  // never saw it: only its author (whose recent fonts preload) got the face.
+  useEffect(() => { try { ensureFontForCss(fontFamily); } catch (_) {} }, [fontFamily]);
 
   if (editing) {
     return (
@@ -1227,6 +1230,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   const roDisplay = peerLiveHtml ?? noteSourceHtml(html, body);
   const roSafeDisplay = useMemo(() => remapHtmlColors(roDisplay, roEffBg), [roDisplay, roEffBg]);
   useEffect(() => { try { ensureFontsFromHtml(roDisplay); } catch (_) {} }, [roDisplay]);
+  useEffect(() => { try { ensureFontForCss(fontFamily); } catch (_) {} }, [fontFamily]);
   if (!onUpdate) {
     // Same surface-tone + readable-color treatment as the editable paths, so
     // the read-only render (share, list, off-screen) matches what editing shows.
