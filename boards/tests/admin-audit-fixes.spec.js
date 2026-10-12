@@ -353,6 +353,35 @@ test.describe('admin System onboarding failures (ADMIN-16)', () => {
   });
 });
 
+test.describe('admin Tagging card titles (ADMIN-17)', () => {
+  test('card_index is read by id in small chunks, never as one capped select', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
+    await page.evaluate(async () => {
+      const { supabase } = await import('/src/lib/supabase.js');
+      const orig = supabase.from;
+      window.__cardIndexReads = [];
+      supabase.from = (table) => {
+        const b = orig(table);
+        if (table !== 'card_index') return b;
+        const read = { in: null };
+        window.__cardIndexReads.push(read);
+        const inner = b.in;
+        b.in = (col, vals) => { read.in = [col, vals.length]; return inner.call(b, col, vals); };
+        return b;
+      };
+    });
+    await switchTab(page, 'Tagging');
+    await expect(page.locator('.admin-error')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.__cardIndexReads.length)).toBeGreaterThan(0);
+    const reads = await page.evaluate(() => window.__cardIndexReads);
+    for (const r of reads) {
+      expect(r.in?.[0]).toBe('card_id');
+      expect(r.in?.[1]).toBeLessThanOrEqual(150);
+    }
+  });
+});
+
 test.describe('admin cohort matrix (ADMIN-11)', () => {
   test('the week still under way is outlined and kept out of the All row', async ({ page }) => {
     // This UTC Monday and the one before, from the clock, as the RPC would.
