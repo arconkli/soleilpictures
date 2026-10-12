@@ -11015,8 +11015,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 .tag-disambig {
   display: inline-flex; align-items: center; gap: 8px;
-  background: color-mix(in oklab, var(--soleil) 14%, transparent);
-  border: 1px solid color-mix(in oklab, var(--soleil) 30%, transparent);
+  /* A question, not a selection: neutral at rest (gold is for active/focus). */
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
   padding: 4px 8px;
   font: 500 11px/1.3 var(--font-sans);
