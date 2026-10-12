@@ -978,7 +978,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     if (!touch) return undefined; // pure mouse desktop keeps the top toolbar
     const update = () => {
       const sel = editor.state.selection;
-      if (sel.empty || !editor.isEditable || !editor.isFocused) { setBubble(null); return; }
+      // A tapped image (or embed, divider…) is a NodeSelection: not empty,
+      // but there is no text to bold. Its own toolbar is the one to show —
+      // the bubble sat on top of it and swallowed every align button.
+      if (sel.empty || sel.node || !editor.isEditable || !editor.isFocused) { setBubble(null); return; }
       try { const c = editor.view.coordsAtPos(sel.from); setBubble({ top: c.top, left: c.left }); }
       catch (_) { setBubble(null); }
     };
