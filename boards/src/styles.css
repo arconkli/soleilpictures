@@ -38,6 +38,10 @@
 .clusters-mark-light { display: none; }
 [data-theme="light"] .clusters-mark-dark { display: none; }
 [data-theme="light"] .clusters-mark-light { display: block; }
+/* A .public-dark page stays dark on a light theme, so it keeps the dark-ground
+   mark: the light one's dark orbit vanished into the dark page. */
+[data-theme="light"] .public-dark .clusters-mark-dark { display: block; }
+[data-theme="light"] .public-dark .clusters-mark-light { display: none; }
 
 :root {
   /* The film grain, as one token rather than five copies of a url().

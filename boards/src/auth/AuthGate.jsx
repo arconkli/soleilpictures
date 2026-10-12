@@ -430,6 +430,21 @@ async function consumeAuthCallback() {
   return data.session;
 }
 
+// Whether this load can end signed in: a stored session (main.jsx's `sb-…auth-token`
+// heuristic for /pricing, loosened to `sb-…auth…` so the alt-session key counts)
+// or an auth callback in the URL. Only picks the loading splash's colours; the
+// restore itself decides the session.
+function hasStoredSession() {
+  try {
+    if (/[?&#](code|access_token)=/.test(window.location.href)) return true;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('sb-') && k.includes('auth')) return true;
+    }
+  } catch (_) { return true; }
+  return false;
+}
+
 export function AuthGate({ children, signedOut = null }) {
   const localMode = isLocalQaMode();
   const devWithoutSupabase = !isSupabaseConfigured;
@@ -544,8 +559,11 @@ export function AuthGate({ children, signedOut = null }) {
   }
 
   // A route that supplies `signedOut` (only /pricing) is dark whichever way the
-  // restore goes, so its splash is too.
-  if (loading) return <SplashLoading dark={!!signedOut} />;
+  // restore goes, so its splash is too. So is a restore with no stored session
+  // to find: it can only end on the sign-in scene, which is dark, and a
+  // theme-following splash flashed light grey between the dark boot splash and
+  // that scene for every light-theme visitor.
+  if (loading) return <SplashLoading dark={!!signedOut || !hasStoredSession()} />;
   // `signedOut` lets a public route (main.jsx: /pricing) stand in for the wall
   // when a cached session turns out not to restore.
   if (!session) return (!hadSession.current && signedOut) || <SignIn />;
