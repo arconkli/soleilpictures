@@ -12,7 +12,7 @@
 // a cell edit. Like RichDocCard, GridCard self-observes its own gridCells so cell
 // edits re-render. Layout / templateId / seqId arrive as plain props.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { readGridModel, effectiveCellStyle, readGridHints } from '../../lib/gridState.js';
 import { isCellFilled } from '../../lib/gridCount.js';
@@ -28,6 +28,7 @@ import { ImageEditModal } from '../ImageEditModal.jsx';
 import { ImageLightbox } from '../ImageLightbox.jsx';
 import { hasFilterStages } from '../../lib/imageAdjust.js';
 import { downloadImage } from '../../lib/imageExport.js';
+import { useOptionalFeedback } from '../AppFeedback.jsx';
 import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
@@ -74,6 +75,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [lightbox, setLightbox] = useState(null);       // { cellId } — full-screen ImageLightbox viewer
   const [repositionOn, setRepositionOn] = useState(false); // reposition drag armed on the edited cell
   const [compareCellId, setCompareCellId] = useState(null); // cell showing its unadjusted source (hold-to-compare)
+  const feedback = useOptionalFeedback();
+  const downloadingRef = useRef(false);                 // a cell download in flight
 
   const model = readGridModel(card, ydoc, templates);
   // Cell labels carried in from the template this grid was made from. They are
@@ -105,6 +108,18 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   // Deletes in here get the house Undo toast (gridActions.withUndoToast);
   // without it they fall back to the bare mutator.
   const withUndo = (message, fn) => (gridActions?.withUndoToast ? gridActions.withUndoToast(message, fn) : fn());
+  // A cell's photo download resolves false when it fails; say so (audit
+  // MEDIA-15), and don't start a second one while the first is still going.
+  const downloadCell = async (c) => {
+    if (downloadingRef.current) return;
+    downloadingRef.current = true;
+    try {
+      const ok = await downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust });
+      if (!ok) feedback?.toast?.({ type: 'error', message: 'Couldn’t download this image. Try again.' });
+    } finally {
+      downloadingRef.current = false;
+    }
+  };
   const clearCell = (cellId) => withUndo('Cell cleared', () => gridActions.clearCellContent(card.id, cellId));
   // Removing a line deletes the right / bottom side's cells. Content moves
   // into an empty neighbour; what can't is counted, and only then is there a
@@ -395,7 +410,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         isImage={!!(model.cells[menu.cellId] && model.cells[menu.cellId].type === 'image' && model.cells[menu.cellId].src)}
         onEditPhoto={() => openPhotoEdit(menu.cellId, menu.anchorRect)}
         onOpenFullScreen={() => openLightbox(menu.cellId)}
-        onDownload={() => { const c = model.cells[menu.cellId]; if (c && c.src) downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust }); }}
+        onDownload={() => { const c = model.cells[menu.cellId]; if (c && c.src) downloadCell(c); }}
         onText={() => { gridActions.setCellContent(card.id, menu.cellId, { type: 'text', html: '' }); enterTextEdit(menu.cellId); }}
         onImage={() => gridActions.pickImageForCell(card.id, menu.cellId)}
         onLink={() => gridActions.addLinkToCell(card.id, menu.cellId)}
@@ -453,7 +468,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
           src={c.src} title={c.title || ''} adjust={c.adjust} cardId={`${card.id}:${cid}`}
           onChange={(next) => gridActions.setCellContent(card.id, cid, { adjust: next })}
           onReset={() => gridActions.setCellContent(card.id, cid, { adjust: null })}
-          onDownload={() => downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust })}
+          onDownload={() => downloadCell(c)}
           onClose={() => setPhotoFullModal(null)}
         />
       );

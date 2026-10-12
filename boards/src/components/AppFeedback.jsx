@@ -145,3 +145,9 @@ export function useFeedback() {
   if (!ctx) throw new Error('useFeedback must be used inside FeedbackProvider');
   return ctx;
 }
+
+// For components that also render outside the provider (the DEV QA harnesses
+// mount cards and the lightbox bare): null there instead of a throw.
+export function useOptionalFeedback() {
+  return useContext(FeedbackContext);
+}
