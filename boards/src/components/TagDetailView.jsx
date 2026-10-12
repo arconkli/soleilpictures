@@ -335,13 +335,19 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     reloadSuggestionsRef.current = reloadSuggestions;
 
     const sfx = Math.random().toString(36).slice(2, 9);
+    const ws = workspaceId || tag.workspace_id;
     const chan = supabase.channel(`tag-detail:${tag.id}:${sfx}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'entity_links',
+        // Workspace-scoped, like the sidebar and the canvas chips. Unfiltered,
+        // this channel received every entity_links DELETE on the platform
+        // (realtime skips RLS for a DELETE, and its `old` is only the row id),
+        // and every doc or note save deletes mention rows — so any user's
+        // typing anywhere refetched every open tag page. With the filter,
+        // realtime drops DELETEs here (their `old` has no source_workspace);
+        // this tab's removals arrive through TAG_LINKS_CHANGED below.
+        filter: `source_workspace=eq.${ws}`,
       }, (payload) => {
-        // A DELETE's `old` is only the row id (replica identity default +
-        // RLS), so a removal — yours from another tab, a peer's, a tag
-        // delete — can't be matched to this tag. Reload on any DELETE.
         if (touchesAppliedTag(payload, tag.id)) reloadRows();
         if (touchesTagMention(payload, tag.id)) reloadMentions();
       })
@@ -355,8 +361,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       })
       .subscribe();
 
-    // This tab's own removals (another surface, a delete, a merge),
-    // independent of what realtime delivers.
+    // This tab's own removals (another surface, a delete, a merge). The
+    // filtered channel above never sees a DELETE, so this is the only path
+    // for them; a peer's removal shows up on the next load.
     const onLocalChange = () => { reloadRows(); reloadMentions(); };
     document.addEventListener(TAG_LINKS_CHANGED, onLocalChange);
 

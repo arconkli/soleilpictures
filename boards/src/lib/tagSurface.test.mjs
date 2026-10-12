@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   isDeleteEvent, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, coalesce,
   effectiveTypeFilter, clampMenuPosition, isDuplicateTagName, findTagByName,
@@ -45,6 +48,20 @@ test('a suggestion change for this tag reloads the inbox, including a DELETE', (
   assert.equal(touchesTagSuggestion({ eventType: 'DELETE', new: {}, old: { tag_id: 'u', source_id: 'x' } }, 't'), false);
   // only an opaque id → maybe ours.
   assert.equal(touchesTagSuggestion({ eventType: 'DELETE', new: {}, old: { id: 9 } }, 't'), true);
+});
+
+// Realtime skips RLS for a DELETE, so an entity_links subscription with no
+// filter receives every DELETE on the platform — and every doc or note save
+// deletes mention rows. The tag page must stay scoped to its workspace.
+test('the tag page listens to entity_links in its own workspace only', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, '../components/TagDetailView.jsx'), 'utf8');
+  const subs = src.split("table: 'entity_links'").slice(1);
+  assert.ok(subs.length > 0, 'the tag page subscribes to entity_links');
+  for (const rest of subs) {
+    const opts = rest.slice(0, rest.indexOf('}'));
+    assert.match(opts, /filter:\s*`source_workspace=eq\./);
+  }
 });
 
 const tick = () => new Promise(r => setTimeout(r, 0));
