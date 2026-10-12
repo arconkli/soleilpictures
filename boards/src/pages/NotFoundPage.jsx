@@ -20,7 +20,10 @@ export function NotFoundPage() {
   const lp = useLandingEngagement({ page: '/404', pageKind: 'not_found', scroll: 'none' });
   useEffect(() => { document.title = 'Page not found — Soleil Clusters'; }, []);
   return (
-    <div className="public-shell">
+    // public-dark like every page that links here: a light-OS visitor otherwise
+    // fell out of the dark brand world onto a light grey 404, between a dark
+    // boot splash and the dark page they came from.
+    <div className="public-shell public-dark">
       <div className="public-topbar">
         <a className="public-brand" href="/" title="Clusters home">
           <ClustersMark size={20} />

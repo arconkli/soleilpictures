@@ -987,9 +987,14 @@ function humanError(e) {
 // Exported so main.jsx can reuse it as the <Suspense> fallback for the lazy
 // AppShell / share / legal chunks — identical to AuthGate's own loading state,
 // so there's no visual discontinuity when those chunks fetch.
-export function SplashLoading() {
+//
+// `dark` pins the splash to the brand's dark tokens (.public-dark) for routes
+// whose page is committed to the dark world. Without it a light-theme visitor
+// saw the dark boot splash, then this one in light grey while the page chunk
+// loaded, then the dark page: a dark-white-dark flicker on every landing page.
+export function SplashLoading({ dark = false }) {
   return (
-    <div className="auth-screen">
+    <div className={dark ? 'auth-screen public-dark' : 'auth-screen'}>
       <div className="auth-glow" aria-hidden="true" />
       <div className="auth-loading">
         <SoleilMark size={32} color="var(--soleil)" glow />
