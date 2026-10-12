@@ -813,6 +813,7 @@ export function PublicBoardView({ token, slug }) {
                 onDropFilesToCluster={null}
                 onRevealOnCanvas={null}
                 showStorageUpsell={false}
+                showPlacement={false}
               />
               </Suspense>
             ) : (
