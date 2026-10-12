@@ -112,15 +112,18 @@ export function FeedbackProvider({ children }) {
   // `group` + `groupMessage(n)`: a toast for a group already on screen joins
   // that toast instead of stacking another ("3 uploads failed"), taking the
   // newest action and restarting its timer.
+  //
+  // Returns a function that takes the toast down early — for a "working on
+  // it" toast whose work has finished. Callers that ignore it lose nothing.
   const toast = useCallback(({ type = 'info', message, action = null, actions = null, ttl = 4200, onDismiss = null, group = null, groupMessage = null }) => {
-    if (!message) return;
+    if (!message) return () => {};
     // Capture Mode (admin-only) mutes toasts so a stray "Copied" or an undo
     // strip can't land in the middle of a take. Read from the module rather
     // than React state on purpose: `toast` sits in the useMemo'd context value
     // below, so making it depend on a flag would re-render the entire app tree
     // every time the flag flipped. confirm/prompt are deliberately NEVER muted
     // — they block a flow, and silently resolving one would strand the caller.
-    if (isSilenced()) return;
+    if (isSilenced()) return () => {};
     const fresh = nextId.current++;
     const placed = placeGroupedToast(groupsRef.current, { group, message, groupMessage }, fresh);
     const id = placed.id;
@@ -137,6 +140,7 @@ export function FeedbackProvider({ children }) {
     setAnnounce(type === 'error' ? { polite: '', alert: spoken } : { polite: spoken, alert: '' });
     window.clearTimeout(timersRef.current.get(id));
     timersRef.current.set(id, window.setTimeout(() => dismissToast(id), Math.max(1000, ttl)));
+    return () => dismissToast(id);
   }, [dismissToast]);
 
   const value = useMemo(() => ({ confirm, prompt, toast }), [confirm, prompt, toast]);
