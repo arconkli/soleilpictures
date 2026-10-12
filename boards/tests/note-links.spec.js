@@ -149,6 +149,18 @@ test('a preview dismissed in the old editor stays dismissed after an edit', asyn
   expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('html'))).not.toContain('note-link-preview');
 });
 
+// NOTES-10: a whole-note Google font (the card's fontFamily) was never
+// loaded for anyone but its author, so the note fell back to Georgia.
+test('a whole-note Google font loads for every viewer of the note', async ({ page }) => {
+  await ready(page);
+  await expect(page.locator('link[data-google-font="Playfair Display"]')).toHaveCount(0);
+  await page.evaluate(() => {
+    const t = window.__soleilNoteTest;
+    t.docB.transact(() => t.cardB.set('fontFamily', "'Playfair Display', Georgia, serif"), 'local');
+  });
+  await expect(page.locator('link[data-google-font="Playfair Display"]')).toHaveCount(1);
+});
+
 test('a javascript: link is not kept', async ({ page }) => {
   await ready(page);
   await setLegacyHtml(page, '<p><a href="javascript:alert(1)">click</a></p>');
