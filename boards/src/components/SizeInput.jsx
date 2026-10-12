@@ -60,8 +60,17 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
     onCommit?.(clamped);
     setDraft(String(clamped));
   };
+  // Escape blurs to revert, and that blur runs this same commit-on-blur — with
+  // the TYPED draft still in its closure (the revert's setDraft hasn't
+  // rendered yet), so Escape used to apply the value it meant to throw away.
+  const cancelRef = useRef(false);
   const commitDraft = () => {
     setFocused(false);
+    if (cancelRef.current) {
+      cancelRef.current = false;
+      setDraft(value ? String(value) : '');
+      return;
+    }
     const n = parseInt(draft, 10);
     if (Number.isFinite(n) && n > 0) commitPx(n);
     else setDraft(value ? String(value) : '');
@@ -107,8 +116,7 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
           } else if (e.key === 'Escape') {
             e.stopPropagation();
             if (open) { setOpen(false); return; }
-            setDraft(value ? String(value) : '');
-            setFocused(false);
+            cancelRef.current = true;
             e.currentTarget.blur();
           }
         }}

@@ -1146,8 +1146,12 @@ function LineAngleInput({ angle, onCommit }) {
   useEffect(() => {
     if (!editing) setDraft(formatAngleForDisplay(angle));
   }, [angle, editing]);
+  // Escape → blur → this commit, still holding the typed draft: without the
+  // flag Escape applied the angle it meant to revert (NOTES-11).
+  const cancelRef = useRef(false);
   const commit = () => {
     setEditing(false);
+    if (cancelRef.current) { cancelRef.current = false; setDraft(formatAngleForDisplay(angle)); return; }
     const n = parseFloat(draft);
     if (Number.isFinite(n)) {
       onCommit(n);
@@ -1167,7 +1171,7 @@ function LineAngleInput({ angle, onCommit }) {
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
-        if (e.key === 'Escape') { e.stopPropagation(); setDraft(formatAngleForDisplay(angle)); setEditing(false); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
       title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
@@ -1184,8 +1188,10 @@ function LinePxInput({ value, onCommit }) {
   useEffect(() => {
     if (!editing) setDraft(formatAngleForDisplay(value));
   }, [value, editing]);
+  const cancelRef = useRef(false); // see LineAngleInput
   const commit = () => {
     setEditing(false);
+    if (cancelRef.current) { cancelRef.current = false; setDraft(formatAngleForDisplay(value)); return; }
     const n = parseFloat(draft);
     if (Number.isFinite(n) && n >= 0) {
       const clamped = Math.min(200, n);
@@ -1206,7 +1212,7 @@ function LinePxInput({ value, onCommit }) {
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
-        if (e.key === 'Escape') { e.stopPropagation(); setDraft(formatAngleForDisplay(value)); setEditing(false); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
       title="Line width in pixels (0 = none)"
