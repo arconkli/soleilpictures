@@ -2215,6 +2215,11 @@
 .fbk-consent { color: rgb(80,200,120); }
 .fbk-breakdown { margin: 4px 0 14px; }
 .fbk-breakdown-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+
+/* The question picker holds whole questions ("What's holding you back?"), not
+   one-word filters, so the shared 140px filter width cut its value off under
+   the chevron. It takes its content's width here, up to a cap. */
+.fbk-breakdown-head .admin-filter-select { width: auto; max-width: 320px; }
 .fbk-breakdown-title { font: 600 12px/1 var(--font-sans); color: var(--ink-1); }
 .fbk-breakdown .admin-table td, .fbk-breakdown .admin-table th { padding-top: 6px; padding-bottom: 6px; }
 .fbk-kind .fbk-dot { background: var(--k); }

@@ -201,3 +201,11 @@ test('the selected range segment shows the focus glow when tabbed to (VS-ADMIN-0
   // The glow is the gold ring; the resting is-active shadow is a black hairline.
   expect(shadow).toMatch(/rgba\(255, 165, 0/);
 });
+
+test('the Feedback question picker is wide enough for the question it shows (VS-ADMIN-10)', async ({ page }) => {
+  await openAdmin(page, { tab: 'feedback' });
+  const select = page.getByRole('combobox', { name: 'Which question' });
+  await expect(select).toBeVisible({ timeout: 15000 });
+  const [client, scroll] = await select.evaluate((e) => [e.clientWidth, e.scrollWidth]);
+  expect(scroll).toBeLessThanOrEqual(client);
+});
