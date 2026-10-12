@@ -393,6 +393,17 @@ export async function listBoardShares(boardId) {
   return data || [];
 }
 
+// People with access through an ANCESTOR's share and none of their own here
+// (0405). Same permission gate as listBoardShares. Rows:
+//   { user_id, email, role, via_board_id, via_board_name }, nearest first.
+export async function listInheritedBoardShares(boardId) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .rpc('list_inherited_board_shares', { p_board_id: boardId });
+  if (error) throw error;
+  return data || [];
+}
+
 // Boards the caller has access to via a per-board share where they are
 // NOT also a workspace member. Used by the sidebar's "Shared with me"
 // section.  Returns rows shaped like:

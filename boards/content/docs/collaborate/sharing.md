@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-10
+updated: 2026-10-12
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -134,8 +134,11 @@ Editors are **free on every plan**. See [Collaborating](/docs/collaborate).
 ## People with access
 
 One list, covering everyone: workspace members, people added to this cluster
-alone, and invitations still waiting on a signup. Each row says what that person
-can do and how far it reaches. Owners and co-owners can change a role or
+alone, people who reach it through a parent cluster's share, and invitations
+still waiting on a signup. Each row says what that person can do and how far it
+reaches. Someone who has access because a parent was shared with them is listed
+as **via** that parent; their access is changed or removed from the parent's
+Share panel, so their row here has no controls. Owners and co-owners can change a role or
 remove access from here; only the owner can transfer the workspace. A transfer
 hands over the plan too: the workspace's cards, files and storage count against
 the new owner's plan from then on, and they get a notice with their own numbers.

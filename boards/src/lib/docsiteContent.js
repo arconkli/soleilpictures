@@ -27577,7 +27577,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
+     "v": "One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Someone who has access because a parent was shared with them is listed as "
+    },
+    {
+     "t": "strong",
+     "v": "via",
+     "children": [
+      {
+       "t": "text",
+       "v": "via"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here has no controls. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
     }
    ]
   },

@@ -92,3 +92,29 @@ export function otherModeLinks(rows, mode, opts) {
   const mine = linkForMode(rows, mode, opts);
   return live.filter((l) => l !== mine);
 }
+
+// People who can open this cluster because an ANCESTOR was shared with them
+// (list_inherited_board_shares, 0405), reduced to the rows the panel adds to
+// "People with access". Access cascades down the tree, so a sub-cluster's list
+// that showed only its own shares answered "who can get in?" wrongly: an owner
+// auditing a sub-cluster never saw the parent's guests.
+//
+// Somebody already listed, by a share of their own here or as a workspace
+// member, is not listed again, and each person appears once, named by their
+// first row (the RPC orders the nearest ancestor first).
+export function inheritedAccessRows(rows, opts) {
+  if (!Array.isArray(rows)) return [];
+  const { shares, workspaceMembers } = opts || {};
+  const listed = new Set();
+  for (const list of [shares, workspaceMembers]) {
+    if (!Array.isArray(list)) continue;
+    for (const r of list) if (r && r.user_id) listed.add(r.user_id);
+  }
+  const out = [];
+  for (const r of rows) {
+    if (!r || !r.user_id || listed.has(r.user_id)) continue;
+    listed.add(r.user_id);
+    out.push(r);
+  }
+  return out;
+}
