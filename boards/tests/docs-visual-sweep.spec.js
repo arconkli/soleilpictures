@@ -195,3 +195,40 @@ test.describe('phone 390 toolbar', () => {
     await expect(page.locator('.doc-card-modal .doc-tb')).toBeVisible();
   });
 });
+
+// ── VS-DOCS-04 ────────────────────────────────────────────────────────────
+// The thread popover opened on the comment's own line: beside it on desktop
+// (hiding the rest of the sentence) and, clamped back from the right edge on
+// a phone, right on top of the commented word.
+for (const [label, vp, touch] of [['phone 390', { width: 390, height: 844 }, true], ['mouse 1440', { width: 1440, height: 900 }, false]]) {
+  test.describe(`${label} comment`, () => {
+    test.use({ viewport: vp, ...(touch ? TOUCH : {}) });
+    test('VS-DOCS-04: the thread popover leaves the commented text visible', async ({ page }) => {
+      await openDoc(page);
+      const id = await page.evaluate(() => {
+        const T = window.__soleilDocTest;
+        const text = 'The quick brown fox jumps over the lazy dog and keeps on running.';
+        T.editor.commands.setContent(`<p>${text}</p><p>A second paragraph under it.</p>`);
+        const from = text.indexOf('brown') + 1;
+        const id = T.addCommentThread(T.ydoc, { body: 'Is this the right animal?', author: 'QA', authorId: null, authorColor: '#4f8df8', scope: T.getScope() });
+        T.editor.chain().setTextSelection({ from, to: from + 5 }).setMark('comment', { id }).run();
+        return id;
+      });
+      const mark = page.locator(`.tt-comment[data-comment-id="${id}"]`);
+      if (touch) await mark.tap(); else await mark.click();
+      await expect(page.locator('.comment-inline-pop')).toBeVisible();
+      const r = await page.evaluate((cid) => {
+        const m = document.querySelector(`.tt-comment[data-comment-id="${cid}"]`).getBoundingClientRect();
+        const p = document.querySelector('.comment-inline-pop').getBoundingClientRect();
+        const hit = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2);
+        return {
+          markHit: !!hit?.closest('.tt-comment'), popTop: p.top, markBottom: m.bottom,
+          inView: p.left >= 0 && p.right <= innerWidth && p.bottom <= innerHeight,
+        };
+      }, id);
+      expect(r.markHit).toBe(true);
+      expect(r.popTop).toBeGreaterThanOrEqual(r.markBottom);
+      expect(r.inView).toBe(true);
+    });
+  });
+}

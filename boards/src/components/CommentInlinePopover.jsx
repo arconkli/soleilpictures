@@ -5,6 +5,7 @@ import { undoToast } from '../lib/undoToast.js';
 import { notifyCommentMentions } from '../lib/commentMentions.js';
 import { EntityPicker } from './EntityPicker.jsx';
 import { caretRect } from '../lib/caretRect.js';
+import { placeCommentPopover } from '../lib/commentPopoverPlace.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 // Keep only the people whose @name still appears in the final text — a user can
@@ -22,7 +23,6 @@ function detectMentionToken(text, caret) {
   return { tokenStart: i, query: text.slice(i + 1, caret) };
 }
 
-const PAD = 8;
 const W = 320;
 
 export function CommentInlinePopover({
@@ -42,7 +42,7 @@ export function CommentInlinePopover({
   const [replyMention, setReplyMention] = useState(null);   // { tokenStart, query, anchor }
   const [replyMentions, setReplyMentions] = useState([]);   // [{ id, name }]
   const popRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: W });
   const feedback = useFeedback();
 
   // Guard an in-progress reply: Escape / outside-click used to discard it
@@ -96,16 +96,15 @@ export function CommentInlinePopover({
   useLayoutEffect(() => {
     if (!anchor) return;
     const measure = () => {
-      const vh = window.innerHeight, vw = window.innerWidth;
       const popH = popRef.current?.scrollHeight || 240;
-      const top = Math.min(vh - popH - PAD, anchor.top);
-      const left = Math.min(Math.max(PAD, anchor.right + PAD), vw - W - PAD);
-      setPos({ top, left });
+      setPos(placeCommentPopover(anchor, popH, window.innerWidth, window.innerHeight));
     };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [anchor]);
+    // `thread`: the first pass runs before the popover exists (240px guess);
+    // re-place once it has its real height, and again as replies grow it.
+  }, [anchor, thread]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' && !confirmingRef.current) requestClose(); };
@@ -128,7 +127,7 @@ export function CommentInlinePopover({
   if (!thread) return null;
 
   return createPortal(
-    <div ref={popRef} className="comment-inline-pop surface-frosted" style={{ top: pos.top, left: pos.left, width: W }}>
+    <div ref={popRef} className="comment-inline-pop surface-frosted" style={{ top: pos.top, left: pos.left, width: pos.width }}>
       <div className="comment-inline-head">
         <span className="comment-inline-author" style={{ background: thread.authorColor || 'var(--soleil)' }}>
           {(thread.author || '?')[0]?.toUpperCase()}
