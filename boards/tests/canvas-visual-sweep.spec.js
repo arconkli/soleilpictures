@@ -172,3 +172,40 @@ test.describe('VS-CANVAS-05 the week schedule header fits its card when zoomed o
     });
   }
 });
+
+const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 };
+
+test.describe('VS-CANVAS-06 the phone tool rail does not cover the board', () => {
+  test('cards framed on open start right of the rail', async ({ browser }) => {
+    const ctx = await browser.newContext(PHONE);
+    const page = await ctx.newPage();
+    await plant(page, [
+      { id: 'n1', kind: 'note', x: 0, y: 0, w: 240, h: 180, text: 'Bold and underline' },
+      { id: 'sh1', kind: 'shape', shape: 'rect', x: 0, y: 420, w: 200, h: 120, label: 'Act one opens' },
+      { id: 'sh2', kind: 'shape', shape: 'ellipse', x: 300, y: 0, w: 260, h: 180 },
+    ]);
+    const rail = await rect(page, '.cnv-tools');
+    for (const id of ['n1', 'sh1', 'sh2']) {
+      const c = await rect(page, `[data-card-id="${id}"]`);
+      expect(c.x, `${id} starts under the rail`).toBeGreaterThanOrEqual(rail.r);
+      expect(c.r, `${id} runs off the right edge`).toBeLessThanOrEqual(390);
+    }
+    await page.screenshot({ path: test.info().outputPath('phone-framed.png') });
+    await ctx.close();
+  });
+
+  test('the empty-cluster panel sits clear of the rail', async ({ browser }) => {
+    const ctx = await browser.newContext(PHONE);
+    const page = await ctx.newPage();
+    await plant(page, []);
+    const panel = page.locator('.cnv-empty-tiles');
+    await expect(panel).toBeVisible();
+    await expect.poll(() => panel.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    const rail = await rect(page, '.cnv-tools');
+    const p = await rect(page, '.cnv-empty-tiles');
+    expect(p.x).toBeGreaterThanOrEqual(rail.r + 4);
+    expect(p.r).toBeLessThanOrEqual(390 - 8);
+    await page.screenshot({ path: test.info().outputPath('phone-empty.png') });
+    await ctx.close();
+  });
+});
