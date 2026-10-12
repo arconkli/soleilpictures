@@ -10562,8 +10562,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--bg-2);
 }
 /* The hint is the first thing to go when there is no room for it — the count
-   and the action are what the bar is for. */
-@media (max-width: 820px) { .list-selbar-hint { display: none; } }
+   and the action are what the bar is for. ListSurface measures the bar
+   (fitSelbar): a window width ignores the sidebar and the Info pane. */
+.list-selbar[data-fit='nohint'] .list-selbar-hint,
+.list-selbar[data-fit='icons'] .list-selbar-hint { display: none; }
 .list-selbar-act {
   display: inline-flex; align-items: center; gap: 6px;
   height: 28px; box-sizing: border-box;
@@ -22717,19 +22719,13 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   .list-wrap.is-panel .list-selbar-act > span { display: none; }
   .list-wrap.is-panel .list-selbar-act { padding: 0 8px; }
 }
-/* Labelled, the actions run to ~510px of nowrap — wider than the panel's
-   default 400, or a phone's full Files — and spilled past the pill with Delete
-   and × off-screen. Below that they go to icons; each keeps its name in
-   aria-label and title. The media query covers Files outside the dock (the
-   public viewer), where no `files` container exists. */
-@container files (max-width: 520px) {
-  .list-wrap .list-selbar-act > span { display: none; }
-  .list-wrap .list-selbar-act { padding: 0 8px; }
-}
-@media (max-width: 640px) {
-  .list-wrap .list-selbar-act > span { display: none; }
-  .list-wrap .list-selbar-act { padding: 0 8px; }
-}
+/* Labelled, the actions run past 500px of nowrap — wider than the panel's
+   default 400, a phone's full Files, or full Files beside the sidebar — and
+   spilled past the pill with Delete and × off-screen. When ListSurface
+   measures that they don't fit (fitSelbar), they go to icons; each keeps its
+   name in aria-label and title. */
+.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act > span { display: none; }
+.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act { padding: 0 8px; }
 /* The Grid's keyboard cursor: a thin ring on the preview (gold is focus). */
 .ct-jg .ct-tile.is-active .ct-tile-preview { outline: 1px solid var(--soleil); outline-offset: 2px; }
 .ct-jg .ct-tile.is-active.is-selected .ct-tile-preview { outline-width: 2px; outline-offset: 2px; }

@@ -42,8 +42,9 @@ const pngs = (...names) => names.map((name) => ({ name, mimeType: 'image/png', b
 async function expectSelbarFits(page, wrap, box) {
   const bar = wrap.locator('.list-selbar');
   await expect(bar).toBeVisible();
-  expect(await bar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
-  expect(await wrap.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  // Polled: the bar re-fits from a ResizeObserver, a frame after the resize.
+  await expect.poll(() => bar.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  await expect.poll(() => wrap.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
   const clear = await bar.getByRole('button', { name: 'Clear selection' }).boundingBox();
   const pill = await bar.boundingBox();
   expect(clear.x + clear.width).toBeLessThanOrEqual(pill.x + pill.width + 0.5);
@@ -74,7 +75,65 @@ test('FILES-LIST-01: full Files at phone width keeps the whole selection bar on 
   const bar = full(page).locator('.list-selbar');
   await expect(bar.getByRole('button', { name: 'Put on board' })).toBeVisible();
   await expect(bar.getByRole('button', { name: 'Delete' })).toBeVisible();
+  await addMoveTo(bar);
   await expectSelbarFits(page, full(page), { x: 0, width: 390 });
+});
+
+// The harness has no cluster picker, so it never offers Move to… — but the real
+// app does, and that is the widest bar. Stands one in, cloned from Delete, so
+// the bar measured is the one people get.
+async function addMoveTo(bar) {
+  await bar.evaluate((el) => {
+    if (el.querySelector('[data-qa-move]')) return;
+    const del = el.querySelector('.list-selbar-act[aria-label="Delete"]');
+    const mv = del.cloneNode(true);
+    mv.dataset.qaMove = '1';
+    mv.setAttribute('aria-label', 'Move to…');
+    mv.title = 'Move to…';
+    mv.querySelector('span').textContent = 'Move to…';
+    el.insertBefore(mv, del);
+  });
+}
+
+test('FILES-LIST-01: the selection bar fits a panel dragged wider, Move to… included', async ({ page }) => {
+  await go(page);
+  await openPanel(page);
+  await panel(page).locator('input[type="file"][multiple]').setInputFiles(pngs('waiting.png'));
+  await panel(page).locator('.ct-tile-name[title="waiting.png"]').click();
+  const bar = panel(page).locator('.list-selbar');
+  await expect(bar.getByRole('button', { name: 'Put on board' })).toBeVisible();
+  await addMoveTo(bar);
+  // ← on the divider widens the panel a step at a time: 400 → 624.
+  const divider = page.getByRole('separator', { name: 'Resize Files' });
+  for (let i = 0; i <= 7; i++) {
+    if (i > 0) {
+      const before = Number(await divider.getAttribute('aria-valuenow'));
+      await divider.focus();
+      await page.keyboard.press('ArrowLeft');
+      await expect(divider).not.toHaveAttribute('aria-valuenow', String(before));
+    }
+    await expectSelbarFits(page, panel(page), await page.locator('.fdl-files').boundingBox());
+  }
+});
+
+test('FILES-LIST-01: full Files fits its selection bar, hint and Move to… included, at every desktop width', async ({ page }) => {
+  await go(page, { width: 1440 });
+  // The first-run keyboard hint shows until a multi-selection is made.
+  await page.evaluate(() => { try { localStorage.removeItem('soleil.files.multiSelected'); } catch (_) {} });
+  await openFull(page);
+  await full(page).locator('input[type="file"][multiple]').setInputFiles(pngs('waiting.png'));
+  await full(page).locator('.ct-tile-name[title="waiting.png"]').click();
+  const bar = full(page).locator('.list-selbar');
+  await expect(bar.getByRole('button', { name: 'Info' })).toBeVisible();
+  await expect(bar.locator('.list-selbar-hint')).toBeVisible();
+  await addMoveTo(bar);
+  // Wide, there's room for everything: the labels and the hint stay.
+  await expectSelbarFits(page, full(page), await full(page).boundingBox());
+  await expect(bar.getByText('Put on board', { exact: true })).toBeVisible();
+  for (let w = 1100; w >= 760; w -= 40) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await expectSelbarFits(page, full(page), await full(page).boundingBox());
+  }
 });
 
 test('FILES-LIST-02: opening a folder stops the loop that was playing', async ({ page }) => {

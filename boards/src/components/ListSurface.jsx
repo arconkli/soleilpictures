@@ -80,6 +80,45 @@ function writeBrowserPrefs(patch) {
   } catch (_) {}
 }
 
+// The selection bar's actions are nowrap labels, and which ones show depends
+// on the selection (Put on board, Move to…, Info) — so no fixed breakpoint
+// fits every bar: one set against the narrowest bar still spilled Delete and ×
+// off the pill for the widest. Measured instead, it drops the first-run hint,
+// then the labels, only as far as the pane needs. Each button keeps its name
+// in aria-label and title. data-fit is ours alone, so React never resets it.
+const SELBAR_FITS = ['full', 'nohint', 'icons'];
+function fitSelbar(bar) {
+  for (const fit of SELBAR_FITS) {
+    bar.dataset.fit = fit;
+    if (bar.scrollWidth <= bar.clientWidth + 1) return;
+  }
+}
+// A callback ref for the bar: re-fits when the pane changes width, and when
+// the bar's own content changes (a button appears, Download becomes
+// Preparing…). React 18 calls it with null on unmount, which disconnects.
+function useSelbarFit() {
+  const stop = useRef(null);
+  return useCallback((bar) => {
+    stop.current?.();
+    stop.current = null;
+    if (!bar) return;
+    const fit = () => fitSelbar(bar);
+    fit();
+    let lastW = -1;
+    const ro = typeof ResizeObserver !== 'undefined' && bar.parentElement
+      ? new ResizeObserver((es) => {
+        const w = es[0]?.contentRect?.width;
+        if (w !== lastW) { lastW = w; fit(); }
+      }) : null;
+    ro?.observe(bar.parentElement);
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(fit) : null;
+    mo?.observe(bar, { childList: true, subtree: true, characterData: true });
+    // Labels widen when the web font lands.
+    document.fonts?.ready?.then(() => { if (bar.isConnected) fit(); });
+    stop.current = () => { ro?.disconnect(); mo?.disconnect(); };
+  }, []);
+}
+
 // Bucket labels for the filter menu (order = display order).
 const BUCKET_LABELS = {
   image: 'Images', pdf: 'PDFs', video: 'Video', audio: 'Audio', file: 'Files',
@@ -183,6 +222,8 @@ export function ListSurface({
   const folderCapN = folderCap(folderCount, ftWidth);
   const folderShown = isPanel && !foldersOpen ? folderCapN : folderCount;
   const toggleFolders = () => setFoldersOpen((v) => { writeFoldersExpanded(!v); return !v; });
+
+  const selbarRef = useSelbarFit();
 
   // Where each cluster's Files was scrolled to, this session: Back, or coming
   // back to a cluster, returns to the same place; a cluster seen for the
@@ -2013,7 +2054,7 @@ export function ListSurface({
             scrollport, so the actions for a selection are still on screen once
             you have scrolled past the rows you made it from. */}
         {totalSel > 0 && (
-          <div className="list-selbar">
+          <div className="list-selbar" ref={selbarRef}>
             <span className="list-selbar-count" aria-live="polite"
                   title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel} selected</span>
             {downloadableSelected.length > 0 && (
