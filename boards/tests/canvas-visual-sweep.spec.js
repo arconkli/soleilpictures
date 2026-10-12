@@ -352,3 +352,49 @@ test.describe('VS-CANVAS-09/10 palette card', () => {
     });
   }
 });
+
+// Row label → shortcut text, for every row of the open top-level menu.
+const menuShortcuts = (page) => page.locator('.ctx-menu:not(.ctx-submenu)').first().evaluate((el) =>
+  Object.fromEntries([...el.querySelectorAll('.ctx-item')].map((b) => [
+    b.querySelector('.ctx-label')?.textContent.trim(),
+    b.querySelector('.ctx-shortcut') ? b.querySelector('.ctx-shortcut').textContent : null,
+  ])));
+
+test.describe('VS-CANVAS-11 menu shortcuts follow the platform', () => {
+  test('off a Mac the card and canvas menus read Ctrl+X, and Reset zoom says Ctrl+0', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await plant(page, [{ id: 'sh1', kind: 'shape', shape: 'rect', x: 120, y: 120, w: 160, h: 90 }]);
+    const isMac = await page.evaluate(() => /mac/i.test(navigator.platform || ''));
+    const mod = (k) => (isMac ? `⌘${k}` : `Ctrl+${k}`);
+
+    const card = await rect(page, '[data-card-id="sh1"]');
+    await page.mouse.click(card.x + 20, card.y + 20, { button: 'right' });
+    const c = await menuShortcuts(page);
+    expect(c.Cut).toBe(mod('X'));
+    expect(c.Copy).toBe(mod('C'));
+    expect(c.Duplicate).toBe(mod('D'));
+    expect(c.Info).toBe(mod('I'));
+    await page.keyboard.press('Escape');
+
+    await page.mouse.click(900, 600, { button: 'right' });
+    await page.mouse.move(1300, 120);
+    const b = await menuShortcuts(page);
+    expect(b['Select all']).toBe(mod('A'));
+    expect(b['Reset zoom']).toBe(mod('0'));
+    // One platform's notation per menu.
+    const all = Object.values(b).filter(Boolean).join(' ');
+    if (!isMac) expect(all).not.toContain('⌘');
+  });
+
+  test('a touch tablet, with no keyboard, shows no shortcut hints', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 }, hasTouch: true });
+    const page = await ctx.newPage();
+    await plant(page, [{ id: 'sh1', kind: 'shape', shape: 'rect', x: 140, y: 160, w: 160, h: 90 }]);
+    const card = await rect(page, '[data-card-id="sh1"]');
+    await page.mouse.click(card.x + 20, card.y + 20, { button: 'right' });
+    const hints = page.locator('.ctx-menu:not(.ctx-submenu) .ctx-shortcut');
+    expect(await hints.count()).toBeGreaterThan(0);
+    for (const h of await hints.all()) await expect(h).toBeHidden();
+    await ctx.close();
+  });
+});
