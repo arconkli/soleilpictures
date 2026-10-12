@@ -40,3 +40,31 @@ test('DOCS-07: page gaps come back after a whole-document (remote-style) replace
   expect(right).toBe(0);   // the replace really did drop them
   await expect.poll(() => gaps.count(), { timeout: 5000 }).toBe(before);
 });
+
+// ── DOCS-08 ───────────────────────────────────────────────────────────────
+test('DOCS-08: Undo on deleting the only page brings it back with its text', async ({ page }) => {
+  await openDoc(page);
+  await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const scope = T.getScope();
+    const [p] = T.readPages(T.ydoc, scope);
+    T.renamePage(T.ydoc, p.id, 'Chapter One', scope);
+    T.editor.commands.setContent('<p>Every word of the only page.</p>');
+  });
+  const modal = page.locator('.doc-card-modal');
+  await expect(modal.locator('.doc-tree-row')).toHaveCount(1);
+  await expect(modal.locator('.doc-tree-name')).toHaveText('Chapter One');
+  await modal.locator('.doc-tree-row').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  // A blank replacement takes its place…
+  await expect(modal.locator('.doc-tree-row')).toHaveCount(1);
+  await expect(modal.locator('.doc-tree-name')).toHaveText('Untitled');
+  // …and one Undo restores the page and its text, not "the board changed".
+  await expect(page.locator('.toast-msg').filter({ hasText: 'Page deleted' })).toBeVisible();
+  await page.locator('.toast').filter({ has: page.locator('.toast-msg', { hasText: 'Page deleted' }) })
+    .locator('.toast-action').click();
+  await expect(page.locator('.toast-msg').filter({ hasText: 'changed since' })).toHaveCount(0);
+  await expect(modal.locator('.doc-tree-row')).toHaveCount(1);
+  await expect(modal.locator('.doc-tree-name')).toHaveText('Chapter One');
+  await expect(modal.locator('.ProseMirror')).toContainText('Every word of the only page.');
+});

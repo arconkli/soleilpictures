@@ -366,11 +366,25 @@ export function readPagesWithText(ydoc, scope) {
 }
 
 // Get-or-create the Y.XmlFragment for a page.
+// Lazy creation is only for a LIVE page (or sheet) that predates its content
+// entry. An editor still rendering a page that was just deleted — or a sheet
+// id that hasn't caught up with a page switch — used to recreate the deleted
+// fragment as a DOC_ORIGIN write: an orphan in the doc, and a fresh undo step
+// on top of the delete, so the delete toast's Undo could only report that
+// "the board changed since".
+function pageIsLive(ydoc, pageId, scope) {
+  const arr = pagesArray(ydoc, scope);
+  if (!arr) return false;
+  for (let i = 0; i < arr.length; i++) if (arr.get(i)?.id === pageId) return true;
+  return false;
+}
+
 export function getOrCreatePageContent(ydoc, pageId, scope) {
   const map = pageContentMap(ydoc, scope);
   if (!map) return null;
   let frag = map.get(pageId);
   if (!frag) {
+    if (!pageIsLive(ydoc, pageId, scope)) return null;
     frag = new Y.XmlFragment();
     ydoc.transact(() => { map.set(pageId, frag); }, DOC_ORIGIN);
   }
@@ -414,6 +428,8 @@ export function getOrCreateSheetContent(ydoc, pageId, sheetId, scope) {
   if (!map) return null;
   let frag = map.get(sheetId);
   if (!frag) {
+    const listed = pageSheetsMap(ydoc, scope)?.get(pageId);
+    if (!listed?.toArray?.().some(s => s?.id === sheetId)) return null;
     frag = new Y.XmlFragment();
     ydoc.transact(() => { map.set(sheetId, frag); }, DOC_ORIGIN);
   }

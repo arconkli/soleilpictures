@@ -13,7 +13,7 @@
 import { useState } from 'react';
 import {
   buildPageTree, addPage, deletePage, renamePage, movePage, setPageExpanded,
-  getDocUndoManager,
+  getDocUndoManager, readPages, DOC_ORIGIN,
 } from '../lib/docState.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -76,12 +76,21 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
         }
         const um = getDocUndoManager(ydoc, scope);
         um?.stopCapturing();
-        deletePage(ydoc, pageId, scope);
+        // Deleting the last page: its replacement is created in the SAME
+        // DOC_ORIGIN transaction. Left to DocSurface's empty-doc seed, the
+        // new page became its own undo step on top of the delete, so the
+        // toast's Undo only said "the board changed since" and the doc looked
+        // gone. One step now: Undo brings the page back and drops the blank.
+        let replacement = null;
+        ydoc.transact(() => {
+          deletePage(ydoc, pageId, scope);
+          if (!readPages(ydoc, scope).length) replacement = addPage(ydoc, { scope });
+        }, DOC_ORIGIN);
         const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
         um?.stopCapturing();
-        if (activePageId === pageId) {
-          const next = pages.find(x => x.id !== pageId);
-          onSelectPage(next ? next.id : null);
+        if (activePageId === pageId || replacement) {
+          const next = replacement || pages.find(x => x.id !== pageId)?.id || null;
+          onSelectPage(next);
         }
         undoToast(feedback, {
           message: hasChildren ? 'Page and its sub-pages deleted' : 'Page deleted',
