@@ -147,3 +147,22 @@ test.describe('admin Funnel money detail (ADMIN-7)', () => {
     await expect(line).not.toContainText('paying account');
   });
 });
+
+test.describe('admin Discover GSC import (ADMIN-8)', () => {
+  test('an undated import leaves p_as_of to the SQL default instead of sending null', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
+    await patchRpc(page, { admin_import_gsc_csv: { data: 1, error: null } });
+    await switchTab(page, 'Discover');
+
+    const csv = 'Top pages,Clicks,Impressions,CTR,Position\nhttps://clusters.example/c/moodboard,3,40,7.5%,8.1\n';
+    await page.locator('input[type="file"][accept*="csv"]').setInputFiles({
+      name: 'pages.csv', mimeType: 'text/csv', buffer: Buffer.from(csv),
+    });
+    await expect(page.getByText(/Imported GSC stats for 1 board/)).toBeVisible();
+
+    const params = await page.evaluate(() => window.__patchedRpc.find(([n]) => n === 'admin_import_gsc_csv')?.[1]);
+    expect(params.p_rows).toHaveLength(1);
+    expect(Object.prototype.hasOwnProperty.call(params, 'p_as_of')).toBe(false);
+  });
+});
