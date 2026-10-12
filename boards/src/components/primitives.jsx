@@ -54,10 +54,17 @@ export function Avatar({ name, color, size = 22, ring }) {
 // needed 200ms — bump back up here if you ever roll back to that path.
 const RENDER_DELAY_MS = 80;
 const BUFFER_MS = 1500;            // discard samples older than this
+const EASE_OUT_MS = 200;           // coast-to-stop after the last sample
 
 export function LiveCursor({ x, y, name, color }) {
   const ref = React.useRef(null);
   const bufferRef = React.useRef([{ t: performance.now(), x, y }]);
+  // The frame loop runs only while there is motion to draw. It used to run
+  // every frame for as long as the cursor was mounted — one loop per visible
+  // peer, so the main thread never idled while anyone's mouse sat still
+  // (PERF-09). It parks once the cursor has eased to rest; a new sample wakes it.
+  const rafRef = React.useRef(0);
+  const wakeRef = React.useRef(null);
 
   // Append the latest sample to the buffer on every prop change.
   React.useEffect(() => {
@@ -75,13 +82,13 @@ export function LiveCursor({ x, y, name, color }) {
         buf.push({ t: now - 250, x: tail.x, y: tail.y });
       }
       buf.push({ t: now, x, y });
+      wakeRef.current?.();
     }
     const cutoff = now - BUFFER_MS;
     while (buf.length > 2 && buf[0].t < cutoff) buf.shift();
   }, [x, y]);
 
   React.useEffect(() => {
-    let raf = 0;
     // Catmull-Rom: smooth curve through points P1-P2 using P0 and P3 as
     // tangent control points. Avoids the sharp angles linear interp
     // produces at every sample, so cornering peers look natural.
@@ -96,6 +103,7 @@ export function LiveCursor({ x, y, name, color }) {
       );
     };
     const tick = () => {
+      rafRef.current = 0;
       const buf = bufferRef.current;
       const renderT = performance.now() - RENDER_DELAY_MS;
       const last = buf[buf.length - 1];
@@ -126,7 +134,6 @@ export function LiveCursor({ x, y, name, color }) {
         const vx = (b.x - a.x) / segSpan;
         const vy = (b.y - a.y) / segSpan;
         const overshoot = renderT - b.t;
-        const EASE_OUT_MS = 200;
         const decay = Math.max(0, 1 - overshoot / EASE_OUT_MS);
         // Integrate decaying velocity: ∫(1 - t/T)dt from 0 to overshoot
         // = overshoot - overshoot²/(2T). Clamps after EASE_OUT_MS.
@@ -138,10 +145,19 @@ export function LiveCursor({ x, y, name, color }) {
         if (decay <= 0) { rx = b.x + vx * (EASE_OUT_MS / 2); ry = b.y + vy * (EASE_OUT_MS / 2); }
       }
       if (ref.current) ref.current.style.transform = `translate(${rx}px, ${ry}px)`;
-      raf = requestAnimationFrame(tick);
+      // At rest: past the last sample plus the ease-out, the position just
+      // written is final. Park until the next sample.
+      if (renderT - last.t >= EASE_OUT_MS) return;
+      rafRef.current = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    const wake = () => { if (!rafRef.current) rafRef.current = requestAnimationFrame(tick); };
+    wakeRef.current = wake;
+    wake();
+    return () => {
+      wakeRef.current = null;
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    };
   }, []);
 
   return (
