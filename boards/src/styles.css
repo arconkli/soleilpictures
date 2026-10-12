@@ -14222,8 +14222,20 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .tt-img-wrap.tt-img-align-right  { text-align: right; }
 .tt-img-wrap.tt-img-align-full   { text-align: center; }
 .tt-img-wrap.tt-img-align-full .tt-img { width: 100%; }
-.tt-img-wrap .tt-img {
+/* The frame shrink-wraps the image so the resize handle and the align bar
+   sit on the image itself, not at the column's edge. */
+.tt-img-frame {
+  position: relative;
   display: inline-block;
+  max-width: 100%;
+  margin: 1em 0;
+  vertical-align: top;
+  line-height: 0;
+}
+.tt-img-wrap.tt-img-align-full .tt-img-frame { display: block; width: 100%; }
+.tt-img-wrap .tt-img {
+  display: block;
+  margin: 0;
   max-width: 100%;
   height: auto;
   border-radius: 6px;
@@ -14240,8 +14252,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--select);
   border: 2px solid var(--bg-0);
   cursor: nwse-resize;
+  /* Without this a touch drag on the handle scrolled the page instead. */
+  touch-action: none;
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease);
+}
+@media (pointer: coarse) {
+  .tt-img-resize { width: 22px; height: 22px; }
 }
 .tt-img-wrap.is-selected .tt-img-resize { opacity: 1; }
 .tt-img-tb {
