@@ -2,7 +2,7 @@
 
 > Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
-_Source: https://clusters.soleilpictures.com/docs/account/settings · Updated 2026-10-10_
+_Source: https://clusters.soleilpictures.com/docs/account/settings · Updated 2026-10-12_
 
 Open it from the sidebar — the **cog** or **your avatar**, bottom left — or with
 `⌘K` → "settings". Both buttons open the same panel; they differ only in which
@@ -105,8 +105,10 @@ workspace alongside the owner), **Editor** (adds and changes content) or
 The owner and co-owners can move anyone else between co-owner, editor and
 viewer, remove a member — which also removes any cluster shared to them
 directly in this workspace — and invite someone by email as an editor or a
-viewer. Only the owner can hand the workspace to another member. Everyone else
-sees the list.
+viewer. Someone invited who has no account yet is listed too, as an invite
+that gets access when they sign up, and the owner and co-owners can revoke it
+from there. Only the owner can hand the workspace to another member. Everyone
+else sees the list.
 
 ### Card defaults
 

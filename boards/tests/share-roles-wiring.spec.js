@@ -48,6 +48,17 @@ test.describe('workspace roles wiring', () => {
       .toMatch(/await transferWorkspaceOwnership\([\s\S]{0,200}await onWorkspacesChanged\?\.\(\);/);
   });
 
+  test('an invite to someone without an account shows up in Members, revocable (SHARE-15)', () => {
+    const s = read('src/components/settings/MembersTab.jsx');
+    expect(s).toMatch(/canManage \? listPendingInvitesForWorkspace\(workspaceId\)\.catch\(\(\) => \[\]\)/);
+    expect(s).toContain('{pending.map(row => (');
+    expect(s).toContain('invite sent, gets access when they sign up');
+    expect(s).toMatch(/await revokePendingInvite\(row\.id\);/);
+    // Revoking asks first, as the Share panel does.
+    expect(s).toMatch(/const revokePending = async[\s\S]{0,200}feedback\.confirm\(/);
+    expect(read('content/docs/account/settings.md')).toContain('gets access when they sign up');
+  });
+
   test('the permission mirror returns viewer for a viewer member', () => {
     const s = read('src/hooks/useBoardPermission.js');
     expect(s).toContain("membership.role !== 'viewer'");
