@@ -169,9 +169,9 @@ export function AdminCommandCenter({ dataSource = null }) {
 
   const signups = (data?.signups || []).map((s) => ({ ...s, label: shortDate(s.day) }));
 
-  // Gate: how many points actually carry a value. This series is structurally
-  // empty right now (no subscription has ever existed), and a flat zero line
-  // reads as a measurement rather than an absence. It lights up on its own.
+  // Gate: how many points actually carry a value. A series with no non-zero
+  // point is an absence, and a flat zero line would read as a measurement
+  // instead. It lights up on its own once there is something to plot.
   const mrrPoints = trend.filter((t) => t.mrr > 0).length;
 
   const act = data?.activation || {};
