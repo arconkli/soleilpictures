@@ -16,13 +16,17 @@
 
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, unlink, open, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'soleil-clusters');
 const CREDENTIALS = join(CONFIG_DIR, 'credentials.json');
+// Held while one process refreshes. See withRefreshLock.
+const REFRESH_LOCK = `${CREDENTIALS}.lock`;
+const LOCK_STALE_MS = 30_000;
+const LOCK_WAIT_MS = 15_000;
 
 // Refresh a little before the token actually dies. A token that expires
 // mid-conversation surfaces to the user as the assistant suddenly losing access
@@ -61,51 +65,132 @@ export async function clearCredentials() {
 export const credentialsPath = () => CREDENTIALS;
 
 // ── The token the server should present ──────────────────────────────────────
+//
+// WHY THIS IS A SOURCE AND NOT A STRING. The server used to resolve a token
+// once at startup and send it for the life of the process. An OAuth access
+// token lives an hour, so every `login` user lost access an hour into a
+// session and every tool call failed with "invalid token" until the MCP host
+// was restarted. And two hosts sharing one sign-in raced on the single-use
+// refresh token: the loser printed "no longer valid" and exited, and the
+// winner's rotation killed the other's token in memory (2026-10-11 audit,
+// API-06).
+//
+// So the token is read from credentials.json for each request, refreshed when
+// it is near expiry, and re-read after a 401 in case another process rotated
+// it. Refreshes are serialised: in-process by sharing one promise, and across
+// processes by a lock file around the read-refresh-write.
+
+const isFresh = (creds) => !!creds?.expires_at
+  && Date.parse(creds.expires_at) - REFRESH_SKEW_MS > Date.now();
+
+let warned = false;
+function warnSignedOut() {
+  // Once per process: a dead sign-in fails every call after it, and the same
+  // sentence on every one of them buries whatever else stderr has to say.
+  if (warned) return;
+  warned = true;
+  process.stderr.write(
+    'soleil-clusters-mcp: the stored sign-in is no longer valid — run `npx soleil-clusters-mcp login`\n');
+}
+
+// Run `fn` holding the refresh lock. A lock older than LOCK_STALE_MS belongs to
+// a process that died mid-refresh and is taken over. After LOCK_WAIT_MS this
+// goes ahead without it rather than hang a tool call — the worst case is then
+// the race this exists to prevent, not a stuck assistant.
+async function withRefreshLock(fn) {
+  await mkdir(dirname(REFRESH_LOCK), { recursive: true, mode: 0o700 });
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  let held = false;
+  while (!held) {
+    try {
+      await (await open(REFRESH_LOCK, 'wx')).close();
+      held = true;
+    } catch (e) {
+      if (e?.code !== 'EEXIST') break;
+      const st = await stat(REFRESH_LOCK).catch(() => null);
+      if (st && Date.now() - st.mtimeMs > LOCK_STALE_MS) {
+        await unlink(REFRESH_LOCK).catch(() => {});
+        continue;
+      }
+      if (Date.now() > deadline) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    if (held) await unlink(REFRESH_LOCK).catch(() => {});
+  }
+}
+
+// Refresh the stored sign-in, unless someone already has. `rejected` is the
+// token the API just refused, if that is why we are here: a stored token that
+// differs from it was rotated in by another process and is used as it is.
+async function refreshStored(base, rejected) {
+  return withRefreshLock(async () => {
+    const creds = await loadCredentials();
+    if (!creds?.access_token) return null;
+    if (creds.access_token !== rejected && isFresh(creds)) return creds.access_token;
+    if (!creds.refresh_token) return rejected ? null : creds.access_token;   // let the API judge
+
+    const res = await fetch(`${base}/oauth/token`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: creds.refresh_token,
+        client_id: creds.client_id,
+      }),
+    }).catch(() => null);
+
+    if (!res?.ok) {
+      // The refresh token is single-use and rotates, so a failure here usually
+      // means it was already spent or the connection was revoked in the app.
+      warnSignedOut();
+      return null;
+    }
+
+    const body = await readJson(res);
+    await saveCredentials({
+      ...creds,
+      access_token: body.access_token,
+      refresh_token: body.refresh_token || creds.refresh_token,
+      expires_at: new Date(Date.now() + (Number(body.expires_in) || 3600) * 1000).toISOString(),
+      scope: body.scope || creds.scope,
+    });
+    return body.access_token;
+  });
+}
 
 /**
- * Resolve a bearer token, refreshing a stored one if it has expired.
+ * Where the server gets its bearer token, per request.
  *
- * Returns null when there is nothing to use, which the caller reports as a
- * setup problem rather than letting every tool call fail with a 401.
+ *   get()            the token to send now, refreshed first if near expiry;
+ *                    null when there is nothing to use
+ *   rejected(token)  the API answered 401 to `token`: a different token worth
+ *                    one retry, or null
+ *
+ * SOLEIL_API_TOKEN wins when set, and is never refreshed — it is a personal
+ * access token, which does not expire on a timer.
  */
-export async function resolveToken(base) {
-  if (process.env.SOLEIL_API_TOKEN) return process.env.SOLEIL_API_TOKEN;
+export function tokenSource(base) {
+  const fixed = process.env.SOLEIL_API_TOKEN;
+  if (fixed) return { get: async () => fixed, rejected: async () => null };
 
-  const creds = await loadCredentials();
-  if (!creds?.access_token) return null;
-
-  const fresh = creds.expires_at && Date.parse(creds.expires_at) - REFRESH_SKEW_MS > Date.now();
-  if (fresh) return creds.access_token;
-  if (!creds.refresh_token) return creds.access_token;   // let the API be the judge
-
-  const res = await fetch(`${base}/oauth/token`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: creds.refresh_token,
-      client_id: creds.client_id,
-    }),
-  }).catch(() => null);
-
-  if (!res?.ok) {
-    // The refresh token is single-use and rotates, so a failure here usually
-    // means it was already spent or the connection was revoked in the app.
-    // Say which, once, rather than failing every subsequent tool call silently.
-    process.stderr.write(
-      'soleil-clusters-mcp: the stored sign-in is no longer valid — run `npx soleil-clusters-mcp login`\n');
-    return null;
-  }
-
-  const body = await readJson(res);
-  await saveCredentials({
-    ...creds,
-    access_token: body.access_token,
-    refresh_token: body.refresh_token || creds.refresh_token,
-    expires_at: new Date(Date.now() + (Number(body.expires_in) || 3600) * 1000).toISOString(),
-    scope: body.scope || creds.scope,
-  });
-  return body.access_token;
+  let inflight = null;
+  const single = (fn) => inflight || (inflight = fn().finally(() => { inflight = null; }));
+  return {
+    async get() {
+      const creds = await loadCredentials();
+      if (!creds?.access_token) return null;
+      if (isFresh(creds) || !creds.refresh_token) return creds.access_token;
+      return single(() => refreshStored(base, null));
+    },
+    async rejected(token) {
+      const next = await single(() => refreshStored(base, token));
+      return next && next !== token ? next : null;
+    },
+  };
 }
 
 // ── The interactive flow ─────────────────────────────────────────────────────

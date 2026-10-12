@@ -33,7 +33,7 @@ import { basename, extname } from 'node:path';
 import { TOOLS } from './tools.js';
 import { handleMcpMessage, ERR } from './server.js';
 import { idempotencyKey } from './idempotency.js';
-import { login, resolveToken, clearCredentials, credentialsPath } from './auth.js';
+import { login, tokenSource, clearCredentials, credentialsPath } from './auth.js';
 
 const BASE = (process.env.SOLEIL_API_BASE || 'https://clusters.soleilpictures.com').replace(/\/$/, '');
 
@@ -63,12 +63,15 @@ if (subcommand === 'logout') {
   process.exit(0);
 }
 
-// A stored sign-in, refreshed if it has expired, or SOLEIL_API_TOKEN if set.
+// A stored sign-in, refreshed as it nears expiry, or SOLEIL_API_TOKEN if set.
 // The environment variable wins: anyone with a working config or a service
 // account should not have their setup changed by a new feature.
-const TOKEN = await resolveToken(BASE);
+//
+// Asked for on EVERY request, not once here: an OAuth access token lives an
+// hour, and a process that read it at startup lost access an hour in.
+const TOKENS = tokenSource(BASE);
 
-if (!TOKEN) {
+if (!(await TOKENS.get())) {
   // Fail here rather than on the first tool call. A server that starts and then
   // errors on every request looks like the API is down.
   console.error('Not signed in. Run `npx soleil-clusters-mcp login`, '
@@ -79,12 +82,15 @@ if (!TOKEN) {
 // ── The HTTP client the shared tools are written against ─────────────────────
 
 async function api(path, { method = 'GET', body, rawBody, raw = false, headers, tool, args } = {}) {
-  const res = await fetch(`${BASE}/api/v1${path}`, {
+  // Computed once, so a retry after a refresh is the SAME request to the API's
+  // replay protection rather than a second one.
+  const idem = method === 'POST' ? await idempotencyKey(tool || path, args) : null;
+  const send = (token) => fetch(`${BASE}/api/v1${path}`, {
     method,
     headers: {
-      authorization: `Bearer ${TOKEN}`,
+      authorization: `Bearer ${token}`,
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      ...(method === 'POST' ? { 'idempotency-key': await idempotencyKey(tool || path, args) } : {}),
+      ...(idem ? { 'idempotency-key': idem } : {}),
       // Say which tool this call is on behalf of.
       //
       // This server implements MCP locally and then speaks plain REST, so
@@ -102,6 +108,19 @@ async function api(path, { method = 'GET', body, rawBody, raw = false, headers, 
     body: rawBody !== undefined ? Buffer.from(rawBody, 'base64')
       : body === undefined ? undefined : JSON.stringify(body),
   });
+
+  const token = await TOKENS.get();
+  if (!token) {
+    throw new Error('Not signed in to Soleil Clusters. Run `npx soleil-clusters-mcp login`, '
+      + 'or set SOLEIL_API_TOKEN to a token from Settings → API.');
+  }
+  let res = await send(token);
+  if (res.status === 401) {
+    // Expired early, revoked, or rotated by another process sharing this
+    // sign-in. One retry with whatever the token source now holds.
+    const next = await TOKENS.rejected(token);
+    if (next) res = await send(next);
+  }
 
   if (raw) {
     if (!res.ok) throw new Error(await errorMessage(res, method, path));
