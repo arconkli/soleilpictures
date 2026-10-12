@@ -1111,8 +1111,12 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             <div className="tag-profile-section-head">Appears in</div>
             <div className="tag-detail-mention-list">
               {mentions.map(m => {
+                // 'docPos': App routes it through the entity navigator, which
+                // opens the doc AT this page. As a plain 'doc' row it only
+                // flashed the card on its cluster (or, with no board_id,
+                // just closed the profile) despite saying "Open page".
                 const navTarget = m.kind === 'doc'
-                  ? { kind: 'doc', id: m.doc_card_id, board_id: m.board_id, card_id: m.doc_card_id, page_id: m.page_id }
+                  ? { kind: 'docPos', id: m.doc_card_id, board_id: m.board_id, card_id: m.doc_card_id, page_id: m.page_id }
                   : null;
                 const title = m.page_title || m.doc_title || 'Untitled';
                 return (

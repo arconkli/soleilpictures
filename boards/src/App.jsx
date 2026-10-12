@@ -9321,7 +9321,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // Resolve to the right surface and navigate.
               setActiveTag(null);
               setCurrentSurface('board');
-              if (item.kind === 'board') {
+              if (item.kind === 'docPos') {
+                // "Appears in" row: open the doc at that page (resolving the
+                // cluster when card_index didn't know it), not just its card.
+                navHandlers.docPos({
+                  kind: 'docPos', docCardId: item.card_id,
+                  pageId: item.page_id || null, boardId: item.board_id || undefined,
+                }).catch((err) => console.warn('[tags] open page failed', err));
+              } else if (item.kind === 'board') {
                 setStack([item.id]);
               } else if (item.board_id) {
                 setStack([item.board_id]);
