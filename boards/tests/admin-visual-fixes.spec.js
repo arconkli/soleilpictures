@@ -178,3 +178,11 @@ test.describe('the heading after a stat strip (VS-ADMIN-07)', () => {
     });
   }
 });
+
+test('bare <code> in the admin uses the app mono, not the browser default (VS-ADMIN-08)', async ({ page }) => {
+  await openAdmin(page, { tab: 'discover' });
+  const paths = page.locator('.admin-table td > code');
+  await expect(paths.first()).toBeVisible({ timeout: 15000 });
+  const families = await paths.evaluateAll((els) => els.map((e) => getComputedStyle(e).fontFamily));
+  for (const f of families) expect(f).not.toBe('monospace');
+});

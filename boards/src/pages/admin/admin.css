@@ -162,6 +162,12 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* A bare <code> (a path in the Discover tables, a route in a tab's intro)
+   otherwise falls to the browser's generic monospace, a serif typewriter face
+   at a fixed 13px. :where() keeps this at zero class weight, so any classed
+   code (.admin-api-tool, .admin-dq-list code) still sets its own size. */
+:where(.admin-body) code { font-family: var(--font-mono); font-size: .92em; }
+
 /* Same animated grain the workspace surfaces use — Overview /
    Analytics / Users / Waitlist tabs all get it via this pseudo.
    The Universe tab covers it with its WebGL canvas and paints
