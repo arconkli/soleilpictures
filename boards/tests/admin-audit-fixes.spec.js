@@ -104,3 +104,26 @@ test.describe('admin background refresh (ADMIN-5)', () => {
     await expect(field).toHaveValue('half-typed note');
   });
 });
+
+test.describe('admin Today people (ADMIN-6)', () => {
+  test('Arrived and stalled lists recent signups by signup age, never-opened ones included', async ({ page }) => {
+    const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+    await openAdmin(page, { view: 'today' });
+    await expect(page.getByText('The last seven days')).toBeVisible({ timeout: 15000 });
+    await patchRpc(page, {
+      admin_user_dormancy: { error: null, data: [
+        { user_id: 'n', email: 'never@example.com', signup: iso(3), last_active_day: null, days_dormant: null,
+          active_day_count: 0, did_card: false },
+        { user_id: 'o', email: 'old@example.com', signup: iso(120), last_active_day: iso(2), days_dormant: 2,
+          active_day_count: 7, did_card: false },
+      ] },
+    });
+    await page.getByRole('button', { name: 'Refresh' }).first().click();
+
+    const panel = page.locator('.admin-people-list').filter({ hasText: 'example.com' });
+    await expect(panel.getByText('never@example.com')).toBeVisible();
+    await expect(panel).toContainText('never opened the app');
+    await expect(panel).toContainText('joined 3d ago');
+    await expect(panel.getByText('old@example.com')).toHaveCount(0);
+  });
+});
