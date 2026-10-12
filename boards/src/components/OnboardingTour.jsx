@@ -163,9 +163,15 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
         const next = (useAnchor && !step.centerPill)
           ? place(ar, pr, step.placement, region)
           : centered(pr, region);
+        // The widest the pill may be and still keep MARGIN on both sides of
+        // the region. The CSS cap is the viewport's (100vw - 24px), which on a
+        // phone is wider than the region left of the tool rail: the clamp then
+        // pinned the left edge at the rail and the pill ran into the right
+        // screen edge with no margin. Fed to CSS as --tour-max-w.
+        next.maxW = Math.max(160, Math.floor(region.width - 2 * MARGIN));
         const prev = posRef.current;
         if (!prev || Math.abs(prev.top - next.top) > 0.5 ||
-            Math.abs(prev.left - next.left) > 0.5 ||
+            Math.abs(prev.left - next.left) > 0.5 || prev.maxW !== next.maxW ||
             prev.placement !== next.placement || prev.anchored !== next.anchored) {
           posRef.current = next;
           setPos(next);
@@ -200,7 +206,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
 
   const body = isTouch ? (step.copy.touch || step.copy.body) : step.copy.body;
   const style = pos
-    ? { top: `${pos.top}px`, left: `${pos.left}px` }
+    ? { top: `${pos.top}px`, left: `${pos.left}px`, '--tour-max-w': `${pos.maxW}px` }
     : { top: 0, left: 0, visibility: 'hidden' };
   const arrowClass = pos && !pos.anchored ? ' tour-centered' : '';
   const choicesClass = Array.isArray(step.choices) && step.choices.length > 0 ? ' tour-has-choices' : '';

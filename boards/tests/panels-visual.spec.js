@@ -217,3 +217,19 @@ test('VS-PANELS-07: on a phone the Schedule panel is a full-width sheet that sto
   await page.setViewportSize(DESKTOP);
   expect((await rect(panel)).w).toBe(360);
 });
+
+test('VS-PANELS-08: the phone "Add your photos" card keeps a margin on the right', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto('/?local=1&reset=1&blank=1&tour=mobile');
+  const pill = page.locator('.onboarding-tour');
+  await expect(pill).toContainText('Add your photos');
+  await page.waitForTimeout(600);   // entrance animation + the placement loop settling
+  const r = await rect(pill);
+  expect(r.r, 'the card must not run into the screen edge').toBeLessThanOrEqual(PHONE.width - 8);
+  const btn = await rect(pill.locator('.onboarding-coachmark-dismiss'));
+  expect(btn.r).toBeLessThanOrEqual(r.r);
+  // It still clears the tool rail on the left.
+  const rail = page.locator('.cnv-tools');
+  if (await rail.count()) expect(r.l).toBeGreaterThanOrEqual((await rect(rail)).r);
+  await page.screenshot({ path: test.info().outputPath('tour-390-dark.png') });
+});
