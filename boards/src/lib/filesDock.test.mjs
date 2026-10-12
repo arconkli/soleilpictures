@@ -9,6 +9,7 @@ import {
   clampWidth, dragPreview, releaseDock, readDockPrefs, writeDockPrefs,
   dockHintSeen, markDockHintSeen, collapsePath, ELLIPSIS,
   FOLDER_ROWS, folderColumns, folderCap, readFoldersExpanded, writeFoldersExpanded,
+  previewOwnedBy,
 } from './filesDock.js';
 
 test('the panel needs a desktop pane wide enough for a board and a panel', () => {
@@ -164,4 +165,18 @@ test('Show all folders is remembered per device, and broken storage reads collap
   assert.equal(readFoldersExpanded(storage), false);
   const broken = { getItem: () => { throw new Error('denied'); } };
   assert.equal(readFoldersExpanded(broken), false);
+});
+
+test("browsing from one folder into another never shows the last folder's snapshot under the new name", () => {
+  const owners = new WeakMap();
+  const b = { cards: [{ id: 'loop' }] };
+  const c = { cards: [{ id: 'photo' }] };
+  assert.equal(previewOwnedBy(owners, b, 'B'), b);
+  // The hook still holds B's snapshot for the first render after the id moves.
+  assert.equal(previewOwnedBy(owners, b, 'C'), null);
+  assert.equal(previewOwnedBy(owners, c, 'C'), c);
+  // Back to B: C's snapshot is not B's, and B's own still is.
+  assert.equal(previewOwnedBy(owners, c, 'B'), null);
+  assert.equal(previewOwnedBy(owners, b, 'B'), b);
+  assert.equal(previewOwnedBy(owners, null, 'B'), null);
 });

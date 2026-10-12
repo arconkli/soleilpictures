@@ -9,12 +9,24 @@
 // `src` is the ORIGINAL pdf reference ('r2:<key>' or a plain URL). It is
 // resolved through resolveSrc, which honors the public-share presigned-URL
 // override — so this works on /share boards without hitting the auth endpoint.
+//
+// The full-screen viewer portals to <body> and registers with lib/modalGuard.
+// Rendered in place it sat inside .canvas-wrap, whose native wheel listener
+// panned the board instead of scrolling the pages, whose touch-action:none
+// killed finger scrolling, and whose key handler deleted the selected card
+// when Backspace was pressed with a viewer button focused.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { resolveSrc } from '../lib/r2.js';
 import { downloadCardAsset } from '../lib/cardDownload.js';
 import { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } from '../lib/pdfEngine.js';
 import { Spinner } from './Spinner.jsx';
+import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
+
+// A portal still bubbles through the React tree to the card and canvas
+// handlers that rendered it; presses on the viewer are the viewer's own.
+const stopBubble = (e) => e.stopPropagation();
 
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 4;
@@ -41,6 +53,23 @@ function PdfPage({ doc, pageNum, scale, base, dpr, onRef }) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  // Out of range: give the bitmap back. A rendered page is scale×dpr pixels
+  // (~17 MB at 1.5× on a retina screen) and the caller owns its disposal, so
+  // keeping every visited page held GBs on a long read, and iOS Safari, with
+  // its hard canvas-memory cap, started drawing blank pages. Zeroing the size
+  // frees the backing store now rather than at GC; renderedScaleRef = 0 makes
+  // the page render again when it comes back into range.
+  // The host is captured at mount: by unmount cleanup React has nulled the ref.
+  const release = (host) => {
+    tokenRef.current += 1;                     // drop a render still in flight
+    const old = host && host.firstChild;
+    if (old && old.tagName === 'CANVAS') { old.width = 0; old.height = 0; }
+    if (host) host.replaceChildren();
+    renderedScaleRef.current = 0;
+  };
+  useEffect(() => { if (!near) release(canvasHostRef.current); }, [near]);
+  useEffect(() => { const host = canvasHostRef.current; return () => release(host); }, []);
 
   useEffect(() => {
     if (!near) return;
@@ -86,6 +115,7 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
   const scrollRef = useRef(null);
   const pageEls = useRef(new Map());
   const fittedRef = useRef(false);
+  const guardRef = useRef(null);
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? Math.min(2, window.devicePixelRatio) : 1;
 
   // Load the document (re-runs on retry via reloadKey).
@@ -162,34 +192,76 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
     else pageEls.current.delete(n);
   }, []);
 
-  // ctrl/⌘-wheel zoom.
+  // Zoom keeps the point you were reading where it is. Every page is
+  // base × scale tall, so a bare setScale left scrollTop alone and the
+  // document slid under it: zooming at page 20 landed pages earlier, and
+  // ctrl-wheel drifted instead of zooming around the cursor. Record which
+  // page sits under the focus line (the cursor, else mid-view) and how far
+  // down it, then put it back once the new heights are laid out.
+  const zoomAnchorRef = useRef(null);
+  const zoom = useCallback((next, focusY) => {
+    const el = scrollRef.current;
+    if (el) {
+      const fy = focusY ?? el.clientHeight / 2;
+      const y = el.scrollTop + fy;
+      let best = null;
+      for (const [n, node] of pageEls.current) {
+        if (!node) continue;
+        const top = node.offsetTop, ph = node.offsetHeight || 1;
+        const d = y < top ? top - y : (y > top + ph ? y - top - ph : 0);
+        if (!best || d < best.d) best = { n, d, frac: Math.max(0, Math.min(1, (y - top) / ph)) };
+      }
+      zoomAnchorRef.current = best ? { n: best.n, frac: best.frac, fy } : null;
+    }
+    setScale(next);
+  }, []);
+  useLayoutEffect(() => {
+    const a = zoomAnchorRef.current;
+    zoomAnchorRef.current = null;
+    const el = scrollRef.current;
+    const node = a && pageEls.current.get(a.n);
+    if (!el || !node) return;
+    el.scrollTop = node.offsetTop + a.frac * node.offsetHeight - a.fy;
+  }, [scale]);
+
+  // ctrl/⌘-wheel zoom, around the cursor.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setScale((z) => clampZoom(z * Math.exp(-e.deltaY * 0.01)));
+      zoom((z) => clampZoom(z * Math.exp(-e.deltaY * 0.01)), e.clientY - el.getBoundingClientRect().top);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [status]);
 
+  // Embedded, the host (Quick look) is the registered layer.
+  useEffect(() => {
+    if (embedded) return undefined;
+    const unregister = registerModalOpen();
+    guardRef.current = unregister;
+    return () => { guardRef.current = null; unregister(); };
+  }, [embedded]);
+
   // Keyboard. Capture-phase so this top-most modal owns Escape (and nav/zoom
   // keys) before the canvas's own handlers (e.g. selection-clear) can consume
   // them — otherwise Escape would clear a selected card instead of closing.
+  // A dialog opened over the viewer owns the keys while it is on top.
   useEffect(() => {
     const onKey = (e) => {
+      if (guardRef.current && !isTopModal(guardRef.current)) return;
       if (e.key === 'Escape') { if (embedded) return; e.stopPropagation(); onClose?.(); return; }
       if (status !== 'ready') return;
       if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); e.stopPropagation(); scrollToPage(current + 1); }
       else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); e.stopPropagation(); scrollToPage(current - 1); }
-      else if ((e.key === '=' || e.key === '+') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); setScale((z) => clampZoom(z + ZOOM_STEP)); }
-      else if (e.key === '-' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); setScale((z) => clampZoom(z - ZOOM_STEP)); }
+      else if ((e.key === '=' || e.key === '+') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); zoom((z) => clampZoom(z + ZOOM_STEP)); }
+      else if (e.key === '-' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); zoom((z) => clampZoom(z - ZOOM_STEP)); }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [status, current, scrollToPage, onClose, embedded]);
+  }, [status, current, scrollToPage, onClose, embedded, zoom]);
 
   const filename = useCallback(() => {
     let b = (name || 'document').toString().trim().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
@@ -210,10 +282,14 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
     finally { setDownloading(false); }
   }, [src, downloading, filename]);
 
-  return (
+  const node = (
     <div className={`pdfv${embedded ? ' pdfv--embedded' : ''}`}
          role={embedded ? undefined : 'dialog'} aria-label={name || 'PDF preview'}
-         onClick={embedded ? undefined : () => onClose?.()}>
+         onClick={embedded ? undefined : (e) => { e.stopPropagation(); onClose?.(); }}
+         onPointerDown={embedded ? undefined : stopBubble}
+         onMouseDown={embedded ? undefined : stopBubble}
+         onDoubleClick={embedded ? undefined : stopBubble}
+         onContextMenu={embedded ? undefined : stopBubble}>
       <div className="pdfv-bar" onClick={(e) => e.stopPropagation()}>
         <span className="pdfv-title" title={name || ''}>{name || 'PDF'}</span>
         <span className="pdfv-spacer" />
@@ -229,10 +305,10 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
         {status === 'ready' && (
           <span className="pdfv-zoom">
             <button className="pdfv-btn" aria-label="Zoom out" title="Zoom out"
-                    onClick={() => setScale((z) => clampZoom(z - ZOOM_STEP))}>−</button>
+                    onClick={() => zoom((z) => clampZoom(z - ZOOM_STEP))}>−</button>
             <span className="pdfv-zoomind">{Math.round(scale * 100)}%</span>
             <button className="pdfv-btn" aria-label="Zoom in" title="Zoom in"
-                    onClick={() => setScale((z) => clampZoom(z + ZOOM_STEP))}>+</button>
+                    onClick={() => zoom((z) => clampZoom(z + ZOOM_STEP))}>+</button>
           </span>
         )}
         {!embedded && (
@@ -268,6 +344,9 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
       </div>
     </div>
   );
+
+  if (embedded || typeof document === 'undefined') return node;
+  return createPortal(node, document.body);
 }
 
 export default PdfViewer;

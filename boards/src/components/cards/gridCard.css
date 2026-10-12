@@ -237,6 +237,26 @@
 }
 .gridc-cell:hover .gridc-celltools { opacity: 1; }
 .gridc-celltools > .gridc-pill { pointer-events: auto; max-width: 100%; flex-wrap: nowrap; }
+/* Touch has no hover to reveal these first, and an opacity:0 control still
+   takes a tap: tapping a filled cell's corner to select the grid cleared the
+   cell, and a tap near the bottom split it. On a hover:none screen the pill,
+   the compact trigger and Clear are click-through until they're SHOWN — on
+   the focused cell of a selected grid, so a first tap selects and the next
+   one acts. Not :hover, which a tap sets in the same gesture. Desktop keeps
+   hover-to-reveal: there the pointer crosses the cell (and shows the tools)
+   before it can press one, and a compact trigger overflowing a tiny cell
+   must stay reachable from outside it. Scoped to .gridc-cell: the schedule
+   card reuses .gridc-pill-mini in its own slot tools. */
+@media (hover: none) {
+  .gridc-celltools > .gridc-pill,
+  .gridc-cell .gridc-pill-mini,
+  .gridc-cell .gridc-cell-x { pointer-events: none; }
+  .card.is-selected .gridc-cell.is-focused .gridc-celltools { opacity: 1; }
+  .card.is-selected .gridc-cell.is-focused .gridc-cell-x { opacity: 1; transform: scale(1); }
+  .card.is-selected .gridc-cell.is-focused .gridc-celltools > .gridc-pill,
+  .card.is-selected .gridc-cell.is-focused .gridc-pill-mini,
+  .card.is-selected .gridc-cell.is-focused .gridc-cell-x { pointer-events: auto; }
+}
 
 /* Compact trigger — shown INSTEAD of the pill on cells too small to host it
    (see GRID_TUNING.PILL_MIN_W/H). A single frosted button; clicking it opens the
@@ -334,9 +354,11 @@
   pointer-events: none !important;
 }
 .gridc.is-repositioning .gridc-celltools,
-.gridc.is-repositioning .gridc-cell-x {
-  opacity: 0;
-  pointer-events: none;
+.gridc.is-repositioning .gridc-cell-x,
+.gridc.is-repositioning .gridc-celltools > .gridc-pill,
+.gridc.is-repositioning .gridc-pill-mini {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* Portaled image-cell photo + fit editor (opened by the pill pencil / GridCellMenu
@@ -562,6 +584,7 @@
 
 /* ── light theme — warm-cream frosted surfaces (mirror .surface-frosted) ────── */
 [data-theme='light'] .gridc-pill,
+[data-theme='light'] .gridc-pill-mini,
 [data-theme='light'] .gridc-cell-x,
 [data-theme='light'] .gridc-divider-rm,
 [data-theme='light'] .gridc-linked-badge,

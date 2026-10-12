@@ -5,11 +5,12 @@
 // Domain knowledge lives here — what does it mean to "prefetch a
 // board" or "prefetch an entity"? Components don't need to know.
 
-import * as Y from 'yjs';
 import { prefetch, peek } from './prefetch.js';
 import { loadBoardSnapshot } from './boardsApi.js';
 import { resolveSrc } from './r2.js';
-import { b64ToBytes } from './yhelpers.js';
+import { decodeViaWorker } from './previewWorkerClient.js';
+import { primeImageMeta, getMeta } from './imageMeta.js';
+import { pickVariantKey } from './imageVariantPick.js';
 
 const BOARD_TTL = 30_000;       // 30s — board navigation is short-tail
 const IMAGE_TTL = 5 * 60_000;   // 5 min — decoded image bytes stay hot
@@ -19,12 +20,16 @@ const IMAGE_TTL = 5 * 60_000;   // 5 min — decoded image bytes stay hot
 //
 // Side effect: once the snapshot lands, fire-and-forget warm the
 // first ~6 image refs found in the doc so the canvas paints with
-// bytes already decoded by the browser.
-export function prefetchBoard(boardId, { lane = 'normal' } = {}) {
+// bytes already decoded by the browser. yboard's own cold open passes
+// warmImages: false: it is about to decode this snapshot for real and mount
+// those images itself, so warming them too only decoded the snapshot a second
+// time (PERF-06). Keyed on its own flag, not the lane: entity-link hovers and
+// graph clicks also ride 'high' and do want the warm-up.
+export function prefetchBoard(boardId, { lane = 'normal', warmImages = true } = {}) {
   if (!boardId) return Promise.resolve(null);
   return prefetch(`board:${boardId}`, async () => {
     const b64 = await loadBoardSnapshot(boardId);
-    if (b64) {
+    if (b64 && warmImages) {
       // Microtask defer so the await chain in the consumer (yboard
       // cold-load) gets the snapshot first, then the image warm-up
       // happens off the critical path.
@@ -119,26 +124,33 @@ export function prefetchClipboardPayload(items) {
   }
 }
 
-// Internal: parse a Y.Doc snapshot, find image refs in the cards
-// Y.Map, and prefetch up to N of them so the canvas paints with
-// already-decoded bytes when the user clicks through.
+// Internal: find image refs in a board snapshot and prefetch up to N of
+// them so the canvas paints with already-decoded bytes when the user clicks
+// through.
+//
+// Runs on hover, so it must stay cheap (PERF-06): the snapshot is decoded in
+// the preview worker (no worker → no warm-up, never a main-thread
+// Y.applyUpdate), and what gets warmed is the preview tier the canvas will
+// actually mount, never the original. Warming the original downloaded and
+// decoded a 12 MP photo (~48 MB) per card on a mere hover, and once its URL
+// was cached pickInitialTier preferred it over the preview on open.
 async function warmTopImagesFromSnapshot(b64) {
-  const doc = new Y.Doc();
-  try {
-    Y.applyUpdate(doc, b64ToBytes(b64), 'snapshot');
-    const cards = doc.getMap('cards');
-    let warmed = 0;
-    cards.forEach((ym) => {
-      if (warmed >= 6) return;
-      try {
-        const src = ym.get('src');
-        if (typeof src === 'string' && src.startsWith('r2:')) {
-          prefetchImage(src, { lane: 'normal' });
-          warmed++;
-        }
-      } catch (_) { /* malformed row — skip */ }
-    });
-  } finally {
-    doc.destroy();
+  const job = decodeViaWorker(b64);
+  if (!job) return;
+  const { data } = await job;
+  const picks = [];
+  for (const c of (data && data.cards) || []) {
+    if (picks.length >= 6) break;
+    if (c && typeof c.src === 'string' && c.src.startsWith('r2:')) picks.push(c);
+  }
+  if (!picks.length) return;
+  await primeImageMeta(picks.map(c => c.src.slice(3)));
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  for (const c of picks) {
+    const key = c.src.slice(3);
+    const variant = pickVariantKey(key, getMeta(key), (Number(c.w) || 320) * dpr);
+    // No preview (a GIF, a row not yet backfilled): leave it to the canvas.
+    if (!variant || variant === key) continue;
+    prefetchImage(`r2:${variant}`, { lane: 'normal' });
   }
 }

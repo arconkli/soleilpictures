@@ -77,6 +77,9 @@ export const SCREENPLAY_FILE_RE = /\.(fountain|fdx)$/i;
 // readers drop these on their first visit; uploading one only ever produced an
 // opaque file card (paid) or a storage pitch (free). Neither opens the board.
 export const PUREREF_FILE_RE = /\.pur$/i;
+// Photoshop documents and camera raws: image MIME types that no browser
+// decodes, Safari included (TIFF and HEIC are not here — Safari draws both).
+export const UNDRAWABLE_IMAGE_RE = /\.(psd|psb|dng|cr2|cr3|crw|nef|nrw|arw|srf|sr2|raf|orf|rw2|pef|srw|3fr|iiq|x3f)$/i;
 
 // Decide the upload route + card kind + fallback size for a File.
 //   canAttemptFiles — false when the user OWNS this workspace and is NOT on a
@@ -102,7 +105,13 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   // Some pickers surface iPhone HEIC/HEIF with an EMPTY mime type — match the
   // extension too, or a camera-roll photo becomes a generic file card (which is
   // paid-gated for free owners). Browsers that DO report a type say image/heic.
-  const isImage = type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name));
+  // …except image types no browser can draw at all. Chrome calls a .psd
+  // "image/vnd.adobe.photoshop" and a camera raw "image/x-sony-arw", and the
+  // image route turned those into a blank card with nothing to download. As
+  // file cards they keep their name, type icon and Download — what the docs
+  // have always said a .psd becomes.
+  const isImage = (type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name)))
+    && !UNDRAWABLE_IMAGE_RE.test(name) && !/photoshop/i.test(type);
   const isVideo = type.startsWith('video/');
   // Same empty-mime problem as HEIC, and it bites hardest on the formats
   // producers actually ship: Safari reports NO type for .flac and .aiff, and
@@ -213,4 +222,48 @@ export function meaningfulFileName(file) {
 export function fileMetaFor(file) {
   const fileName = meaningfulFileName(file);
   return fileName ? { fileName } : {};
+}
+
+// ── Images whose canvas preview must be the original ───────────────────────
+//
+// The Tier-1 preview is a still: createImageBitmap decodes frame one only. An
+// animated GIF, WebP or PNG that gets one shows that frame on the canvas for
+// good, because the card prefers the preview and a native-size preview leaves
+// the original nothing to "upgrade" to. The board-open backfill always knew
+// this (previewBackfill.js keeps GIFs out of RASTER_RE); the upload path did
+// not, so every GIF dropped through the app froze.
+//
+// A .gif key is treated as animated outright — a still GIF loses only a
+// preview it barely needed. WebP and PNG are animated only when their header
+// says so, which isAnimatedImageBytes reads.
+export const ANIMATED_KEY_RE = /\.gif$/i;
+export function isAnimatedImageKey(key) {
+  return typeof key === 'string' && ANIMATED_KEY_RE.test(key);
+}
+
+// Sniff the head of an image file for animation. `u8` is a Uint8Array of its
+// first bytes (64 KB is plenty: an APNG's acTL must precede its first IDAT,
+// and a WebP's VP8X flags sit at byte 20).
+//   GIF  → always (see above)
+//   WebP → extended header (VP8X) with the animation flag set
+//   PNG  → an acTL chunk before the first IDAT (APNG)
+export const ANIMATION_SNIFF_BYTES = 64 * 1024;
+export function isAnimatedImageBytes(u8) {
+  if (!u8 || typeof u8.length !== 'number' || u8.length < 12) return false;
+  const ascii = (o, n) => String.fromCharCode(...u8.subarray(o, o + n));
+  if (ascii(0, 4) === 'GIF8') return true;
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') {
+    return u8.length > 20 && ascii(12, 4) === 'VP8X' && (u8[20] & 0x02) !== 0;
+  }
+  if (u8[0] === 0x89 && ascii(1, 3) === 'PNG') {
+    let o = 8;
+    while (o + 8 <= u8.length) {
+      const len = ((u8[o] << 24) | (u8[o + 1] << 16) | (u8[o + 2] << 8) | u8[o + 3]) >>> 0;
+      const type = ascii(o + 4, 4);
+      if (type === 'acTL') return true;
+      if (type === 'IDAT' || type === 'IEND') return false;
+      o += 12 + len;
+    }
+  }
+  return false;
 }

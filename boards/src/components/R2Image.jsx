@@ -20,6 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
+import { isAnimatedImageKey } from '../lib/fileIngest.js';
 import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
@@ -27,6 +28,7 @@ import { bumpPerf, getGestureActiveUntil } from '../lib/perfReport.js';
 import { getImageTierScale } from '../lib/canvasScale.js';
 import { getImageTierScheduler } from '../lib/imageTierScheduler.js';
 import { lowMemoryDevice } from '../lib/device.js';
+import './r2Image.css';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
@@ -92,6 +94,17 @@ function markBust(key, version) {
 // Below it, a warm original is comparable to the 1280px preview (~1.6MP).
 const MAX_WARM_ORIGINAL_PX = 2_500_000;
 
+// The image metadata this card tiers on. A GIF's preview is its first frame, so
+// a GIF card never tiers: it is read as having no preview, which keeps it on
+// the (animated) original through mount, promotion and demotion alike. Rows
+// uploaded before the upload path stopped making GIF previews still carry one;
+// this is what un-freezes them. The blur placeholder is kept.
+function readMeta(key) {
+  const m = key ? getMeta(key) : null;
+  if (!m || !m.previewKey || !isAnimatedImageKey(key)) return m;
+  return { ...m, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null };
+}
+
 // Pick which tier to mount/show before anything has loaded. Prefer the
 // preview ONLY when it's at least as warm as the original:
 //   preview signed URL cached → preview (smaller decode, the fast path)
@@ -106,7 +119,7 @@ const MAX_WARM_ORIGINAL_PX = 2_500_000;
 // Public viewer: cachedUrl resolves via the share bundle, so every bundled
 // key counts as warm and the preview keeps winning there.
 function pickTierSrc(src, originalKey) {
-  const m = originalKey ? getMeta(originalKey) : null;
+  const m = readMeta(originalKey);
   if (!m || !m.previewKey) return src;
   const pv = `r2:${m.previewKey}`;
   if (cachedUrl(pv) || !cachedUrl(src)) return pv;
@@ -140,7 +153,7 @@ function pickTierSrc(src, originalKey) {
 // no w/h, so the guard's `m.w && m.h` is false and the floor variant (sm/lg)
 // wins — exactly what we want on /share.
 function pickInitialTier(src, originalKey, w) {
-  const m = originalKey ? getMeta(originalKey) : null;
+  const m = readMeta(originalKey);
   if (!m || !m.previewKey) return src;
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   const displayedPx = (typeof w === 'number' && w > 0)
@@ -216,6 +229,38 @@ function BlockedPlaceholder({ rootRef, ...rest }) {
   );
 }
 
+// The bytes arrived (or were never there) but the browser could not show them:
+// a TIFF or PSD outside Safari, a HEIC on Chrome/Firefox, a key whose object is
+// gone. Distinct from BlockedPlaceholder — nothing about access is wrong, so
+// it must not read as a padlock. `downloadSrc` (canvas cards) adds a Download,
+// because the file itself is still perfectly good to someone with the right app.
+function UnavailablePlaceholder({ rootRef, downloadSrc = null, alt = '', className = '', ...rest }) {
+  const download = (ev) => {
+    ev.stopPropagation();
+    // Dynamic: the export path stays out of the bundle until someone needs it.
+    import('../lib/imageExport.js')
+      .then(m => m.downloadImage({ src: downloadSrc, title: alt }))
+      .catch(() => {});
+  };
+  return (
+    <div ref={rootRef} {...rest} className={`r2-img r2-img-blocked r2-img-unavailable ${className}`}>
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <rect x="4" y="5" width="14" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M4 14 l4-4 3 3 2-2 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        <path d="M3 3 L19 19" stroke="currentColor" strokeWidth="1.5"/>
+      </svg>
+      <span className="r2-img-unavailable-label">Preview not available</span>
+      {downloadSrc && (
+        <button type="button" className="r2-img-unavailable-dl"
+                onPointerDown={(ev) => ev.stopPropagation()}
+                onClick={download}>
+          Download
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Basic (unchanged behavior) ──────────────────────────────────────────
 function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
                         // `bust` (optional): a content-version token (board
@@ -238,6 +283,15 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   // cards) skip the gate. Once visible, we stay visible.
   const [visible, setVisible] = useState(() => eager || !!initial);
   const rootRef = useRef(null);
+  // The browser refused the bytes even after one fresh signature (see onError).
+  const [unavailable, setUnavailable] = useState(false);
+  const resignedRef = useRef(false);
+  // One failed→retry re-arm per src, as the progressive flavor has: without it
+  // a ~12 s sign-reads outage (a laptop waking, captive Wi-Fi) left cluster
+  // thumbnails and Files previews padlocked until the user navigated away
+  // (MEDIA-14). Re-arms after 30 s, or at once when the browser comes online.
+  const rearmedRef = useRef(false);
+  useEffect(() => { resignedRef.current = false; rearmedRef.current = false; setUnavailable(false); }, [src]);
 
   useEffect(() => {
     if (visible) return;
@@ -257,9 +311,13 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
     let cancelled = false;
     let refreshTimer = null;
     let retryTimer = null;
+    let onOnline = null;
     let attempt = 0;
     const isR2 = typeof src === 'string' && src.startsWith('r2:');
     const key = isR2 ? src.slice(3) : null;
+    const dropOnline = () => {
+      if (onOnline) { try { window.removeEventListener('online', onOnline); } catch (_) {} onOnline = null; }
+    };
     const tick = async () => {
       // When a content version (bust) newer than the one we last minted is
       // present, force a fresh presign so the URL string changes and the
@@ -278,6 +336,22 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
           return;
         }
         setFailed(true);
+        // Genuine loss of access re-locks after this one extra cycle and stays.
+        if (isR2 && !rearmedRef.current) {
+          rearmedRef.current = true;
+          const rearm = () => {
+            if (cancelled) return;
+            dropOnline();
+            clearTimeout(retryTimer);
+            attempt = 0;
+            setSlowRetry(false);
+            setFailed(false);
+            tick();
+          };
+          retryTimer = setTimeout(rearm, 30000);
+          onOnline = rearm;
+          try { window.addEventListener('online', onOnline); } catch (_) {}
+        }
         return;
       }
       // Record the version only after a successful sign, so a transient
@@ -296,10 +370,11 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
       }
     };
     tick();
-    return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
+    return () => { cancelled = true; dropOnline(); if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
   }, [src, visible, bust]);
 
   if (failed) return <BlockedPlaceholder {...rest} />;
+  if (unavailable) return <UnavailablePlaceholder alt={alt} {...rest} />;
 
   if (!url) {
     // Loading shimmer; rootRef anchors the IntersectionObserver.
@@ -322,13 +397,23 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
          decoding="async"
          fetchpriority={eager ? 'high' : 'low'}
          {...rest}
+         onLoad={(e) => { resignedRef.current = false; rest.onLoad?.(e); }}
          onError={(e) => {
-           if (typeof src === 'string' && src.startsWith('r2:')) {
+           if (typeof src === 'string' && src.startsWith('r2:') && !resignedRef.current) {
              // Force a fresh sign (evicts the cached string) — the URL we were
              // handed may be an expired signature, so re-presigning WITHOUT
              // force would just hand back the same dead URL and lock the image.
+             // ONCE per load: a fresh signature is a new URL string, so an
+             // image the browser can't decode (TIFF, PSD, HEIC) or a key whose
+             // object is gone re-downloaded the whole original and failed
+             // again, every second or two, for as long as it was mounted.
+             resignedRef.current = true;
+             const failedUrl = url;
              getSignedUrl(src.slice(3), { force: true }).then(fresh => {
-               if (fresh) setUrl(fresh);
+               // The same string back (the public viewer's static map) cannot
+               // load any better than it just did.
+               if (fresh && fresh === failedUrl) setUnavailable(true);
+               else if (fresh) setUrl(fresh);
                else setFailed(true);
              });
              // Public viewers resolve from a static presigned map, so the
@@ -336,7 +421,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
              // the bundle for fresh URLs (no-op in the authenticated app).
              notifyImageAuthError(src.slice(3));
            } else {
-             setFailed(true);
+             setUnavailable(true);
            }
            onError?.(e);
          }} />
@@ -349,7 +434,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                               cardId = null, className, style, draggable, ...rest }) {
   const originalKey = (typeof src === 'string' && src.startsWith('r2:')) ? src.slice(3) : null;
 
-  const [meta, setMeta] = useState(() => (originalKey ? getMeta(originalKey) : null));
+  const [meta, setMeta] = useState(() => readMeta(originalKey));
   // The r2 sentinel currently being shown. Prefers the warmest tier at mount
   // (pickInitialTier); before load it only ever switches via the pre-load
   // switch effect below. AFTER load it moves both ways under the image-tier
@@ -386,6 +471,17 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // One failed→retry re-arm per mount (see the resolve effect) so a transient
   // sign-reads outage doesn't brick the card until reload.
   const rearmedRef = useRef(false);
+  // The tier src whose <img> error already bought one forced re-sign (see the
+  // img onError). A second error on the same tier means the browser cannot
+  // show these bytes, so the card says so instead of re-downloading forever.
+  const resignedForRef = useRef(null);
+  const [unavailable, setUnavailable] = useState(false);
+  // The original failed to display after its one re-sign while a variant
+  // exists (a HEIC/TIFF whose preview Safari made, a gone original whose
+  // retention-locked previews remain). The card drops back to the preview and
+  // the scheduler never promotes it again: a card showing a good preview must
+  // not turn into "Preview not available" just because someone zoomed in.
+  const originalBrokenRef = useRef(false);
   // Fast-load fade skip: when fetch+decode completes quickly (bytes were in
   // the browser disk cache — the common case for a viewport-culling remount),
   // the 0.35s blur-fade would only delay an instant paint, so onImgLoad sets
@@ -414,8 +510,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // or a fresh upload's variant generation).
   useEffect(() => {
     if (!originalKey) return;
-    setMeta(getMeta(originalKey));
-    const unsub = subscribeMeta(originalKey, () => setMeta(getMeta(originalKey)));
+    setMeta(readMeta(originalKey));
+    const unsub = subscribeMeta(originalKey, () => setMeta(readMeta(originalKey)));
     return unsub;
   }, [originalKey]);
 
@@ -427,9 +523,12 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     hitMarkedRef.current = false;
     fellBackRef.current = false;
     rearmedRef.current = false;
+    resignedForRef.current = null;
+    originalBrokenRef.current = false;
     fastLoadRef.current = false;
     setLoaded(false);
     setFailed(false);
+    setUnavailable(false);
     const next = pickInitialTier(src, originalKey, w);
     urlSetAtRef.current = cachedUrl(next) ? performance.now() : 0;
     setActiveSrc(next);
@@ -616,7 +715,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
 
         // PROMOTE toward the best justified tier (jump sm→original directly).
         if (st.upgradeToFull) {
-          const wantOriginal = !upgradedRef.current && originalWorthUpgrade(m)
+          const wantOriginal = !upgradedRef.current && !originalBrokenRef.current && originalWorthUpgrade(m)
             && m.previewW && displayedPx >= m.previewW * 0.85;
           if ((atSm || atPreview) && wantOriginal) {
             return { kind: 'promote', area, inViewport, run: () => {
@@ -688,6 +787,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     // render picks it up.
     fastLoadRef.current = urlSetAtRef.current > 0 &&
       (performance.now() - urlSetAtRef.current) < FAST_LOAD_MS;
+    resignedForRef.current = null;   // a later expiry earns its own re-sign
     setLoaded(true);
     if (!hitMarkedRef.current) {
       hitMarkedRef.current = true;
@@ -734,6 +834,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // ran. One src, one decision.
 
   if (failed) return <BlockedPlaceholder {...rest} />;
+  if (unavailable) {
+    return <UnavailablePlaceholder rootRef={rootRef} className={className || ''} style={style} alt={alt}
+                                   downloadSrc={originalKey ? src : null} {...rest} />;
+  }
 
   return (
     <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}>
@@ -755,9 +859,40 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                // expired signature; re-presigning WITHOUT force would hand back
                // the same dead URL and lock the image. A null result means real
                // loss of access → blocked; any fresh URL → recover.
-               if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:')) {
+               //
+               // Once per tier: a fresh signature is a new URL string, so bytes
+               // the browser cannot decode (TIFF/PSD everywhere but Safari, HEIC
+               // on Chrome/Firefox) or a missing object used to re-download the
+               // original every second or two for as long as the card lived. A
+               // second error on a variant drops to the original; a second
+               // error on the original drops to a variant that has not failed
+               // (and pins it there); only with neither left is it "Preview
+               // not available", with a Download.
+               const isR2 = typeof activeSrc === 'string' && activeSrc.startsWith('r2:');
+               const giveUp = () => {
+                 if (originalKey && activeSrc !== src && !fellBackRef.current && !originalBrokenRef.current) {
+                   fellBackRef.current = true;
+                   setActiveSrc(src);
+                 } else if (originalKey && activeSrc === src && meta?.previewKey
+                            && !fellBackRef.current && !originalBrokenRef.current) {
+                   originalBrokenRef.current = true;
+                   upgradedRef.current = true;   // keeps the pre-load switch + warm-up off too
+                   setActiveSrc(`r2:${meta.previewKey}`);
+                 } else {
+                   setUnavailable(true);
+                 }
+               };
+               if (isR2 && resignedForRef.current === activeSrc) {
+                 giveUp();
+               } else if (isR2) {
+                 resignedForRef.current = activeSrc;
+                 const failedUrl = url;
                  getSignedUrl(activeSrc.slice(3), { force: true }).then(fresh => {
-                   if (fresh) setUrl(fresh);
+                   // The same string back (the public viewer's static map)
+                   // cannot load any better; an expired one is re-minted by the
+                   // bundle refresh below, which remounts the canvas anyway.
+                   if (fresh && fresh === failedUrl) giveUp();
+                   else if (fresh) setUrl(fresh);
                    else setFailed(true);
                  });
                  // Public viewers resolve from a static presigned map → the
@@ -765,7 +900,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                  // bundle re-fetch (no-op in the authenticated app).
                  notifyImageAuthError(activeSrc.slice(3));
                } else {
-                 setFailed(true);
+                 setUnavailable(true);
                }
                onError?.(e);
              }} />

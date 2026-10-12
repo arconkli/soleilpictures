@@ -157,61 +157,106 @@ function scheduleFlush() {
     : setTimeout(flush, 0);
 }
 
+// The party signs at most this many keys per /sign-reads call and silently
+// drops the rest (upload.ts `.slice(0, 200)`), so a bigger frame is split
+// into chunks of this size and posted in parallel. One unchunked POST used
+// to leave every key past the 200th resolving to null, which a cold open of
+// a fit-all view or an image-heavy home grid hit as cards stuck on blur and,
+// past ~1000 keys, "No access" locks (MEDIA-05). Same cap as imageMeta.js.
+export const SIGN_READS_MAX = 200;
+
 async function flush() {
   pendingTimer = null;
   if (pendingResolvers.size === 0) return;
   const resolvers = pendingResolvers;
   pendingResolvers = new Map();
   const keys = Array.from(resolvers.keys());
+  const settle = (chunk, urls, ttlMs) => {
+    for (const key of chunk) {
+      const url = (urls && urls[key]) || null;
+      // Clamp to the URL's real signature window so we never serve a dead URL.
+      if (url) cache.set(key, { url, expiresAt: cacheExpiryFor(url, ttlMs) });
+      for (const cb of resolvers.get(key) || []) cb(url);
+    }
+  };
 
-  let urls = {};
-  let ttlMs = CACHE_TTL_MS;
+  let token = '';
   try {
     const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token || '';
-    if (!token) {
-      // Not signed in — can't presign anything. Resolve with null.
-      for (const cbs of resolvers.values()) for (const cb of cbs) cb(null);
-      return;
-    }
-
-    // Use the user's first workspace as the room id; the room name
-    // doesn't affect routing logic for HTTP-only parties, but PartyKit
-    // requires one. Any string works.
-    const room = 'default';
-    const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(room)}/sign-reads`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ keys }),
-    });
-    if (!res.ok) {
-      console.warn('[r2] sign-reads failed', res.status);
-      for (const cbs of resolvers.values()) for (const cb of cbs) cb(null);
-      return;
-    }
-    const body = await res.json();
-    urls = body.urls || {};
-    // Honor the party's actual TTL so the client cache adapts automatically
-    // (incl. the brief deploy window where an old party still signs 5-min URLs)
-    // instead of trusting the 6-day default for a short-lived URL.
-    if (typeof body.ttl === 'number' && body.ttl > 0) ttlMs = body.ttl * 1000;
+    token = data?.session?.access_token || '';
   } catch (e) {
     console.warn('[r2] sign-reads error', e);
-    for (const cbs of resolvers.values()) for (const cb of cbs) cb(null);
+  }
+  if (!token) {
+    // Not signed in — can't presign anything. Resolve with null.
+    settle(keys, null, CACHE_TTL_MS);
     return;
   }
 
-  for (const [key, cbs] of resolvers) {
-    const url = urls[key] || null;
-    // Clamp to the URL's real signature window so we never serve a dead URL.
-    if (url) cache.set(key, { url, expiresAt: cacheExpiryFor(url, ttlMs) });
-    for (const cb of cbs) cb(url);
-  }
+  // Use the user's first workspace as the room id; the room name
+  // doesn't affect routing logic for HTTP-only parties, but PartyKit
+  // requires one. Any string works.
+  const room = 'default';
+  const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(room)}/sign-reads`;
+  const chunks = [];
+  for (let i = 0; i < keys.length; i += SIGN_READS_MAX) chunks.push(keys.slice(i, i + SIGN_READS_MAX));
+  // Each chunk settles its own keys, so one failed request nulls only its
+  // 200 and the rest of the frame still paints.
+  await Promise.all(chunks.map(async (chunk) => {
+    let urls = null;
+    let ttlMs = CACHE_TTL_MS;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ keys: chunk }),
+      });
+      if (!res.ok) {
+        console.warn('[r2] sign-reads failed', res.status);
+      } else {
+        const body = await res.json();
+        urls = body.urls || {};
+        // Honor the party's actual TTL so the client cache adapts automatically
+        // (incl. the brief deploy window where an old party still signs 5-min URLs)
+        // instead of trusting the 6-day default for a short-lived URL.
+        if (typeof body.ttl === 'number' && body.ttl > 0) ttlMs = body.ttl * 1000;
+      }
+    } catch (e) {
+      console.warn('[r2] sign-reads error', e);
+    }
+    settle(chunk, urls, ttlMs);
+  }));
   schedulePersist();
+}
+
+// A one-off signed URL for `key` that R2 serves with Content-Disposition:
+// attachment and `filename`, so the browser's own download manager can stream
+// a large file with progress instead of the app buffering it into a Blob
+// (MEDIA-09). Never cached: it is used once, right now. Resolves null when it
+// cannot be had — signed out, the public viewer (static bundle URLs), or a
+// party that predates the `download` field (its response has no `downloads`),
+// and the caller then takes the Blob path as before.
+export async function getDownloadUrl(key, filename) {
+  if (!key || typeof key !== 'string' || !filename || _override) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token || '';
+    if (!token) return null;
+    const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/default/sign-reads`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ keys: [key], download: { [key]: filename } }),
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return (body && body.downloads && body.downloads[key]) || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 // Public: resolve a key to a signed URL (cached). Returns null if

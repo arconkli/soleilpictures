@@ -181,8 +181,8 @@ function ScoutSection({ user }) {
               style={{
                 flex: '0 1 190px', minWidth: 0, padding: '9px 12px', borderRadius: 10,
                 border: '1px solid var(--line-1, rgba(255,255,255,.14))',
-                background: 'var(--surface-2, rgba(255,255,255,.04))',
-                color: 'var(--text-1, inherit)',
+                background: 'var(--bg-2)',
+                color: 'var(--ink-1)',
                 fontSize: 18, fontWeight: 600, letterSpacing: '0.16em',
                 fontFamily: 'var(--font-mono, ui-monospace, monospace)',
               }}

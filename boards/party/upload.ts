@@ -21,14 +21,18 @@
 //           members AND editor-shared users). If no boardId, falls
 //           back to `can_write_workspace(<workspaceId>)` — since 0318 a
 //           membership row alone is not a write right.
+//     Quota: main content is checked against the owner's storage quota —
+//           authorize_image_upload(boardId), or authorize_upload(room) with
+//           no boardId — and refused 403 { reason: 'over_quota' }.
 //     Returns: { uploadUrl, key }
 //
 //   POST /parties/upload/<workspaceId>/sign-reads
-//     Body: { keys: string[] }
+//     Body: { keys: string[], download?: { [key]: filename } }
 //     Auth: caller's Supabase JWT — RLS on the `images` table filters
 //           to keys the user can actually read (workspace member OR
 //           shared into a board the image belongs to).
-//     Returns: { urls: { [key]: signedReadUrl }, ttl }
+//     Returns: { urls: { [key]: signedReadUrl }, ttl }, plus
+//              downloads: { [key]: attachmentUrl } when `download` was sent
 //
 // The room name is the workspaceId — we don't use room state, but
 // PartyKit requires a room id in the URL.
@@ -41,6 +45,7 @@
 
 import type * as Party from "partykit/server";
 import { AwsClient } from "aws4fetch";
+import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
@@ -119,7 +124,12 @@ interface PresignBody {
   bytes?: number;
 }
 
-interface SignReadsBody { keys?: string[] }
+// `download` (optional): key → filename. Those keys are ALSO signed with a
+// Content-Disposition: attachment override and returned under `downloads`, so
+// the browser's own download manager can stream a big file with progress
+// instead of the app buffering it into a Blob (MEDIA-09). Clients that do not
+// send it get exactly the old response.
+interface SignReadsBody { keys?: string[]; download?: Record<string, string> }
 interface ShareBundleBody { token?: string; boardId?: string }
 interface PublicBundleBody { slug?: string; boardId?: string }
 
@@ -185,7 +195,7 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
 // is a SIGNED query param — it must be on the URL before signing, or R2 rejects
 // the signature. Shared by /sign-reads and /share-bundle so both paths produce
 // identical, cacheable, persistable URLs.
-async function signReadUrl(r2: AwsClient, env: R2Env, key: string): Promise<string> {
+async function signReadUrl(r2: AwsClient, env: R2Env, key: string, disposition: string | null = null): Promise<string> {
   const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
   // X-Amz-Expires MUST be a signed query param ON THE URL before signing.
   // aws4fetch has no `expiresIn` option — if X-Amz-Expires is absent it forces
@@ -193,6 +203,7 @@ async function signReadUrl(r2: AwsClient, env: R2Env, key: string): Promise<stri
   // dies in a day (the client then serves a dead URL → 403 → the "locked" image).
   // Setting it here makes aws4fetch sign + keep our 7-day value.
   const r2Url = `${base}?response-cache-control=${encodeURIComponent(READ_RESPONSE_CACHE_CONTROL)}`
+    + (disposition ? `&response-content-disposition=${encodeURIComponent(disposition)}` : "")
     + `&X-Amz-Expires=${READ_URL_TTL_SECONDS}`;
   const signed = await r2.sign(
     new Request(r2Url, { method: "GET" }),
@@ -288,8 +299,13 @@ export default class UploadParty implements Party.Server {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
-      return new Response(`Invalid or expired share link${msg ? `: ${msg}` : ""}`, {
-        status: 404, headers: corsHeaders(origin),
+      // A Supabase 5xx / gateway timeout says nothing about the link: pass it
+      // through so the viewer offers a Retry instead of "expired or revoked"
+      // (MEDIA-03). Clients that predate this treat any non-ok the same way,
+      // so it is backward compatible.
+      const status = rpcRes.status >= 500 ? rpcRes.status : 404;
+      return new Response(`${status === 404 ? "Invalid or expired share link" : "Share link temporarily unavailable"}${msg ? `: ${msg}` : ""}`, {
+        status, headers: corsHeaders(origin),
       });
     }
     const bundle: any = await rpcRes.json();
@@ -331,8 +347,10 @@ export default class UploadParty implements Party.Server {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
-      return new Response(`No such public board${msg ? `: ${msg}` : ""}`, {
-        status: 404, headers: corsHeaders(origin),
+      // Same as /share-bundle: a 5xx is not "no such board" (MEDIA-03).
+      const status = rpcRes.status >= 500 ? rpcRes.status : 404;
+      return new Response(`${status === 404 ? "No such public board" : "Public board temporarily unavailable"}${msg ? `: ${msg}` : ""}`, {
+        status, headers: corsHeaders(origin),
       });
     }
     const bundle: any = await rpcRes.json();
@@ -494,11 +512,23 @@ export default class UploadParty implements Party.Server {
       return new Response("Too large for a thumbnail or preview", { status: 413, headers: corsHeaders(origin) });
     }
 
-    if (body.boardId && !isDerivedKey) {
-      const authRows = await supabaseRpc("authorize_image_upload", {
-        p_board_id: body.boardId,
-        p_bytes: declared,
-      }, accessToken);
+    if (!isDerivedKey) {
+      // No boardId (images pasted into a doc page, avatars): the quota is the
+      // workspace owner's, via authorize_upload(room). This branch used to
+      // skip the check entirely, so a free owner over quota was refused on
+      // the canvas and accepted in a doc (DB-10). Same fail-open shape and
+      // same 403 over_quota answer as the board branch — only over_quota
+      // refuses here (owner_not_paid is the multipart file-size gate, not an
+      // image one). Current clients already handle this response.
+      // Deliberate consequence: a profile picture or workspace icon is
+      // uploaded into the ACTIVE workspace (ProfileTab, WorkspaceTab), so an
+      // editor working inside someone else's over-quota workspace is refused
+      // an avatar change there, with the cluster-owner wording. The bytes
+      // would be billed to that owner, so the refusal is right; uploading
+      // avatars to the user's own workspace is the fix if it ever bites.
+      const authRows = body.boardId
+        ? await supabaseRpc("authorize_image_upload", { p_board_id: body.boardId, p_bytes: declared }, accessToken)
+        : await supabaseRpc("authorize_upload", { p_workspace_id: workspaceId, p_bytes: declared }, accessToken);
       const auth = Array.isArray(authRows) ? authRows[0] : authRows;
       if (auth && auth.allow !== true && auth.reason === "over_quota") {
         return Response.json(
@@ -577,13 +607,17 @@ export default class UploadParty implements Party.Server {
       region: "auto",
     });
     const out: Record<string, string> = {};
+    const downloads: Record<string, string> = {};
+    const wanted = (body.download && typeof body.download === "object") ? body.download : null;
     await Promise.all(requested.map(async (key) => {
       if (!allowedKeys.has(key)) return;
       out[key] = await signReadUrl(r2, env, key);
+      const disposition = wanted && typeof wanted[key] === "string" ? attachmentDisposition(wanted[key]) : null;
+      if (disposition) downloads[key] = await signReadUrl(r2, env, key, disposition);
     }));
 
     return Response.json(
-      { urls: out, ttl: READ_URL_TTL_SECONDS },
+      wanted ? { urls: out, downloads, ttl: READ_URL_TTL_SECONDS } : { urls: out, ttl: READ_URL_TTL_SECONDS },
       { headers: corsHeaders(origin) },
     );
   }

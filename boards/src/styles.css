@@ -47,6 +47,11 @@
      sets this to `none` on <body> and every surface inherits it at once. */
   --grain-url: url('/grain.gif');
 
+  /* Native controls (date pickers, selects, checkboxes, scrollbars) follow the
+     app theme. Without it they render light-scheme inside the dark UI: the
+     date field's calendar icon is black on #16161a and its popup is white. */
+  color-scheme: dark;
+
   /* neutral dark (default) */
   --bg-0:    #0a0a0c;
   --bg-1:    #111114;
@@ -101,8 +106,20 @@
   --ink-error: #e08b8b;       /* desaturated rose for dark errors */
 
   --accent:  var(--soleil);
+  /* Ink for text and icons ON a gold fill. Not --bg-0: that is near-white in
+     light theme, about 1.8:1 on #ffa500. Dark ink reads in both themes. A
+     user accent re-sets it beside --soleil (lib/accentInk.js), white on a
+     dark accent. */
+  --on-soleil: #1a1205;
+
+  /* Status colours for counts, badges and destructive actions. --ok/--warn
+     ride the message language so there is one green and one amber. */
+  --danger: #e5484d;
+  --ok:     var(--msg-ok);
+  --warn:   var(--msg-warn);
 
   --radius:    4px;
+  --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
@@ -132,6 +149,7 @@
 }
 
 [data-theme='light'] {
+  color-scheme: light;
   --bg-0:   #f5f5f7;
   --bg-1:   #fafafc;
   --bg-2:   #ededf0;
@@ -154,6 +172,7 @@
   --soleil-soft: rgba(255,165,0,.10);
 
   --ink-error: #b04a4a;
+  --danger:    #cd2b31;   /* deeper so it holds contrast as text on white */
 
   /* Message-language tokens — light overrides (dark defaults in :root). */
   --msg-surface:        rgba(250,250,252,.86);
@@ -171,6 +190,13 @@
   --shadow-3:    0 12px 40px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.06);
   --shadow-glow: 0 0 0 1px rgba(255,165,0,.32), 0 0 18px rgba(255,165,0,.14);
 }
+
+/* Frames opt out of the page's color-scheme. Third-party embeds (X, Spotify,
+   Instagram, TikTok …) declare none, and when a frame's inherited scheme
+   (dark, from :root) differs from its document's, Chromium paints an opaque
+   WHITE backdrop behind it — white boxes and corners around embeds that are
+   meant to be transparent. `normal` matches what they declare. */
+iframe { color-scheme: normal; }
 
 html, body, #root {
   /* Position-fixed locks the page from being pannable as a unit on
@@ -300,7 +326,7 @@ body {
 .app-error-btn {
   padding: 8px 14px;
   background: var(--bg-2);
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: 6px;
   color: var(--ink-1);
   font: 600 12.5px/1 var(--font-sans);
@@ -327,7 +353,7 @@ body {
 .surface-error-text { font-size: 14px; }
 .surface-error-btn {
   padding: 8px 16px; border-radius: 8px;
-  border: 1px solid var(--line, #333); background: var(--bg-1, #16161a);
+  border: 1px solid var(--line-2); background: var(--bg-1, #16161a);
   color: var(--ink-0, #eee); cursor: pointer; font-size: 13px;
 }
 .surface-error-btn:hover { background: var(--bg-hov, #222); }
@@ -374,22 +400,36 @@ body {
 
 /* ─────────────────────────── Motion defaults ────────────────────────────── */
 
+/* Reduce MOTION, never position. This block used to add `transform: none
+   !important` as well, and a transform is as often a place as a movement: the
+   closed phone drawer IS translateX(-100%), a peer cursor IS its translate, a
+   flipped photo IS scaleX(-1), and translate(-50%) centring is everywhere. That
+   one line parked the drawer open over the app, stacked every cursor at the
+   origin and pushed centred panels off by half their width (VIS-01/02,
+   CANVAS-A-X1). So: durations clamp (fades and entrances still RUN, which
+   matters — several entrances start at opacity 0 and end via `forwards`), and
+   loops play once, because a spinner clamped to 120ms a turn would whirl.
+   Keyframes that slide something a long way get a fade-only twin under this
+   same query, next to the original (a later @keyframes of the same name wins).
+   Pinned by tests/reduced-motion-transforms.spec.js. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-duration: var(--dur-fast) !important;
     animation-duration: var(--dur-fast) !important;
-    transform: none !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
 /* Shared entrance for centered dialogs/modals. Referenced in ~7 places
    (.account-modal, .feedback-dialog, .settings-modal, time-travel, etc.) that
    previously pointed at an *undefined* keyframe — so they had no entrance at
-   all. The transform is neutralized automatically under prefers-reduced-motion
-   by the rule above, leaving a clean opacity fade. */
+   all. Under prefers-reduced-motion it is a plain opacity fade. */
 @keyframes modalRise {
   from { opacity: 0; transform: translateY(8px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes modalRise { from { opacity: 0; } to { opacity: 1; } }
 }
 
 /* Canonical disabled treatment for every inert control. Zero specificity via
@@ -1085,7 +1125,7 @@ body {
   margin: 4px 0 0;
   padding: 4px 0;
   background: var(--bg-2);
-  border-top: 1px solid var(--bd-1);
+  border-top: 1px solid var(--line-2);
 }
 .sb-tags-suggestions-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -1533,7 +1573,7 @@ body {
   min-width: 15px; height: 15px; padding: 0 4px;
   border-radius: 999px;
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   font: 700 9.5px/1 var(--font-sans);
 }
 
@@ -1909,12 +1949,12 @@ body {
   flex-shrink: 0;
 }
 .tag-detail-block-attr.is-count { color: var(--ink-1); background: var(--bg-1); letter-spacing: 0; }
-.tag-detail-block-attr.is-auto  { color: var(--soleil); background: var(--soleil-soft); }
+.tag-detail-block-attr.is-auto  { color: var(--ink-1); background: var(--bg-3); }
 .tag-detail-block-attr.is-ai    { color: #a78bfa; background: rgba(167,139,250,.14); }
 .tag-detail-block-open {
   font: 600 11px/1 var(--font-sans);
   padding: 4px 9px;
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: 4px;
   background: var(--bg-1);
   color: var(--ink-1);
@@ -1960,13 +2000,13 @@ body {
 .tag-detail-filter {
   display: flex; gap: 4px;
   padding: 6px 14px 8px;
-  border-bottom: 1px solid var(--bd-1);
+  border-bottom: 1px solid var(--line-2);
 }
 .tag-detail-filter-pill {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 9px;
   background: transparent;
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: 999px;
   color: var(--ink-2);
   font: 600 10.5px/1 var(--font-sans);
@@ -1987,7 +2027,7 @@ body {
 /* Right-click menu over preview items. */
 .tag-detail-menu {
   background: var(--bg-1);
-  border: 1px solid var(--bd-1);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
   box-shadow: var(--shadow-2);
   min-width: 190px;
@@ -2147,7 +2187,7 @@ body {
   background: var(--bg-2);
   color: var(--ink-3);
 }
-.tag-detail-row-attr.is-auto  { color: var(--soleil); background: var(--soleil-soft); }
+.tag-detail-row-attr.is-auto  { color: var(--ink-1); background: var(--bg-3); }
 .tag-detail-row-attr.is-ai    { color: #a78bfa; background: rgba(167,139,250,.14); }
 .tag-detail-row-attr.is-count { color: var(--ink-1); background: var(--bg-2); letter-spacing: 0; }
 /* Path crumb under each row — board / group context for items
@@ -2361,12 +2401,12 @@ body {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--soleil);
   border-color: transparent;
-  color: var(--bg-0);
+  color: var(--on-soleil);
   padding: 11px 14px;
   font-size: 13px;
 }
 .share-invite-btn-primary:hover:not(:disabled) {
-  background: var(--soleil-bright, var(--soleil));
+  background: color-mix(in srgb, var(--soleil) 88%, #fff);
   border-color: transparent;
 }
 
@@ -2596,7 +2636,7 @@ body {
   font: 600 12px/1 var(--font-sans);
   padding: 8px 14px;
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   border-radius: var(--radius);
   white-space: nowrap;
   transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
@@ -3310,7 +3350,7 @@ body {
   padding: 3px 8px;
   font: 700 9.5px/1 var(--font-sans);
   letter-spacing: 0.12em;
-  color: var(--bg-0);
+  color: var(--on-soleil);
   background: var(--soleil);
   border-radius: 4px;
   margin-right: 6px;
@@ -4060,7 +4100,8 @@ body {
 .picker-row:hover { background: var(--bg-hov); }
 .picker-row-icon { width: 18px; display: grid; place-items: center; }
 .picker-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
-.picker-dot.list { background: var(--soleil); }
+/* List vs canvas reads by shape, not by the reserved gold: a ring for list. */
+.picker-dot.list { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-1); }
 .picker-dot.canvas { background: var(--ink-1); }
 .picker-row-meta { flex: 1; min-width: 0; }
 .picker-row-name { font: 500 13px/1.4 var(--font-sans); color: var(--ink-0); }
@@ -4779,7 +4820,9 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 }
 .bc-tag {
   font: 700 9px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
-  color: var(--ink-1);
+  /* Fixed light ink: the pill is a fixed dark chip over a cover image, so
+     theme ink (#2c2c30 in light) disappears into it. */
+  color: rgba(245,245,246,.92);
   background: rgba(10,10,12,.7);
   backdrop-filter: blur(8px);
   padding: 3px 8px;
@@ -5047,6 +5090,21 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 .note-body ul:not(.note-checklist) > li,
 .note-body ol > li { margin: 2px 0; }
 .note-body li::marker { color: currentColor; }
+/* Note headings (# / ## / ###). With no rule they fell to the UA's 2em /
+   1.5em / 1.17em — a 30px H1 in a 15px note — with the global reset's zero
+   margins. A tighter scale than the doc editor's, in em so a per-card text
+   size carries through. Here rather than noteTiptap.css: that file loads with
+   the editor, and the static display must match it or headings jump on blur. */
+.note-body h1, .note-body h2, .note-body h3 {
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  margin: .5em 0 .2em;
+}
+.note-body h1 { font-size: 1.35em; }
+.note-body h2 { font-size: 1.18em; }
+.note-body h3 { font-size: 1.05em; }
+.note-body > :is(h1, h2, h3):first-child { margin-top: 0; }
 
 /* Checklist inside a note. Hairline checkbox; warm-gold check on toggle.
    Uses a click handler on .ck-box (RichNoteEditor.onBodyClick) to flip
@@ -5243,7 +5301,8 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--ink-2);
+  /* Fixed light ink on a fixed dark chip over the embed, in either theme. */
+  color: rgba(245, 245, 246, 0.7);
   background: rgba(20, 20, 22, 0.78);
   border: 1px solid var(--line-1);
   border-radius: 4px;
@@ -5252,7 +5311,7 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   cursor: pointer;
 }
 .lc.lc-embed:hover .lc-embed-title-add { opacity: 1; }
-.lc-embed-title-add:hover { color: var(--ink-1); background: rgba(20, 20, 22, 0.95); }
+.lc-embed-title-add:hover { color: #fff; background: rgba(20, 20, 22, 0.95); }
 .lc-provider-badge {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -5692,7 +5751,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .welcome-cta:active:not(:disabled) { transform: translateY(0) scale(0.99); }
 .welcome-cta:disabled { opacity: 0.5; cursor: not-allowed; }
 .welcome-cta-secondary { background: var(--ink-0); color: var(--bg-0); }
-.welcome-cta-primary   { background: var(--soleil); color: var(--bg-0); }
+.welcome-cta-primary   { background: var(--soleil); color: var(--on-soleil); }
 .welcome-foot {
   display: flex;
   flex-wrap: wrap;
@@ -5969,7 +6028,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .pricing-cta:hover:not(:disabled) { box-shadow: var(--shadow-1); transform: translateY(-1px); }
 .pricing-cta:disabled { opacity: 0.5; cursor: not-allowed; }
-.pricing-cta-primary   { background: var(--soleil); color: var(--bg-0); }
+.pricing-cta-primary   { background: var(--soleil); color: var(--on-soleil); }
 .pricing-cta-secondary { background: var(--ink-0); color: var(--bg-0); }
 
 /* Savings badge tucked into the Annual toggle pill, so the better deal reads
@@ -5979,7 +6038,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   padding: 2px 6px;
   border-radius: 999px;
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   font: 700 9px/1 var(--font-sans);
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -6081,7 +6140,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .tb-admin-btn:hover {
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   border-color: var(--soleil);
   box-shadow: var(--soleil-glow);
 }
@@ -6107,6 +6166,17 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   letter-spacing: .04em;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+/* The chip sits near INT_MAX so it clears the canvas chrome, and only the
+   topbar reserves room for it (--upgrade-chip-gutter). A full-screen surface
+   reserves nothing: the chip landed on Quick Look's Close button (a click
+   there opened pricing instead of closing the preview) and on the top-right
+   controls of the doc, schedule, photo editor and lightbox overlays. While
+   one is open the chip steps aside. visibility, not display: the chip keeps
+   its width, so the gutter it publishes doesn't collapse and reflow the
+   topbar behind the overlay. */
+body:has(.ql, .doc-card-modal-full, .doc-card-modal-side, .schedc-fs, .iem, .lightbox) .upgrade-chip {
+  visibility: hidden;
 }
 .upgrade-chip:hover {
   background: var(--soleil-soft);
@@ -6166,7 +6236,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   pointer-events: auto;
   padding: 4px 10px;
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   border: 1px solid var(--soleil);
   border-radius: 999px;
   font: 600 12px/1 var(--font-sans);
@@ -6193,11 +6263,8 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
      overflows in both directions and cannot be scrolled back to — measured at
      a 660px-high laptop viewport the modal was 697px and its CTA sat below the
      fold with `overflow-y: visible` and no way to reach it. This is the same
-     idiom .modal-shell-bg has always used, and it is equally immune to the
-     global prefers-reduced-motion rule that flattens transform on every
-     element (styles.css:369, and the .capture-hud scar at :16251) — margins
-     are not motion, so nothing has to be exempted. Do not centre with
-     translate, and do not "simplify" this back to place-items. */
+     idiom .modal-shell-bg has always used. Do not "simplify" this back to
+     place-items. */
   display: flex;
   justify-content: center;
   overflow-y: auto;
@@ -6957,12 +7024,12 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
 
 .oauth-note {
   color: var(--ink-2); background: var(--bg-2); border: 1px solid var(--line-1);
-  border-radius: var(--radius-sm, 8px); padding: 10px 12px; margin-bottom: 18px; line-height: 1.5;
+  border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 18px; line-height: 1.5;
 }
 .oauth-actions { display: flex; gap: 10px; }
 .oauth-allow, .oauth-deny {
   flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 40px; border-radius: var(--radius-sm, 8px); cursor: pointer;
+  height: 40px; border-radius: var(--radius-md); cursor: pointer;
   font: 600 13.5px/1 var(--font-sans); border: 1px solid var(--line-2);
 }
 .oauth-deny { flex: 0 0 auto; padding: 0 16px; background: transparent; color: var(--ink-2); }
@@ -7085,7 +7152,7 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
   border: 0;
   border-radius: var(--radius);
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   font: 600 13px/1 var(--font-sans);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), opacity var(--dur-fast) var(--ease);
@@ -8112,7 +8179,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   background: rgba(10,10,12,.75);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  color: var(--ink-0);
+  /* #fff like .ic-expand / .ic-act: the chip is dark in both themes, so the
+     theme's --ink-0 (near-black in light) drew a black icon on black. */
+  color: #fff;
   width: 22px; height: 22px;
   display: grid; place-items: center;
   border-radius: 4px;
@@ -8413,7 +8482,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ic:hover .ic-cap.is-placeholder { opacity: .35; }
 .ic .ic-link {
   text-decoration: none;
-  color: var(--ink-0);
+  color: #fff;
   pointer-events: auto;
   cursor: pointer;
 }
@@ -10493,8 +10562,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--bg-2);
 }
 /* The hint is the first thing to go when there is no room for it — the count
-   and the action are what the bar is for. */
-@media (max-width: 820px) { .list-selbar-hint { display: none; } }
+   and the action are what the bar is for. ListSurface measures the bar
+   (fitSelbar): a window width ignores the sidebar and the Info pane. */
+.list-selbar[data-fit='nohint'] .list-selbar-hint,
+.list-selbar[data-fit='icons'] .list-selbar-hint { display: none; }
 .list-selbar-act {
   display: inline-flex; align-items: center; gap: 6px;
   height: 28px; box-sizing: border-box;
@@ -10721,7 +10792,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 @media (prefers-reduced-motion: reduce) {
   /* No pop for reduced-motion — the layer opacity fade alone reveals the
-     guides at their settled end-state (the global rule already drops transforms). */
+     guides at their settled end-state. */
   .snap-guides .guide-line,
   .snap-guides .guide-mark { animation: none; }
 }
@@ -10862,9 +10933,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--bg-2);
   color: var(--ink-3);
 }
-.tag-picker-kind-auto { color: var(--soleil); }
+.tag-picker-kind-auto { color: var(--ink-1); }
 .tag-picker-kind-ai { color: #a78bfa; }
-.tag-picker-kind-new { color: var(--soleil); }
+.tag-picker-kind-new { color: var(--ink-1); }
 /* "Create" row dot doubles as a + badge so the row reads as an action,
    not another existing tag. */
 .tag-picker-dot-new {
@@ -10944,8 +11015,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 .tag-disambig {
   display: inline-flex; align-items: center; gap: 8px;
-  background: color-mix(in oklab, var(--soleil) 14%, transparent);
-  border: 1px solid color-mix(in oklab, var(--soleil) 30%, transparent);
+  /* A question, not a selection: neutral at rest (gold is for active/focus). */
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
   padding: 4px 8px;
   font: 500 11px/1.3 var(--font-sans);
@@ -10959,9 +11031,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   cursor: pointer;
   padding: 4px 6px;
 }
-.tag-disambig-yes { color: var(--soleil); }
+.tag-disambig-yes { color: var(--ink-0); }
 .tag-disambig-no { color: var(--ink-3); }
-.tag-disambig-yes:hover { color: #f5c075; }
+.tag-disambig-yes:hover,
+.tag-disambig-yes:focus-visible { color: var(--soleil); }
 .tag-disambig-no:hover { color: var(--ink-1); }
 
 /* ──────────────────────────── Video card ────────────────────────────────── */
@@ -11137,7 +11210,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .ac:hover .ac-download,
 .ac:focus-within .ac-download { opacity: 1; }
-.ac-download:hover { color: var(--ink-1); background: var(--surface-2); }
+.ac-download:hover { color: var(--ink-1); background: var(--bg-hov); }
 .ac-download:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
 @media (hover: none) {
   .ac-download { opacity: 1; }
@@ -11156,11 +11229,20 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   justify-content: center;
   border-radius: 50%;
   border: none;
-  background: var(--soleil);
-  color: #1a1a1a;
+  /* Neutral at rest; gold only while this card is playing (the button is
+     labelled Pause exactly then — cards.jsx sets no playing class). */
+  background: var(--bg-act);
+  color: var(--ink-0);
   cursor: pointer;
   flex-shrink: 0;
   transition: transform var(--dur-fast) var(--ease), filter var(--dur-fast) var(--ease);
+}
+/* A class, not the aria-label: the label is copy, and keying the active
+   state on it would drop the gold the moment the wording changed. Not
+   aria-pressed either, since the label already flips Play/Pause. */
+.ac-play.is-playing {
+  background: var(--soleil);
+  color: var(--on-soleil);
   box-shadow: var(--soleil-glow, 0 0 12px rgba(255,165,0,0.18));
 }
 .ac-play:hover {
@@ -11262,7 +11344,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   font: 500 11px/1.2 var(--font-sans);
   color: var(--ink-0);
   background: var(--bg-0);
-  border: 1px solid var(--border-1, rgba(255,255,255,.14));
+  border: 1px solid var(--line-3);
   border-radius: var(--radius-sm, 6px);
   padding: 2px 6px;
   width: 150px;
@@ -11537,7 +11619,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .canvas-comment-reply-input:focus { outline: 0; border-color: var(--line-3); box-shadow: 0 0 0 2px var(--soleil-soft); }
 .canvas-comment-reply-send {
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   border: 0;
   border-radius: var(--radius);
   padding: 0 12px;
@@ -11617,7 +11699,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .canvas-comment-draft-cancel:hover { color: var(--ink-0); background: var(--bg-act); }
 .canvas-comment-draft-post {
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   border: 0;
   border-radius: var(--radius);
   padding: 5px 12px;
@@ -11942,7 +12024,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 .btn-primary {
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   font-weight: 600;
 }
 
@@ -11975,7 +12057,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
      (FilesDockLayout), so a toast never sits on the panel's ⤢ and ×. */
   right: calc(16px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px));
   transition: right var(--dur-base) var(--ease);
-  top: 54px;
+  /* 6px under the 48px topbar, which grows by the top safe-area inset on a
+     notched iPhone or the iOS app — without the inset the toast landed in
+     the status bar over the hamburger and title. */
+  top: calc(54px + env(safe-area-inset-top, 0px));
   /* The top tier. At 1100 every toast, Undo included, rendered under the
      doc overlay (~2147483600), Settings (2147483646) and the other full-
      screen layers: save errors and Undo were invisible or unclickable there.
@@ -12002,6 +12087,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   animation: toastIn var(--dur-base) var(--ease);
 }
 .toast.toast-exiting { animation: toastOut var(--dur-base) var(--ease) forwards; }
+/* Mobile shell (same query as `mobileShell` in App.jsx): pin both edges so a
+   long toast keeps a 12px gutter on the left too instead of running into the
+   screen edge, and keep the stack right-aligned where there is room. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .toast-stack { left: 12px; right: 12px; align-items: flex-end; }
+}
 @keyframes toastIn  { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
 
@@ -12571,7 +12663,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .iap-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
 .iap-btn:disabled { opacity: var(--disabled-opacity); cursor: default; }
 .iap-btn-icon { flex: 0 0 auto; width: 34px; padding: 0; }
-.iap-btn-primary { background: var(--accent); border-color: transparent; color: var(--bg-0); font-weight: 600; }
+.iap-btn-primary { background: var(--accent); border-color: transparent; color: var(--on-soleil); font-weight: 600; }
 .iap-btn-primary:hover:not(:disabled) { background: var(--accent); box-shadow: var(--shadow-1), var(--soleil-glow); }
 
 /* Full-screen editor modal. */
@@ -13796,7 +13888,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   top: 2px; right: 2px;
   font: 600 9px/1 var(--font-sans); font-variant-numeric: tabular-nums;
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   border-radius: 999px;
   padding: 1px 4px;
   min-width: 14px;
@@ -13942,7 +14034,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .doc-find-hit-current {
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   color: #1a1300;
 }
 
@@ -14771,6 +14863,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   from { opacity: 0; transform: translateX(40px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes doc-card-modal-side-in { from { opacity: 0; } to { opacity: 1; } }
+}
 .doc-card-side-divider {
   position: fixed; bottom: 0;
   /* `top` set via inline style so the divider tracks the panel top */
@@ -15133,7 +15228,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .entity-picker-row.is-active { background: var(--bg-hov); color: var(--ink-0); }
 .entity-picker-row.is-selected { background: var(--soleil-soft); color: var(--ink-0); }
 .entity-picker-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.entity-picker-url { color: var(--soleil); font-style: italic; }
+.entity-picker-url { color: var(--ink-2); font-style: italic; }
 .entity-picker-foot {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px;
@@ -15156,16 +15251,21 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   position: absolute;
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--soleil);
+  /* Neutral at rest — a margin of resting gold dots spends the colour that
+     marks focus. Gold arrives on hover / keyboard focus. */
+  background: var(--ink-2);
   border: 0;
   padding: 0;
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.comment-gutter-dot:hover {
+.comment-gutter-dot:hover,
+.comment-gutter-dot:focus-visible {
+  background: var(--soleil);
   transform: scale(1.3);
   box-shadow: 0 0 0 4px var(--soleil-soft);
 }
+.comment-gutter-dot:focus-visible { outline: none; }
 
 .comment-inline-pop {
   position: fixed;
@@ -15828,7 +15928,7 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   color: var(--ink-3);
 }
 
-.sb-row-count.has-unread { background: var(--soleil); color: var(--bg-0); padding: 2px 6px; border-radius: 999px; font-weight: 600; }
+.sb-row-count.has-unread { background: var(--ink-0); color: var(--bg-0); padding: 2px 6px; border-radius: 999px; font-weight: 600; }
 
 .msg-thread-body {
   flex: 1;
@@ -16153,9 +16253,13 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   margin-bottom: 4px;
 }
 
-/* Channel-row unread count pill (right side, replaces timestamp). */
+/* Channel-row unread count pill (right side, replaces timestamp). Unread
+   counts are inverse ink everywhere (sidebar, this row, the phone nav badge,
+   the rail's member badge): an unread count is news, not a selection, and
+   gold is reserved for active / selection / focus. Inverse ink reads in both
+   themes. */
 .msg-row-count {
-  background: var(--soleil);
+  background: var(--ink-0);
   color: var(--bg-0);
   font: 700 10px/1 var(--font-sans);
   padding: 3px 7px;
@@ -16334,7 +16438,7 @@ button.msg-panel-name:hover { color: var(--ink-0); }
 .msg-newconv-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
 .msg-newconv-btn.primary {
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   border-color: var(--soleil);
 }
 .msg-newconv-btn.primary:hover { background: var(--soleil); filter: brightness(1.08); }
@@ -16418,7 +16522,7 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   bottom: 78px;       /* above the composer */
   appearance: none; border: 0;
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   font: 600 11.5px/1 var(--font-sans);
   padding: 7px 14px;
   border-radius: 999px;
@@ -16485,6 +16589,19 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   border-color: transparent;
   box-shadow: 0 0 0 2px var(--soleil-soft);
 }
+/* iOS Safari zooms the whole app on focus of any field under 16px and does
+   not zoom back out, leaving the fixed shell magnified and half off-screen.
+   Same coarse-pointer guard as .auth-input, for the other fields a phone
+   user types into. Placed after every base rule it overrides (the media
+   query adds no specificity, so source order decides). .cmdk-input is here
+   too for the iPad in landscape, which is outside the phone block's 16px. */
+@media (pointer: coarse) {
+  .msg-composer-input,
+  .share-input,
+  .canvas-comment-draft-input,
+  .canvas-comment-reply-input,
+  .cmdk-input { font-size: 16px; }
+}
 .msg-composer-actions { display: flex; align-items: center; gap: 6px; }
 .msg-composer-btn {
   background: transparent; border: 0; color: var(--ink-2);
@@ -16527,7 +16644,7 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   margin-left: auto;
   appearance: none; border: 0;
   background: var(--soleil);
-  color: var(--bg-0);
+  color: var(--on-soleil);
   font: 600 12.5px/1 var(--font-sans);
   height: 30px;
   padding: 0 14px;
@@ -16570,7 +16687,7 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   font: 500 12px/1 var(--font-sans);
   cursor: pointer;
 }
-.msg-bubble-edit-actions .btn-primary { background: var(--soleil); color: var(--bg-0); border-color: transparent; }
+.msg-bubble-edit-actions .btn-primary { background: var(--soleil); color: var(--on-soleil); border-color: transparent; }
 
 .emoji-palette {
   position: fixed;
@@ -17433,8 +17550,8 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   font: 700 9px/1 var(--font-sans);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--soleil);
-  background: var(--soleil-soft);
+  color: var(--ink-1);
+  background: var(--bg-3);
   padding: 1px 5px;
   border-radius: var(--radius);
   margin-left: auto;
@@ -18041,12 +18158,9 @@ body[data-capture-freeze='1'] { --grain-url: none; }
 .capture-hud {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-  /* Centred by auto margins rather than translateX(-50%). The global
-     prefers-reduced-motion rule flattens `transform` on every element, and it
-     is right to — but a transform used purely to CENTRE something is not
-     motion, and losing it parked this strip with its left edge at the middle of
-     the screen, half of it off the side. Auto margins are not motion, so
-     nothing has to be exempted. */
+  /* Centred by auto margins rather than translateX(-50%) — a habit from when
+     the global prefers-reduced-motion rule flattened every transform and parked
+     this strip half off the screen. Either works now; auto margins stay. */
   left: 0;
   right: 0;
   margin-inline: auto;
@@ -19140,6 +19254,17 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .rb-swatch-pop, .folder-tab,
 .msg-panel { position: absolute; }
 
+/* …but on the mobile shell the note bar is meant to be fixed (its earlier
+   phone/touch blocks say so), and the line above out-ranked them on source
+   order. ToolOptionsBar's keyboard lift measures from the viewport, so the
+   bar has to be positioned against it. Same queries as those two .tob blocks
+   (phone width, and any touch device wider than that, iPad Pro landscape
+   included). */
+@media (max-width: 640px),
+       (hover: none) and (pointer: coarse) and (min-width: 641px) {
+  .tob { position: fixed; }
+}
+
 .auth-screen, .pricing-screen, .welcome-screen,
 .doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
 .entity-picker, .link-popover, .emoji-palette,
@@ -19665,8 +19790,8 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   border-color: var(--accent);
 }
 .tb-btn-primary:hover:not(:disabled) {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent) 88%, #000);
+  border-color: color-mix(in srgb, var(--accent) 88%, #000);
 }
 .tb-btn-primary:disabled {
   opacity: 0.5;
@@ -19904,7 +20029,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   padding: 9px 12px;
   border-radius: 10px;
   border: 1px solid var(--line-1, rgba(255,255,255,.14));
-  background: var(--surface-2, rgba(255,255,255,.04));
+  background: var(--bg-2);
   color: var(--ink-0, inherit);
   font: 500 13px/1.2 var(--font-mono, ui-monospace, monospace);
 }
@@ -20156,13 +20281,23 @@ button, [role="button"], a {
   .modal-workspace-recovery {
     width: 100vw;
     max-width: 100vw;
+    /* dvh, like .app / .auth-screen / .settings-modal below: 100vh includes
+       the browser toolbar, so the last search results and the dialog footers
+       sat permanently behind it. The vh line is the fallback. */
     height: calc(100vh - var(--safe-top) - var(--safe-bottom));
+    height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
     max-height: none;
     border-radius: 0;
     border-left: 0; border-right: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
+  }
+  /* Share / Trash / History / workspace recovery mount in ModalShell, whose
+     backdrop pads 24px for the desktop card. Full-bleed on phone means no
+     gutter, or the panel runs off the bottom and the backdrop scrolls too. */
+  .modal-shell-bg:has(> .modal, > .share-modal, > .modal-workspace-recovery) {
+    padding: var(--safe-top) 0 0;
   }
   /* Full-screen palette on phone: show the close button, drop the 600px cap,
      and give rows ≥44px tap targets. */
@@ -20599,11 +20734,12 @@ button, [role="button"], a {
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-3);
   max-height: 90vh;
+  max-height: 90dvh; /* the visible height: 90vh clipped the grip row on iOS */
   display: flex; flex-direction: column;
   padding-bottom: var(--safe-bottom);
   animation: sheet-up 260ms var(--ease);
 }
-[data-snap="half"] .sheet-panel { max-height: 50vh; }
+[data-snap="half"] .sheet-panel { max-height: 50vh; max-height: 50dvh; }
 .sheet-grip-row {
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
@@ -20636,6 +20772,10 @@ button, [role="button"], a {
   overscroll-behavior: contain;
 }
 @keyframes sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  /* A full-height slide is the motion this query exists to stop: fade instead. */
+  @keyframes sheet-up { from { opacity: 0; } to { opacity: 1; } }
+}
 @keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* Mobile add sheet — the phone bottom-nav "+" opens this grid of add actions
@@ -20666,8 +20806,12 @@ button, [role="button"], a {
   width: 40px; height: 40px;
   border-radius: 999px;
   background: var(--bg-1);
-  color: var(--soleil);
+  /* Neutral at rest like the desktop empty-cluster tiles: gold is for the
+     tile under the finger or the keyboard, not ten resting icons. */
+  color: var(--ink-1);
 }
+.mobile-add-tile:active .mobile-add-ico,
+.mobile-add-tile:focus-visible .mobile-add-ico { color: var(--soleil); }
 .mobile-add-lbl {
   font: 600 12px/1.2 var(--font-sans);
   color: var(--ink-1);
@@ -20713,8 +20857,9 @@ button, [role="button"], a {
   min-width: 16px; height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--soleil);
-  color: #0a0a0c;
+  /* Inverse ink, like every unread count (see .msg-row-count). */
+  background: var(--ink-0);
+  color: var(--bg-0);
   font: 700 10px/16px var(--font-sans);
   text-align: center;
 }
@@ -20772,6 +20917,9 @@ button, [role="button"], a {
   overscroll-behavior: contain;
 }
 @keyframes md-slide { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes md-slide { from { opacity: 0; } to { opacity: 1; } }
+}
 @keyframes md-fade  { from { opacity: 0; } to { opacity: 1; } }
 
 
@@ -21066,13 +21214,13 @@ button, [role="button"], a {
 
 /* ── PDF cards + in-app viewer (PdfCard.jsx / PdfViewer.jsx) ───────────────── */
 .pdfc { display: flex; flex-direction: column; height: 100%; }
-.pdfc-thumbwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--bg3, #1a1a1f); }
+.pdfc-thumbwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--bg-3); }
 .pdfc .pdfc-thumb { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: -webkit-optimize-contrast; }
 .pdfc-placeholder {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   color: var(--ink-3, #8b8b94);
-  background: var(--bg3, #1a1a1f);
+  background: var(--bg-3);
 }
 /* Filename + page count strip across the bottom of the thumbnail. */
 .pdfc-info {
@@ -21264,7 +21412,7 @@ button, [role="button"], a {
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-screenplay-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
-.doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
+.doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line-2); }
 
 /* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */
 /* Reuses .doc-editor-wrap for the 8.5×11 sheet + zoom; lays out the fields. */
@@ -21298,28 +21446,31 @@ button, [role="button"], a {
    a non-editable render-time widget, never part of the stored text. */
 .doc-paper.is-screenplay .sp-auto-contd { user-select: none; pointer-events: none; }
 .doc-paper.is-screenplay .sp-page-break-rule {
-  position: relative; height: 0; border-top: 1px dashed var(--line2, #9994); margin: .6em 0;
+  position: relative; height: 0; border-top: 1px dashed var(--line-3); margin: .6em 0;
 }
 .doc-paper.is-screenplay .sp-page-break-rule::after {
   content: 'Page ' attr(data-page); position: absolute; right: 0; top: -0.9em;
   font: 600 9px var(--font-display, sans-serif); letter-spacing: .04em; text-transform: uppercase;
-  color: var(--ink-3, #888); background: var(--bg0, #fff); padding: 0 6px;
+  color: var(--ink-3, #888); background: var(--bg-1); padding: 0 6px;
 }
+/* The chip masks the dashed rule, so it must be the sheet's own colour, which
+   is --bg-1 in dark and --bg-3 in light (see .doc-editor-wrap). */
+[data-theme='light'] .doc-paper.is-screenplay .sp-page-break-rule::after { background: var(--bg-3); }
 
 /* Screenplay character-name autocomplete popup (ScreenplaySuggest). */
 .sp-autocomplete {
   position: fixed; z-index: 2147483646; display: none;
   min-width: 160px; max-height: 240px; overflow-y: auto;
-  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); padding: 4px;
   font-family: var(--font-display, sans-serif); font-size: 13px;
 }
-.sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1, #e8e8ea); text-transform: uppercase; }
+.sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1); text-transform: uppercase; }
 .sp-autocomplete-item.is-active, .sp-autocomplete-item:hover { background: var(--soleil, #ffa500); color: #1a1205; }
 .doc-foot-status.is-error { color: var(--danger, #ef4444); }
 
 /* Scene navigator (left rail, screenplay mode) — outline of scene headings. */
-.sp-scenenav { padding: 8px 4px; margin-top: 8px; border-top: 1px solid var(--line2, rgba(255,255,255,.08)); overflow-y: auto; }
+.sp-scenenav { padding: 8px 4px; margin-top: 8px; border-top: 1px solid var(--line-1); overflow-y: auto; }
 .sp-scenenav-head { padding: 2px 8px 6px; color: var(--ink-3); }
 .sp-scenenav-empty { padding: 4px 8px; color: var(--ink-3); font-size: 12px; }
 .sp-scenenav-item {
@@ -21339,14 +21490,14 @@ button, [role="button"], a {
   .doc-mobile-pages-btn {
     display: inline-flex; align-items: center; gap: 6px;
     margin: 6px 8px; padding: 6px 12px; min-height: 36px;
-    border: 1px solid var(--line2, #3a3a42); border-radius: 8px;
-    background: var(--bg1, #1a1a1f); color: var(--ink-1, #e8e8ea);
+    border: 1px solid var(--line-2); border-radius: 8px;
+    background: var(--bg-3); color: var(--ink-1);
     font: 600 12px var(--font-display, sans-serif); cursor: pointer;
   }
   .doc-surface.mobile-rail-open .doc-rail.doc-rail-left {
     display: block; position: absolute; left: 0; top: 0; bottom: 0;
     width: min(82%, 300px); z-index: 30; overflow-y: auto;
-    background: var(--bg0, #14141a); border-right: 1px solid var(--line2, #3a3a42);
+    background: var(--bg-1); border-right: 1px solid var(--line-2);
     box-shadow: 6px 0 28px rgba(0,0,0,.45);
     padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   }
@@ -21373,16 +21524,16 @@ button, [role="button"], a {
 /* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu). */
 .doc-bubble {
   display: flex; gap: 2px; padding: 4px;
-  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
 }
 .doc-bubble button {
   min-width: 36px; height: 36px; padding: 0 8px;
   border: 0; border-radius: 7px; background: transparent;
-  color: var(--ink-1, #e8e8ea); font-size: 15px; cursor: pointer;
+  color: var(--ink-1); font-size: 15px; cursor: pointer;
 }
 .doc-bubble button.is-active { background: var(--soleil, #ffa500); color: #1a1205; }
-.doc-bubble button:active { background: var(--bg2, #2a2a33); }
+.doc-bubble button:active { background: var(--bg-act); }
 
 
 /* Reject-dialog canned-reason chips (feedback.prompt suggestions). */
@@ -21848,7 +21999,7 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 
 /* Settings → Members (Phase 0). Table-shaped, so it is a list, not a grid. */
 .settings-member-list { list-style: none; margin: 0; padding: 0; }
-.settings-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line, rgba(0,0,0,.08)); }
+.settings-member-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-1); }
 .settings-member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-member-role { color: var(--ink-2); font-size: 13px; }
 .settings-member-actions { display: flex; gap: 8px; }
@@ -22007,7 +22158,7 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
   max-width: min(560px, calc(100vw - 32px));
   padding: 10px 12px 10px 16px;
   border-radius: 999px;
-  background: var(--bg-elev, rgba(24, 22, 19, 0.92));
+  background: color-mix(in srgb, var(--bg-3) 92%, transparent);
   border: 1px solid var(--line-2, rgba(255, 255, 255, 0.1));
   box-shadow: var(--shadow-2);
   color: var(--ink-1);
@@ -22483,6 +22634,10 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
    below it. */
 .list-wrap .ct-head { top: var(--lp-head-h, 0px); }
 .list-wrap .ct-row { scroll-margin-top: calc(var(--lp-head-h, 0px) + 40px); }
+/* Grid tiles too: the cursor and a reveal (Show in Files) scroll with
+   block 'nearest', which counts a tile behind the toolbar, or behind the
+   selection bar at the bottom, as already in view. */
+.list-wrap .ct-tile { scroll-margin-top: calc(var(--lp-head-h, 0px) + 12px); scroll-margin-bottom: 80px; }
 .cb-head {
   position: sticky; top: 0; z-index: 8;
   margin: 0 calc(-1 * var(--files-gutter)); padding: 12px var(--files-gutter);
@@ -22565,6 +22720,13 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   .list-wrap.is-panel .list-selbar-act > span { display: none; }
   .list-wrap.is-panel .list-selbar-act { padding: 0 8px; }
 }
+/* Labelled, the actions run past 500px of nowrap — wider than the panel's
+   default 400, a phone's full Files, or full Files beside the sidebar — and
+   spilled past the pill with Delete and × off-screen. When ListSurface
+   measures that they don't fit (fitSelbar), they go to icons; each keeps its
+   name in aria-label and title. */
+.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act > span { display: none; }
+.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act { padding: 0 8px; }
 /* The Grid's keyboard cursor: a thin ring on the preview (gold is focus). */
 .ct-jg .ct-tile.is-active .ct-tile-preview { outline: 1px solid var(--soleil); outline-offset: 2px; }
 .ct-jg .ct-tile.is-active.is-selected .ct-tile-preview { outline-width: 2px; outline-offset: 2px; }
@@ -22610,6 +22772,9 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .fdl-panel[data-active-pane='files'] .fdl-canvas .card.card-kind-shape.is-selected { outline-color: color-mix(in srgb, var(--select) 40%, var(--ink-2)); box-shadow: none; }
 .fdl-panel:not([data-active-pane='files']) .ct-jg .ct-tile.is-selected .ct-tile-preview { outline-color: var(--ink-2); box-shadow: none; }
 .fdl-panel:not([data-active-pane='files']) .ct-tile.is-selected .ct-tile-check { background: var(--ink-2); border-color: var(--ink-2); }
+.fdl-panel:not([data-active-pane='files']) .ct-table { --ct-sel-line: var(--line-3); }
+.fdl-panel:not([data-active-pane='files']) .ct-row.is-selected { background: color-mix(in srgb, var(--ink-2) 12%, transparent); }
+.fdl-panel:not([data-active-pane='files']) .ft.is-selected { border-color: var(--ink-2); box-shadow: 0 0 0 1px var(--ink-2); }
 
 /* ── Full Files: the cluster's name over its meta line, Download all and
    Beside board at the right; then the toolbar. Buttons only make columns

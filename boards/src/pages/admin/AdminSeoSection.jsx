@@ -144,8 +144,11 @@ export function AdminSeoSection() {
               {referrers.map((r) => (
                 <span key={`${r.host}:${r.class}`} style={{
                   font: '500 12px/1 var(--font-sans)', padding: '5px 9px', borderRadius: 999,
-                  border: '1px solid var(--line-2)',
-                  color: r.class === 'ai' ? 'var(--soleil)' : 'var(--ink-1)',
+                  // AI referrers stand out by weight and ground, not gold
+                  // (reserved for active/selection/focus) — PILL_AI's treatment.
+                  border: `1px solid ${r.class === 'ai' ? 'var(--ink-3)' : 'var(--line-2)'}`,
+                  background: r.class === 'ai' ? 'var(--bg-2)' : undefined,
+                  color: r.class === 'ai' ? 'var(--ink-0)' : 'var(--ink-1)',
                 }}>
                   {r.host} · {CLASS_LABELS[r.class] || r.class} · {r.views}
                 </span>

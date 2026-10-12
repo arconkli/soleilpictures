@@ -9,7 +9,7 @@
 // Returns { voteCards, loading, removeLocally } so callers can drop a card
 // from local state immediately on delete (the realtime DELETE also fires).
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listVoteCards } from '../lib/voteCardsApi.js';
 
@@ -19,7 +19,6 @@ export function useVoteCards(rawBoardId, { enabled = true } = {}) {
   const boardId = enabled ? rawBoardId : null;
   const [voteCards, setVoteCards] = useState([]);
   const [loading, setLoading]     = useState(false);
-  const reloadingRef = useRef(false);
 
   useEffect(() => {
     // Clear on every boardId change so board A's votes don't linger while
@@ -37,13 +36,22 @@ export function useVoteCards(rawBoardId, { enabled = true } = {}) {
 
   useEffect(() => {
     if (!boardId) return;
+    // Coalescing refetch, scoped to THIS board's subscription. A change that
+    // lands while a fetch is in flight used to be dropped, and that fetch's
+    // snapshot may predate it — the "everyone vote now" moment left counts
+    // wrong until some later vote. Now it marks `pending` and one trailing
+    // fetch runs after. `alive` drops a fetch that resolves after a board
+    // switch, so board A's votes can't land on board B; per-effect state
+    // (not a ref) means B's first event is never swallowed by A's fetch.
+    let alive = true, inFlight = false, pending = false;
     const refetch = () => {
-      if (reloadingRef.current) return;
-      reloadingRef.current = true;
+      if (!alive) return;
+      if (inFlight) { pending = true; return; }
+      inFlight = true; pending = false;
       listVoteCards(boardId)
-        .then(rows => setVoteCards(rows))
+        .then(rows => { if (alive) setVoteCards(rows); })
         .catch(() => {})
-        .finally(() => { reloadingRef.current = false; });
+        .finally(() => { inFlight = false; if (alive && pending) refetch(); });
     };
     // Per-mount suffix avoids "cannot add postgres_changes callbacks after
     // subscribe()" on remount. One channel, two table subscriptions.
@@ -58,7 +66,7 @@ export function useVoteCards(rawBoardId, { enabled = true } = {}) {
         filter: `board_id=eq.${boardId}`,
       }, refetch)
       .subscribe();
-    return () => { try { supabase.removeChannel(chan); } catch (_) {} };
+    return () => { alive = false; try { supabase.removeChannel(chan); } catch (_) {} };
   }, [boardId]);
 
   // Drop a vote card from local state immediately after a successful delete,

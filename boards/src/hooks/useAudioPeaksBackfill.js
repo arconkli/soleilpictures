@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { resolveSrc } from '../lib/r2.js';
 import { analyzeArrayBuffer, analyzable } from '../lib/audioAnalysis.js';
 import { getMeta } from '../lib/imageMeta.js';
@@ -38,7 +38,26 @@ export function useAudioPeaksBackfill({
   cards, canEdit, workspaceId, boardId, userId, updateCardSilent, enabled = true, perPass = 2,
 }) {
   const attempted = useRef(new Set());
+  // Same lifetime rule as useVideoPosterBackfill (PERF-05): a job belongs to
+  // the board, not to one `cards` array. Cancelling on every edit threw away
+  // the download AND the full PCM decode + peaks pass, with the card already
+  // marked attempted, so it never got a waveform that session.
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
+  const updateRef = useRef(updateCardSilent);
+  updateRef.current = updateCardSilent;
+  const scopeRef = useRef(0);
+  const runningRef = useRef(false);
+  // Bumped when a job from a scope we already left finishes draining. The
+  // new scope's effect returned early while that job held runningRef, and
+  // nothing else re-runs it until `cards` changes again, so this does.
+  const [drained, setDrained] = useState(0);
   useEffect(() => {
+    scopeRef.current += 1;
+    return () => { scopeRef.current += 1; };
+  }, [canEdit, enabled, workspaceId, boardId, userId]);
+  useEffect(() => {
+    if (runningRef.current) return;
     if (!enabled || !canEdit || typeof updateCardSilent !== 'function') return;
     const lowMemory = lowMemoryDevice();
     const targets = (cards || []).filter(c =>
@@ -51,24 +70,31 @@ export function useAudioPeaksBackfill({
         })
     );
     if (!targets.length) return;
-    let cancelled = false;
+    const scope = scopeRef.current;
+    const cancelled = () => scopeRef.current !== scope;
+    // The card as it is NOW (deleted → null), so a result never resurrects a
+    // card removed while its file was decoding.
+    const liveCard = (id) => (cardsRef.current || []).find(x => x.id === id) || null;
+    runningRef.current = true;
     (async () => {
       for (const c of targets.slice(0, perPass)) {
-        if (cancelled) break;
+        if (cancelled()) break;
         attempted.current.add(c.id);
+        let done = false;
         try {
           const url = await resolveSrc(c.src);
-          if (!url || cancelled) continue;
+          if (!url || cancelled()) continue;
           const res = await fetch(url);
-          if (!res.ok || cancelled) continue;
+          if (!res.ok || cancelled()) continue;
           const buf = await res.arrayBuffer();
-          if (cancelled) continue;
+          if (cancelled()) continue;
           const a = await analyzeArrayBuffer(buf);
-          if (cancelled) continue;
+          done = true;
+          if (cancelled() || !liveCard(c.id)) continue;
           // Either way the attempt is spent: a null here means the codec is
           // one this browser cannot decode, and re-downloading it next session
           // would produce the same null.
-          updateCardSilent(c.id, a
+          updateRef.current?.(c.id, a
             ? { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 }
             : { analyzed: 1 });
 
@@ -77,17 +103,24 @@ export function useAudioPeaksBackfill({
           // card has none — a cover someone chose by hand always wins.
           if (!c.cover && workspaceId && userId) {
             const cover = readCoverFromBuffer(buf);
-            if (cover && !cancelled) {
+            if (cover && !cancelled()) {
               const base = (c.fileName || c.title || 'cover').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'cover';
               const file = new File([cover.bytes], `${base}.${cover.ext}`, { type: cover.mime });
               const up = await uploadImage({ file, workspaceId, boardId, userId });
-              if (up?.src && !cancelled) updateCardSilent(c.id, { cover: up.src });
+              const live = !cancelled() && liveCard(c.id);
+              if (up?.src && live && !live.cover) updateRef.current?.(c.id, { cover: up.src });
             }
           }
-        } catch (_) { /* best-effort — the card keeps the flat strip */ }
+        } catch (_) { done = true; /* best-effort — the card keeps the flat strip */ }
+        finally {
+          // Left the board before the decode finished: not a real attempt.
+          if (!done && cancelled()) attempted.current.delete(c.id);
+        }
       }
-    })();
-    return () => { cancelled = true; };
+    })().finally(() => {
+      runningRef.current = false;
+      if (cancelled()) setDrained(n => n + 1);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, canEdit, enabled, workspaceId, boardId, userId]);
+  }, [cards, canEdit, enabled, workspaceId, boardId, userId, drained]);
 }

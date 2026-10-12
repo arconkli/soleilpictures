@@ -1250,7 +1250,7 @@ The day panel
 
 For loose content, the month and week grids are read-only. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it.
 
-Clicking a date selects it. Double-clicking a tile opens that day's cluster; double-clicking a cell in Grid density opens the day panel, where loose content is edited at a comfortable size whatever the card's size on the canvas. The day's running order lives in Day view, not here.
+Clicking a date selects it. Double-clicking a tile opens that day's cluster (on a touch screen, tap the selected tile again); double-clicking a cell in Grid density opens the day panel, where loose content is edited at a comfortable size whatever the card's size on the canvas. The day's running order lives in Day view, not here.
 
 What a schedule is for
 

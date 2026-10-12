@@ -2,12 +2,26 @@
 // to zoom to actual (natural) size with drag-to-pan. Escape or click on the
 // backdrop closes. Includes a Download button that resolves R2 references
 // to signed URLs and triggers a browser download.
+//
+// Portaled to <body> and registered with lib/modalGuard. Rendered in place, the
+// canvas-level viewer sat inside .canvas-wrap: its native wheel listener and
+// touch-action:none ate scrolls and pinches, and a focused button here was not
+// an "editable target", so Backspace deleted the selected card behind it.
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
 import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
 import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
+import { useOptionalFeedback } from './AppFeedback.jsx';
+
+// A portal still BUBBLES through the React tree: without this a press, drag or
+// double-click on the viewer reached the card that opened it (a grid cell's
+// lightbox dragged the grid across the board behind the overlay) and the
+// canvas's own background handlers.
+const stopBubble = (e) => e.stopPropagation();
 
 // The zoomable image itself — fit to the space by default; click for actual
 // size with drag-to-pan; pinch on touch. Shared by the lightbox and Files'
@@ -132,12 +146,13 @@ export function ImageZoomStage({ src, alt = '', adjust, cardId, onModeChange = n
 export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null }) {
   const [mode, setMode] = useState('fit');
   const [downloading, setDownloading] = useState(false);
+  const feedback = useOptionalFeedback();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // The canvas shortcuts stand down while this is open, and Escape closes it
+  // only when it is the top layer.
+  useEffect(() => registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } }), []);
 
   const onDownload = async (e) => {
     e.stopPropagation();
@@ -145,13 +160,20 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
     setDownloading(true);
     // Delegates to the shared module, which bakes any photo adjustments into
     // the file (or streams the original when there are none).
-    try { await downloadImage({ src, title: downloadName || title, adjust }); }
+    try {
+      // downloadImage resolves false rather than throwing; say so instead of
+      // leaving the click to do nothing (audit MEDIA-15).
+      const ok = await downloadImage({ src, title: downloadName || title, adjust });
+      if (!ok) feedback?.toast?.({ type: 'error', message: 'Couldn’t download this image. Try again.' });
+    }
     finally { setDownloading(false); }
   };
 
-  return (
+  const node = (
     <div className={`lightbox lightbox-mode-${mode}`}
-         onClick={() => onClose?.()}
+         onClick={(e) => { e.stopPropagation(); onClose?.(); }}
+         onPointerDown={stopBubble} onMouseDown={stopBubble}
+         onDoubleClick={stopBubble} onContextMenu={stopBubble}
          role="dialog"
          aria-label="Image preview">
       <button className="lightbox-x" aria-label="Close"
@@ -170,4 +192,6 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
       {title && <div className="lightbox-cap">{title}</div>}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(node, document.body) : node;
 }

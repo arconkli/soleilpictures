@@ -64,7 +64,7 @@ import { Icon } from './Icon.jsx';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
-  AssetFetchError,
+  AssetFetchError, isPublicSurface,
 } from '../lib/cardDownload.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
@@ -79,6 +79,45 @@ function writeBrowserPrefs(patch) {
     const cur = readBrowserPrefs();
     sessionStorage.setItem(BROWSER_PREFS_KEY, JSON.stringify({ ...cur, ...patch }));
   } catch (_) {}
+}
+
+// The selection bar's actions are nowrap labels, and which ones show depends
+// on the selection (Put on board, Move to…, Info) — so no fixed breakpoint
+// fits every bar: one set against the narrowest bar still spilled Delete and ×
+// off the pill for the widest. Measured instead, it drops the first-run hint,
+// then the labels, only as far as the pane needs. Each button keeps its name
+// in aria-label and title. data-fit is ours alone, so React never resets it.
+const SELBAR_FITS = ['full', 'nohint', 'icons'];
+function fitSelbar(bar) {
+  for (const fit of SELBAR_FITS) {
+    bar.dataset.fit = fit;
+    if (bar.scrollWidth <= bar.clientWidth + 1) return;
+  }
+}
+// A callback ref for the bar: re-fits when the pane changes width, and when
+// the bar's own content changes (a button appears, Download becomes
+// Preparing…). React 18 calls it with null on unmount, which disconnects.
+function useSelbarFit() {
+  const stop = useRef(null);
+  return useCallback((bar) => {
+    stop.current?.();
+    stop.current = null;
+    if (!bar) return;
+    const fit = () => fitSelbar(bar);
+    fit();
+    let lastW = -1;
+    const ro = typeof ResizeObserver !== 'undefined' && bar.parentElement
+      ? new ResizeObserver((es) => {
+        const w = es[0]?.contentRect?.width;
+        if (w !== lastW) { lastW = w; fit(); }
+      }) : null;
+    ro?.observe(bar.parentElement);
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(fit) : null;
+    mo?.observe(bar, { childList: true, subtree: true, characterData: true });
+    // Labels widen when the web font lands.
+    document.fonts?.ready?.then(() => { if (bar.isConnected) fit(); });
+    stop.current = () => { ro?.disconnect(); mo?.disconnect(); };
+  }, []);
 }
 
 // Bucket labels for the filter menu (order = display order).
@@ -142,6 +181,11 @@ export function ListSurface({
   browsingFrom = null,
   // A browsed cluster whose snapshot hasn't arrived — not "no files" yet.
   loading = false,
+  // "Not on board" marks, count and filter: the owner's view of their own
+  // board. A visitor on a public link isn't looking at that board, and the
+  // waiting files are just files to them. PublicBoardView says so outright;
+  // the path check is the fallback for a mount that doesn't.
+  showPlacement = !isPublicSurface(),
   // The board this Files belongs to — its live cards and mutators — kept when
   // browsing another cluster replaces board/cards/mutators. After a drag has
   // sprung into another cluster, a drop moves the files from here.
@@ -180,6 +224,8 @@ export function ListSurface({
   const folderCapN = folderCap(folderCount, ftWidth);
   const folderShown = isPanel && !foldersOpen ? folderCapN : folderCount;
   const toggleFolders = () => setFoldersOpen((v) => { writeFoldersExpanded(!v); return !v; });
+
+  const selbarRef = useSelbarFit();
 
   // Where each cluster's Files was scrolled to, this session: Back, or coming
   // back to a cluster, returns to the same place; a cluster seen for the
@@ -293,7 +339,7 @@ export function ListSurface({
   // so a card added or deleted later never swaps the layout under you.
   const savedLayout = useMemo(() => readFilesLayout(board?.id), [board?.id, layoutChoice]);
   const openedLayoutRef = useRef({});
-  if (board?.id && items.length && !openedLayoutRef.current[board.id]) {
+  if (board?.id && items.length && !loading && !openedLayoutRef.current[board.id]) {
     openedLayoutRef.current[board.id] = defaultFilesLayout(items);
   }
   const viewMode = layoutChoice[board?.id] || savedLayout
@@ -314,7 +360,9 @@ export function ListSurface({
     () => sortItems(filterItems(matchItems(items, query), filters, { unplacedOnly }), sortKey, sortDir),
     [items, query, filters, unplacedOnly, sortKey, sortDir]
   );
-  const unplacedTotal = useMemo(() => items.filter((it) => it.unplaced).length, [items]);
+  const markUnplaced = showPlacement && !browsingFrom;
+  const unplacedTotal = useMemo(
+    () => (markUnplaced ? items.filter((it) => it.unplaced).length : 0), [items, markUnplaced]);
   useEffect(() => { if (unplacedOnly && !unplacedTotal) setUnplacedOnly(false); }, [unplacedOnly, unplacedTotal]);
 
   // Collapse linked-grid families into expandable group nodes (tens of grids →
@@ -346,13 +394,19 @@ export function ListSurface({
 
   // A sort key that only exists in audio mode must not survive leaving it, or
   // the table sorts by a column nobody can see.
+  //
+  // Only on evidence, though: an empty list says nothing about the pack. A
+  // search that matches nothing, a reload before the doc syncs and a folder
+  // still loading all render zero rows for a beat — and this reset is written
+  // to prefs, so it used to wipe the sort for good.
   useEffect(() => {
+    if (loading || !visibleItems.length) return;
     if (!audioMode && ['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
       setSortKey('board');
       setSortDir('asc');
       writeBrowserPrefs({ sortKey: 'board', sortDir: 'asc' });
     }
-  }, [audioMode, sortKey]);
+  }, [audioMode, sortKey, loading, visibleItems.length]);
 
   // A one-line read on the pack, assembled from the rows already on screen:
   // how many, what tempo range, how much material. It follows the search and
@@ -407,6 +461,21 @@ export function ListSurface({
   // Right-click menu: { x, y } — it acts on the selection.
   const [ctxMenu, setCtxMenu] = useState(null);
   useEffect(() => { setRenamingId(null); setCtxMenu(null); }, [board.id]);
+  // Opened from the keyboard (⇧F10, the menu key): focus goes into the menu.
+  // Its arrow keys only work with focus inside, and Files' own keys stand down
+  // while it is open — so ↓ and Enter used to reach nothing at all. Focus
+  // comes back where it was when the menu closes, unless what it ran took it
+  // (Rename's field, Quick look).
+  useEffect(() => {
+    if (!ctxMenu?.keyboard) return undefined;
+    const prev = document.activeElement;
+    document.querySelector('.ctx-menu button.ctx-item:not(:disabled)')?.focus();
+    return () => {
+      const now = document.activeElement;
+      const lost = !now || now === document.body || !!now.closest?.('.ctx-menu');
+      if (lost && prev?.isConnected) prev.focus?.({ preventScroll: true });
+    };
+  }, [ctxMenu]);
   const [infoOpen, setInfoOpen] = useState(() => readInfoPref());
   const toggleInfo = useCallback(() => setInfoOpen((v) => { writeInfoPref(!v); return !v; }), []);
 
@@ -414,7 +483,7 @@ export function ListSurface({
   useEffect(() => {
     if (activeId && !navItems.some(it => it.id === activeId)) setActiveId(null);
   }, [navItems, activeId]);
-  useEffect(() => { setActiveId(null); setPlayingId(null); }, [board.id]);
+  useEffect(() => { setActiveId(null); }, [board.id]);
 
   // Keep the keyboard cursor on screen. A ref per row rather than a query
   // selector so this survives the rows re-ordering under a sort.
@@ -462,6 +531,14 @@ export function ListSurface({
     try { audioElRef.current?.pause(); } catch (_) {}
     setPlayingId(null);
   }, [setRowProgress]);
+
+  // Another cluster (a folder opened, a breadcrumb, the panel browsing) stops
+  // what's sounding. This component outlives the move, so the <audio> did
+  // too — playing on with no row to show it and no pause to reach.
+  useEffect(() => {
+    stopAudition();
+    audioBus.release(stopAudition);
+  }, [board.id, stopAudition]);
 
   const auditionCard = useCallback(async (id) => {
     const it = items.find(x => x.id === id);
@@ -597,6 +674,21 @@ export function ListSurface({
   const onClearFilters = useCallback(() => { setFilters(new Set()); setUnplacedOnly(false); }, []);
   const openAddPicker = useCallback(() => addInputRef.current?.click(), []);
 
+  // The phone's bottom-nav "+" asks the board to add a card — but full Files
+  // has no board mounted, so the puck did nothing here. Here it adds files.
+  // (Beside the board the canvas is mounted and answers it itself.) The event
+  // is dispatched inside the tap, so the picker still opens as a user gesture.
+  useEffect(() => {
+    if (isPanel || !canEdit || browsingFrom || paneId !== 'main') return undefined;
+    const onAdd = (e) => {
+      if (e.detail?.boardId !== board?.id) return;
+      if (document.body.dataset.tourActive === '1') return;   // guided tour owns input
+      openAddPicker();
+    };
+    document.addEventListener('soleil-mobile-add-card', onAdd);
+    return () => document.removeEventListener('soleil-mobile-add-card', onAdd);
+  }, [isPanel, canEdit, browsingFrom, paneId, board?.id, openAddPicker]);
+
   // Descendant search: when the user types a query, also surface matches from
   // sub-clusters (server-side entity_search, filtered to this subtree). These
   // aren't loaded cards, so they render as compact links that open the owning
@@ -650,6 +742,24 @@ export function ListSurface({
     setSelectedCards(new Set());
     setSelectedGroupId(null);
   }, [board.id]);
+
+  // Files deleted or moved elsewhere — on the canvas, by a collaborator —
+  // leave the selection. Otherwise the bar kept counting them, Move to… did
+  // nothing, and Delete confirmed and toasted a delete that never happened,
+  // whose Undo then reverted whatever else was on top of the stack.
+  useEffect(() => {
+    if (loading) return;
+    const live = (set, has) => {
+      if (!set.size) return set;
+      const next = new Set([...set].filter(has));
+      return next.size === set.size ? set : next;
+    };
+    const cardIds = new Set((cards || []).map((c) => c.id));
+    const boardIds = new Set(subBoards.map((b) => b.id));
+    setSelectedCards((prev) => live(prev, (id) => cardIds.has(id)));
+    setSelectedBoards((prev) => live(prev, (id) => boardIds.has(id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, childBoards, loading]);
 
   // Asked to show files that aren't on the board (a link, a search hit, Show
   // on board): clear whatever would hide them, select them and bring the
@@ -771,6 +881,10 @@ export function ListSurface({
     const deleted = await mutators.deleteCards?.(list);
     setSelectedCards(new Set());
     setSelectedGroupId(null);
+    // null is the host saying nothing was deleted (a collaborator got there
+    // first): an Undo then would revert whatever else is on top of the stack.
+    // A host that returns nothing at all (undefined) still gets the toast.
+    if (deleted === null) return true;
     // Same delete→Undo-toast affordance as the canvas (this path used to
     // rely on the user knowing Cmd+Z would work from list view).
     undoToast(feedback, {
@@ -808,7 +922,8 @@ export function ListSurface({
     if (bIds.length) mutators.deleteBoardsById?.(bIds); // has its own Undo toast
     if (cIds.length) {
       const deleted = await mutators.deleteCards?.(cIds);
-      undoToast(feedback, {
+      // null: nothing was deleted, so no Undo (see onDeleteItems).
+      if (deleted !== null) undoToast(feedback, {
         message: cIds.length === 1 ? 'Card deleted' : `${cIds.length} cards deleted`,
         undoManager: mutators.undoManager,
         stackItem: deleted?.stackItem || null,
@@ -958,7 +1073,7 @@ export function ListSurface({
         e.preventDefault();
         const el = document.querySelector(`[data-item-id="${CSS.escape(ids[0])}"], [data-folder-id="${CSS.escape(ids[0])}"]`);
         const r = el?.getBoundingClientRect?.();
-        setCtxMenu({ x: r ? r.left + 16 : 200, y: r ? r.top + 16 : 200 });
+        setCtxMenu({ x: r ? r.left + 16 : 200, y: r ? r.top + 16 : 200, keyboard: true });
         return;
       }
       // ⌘Z / ⇧⌘Z: the cluster's own undo, here as on the canvas.
@@ -1262,10 +1377,13 @@ export function ListSurface({
   const lpHeadRef = useRef(null);
   // Full Files with sub-clusters but no files still shows the files toolbar
   // when it can go back beside the board — so the toolbar keeps its place;
-  // Beside board itself sits in the page header. A
-  // cluster with nothing in it gets the empty state and a slim bar instead.
+  // Beside board itself sits in the page header — and wherever files can be
+  // added: on a phone, a narrow window or the split pane it was the only way
+  // to Add files, and it vanished there. A cluster with nothing in it gets
+  // the empty state and a slim bar instead.
   const clusterEmpty = subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0;
-  const filesBlockShown = otherCards.length > 0 || isPanel || (!!dockControls?.canShrink && !clusterEmpty);
+  const filesBlockShown = otherCards.length > 0 || isPanel
+    || (!clusterEmpty && (canEdit || !!dockControls?.canShrink));
   useEffect(() => {
     const head = lpHeadRef.current;
     const wrap = head?.closest?.('.list-wrap');
@@ -1320,6 +1438,10 @@ export function ListSurface({
   const onFilesDragEnd = () => { try { window.__soleilFilesDrag = null; } catch (_) {} };
 
   const totalSel = selectedBoards.size + selectedCards.size;
+  // A linked cluster isn't moved — its link is removed instead — so a
+  // selection of only links offered Move to…, took a pick and did nothing.
+  const movableSel = selectedBoards.size
+    + [...selectedCards].filter((id) => !linkedCards.some((c) => c.id === id)).length;
   const unplacedIds = useMemo(() => new Set(items.filter((it) => it.unplaced).map((it) => it.id)), [items]);
   const selectedUnplaced = useMemo(
     () => (browsingFrom ? [] : [...selectedCards].filter((id) => unplacedIds.has(id))),
@@ -1460,7 +1582,7 @@ export function ListSurface({
   const pageMeta = [
     `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
     subBoards.length ? `${subBoards.length} ${subBoards.length === 1 ? 'cluster' : 'clusters'}` : null,
-    !browsingFrom && unplacedTotal ? `${unplacedTotal} not on board` : null,
+    unplacedTotal ? `${unplacedTotal} not on board` : null,
   ].filter(Boolean).join(' · ');
   const downloadAll = useCallback(
     () => downloadMany(downloadableVisible), [downloadMany, downloadableVisible]);
@@ -1601,7 +1723,7 @@ export function ListSurface({
       onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
       viewMode={viewMode} onViewMode={onViewMode}
       tileSize={tileSize} onTileSize={onTileSize}
-      unplacedCount={browsingFrom ? 0 : unplacedTotal} unplacedOnly={unplacedOnly}
+      unplacedCount={unplacedTotal} unplacedOnly={unplacedOnly}
       onToggleUnplaced={() => setUnplacedOnly((v) => !v)}
       onAddFiles={openAddPicker} canEdit={canEdit}
       showUpsell={!isPanel && showStorageUpsell && !!onStorageUpsell}
@@ -1651,7 +1773,7 @@ export function ListSurface({
     const cIds = [...selectedCards];
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
-    const canMove = canEdit && !!onPickCluster;
+    const canMove = canEdit && !!onPickCluster && movableSel > 0;
     // The menu's header already says how many; Delete needn't repeat it.
     const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
     // Info on anything: in full Files it's the panel beside the list, which
@@ -1847,7 +1969,7 @@ export function ListSurface({
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
                   <JustifiedGallery tileSize={tileSize}
                     activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
-                    renameFor={renameFor} markUnplaced={!browsingFrom}
+                    renameFor={renameFor} markUnplaced={markUnplaced}
                     items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
                     recentlyAddedIds={recentlyAddedIds}
                     expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
@@ -1871,7 +1993,7 @@ export function ListSurface({
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
                     audioMode={audioMode}
                     draggableItems={filesDraggable} onBoardIds={onBoardIds} renameFor={renameFor}
-                    markUnplaced={!browsingFrom}
+                    markUnplaced={markUnplaced}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}
@@ -1940,12 +2062,13 @@ export function ListSurface({
             scrollport, so the actions for a selection are still on screen once
             you have scrolled past the rows you made it from. */}
         {totalSel > 0 && (
-          <div className="list-selbar">
+          <div className="list-selbar" ref={selbarRef}>
             <span className="list-selbar-count" aria-live="polite"
                   title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel} selected</span>
             {downloadableSelected.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
-                      title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
+                      title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
+                      aria-label={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
                 <Icon as={Download} size={14} weight="light" />
                 <span>{zipping ? 'Preparing…'
                      : downloadableSelected.length === 1 ? 'Download'
@@ -1956,23 +2079,23 @@ export function ListSurface({
                 aren't offered. */}
             {canEdit && selectedUnplaced.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
-                      title="Put on the board">
+                      title="Put on the board" aria-label="Put on board">
                 <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
               </button>
             )}
-            {canEdit && onPickCluster && (
-              <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…">
+            {canEdit && onPickCluster && movableSel > 0 && (
+              <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
                 <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
               </button>
             )}
             {canEdit && (
-              <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete">
+              <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete" aria-label="Delete">
                 <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
               </button>
             )}
             {totalSel > 0 && (
               <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
-                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`}>
+                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`} aria-label="Info">
                 <Icon as={Info} size={14} weight="light" /><span>Info</span>
               </button>
             )}

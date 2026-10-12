@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyDropFile, sizeBucket, fitImageDims, meaningfulFileName, fileMetaFor,
+  isAnimatedImageBytes, isAnimatedImageKey,
   FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP, FREE_FILE_CAP_LABEL, FALLBACK_DIMS,
 } from './fileIngest.js';
 
@@ -20,8 +21,8 @@ const f = (name, type, size = 1024) => ({ name, type, size });
 
 // 0367: file TYPES are open on the free plan; only SIZE stays Creator's.
 test('a free owner may drop any file type up to the free file cap', () => {
-  // (.psd arrives with an image/ MIME from most pickers and takes the image
-  // route, as it always has; the empty-MIME case is the one that used to bounce.)
+  // (.psd with an image/ MIME is a file card too since MEDIA-02 — see the
+  // undrawable-image test below; the empty-MIME case is the one that used to bounce.)
   for (const [name, type] of [['comp.psd', ''], ['mock.fig', ''], ['pack.zip', 'application/zip'],
                               ['brief.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']]) {
     const c = classifyDropFile(f(name, type, FREE_FILE_CAP), { canAttemptFiles: false });
@@ -191,4 +192,65 @@ test('what a browser invents for a paste is not a name', () => {
 test('fileMetaFor adds the name or nothing at all', () => {
   assert.deepEqual(fileMetaFor({ name: 'diner.jpg' }), { fileName: 'diner.jpg' });
   assert.deepEqual(fileMetaFor({ name: 'image.png' }), {});
+});
+
+// ── Image types no browser draws become file cards (MEDIA-02) ──────────────
+
+test('a .psd or a camera raw is a file card even when it says image/', () => {
+  for (const [name, type] of [['comp.psd', 'image/vnd.adobe.photoshop'], ['comp.psd', 'image/x-photoshop'],
+                              ['DSC00412.ARW', 'image/x-sony-arw'], ['IMG_1.CR2', 'image/x-canon-cr2'],
+                              ['shot.dng', 'image/x-adobe-dng'], ['big.psb', '']]) {
+    for (const canAttemptFiles of [true, false]) {
+      const c = classifyDropFile(f(name, type), { canAttemptFiles });
+      assert.equal(c.route, 'file', `${name} (${type || 'no type'}) is a file card`);
+    }
+  }
+  // Safari draws TIFF and HEIC, so they stay images (the card shows "Preview
+  // not available" on browsers that can't).
+  assert.equal(classifyDropFile(f('scan.tif', 'image/tiff')).route, 'image');
+  assert.equal(classifyDropFile(f('IMG_1.HEIC', 'image/heic')).route, 'image');
+  assert.equal(classifyDropFile(f('IMG_1.HEIC', '')).route, 'image');
+  assert.equal(classifyDropFile(f('a.png', 'image/png')).route, 'image');
+});
+
+// ── Animated images keep the original as their canvas tier (MEDIA-01) ──────
+
+const bytes = (...parts) => {
+  const out = [];
+  for (const p of parts) {
+    if (typeof p === 'string') for (const ch of p) out.push(ch.charCodeAt(0));
+    else out.push(...p);
+  }
+  return Uint8Array.from(out);
+};
+const u32 = (n) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+const pngChunk = (type, len) => [...u32(len), ...bytes(type), ...new Array(len).fill(0), 0, 0, 0, 0];
+const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+test('a GIF is animated by key and by bytes', () => {
+  assert.equal(isAnimatedImageKey('ws/abc.gif'), true);
+  assert.equal(isAnimatedImageKey('ws/abc.GIF'), true);
+  assert.equal(isAnimatedImageKey('ws/abc.png'), false);
+  assert.equal(isAnimatedImageKey(null), false);
+  assert.equal(isAnimatedImageBytes(bytes('GIF89a', new Array(20).fill(0))), true);
+});
+
+test('an animated WebP is told apart from a still one by its VP8X flag', () => {
+  const head = (flags) => bytes('RIFF', [0, 0, 0, 0], 'WEBP', 'VP8X', [10, 0, 0, 0], [flags], new Array(20).fill(0));
+  assert.equal(isAnimatedImageBytes(head(0x02)), true);
+  assert.equal(isAnimatedImageBytes(head(0x10)), false, 'alpha only');
+  assert.equal(isAnimatedImageBytes(bytes('RIFF', [0, 0, 0, 0], 'WEBP', 'VP8 ', new Array(20).fill(0))), false);
+});
+
+test('an APNG is told apart from a PNG by an acTL before the first IDAT', () => {
+  const apng = Uint8Array.from([...PNG_SIG, ...pngChunk('IHDR', 13), ...pngChunk('acTL', 8), ...pngChunk('IDAT', 4)]);
+  const png = Uint8Array.from([...PNG_SIG, ...pngChunk('IHDR', 13), ...pngChunk('IDAT', 4), ...pngChunk('acTL', 8)]);
+  assert.equal(isAnimatedImageBytes(apng), true);
+  assert.equal(isAnimatedImageBytes(png), false);
+});
+
+test('a JPEG, a short read or nothing at all is not animated', () => {
+  assert.equal(isAnimatedImageBytes(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...new Array(20).fill(0)])), false);
+  assert.equal(isAnimatedImageBytes(Uint8Array.from([0x47, 0x49])), false);
+  assert.equal(isAnimatedImageBytes(null), false);
 });

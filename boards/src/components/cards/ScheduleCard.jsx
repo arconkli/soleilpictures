@@ -315,6 +315,8 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
   const rootRef = useRef(null);
 
   const editable = canEdit && !!gridActions;
+  // Removing an item (a chip ×, a rundown row ×) gets the house Undo toast.
+  const removeWithUndo = (fn) => (gridActions?.withUndoToast ? gridActions.withUndoToast('Item removed', fn) : fn());
   const model = readSchedModel(card, ydoc);
   const cellKeys = Object.keys(model.cells);
   const todayIso = todayISO();
@@ -361,6 +363,9 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
   // neither has room for a thumbnail.
   const density = normalizeDensity(card?.calDensity);
 
+  // goTo is a no-op while the cluster's date owns the anchor; editors keep
+  // the controls regardless, as before.
+  const canNav = editable || !boardDate;
   const goTo = (nextAnchor, nextHour) => {
     if (boardDate) return;                       // the cluster's date owns this card
     setViewAnchor_(nextAnchor);
@@ -420,7 +425,11 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
     const slot = el ? parseSlotKey(el.getAttribute('data-cell-id')) : null;
     return slot?.kind === 'day' ? slot.date : null;
   };
-  const startTileDrag = (e, b) => {
+  // openOnClick: a press that never moves opens the day — right for the month
+  // grid's tile and the rail row, which have no other single-click meaning.
+  // The Tiles density passes false: its tile's own click SELECTS (as it does
+  // for viewers) and a double-click opens.
+  const startTileDrag = (e, b, { openOnClick = true } = {}) => {
     if (e.button != null && e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
@@ -438,7 +447,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       setTileDrag(null);
-      if (!armed) { onOpenBoard?.(b.id); return; }     // a click, not a drag
+      if (!armed) { if (openOnClick) onOpenBoard?.(b.id); return; }     // a click, not a drag
       const date = tileDateAt(ev);
       if (!date || date === b.scheduled_date) return;  // dropped nowhere, or home
       // A multi-day block keeps its length: dragging it moves the whole span.
@@ -919,7 +928,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             {editable && !passive && (
               <button type="button" className="schedc-item-x" title="Remove" aria-label="Remove"
                 onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); gridActions.removeCellRecord?.(card.id, items[0].k); }}>
+                onClick={(e) => { e.stopPropagation(); removeWithUndo(() => gridActions.removeCellRecord?.(card.id, items[0].k)); }}>
                 <Icon as={X} size={11} />
               </button>
             )}
@@ -929,7 +938,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             {shown.map((it) => (
               <SlotChip key={it.k} itemKey={it.k} cell={it.cell} boards={boards} onOpenBoard={onOpenBoard}
                 passive={passive}
-                onRemove={editable && !passive ? () => gridActions.removeCellRecord?.(card.id, it.k) : null} />
+                onRemove={editable && !passive ? () => removeWithUndo(() => gridActions.removeCellRecord?.(card.id, it.k)) : null} />
             ))}
             {overflow > 0 && (passive ? (
               // Passive marker on the grid — the CELL opens the day.
@@ -1131,13 +1140,17 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           </div>
         ) : (
         <div className="schedc-head" style={{ flexBasis: headerH, '--chrome-k': chromeK }}>
-          {editable && (
+          {/* ‹ › / Today / the date jump are for everyone: they only move this
+              viewer's local anchor (goTo), so a view-only member or a public
+              link can page to next month too. What writes the card (view,
+              density, month span) stays editor-only below. */}
+          {canNav && (
             <button type="button" className="schedc-nav" title="Previous" aria-label="Previous"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(-1); }}>
               <Icon as={ChevronLeft} size={13} />
             </button>
           )}
-          {editable ? (
+          {canNav ? (
             <button type="button" className="schedc-title" title={`${title} — jump to date`}
               aria-haspopup="dialog"
               onPointerDown={stop}
@@ -1154,14 +1167,14 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           ) : (
             <span className="schedc-title" title={title}>{title}</span>
           )}
-          {editable && (
+          {canNav && (
             <button type="button" className="schedc-nav" title="Next" aria-label="Next"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(1); }}>
               <Icon as={ChevronRight} size={13} />
             </button>
           )}
           <span className="schedc-spring" />
-          {editable && (
+          {canNav && (
             <button type="button" className="schedc-today" title="Go to today" aria-label="Go to today"
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); goTo(todayISO()); }}>
               <span className="schedc-today-dot" aria-hidden="true" />
@@ -1242,7 +1255,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             onCancelTitle={() => setEditing(null)}
             onSetDur={(key, dur) => rd.patch(key, { dur })}
             onTogglePin={(key, clock) => rd.patch(key, { pin: clock })}
-            onRemove={(key) => rd.remove(key)}
+            onRemove={(key) => removeWithUndo(() => rd.remove(key))}
             onAdd={(index) => rd.add(index)}
             onMove={(from, to) => rd.move(from, to)}
             onEditTitle={(key) => rd.editTitle(key)}
@@ -1276,7 +1289,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
                   ? (date) => onAddShootDay({ from: date, to: date, scaffold: true, parentBoardId: boardId })
                   : null}
                 tileDrag={tileDrag}
-                onTilePointerDown={canMoveDays ? startTileDrag : null}
+                onTilePointerDown={canMoveDays ? (e, b) => startTileDrag(e, b, { openOnClick: false }) : null}
               />
             ) : (
               <ScheduleRail
@@ -1376,7 +1389,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           onAdd={(opts) => onAddShootDay?.({ ...opts, parentBoardId: boardId })}
           onClose={() => setRangePop(null)} />
       )}
-      {editable && datePop && (
+      {canNav && datePop && (
         <SchedDatePopover anchorRect={datePop.anchorRect} anchor={anchor}
           onPick={(date) => { goTo(date); setDatePop(null); }}
           onClose={() => setDatePop(null)} />

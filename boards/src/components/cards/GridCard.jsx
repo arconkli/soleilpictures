@@ -12,10 +12,10 @@
 // a cell edit. Like RichDocCard, GridCard self-observes its own gridCells so cell
 // edits re-render. Layout / templateId / seqId arrive as plain props.
 
-import { useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useRef, useState } from 'react';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { readGridModel, effectiveCellStyle, readGridHints } from '../../lib/gridState.js';
+import { isCellFilled } from '../../lib/gridCount.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { Spinner } from '../Spinner.jsx';
@@ -28,6 +28,7 @@ import { ImageEditModal } from '../ImageEditModal.jsx';
 import { ImageLightbox } from '../ImageLightbox.jsx';
 import { hasFilterStages } from '../../lib/imageAdjust.js';
 import { downloadImage } from '../../lib/imageExport.js';
+import { useOptionalFeedback } from '../AppFeedback.jsx';
 import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
@@ -74,6 +75,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [lightbox, setLightbox] = useState(null);       // { cellId } — full-screen ImageLightbox viewer
   const [repositionOn, setRepositionOn] = useState(false); // reposition drag armed on the edited cell
   const [compareCellId, setCompareCellId] = useState(null); // cell showing its unadjusted source (hold-to-compare)
+  const feedback = useOptionalFeedback();
+  const downloadingRef = useRef(false);                 // a cell download in flight
 
   const model = readGridModel(card, ydoc, templates);
   // Cell labels carried in from the template this grid was made from. They are
@@ -88,7 +91,43 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   // Enter/leave a text cell's editor. Also tells CanvasSurface so the bottom
   // note formatting toolbar (font / size / style) shows scoped to this cell.
   const enterTextEdit = (cellId) => { setEditingCellId(cellId); gridActions?.setCellEditing?.(card.id, cellId); };
-  const exitTextEdit = (cellId) => { setEditingCellId((p) => (p === cellId ? null : p)); gridActions?.setCellEditing?.(null, null); };
+  const exitTextEdit = (cellId) => {
+    setEditingCellId((p) => (p === cellId ? null : p));
+    gridActions?.setCellEditing?.(null, null);
+    // A double-click turns an empty cell into a text cell at once; left without
+    // a word typed, it would keep none of an empty cell's hint, styling or
+    // direct Image / Link buttons. Read live (the editor has just committed),
+    // and keep any pinned style: setCellContent with a type preserves it.
+    // isCellFilled strips tags, so it would also call an empty checklist or a
+    // lone rule "empty"; only revert when nothing but paragraphs and breaks
+    // was left behind.
+    const live = readGridModel(card, ydoc, templates).cells[cellId];
+    const bare = (html) => !String(html || '').replace(/<\/?(p|br)\b[^>]*>/gi, '').replace(/&nbsp;|\s/g, '');
+    if (live && live.type === 'text' && !isCellFilled(live) && bare(live.html)) gridActions?.setCellContent?.(card.id, cellId, { type: 'empty' });
+  };
+  // Deletes in here get the house Undo toast (gridActions.withUndoToast);
+  // without it they fall back to the bare mutator.
+  const withUndo = (message, fn) => (gridActions?.withUndoToast ? gridActions.withUndoToast(message, fn) : fn());
+  // A cell's photo download resolves false when it fails; say so (audit
+  // MEDIA-15), and don't start a second one while the first is still going.
+  const downloadCell = async (c) => {
+    if (downloadingRef.current) return;
+    downloadingRef.current = true;
+    try {
+      const ok = await downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust });
+      if (!ok) feedback?.toast?.({ type: 'error', message: 'Couldn’t download this image. Try again.' });
+    } finally {
+      downloadingRef.current = false;
+    }
+  };
+  const clearCell = (cellId) => withUndo('Cell cleared', () => gridActions.clearCellContent(card.id, cellId));
+  // Removing a line deletes the right / bottom side's cells. Content moves
+  // into an empty neighbour; what can't is counted, and only then is there a
+  // toast — a line between two empty cells costs nothing.
+  const removeLine = (d) => withUndo(
+    (res) => (res?.dropped ? (res.dropped === 1 ? 'Removed a filled cell' : `Removed ${res.dropped} filled cells`) : null),
+    () => gridActions.removeDivider?.(card.id, d.path, d.childIndex),
+  );
   // Open / close the image cell's photo + fit editor (portaled popover below).
   const openPhotoEdit = (cellId, anchorRect) => { setMenu(null); setRepositionOn(false); setCompareCellId(null); setPhotoEdit({ cellId, anchorRect }); };
   const closePhotoEdit = () => { setPhotoEdit(null); setRepositionOn(false); setCompareCellId(null); };
@@ -333,7 +372,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 className="gridc-cell-x"
                 title="Clear cell"
                 onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); gridActions.clearCellContent(card.id, r.id); setSwapCellId(null); }}
+                onClick={(e) => { e.stopPropagation(); clearCell(r.id); setSwapCellId(null); }}
               ><span className="gridc-ico"><Icon as={Trash} size={13} /></span></button>
             )}
           </div>
@@ -341,7 +380,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
       })}
       {dividers.map((d) => {
         const grab = editable && isSelected;   // resize after select (standard, avoids mis-grabs)
-        const remove = (e) => { e.stopPropagation(); gridActions.removeDivider?.(card.id, d.path, d.childIndex); };
+        const remove = (e) => { e.stopPropagation(); removeLine(d); };
         return (
           <div
             key={d.id}
@@ -371,13 +410,13 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         isImage={!!(model.cells[menu.cellId] && model.cells[menu.cellId].type === 'image' && model.cells[menu.cellId].src)}
         onEditPhoto={() => openPhotoEdit(menu.cellId, menu.anchorRect)}
         onOpenFullScreen={() => openLightbox(menu.cellId)}
-        onDownload={() => { const c = model.cells[menu.cellId]; if (c && c.src) downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust }); }}
+        onDownload={() => { const c = model.cells[menu.cellId]; if (c && c.src) downloadCell(c); }}
         onText={() => { gridActions.setCellContent(card.id, menu.cellId, { type: 'text', html: '' }); enterTextEdit(menu.cellId); }}
         onImage={() => gridActions.pickImageForCell(card.id, menu.cellId)}
         onLink={() => gridActions.addLinkToCell(card.id, menu.cellId)}
         onSplitRow={() => gridActions.splitCell(card.id, menu.cellId, 'row')}
         onSplitCol={() => gridActions.splitCell(card.id, menu.cellId, 'col')}
-        onClear={() => gridActions.clearCellContent(card.id, menu.cellId)}
+        onClear={() => clearCell(menu.cellId)}
         onClose={() => setMenu(null)}
       />
     )}
@@ -429,25 +468,25 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
           src={c.src} title={c.title || ''} adjust={c.adjust} cardId={`${card.id}:${cid}`}
           onChange={(next) => gridActions.setCellContent(card.id, cid, { adjust: next })}
           onReset={() => gridActions.setCellContent(card.id, cid, { adjust: null })}
-          onDownload={() => downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust })}
+          onDownload={() => downloadCell(c)}
           onClose={() => setPhotoFullModal(null)}
         />
       );
     })()}
     {lightbox && (() => {
       // Full-screen VIEWER (zoom/pan) for a cell image, with its own Download.
-      // Portal to <body>: ImageLightbox doesn't portal itself, and GridCard lives
-      // inside the transformed .canvas / contain:paint .card — which would trap its
-      // position:fixed to the grid's box. At <body> it's truly full-screen.
+      // ImageLightbox portals itself to <body> (the transformed .canvas /
+      // contain:paint .card would trap its position:fixed to the grid's box) and
+      // stops its presses from bubbling back to this card.
       const c = model.cells[lightbox.cellId];
       if (!c || c.type !== 'image' || !c.src) return null;
-      return createPortal(
+      return (
         <ImageLightbox
           src={c.src} title={c.title || ''} alt={c.title || ''} adjust={c.adjust}
           cardId={`${card.id}:${lightbox.cellId}`}
           onClose={() => setLightbox(null)}
-        />,
-        document.body);
+        />
+      );
     })()}
     {/* Directional "+" live OUTSIDE .gridc (a sibling overlay in the card box) so
         they straddle the edges and never cover interior cell tools. Shown when the

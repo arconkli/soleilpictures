@@ -67,6 +67,7 @@ import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 // stays node-importable so it can't import analytics.js itself). Idempotent.
 setJourneySink({ logEvent, logEventNow });
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
+import { onSoleilInk } from './lib/accentInk.js';
 import { applyWheelModeNow, getWheelMode } from './lib/wheelMode.js';
 import { applySidebarOpenNow, getSidebarOpen } from './lib/sidebarPref.js';
 import { R2Image } from './components/R2Image.jsx';
@@ -182,7 +183,7 @@ import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/grid
 // Generated projection of the kind:'template' seoLanding specs — the preset id
 // and labels only, never the prose. See gen-docs.mjs step 4d.
 import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells } from './lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells } from './lib/gridLayout.js';
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
@@ -1095,6 +1096,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         + ` --soleil-soft: rgba(${r},${g},${b},.14);`
         + ` --soleil-glow: 0 0 24px rgba(${r},${g},${b},.18);`
         + ` --accent: ${hex};`
+        + ` --on-soleil: ${onSoleilInk(hex)};`
         + ` }`);
     }
     if (ui.fontSans) {
@@ -3396,22 +3398,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }, 'local');
     };
     // Remove a divider LINE (merge the two cells it separates). Same write path
-    // as mergeGridCell but addressed by the divider, not a cell.
+    // as mergeGridCell but addressed by the divider, not a cell. The removed
+    // side's content moves into the cell that grows when that cell is empty
+    // (carryRemovedCells); a linked grid's layout is shared, so EVERY member
+    // loses those leaves and every member's cells are carried, not just this
+    // one's. Returns { dropped } for the caller's undo toast.
     const removeGridDivider = (gridId, path, childIndex) => {
-      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
-      const layout = gridLayoutOf(cy); if (!layout) return;
-      const { tree, removedIds } = removeDivider(layout, path, childIndex);
-      if (!removedIds.length) return;
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return null;
+      const layout = gridLayoutOf(cy); if (!layout) return null;
+      const { tree, removedIds, keptIds } = removeDivider(layout, path, childIndex);
+      if (!removedIds.length) return null;
       breakUndo();
       const templateId = cy.get('templateId') || null;
+      const members = [];
+      if (templateId) m.forEach((ym, id) => { if (ym.get && ym.get('kind') === 'grid' && ym.get('templateId') === templateId) members.push(id); });
+      if (!members.length) members.push(gridId);
+      let dropped = 0;
       ydoc.transact(() => {
         if (templateId) {
           const tm = ydoc.getMap('gridTemplates'); const prev = tm.get(templateId);
           if (prev) tm.set(templateId, { ...prev, layout: tree });
         } else cy.set('layout', tree);
-        const cm = cy.get('gridCells');
-        if (cm) removedIds.forEach((id) => cm.delete(id));
+        members.forEach((id) => {
+          const cm = m.get(id)?.get('gridCells'); if (!cm) return;
+          const cells = {};
+          [...removedIds, ...keptIds].forEach((k) => { const v = cm.get(k); if (v) cells[k] = v.toJSON ? v.toJSON() : v; });
+          const plan = carryRemovedCells(removedIds, keptIds, cells);
+          dropped += plan.dropped;
+          Object.entries(plan.moves).forEach(([k, v]) => cm.set(k, v));
+          removedIds.forEach((k) => cm.delete(k));
+        });
       }, 'local');
+      return { dropped };
     };
     // Re-cut a Grid to a saved template's shape (the Templates panel). The only
     // grid operation that can destroy content, so it is also the only one that

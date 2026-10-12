@@ -55,6 +55,10 @@ import {
   Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
+import { detectEmbed } from '../lib/oembed.js';
+import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
@@ -1179,6 +1183,30 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [embedActive]);
+  // A new address is a new link. The old site's image, blurb and favicon
+  // (and an embed's player) used to stay while the card opened the new one;
+  // they go with the old address now, the embed is re-detected, and the
+  // preview is fetched again — applied silently, like the creation path, and
+  // only onto what hasn't changed meanwhile (previewPatch). A title that was
+  // just the old hostname follows the new one; a title someone typed stays.
+  const liveRef = useRef(null);
+  liveRef.current = { source, title, image, description, favicon };
+  const changeSource = (v) => {
+    const next = (v || '').trim();
+    if (next === (source || '')) return;
+    const host = (u) => { try { return new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, ''); } catch (_) { return null; } };
+    const nextEmbed = next ? detectEmbed(next) : null;
+    const patch = { source: next, link: next, image: null, description: null, favicon: null, embed: nextEmbed || null };
+    if (title && title === host(source || '')) patch.title = nextEmbed ? '' : (host(next) || next);
+    onUpdate(patch);
+    if (!next || nextEmbed) return;
+    const created = { source: next, title: patch.title ?? title };
+    fetchLinkPreview(next).then((p) => {
+      const np = previewPatch(p, liveRef.current, created);
+      if (patch.title === undefined) delete np.title;   // a kept title is the user's
+      if (Object.keys(np).length) onUpdate(np, { silent: true });
+    });
+  };
   const onBodyDouble = (e) => {
     if (!onUpdate) return;
     if (e.target.closest && e.target.closest('.editable')) return; // let inner editors win
@@ -1366,7 +1394,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
               </svg>
             )}
           {onUpdate
-            ? <EditableText className="lc-src-text" value={source || ''} placeholder="https://…" onChange={(v) => onUpdate({ source: v, link: v })} />
+            ? <EditableText className="lc-src-text" value={source || ''} placeholder="https://…" onChange={changeSource} />
             : <span>{source}</span>}
           {openHref && (
             <button type="button" className="lc-open" title="Open link"
@@ -1395,6 +1423,12 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const isEditable = !!onUpdate;
+  // Optional: the QA harnesses render cards outside FeedbackProvider. useContext
+  // runs before useFeedback throws, so the hook order is stable either way.
+  let feedback = null;
+  try { feedback = useFeedback(); } catch (_) { /* no provider: no toast */ }
+  const swatchesRef = useRef(swatches); swatchesRef.current = swatches;
+  const onUpdateRef = useRef(onUpdate); onUpdateRef.current = onUpdate;
   // One toggle — "pure color" — hides every label (hex, names, title) for a
   // full-bleed palette. Legacy hideHex/hideLabels are still honored on old
   // cards so nothing regresses; the eye button writes chipsOnly.
@@ -1424,9 +1458,22 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
     e.stopPropagation();
     onUpdate({ swatches: [...swatches, { name: 'Color', hex: '#888888' }] });
   };
+  // Removing a swatch gets the house Undo toast. The inverse is a closure (put
+  // the swatch back where it was in the CURRENT list), so an edit made in the
+  // toast window isn't reverted with it.
   const removeSwatch = (i, e) => {
     e.stopPropagation();
+    const gone = swatches[i];
     onUpdate({ swatches: swatches.filter((_, idx) => idx !== i) });
+    if (!gone) return;
+    undoToast(feedback, {
+      message: 'Color removed',
+      onUndo: () => {
+        const cur = [...(swatchesRef.current || [])];
+        cur.splice(Math.min(i, cur.length), 0, gone);
+        onUpdateRef.current?.({ swatches: cur });
+      },
+    });
   };
   const openPicker = (i, e) => {
     e.stopPropagation();
@@ -2000,7 +2047,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
   const onTitleDouble = (e) => { e.stopPropagation(); setEditingTitle(true); };
 
   const playButton = (
-    <button type="button" className="ac-play"
+    <button type="button" className={`ac-play${isPlaying ? ' is-playing' : ''}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={togglePlay}
             aria-label={isPlaying ? 'Pause' : 'Play'}>

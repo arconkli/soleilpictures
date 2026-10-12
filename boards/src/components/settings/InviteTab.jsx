@@ -14,7 +14,7 @@ function ReferralStat({ label, value, highlight }) {
   return (
     <div>
       <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1,
-                    color: highlight ? 'var(--soleil, #ffa500)' : 'var(--text-1, inherit)',
+                    color: highlight ? 'var(--ink-0)' : 'var(--ink-1)',
                     fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div className="settings-billing-label" style={{ marginTop: 2 }}>{label}</div>
     </div>
@@ -121,8 +121,8 @@ export function InviteTab({ user }) {
               style={{
                 flex: '1 1 240px', minWidth: 0, padding: '9px 12px', borderRadius: 10,
                 border: '1px solid var(--line-1, rgba(255,255,255,.14))',
-                background: 'var(--surface-2, rgba(255,255,255,.04))',
-                color: 'var(--text-1, inherit)', fontSize: 13,
+                background: 'var(--bg-2)',
+                color: 'var(--ink-1)', fontSize: 13,
               }}
             />
             <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>Copy message</button>
