@@ -9,9 +9,10 @@
 //    IGNORES ancestor overflow-clipping, so a rect check would pass while
 //    clipped — the reliable signal is hit-testing (document.elementFromPoint).
 //
-// 2) An exported screenplay must INCLUDE A TITLE PAGE and be NAMED after the
-//    document: use the writer's title page when present (its title also drives
-//    the filename), else synthesize a cover page from the document name.
+// 2) An exported screenplay is NAMED after the document and carries the
+//    writer's title page when it is on (its title also drives the filename) —
+//    and no cover when it is off, like Fountain and FDX (DOCS-19: a cover used
+//    to be synthesized anyway, crediting whoever exported).
 
 import { expect, test } from '@playwright/test';
 import { createRequire } from 'module';
@@ -79,7 +80,7 @@ async function isHittable(page, selector) {
   }, selector);
 }
 
-test('the Export menu opens fully (not clipped) and Export PDF includes a synthesized title page', async ({ page }) => {
+test('the Export menu opens fully (not clipped) and Export PDF adds no title page the writer turned off', async ({ page }) => {
   await openScreenplayDoc(page);
 
   // Open the menu and prove the "Export PDF" item is a genuine hit target — the
@@ -95,9 +96,14 @@ test('the Export menu opens fully (not clipped) and Export PDF includes a synthe
   expect(hit.inViewport).toBe(true);
   expect(hit.hittable).toBe(true);
 
-  // Click it → a real PDF download. Even with no title page configured, the
-  // export synthesizes a cover page from the document name ("Untitled doc" in
-  // the harness), so the PDF is title-page + body (≥2 pages).
+  // Click it → a real PDF download, with the Title Page left off: body only,
+  // no synthesized cover crediting the exporter.
+  await page.evaluate(() => {
+    window.__soleilDocTest.editor.commands.setContent(window.__soleilDocTest.screenplay.blocksToDocJSON([
+      { element: 'scene', text: 'INT. KITCHEN - NIGHT' },
+      { element: 'action', text: 'A kettle starts to sing.' },
+    ]));
+  });
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 15000 }),
     menu.getByRole('menuitem', { name: 'Export PDF' }).click({ timeout: 4000 }),
@@ -105,8 +111,10 @@ test('the Export menu opens fully (not clipped) and Export PDF includes a synthe
   expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
 
   const pdf = await readDownloadPdf(download);
-  expect(pdf.numPages).toBeGreaterThanOrEqual(2);     // cover page + ≥1 body page
-  expect(pdf.text).toContain('Untitled doc');         // synthesized title page
+  expect(pdf.numPages).toBe(1);                       // the script, no cover
+  expect(pdf.text).toMatch(/INT\. KITCHEN/);
+  expect(pdf.text).not.toContain('Written by');
+  expect(pdf.text).not.toContain('QA Tester');        // the exporter is not credited
 });
 
 test('a configured title page is included in the PDF and names the file', async ({ page }) => {
