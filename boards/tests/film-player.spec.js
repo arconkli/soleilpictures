@@ -254,6 +254,9 @@ test('a range loop never runs past its out frame', async ({ page }) => {
     const t0 = performance.now();
     while (performance.now() - t0 < 2500) {
       await new Promise((r) => requestAnimationFrame(r));
+      // Mid-seek there may be no decoded frame to draw (readyState 1): the
+      // screen keeps the last picture, but drawImage reads nothing.
+      if (v.seeking || v.readyState < 2) continue;
       ctx.drawImage(v, 0, 0, 8, 8);
       const [r, g, b] = ctx.getImageData(4, 4, 1, 1).data;
       out.push(Math.round(((16 + (65.481 * r + 128.553 * g + 24.966 * b) / 255) - 16) / 3));
