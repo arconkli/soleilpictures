@@ -26,6 +26,7 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
 import { showingConversation } from '../lib/threadAttention.js';
 import { readOnlyCopy } from '../lib/messageAccess.js';
+import { escapeClosesPanel } from '../lib/panelEscape.js';
 
 const STICK_THRESHOLD_PX = 80;
 // Start fetching the previous page this far before the reader hits the top.
@@ -273,9 +274,14 @@ export function MessageThread({
         return;
       }
       if (e.key === 'Escape') {
-        if (searchOpen) closeSearch();
-        else if (replyParent) setReplyParent(null);
-        else onClose?.();
+        // The nearest layer only. A control inside the panel that handled it
+        // (the edit box, rename, the link field, the ⋯ menu, the emoji
+        // palette) has claimed it with preventDefault; closing the whole
+        // panel on the same press threw away what you were in (COMMS-10).
+        if (e.defaultPrevented || e.isComposing) return;
+        if (searchOpen) { closeSearch(); return; }
+        if (replyParent) { setReplyParent(null); return; }
+        if (escapeClosesPanel(e, '.msg-panel')) onClose?.();
         return;
       }
       if (inField) return;
@@ -588,7 +594,8 @@ export function MessageThread({
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
-                if (e.key === 'Escape') { setRenaming(false); }
+                // Claim the key: cancelling the rename must not close the panel.
+                if (e.key === 'Escape') { e.preventDefault(); setRenaming(false); }
               }}
               onBlur={commitRename}
               maxLength={80}
@@ -849,7 +856,9 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
 
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
+    // doesn't close on the same press.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -907,7 +916,9 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
 
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
+    // doesn't close on the same press.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
