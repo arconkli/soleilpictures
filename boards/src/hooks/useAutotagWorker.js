@@ -70,9 +70,12 @@ export function useAutotagWorker(workspaceId) {
       // on one another's results until enrichment, so this saves a
       // round-trip's worth of latency on cold starts.
       const [tagsResp, linksResp, ignResp] = await Promise.all([
+        // Live tags only: a deleted / merged-away tag keeps its row for
+        // 30 days and must not be offered as a suggestion meanwhile.
         supabase.from('tags')
           .select('id, name, slug, color')
-          .eq('workspace_id', workspaceId),
+          .eq('workspace_id', workspaceId)
+          .or('status.is.null,status.neq.deleted'),
         supabase.from('entity_links')
           .select('source_kind, source_id, source_board_id, target_id')
           .eq('source_workspace', workspaceId)
@@ -183,7 +186,8 @@ export function useAutotagWorker(workspaceId) {
         async () => {
           const { data } = await supabase.from('tags')
             .select('id, name, slug, color')
-            .eq('workspace_id', workspaceId);
+            .eq('workspace_id', workspaceId)
+            .or('status.is.null,status.neq.deleted');
           w.postMessage({ type: 'tags', tags: data || [] });
         });
     ch.subscribe();
