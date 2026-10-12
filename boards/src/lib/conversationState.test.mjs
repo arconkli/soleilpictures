@@ -45,6 +45,17 @@ test('a DM is two participant ROWS, however many have left', () => {
   assert.equal(isDmConversation(null), false);
 });
 
+// COMMS-17: a 3-person group where one member left read "DIRECT MESSAGE" and
+// lost its ⋯ menu (rename, add people, leave) for good.
+test('the thread and the row decide DM vs group by participant rows', () => {
+  const thread = read('../components/MessageThread.jsx');
+  assert.match(thread, /const isDm = isDmConversation\(conversation\?\.participants\);/);
+  assert.doesNotMatch(thread, /const isDm = activeParticipants\.length === 2;/);
+  assert.doesNotMatch(thread, /canLeave=\{activeParticipants\.length > 2\}/);
+  const panel = read('../components/MessagesPanel.jsx');
+  assert.match(panel, /const isDm = isDmConversation\(participants\);/);
+});
+
 test('a hidden row counts for nothing in the badge', () => {
   const src = read('../hooks/useConversationList.js');
   assert.match(src, /unread\.set\(conv\.conversation_id, !hidden && typeof v === 'number' \? v : 0\)/);

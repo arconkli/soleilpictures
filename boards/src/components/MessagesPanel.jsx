@@ -276,15 +276,11 @@ export function MessagesPanel({
       </div>
 
       {rowMenu && (() => {
-        const parts = participantsByConv.get(rowMenu.convId) || [];
-        const isGroup = !isDmConversation(parts);
-        // Same rule as the thread's ⋯ menu: a group needs 3+ members to leave.
-        const canLeave = !isGroup || parts.filter(p => !p.left_at).length > 2;
+        const isGroup = !isDmConversation(participantsByConv.get(rowMenu.convId));
         return (
           <ConversationRowMenu
             x={rowMenu.x} y={rowMenu.y}
             isGroup={isGroup}
-            canLeave={canLeave}
             onPick={() => { const id = rowMenu.convId; setRowMenu(null); handleHideRow(id); }}
             onClose={() => setRowMenu(null)}
           />
@@ -308,7 +304,7 @@ export function MessagesPanel({
 function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
   const isUnread = unreadCount > 0;
   const peers = participants.filter(p => p.user_id !== currentUserId && !p.left_at);
-  const isDm = participants.filter(p => !p.left_at).length === 2;
+  const isDm = isDmConversation(participants); // rows, not active members (COMMS-17)
 
   // Title: explicit title > participant names > fallback.
   const peerProfiles = peers.map(p => ({
@@ -377,7 +373,7 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
 }
 
 // The row's right-click / long-press menu: Hide (a DM) or Leave (a group).
-function ConversationRowMenu({ x, y, isGroup, canLeave, onPick, onClose }) {
+function ConversationRowMenu({ x, y, isGroup, onPick, onClose }) {
   const popRef = useRef(null);
   const [pos, setPos] = useState({ top: y, left: x });
   useLayoutEffect(() => {
@@ -403,13 +399,7 @@ function ConversationRowMenu({ x, y, isGroup, canLeave, onPick, onClose }) {
   return createPortal((
     <div ref={popRef} className="msg-group-menu" role="menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
       {isGroup ? (
-        <button
-          type="button" role="menuitem"
-          className="msg-group-menu-item is-danger"
-          onClick={canLeave ? onPick : undefined}
-          disabled={!canLeave}
-          title={canLeave ? 'Leave conversation' : 'Need 3+ members to leave'}
-        >
+        <button type="button" role="menuitem" className="msg-group-menu-item is-danger" onClick={onPick}>
           <Icon as={LogOut} size={12} /> Leave…
         </button>
       ) : (
