@@ -179,7 +179,13 @@ export const ScreenplaySuggest = Extension.create({
       if (ctrl.dismissed === sig) return close();   // Escape holds until the text changes
       ctrl.dismissed = null;
       ctrl.sig = sig;
-      const docJSON = element === 'transition' ? null : state.doc.toJSON();
+      // Serialize once per doc version: a caret move on a cue line used to
+      // re-serialize the whole script.
+      if (element !== 'transition' && ctrl.jsonDoc !== state.doc) {
+        ctrl.jsonDoc = state.doc;
+        ctrl.json = state.doc.toJSON();
+      }
+      const docJSON = element === 'transition' ? null : ctrl.json;
       const res = suggestForLine(element, text, docJSON);
       if (!res || !res.items.length) return close();
       const itemsSig = res.items.join('\n');

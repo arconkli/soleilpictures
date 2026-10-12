@@ -105,6 +105,18 @@ function lineRects(el) {
   } catch (_) { return []; }
 }
 
+// The doc position at the start of a measured line (falls back to before
+// its block when the hit test misses).
+function lineBreakPos(view, it) {
+  if (it.breakPos != null) return it.breakPos;
+  const ln = it.line;
+  try {
+    const at = view.posAtCoords({ left: ln.left + 2, top: ln.top + ln.height / 2 });
+    if (at && typeof at.pos === 'number') return at.pos;
+  } catch (_) {}
+  return it.blockPos;
+}
+
 // Compute the page-break list from the live DOM. Returns { breaks, pages }.
 // breaks: [{ pos, gap }] in document order; pages: total page count.
 function computeBreaks(view, zoom) {
@@ -133,7 +145,7 @@ function computeBreaks(view, zoom) {
   // paragraphs paginate line-level too. `breakPos` is where the page-gap widget
   // goes (snapped to the enclosing list item for a clean break); `pos`/top/bottom
   // drive the fit math.
-  const items = []; // { pos, breakPos, top, bottom }  (natural layout px)
+  const items = []; // { breakPos, line?, blockPos?, top, bottom }  (natural layout px)
   doc.descendants((node, pos) => {
     if (!node.isBlock) return false;                       // ignore inline content
     const name = node.type.name;
@@ -152,14 +164,12 @@ function computeBreaks(view, zoom) {
       const snap = outerBreakPos(doc, pos);                 // before enclosing li / the block
       rects.forEach((ln, i) => {
         const top = natural(ln.top);
-        let linePos = pos; // fallback: before the block
-        try {
-          const at = view.posAtCoords({ left: ln.left + 2, top: ln.top + ln.height / 2 });
-          if (at && typeof at.pos === 'number') linePos = at.pos;
-        } catch (_) {}
         // First line snaps to the block / list-item boundary so the whole item
         // moves together; later lines break mid-block (a tall block splits).
-        items.push({ pos: linePos, breakPos: i === 0 ? snap : linePos, top, bottom: top + ln.height / z });
+        // A later line's doc position is resolved only if a break actually
+        // lands on it (lineBreakPos below): posAtCoords per rendered LINE on
+        // every edit was a layout-bound hit test hundreds of times a keystroke.
+        items.push({ breakPos: i === 0 ? snap : null, line: ln, blockPos: pos, top, bottom: top + ln.height / z });
       });
       return false;                                         // don't descend into inline
     }
@@ -183,7 +193,7 @@ function computeBreaks(view, zoom) {
     const isFirstOnPage = it.top <= pageStart + EPS;
     if (!isFirstOnPage && it.bottom > pageStart + CONTENT_H + EPS) {
       const used = Math.max(0, it.top - pageStart);
-      breaks.push({ pos: it.breakPos, gap: Math.max(PAGE_GUTTER, PAGE_STRIDE - used) });
+      breaks.push({ pos: lineBreakPos(view, it), gap: Math.max(PAGE_GUTTER, PAGE_STRIDE - used) });
       pageStart = it.top;
       pages++;
     }

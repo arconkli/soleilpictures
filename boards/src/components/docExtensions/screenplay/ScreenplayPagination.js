@@ -15,6 +15,14 @@ import { paginate } from '../../../lib/screenplayPaginate.js';
 import { computeAutoContd, computeSceneNumbers } from './screenplayFlow.js';
 
 const key = new PluginKey('screenplayPagination');
+const breakKey = new PluginKey('screenplayPageBreaks');
+
+// Re-paginating runs paginate() over the whole script, a few ms on a feature
+// script and more on a phone. Doing it per keystroke made long scripts lag
+// behind typing, so edits map the existing page markers and the full pass runs
+// once typing pauses this long. (Scene numbers and auto CONT'D are one cheap
+// linear pass and stay in step with every keystroke.)
+const PAGINATE_IDLE_MS = 150;
 
 function makeContdEl() {
   const s = document.createElement('span');
@@ -47,8 +55,8 @@ function makeBreakEl(pageNum, more, contd) {
   return el;
 }
 
-function computeDecorations(doc) {
-  // Top-level blocks (screenplay or otherwise) with their positions + sizes.
+// Top-level blocks (screenplay or otherwise) with their positions + sizes.
+function readBlocks(doc) {
   const blocks = [];
   doc.forEach((node, offset) => {
     const isSp = node.type.name === 'screenplayBlock';
@@ -65,9 +73,15 @@ function computeDecorations(doc) {
       size: node.nodeSize,
     });
   });
-  if (blocks.length < 1) return DecorationSet.empty;
+  return blocks;
+}
 
-  const flat = blocks.map(b => ({ element: b.element, text: b.text, dual: b.dual }));
+const flatOf = (blocks) => blocks.map(b => ({ element: b.element, text: b.text, dual: b.dual }));
+
+// Scene numbers + auto (CONT'D).
+function computeMarks(doc) {
+  const blocks = readBlocks(doc);
+  if (blocks.length < 1) return DecorationSet.empty;
   const decos = [];
 
   // Scene numbers in the left + right gutters (gated to visible by the
@@ -81,16 +95,23 @@ function computeDecorations(doc) {
 
   // Auto (CONT'D) on a character cue resuming the same speaker — render-time
   // suffix, shown even on a single-page script. Never edits the stored text.
-  const contdSet = computeAutoContd(flat);
+  const contdSet = computeAutoContd(flatOf(blocks));
   contdSet.forEach((idx) => {
     const blk = blocks[idx];
     if (!blk) return;
     const endPos = Math.max(0, Math.min(blk.pos + blk.size - 1, doc.content.size));
     decos.push(Decoration.widget(endPos, makeContdEl, { side: 1, key: `sp-contd-${idx}` }));
   });
+  return DecorationSet.create(doc, decos);
+}
 
-  // Page-break markers (only when there's more than one page).
-  const { pages } = paginate(flat);
+// Page-break markers (only when there's more than one page) — the full
+// paginate() of the script.
+function computePageBreaks(doc) {
+  const blocks = readBlocks(doc);
+  if (blocks.length < 1) return DecorationSet.empty;
+  const decos = [];
+  const { pages } = paginate(flatOf(blocks));
   if (pages.length >= 2) {
     pages.forEach((frags, p) => {
       if (p > 0 && frags.length) {
@@ -127,11 +148,43 @@ export const ScreenplayPagination = Extension.create({
       new Plugin({
         key,
         state: {
-          init: (_, { doc }) => computeDecorations(doc),
-          apply: (tr, old) => (tr.docChanged ? computeDecorations(tr.doc) : old),
+          init: (_, { doc }) => computeMarks(doc),
+          apply: (tr, old) => (tr.docChanged ? computeMarks(tr.doc) : old),
         },
         props: {
           decorations(state) { return key.getState(state); },
+        },
+      }),
+      new Plugin({
+        key: breakKey,
+        state: {
+          init: (_, { doc }) => computePageBreaks(doc),
+          apply: (tr, old) => {
+            const fresh = tr.getMeta(breakKey);
+            if (fresh) return fresh;
+            return tr.docChanged ? old.map(tr.mapping, tr.doc) : old;
+          },
+        },
+        props: {
+          decorations(state) { return breakKey.getState(state); },
+        },
+        view() {
+          let timer = 0;
+          let destroyed = false;
+          const run = (view) => {
+            timer = 0;
+            if (destroyed || view.isDestroyed) return;
+            const decos = computePageBreaks(view.state.doc);
+            view.dispatch(view.state.tr.setMeta(breakKey, decos).setMeta('addToHistory', false));
+          };
+          return {
+            update(view, prevState) {
+              if (prevState.doc === view.state.doc) return;
+              clearTimeout(timer);
+              timer = setTimeout(() => run(view), PAGINATE_IDLE_MS);
+            },
+            destroy() { destroyed = true; clearTimeout(timer); },
+          };
         },
       }),
     ];
