@@ -56,8 +56,13 @@ export function useSharedBoards(userId) {
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => { refresh(); }, 350);
     };
+    // Per-mount suffix, as useCanvasComments: <Workspace> remounts on every
+    // workspace switch, and realtime-js hands a same-named channel that is
+    // still LEAVING back to the new mount, where subscribe() is a no-op and
+    // the bindings die with the leave. The list then stopped updating.
+    const sfx = Math.random().toString(36).slice(2, 9);
     const ch = supabase
-      .channel(`shared-boards:${userId}`)
+      .channel(`shared-boards:${userId}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, schedule)
       .subscribe();
     return () => {
