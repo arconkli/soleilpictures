@@ -877,6 +877,10 @@ export function ListSurface({
     const deleted = await mutators.deleteCards?.(list);
     setSelectedCards(new Set());
     setSelectedGroupId(null);
+    // null is the host saying nothing was deleted (a collaborator got there
+    // first): an Undo then would revert whatever else is on top of the stack.
+    // A host that returns nothing at all (undefined) still gets the toast.
+    if (deleted === null) return true;
     // Same delete→Undo-toast affordance as the canvas (this path used to
     // rely on the user knowing Cmd+Z would work from list view).
     undoToast(feedback, {
@@ -914,7 +918,8 @@ export function ListSurface({
     if (bIds.length) mutators.deleteBoardsById?.(bIds); // has its own Undo toast
     if (cIds.length) {
       const deleted = await mutators.deleteCards?.(cIds);
-      undoToast(feedback, {
+      // null: nothing was deleted, so no Undo (see onDeleteItems).
+      if (deleted !== null) undoToast(feedback, {
         message: cIds.length === 1 ? 'Card deleted' : `${cIds.length} cards deleted`,
         undoManager: mutators.undoManager,
         stackItem: deleted?.stackItem || null,
