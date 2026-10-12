@@ -21177,10 +21177,13 @@ button, [role="button"], a {
 /* Glow ring on whatever the active step points at — the clearest "this is the
    thing" signal, and it makes anchoring forgiving when the pill is clamped away
    on small screens. Applied by OnboardingTour.jsx to the [data-tour] target.
-   box-shadow follows the target's own border-radius automatically. */
+   box-shadow follows the target's own border-radius automatically.
+   The pulse draws the eye three times and then rests on the steady ring: a
+   box-shadow animation repaints a 30px blur every frame, and an infinite one
+   ran for as long as a step sat on screen, beside a backdrop-blurred pill. */
 .tour-target {
   box-shadow: 0 0 0 3px var(--soleil), var(--soleil-glow) !important;
-  animation: tour-target-pulse 1.6s var(--ease) infinite;
+  animation: tour-target-pulse 1.6s var(--ease) 3;
   border-radius: inherit;
 }
 @keyframes tour-target-pulse {
