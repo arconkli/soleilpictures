@@ -157,6 +157,55 @@ test('a /best page sets its answer card on the same left edge as its heading', a
   expect(Math.abs(lefts.card - lefts.heading)).toBeLessThanOrEqual(1);
 });
 
+test.describe('/pricing layout', () => {
+  test('the Free and Creator names and prices sit level, side by side', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/pricing');
+    await expect(page.locator('.pp-plan-creator .pricing-card-price')).toBeVisible();
+    const m = await page.evaluate(() => {
+      const top = (s) => Math.round(document.querySelector(s).getBoundingClientRect().top);
+      const base = (s) => Math.round(document.querySelector(s).getBoundingClientRect().bottom);
+      return {
+        names: [top('.pp-plan-free .pp-plan-name'), top('.pp-plan-creator .pp-plan-name')],
+        prices: [base('.pp-plan-free .pp-plan-price'), base('.pp-plan-creator .pricing-card-price')],
+      };
+    });
+    expect(Math.abs(m.names[0] - m.names[1])).toBeLessThanOrEqual(1);
+    expect(Math.abs(m.prices[0] - m.prices[1])).toBeLessThanOrEqual(1);
+  });
+
+  test('the footer brand line is centred like the rows above it', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto('/pricing');
+    const brand = page.locator('.seo-footer-brand');
+    await brand.scrollIntoViewIfNeeded();
+    const off = await brand.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const kids = [...el.children].map((c) => c.getBoundingClientRect());
+      const left = Math.min(...kids.map((r) => r.left));
+      const right = Math.max(...kids.map((r) => r.right));
+      return Math.abs((left + right) / 2 - (box.left + box.right) / 2);
+    });
+    expect(off).toBeLessThanOrEqual(2);
+  });
+
+  test('on a phone the Monthly/Annual pills fill their track', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/pricing');
+    const toggle = page.locator('.pp-plan-creator .pricing-card-toggle');
+    await expect(toggle).toBeVisible();
+    const gaps = await toggle.evaluate((el) => {
+      const t = el.getBoundingClientRect();
+      const pills = [...el.querySelectorAll('.pricing-toggle-pill')].map((p) => p.getBoundingClientRect());
+      return [pills[0].left - t.left, t.right - pills[pills.length - 1].right];
+    });
+    for (const g of gaps) expect(g).toBeLessThanOrEqual(6);
+  });
+});
+
 test.describe('/templates on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 

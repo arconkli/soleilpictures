@@ -6729,6 +6729,10 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+  /* The Monthly/Annual toggle's height (24px pill + 3px padding + 1px border,
+     each side). Free's head has no toggle; without the floor its name and
+     price sat 10-18px higher than Creator's, side by side. */
+  min-height: 32px;
 }
 .pp-plan-name {
   font: 700 12px/1 var(--font-sans);
@@ -6750,6 +6754,10 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
   letter-spacing: 0;
   color: var(--ink-2);
 }
+/* Creator's price row is the shared CreatorPriceRow (36px elsewhere); on this
+   page it sits beside Free's 40px $0, so it takes the same size and the two
+   figures share a baseline. */
+.pp-plan .pricing-card-price { font-size: 40px; }
 .pp-plan-sub { color: var(--ink-2); margin: -2px 0 0; }
 .pp-plan-benefits { margin-top: 2px; }
 .pp-plan .pricing-benefits { gap: 10px; }
@@ -6786,6 +6794,9 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
    active/selection/focus only. */
 .pp-machine { text-align: center; margin: 0 0 14px; }
 .pp-machine a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+/* Every other footer row on this page is centred; the shared brand line was
+   the one left-set row under them. */
+.pp-shell .seo-footer-brand { justify-content: center; text-align: center; }
 .pp-free-list { margin-top: 2px; }
 .pp-foot {
   display: flex;
@@ -6806,8 +6817,11 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
   .pp-plans { grid-template-columns: 1fr; gap: 14px; }
   .pp-plan { padding: 20px 18px; }
   .pp-plan-creator { order: -1; }
-  .pp-plan-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .pp-plan-head { flex-direction: column; align-items: stretch; gap: 10px; min-height: 0; }
   .pp-plan-head .pricing-card-toggle { width: 100%; justify-content: center; }
+  /* The pills fill the full-width track; centred at their own widths they
+     floated off-centre with dead track beside them. */
+  .pp-plan-head .pricing-toggle-pill { flex: 1 1 0; }
 }
 
 /* ── Billing summary (shared by Settings modal + /settings/billing) ────── */
