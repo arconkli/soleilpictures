@@ -375,7 +375,11 @@ export function readPagesWithText(ydoc, scope) {
 function pageIsLive(ydoc, pageId, scope) {
   const arr = pagesArray(ydoc, scope);
   if (!arr) return false;
-  for (let i = 0; i < arr.length; i++) if (arr.get(i)?.id === pageId) return true;
+  // Same tolerance as readPages: an entry may be a Y.Map rather than a plain object.
+  for (let i = 0; i < arr.length; i++) {
+    const e = arr.get(i);
+    if ((e && e.toJSON ? e.toJSON() : e)?.id === pageId) return true;
+  }
   return false;
 }
 

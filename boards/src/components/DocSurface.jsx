@@ -985,6 +985,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit && !isPublic}
+            defaultName={titleOverride || board.name || 'Untitled'}
           />
         )}
         {rails.left && (
