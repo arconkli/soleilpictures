@@ -237,7 +237,9 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     // did; the canvas path used to "peel" the src on Cmd+Z).
     // (Since 2026-10 every canvas upload settles through settleUpload, which
     // patches silently or holds the result for a card that is out of reach.)
-    expect(cs).toMatch(/if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) (?:mutators|sweepMutatorsRef\.current\?)\.updateCardSilent\?\.\(id, patch\);/);
+    // (Since 2026-10-12 through updateCardMeta where the shell has it: an
+    // upload finishing isn't an edit, so it doesn't stamp "Modified" in Info.)
+    expect(cs).toMatch(/if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) \{[\s\S]{0,200}?\(m\?\.updateCardMeta \|\| m\?\.updateCardSilent\)\?\.\(id, patch\);/);
     expect(cs).toMatch(/settleUpload\(dropBoardId, id, \{ src: up\.src, pending: false \}\)/);
     expect(cs).not.toMatch(/mutators\.updateCard\?\.\(id, \{ src: up\.src, pending: false \}\)/);
   });

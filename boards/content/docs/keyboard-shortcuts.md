@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-10-11
+updated: 2026-10-12
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -140,6 +140,28 @@ finishes, the next one starts on its own.
 
 Both canvas keys only fire when exactly one audio card is selected; otherwise
 they fall through to whatever else is listening.
+
+## Player
+
+While the [review player](/docs/files/video-and-audio#the-review-player) is
+open, it has the keyboard — nothing reaches the board behind it.
+
+| Key | Action |
+|---|---|
+| `Space` | Play · pause |
+| `J` / `K` / `L` | Play backward · stop · forward — again to go faster |
+| `K+J` / `K+L` | One frame back · forward |
+| `←` / `→` | One frame back · forward |
+| `⇧←` / `⇧→` | One second back · forward |
+| `Home` / `End` | First · last frame |
+| `I` / `O` | Set in · out |
+| `⌥L` | Loop between in and out |
+| `⌥X` | Clear in and out |
+| `M` | Mute |
+| `F` | Full screen |
+| `G` | Framing guides |
+| `\` | Flip to the version you compare with |
+| `Esc` | Close the player |
 
 ## Notes
 

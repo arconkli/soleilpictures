@@ -3080,6 +3080,313 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Player",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Player"
+    }
+   ],
+   "id": "player"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While the "
+    },
+    {
+     "t": "link",
+     "v": "review player",
+     "href": "/docs/files/video-and-audio#the-review-player",
+     "children": [
+      {
+       "t": "text",
+       "v": "review player"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is open, it has the keyboard — nothing reaches the board behind it."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Space"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Play · pause"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "J"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "K"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "L"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Play backward · stop · forward — again to go faster"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "K+J"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "K+L"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One frame back · forward"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One frame back · forward"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧←"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⇧→"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One second back · forward"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Home"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "End"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "First · last frame"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "I"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "O"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Set in · out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌥L"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Loop between in and out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌥X"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Clear in and out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "M"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Mute"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "F"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Full screen"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "G"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Framing guides"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "\\"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Flip to the version you compare with"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Close the player"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Notes",
    "inline": [
     {
@@ -14762,7 +15069,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Both play in place on the canvas. No lightbox, no separate player window — the clip is a card among the reference stills it belongs with."
+     "v": "Both play in place on the canvas — the clip is a card among the reference stills it belongs with. A video also opens in a full review player when you need to look at it frame by frame."
     }
    ]
   },
@@ -14783,7 +15090,466 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A video card plays inline. Move it, resize it, group it and comment on it like anything else."
+     "v": "A video card plays inline. Move it, resize it, group it and comment on it like anything else. Hover it for its controls: play, one frame back and forward, a scrubber that lands on exact frames, the timecode, mute, and "
+    },
+    {
+     "t": "strong",
+     "v": "⤢",
+     "children": [
+      {
+       "t": "text",
+       "v": "⤢"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to open the review player. Click the picture to play or pause; dragging the card doesn't."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The review player",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The review player"
+    }
+   ],
+   "id": "the-review-player"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "⤢",
+     "children": [
+      {
+       "t": "text",
+       "v": "⤢"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a video card, "
+    },
+    {
+     "t": "strong",
+     "v": "Open in player",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open in player"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in its right-click menu (on the board or in "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), or "
+    },
+    {
+     "t": "strong",
+     "v": "Player",
+     "children": [
+      {
+       "t": "text",
+       "v": "Player"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in Quick look opens the clip full size, made for looking closely:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Frame by frame.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Frame by frame."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "←"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "→"
+     },
+     {
+      "t": "text",
+      "v": " step one frame, "
+     },
+     {
+      "t": "code",
+      "v": "⇧←"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "⇧→"
+     },
+     {
+      "t": "text",
+      "v": " one second. The timecode counts the frame actually on screen, in the clip's own frame rate and from its own start timecode when it has one."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "J, K, L.",
+      "children": [
+       {
+        "t": "text",
+        "v": "J, K, L."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Play backward, stop, and play forward; press again to go faster. Hold "
+     },
+     {
+      "t": "code",
+      "v": "K"
+     },
+     {
+      "t": "text",
+      "v": " and tap "
+     },
+     {
+      "t": "code",
+      "v": "J"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "L"
+     },
+     {
+      "t": "text",
+      "v": " to inch a frame at a time."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A better scrubber.",
+      "children": [
+       {
+        "t": "text",
+        "v": "A better scrubber."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Hover the timeline for a preview of that frame and its timecode. Pinch, or "
+     },
+     {
+      "t": "code",
+      "v": "⌘"
+     },
+     {
+      "t": "text",
+      "v": "-scroll, over it to zoom in around the pointer — far enough in, it shows every frame — then scroll to move along. Hold "
+     },
+     {
+      "t": "code",
+      "v": "⇧"
+     },
+     {
+      "t": "text",
+      "v": " while dragging to scrub slowly."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Jump to a frame.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Jump to a frame."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Click the timecode and type "
+     },
+     {
+      "t": "code",
+      "v": "01:00:10:12"
+     },
+     {
+      "t": "text",
+      "v": ", a frame number like "
+     },
+     {
+      "t": "code",
+      "v": "240"
+     },
+     {
+      "t": "text",
+      "v": ", seconds like "
+     },
+     {
+      "t": "code",
+      "v": "10.5s"
+     },
+     {
+      "t": "text",
+      "v": ", or a nudge like "
+     },
+     {
+      "t": "code",
+      "v": "+12"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "-1s"
+     },
+     {
+      "t": "text",
+      "v": ". Right-click it to switch between timecode, frames and seconds."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "In, out and loop.",
+      "children": [
+       {
+        "t": "text",
+        "v": "In, out and loop."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "I"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "O"
+     },
+     {
+      "t": "text",
+      "v": " set an in and an out point; "
+     },
+     {
+      "t": "code",
+      "v": "⌥L"
+     },
+     {
+      "t": "text",
+      "v": " loops between them; "
+     },
+     {
+      "t": "code",
+      "v": "⌥X"
+     },
+     {
+      "t": "text",
+      "v": " clears them."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Speed",
+      "children": [
+       {
+        "t": "text",
+        "v": "Speed"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " from a quarter to double, "
+     },
+     {
+      "t": "strong",
+      "v": "framing guides",
+      "children": [
+       {
+        "t": "text",
+        "v": "framing guides"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for 2.39, 1.85, 16:9, 4:3, 1:1 and 9:16 with action and title safe ("
+     },
+     {
+      "t": "code",
+      "v": "G"
+     },
+     {
+      "t": "text",
+      "v": "), and "
+     },
+     {
+      "t": "strong",
+      "v": "full screen",
+      "children": [
+       {
+        "t": "text",
+        "v": "full screen"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " ("
+     },
+     {
+      "t": "code",
+      "v": "F"
+     },
+     {
+      "t": "text",
+      "v": ")."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Versions.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Versions."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A clip with "
+     },
+     {
+      "t": "link",
+      "v": "versions",
+      "href": "/docs/files#versions",
+      "children": [
+       {
+        "t": "text",
+        "v": "versions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " can play any of them, and "
+     },
+     {
+      "t": "strong",
+      "v": "Compare",
+      "children": [
+       {
+        "t": "text",
+        "v": "Compare"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts a second one behind it: "
+     },
+     {
+      "t": "code",
+      "v": "\\"
+     },
+     {
+      "t": "text",
+      "v": " flips between the two on the same frame."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " closes it. Every key is listed under "
+    },
+    {
+     "t": "link",
+     "v": "Player",
+     "href": "/docs/keyboard-shortcuts#player",
+     "children": [
+      {
+       "t": "text",
+       "v": "Player"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
