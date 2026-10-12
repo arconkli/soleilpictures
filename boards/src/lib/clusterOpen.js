@@ -23,3 +23,23 @@ export function unopenableClusterNotice(row, currentWorkspaceId) {
   }
   return { message: "That cluster isn't available to you any more.", openTrash: false };
 }
+
+// Resolve true as soon as ready() holds, or false once `timeout` ms pass
+// without it. Replaces "dispatch the flash/open event 200 ms after
+// navigating", which lost the event whenever the cluster took longer than
+// that to mount: the listener lives in the mounted canvas, so an event sent
+// before it exists reaches nobody. Callers act on false too (the old
+// behaviour, just later), so a slow mount degrades to what it was.
+export function waitUntil(ready, { timeout = 5000, interval = 50, now = Date.now, schedule = setTimeout } = {}) {
+  return new Promise((resolve) => {
+    const start = now();
+    const tick = () => {
+      let ok = false;
+      try { ok = !!ready(); } catch (_) { ok = false; }
+      if (ok) { resolve(true); return; }
+      if (now() - start >= timeout) { resolve(false); return; }
+      schedule(tick, interval);
+    };
+    tick();
+  });
+}

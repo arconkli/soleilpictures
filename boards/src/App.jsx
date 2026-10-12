@@ -206,7 +206,7 @@ import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
-import { unopenableClusterNotice } from './lib/clusterOpen.js';
+import { unopenableClusterNotice, waitUntil } from './lib/clusterOpen.js';
 import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
@@ -4885,6 +4885,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, setTweak]);
 
+  // The main pane's cluster once it is loaded, on screen, AND its canvas has
+  // subscribed to the flash / open-doc events: set in an effect, and a
+  // parent's effects run after its children's, so by the time this names a
+  // cluster the CanvasSurface listening for it is in place. navHandlers waits
+  // on it.
+  const mountedBoardRef = useRef(null);
+  useEffect(() => {
+    mountedBoardRef.current = (yb.ready && currentSurface === 'board') ? yb.boardId : null;
+  }, [yb.ready, yb.boardId, currentSurface]);
+
   // Navigate handlers exposed to every linking surface via
   // EntityNavigateProvider, and run by the ?to= resolver below, so a copied
   // link and a click take one path. A cluster opens with its breadcrumb, and
@@ -4901,6 +4911,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return data?.board_id || null;
       } catch (_) { return null; }
     };
+    // The flash / open-doc events are heard only by the mounted cluster's
+    // canvas, so send them once it is there rather than after a fixed 200 ms,
+    // which a cold or large cluster outlasted and the event reached nobody.
+    // On timeout they go anyway — what the fixed delay did, just later.
+    const whenMounted = (boardId) => waitUntil(() => mountedBoardRef.current === boardId);
     const openDoc = async (ref, { atPos }) => {
       const boardId = ref.boardId || await boardOfCard(ref.docCardId);
       if (boardId) {
@@ -4911,13 +4926,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (atPos && ref.pageId) {
         try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
       }
-      setTimeout(() => {
-        document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
-          detail: atPos
-            ? { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 }
-            : { cardId: ref.docCardId, pageId: null, scrollTop: 0 },
-        }));
-      }, 200);
+      // No cluster resolved: the doc can only be on the one already open.
+      if (boardId) await whenMounted(boardId);
+      document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
+        detail: atPos
+          ? { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 }
+          : { cardId: ref.docCardId, pageId: null, scrollTop: 0 },
+      }));
       return 'opened';
     };
     return {
@@ -4936,11 +4951,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         recents.push(boardId);
         if (ref.cardId) {
           // Tell the canvas to flash this card once the new board mounts.
-          setTimeout(() => {
+          whenMounted(boardId).then(() => {
             document.dispatchEvent(new CustomEvent('soleil-flash-card', {
               detail: { boardId, cardId: ref.cardId },
             }));
-          }, 200);
+          });
         }
         return r;
       },
@@ -4967,11 +4982,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (r !== 'opened') return r;
         recents.push(boardId);
         // Flash every member card once the board mounts.
-        setTimeout(() => {
+        whenMounted(boardId).then(() => {
           document.dispatchEvent(new CustomEvent('soleil-flash-group', {
             detail: { boardId, groupId: ref.id },
           }));
-        }, 250);
+        });
         return r;
       },
       tag: (ref) => {
