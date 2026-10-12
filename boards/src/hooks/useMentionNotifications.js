@@ -48,7 +48,9 @@ export function useMentionNotifications(userId) {
       }, (payload) => {
         const row = payload?.new;
         if (!row || row.dismissed_at) return;
-        setUnread(arr => arr.some(n => n.id === row.id) ? arr : [...arr, row]);
+        // `live`: it arrived while you were here, so the inbox ping already
+        // toasted it — App toasts only the ones from while you were away.
+        setUnread(arr => arr.some(n => n.id === row.id) ? arr : [...arr, { ...row, live: true }]);
       })
       .subscribe();
     return () => { try { supabase.removeChannel(ch); } catch (_) {} };

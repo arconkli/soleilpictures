@@ -76,6 +76,7 @@ import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
 import { messagingAccess } from './lib/messageAccess.js';
+import { isWatchingConversation } from './lib/threadAttention.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
 import { OpenDmContext, MessagesUiContext } from './hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
@@ -5015,12 +5016,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     for (const n of (mentionNotifs || [])) {
       if (surfacedMentionsRef.current.has(n.id)) continue;
       surfacedMentionsRef.current.add(n.id);
-      const where = n.board_id
-        ? (boards[n.board_id]?.name || 'a board')
-        : 'a direct message';
+      // A mention that arrives live already has its toast, with an Open
+      // button, from the inbox ping; a second one said "a direct message" for
+      // groups too and fired even with the thread open (COMMS-14). Only
+      // mentions from while you were away get one, and it opens the thread.
+      if (n.live || isWatchingConversation(n.conversation_id)) continue;
+      const who = userProfiles.get(n.mentioned_by)?.name || 'Someone';
       feedback.toast({
         type: 'info',
-        message: `You were mentioned in ${where}. Open Messages to see it.`,
+        message: `${who} mentioned you while you were away.`,
+        action: n.conversation_id
+          ? { label: 'Open', onClick: () => openConversationFromToast(n.conversation_id) }
+          : undefined,
       });
     }
     if (mentionNotifs && mentionNotifs.length > 0) {
