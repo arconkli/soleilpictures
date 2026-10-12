@@ -194,6 +194,17 @@ export function AdminDiscoverTab() {
       });
       if (!ok) return;
     }
+    // Saving a LIVE board as a draft takes it offline exactly as Unpublish does
+    // (the RPC nulls published_at), so it gets the same confirm. It used to go
+    // straight through, and the only sign was a "Saved as draft" toast.
+    if (!willPublish && current && current.is_published) {
+      const ok = await feedback.confirm({
+        title: 'Save and unpublish?',
+        message: `Saving as a draft takes /c/${origSlug || current.slug} offline: it stops resolving, drops out of the sitemap, and is de-indexed over time. To keep it live, use Save & keep live.`,
+        confirmLabel: 'Save & unpublish',
+      });
+      if (!ok) return;
+    }
     if (willPublish && !(current && current.is_published)) {
       const ok = await feedback.confirm({
         title: 'Publish this board?',
@@ -215,7 +226,7 @@ export function AdminDiscoverTab() {
         priority: Number(form.priority) || 0,
         published: willPublish,
       });
-      feedback.toast({ type: 'success', message: willPublish ? 'Saved — live' : 'Saved as draft' });
+      feedback.toast({ type: 'success', message: willPublish ? 'Saved — live' : (current?.is_published ? 'Saved and unpublished' : 'Saved as draft') });
       if (willPublish) pingIndexNow(res?.slug || form.slug);  // best-effort Bing/Yandex ping
       await refresh();
       setSelected(res?.board_id || null);
@@ -510,7 +521,7 @@ export function AdminDiscoverTab() {
                       </button>
                     )}
                     <button className="btn-secondary" disabled={busy || !!slugErr} onClick={() => save(false)}>
-                      Save as draft
+                      {isLive ? 'Save & unpublish' : 'Save as draft'}
                     </button>
                     {isLive && (
                       <>
