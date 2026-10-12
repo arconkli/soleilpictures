@@ -5047,7 +5047,7 @@ DELETE /boards/:id/cards — many at once
 
 Sent as a JSON body on DELETE, which is unusual but deliberate: a thousand card ids do not fit in a query string, and making a destructive call look like a POST would mislead every proxy, log and permission check between you and it.
 
-Every removed card comes back in full, so the response is the undo.
+Every removed card comes back, so the response is the undo — with the same exceptions as the single delete below.
 
 PATCH /boards/:id/cards/:cardId
 
@@ -5075,7 +5075,9 @@ Requires the delete scope — see Authentication.
   "restore_with": "POST /api/v1/boards/:id/cards"
 }
 
-The response body is the undo. There is no undo toast on an HTTP call, so the full card comes back — POST it to the cards endpoint to restore it.
+The response body is the undo. There is no undo toast on an HTTP call, so the card comes back — POST it to the cards endpoint to restore it. It returns with a new id, and its identifiers and properties are not restored with it, so send those again in the same POST if you use them.
+
+Some cards cannot come back this way: grids, palettes and schedules (kinds this API reads but does not create), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in not_restorable, with a recover sentence. They are not lost: every delete saves the board to its Version history first, and they can be restored from there in the app.
 
 const { card } = await soleil(`/boards/${board}/cards/${id}`, { method: "DELETE" });
 // …later, if that turns out to have been wrong:
@@ -5938,7 +5940,7 @@ What agents should know
 
 read_board truncates by default. Pass full: true for untruncated bodies, and expect it to be large. Both read_board and list_boards paginate — check for more rather than assuming one page is everything.
 
-Deleting returns the card. delete_card responds with the full card it removed. That object is the undo — pass it back to add_cards to restore it. Worth keeping in context before destructive work.
+Deleting returns the card. delete_card responds with the card it removed. That object is the undo — pass it back to add_cards to restore it. Worth keeping in context before destructive work. Grids, palettes, schedules and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
 
 Deleting a board is destructive and confirmable. delete_board removes a whole board; the tool description says to confirm with the user first, and restore_board exists because that is not always heeded.
 

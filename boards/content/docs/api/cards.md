@@ -273,7 +273,8 @@ Sent as a JSON body on `DELETE`, which is unusual but deliberate: a thousand
 card ids do not fit in a query string, and making a destructive call look like a
 `POST` would mislead every proxy, log and permission check between you and it.
 
-Every removed card comes back in full, so the response is the undo.
+Every removed card comes back, so the response is the undo — with the same
+exceptions as the single delete below.
 
 ## `PATCH /boards/:id/cards/:cardId`
 
@@ -313,7 +314,16 @@ Requires the `delete` scope — see
 ```
 
 **The response body is the undo.** There is no undo toast on an HTTP call, so
-the full card comes back — `POST` it to the cards endpoint to restore it.
+the card comes back — `POST` it to the cards endpoint to restore it. It returns
+with a new id, and its identifiers and properties are not restored with it, so
+send those again in the same `POST` if you use them.
+
+Some cards cannot come back this way: grids, palettes and schedules (kinds this
+API reads but does not create), and docs written in the app, whose pages are
+stored apart from the card. A delete that removes any of them lists their ids in
+`not_restorable`, with a `recover` sentence. They are not lost: every delete
+saves the board to its Version history first, and they can be restored from
+there in the app.
 
 ```ts
 const { card } = await soleil(`/boards/${board}/cards/${id}`, { method: "DELETE" });

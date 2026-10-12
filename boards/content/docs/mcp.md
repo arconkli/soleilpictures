@@ -274,9 +274,12 @@ to the board owner's storage. See [Images API](/docs/api/images).
 bodies, and expect it to be large. Both `read_board` and `list_boards` paginate
 — check for more rather than assuming one page is everything.
 
-**Deleting returns the card.** `delete_card` responds with the full card it
+**Deleting returns the card.** `delete_card` responds with the card it
 removed. That object is the undo — pass it back to `add_cards` to restore it.
-Worth keeping in context before destructive work.
+Worth keeping in context before destructive work. Grids, palettes, schedules
+and docs written in the app are the exception: the response lists them in
+`not_restorable`, and they come back from the board's Version history in the
+app instead.
 
 **Deleting a board is destructive and confirmable.** `delete_board` removes a
 whole board; the tool description says to confirm with the user first, and
