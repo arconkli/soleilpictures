@@ -65,6 +65,7 @@ import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { FilmPlayer } from './film/FilmPlayer.jsx';
+import { registerCardPlayer } from '../lib/playerBus.js';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
@@ -848,16 +849,26 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   const playerRef = useRef(null);
   const [live, setLive] = useState(!poster);
   const [playOnMount, setPlayOnMount] = useState(false);
+  // Where the review player left this clip: the card mounts on it (or seeks
+  // there) and keeps it, as if you had moved it there yourself.
+  const [syncTime, setSyncTime] = useState(null);
+  useEffect(() => { setSyncTime(null); }, [src]);
   const hoverRef = useRef(false);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const timers = useRef({ on: null, off: null });
   useEffect(() => { if (!poster) setLive(true); }, [poster]);
-  useEffect(() => { if (selected) setLive(true); }, [selected]);
+  useEffect(() => {
+    if (!selected) return;
+    clearTimeout(timers.current.off);
+    setLive(true);
+  }, [selected]);
   const scheduleOff = () => {
     clearTimeout(timers.current.off);
     if (!poster) return;
     timers.current.off = setTimeout(() => {
       const st = playerRef.current?.getState?.();
-      if (hoverRef.current || selected || st?.playing || st?.touched) return;
+      if (hoverRef.current || selectedRef.current || st?.playing || st?.touched) return;
       setLive(false);
       setPlayOnMount(false);
     }, 5000);
@@ -880,17 +891,26 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   const wasSelected = useRef(false);
   const onDownCapture = (e) => { wasSelected.current = selected; hoverRef.current = true; if (!live) setLive(true); void e; };
   const clickGate = (e) => !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && (wasSelected.current || tapToPlay);
-  // The review player closed on another frame: this card follows it there.
+  // The review player closed on another frame: this card follows it there,
+  // mounting its player if it was resting on the poster.
   useEffect(() => {
     if (!cardId) return undefined;
     const on = (e) => {
       const d = e.detail || {};
       if (d.cardId !== cardId || !Number.isFinite(d.time)) return;
-      playerRef.current?.seekTime?.(d.time);
+      setSyncTime(d.time);
+      setPlayOnMount(false);
+      setLive(true);
+      playerRef.current?.seekTime?.(d.time, { touch: true });
     };
     document.addEventListener('soleil-player-closed', on);
     return () => document.removeEventListener('soleil-player-closed', on);
   }, [cardId]);
+  // Its right-click "Open in player" starts the review where this player is.
+  useEffect(() => registerCardPlayer(cardId, {
+    getState: () => playerRef.current?.getState?.() || null,
+    pause: () => playerRef.current?.pause?.(),
+  }), [cardId]);
 
   const durText = Number.isFinite(media?.dur) && media.dur > 0 ? formatClipLength(media.dur) : '';
   const showTitle = !!title || editingTitle;
@@ -914,7 +934,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
             frame-accurate scrubber, timecode, and ⤢ into the review player. */}
         {resolvedUrl && !autoplay && live
           ? <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
-                        clickGate={clickGate} autoPlay={playOnMount}
+                        clickGate={clickGate} autoPlay={playOnMount} initialTime={syncTime}
                         probe={() => probeCardVideo({ kind: 'video', src })} />
           : resolvedUrl && autoplay
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}

@@ -63,6 +63,7 @@
 .film-overlay.is-live { pointer-events: auto; }
 .film-side-badge {
   position: absolute; height: 22px; padding: 0 8px; border-radius: 6px;
+  white-space: nowrap;
   display: inline-flex; align-items: center;
   background: rgba(0, 0, 0, 0.66); color: var(--film-ink-0);
   font: 600 11px/1 var(--font-sans); letter-spacing: 0.02em;
@@ -605,24 +606,41 @@
 }
 
 /* Narrow players drop the least-needed things first: the I–O chip's label,
-   the fps chip, the length, the volume slider; then the frame steps' marks. */
+   the versions' names on A | B, the fps chip, the length, the volume slider.
+   The transport stays centred under the picture until the two sides would
+   reach it; then it takes a row of its own (the timecode and the tools above
+   it, the tools wrapping before they'd ever overlap). */
 @container film (max-width: 1100px) {
   .film-vol-slider { width: 56px; }
   .film-inout-k { display: none; }
+}
+@container film (max-width: 1000px) {
+  .film-ab-seg span { display: none; }
 }
 @container film (max-width: 900px) {
   .film-fps, .film-vol-slider { display: none; }
   .film-dur { display: none; }
   .ft-zoom { display: none; }
   .film-dock-row { gap: 6px; }
+  .film-dock-right .film-sep { display: none; }
+}
+@container film (max-width: 720px) {
+  .film-dock-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'left right' 'centre centre';
+    row-gap: 0;
+  }
+  .film-dock-left { grid-area: left; }
+  .film-dock-right { grid-area: right; flex-wrap: wrap; row-gap: 2px; }
+  .film-dock-centre { grid-area: centre; justify-content: center; }
 }
 @container film (max-width: 640px) {
-  .film-dock-row { grid-template-columns: auto 1fr auto; }
-  .film-dock-centre .film-btn:first-child, .film-dock-centre .film-btn:last-child { display: none; }
   .film-chip--btn, .film-inout { display: none; }
-  .film-tc { width: 11ch; font-size: 14px; }
-  .film-dock-right .film-sep { display: none; }
+  .film-tc { width: calc(11ch + 14px); font-size: 14px; }
   .frv-main > .film .film-stage { margin: 0; }
+}
+@container film (max-width: 480px) {
+  .film-guides-btn { display: none; }
 }
 @container frv (max-width: 700px) {
   .frv-head { grid-template-columns: minmax(0, 1fr) auto; height: 48px; padding-left: 12px; }

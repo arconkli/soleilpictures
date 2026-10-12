@@ -140,7 +140,7 @@ async function openReview(page, id, extra = {}) {
   await page.evaluate(({ data, id, extra }) => {
     const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
-    const media = { fps: [24, 1], frames: 48, dur: 2, w: 64, h: 36, probed: 1 };
+    const media = { fps: [24, 1], frames: 48, dur: 2, w: 64, h: 36, probed: 1, ...(extra.audio ? { audio: { codec: 'mp4a', rate: 48000, ch: 2 } } : {}) };
     const versions = extra.versions ? {
       versions: [{ src: url, id: 'v1', n: 1, media }, { src: url, id: 'v2', n: 2, media, label: 'Cut 2' }], verId: 'v2',
     } : {};
@@ -483,3 +483,132 @@ test('stop comparing while showing B: A takes over on the same frame', async ({ 
   await expect.poll(() => frameOnScreen(page, shown)).toBe(15);
   await expect(review.locator('.film-tc')).toHaveText('00:00:00:15');
 });
+
+// ── UI and integration review fixes ────────────────────────────────────────
+test('Quick look: its picture menu takes Esc and arrows; Space closes Quick look on a clip', async ({ page }) => {
+  await go(page);
+  await addClip(page, 'q-2', MEDIA);
+  await page.locator('.canvas-wrap').click({ position: { x: 30, y: 300 } });
+  await page.keyboard.press('f');
+  const tile = page.locator('.list-wrap.is-panel [data-item-id="q-2"]');
+  await expect(tile).toBeVisible();
+  await tile.click();
+  await page.keyboard.press('Space');
+  const ql = page.locator('.ql');
+  await expect(ql.locator('.film--preview')).toBeVisible();
+  const label = await ql.locator('.ql-meta').textContent();
+  await ql.locator('.film-stage').click({ button: 'right', position: { x: 120, y: 80 } });
+  const menu = page.locator('.film-menu');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown');
+  await expect(ql.locator('.ql-meta')).toHaveText(label);
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(ql).toBeVisible();
+  // The clip autoplays; Space is still Quick look's.
+  await page.keyboard.press('Space');
+  await expect(page.locator('.ql')).toHaveCount(0);
+});
+
+test('switching versions while playing carries on from where it was', async ({ page }) => {
+  await go(page);
+  const review = await openReview(page, 'r-verplay', { versions: true });
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(600);
+  await review.getByRole('radio', { name: 'v1' }).click();
+  await expect(review.getByRole('radio', { name: 'v1' })).toHaveAttribute('aria-checked', 'true');
+  await expect(review.locator('.film')).toHaveClass(/is-playing/);
+  await page.keyboard.press('k');
+  await expect.poll(async () => Number((await review.locator('.film-tc').textContent()).split(':').pop())).toBeGreaterThan(6);
+});
+
+test('Open in player from the right-click menu starts where the card is', async ({ page }) => {
+  await go(page);
+  await addClip(page, 'c-ctx', MEDIA);
+  const card = page.locator('[data-card-id="c-ctx"]');
+  await card.hover();
+  const fwd = card.getByRole('button', { name: 'Forward one frame' });
+  for (let i = 0; i < 5; i++) await fwd.click();
+  await expect(card.locator('.film-tc')).toHaveText('00:00:00:05');
+  await card.click({ button: 'right', position: { x: 120, y: 60 } });
+  await page.getByRole('menuitem', { name: 'Open in player' }).click();
+  const review = page.locator('.frv');
+  await expect(review).toBeVisible();
+  await expect(review.locator('.film-tc')).toHaveText('00:00:00:05');
+  await expect(review.locator('.film')).not.toHaveClass(/is-playing/);
+});
+
+test('a card resting on its poster follows the review it opened from Quick look, and keeps the frame', async ({ page }) => {
+  await go(page);
+  await addPosteredClip(page, 'c-follow');
+  await page.mouse.move(5, 400);
+  await page.keyboard.press('f');
+  const tile = page.locator('.list-wrap.is-panel [data-item-id="c-follow"]');
+  await expect(tile).toBeVisible();
+  await tile.click();
+  await page.keyboard.press('Space');
+  const ql = page.locator('.ql');
+  await expect(ql.locator('.film--preview')).toBeVisible();
+  await ql.getByRole('button', { name: 'Player', exact: true }).click();
+  const review = page.locator('.frv');
+  await expect(review).toBeVisible();
+  await page.keyboard.press('k');
+  await page.keyboard.press('Home');
+  for (let i = 0; i < 9; i++) await page.keyboard.press('ArrowRight');
+  await expect(review.locator('.film-tc')).toHaveText('00:00:00:09');
+  await page.keyboard.press('Escape');
+  await expect(review).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(ql).toHaveCount(0);
+  const card = page.locator('[data-card-id="c-follow"]');
+  await expect(card.locator('.film--compact .film-tc')).toHaveText('00:00:00:09');
+  await page.waitForTimeout(5600);
+  await expect(card.locator('.film--compact video')).toHaveCount(1);
+  await expect(card.locator('.film-tc')).toHaveText('00:00:00:09');
+});
+
+test('menus close on a second press and keep their ticks live; the timecode field and volume give the keys back', async ({ page }) => {
+  await go(page);
+  const review = await openReview(page, 'r-ui', { audio: true });
+  const speed = review.getByRole('button', { name: /^Speed/ });
+  await speed.click();
+  await expect(page.locator('.film-menu')).toBeVisible();
+  await speed.click();
+  await expect(page.locator('.film-menu')).toHaveCount(0);
+  await review.getByRole('button', { name: 'Framing guides' }).click();
+  const thirds = page.locator('.film-menu').getByRole('menuitemcheckbox', { name: 'Thirds' });
+  await thirds.click();
+  await expect(thirds).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.film-menu')).toHaveCount(0);
+  await expect(review).toBeVisible();
+  // A jump that isn't one, then Esc: the field goes, the keys come back, and
+  // the next jump starts without the old error.
+  await page.keyboard.press('1');
+  await expect(review.locator('.film-tc-input')).toBeFocused();
+  await page.keyboard.type('x:y');
+  await page.keyboard.press('Enter');
+  await expect(review.locator('.film-tc-hint')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(review.locator('.film-tc-input')).toHaveCount(0);
+  await expect(review).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(review.locator('.film-tc')).toHaveText('00:00:00:01');
+  await page.keyboard.press('2');
+  await expect(review.locator('.film-tc-input')).toBeVisible();
+  await expect(review.locator('.film-tc-hint')).toHaveCount(0);
+  // A transport button closes the field.
+  await review.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect(review.locator('.film-tc-input')).toHaveCount(0);
+  await page.keyboard.press('k');
+  await expect(review.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+  // The volume slider doesn't keep the focus after a click.
+  const slider = review.getByRole('slider', { name: 'Volume' });
+  await slider.click();
+  await expect(slider).not.toBeFocused();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowRight');
+  await expect(review.locator('.film-tc')).toHaveText('00:00:00:01');
+});
+
