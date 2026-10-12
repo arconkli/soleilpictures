@@ -9658,7 +9658,7 @@ export function CanvasSurface({
                                                      onEdit={onUpdate && c.src ? (rect) => setImageEdit({ cardId: c.id, anchorRect: rect }) : null}
                                                      onDownload={c.src ? () => runDownload(c, 'image') : null}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
-    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} fontSizeV={c.fontSizeV} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
                                                 awareness={getAwareness?.() || null}
                                                 cardId={c.id} boardId={board.id}

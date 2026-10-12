@@ -48,6 +48,8 @@ test('size steppers work from the note\'s own size', async ({ page }) => {
   await plus.click();
   await expect(size).toHaveValue('17');
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(17);
+  expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSizeV'))).toBe(2);
+  await expect(page.locator(A_EDIT)).toHaveCSS('font-size', '17px');
   await expect(page.locator(A_EDIT)).toBeFocused();
 });
 
@@ -57,7 +59,7 @@ test('a note that is already 24px steps up from 24, not down to 16', async ({ pa
   await expect(page.locator('#noteqa-ready')).toHaveText('noteqa ready', { timeout: 15000 });
   await page.evaluate(() => {
     const t = window.__soleilNoteTest;
-    t.docA.transact(() => t.cardA.set('fontSize', 24), 'local');
+    t.docA.transact(() => { t.cardA.set('fontSize', 24); t.cardA.set('fontSizeV', 2); }, 'local');
   });
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
@@ -67,6 +69,31 @@ test('a note that is already 24px steps up from 24, not down to 16', async ({ pa
   await page.getByRole('button', { name: 'Increase font size' }).click();
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(25);
   await expect(size).toHaveValue('25');
+});
+
+// A size stored before whole-note sizes rendered (a workspace default, or
+// + pressed while nothing happened) was never seen, and the note was fitted at
+// 15px. It keeps that look rather than suddenly clipping or growing.
+test('a note size stored before sizes rendered keeps its 15px look', async ({ page }) => {
+  page.on('pageerror', (e) => { throw e; });
+  await page.goto('/?noteqa=1&toolbar=1');
+  await expect(page.locator('#noteqa-ready')).toHaveText('noteqa ready', { timeout: 15000 });
+  await page.evaluate(() => {
+    const t = window.__soleilNoteTest;
+    t.docA.transact(() => t.cardA.set('fontSize', 31), 'local');
+  });
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await page.keyboard.type('old');
+  await expect(page.locator(A_EDIT)).toHaveCSS('font-size', '15px');
+  const size = page.locator('.tob-size-combo');
+  await expect(size).toHaveValue('15');
+  // A pick from here on is the size the note shows.
+  await page.getByRole('button', { name: 'Increase font size' }).click();
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(16);
+  await expect(page.locator(A_EDIT)).toHaveCSS('font-size', '16px');
+  await page.mouse.click(5, 5);
+  await expect(page.locator(`${A} .note-body`)).toHaveCSS('font-size', '16px');
 });
 
 test('picking a whole-note font names it on the font button', async ({ page }) => {

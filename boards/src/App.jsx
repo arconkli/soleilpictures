@@ -10,6 +10,7 @@ import * as perf from './lib/perf.js';
 import { isEditableTarget, isEditablePointerTarget } from './lib/isEditableTarget.js';
 import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
 import { setActivePane, getActivePane, subscribeActivePane } from './lib/activePane.js';
+import { noteFontSizePatch } from './lib/noteFontSize.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useScrollEdges } from './hooks/useScrollEdges.js';
@@ -2749,7 +2750,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ...(d.bgColor ? { bgColor: d.bgColor } : null),
         ...(d.textColor ? { textColor: d.textColor } : null),
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
-        ...(d.fontSize ? { fontSize: d.fontSize } : null),
+        ...(d.fontSize ? noteFontSizePatch(d.fontSize) : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
       setAutoFocusId(id);
