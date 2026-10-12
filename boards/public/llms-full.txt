@@ -5950,7 +5950,7 @@ Orientation and finding things
 Tool | Input
 whoami | — · the account, its scopes, rate limit, and whether it is a service account
 list_workspaces | —
-search | q (min 2 chars), kind? (board\ | card), workspace_id?, paging
+search | q (min 2 chars), kind? (board|card), workspace_id?, paging
 list_boards | workspace_id?, parent? ("root" for top level), since?, cursor?, paging
 board_tree | root? or workspace_id?, depth? — a whole hierarchy in one call
 get_board | board_id — one board, with how much of the card allowance is used
@@ -5964,7 +5964,7 @@ Tool | Input
 read_board | board_id, full?, include?, source?, since?, paging
 view_image | image_key — fetch an image card's actual picture
 list_images | workspace_id?, board_id?, since?, cursor?
-export_board | board_id, format? (json\ | omc)
+export_board | board_id, format? (json|omc)
 get_metadata | board_id, cards? — identifiers and properties
 list_audit | since?, cursor? — recent writes and image fetches
 

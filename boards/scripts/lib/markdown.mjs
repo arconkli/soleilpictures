@@ -82,7 +82,14 @@ export function slugify(s) {
     .slice(0, 60);
 }
 
-const splitRow = (line) => line.replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+// Cells split on UNESCAPED pipes only. GFM writes a literal pipe in a cell as
+// `\|`, inside code spans too, so `(`board`\|`card`)` is one cell reading
+// "(board|card)"; splitting on every `|` opened a phantom extra column. The
+// escape is dropped once the row is split, before the cell is parsed inline.
+const splitRow = (line) => line
+  .replace(/^\||(?<!\\)\|$/g, '')
+  .split(/(?<!\\)\|/)
+  .map((c) => c.replace(/\\\|/g, '|').trim());
 
 // ── Blocks ──────────────────────────────────────────────────────────────────
 export function parseMarkdown(src) {
