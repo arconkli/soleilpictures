@@ -101,3 +101,19 @@ test.describe('stat strips that wrap (VS-ADMIN-03)', () => {
     });
   }
 });
+
+test.describe('the 8/4 deck between 1001 and 1400px (VS-ADMIN-04)', () => {
+  test.use({ viewport: { width: 1024, height: 768 } });
+
+  for (const view of ['today', 'funnel']) {
+    test(`${view}: a third paired with a full-width chart is not left alone at half width`, async ({ page }) => {
+      await openAdmin(page, { view });
+      const thirds = page.locator('.adm-deck > .adm-c4');
+      await expect(thirds.first()).toBeVisible({ timeout: 15000 });
+      const widths = await thirds.evaluateAll((els) => els.map((e) => [
+        e.getBoundingClientRect().width, e.parentElement.getBoundingClientRect().width,
+      ]));
+      for (const [w, deck] of widths) expect(Math.abs(w - deck)).toBeLessThan(1);
+    });
+  }
+});

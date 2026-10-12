@@ -4671,6 +4671,11 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 @media (max-width: 1400px) {
   .adm-c2, .adm-c3, .adm-c4 { grid-column: span 6; }
   .adm-c5, .adm-c7, .adm-c8, .adm-c9, .adm-c10 { grid-column: span 12; }
+  /* A third paired with two-thirds loses its partner to the full row above,
+     and as a half it sat alone beside an empty half. It follows the chart to
+     full width instead (the Live panel, Biggest leak, the return curve). */
+  .adm-c8 + .adm-c4,
+  .adm-c4:has(+ .adm-c8) { grid-column: span 12; }
 }
 
 @media (max-width: 1000px) {
