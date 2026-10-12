@@ -8937,6 +8937,7 @@ export function CanvasSurface({
   // empty-canvas points; a right-click menu item shows an inline draft
   // input (no popup) at the click position.
   const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds,
+          upsertLocally: upsertCommentLocally,
           viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id, { enabled: !isPublic });
   // Live vote cards — a separate annotation type sharing the comment
   // anchoring/drag/hide machinery. They hide with the comments eye toggle
@@ -9058,15 +9059,17 @@ export function CanvasSurface({
       }
     } catch (_) { /* fall through with zero offset */ }
     try {
-      await addComment({
+      const row = await addComment({
         workspaceId, boardId: board.id, author: userId,
         body: trimmed, anchor: commentDraft.anchor,
         offsetX: offset.offsetX, offsetY: offset.offsetY,
       });
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) });
-    } finally {
+      upsertCommentLocally(row);   // shown now, not after the realtime refetch
       setCommentDraft(null);
+    } catch (err) {
+      // The draft stays open with its text so a retry is one press; clearing
+      // it here (in a finally) threw away what was typed (SHARE-11).
+      feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) + ' — your text is still there.' });
     }
   };
   // Helper: compute a comment's canvas-space rect for collision-avoidance.
