@@ -23,6 +23,7 @@ import * as userProfiles from '../../lib/userProfiles.js';
 import { describeCard, describeCluster, describeSelection, describeGroup, fileKeyOf, formatSize, formatWhen } from '../../lib/cardInfo.js';
 import { useMediaFacts } from '../../hooks/useMediaFacts.js';
 import { VersionsSection } from '../info/VersionsSection.jsx';
+import { openPlayer } from '../../lib/playerBus.js';
 import { canVersion } from '../../lib/cardVersions.js';
 import { pickVersionFile, makeCurrent, deleteVersion, restoreVersion, labelVersion } from '../../lib/versionActions.js';
 
@@ -241,6 +242,7 @@ export function DetailPanel({
             onDelete={versionEnv ? (v) => deleteVersion(versionEnv, card.id, v.id) : null}
             onRestore={versionEnv ? (v) => restoreVersion(versionEnv, card.id, v.id) : null}
             onLabel={versionEnv ? (v) => labelVersion(versionEnv, card.id, v.id) : null}
+            onOpen={item.kind === 'video' && item.boardId && !isPublicSurface() ? (v) => openPlayer({ boardId: item.boardId, cardId: card.id, versionId: v.id, card }) : null}
             onDownload={(v) => downloadCardAsset({ ...card, src: v.src ?? card.src, fileSrc: v.fileSrc ?? card.fileSrc, pdfSrc: v.pdfSrc ?? card.pdfSrc, fileName: v.fileName || card.fileName, name: v.name || card.name }, item.kind, { surface: 'cluster_browser' }).catch(() => {})}
           />
         )}

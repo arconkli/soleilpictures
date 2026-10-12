@@ -1,6 +1,6 @@
 ---
 title: Video and Audio — Soleil Clusters
-metaDescription: Video and audio cards in Soleil Clusters play inline on the canvas. Audio draws a real waveform decoded from the file, with cover art and one-at-a-time play.
+metaDescription: Video and audio play inline on the canvas. Video steps frame by frame in a review player; audio draws a real waveform with cover art.
 h1: Video and audio
 navLabel: Video and audio
 section: files
@@ -22,13 +22,45 @@ related:
   - /docs/account/plans
 ---
 
-Both play in place on the canvas. No lightbox, no separate player window — the
-clip is a card among the reference stills it belongs with.
+Both play in place on the canvas — the clip is a card among the reference
+stills it belongs with. A video also opens in a full review player when you
+need to look at it frame by frame.
 
 ## Video
 
 A video card plays inline. Move it, resize it, group it and comment on it like
-anything else.
+anything else. Hover it for its controls: play, one frame back and forward, a
+scrubber that lands on exact frames, the timecode, mute, and **⤢** to open the
+review player. Click the picture to play or pause; dragging the card doesn't.
+
+### The review player
+
+**⤢** on a video card, **Open in player** in its right-click menu (on the board
+or in [Files](/docs/clusters/list-view)), or **Player** in Quick look opens the
+clip full size, made for looking closely:
+
+- **Frame by frame.** `←` and `→` step one frame, `⇧←` and `⇧→` one second. The
+  timecode counts the frame actually on screen, in the clip's own frame rate
+  and from its own start timecode when it has one.
+- **J, K, L.** Play backward, stop, and play forward; press again to go faster.
+  Hold `K` and tap `J` or `L` to inch a frame at a time.
+- **A better scrubber.** Hover the timeline for a preview of that frame and its
+  timecode. Pinch, or `⌘`-scroll, over it to zoom in around the pointer — far
+  enough in, it shows every frame — then scroll to move along. Hold `⇧` while
+  dragging to scrub slowly.
+- **Jump to a frame.** Click the timecode and type `01:00:10:12`, a frame number
+  like `240`, seconds like `10.5s`, or a nudge like `+12` or `-1s`. Right-click
+  it to switch between timecode, frames and seconds.
+- **In, out and loop.** `I` and `O` set an in and an out point; `⌥L` loops
+  between them; `⌥X` clears them.
+- **Speed** from a quarter to double, **framing guides** for 2.39, 1.85, 16:9,
+  4:3, 1:1 and 9:16 with action and title safe (`G`), and **full screen** (`F`).
+- **Versions.** A clip with [versions](/docs/files#versions) can play any of
+  them, and **Compare** puts a second one behind it: `\` flips between the two
+  on the same frame.
+
+`Esc` closes it. Every key is listed under
+[Player](/docs/keyboard-shortcuts#player).
 
 ### Autoplay and looping
 

@@ -104,6 +104,7 @@ import { canVersion, liveVersions, currentOf, versionLabel } from '../lib/cardVe
 import { kindFromMime } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
 import { probeFile } from '../lib/mediaProbe.js';
+import { openPlayer } from '../lib/playerBus.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
@@ -6893,6 +6894,10 @@ export function CanvasSurface({
     }
 
     if (!multi) {
+      // The review player: frame steps, J/K/L, in/out, guides, versions side by side.
+      if (c.kind === 'video' && c.src && !c.pending && !isPublic) {
+        items.push({ id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: c.id }) });
+      }
       // A new version of a video, audio, PDF or file (an image's is in its Edit menu).
       if (canVersion(c) && c.kind !== 'image') {
         items.push({ id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), c.id) });
@@ -9189,7 +9194,9 @@ export function CanvasSurface({
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
-                                                        onDownload={c.src ? () => runDownload(c, 'video') : null} />;
+                                                        onDownload={c.src ? () => runDownload(c, 'video') : null}
+                                                        mediaJson={c.media ? JSON.stringify(c.media) : null}
+                                                        onExpand={!isPublic && board?.id ? () => openPlayer({ boardId: board.id, cardId: c.id }) : null} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
                                                         bpm={c.bpm} musicalKey={c.musicalKey} ext={c.ext} mime={c.mime}
                                                         onUpdate={onUpdate} autoFocus={af}

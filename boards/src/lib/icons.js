@@ -161,4 +161,12 @@ export {
   FlipVertical,
   CircleHalf,
   Thermometer,
+  // The film player (components/film/).
+  Play,
+  Pause,
+  SpeakerHigh,
+  SpeakerSlash,
+  Repeat,
+  CornersOut,
+  CornersIn,
 } from '@phosphor-icons/react';

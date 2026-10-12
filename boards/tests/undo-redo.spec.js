@@ -233,7 +233,9 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
     expect(cs).toMatch(/mutators\.deleteCardsSilent\?\.\(\[id\]\)/);
     // Canvas post-upload patches use updateCardSilent (the list path always
     // did; the canvas path used to "peel" the src on Cmd+Z).
-    expect(cs).toMatch(/mutators\.updateCardSilent\?\.\(id, \{ src: up\.src, pending: false \}\)/);
+    // (Since 2026-10-12 through updateCardMeta where the shell has it: an
+    // upload finishing isn't an edit, so it doesn't stamp "Modified" in Info.)
+    expect(cs).toMatch(/\(mutators\.updateCardMeta \|\| mutators\.updateCardSilent\)\?\.\(id, \{ src: up\.src, pending: false \}\)/);
     expect(cs).not.toMatch(/mutators\.updateCard\?\.\(id, \{ src: up\.src, pending: false \}\)/);
   });
 

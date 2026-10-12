@@ -20,7 +20,10 @@ import { CardPreview } from './CardPreview.jsx';
 import { LinkMark } from './marks.jsx';
 import { DetailPanel } from './DetailPanel.jsx';
 import { Icon } from '../Icon.jsx';
-import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareOut } from '../../lib/icons.js';
+import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareOut, ArrowsOutSimple } from '../../lib/icons.js';
+import { FilmPlayer } from '../film/FilmPlayer.jsx';
+import { probeCardVideo } from '../../hooks/useMediaFacts.js';
+import { openPlayer } from '../../lib/playerBus.js';
 
 // A signed URL for a stored file (r2:…), or the URL itself.
 function useResolved(src) {
@@ -71,7 +74,10 @@ function Stage({ item }) {
     return <ImageZoomStage src={card.src} alt={name} adjust={card.adjust} cardId={card.id} />;
   }
   if (item.kind === 'video' && card.src) {
-    return <div className="ql-media"><Media kind="video" src={card.src} poster={card.poster} title={name} /></div>;
+    // The film player without its keys — Quick look's own arrows step
+    // between files. Its buttons step frames; ⤢ opens the review player.
+    return <div className="ql-media ql-film"><FilmPlayer mode="full" src={card.src} poster={card.poster} media={card.media || null} title={name} autoPlay
+                                                             probe={() => probeCardVideo(card)} /></div>;
   }
   if (item.kind === 'audio' && card.src) {
     return (
@@ -202,6 +208,11 @@ export default function QuickLook({
         {onPutOnBoard && item.unplaced && (
           <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
             <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
+          </button>
+        )}
+        {item.kind === 'video' && item.card?.src && item.boardId && (
+          <button type="button" className="ql-btn" onClick={() => openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card })} title="Open in the review player">
+            <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
           </button>
         )}
         {canDownload && (

@@ -87,6 +87,27 @@ const SECTIONS = [
     ],
   },
   {
+    // The review player (components/film/), while it's open. Mirrors
+    // lib/playerKeys.js.
+    title: 'Player',
+    rows: [
+      [['Space'], 'Play · pause'],
+      [['J', 'K', 'L'], 'Play backward · stop · forward — again to go faster'],
+      [['K+J', 'K+L'], 'One frame back · forward'],
+      [['←', '→'], 'One frame back · forward'],
+      [['⇧←', '⇧→'], 'One second back · forward'],
+      [['Home', 'End'], 'First · last frame'],
+      [['I', 'O'], 'Set in · out'],
+      [['⌥L'], 'Loop between in and out'],
+      [['⌥X'], 'Clear in and out'],
+      [['M'], 'Mute'],
+      [['F'], 'Full screen'],
+      [['G'], 'Framing guides'],
+      [['\\'], 'Flip to the version you compare with'],
+      [['Esc'], 'Close the player'],
+    ],
+  },
+  {
     title: 'Notes',
     rows: [
       [['Double-click'], 'Edit a note or title'],

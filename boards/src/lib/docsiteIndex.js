@@ -237,7 +237,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-08",
+    "updated": "2026-10-12",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -263,6 +263,10 @@ export const DOCS_PAGES = [
       {
         "id": "audio",
         "text": "Audio"
+      },
+      {
+        "id": "player",
+        "text": "Player"
       },
       {
         "id": "notes",
@@ -1243,7 +1247,7 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/files/video-and-audio",
     "title": "Video and Audio — Soleil Clusters",
-    "metaDescription": "Video and audio cards in Soleil Clusters play inline on the canvas. Audio draws a real waveform decoded from the file, with cover art and one-at-a-time play.",
+    "metaDescription": "Video and audio play inline on the canvas. Video steps frame by frame in a review player; audio draws a real waveform with cover art.",
     "h1": "Video and audio",
     "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
     "section": "files",
