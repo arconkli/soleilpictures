@@ -18,7 +18,7 @@ import { Icon } from './Icon.jsx';
 import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
 import { supabase } from '../lib/supabase.js';
-import { coalesce, touchesAppliedTag } from '../lib/tagSurface.js';
+import { coalesce, touchesAppliedTag, isDuplicateTagName, findTagByName } from '../lib/tagSurface.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useCandidateNames } from '../hooks/useCandidateNames.js';
@@ -232,7 +232,29 @@ export function SidebarTags({
       await renameTag(tag.id, name);
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Rename failed: ' + (err.message || err) });
+      if (!isDuplicateTagName(err)) {
+        feedback.toast({ type: 'error', message: 'Rename failed: ' + (err.message || err) });
+        return;
+      }
+      // Names are unique per workspace, case-insensitively — and a deleted
+      // tag keeps its name for 30 days. Say which, instead of the raw
+      // "duplicate key value violates unique constraint".
+      const clean = String(name).trim();
+      const existing = findTagByName(tags, clean, tag.id);
+      if (!existing) {
+        feedback.toast({
+          type: 'error',
+          message: `A tag you deleted recently is still called “${clean}” (deleted tags are kept for 30 days so they can be restored). Pick another name.`,
+        });
+        return;
+      }
+      const ok = await feedback.confirm({
+        title: 'That tag already exists',
+        message: `There's already a tag called “${existing.name}”. Merge “${tag.name}” into it? Everything tagged “${tag.name}” moves over.`,
+        confirmLabel: 'Merge',
+        danger: true,
+      });
+      if (ok) await runMerge(tag, existing);
     }
   };
   const promptRecolor = (tag) => {
@@ -268,12 +290,21 @@ export function SidebarTags({
     });
     if (!ok) { setMergePicker(null); return; }
     try {
-      const { mergeId } = await mergeTags({ fromTagId: mergePicker.fromTag.id, intoTagId: intoTag.id });
-      try { logEvent(EV.TAG_MERGE, { from_tag_id: mergePicker.fromTag.id, into_tag_id: intoTag.id }); } catch (_) {}
+      await runMerge(mergePicker.fromTag, intoTag);
+    } finally {
+      setMergePicker(null);
+    }
+  };
+  // The merge itself, shared by the Merge picker and by a rename that
+  // collides with an existing tag's name.
+  const runMerge = async (fromTag, intoTag) => {
+    try {
+      const { mergeId } = await mergeTags({ fromTagId: fromTag.id, intoTagId: intoTag.id });
+      try { logEvent(EV.TAG_MERGE, { from_tag_id: fromTag.id, into_tag_id: intoTag.id }); } catch (_) {}
       onWorkspaceTagsChanged?.();
       // The profile you were looking at no longer exists: follow its
       // applications to the tag they now live on.
-      if (activeTagId && activeTagId === mergePicker.fromTag.id) onOpenTag?.(intoTag);
+      if (activeTagId && activeTagId === fromTag.id) onOpenTag?.(intoTag);
       // merge_tags_v2 logs the whole operation — the Undo repoints every
       // rewritten application, revives the merged-away tag, and resurrects
       // any collision rows the merge absorbed.
@@ -290,8 +321,6 @@ export function SidebarTags({
       });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Merge failed: ' + (err.message || err) });
-    } finally {
-      setMergePicker(null);
     }
   };
 

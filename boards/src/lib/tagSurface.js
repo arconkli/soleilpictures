@@ -95,3 +95,21 @@ export function clampMenuPosition({ x, y, width, height, vw, vh, pad = 8 }) {
   top = Math.max(pad, Math.min(top, vh - height - pad));
   return { left, top };
 }
+
+// ── Rename ──────────────────────────────────────────────────────────────
+// tags.slug is generated as lower(name) with UNIQUE (workspace_id, slug), and
+// a soft-deleted tag keeps its row (and so its slug) for 30 days. A rename can
+// therefore collide with a live tag OR with one the person deleted; both came
+// back as the raw Postgres "duplicate key value violates unique constraint".
+export function isDuplicateTagName(err) {
+  return err?.code === '23505';
+}
+
+// The live tag a rename collided with (same name, any case), or null — in
+// which case the name is held by a deleted tag.
+export function findTagByName(tags, name, exceptId = null) {
+  const slug = String(name || '').trim().toLowerCase();
+  if (!slug) return null;
+  return (tags || []).find(t => t.id !== exceptId
+    && String(t.slug || t.name || '').toLowerCase() === slug) || null;
+}
