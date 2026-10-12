@@ -182,7 +182,8 @@ export function ListSurface({
   loading = false,
   // "Not on board" marks, count and filter: the owner's view of their own
   // board. A visitor on a public link isn't looking at that board, and the
-  // waiting files are just files to them.
+  // waiting files are just files to them. PublicBoardView says so outright;
+  // the path check is the fallback for a mount that doesn't.
   showPlacement = !isPublicSurface(),
   // The board this Files belongs to — its live cards and mutators — kept when
   // browsing another cluster replaces board/cards/mutators. After a drag has
