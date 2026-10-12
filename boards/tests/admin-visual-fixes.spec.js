@@ -90,7 +90,8 @@ test.describe('stat strips that wrap (VS-ADMIN-03)', () => {
     test(`${tab} at ${width}: every row starts flush, and rows do not touch`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await openAdmin(page, { tab });
-      const grid = page.locator('.admin-stat-grid').first();
+      // Not the loading skeleton, which is a stat grid too.
+      const grid = page.locator('.admin-stat-grid:not([aria-busy])').first();
       await expect(grid.locator('.admin-stat-card').nth(5)).toBeVisible({ timeout: 15000 });
       const r = await rows(grid);
       expect(r.length).toBeGreaterThan(1);
@@ -168,7 +169,8 @@ test.describe('the heading after a stat strip (VS-ADMIN-07)', () => {
   for (const tab of ['grants', 'waitlist', 'errors', 'tagging', 'api']) {
     test(`${tab}: what follows the strip does not sit on its last line`, async ({ page }) => {
       await openAdmin(page, { tab });
-      const grid = page.locator('.admin-stat-grid').first();
+      // Not the loading skeleton, which is a stat grid too.
+      const grid = page.locator('.admin-stat-grid:not([aria-busy])').first();
       await expect(grid.locator('.admin-stat-card').first()).toBeVisible({ timeout: 15000 });
       const gap = await grid.evaluate((g) => {
         const n = g.nextElementSibling;
