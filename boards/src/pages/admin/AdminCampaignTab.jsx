@@ -17,26 +17,33 @@ import { formatCount } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { ToggleSwitch } from './AdminToggle.jsx';
+import { campaignStatus } from './campaignStatus.js';
 
 export function AdminCampaignTab() {
   const feedback = useFeedback();
   const [busy, setBusy] = useState(false);
 
   const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
-    const [flagRes, countRes] = await Promise.all([
+    const [flagRes, countRes, waitRes] = await Promise.all([
       supabase.from('app_config').select('value').eq('key', 'ad_instant_demo').maybeSingle(),
       supabase.from('ad_signups').select('user_id', { count: 'exact', head: true }),
+      // The waitlist master switch decides whether this one does anything, so
+      // the status line has to know it. Non-fatal: unknown keeps the old copy.
+      supabase.from('app_config').select('value').eq('key', 'waitlist_enabled').maybeSingle(),
     ]);
     if (flagRes.error)  throw flagRes.error;
     if (countRes.error) throw countRes.error;
     return {
       enabled:   !!flagRes.data?.value?.enabled,
       adSignups: countRes.count || 0,
+      waitlistOn: waitRes.error ? null : !!waitRes.data?.value?.enabled,
     };
   }, []);
 
   const enabled   = !!data?.enabled;
   const adSignups = data?.adSignups || 0;
+  // With the waitlist off this switch changes nothing (see campaignStatus.js).
+  const moot = data?.waitlistOn === false;
 
   const onToggle = async () => {
     if (busy) return;
@@ -57,7 +64,8 @@ export function AdminCampaignTab() {
       if (err) throw err;
       feedback.toast({
         type: 'success',
-        message: next ? 'Instant demo is ON for ad traffic' : 'Instant demo is OFF — everyone uses the waitlist',
+        message: next ? 'Instant demo is ON for ad traffic'
+          : (moot ? 'Instant demo is OFF' : 'Instant demo is OFF — everyone uses the waitlist'),
       });
       await refresh();
     } catch (ex) {
@@ -93,11 +101,7 @@ export function AdminCampaignTab() {
             <ToggleSwitch checked={enabled} onClick={onToggle} disabled={busy || refreshing} label="Toggle instant demo for ad traffic" />
             <div>
               <div className="t-body" style={{ fontWeight: 600 }}>
-                {busy
-                  ? 'Saving…'
-                  : enabled
-                    ? 'On — ad clicks get instant demo + the offer'
-                    : 'Off — everyone goes through the waitlist'}
+                {campaignStatus({ busy, enabled, waitlistOn: data?.waitlistOn ?? null })}
               </div>
               <div className="t-meta admin-muted">
                 {formatCount(adSignups)} ad signup{adSignups === 1 ? '' : 's'} fast-tracked so far
