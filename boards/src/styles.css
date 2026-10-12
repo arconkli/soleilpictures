@@ -10527,15 +10527,37 @@ html, body { overscroll-behavior: none; }
   font-family: var(--font-mono); font-size: 10px;
   letter-spacing: .06em; line-height: 1.2; text-transform: uppercase;
 }
+/* No `font: inherit` here: it outranked .pc-hex, so the editable hex rendered
+   in the body face at 13-15px instead of 10px mono and every 7-character code
+   in a default 4-swatch palette was cut to '#E8D9…'. The hex code is what a
+   palette is FOR; it has to read whole. */
 button.pc-hex-btn {
   pointer-events: auto;
   appearance: none; background: transparent; border: 0;
   padding: 1px 5px; border-radius: var(--radius);
-  font: inherit; cursor: pointer;
+  cursor: pointer;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   transition: background .12s;
 }
 button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
+/* Narrow swatches (a 300px palette with 6-7 colours) step the code down
+   instead of truncating it: drop the tracking, then the size, and below what
+   a whole code can fit in, leave it to the swatch's tooltip — a cut-off code
+   is worse than none (the .cbp-sw-hex precedent). paletteLayout's showHex
+   measures the slice WITHOUT the add sliver, so a cell can be narrower than
+   the 40px it allows for. */
+.pc-cell { container-type: inline-size; }
+@container (max-width: 58px) {
+  .pc-hex { letter-spacing: 0; }
+  button.pc-hex-btn { padding: 1px 2px; }
+}
+@container (max-width: 48px) {
+  .pc-hex { font-size: 9px; }
+  button.pc-hex-btn { padding: 1px; }
+}
+@container (max-width: 41px) {
+  .pc-hex { display: none; }
+}
 
 /* Remove (×) — just inside the swatch top-right, hover-revealed. */
 .pc-cell-x {
@@ -10558,7 +10580,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .pc-cell:hover .pc-cell-x { opacity: 1; }
 .pc-cell-x:hover { color: #ef4444; border-color: #ef4444; }
 
-/* Add — a dashed sliver (bands) / tile (chips) at the end of the strip. */
+/* Add — a dashed sliver (bands) / tile (chips) at the end of the strip.
+   Neutral ink at rest: gold (--accent is --soleil) is for active / selected /
+   focus, and a gold sliver on every resting palette read as a selection. */
 .pc-add {
   appearance: none;
   flex: 0 0 34px;
@@ -10566,14 +10590,15 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   min-width: 0;
   padding: 0;
   border-radius: 7px;
-  border: 1.5px dashed var(--accent, var(--ink-3));
+  border: 1.5px dashed var(--ink-3);
   background: transparent;
-  color: var(--accent, var(--ink-1));
+  color: var(--ink-2);
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background .12s, color .12s, border-color .12s;
 }
-.pc-add:hover {
+.pc-add:hover,
+.pc-add:focus-visible {
   background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
   color: var(--ink-0);
   border-color: var(--accent, var(--ink-2));
