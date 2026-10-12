@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon } from '../lib/icons.js';
+import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download } from '../lib/icons.js';
 import { EmojiPalette } from './EmojiPalette.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
@@ -10,6 +10,7 @@ import { EntityLink } from './EntityLink.jsx';
 import { coerceRef } from '../lib/entityRef.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
+import { attachmentUrl, attachmentMetaLabel } from '../lib/messageAttachmentLinks.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -190,12 +191,28 @@ export function MessageBubble({
                  className="msg-attachment"
                  draggable
                  onDragStart={(e) => onAttachmentDragStart?.(e, att)}>
+              {/* Both open: a file as a download under its own name, an image
+                  full size in a new tab. A file used to be plain text with no
+                  way to get at it but dragging it to a canvas (COMMS-07). */}
               {att.kind === 'image' && att.storage_path && (
-                <img alt={att.name || ''} src={publicUrl(att.storage_path)} />
+                <a className="msg-attachment-image" href={publicUrl(att.storage_path)}
+                   target="_blank" rel="noopener noreferrer" title={att.name ? `Open ${att.name}` : 'Open image'}>
+                  <img alt={att.name || ''} src={publicUrl(att.storage_path)} />
+                </a>
               )}
-              {att.kind === 'file' && (
+              {att.kind === 'file' && (att.storage_path ? (
+                <a className="msg-attachment-file"
+                   href={attachmentUrl(SUPABASE_URL, att.storage_path, { download: att.name || 'file' })}
+                   download={att.name || 'file'}
+                   target="_blank" rel="noopener noreferrer"
+                   title={`Download ${att.name || 'file'}`}>
+                  <Icon as={Download} size={12} />
+                  <span className="msg-attachment-file-name">{att.name || 'file'}</span>
+                  {attachmentMetaLabel(att) && <span className="msg-attachment-file-meta">{attachmentMetaLabel(att)}</span>}
+                </a>
+              ) : (
                 <span className="msg-attachment-file">{att.name || 'file'}</span>
-              )}
+              ))}
               {att.kind === 'url' && (
                 <a href={safeExternalHref(att.href) || undefined} target="_blank" rel="noopener noreferrer">{att.title || att.href}</a>
               )}
@@ -260,10 +277,9 @@ function emailToFriendly(email) {
     .join(' ');
 }
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 function publicUrl(path) {
-  const base = import.meta.env.VITE_SUPABASE_URL;
-  if (!base) return '';
-  return `${base}/storage/v1/object/public/message-attachments/${path}`;
+  return attachmentUrl(SUPABASE_URL, path);
 }
 
 // Bare wall-clock (e.g. "2:14 PM") shown in the gutter on grouped

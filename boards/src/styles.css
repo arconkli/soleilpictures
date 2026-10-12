@@ -16503,6 +16503,19 @@ button.msg-panel-name:hover { color: var(--ink-0); }
 }
 .msg-attachment:active { cursor: grabbing; }
 .msg-attachment img { max-width: 100%; border-radius: var(--radius); display: block; }
+.msg-attachment-image { display: block; }
+/* A file attachment is a download link: name, then type and size. Neutral
+   ink — it's an action at rest, not a selection. */
+.msg-attachment-file {
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0;
+  color: var(--ink-1);
+  text-decoration: none;
+  font: 500 12px/1.3 var(--font-sans);
+}
+a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); text-decoration: underline; }
+.msg-attachment-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-attachment-file-meta { flex: none; color: var(--ink-3); font-weight: 400; }
 .msg-bubble-reactions { display: flex; gap: 4px; flex-wrap: wrap; }
 .msg-reaction {
   display: inline-flex; align-items: center; gap: 4px;
