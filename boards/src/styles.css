@@ -14076,6 +14076,18 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .doc-find-x:hover { background: var(--bg-hov); color: var(--ink-0); }
 .doc-find-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
+/* Word buttons (One / All) — the 26px icon square squeezed their labels. */
+.doc-find-btn--text { width: auto; padding: 0 8px; }
+/* A phone or the docked pane: the bar spans the width and wraps, instead of
+   a ~620px row anchored right that pushed Find and ↑/↓ off the left edge. */
+@media (max-width: 640px) {
+  .doc-find { left: 8px; right: 8px; flex-wrap: wrap; row-gap: 6px; }
+  .doc-find-input { flex: 1 1 120px; width: auto; min-width: 0; font-size: 16px; }
+  .doc-find-sep { display: none; }
+}
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find { left: 8px; right: 8px; flex-wrap: wrap; row-gap: 6px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-input { flex: 1 1 120px; width: auto; min-width: 0; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-sep { display: none; }
 .doc-find-hit {
   background: var(--soleil-soft);
   border-bottom: 1px solid var(--soleil);
