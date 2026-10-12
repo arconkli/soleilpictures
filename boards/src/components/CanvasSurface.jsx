@@ -5140,8 +5140,11 @@ export function CanvasSurface({
       mutators.addCard?.(card);
       if (!embed) {
         fetchLinkPreview(url).then(p => {
-          // Only what the user hasn't changed since (lib/linkPreview.js).
-          const patch = previewPatch(p, cardByIdRef.current[newId], card, { grow: { w: 280, h: 290 } });
+          // Only what the user hasn't changed since (lib/linkPreview.js). The
+          // live map fills on the next render; a cached /api/og can answer
+          // before it, and nothing can have been edited yet, so fall back to
+          // the card as created. A card deleted meanwhile: the write no-ops.
+          const patch = previewPatch(p, cardByIdRef.current[newId] || card, card, { grow: { w: 280, h: 290 } });
           // Silent: the async preview backfill must not add an undo step
           // between the card-create and whatever the user does next.
           if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
@@ -8483,8 +8486,11 @@ export function CanvasSurface({
       // OG enrichment for embeds since the iframe is the preview.
       if (!embed) {
         fetchLinkPreview(url).then(p => {
-          // Only what the user hasn't changed since (lib/linkPreview.js).
-          const patch = previewPatch(p, cardByIdRef.current[newId], card, { grow: { w: 280, h: 290 } });
+          // Only what the user hasn't changed since (lib/linkPreview.js). The
+          // live map fills on the next render; a cached /api/og can answer
+          // before it, and nothing can have been edited yet, so fall back to
+          // the card as created. A card deleted meanwhile: the write no-ops.
+          const patch = previewPatch(p, cardByIdRef.current[newId] || card, card, { grow: { w: 280, h: 290 } });
           // Silent: the async preview backfill must not add an undo step
           // between the card-create and whatever the user does next.
           if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
@@ -10463,7 +10469,8 @@ export function CanvasSurface({
         mutators.addCard?.(dropCard);
         if (embed) return;
         fetchLinkPreview(url).then(p => {
-          const patch = previewPatch(p, cardByIdRef.current[newId], dropCard, { grow: { w: 280, h: 290 } });
+          // The live map fills on the next render; until then, the card as dropped.
+          const patch = previewPatch(p, cardByIdRef.current[newId] || dropCard, dropCard, { grow: { w: 280, h: 290 } });
           if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
         });
       };
