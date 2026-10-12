@@ -103,7 +103,11 @@ export function PricingPageView({
               plans because the page never put two plans next to each other. */}
           <section className="pp-plans" id="plans">
             <article className="pp-plan pp-plan-free">
-              <div className="pp-plan-name">{PRICING_PAGE.freeCardName}</div>
+              {/* The same head row as Creator's, so the two names and the two
+                  prices sit level although only Creator's row holds a toggle. */}
+              <div className="pp-plan-head">
+                <div className="pp-plan-name">{PRICING_PAGE.freeCardName}</div>
+              </div>
               <div className="pp-plan-price">
                 {PRICING_PAGE.freeCardPrice}
                 <span className="pp-plan-unit">{PRICING_PAGE.freeCardUnit}</span>
@@ -190,9 +194,11 @@ export function PricingPageView({
                 this page be ours without also putting it in the sitemap. */}
             <a className="seo-frame-shot" href={shot.href}
                {...ctaProps('frame', shot.href, { intent: 'nav' })}>
+              {/* Lowercase `fetchpriority`, as in R2Image: React 18 has no
+                  camelCase fetchPriority prop and warns on every load. */}
               <img src={`/landing/${shot.slug}.webp`}
                    alt="The Clusters brand book, built in Clusters"
-                   width="2048" height="1000" fetchPriority="high" />
+                   width="2048" height="1000" fetchpriority="high" />
             </a>
             <figcaption className="seo-frame-cap">{shot.caption}</figcaption>
           </figure>

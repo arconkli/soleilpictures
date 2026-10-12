@@ -65,7 +65,10 @@
 }
 
 /* ── Quick answer + disclosure ──────────────────────────────────────────── */
-.seo-li-answer { margin-bottom: 18px; }
+/* .seo-answer centres itself for the centred landing hero; here it sits in a
+   left-set section under its own H2, so it starts on the prose column's edge
+   instead of floating ~140px right of its heading. */
+.seo-li-answer { margin-left: 0; margin-right: auto; margin-bottom: 18px; }
 .seo-li-disclosure {
   border-left: 3px solid var(--line-3, #3a3a40);
   padding: 12px 18px;

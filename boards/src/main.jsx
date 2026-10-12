@@ -279,12 +279,16 @@ const showPublicPricing = !!pricingMatch && !hasCachedSession();
 // Routes whose page is committed to the dark brand world (.public-dark). Their
 // <Suspense> fallback is pinned dark too: the plain splash follows the theme, so
 // a light-OS visitor got a light grey screen between the dark boot splash and
-// the dark page while the page chunk downloaded. /t/, /legal and /resume follow
-// the theme and keep the plain splash. /pricing counts whether or not a cached
+// the dark page while the page chunk downloaded. /t/ and /legal follow the theme
+// and keep the plain splash. /resume is drawn on the sign-in scene, which is
+// dark (SignInBackdrop), so it counts. /pricing counts whether or not a cached
 // session sends it through AuthGate: both pricing pages are the dark
 // PricingPageView, and a cache that fails to restore lands on the public one.
+// The signed-out front door needs no entry here: AuthGate and the sign-in scene
+// are in the entry chunk, so nothing suspends on the way to it.
 const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
-  || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch);
+  || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch
+  || resumeMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
