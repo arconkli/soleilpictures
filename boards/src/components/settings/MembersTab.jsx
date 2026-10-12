@@ -19,7 +19,18 @@ import { SettingsCategory } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 import { WORKSPACE_ROLE_LABEL as ROLE_LABEL, ASSIGNABLE_ROLES, canManageWorkspace } from '../../lib/workspaceRoles.js';
 
-export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspacesChanged }) {
+// Holds an action slot a row does not have. It is the same element as the real
+// control (a <button>), so it gets the same UA box and text metrics and the
+// slot is exactly as wide; a <span> came out ~1.6px narrower and the role
+// menus drifted apart again. Disabled, hidden and unfocusable.
+function SlotPlaceholder({ children }) {
+  return (
+    <button type="button" className="settings-link-btn is-placeholder"
+            tabIndex={-1} aria-hidden="true" disabled>{children}</button>
+  );
+}
+
+export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspacesChanged }) {
   const feedback = useFeedback();
   const save = useSettingsSave();
   const isOwner = role === 'owner';
@@ -175,10 +186,10 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
                   <span className="settings-member-actions">
                     {isOwner && (!isOwnerRow && !self && m.role !== 'service' && m.role !== 'viewer'
                       ? <button type="button" className="settings-link-btn" onClick={() => transfer(m)}>Make owner</button>
-                      : <span className="settings-link-btn is-placeholder" aria-hidden="true">Make owner</span>)}
+                      : <SlotPlaceholder>Make owner</SlotPlaceholder>)}
                     {!isOwnerRow && !self && m.role !== 'service'
                       ? <button type="button" className="settings-link-btn is-danger" onClick={() => remove(m)}>Remove</button>
-                      : <span className="settings-link-btn is-placeholder" aria-hidden="true">Remove</span>}
+                      : <SlotPlaceholder>Remove</SlotPlaceholder>}
                   </span>
                 )}
               </li>
@@ -192,7 +203,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
               </span>
               {canManage && (
                 <span className="settings-member-actions">
-                  {isOwner && <span className="settings-link-btn is-placeholder" aria-hidden="true">Make owner</span>}
+                  {isOwner && <SlotPlaceholder>Make owner</SlotPlaceholder>}
                   <button type="button" className="settings-link-btn is-danger"
                           onClick={() => revokePending(row)}>Revoke</button>
                 </span>
