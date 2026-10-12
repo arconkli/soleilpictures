@@ -108,6 +108,47 @@ test('a note with a URL is sized to fit its link preview after editing', async (
   expect(h2).toBe(h1);
 });
 
+// NOTES-08: the preview's remove button did nothing on the collaborative
+// note (no click branch, and with an entity trie the button was rendered as
+// a bare span), and a dismissal recorded by the old editor came back the
+// first time the note was edited.
+for (const trie of [false, true]) {
+  test(`removing a link preview sticks${trie ? ' (with the entity trie)' : ''}`, async ({ page }) => {
+    page.on('pageerror', (e) => { throw e; });
+    await page.goto(`/?noteqa=1${trie ? '&trie=1' : ''}`);
+    await expect(page.locator('#noteqa-ready')).toHaveText('noteqa ready', { timeout: 15000 });
+    await page.locator(A).dblclick();
+    await page.locator(A_EDIT).waitFor();
+    await page.locator(A_EDIT).click();
+    await page.keyboard.type('Research https://example.com/deck');
+    await page.mouse.click(5, 5);
+    await expect(page.locator(A_EDIT)).toHaveCount(0);
+    await expect(page.locator(`${A} .note-link-preview`)).toHaveCount(1);
+
+    await page.locator(`${A} .note-preview-remove`).click();
+    await expect(page.locator(`${A} .note-link-preview`)).toHaveCount(0);
+    await expect(page.locator(A_EDIT)).toHaveCount(0);
+    await expect(page.locator(A)).toContainText('https://example.com/deck');
+    expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('hiddenPreviews')))
+      .toEqual(['https://example.com/deck']);
+    // The other client renders the same, and an edit doesn't bring it back.
+    await expect(page.locator('[data-client="B"] .note-link-preview')).toHaveCount(0);
+    await openAndClose(page);
+    await expect(page.locator(`${A} .note-link-preview`)).toHaveCount(0);
+    expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('html'))).not.toContain('note-link-preview');
+  });
+}
+
+test('a preview dismissed in the old editor stays dismissed after an edit', async ({ page }) => {
+  await ready(page);
+  await setLegacyHtml(page, '<div>Deck <a href="https://example.com/deck" target="_blank" rel="noopener noreferrer">https://example.com/deck</a></div>'
+    + '<span class="note-preview-hidden" data-url="https://example.com/deck" hidden=""></span>');
+  await openAndClose(page);
+  expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('hiddenPreviews')))
+    .toEqual(['https://example.com/deck']);
+  expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('html'))).not.toContain('note-link-preview');
+});
+
 test('a javascript: link is not kept', async ({ page }) => {
   await ready(page);
   await setLegacyHtml(page, '<p><a href="javascript:alert(1)">click</a></p>');

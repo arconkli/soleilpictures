@@ -1105,6 +1105,27 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
       setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
       return;
     }
+    // A link preview's remove (x). The fragment can't hold the old editor's
+    // hidden-marker spans, so the dismissal is a card field (hiddenPreviews)
+    // that every write-through honours; the cached html drops the block now.
+    // One card update, so one canvas Cmd+Z brings the preview back (NOTES-08).
+    const removeBtn = e.target.closest?.('.note-preview-remove');
+    if (removeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const url = removeBtn.closest('.note-link-preview')?.dataset?.url;
+      if (!url || isPublic) return;
+      const prev = cardYMap?.get?.('hiddenPreviews');
+      const hidden = Array.isArray(prev) ? prev : [];
+      import('../lib/noteLinkify.js').then((l) => {
+        onUpdate({
+          hiddenPreviews: hidden.includes(url) ? hidden : [...hidden, url],
+          html: l.removeLinkPreview(noteSourceHtml(html, body), url),
+          body: null,
+        });
+      }).catch(() => {});
+      return;
+    }
     const box = e.target.closest?.('.ck-box');
     if (!box || !ref.current) return;
     e.preventDefault();
@@ -1135,7 +1156,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
           const next = m.noteFragmentToHtml(m.getNoteFragment(cardYMap));
           // noteFragmentToHtml answers '' when it can't serialize; never let
           // that blank the cache the canvas renders.
-          if (next) m.setNoteCacheFields(ydoc, cardYMap, { html: l.linkifyNoteHtml(next), body: null });
+          if (next) m.setNoteCacheFields(ydoc, cardYMap, { html: l.linkifyNoteHtml(next, cardYMap.get('hiddenPreviews')), body: null });
         }, 'local');
       }).catch(() => {});
     } else {

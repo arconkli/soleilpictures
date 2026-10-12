@@ -62,6 +62,10 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_ATTR = [
   'class', 'style', 'href', 'target', 'rel', 'type', 'aria-label',
+  // The checklist box's checkbox semantics (NoteChecklist.js): without them a
+  // screen reader met an unlabelled span, and the checked state lived only in
+  // a class name.
+  'role', 'aria-checked',
   // Images + legacy table geometry.
   'src', 'alt', 'title', 'width', 'height', 'colspan', 'rowspan',
   // Custom node/mark contracts — see the header.
