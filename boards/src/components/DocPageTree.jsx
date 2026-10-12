@@ -23,7 +23,10 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                               // false → a view-only member or the public viewer. Their Y.Doc
                               // writes never leave the tab (the board room drops them), so
                               // add / rename / delete / reorder are not offered at all.
-                              canEdit = true }) {
+                              canEdit = true,
+                              // Name for the page that replaces a deleted last page: the
+                              // same card-title name DocSurface's empty-doc seed uses.
+                              defaultName = 'Untitled' }) {
   const tree = buildPageTree(pages);
   const [renaming, setRenaming] = useState(null);  // page id
   const [draftName, setDraftName] = useState('');
@@ -104,7 +107,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
         let replacement = null;
         ydoc.transact(() => {
           deletePage(ydoc, pageId, scope);
-          if (!readPages(ydoc, scope).length) replacement = addPage(ydoc, { scope });
+          if (!readPages(ydoc, scope).length) replacement = addPage(ydoc, { name: defaultName || 'Untitled', scope });
         }, DOC_ORIGIN);
         const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
         um?.stopCapturing();

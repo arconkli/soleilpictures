@@ -56,9 +56,10 @@ test('DOCS-08: Undo on deleting the only page brings it back with its text', asy
   await expect(modal.locator('.doc-tree-name')).toHaveText('Chapter One');
   await modal.locator('.doc-tree-row').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Delete' }).click();
-  // A blank replacement takes its place…
+  // A blank replacement takes its place, named like a freshly seeded page
+  // (the card title; the harness card has none, so 'Untitled doc')…
   await expect(modal.locator('.doc-tree-row')).toHaveCount(1);
-  await expect(modal.locator('.doc-tree-name')).toHaveText('Untitled');
+  await expect(modal.locator('.doc-tree-name')).toHaveText('Untitled doc');
   // …and one Undo restores the page and its text, not "the board changed".
   await expect(page.locator('.toast-msg').filter({ hasText: 'Page deleted' })).toBeVisible();
   await page.locator('.toast').filter({ has: page.locator('.toast-msg', { hasText: 'Page deleted' }) })
