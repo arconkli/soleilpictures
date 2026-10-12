@@ -9644,8 +9644,12 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   .ct-cell, .ct-th { padding-left: 10px; padding-right: 10px; }
   .ct-c-name { gap: 9px; }
 }
+/* `.ct-table`-scoped so it outranks the phone @media block further down, which
+   sets the 4-track 620px template at (0,1,0) and, coming later, used to win at
+   equal weight: a phone row kept four tracks for its two cells, the download
+   button sat mid-row and ~90px on the right stayed empty. */
 @container cbmain (max-width: 400px) {
-  .ct-head, .ct-row,
+  .ct-table .ct-head, .ct-table .ct-row,
   .ct-table[data-cols="audio"] .ct-head,
   .ct-table[data-cols="audio"] .ct-row { grid-template-columns: minmax(0,1fr) 34px; }
   .ct-c-type, .ct-th.ct-c-type, .ct-c-size, .ct-th.ct-c-size,

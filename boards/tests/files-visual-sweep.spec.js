@@ -37,3 +37,22 @@ test('VS-FILES-01: stepping through Quick look moves a one-file selection with i
   await expect(full(page).locator('.ct-row.is-selected')).toHaveCount(1);
   await expect(full(page).locator('.ct-row.is-active')).toHaveCount(1);
 });
+
+test.describe('on a phone', () => {
+  test.use({ hasTouch: true });
+
+  test('VS-FILES-02: a mixed-type List row is name + download, the button at the right edge', async ({ page }) => {
+    await go(page, { width: 390, height: 844 });
+    await page.getByRole('button', { name: /^Files/ }).click();
+    await expect(full(page)).toBeVisible();
+    await full(page).getByRole('button', { name: 'List layout' }).click();
+    const row = full(page).locator('.ct-body .ct-row:not(.ct-group)').filter({ has: page.locator('.ct-dl') }).first();
+    await expect(row).toBeVisible();
+    const tracks = await row.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+    expect(tracks).toBe(2);
+    const r = await row.boundingBox();
+    const dl = await row.locator('.ct-dl').boundingBox();
+    // Inside the 34px last track, not ~90px short of the edge.
+    expect(r.x + r.width - (dl.x + dl.width)).toBeLessThan(34);
+  });
+});
