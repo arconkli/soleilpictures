@@ -323,7 +323,17 @@ function useNoteFormatState(active, noteBase = '') {
         // box blank in unformatted text, so −/+ stepped from a hard-coded 15:
         // + stuck at 16 and shrank a 24px note (NOTES-05).
         const cs = (ts.fontSize && ts.fontFamily) ? null : editorCaretStyle(editor);
-        const sizeSrc = ts.fontSize || cs?.fontSize;
+        // With nothing selected, − / + set the whole note's base size, so
+        // show that, not a heading's scaled size: in an h1 on a 15px note the
+        // box read 20 and + set the whole note to 21.
+        let sizeSrc = ts.fontSize;
+        if (!sizeSrc) {
+          try {
+            sizeSrc = editor.state.selection.empty
+              ? window.getComputedStyle(editor.view.dom).fontSize
+              : cs?.fontSize;
+          } catch (_) { sizeSrc = cs?.fontSize; }
+        }
         const familySrc = ts.fontFamily || cs?.fontFamily;
         const fontSize = sizeSrc ? Math.round(parseFloat(sizeSrc)) || null : null;
         const fontFamily = familySrc
