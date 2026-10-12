@@ -48,7 +48,7 @@ const isEmpty = (o) => !o || Object.keys(o).length === 0;
 // Content edits, with geometry removed from the patch. Typing in a note,
 // recolouring a card and editing a doc all stay live during a shoot — those are
 // the things worth filming.
-const PATCH_GUARDED = new Set(['updateCard', 'updateCardSilent']);
+const PATCH_GUARDED = new Set(['updateCard', 'updateCardSilent', 'updateCardMeta']);
 
 // Everything else that may run untouched. Nothing here writes x/y/w/h.
 const ALLOWED = new Set([

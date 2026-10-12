@@ -11,6 +11,10 @@ import { getMeta } from '../../lib/imageMeta.js';
 import { registerBackLayer } from '../../lib/modalGuard.js';
 import { INFO_EVENT, INFO_CLOSE_EVENT, readSelection, subscribeSelection, targetForSelection } from '../../lib/infoBus.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
+import { useFeedback } from '../AppFeedback.jsx';
+import { planPutOnBoard } from '../../lib/placement.js';
+import { getViewCenter } from '../../lib/viewCenter.js';
+import { undoToast } from '../../lib/undoToast.js';
 
 function sameRequest(a, b) {
   if (!a || !b) return false;
@@ -47,11 +51,19 @@ export function resolveInfoTarget(req, { boards = {}, resolveBoard }) {
   if (cards.length + folders.length > 1) return { type: 'selection', cards: [...cards, ...folders] };
   if (folders.length === 1) return clusterTarget(folders[0].id);
   if (!cards.length) return null;
+  // A cluster card (or a link to one) is that cluster — the same Info a
+  // folder in Files or a sidebar row gets.
+  if (cards.length === 1) {
+    const c = cards[0];
+    const cid = c.kind === 'board' ? c.id : c.kind === 'boardlink' ? c.target : null;
+    if (cid && boards[cid]) return clusterTarget(cid);
+  }
   const item = toListItem(cards[0], { boards, getMeta, boardId: req.boardId, gridTemplates: live?.gridTemplates || {} });
   return item ? { type: 'card', item, live } : null;
 }
 
 export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenCluster = null, onReveal = null }) {
+  const feedback = useFeedback();
   const [req, setReq] = useState(null);
   const reqRef = useRef(null);
   reqRef.current = req;
@@ -145,6 +157,26 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
   const live = target.live || (req?.boardId ? resolveBoard?.(req.boardId) : null);
   // "Open cluster" for a cluster that isn't already open in a pane.
   const clusterOpenHere = target.type === 'cluster' && !!resolveBoard?.(target.board?.id);
+  // Put on board and Delete, as Files offers them — only where the cluster is
+  // open in a pane you can edit (a cluster Files is only browsing isn't).
+  const muts = target.type === 'card' && live?.canEdit ? live.mutators : null;
+  const putOnBoard = muts && !muts.captureGuarded ? (id) => {
+    const plan = planPutOnBoard(live.cards || [], [id], getViewCenter(req.boardId));
+    if (!plan.length) return;
+    const um = muts.undoManager;
+    muts.breakUndo?.();
+    muts.updateCards?.(plan);
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    muts.breakUndo?.();
+    undoToast(feedback, { type: 'success', message: 'Put on the board', undoManager: um, stackItem: item, onUndo: () => muts.undo?.() });
+    onReveal?.(req.boardId, [id]);
+  } : null;
+  const deleteCards = muts ? async (ids) => {
+    const ok = await feedback.confirm({ title: 'Delete', danger: true, confirmLabel: 'Delete', message: 'Delete this card?' });
+    if (!ok) return;
+    const deleted = await muts.deleteCards?.(ids);
+    undoToast(feedback, { message: 'Card deleted', undoManager: muts.undoManager, stackItem: deleted?.stackItem || null, onUndo: () => muts.undo?.() });
+  } : null;
   return (
     <div className="info-host" ref={hostRef} onContextMenu={swallowContextMenu}>
       <DetailPanel
@@ -158,6 +190,8 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
         onClose={close}
         onOpenCluster={onOpenCluster && !clusterOpenHere ? (id) => { onOpenCluster(id); close(); } : null}
         onReveal={onReveal && target.type === 'card' && live ? (id) => onReveal(req.boardId, [id]) : null}
+        onPutOnBoard={putOnBoard}
+        onDelete={deleteCards}
       />
     </div>
   );

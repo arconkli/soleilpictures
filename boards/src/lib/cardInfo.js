@@ -268,7 +268,13 @@ export function describeCard(card, { getMeta = null, boards = {}, gridTemplates 
   const up = meta && (meta.uploadedBy || meta.uploadedAt) ? { by: meta.uploadedBy || null, at: meta.uploadedAt || null } : null;
   const added = card.createdBy || card.createdAt ? { by: card.createdBy || null, at: card.createdAt || null } : null;
   if (up) people.push({ k: 'Uploaded', ...up });
-  if (added && !(up && (up.by === added.by || !added.by) && sameMoment(up.at, added.at))) {
+  // The card is stamped when the file is dropped, the images row when its
+  // bytes land — minutes later for a big file or a long batch. So "Added
+  // here" is its own fact only when it came clearly AFTER the upload (a copy
+  // brought from another cluster), never for your own upload finishing.
+  const tUp = Date.parse(up?.at || ''), tAdd = Date.parse(added?.at || '');
+  const addedLater = !up || !Number.isFinite(tUp) || !Number.isFinite(tAdd) ? !up : tAdd - tUp > 120000;
+  if (added && addedLater) {
     people.push({ k: up ? 'Added here' : 'Added', ...added });
   }
   if (card.updatedAt && !sameMoment(card.updatedAt, card.createdAt, 1000)) {

@@ -245,8 +245,10 @@ test('an upload never patches a card it cannot reach, and its result waits for t
   // Through the live mutators, not the drop's: drop on A, open B, back to A,
   // and the drop's set writes into A's destroyed first doc while cardIsLive
   // (which reads the live doc) says yes — the patch is lost and nothing stashed.
-  assert.match(settle.slice(0, 400), /if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) sweepMutatorsRef\.current\?\.updateCardSilent\?\.\(id, patch\);\s*else stashLateUpload\(dropBoardId, id, \{ patch \}\);/);
-  assert.match(settle.slice(0, 400), /\}, \[cardIsLive\]\);/, 'no closure over the drop-time mutators');
+  // Unstamped (updateCardMeta, updateCardSilent where a shell lacks it): an
+  // upload finishing isn't an edit — Info's "Modified" stays a person's.
+  assert.match(settle.slice(0, 600), /if \(boardIdRef\.current === dropBoardId && cardIsLive\(id\)\) \{\s*const m = sweepMutatorsRef\.current;\s*\(m\?\.updateCardMeta \|\| m\?\.updateCardSilent\)\?\.\(id, patch\);\s*\}\s*else stashLateUpload\(dropBoardId, id, \{ patch \}\);/);
+  assert.match(settle.slice(0, 600), /\}, \[cardIsLive\]\);/, 'no closure over the drop-time mutators');
   const reject = canvas.slice(canvas.indexOf('const handleUploadReject = useCallback('));
   assert.match(reject.slice(0, 900), /cardIsLive\(id\)\) sweepMutatorsRef\.current\?\.deleteCardsSilent\?\.\(\[id\]\);\s*else stashLateUpload\(dropBoardId, id, \{ remove: true \}\);/);
   assert.doesNotMatch(reject.slice(0, reject.indexOf('}, [')), /\bmutators\./, 'the rollback never uses the drop-time mutators');

@@ -626,7 +626,7 @@ Location | The cluster it's in, and whether it's on the board or waiting in File
 
 Several cards together get a summary — how many of each kind, their total size, and the oldest and newest. The empty board, a folder or a sidebar cluster gets the cluster's: what it holds, where it sits, and who made it.
 
-Info follows the selection while it's open, so clicking through cards walks it through them. ⌘I again, the ×, or Esc while it has focus closes it. On a shared link Info shows dates but never names.
+Info follows the selection while it's open, so clicking through cards walks it through them. ⌘I again, the ×, or Esc while it has focus closes it. On a shared link, Info is in Files, and it shows dates but never names; a shared board itself has no right-click menu.
 
 Removing a card from the board
 

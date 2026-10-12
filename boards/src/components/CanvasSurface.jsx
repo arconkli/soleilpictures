@@ -116,7 +116,7 @@ import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { probeFile } from '../lib/mediaProbe.js';
-import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
+import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
@@ -3463,7 +3463,12 @@ export function CanvasSurface({
   // Through the LIVE mutators, never the drop's: drop on A, open B, come back to
   // A — the card is live again, but in a new doc the drop's mutators can't reach.
   const settleUpload = useCallback((dropBoardId, id, patch) => {
-    if (boardIdRef.current === dropBoardId && cardIsLive(id)) sweepMutatorsRef.current?.updateCardSilent?.(id, patch);
+    // Unstamped (updateCardMeta): an upload finishing isn't an edit, or Info
+    // would call every file "Modified" a few seconds after it arrived.
+    if (boardIdRef.current === dropBoardId && cardIsLive(id)) {
+      const m = sweepMutatorsRef.current;
+      (m?.updateCardMeta || m?.updateCardSilent)?.(id, patch);
+    }
     else stashLateUpload(dropBoardId, id, { patch });
   }, [cardIsLive]);
   // Call onGone when the card is deleted from the doc it was dropped into (by
@@ -3758,7 +3763,8 @@ export function CanvasSurface({
         .map((c) => ({ id: c.id, kind: c.kind, age: uploadAge((k) => c[k], at) }));
       const plan = planAbandonedSweep(swept, found);
       const m = sweepMutatorsRef.current;
-      for (const { id, ...patch } of plan.recover) m?.updateCardSilent?.(id, { ...patch, pending: false });
+      // Recovering someone's upload doesn't make whoever opened the cluster its modifier.
+      for (const { id, ...patch } of plan.recover) (m?.updateCardMeta || m?.updateCardSilent)?.(id, { ...patch, pending: false });
       // Say only what actually happened: a delete that did nothing (a guarded
       // mutator) is not "removed".
       const removed = plan.remove.length ? (Number(m?.deleteCardsSilent?.(plan.remove, { refund: false })) || 0) : 0;
@@ -3789,7 +3795,7 @@ export function CanvasSurface({
     if (!waiting.size) return;
     const m = sweepMutatorsRef.current;
     for (const { id, entry } of takeLateUploads(board.id, (cid) => waiting.has(cid))) {
-      if (entry.patch) m?.updateCardSilent?.(id, entry.patch);
+      if (entry.patch) (m?.updateCardMeta || m?.updateCardSilent)?.(id, entry.patch);
       else if (entry.remove) m?.deleteCardsSilent?.([id]);
       else if (typeof entry.retry === 'function') entry.retry();
     }
@@ -5352,11 +5358,14 @@ export function CanvasSurface({
       }
       // Info on whatever is selected — the cluster itself when nothing is. A
       // note's own ⌘I (italic) never gets here: isEditorTarget returned above.
-      if (cmd && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+      // A shared canvas has no Info drawer: ⌘I stays the browser's there.
+      if (!isPublic && cmd && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault();
         openInfo({ boardId: board?.id, follow: infoFollow, toggle: true });
         return;
       }
+      // Keys typed in the Info drawer are its own (lib/infoBus.inInfoDrawer).
+      if (inInfoDrawer(e)) return;
       if (cmd && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
       if (cmd && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); doDuplicate(); return; }
       if (cmd && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); doCopy(); return; }
@@ -5460,7 +5469,7 @@ export function CanvasSurface({
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
       ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
-      hasSplit, paneId, board?.id]);
+      hasSplit, paneId, board?.id, isPublic]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
   // On each undoable action the UndoManager fires 'stack-item-added'; we stash
@@ -10343,7 +10352,8 @@ export function CanvasSurface({
               // image…", an undo and redo) keeps what it was re-pointed to.
               const live = (cardsRef.current || []).find((c) => c.id === id);
               if (!live || live.src !== url) return;
-              mutators.updateCardSilent?.(id, {
+              // Rehosting isn't an edit: unstamped, like every upload patch.
+              (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, {
                 src: res.src, sourceUrl: url, ...(res.fileName ? { fileName: res.fileName } : {}),
               });
             });

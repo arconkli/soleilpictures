@@ -50,6 +50,13 @@ test('an image: kind with format, its uploaded name, dimensions and size from th
   assert.equal(info.people[0].by, 'u1');
 });
 
+test('a slow upload is still one fact: the card is older than its images row', () => {
+  // Dropped at 10:00, bytes landed at 10:06 (a big file, a long batch).
+  const card = { id: 'c3', kind: 'video', src: 'r2:ws/v.mov', createdBy: 'u1', createdAt: '2026-10-01T10:00:00Z' };
+  const info = describeCard(card, { getMeta: meta({ 'ws/v.mov': { uploadedBy: 'u1', uploadedAt: '2026-10-01T10:06:00Z' } }) });
+  assert.deepEqual(info.people.map((p) => p.k), ['Uploaded']);
+});
+
 test('a copy in another cluster: uploaded by one person, added here by another', () => {
   const card = { id: 'c2', kind: 'image', src: 'r2:ws/k.webp', fileName: 'k.jpg', createdBy: 'u2', createdAt: '2026-10-09T09:00:00Z' };
   const info = describeCard(card, { getMeta: meta({ 'ws/k.webp': { uploadedBy: 'u1', uploadedAt: '2026-10-01T10:00:00Z' } }) });
