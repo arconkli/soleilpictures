@@ -68,7 +68,9 @@ still takes you to where *they* are.
 
 **Pages** on the left — a hierarchical tree. Documents are genuinely
 multi-page, and pages nest. A new page is created automatically when the current
-one fills up, so long-form writing does not stop to manage pagination.
+one fills up, so long-form writing does not stop to manage pagination. On a
+phone or a touch tablet the tree folds into a drawer: tap **Page list** above
+the toolbar to open it.
 
 **Bookmarks** under the page tree — durable anchors into specific places in the
 text, which survive editing around them. Add one with the bookmark button in the

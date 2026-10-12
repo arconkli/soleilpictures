@@ -1013,17 +1013,19 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {/* Center — toolbar + editor. The toolbar is an editing surface —
           hidden for anonymous public viewers (view-only members keep it). */}
       <section className="doc-center">
-        {/* Phone-only entry point to the page list (the desktop rail is hidden
-            at <=640px). Opens the rail as a slide-over drawer. */}
+        {/* Phone / touch-tablet entry point to the page list (the desktop rail
+            is hidden under the mobile-shell query). Opens the rail as a
+            slide-over drawer. Labelled "Page list", not "Pages": it sits right
+            above the toolbar's "Pages" layout toggle, which does another job. */}
         <button className="doc-mobile-pages-btn"
-                aria-label={docMode === 'screenplay' ? 'Pages and scenes' : 'Pages'} aria-expanded={mobileRailOpen}
+                aria-label={docMode === 'screenplay' ? 'Pages and scenes' : 'Page list'} aria-expanded={mobileRailOpen}
                 onClick={() => { setRails(r => ({ ...r, left: true })); setMobileRailOpen(o => !o); }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 3 H12 M2 7 H12 M2 11 H12" />
           </svg>
           {/* The drawer carries the scene nav too in screenplay mode — say so,
               or the only way to jump between scenes on a phone is invisible. */}
-          {docMode === 'screenplay' ? 'Scenes' : 'Pages'}
+          {docMode === 'screenplay' ? 'Scenes' : 'Page list'}
         </button>
         {!isPublic && (
         <DocToolbar editor={editorRef.current}
