@@ -29,7 +29,7 @@ import { EV } from '../lib/analyticsEvents.js';
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
 // `editor` is only a fallback for the rare caller without doc state.
 // Screenplay docs additionally get Fountain/FDX export + import.
-export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc', authorName = '' }) {
+export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc', authorName = '', canEdit = true }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -262,7 +262,9 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
             <>
               <button role="menuitem" onClick={exportFountain}>Export Fountain (.fountain)</button>
               <button role="menuitem" onClick={exportFdx}>Export Final Draft (.fdx)</button>
-              <button role="menuitem" onClick={importScript}>Import Fountain / Final Draft…</button>
+              {/* Import replaces the script — a view-only reader's copy would
+                  change locally and never save. */}
+              {canEdit && <button role="menuitem" onClick={importScript}>Import Fountain / Final Draft…</button>}
               <div className="doc-export-sep" role="separator" />
             </>
           )}

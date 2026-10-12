@@ -120,6 +120,7 @@ export const ImageResizable = Image.extend({
         b.addEventListener('mousedown', (e) => e.preventDefault());
         b.addEventListener('click', (e) => {
           e.preventDefault();
+          if (!editor.isEditable) return;
           const pos = typeof getPos === 'function' ? getPos() : null;
           if (pos == null) return;
           editor.chain().focus().setNodeSelection(pos).updateAttributes('image', { align: val }).run();
@@ -134,6 +135,7 @@ export const ImageResizable = Image.extend({
       const remove = mkBtn('×', null, 'Delete image');
       remove.addEventListener('click', (e) => {
         e.preventDefault();
+        if (!editor.isEditable) return;
         const pos = typeof getPos === 'function' ? getPos() : null;
         if (pos == null) return;
         editor.chain().focus().setNodeSelection(pos).deleteSelection().run();
@@ -145,6 +147,10 @@ export const ImageResizable = Image.extend({
       let dragState = null; // { startX, startW, parentW }
       handle.addEventListener('pointerdown', (e) => {
         e.preventDefault(); e.stopPropagation();
+        // A read-only reader (view-only member, public viewer): commands still
+        // apply to a non-editable editor, so every image tool must bail here
+        // or it rewrites a local copy the board room never accepts.
+        if (!editor.isEditable) return;
         const parentW = (img.parentElement?.parentElement?.clientWidth) || 760;
         dragState = { startX: e.clientX, startW: img.offsetWidth, parentW };
         try { handle.setPointerCapture(e.pointerId); } catch (_) {}
@@ -169,6 +175,7 @@ export const ImageResizable = Image.extend({
       // Click image → select the node so handles + toolbar reveal.
       img.addEventListener('click', (e) => {
         e.preventDefault();
+        if (!editor.isEditable) return;
         const pos = typeof getPos === 'function' ? getPos() : null;
         if (pos != null) editor.chain().focus().setNodeSelection(pos).run();
       });
@@ -187,7 +194,8 @@ export const ImageResizable = Image.extend({
           dom.className = `tt-img-wrap tt-img-align-${updatedNode.attrs.align || 'center'}`;
           return true;
         },
-        selectNode() { dom.classList.add('is-selected'); },
+        // No handles or align bar for a reader — they could only no-op.
+        selectNode() { if (editor.isEditable) dom.classList.add('is-selected'); },
         deselectNode() { dom.classList.remove('is-selected'); },
         stopEvent(e) { return handle.contains(e.target) || tb.contains(e.target); },
         destroy() { cancelR2?.(); },
