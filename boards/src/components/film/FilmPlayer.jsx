@@ -3,7 +3,7 @@
 //            bottom edge, timecode, mute, and ⤢ into the review player. It
 //            takes no keys (the board owns those).
 //   preview  in Quick look — the picture with an overlaid bar; only , . and
-//            J/K/L (←/→ and Esc stay Quick look's).
+//            J/K/L and M (Space, ←/→ and Esc stay Quick look's).
 //   full     the review player (FilmReview): a two-row dock under the
 //            picture — the timeline, then the timecode, transport, loop,
 //            speed, guides, A/B and volume — the HUD, and every key in
@@ -22,6 +22,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { resolveSrc, cachedUrl } from '../../lib/r2.js';
 import * as audioBus from '../../lib/audioBus.js';
 import * as modalGuard from '../../lib/modalGuard.js';
+import { filmLayerOpen } from '../../lib/filmLayers.js';
 import { frameCentre, frameStart, frameCount, frameToTC, parseJump, rateValue, canDropFrame, timeToFrame } from '../../lib/timecode.js';
 import {
   shuttle, clampFrame, normalizeRange, nextMarker, reverseAdvance, playStartFrame, shouldLoopNow, stepRate,
@@ -331,12 +332,15 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     wantRef.current = { frame: f, settledAt: 0 };
     el.currentTime = frameCentre(f, st.fpsEff, st.t0, el.duration || Infinity);
   }, [writeDisplay]);
-  const seekTime = useCallback((t) => {
+  // { touch: true }: the frame was chosen (a card following the review's
+  // close), so it counts as use — no autoplay, and the card keeps it.
+  const seekTime = useCallback((t, opts) => {
     const el = vRef.current;
     if (!el || !Number.isFinite(t)) return;
+    if (opts?.touch) touch();
     const st = S.current;
     seekFrame(timeToFrame(t, st.fpsEff, st.t0));
-  }, [seekFrame]);
+  }, [seekFrame]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // The other version follows once the picture settles — never per scrub step.
   const syncHidden = () => {
@@ -392,7 +396,12 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       });
     }
   }, [seekFrame, hud]);
-  const play = useCallback((rate) => { touch(); startPlayback(rate ?? S.current.userRate); }, [startPlayback]);
+  const play = useCallback((rate) => {
+    touch();
+    // A jump being typed is abandoned, or the readout would stay a text field.
+    if (S.current.tcEdit) editTc(null);
+    startPlayback(rate ?? S.current.userRate);
+  }, [startPlayback]);   // eslint-disable-line react-hooks/exhaustive-deps
   const pause = useCallback(() => {
     touch();
     const el = vRef.current;
@@ -869,6 +878,9 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   const onZoomPanUp = () => { panRef.current = null; };
 
   // ── Keys ─────────────────────────────────────────────────────────────────
+  // Hints name a key only where it works: the review takes them all; Quick
+  // look only , . J K L and M.
+  const fullKeys = keyboard === true;
   const runRef = useRef(null);
   runRef.current = (a, e) => {
     const name = actionName(a);
@@ -914,7 +926,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       case 'zoomRange': timelineRef.current?.zoomToRange(); break;
       case 'pictureZoom': if (st.full) cyclePictureZoom(); break;
       case 'help': setHelp((h) => !h); break;
-      case 'tcEntry': if (st.full) { stopTransport(); setTcEdit({ seed: a.seed }); } break;
+      case 'tcEntry': if (st.full) { stopTransport(); editTc({ seed: a.seed }); } break;
       case 'copyTc': copyTc(); break;
       case 'copyLink': { const n = stateNow(); onAction?.('copyLink', { frame: n.frame, time: n.time }); break; }
       case 'nextComment': jumpMarker(1); break;
@@ -927,10 +939,13 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   modalHandleRef.current = modalHandle;
   useEffect(() => {
     if (!keyboard) return undefined;
+    // Quick look keeps Space (it closes Quick look, as for any file), ←/→ and Esc.
     const PREVIEW = new Set(['shuttleFwd', 'shuttleBack', 'stop', 'mute']);
     const onDown = (e) => {
       const handle = modalHandleRef.current?.current ?? null;
       if (modalHandleRef.current && (!handle || (modalGuard.isTopModal && !modalGuard.isTopModal(handle)))) return;
+      // One of the player's menus or its shortcut sheet is open: its keys.
+      if (filmLayerOpen()) return;
       const k = String(e.key || '').toLowerCase();
       const jkl = k === 'k' || k === 'j' || k === 'l';
       // macOS drops the keyup of a key released while ⌘ is down: never track
@@ -943,8 +958,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       if (!shouldHandleKey(e, a)) return;
       const name = actionName(a);
       if (keyboard === 'preview') {
-        const ok = PREVIEW.has(name) || ((name === 'back1f' || name === 'fwd1f') && (e.key === ',' || e.key === '.'))
-          || (name === 'toggle' && (touchedRef.current || isRunning()));
+        const ok = PREVIEW.has(name) || ((name === 'back1f' || name === 'fwd1f') && (e.key === ',' || e.key === '.'));
         if (!ok) return;
       }
       if ((name === 'copyTc' || name === 'copyLink') && String(window.getSelection?.() || '')) return;
@@ -980,12 +994,25 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   }, [keyboard]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Typing a jump ────────────────────────────────────────────────────────
+  // Opening or closing the field starts it clean: no error left over from
+  // the last attempt.
+  function editTc(next) {
+    setTcInvalid(0);
+    setTcEdit(next);
+  }
+  // Closed from the field itself (Enter, Esc): the field goes, so focus
+  // goes back to the room the player is in — not to the page, where the
+  // player's keys (and Quick look's, behind it) would act on the wrong layer.
+  const closeTc = () => {
+    editTc(null);
+    const room = rootRef.current?.closest('[role="dialog"]');
+    if (room) { try { room.focus({ preventScroll: true }); } catch (_) {} }
+  };
   const commitTc = (text) => {
     const st = S.current;
     const f = parseJump(text, { fps: st.fpsEff, current: here(), startFrames: st.effMode === 'tc' ? st.startFrames : 0, df: st.df, frames: st.frames });
     if (f == null) { setTcInvalid((n) => n + 1); return false; }
-    setTcEdit(null);
-    setTcInvalid(0);
+    closeTc();
     touch();
     stopTransport();
     seekFrame(f);
@@ -1037,11 +1064,15 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   // ── Tooltips: one, delegated, quick once one has shown ───────────────────
   const tipTimer = useRef(null);
   const tipLast = useRef(0);
+  const hideTip = () => { clearTimeout(tipTimer.current); setTip(null); };
   const onTipOver = (e) => {
     const t = e.target.closest?.('[data-tip]');
-    if (!t || !rootRef.current?.contains(t)) return;
+    // Over something without a tip — or the one that had it went away
+    // without a pointerout (the timecode turning into its field).
+    if (!t || !rootRef.current?.contains(t)) { hideTip(); return; }
     clearTimeout(tipTimer.current);
     const show = () => {
+      if (!t.isConnected || !rootRef.current) return;
       const r = t.getBoundingClientRect();
       const hr = rootRef.current.getBoundingClientRect();
       setTip({ text: t.dataset.tip, key: keyboard ? (t.dataset.key || '') : '', x: r.left + r.width / 2 - hr.left, y: r.top - hr.top });
@@ -1051,20 +1082,21 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   };
   const onTipOut = (e) => {
     const t = e.target.closest?.('[data-tip]');
-    if (!t || t.contains(e.relatedTarget)) return;
-    clearTimeout(tipTimer.current);
+    if (t && t.contains(e.relatedTarget)) return;
     if (tip) tipLast.current = performance.now();
-    setTip(null);
+    hideTip();
   };
   useEffect(() => () => clearTimeout(tipTimer.current), []);
 
   // ── Menus ────────────────────────────────────────────────────────────────
-  const openMenu = (id, anchorEl, items, opts = {}) => {
+  // The rows are built on every render from the menu's id (menuItems,
+  // below), so a row that stays open (Thirds, Centre cross) shows its new tick.
+  const openMenu = (id, anchorEl, opts = {}) => {
     if (menu?.id === id) { setMenu(null); return; }
-    setTip(null);
-    clearTimeout(tipTimer.current);
-    const r = anchorEl?.getBoundingClientRect?.() || anchorEl;
-    setMenu({ id, anchor: r, items, ...opts });
+    hideTip();
+    const isEl = typeof anchorEl?.getBoundingClientRect === 'function';
+    const r = isEl ? anchorEl.getBoundingClientRect() : anchorEl;
+    setMenu({ id, anchor: r, ignore: isEl ? anchorEl : null, ...opts });
   };
   const speedItems = () => [
     ...(shuttleRef.current.dir && shuttleRef.current.rate !== 1 ? [{ id: 'sh', label: `Shuttle ${shuttleText(shuttleRef.current)}`, disabled: true }, { divider: true }] : []),
@@ -1079,7 +1111,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     ...GUIDES.map((g) => ({
       id: g.id, label: g.label, checked: S.current.guide === g.id,
       thumb: g.ar ? <AspectThumb ar={g.ar} /> : <span className="film-menu-thumb-empty" />,
-      hint: S.current.guide === g.id && keyboard ? 'G' : undefined,
+      hint: S.current.guide === g.id && fullKeys ? 'G' : undefined,
       run: () => { setGuide(g.id); if (g.id !== 'off') writePrefs({ guide: g.id }); },
     })),
     { divider: true },
@@ -1094,7 +1126,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       run: () => setTcMode(m.id),
     })),
     { divider: true },
-    { id: 'copy', label: 'Copy timecode', hint: keyboard ? '⌘C' : undefined, run: copyTc },
+    { id: 'copy', label: 'Copy timecode', hint: fullKeys ? '⌘C' : undefined, run: copyTc },
   ];
   const rangeItems = () => {
     const r = S.current.range;
@@ -1108,21 +1140,23 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       { id: 'cboth', label: 'Clear both', hint: '⌥X', run: clearRange },
     ];
   };
+  const stageItems = () => [
+    { id: 'copy', label: 'Copy timecode', hint: fullKeys ? '⌘C' : undefined, run: copyTc },
+    ...(canCopyLink ? [{ id: 'link', label: 'Copy link to this frame', hint: fullKeys ? '⇧⌘C' : undefined, run: () => runRef.current('copyLink') }] : []),
+    { divider: true },
+    { id: 'zoom', label: pz.mode === 'fit' ? 'Zoom the picture to 100%' : 'Fit the picture', hint: fullKeys ? 'Z' : undefined, run: cyclePictureZoom },
+    { id: 'loop', label: 'Loop', checked: looping, radio: false, hint: fullKeys ? '⌥L' : undefined, run: toggleLoop },
+    { id: 'guides', label: guide === 'off' ? 'Show framing guides' : 'Hide framing guides', hint: fullKeys ? 'G' : undefined,
+      run: () => { if (guide === 'off') { setGuide(prefs.guide || '2.39'); } else setGuide('off'); } },
+    { id: 'mute', label: muted ? 'Unmute' : 'Mute', hint: keyboard ? 'M' : undefined, run: toggleMute },
+    ...(canFull ? [{ id: 'full', label: isFull ? 'Exit full screen' : 'Full screen', hint: fullKeys ? 'F' : undefined, run: toggleFull }] : []),
+  ];
   const stageMenu = (e) => {
     if (compact) return;
     e.preventDefault();
-    openMenu('stage', { left: e.clientX, top: e.clientY, width: 0, height: 0 }, [
-      { id: 'copy', label: 'Copy timecode', hint: keyboard ? '⌘C' : undefined, run: copyTc },
-      ...(canCopyLink ? [{ id: 'link', label: 'Copy link to this frame', hint: keyboard ? '⇧⌘C' : undefined, run: () => runRef.current('copyLink') }] : []),
-      { divider: true },
-      { id: 'zoom', label: pz.mode === 'fit' ? 'Zoom the picture to 100%' : 'Fit the picture', hint: keyboard ? 'Z' : undefined, run: cyclePictureZoom },
-      { id: 'loop', label: 'Loop', checked: looping, radio: false, hint: keyboard ? '⌥L' : undefined, run: toggleLoop },
-      { id: 'guides', label: guide === 'off' ? 'Show framing guides' : 'Hide framing guides', hint: keyboard ? 'G' : undefined,
-        run: () => { if (guide === 'off') { setGuide(prefs.guide || '2.39'); } else setGuide('off'); } },
-      { id: 'mute', label: muted ? 'Unmute' : 'Mute', hint: keyboard ? 'M' : undefined, run: toggleMute },
-      ...(canFull ? [{ id: 'full', label: isFull ? 'Exit full screen' : 'Full screen', hint: keyboard ? 'F' : undefined, run: toggleFull }] : []),
-    ], { placement: 'below', align: 'start' });
+    openMenu('stage', { left: e.clientX, top: e.clientY, width: 0, height: 0 }, { placement: 'below', align: 'start' });
   };
+  const menuItems = { speed: speedItems, guides: guideItems, tcmode: tcItems, range: rangeItems, stage: stageItems };
 
   // ── Stage clicks ─────────────────────────────────────────────────────────
   const downAt = useRef(null);
@@ -1176,11 +1210,11 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     isFull, canFull, compareOn: !!compareUrl, side, label: label || 'A', compareLabel: compareLabel || 'B', tcRef, menuId: menu?.id,
     disabled: !!err || loading,
     toggle, step, markIn, markOut, clearRange, toggleLoop, toggleMute, setVolume, toggleFull, flip,
-    setShowRemaining, setTcEdit, commitTc, format,
-    openSpeed: (el) => openMenu('speed', el, speedItems(), { align: 'center' }),
-    openGuides: (el) => openMenu('guides', el, guideItems(), { align: 'center' }),
-    openTcMode: (el) => openMenu('tcmode', el, tcItems(), { align: 'start' }),
-    openRange: (el) => openMenu('range', el, rangeItems(), { align: 'start' }),
+    setShowRemaining, setTcEdit: editTc, closeTc, commitTc, format,
+    openSpeed: (el) => openMenu('speed', el, { align: 'center' }),
+    openGuides: (el) => openMenu('guides', el, { align: 'center' }),
+    openTcMode: (el) => openMenu('tcmode', el, { align: 'start' }),
+    openRange: (el) => openMenu('range', el, { align: 'start' }),
     onExpand: onExpand ? () => { const s = api.getState(); pause(); onExpand(s); } : null,
     rangeLength: range.in != null || range.out != null
       ? (() => { const r = normalizeRange(range.in, range.out, frames); return { frames: (r.out ?? frames - 1) - (r.in ?? 0) + 1 }; })() : null,
@@ -1209,6 +1243,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
          style={{ '--ar': pictureAr }}
          onPointerMove={isFull ? wake : compact || preview ? onCompactMove : undefined}
          onPointerOver={compact ? undefined : onTipOver} onPointerOut={compact ? undefined : onTipOut}
+         onPointerDownCapture={compact ? undefined : hideTip}
          onPointerEnter={compact ? () => { ensureFacts(); measureUi(); } : undefined}>
       <div className="film-stage" ref={setStageEl}
            onPointerDown={(e) => { onStagePointerDown(e); onZoomPanDown(e); }}
@@ -1267,7 +1302,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
         <FilmDock ctl={ctl} timeline={timeline} />
       )}
       {menu && (
-        <FilmMenu anchor={menu.anchor} container={rootRef.current} items={menu.items} label={menu.id}
+        <FilmMenu anchor={menu.anchor} container={rootRef.current} items={menuItems[menu.id]?.() || []} label={menu.id} ignore={menu.ignore}
                   placement={menu.placement || 'above'} align={menu.align || 'start'} onClose={() => setMenu(null)} />
       )}
       {tip && (

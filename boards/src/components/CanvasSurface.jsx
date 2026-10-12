@@ -104,7 +104,7 @@ import { canVersion, liveVersions, currentOf, versionLabel } from '../lib/cardVe
 import { kindFromMime } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
 import { probeFile } from '../lib/mediaProbe.js';
-import { openPlayer } from '../lib/playerBus.js';
+import { openPlayer, takeCardPlayer } from '../lib/playerBus.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
@@ -6896,7 +6896,7 @@ export function CanvasSurface({
     if (!multi) {
       // The review player: frame steps, J/K/L, in/out, guides, versions side by side.
       if (c.kind === 'video' && c.src && !c.pending && !isPublic) {
-        items.push({ id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: c.id, onDownload: () => runDownload(c, 'video') }) });
+        items.push({ id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: c.id, ...(takeCardPlayer(c.id) || {}) }) });
       }
       // A new version of a video, audio, PDF or file (an image's is in its Edit menu).
       if (canVersion(c) && c.kind !== 'image') {
@@ -9197,7 +9197,7 @@ export function CanvasSurface({
                                                         onDownload={c.src ? () => runDownload(c, 'video') : null}
                                                         mediaJson={c.media ? JSON.stringify(c.media) : null}
                                                         cardId={c.id} selected={isSelected} tapToPlay={!canEdit || isPublic}
-                                                        onExpand={!isPublic && board?.id ? (st) => openPlayer({ boardId: board.id, cardId: c.id, time: st?.time ?? null, playing: !!st?.playing, onDownload: () => runDownload(c, 'video') }) : null} />;
+                                                        onExpand={!isPublic && board?.id ? (st) => openPlayer({ boardId: board.id, cardId: c.id, time: st?.time ?? null, playing: !!st?.playing }) : null} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
                                                         bpm={c.bpm} musicalKey={c.musicalKey} ext={c.ext} mime={c.mime}
                                                         onUpdate={onUpdate} autoFocus={af}

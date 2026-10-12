@@ -16096,7 +16096,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "), J/K/L, the scrubber with its preview, and "
+     "v": "), J/K/L, mute ("
+    },
+    {
+     "t": "code",
+     "v": "M"
+    },
+    {
+     "t": "text",
+     "v": "), the scrubber with its preview, and "
     },
     {
      "t": "strong",
@@ -16114,6 +16122,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "K"
+    },
+    {
+     "t": "text",
+     "v": " pauses there; "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " closes Quick look as it does for any file, and "
+    },
+    {
+     "t": "code",
      "v": "←"
     },
     {
@@ -16126,7 +16150,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " still move between files there."
+     "v": " still move between files."
     }
    ]
   },
