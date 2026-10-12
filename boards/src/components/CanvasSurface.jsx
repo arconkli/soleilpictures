@@ -115,6 +115,7 @@ import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
+import { probeFile } from '../lib/mediaProbe.js';
 import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
@@ -3970,7 +3971,7 @@ export function CanvasSurface({
       w = Math.max(240, Math.min(560, meta.w || 360));
       const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
       h = Math.max(160, Math.round(w * aspect));
-      extra = { ...fileMetaFor(file) };
+      extra = { ...fileMetaFor(file), sizeBytes: file.size || null, mime: file.type || null };
     } else {
       const meta = await readAudioMeta(file);
       ({ w, h } = FALLBACK_DIMS.audio);
@@ -3996,6 +3997,7 @@ export function CanvasSurface({
         // the whole clip back — and this route exists precisely for the clips too
         // big to want that. After the src patch so playback is never gated on it.
         if (kind === 'video') {
+          probeFile(file).then((media) => { if (media) settleUpload(dropBoardId, id, { media }); });
           const poster = await captureAndUploadPoster({ file, workspaceId, boardId: dropBoardId, userId });
           if (poster) settleUpload(dropBoardId, id, { poster });
         } else if (kind === 'audio') {
@@ -4034,7 +4036,7 @@ export function CanvasSurface({
     }
     const id = `vid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const placed = placeDropRect(cx, cy, w, h, rect);
-    mutators.addCard?.({ id, kind: 'video', ...fileMetaFor(file), x: placed.x, y: placed.y, w, h, pending: true });
+    mutators.addCard?.({ id, kind: 'video', ...fileMetaFor(file), sizeBytes: file.size || null, mime: file.type || null, x: placed.x, y: placed.y, w, h, pending: true });
     inflightUploadsRef.current.add(id);
     try {
       const onProgress = (frac) => reportUploadProgress(id, frac);
@@ -4045,6 +4047,9 @@ export function CanvasSurface({
                                      originalName: meaningfulFileName(file),
                                      ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
       settleUpload(dropBoardId, id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
+      // Frame rate, codec, start timecode… read from the local File's own
+      // container (lib/mediaProbe.js) — Info and the film player count frames by it.
+      probeFile(file).then((media) => { if (media) settleUpload(dropBoardId, id, { media }); });
     } catch (e) {
       // The free-tier length cap is a paid limit like the others, and the only
       // one that never wrote a row: record it beside the rest of upload_blocked.

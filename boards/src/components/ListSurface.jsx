@@ -1831,6 +1831,7 @@ export function ListSurface({
                 <DetailPanel
                   target={detailTarget} boards={boards} canEdit={canEdit}
                   selfId={selfId} gridTemplates={gridTemplates}
+                  writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
                   onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
                   onClose={toggleInfo}
                   onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}

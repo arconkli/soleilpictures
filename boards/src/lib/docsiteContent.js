@@ -14506,6 +14506,228 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "What Clusters knows about a clip",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What Clusters knows about a clip"
+    }
+   ],
+   "id": "what-clusters-knows-about-a-clip"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-click a video and choose "
+    },
+    {
+     "t": "link",
+     "v": "**Info**",
+     "href": "/docs/canvas/cards#info",
+     "children": [
+      {
+       "t": "strong",
+       "v": "Info",
+       "children": [
+        {
+         "t": "text",
+         "v": "Info"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or select it and press "
+    },
+    {
+     "t": "code",
+     "v": "⌘I"
+    },
+    {
+     "t": "text",
+     "v": ". Clusters reads the file's own container — MP4, MOV and M4V — and reports what an editor would look for:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Resolution",
+       "children": [
+        {
+         "t": "text",
+         "v": "Resolution"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The picture's size, turned the right way up for a phone clip shot on its side"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Duration",
+       "children": [
+        {
+         "t": "text",
+         "v": "Duration"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The length, to the second"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Frame rate",
+       "children": [
+        {
+         "t": "text",
+         "v": "Frame rate"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Exactly — 23.976 is not 24 — and marked "
+      },
+      {
+       "t": "em",
+       "v": "variable",
+       "children": [
+        {
+         "t": "text",
+         "v": "variable"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " for a phone recording whose frames don't arrive evenly"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Codec",
+       "children": [
+        {
+         "t": "text",
+         "v": "Codec"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "H.264 and its profile, HEVC, ProRes (by flavour), AV1, VP9"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Start timecode",
+       "children": [
+        {
+         "t": "text",
+         "v": "Start timecode"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "When the camera or editor wrote one, drop-frame at 29.97 and 59.94"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Audio",
+       "children": [
+        {
+         "t": "text",
+         "v": "Audio"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its codec, sample rate and channels — or "
+      },
+      {
+       "t": "em",
+       "v": "None",
+       "children": [
+        {
+         "t": "text",
+         "v": "None"
+        }
+       ]
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A clip is read as it uploads, from the file on your computer. One uploaded before this existed is read the first time someone opens Info on it, a few kilobytes from the start (and end) of the file rather than the whole clip, and what it finds is kept on the card. WebM and other containers report less."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {
