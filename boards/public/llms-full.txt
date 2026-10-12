@@ -2625,7 +2625,7 @@ A: Fountain is plain text — it opens anywhere, diffs cleanly in version contro
 ========================================================================
 # Comments, tags and backlinks in documents
 URL: https://clusters.soleilpictures.com/docs/documents/comments-and-tags
-Updated: 2026-08-08
+Updated: 2026-10-12
 
 Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
@@ -2638,6 +2638,8 @@ Select text and add a comment. It anchors to that range, not to a character posi
 Commented text is marked inline, with a gold dot in the right margin. Click a dot to open the thread.
 
 Comments thread, resolve, and support @ mentions that notify the person you name. See Comments for the full model, which is shared with the canvas.
+
+Because a text comment is part of the document, it follows edit access. A viewer sees the dots and can open and read every thread, marked View only; adding, replying to, resolving or deleting a comment needs edit access.
 
 Tags on a range
 
@@ -2909,7 +2911,7 @@ A: Forward slash opens it too, when you are not typing into something.
 ========================================================================
 # Collaborating
 URL: https://clusters.soleilpictures.com/docs/collaborate
-Updated: 2026-10-10
+Updated: 2026-10-12
 
 Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
@@ -2921,7 +2923,7 @@ Role | Can
 Owner | Everything, including deleting the cluster and managing members and shares
 Co-owner | Runs a workspace alongside its owner — invites and removes members, changes roles, manages every share and link, renames it — but cannot delete it, hand it over, or remove the owner
 Editor | Add, change and remove content; comment; invite if permitted
-Viewer | Open, read, comment and vote — never change content
+Viewer | Open, read, comment on the canvas and vote — never change content, including a document's text comments
 Workspace member | The same two levels, editor or viewer, granted for every cluster in the workspace at once
 
 Editors are free on every plan. A free-tier account can be an editor on any cluster it is invited to, with no restriction on what it can do there.
@@ -2973,7 +2975,7 @@ Q: Whose card allowance do collaborator uploads use?
 A: The owner's. If you add cards to someone else's cluster, they count against their limit, not yours.
 
 Q: Can a viewer comment?
-A: Yes. Viewers can read, comment and vote; they cannot add, move or change cards.
+A: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move or change cards. Text comments inside a document need edit access — a viewer can read those threads but not add to them.
 
 
 ========================================================================
@@ -3183,7 +3185,9 @@ Comment bubbles lay themselves out to avoid covering the content they refer to a
 
 Who can comment
 
-Anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
+On the canvas, anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
+
+A comment on a text range is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access.
 
 Comments versus votes
 
@@ -3609,7 +3613,7 @@ Owners also get Recovery here — a rewind of every cluster in the workspace at 
 
 Members
 
-Everyone in the workspace, with their level: Owner, Co-owner (runs the workspace alongside the owner), Editor (adds and changes content) or Viewer (opens, reads, comments and votes, but does not change anything). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Someone invited who has no account yet is listed too, as an invite that gets access when they sign up, and the owner and co-owners can revoke it from there. Only the owner can hand the workspace to another member. Everyone else sees the list.
+Everyone in the workspace, with their level: Owner, Co-owner (runs the workspace alongside the owner), Editor (adds and changes content) or Viewer (opens, reads, comments on the canvas and votes, but does not change anything — including a document's text comments, which they can only read). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Someone invited who has no account yet is listed too, as an invite that gets access when they sign up, and the owner and co-owners can revoke it from there. Only the owner can hand the workspace to another member. Everyone else sees the list.
 
 Card defaults
 
