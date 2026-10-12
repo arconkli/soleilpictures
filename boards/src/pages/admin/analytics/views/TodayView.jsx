@@ -424,9 +424,9 @@ export function TodayView() {
   // sparkline uses, so the badge and the line can never disagree.
   const mrrCents = num(f.stats?.mrr_cents);
   // ACTIVE SUBSCRIPTIONS, not tier='paid'. The paid tier also holds comped
-  // accounts, so reading tier_counts here printed "4 paying accounts" beside
-  // $0 of revenue — four people who have never paid anything. Anything that
-  // claims to count payers has to count the thing that charges.
+  // accounts, so reading tier_counts here counted comps as paying accounts
+  // beside an MRR that did not include them. Anything that claims to count
+  // payers has to count the thing that charges.
   const payingUsers = num(f.stats?.sub_counts?.active) || 0;
   const compedUsers = num(f.stats?.comped_paid) || 0;
   // The free tier, from the same admin_stats the shell already fetched. A bare

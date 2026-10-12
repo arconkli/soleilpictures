@@ -276,8 +276,8 @@ function LazyMoney({ days, f }) {
   }, [days, f.excludeInternal, f.verifiedOnly]);
 
   // ACTIVE SUBSCRIPTIONS, as Today's MRR tile counts them. tier_counts.paid also
-  // holds comped accounts, so it printed "N paying accounts" on a product where
-  // nobody had ever paid. Comped accounts are named as what they are.
+  // holds comped accounts, so reading it counted comps as payers. Comped
+  // accounts are named as what they are.
   const paying = num(f.stats?.sub_counts?.active);
   const anySubs = Object.values(f.stats?.sub_counts || {}).some((n) => num(n) > 0);
   const comped = num(f.stats?.comped_paid);
