@@ -8,6 +8,14 @@ import { EmojiPalette } from './EmojiPalette.jsx';
 import { useDraft } from '../hooks/useDraft.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { coerceRef } from '../lib/entityRef.js';
+import { useFeedback } from './AppFeedback.jsx';
+
+// What a pending entity attachment's chip says: its title when the drag or
+// the picker carried one, else what kind of thing it is.
+const REF_KIND_LABEL = { board: 'Cluster', card: 'Card', doc: 'Document', docPos: 'Document section', tag: 'Tag', url: 'Link', message: 'Message' };
+function refChipLabel(ref) {
+  return ref?.title || ref?.name || REF_KIND_LABEL[ref?.kind] || 'Attachment';
+}
 
 // Bottom-of-thread input. Detects @<query> tokens at the caret to fire the
 // EntityPicker filtered to user/board/card/doc; resolved picks become
@@ -15,6 +23,7 @@ import { coerceRef } from '../lib/entityRef.js';
 // (entity attachments rendered as soleil pills).
 export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…' }) {
   const [body, setBody, clearDraft] = useDraft(draftKey || `tmp:${workspaceId || 'unknown'}`);
+  const feedback = useFeedback();
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [mention, setMention] = useState(null); // { tokenStart, query, anchor }
@@ -37,12 +46,22 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     if (!files?.length || !workspaceId || !userId) return;
     setUploading(true);
     const uploaded = [];
+    const failed = [];
     for (const f of files) {
       const att = await uploadMessageFile(f, { workspaceId, userId });
-      if (att) uploaded.push(att);
+      if (att) uploaded.push(att); else failed.push(f.name || 'file');
     }
     setAttachments(prev => [...prev, ...uploaded]);
     setUploading(false);
+    // A failed upload used to vanish: "Uploading…", then nothing (COMMS-19).
+    if (failed.length) {
+      feedback.toast({
+        type: 'error',
+        message: failed.length === 1
+          ? `Couldn't attach ${failed[0]} — try again.`
+          : `Couldn't attach ${failed.length} files — try again.`,
+      });
+    }
   };
 
   // Try to fetch a remote URL and treat the bytes as a file upload.
@@ -91,7 +110,11 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
       try {
         const refs = refListJson ? JSON.parse(refListJson)
                                  : [JSON.parse(refJson)];
-        const cleaned = refs.map(r => coerceRef(r)).filter(Boolean);
+        // Keep the title the drag carried, so the chip (and the recipient)
+        // can name the thing rather than just its kind.
+        const cleaned = refs
+          .map(r => { const c = coerceRef(r); return c && (r?.title || r?.name) ? { ...c, title: r.title || r.name } : c; })
+          .filter(Boolean);
         if (cleaned.length) {
           setPendingEntityRefs(prev => [...prev, ...cleaned]);
           return;
@@ -115,9 +138,13 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     return { tokenStart: i, query: text.slice(i + 1, caret) };
   };
 
+  // Dropped cards and clusters count as something to send on their own: they
+  // used to attach invisibly, and only if you also typed (COMMS-19).
+  const hasPayload = attachments.length > 0 || pendingEntityRefs.length > 0;
+
   const send = async () => {
     const v = body.trim();
-    if (!v && attachments.length === 0) return;
+    if (!v && !hasPayload) return;
     // onSend resolves false when the send failed — keep the draft and
     // attachments so the user's message isn't silently lost.
     const ok = await onSend?.({
@@ -175,12 +202,18 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}>
       {dragOver && <div className="msg-composer-drop">Drop to attach</div>}
-      {attachments.length > 0 && (
+      {hasPayload && (
         <div className="msg-composer-attachments">
           {attachments.map((a, i) => (
             <div key={i} className="msg-composer-att-chip">
               <span>{a.name || a.title || (a.kind === 'url' ? a.href : a.kind)}</span>
-              <button type="button" onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+              <button type="button" aria-label="Remove attachment" onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+            </div>
+          ))}
+          {pendingEntityRefs.map((r, i) => (
+            <div key={`ref-${i}`} className="msg-composer-att-chip">
+              <span>{refChipLabel(r)}</span>
+              <button type="button" aria-label="Remove attachment" onClick={() => setPendingEntityRefs(prev => prev.filter((_, idx) => idx !== i))}>×</button>
             </div>
           ))}
         </div>
@@ -245,7 +278,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
                 onClick={(e) => setEmojiAnchor(emojiAnchor ? null : e.currentTarget.getBoundingClientRect())}>
           <Icon as={Smile} size={14} />
         </button>
-        <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && attachments.length === 0)}>
+        <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && !hasPayload)}>
           {uploading ? 'Uploading…' : 'Send'}
         </button>
       </div>
