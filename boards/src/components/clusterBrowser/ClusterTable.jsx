@@ -22,13 +22,19 @@ export function ClusterTable({
   audioMode = false, draggableItems = false, onBoardIds = null, renameFor = null, markUnplaced = false,
 }) {
   const dateKey = sortKey === 'created' ? 'created' : 'updated';
-  const th = (cls, col, label) => (
-    <SortTh cls={cls} col={col} label={label} sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
+  const th = (cls, col, label, note = null) => (
+    <SortTh cls={cls} col={col} label={label} sortKey={sortKey} sortDir={sortDir} onSort={onSort} note={note} />
   );
+  // Where the sorted column is folded away (a phone, a narrow pane), the Name
+  // header says what the list is sorted by — otherwise nothing on screen
+  // does. Always in the DOM; CSS shows it at the widths that hide that column.
+  const sortNote = SORT_NOTE[sortKey]
+    ? <span className="ct-th-sortnote" data-col={sortKey}>· {SORT_NOTE[sortKey]} {sortDir === 'asc' ? '↑' : '↓'}</span>
+    : null;
   return (
     <div className="ct-table" role="table" aria-label="Files" data-cols={audioMode ? 'audio' : undefined}>
       <div className="ct-head" role="row">
-        {th('ct-c-name', 'name', 'Name')}
+        {th('ct-c-name', 'name', 'Name', sortNote)}
         {audioMode ? (
           <>
             {th('ct-c-dur', 'duration', 'Time')}
@@ -88,7 +94,13 @@ export function ClusterTable({
 // cannot shove the next column sideways — it used to be appended to the label
 // text, which reflowed the whole header row on every sort. aria-sort is what
 // tells a screen reader that the arrow means anything.
-function SortTh({ cls, col, label, sortKey, sortDir, onSort }) {
+// The menu's words for each sort, for the Name header's note.
+const SORT_NOTE = {
+  type: 'Type', size: 'Size', updated: 'Modified', created: 'Added',
+  duration: 'Length', bpm: 'Tempo', key: 'Key', format: 'Format',
+};
+
+function SortTh({ cls, col, label, sortKey, sortDir, onSort, note = null }) {
   const sorted = sortKey === col;
   // The W3C pattern for a sortable column: a columnheader WRAPPING a button,
   // so the header keeps its sort state (aria-sort) and the button stays a
@@ -104,6 +116,7 @@ function SortTh({ cls, col, label, sortKey, sortDir, onSort }) {
       >
         <span>{label}</span>
         <span className="ct-th-caret" aria-hidden="true">{sorted && sortDir === 'asc' ? '↑' : '↓'}</span>
+        {note}
       </button>
     </div>
   );
