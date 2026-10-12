@@ -3930,7 +3930,19 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   padding: 2px 26px; border-left: 1px solid var(--adm-line); min-height: 0; gap: 7px;
 }
 
-.admin-stat-card:first-child { border-left: 0; padding-left: 0; }
+/* The first tile of EVERY row starts flush with no rule. That used to be
+   :first-child, which only knows the first row: a strip that wrapped (the API
+   tab's fixed three columns, the Today rail at tablet width) indented the
+   first tile of row two behind a stray rule. The column count is auto-fit, so
+   no selector can name "first in its row"; instead each tile's rule sits one
+   pixel left of its track, the grid reaches one tile-padding past the column
+   on both sides, and clipping that edge hides the leftmost rule of every row
+   and its padding. Nothing focusable lives in a tile, and overflow-x: clip
+   (not hidden) leaves the vertical axis alone. The rows get a gap of their
+   own, too: they used to touch. */
+.admin-stat-grid { margin-inline: -26px; overflow-x: clip; row-gap: 22px; }
+
+.admin-stat-card { margin-left: -1px; }
 
 .admin-stat-card.is-accent { border-color: var(--adm-line); }
 
@@ -3970,7 +3982,6 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .admin-people-dot.is-did { box-shadow: 0 0 0 3px color-mix(in srgb, var(--adm-cat-2) 22%, transparent); }
 
 @media (max-width: 900px) {
-  .admin-stat-card { border-left: 0; padding-left: 0; }
   .admin-header { flex-wrap: wrap; gap: 12px; }
 }
 
@@ -4737,8 +4748,6 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * floating caption line.
  */
 .adm-rail { padding: 14px 16px 12px; }
-
-.adm-rail .admin-stat-card:first-child { padding-left: 0; }
 
 /* The foot already has the well's own top rule; the strip's second border-top
    made a double hairline. */
