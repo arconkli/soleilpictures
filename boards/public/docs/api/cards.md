@@ -302,9 +302,9 @@ the card comes back — `POST` it to the cards endpoint to restore it. It return
 with a new id, and its identifiers and properties are not restored with it, so
 send those again in the same `POST` if you use them.
 
-Some cards cannot come back this way: grids, palettes and schedules (kinds this
-API reads but does not create), and docs written in the app, whose pages are
-stored apart from the card. A delete that removes any of them lists their ids in
+Some cards cannot come back this way: any card kind this API does not create
+(grids, palettes, schedules, cluster cards and the like), and docs written in
+the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in
 `not_restorable`, with a `recover` sentence. They are not lost: every delete
 saves the board to its Version history first, and they can be restored from
 there in the app.

@@ -43621,7 +43621,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Some cards cannot come back this way: grids, palettes and schedules (kinds this API reads but does not create), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in "
+     "v": "Some cards cannot come back this way: any card kind this API does not create (grids, palettes, schedules, cluster cards and the like), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in "
     },
     {
      "t": "code",
@@ -50720,7 +50720,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to restore it. Worth keeping in context before destructive work. Grids, palettes, schedules and docs written in the app are the exception: the response lists them in "
+     "v": " to restore it. Worth keeping in context before destructive work. Card kinds "
+    },
+    {
+     "t": "code",
+     "v": "add_cards"
+    },
+    {
+     "t": "text",
+     "v": " does not create (grids, palettes, schedules, cluster cards and the like) and docs written in the app are the exception: the response lists them in "
     },
     {
      "t": "code",
