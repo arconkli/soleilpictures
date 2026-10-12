@@ -7,6 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { normalizeIncomingCard } from '../worker-api.js';
 import {
   normalizeImportItems, kindForContentType, cardSpecFor, titleFromUrl, fitDims,
   summarize, mapWithConcurrency, noteFor, provenanceProps,
@@ -95,7 +96,10 @@ test('an imported image carries its key, its caption and real dimensions', () =>
   });
   assert.equal(spec.kind, 'image');
   assert.equal(spec.image_key, 'ws/abc.jpg');
-  assert.equal(spec.caption, 'Diner counter');
+  // Through the route that actually receives the spec. A `caption` key on the
+  // spec read correctly here and was dropped there: POST /cards takes an
+  // image's caption as `body`, and the label vanished on every import.
+  assert.equal(normalizeIncomingCard(spec).caption, 'Diner counter');
   // Scaled to fit, aspect preserved — not laid out square and then jumping.
   assert.equal(spec.w, 480);
   assert.equal(spec.h, 270);
