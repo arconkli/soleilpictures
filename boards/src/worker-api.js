@@ -2193,8 +2193,10 @@ async function dispatch(url, request, env, ctx) {
         // deliberately absent so a re-run does not rewrite who made the board.
         const refused = [];
         await mapWithConcurrency(updates, 8, async (b) => {
+          // No deleted_at filter: a match in the Trash was updated by the old
+          // upsert too, and filtering it would report it as a refusal.
           const rows = await userPatch(env, token, 'boards',
-            `id=eq.${b.id}&deleted_at=is.null`, { name: b.name, view: b.view });
+            `id=eq.${b.id}`, { name: b.name, view: b.view });
           // RLS turns an update it refuses into zero rows, not an error.
           if (!Array.isArray(rows) || !rows.length) refused.push(b.id);
           else b.parent_board_id = rows[0].parent_board_id ?? null;
