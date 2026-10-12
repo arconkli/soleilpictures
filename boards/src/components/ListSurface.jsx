@@ -397,7 +397,7 @@ export function ListSurface({
   // to prefs, so it used to wipe the sort for good.
   useEffect(() => {
     if (loading || !visibleItems.length) return;
-    if (!audioMode &&['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
+    if (!audioMode && ['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
       setSortKey('board');
       setSortDir('asc');
       writeBrowserPrefs({ sortKey: 'board', sortDir: 'asc' });

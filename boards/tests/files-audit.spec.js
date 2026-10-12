@@ -179,6 +179,15 @@ test('FILES-LIST-03: a search that matches nothing does not wipe the Tempo sort'
   await search.fill('');
   await expect(full(page).locator('.ct-play')).toHaveCount(3);
   await expect(tempo).not.toHaveAttribute('aria-sort', 'none');
+  // And a reload keeps it (dropping reset=1 keeps the loops). The real app
+  // renders zero rows for a beat before the board syncs, where the reset used
+  // to be saved; the harness loads its board synchronously, so this pins that
+  // the sort is restored, not that race.
+  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1&blank=1'));
+  await page.reload();
+  // The view comes back as it was left: full Files, in List.
+  await expect(full(page).locator('.ct-play')).toHaveCount(3);
+  await expect(tempo).not.toHaveAttribute('aria-sort', 'none');
 });
 
 test('FILES-LIST-04: a file deleted on the board leaves the Files selection', async ({ page }) => {
