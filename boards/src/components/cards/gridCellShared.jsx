@@ -20,6 +20,7 @@ import { buildImgStyle } from '../../lib/imageAdjust.js';
 import { R2Image } from '../R2Image.jsx';
 import { FileCard } from './FileCard.jsx';
 import { safeExternalHref } from '../../lib/safeExternalHref.js';
+import { ensureFontForCss } from '../../lib/googleFonts.js';
 
 const stop = (e) => e.stopPropagation();
 
@@ -102,6 +103,10 @@ export function CellVideo({ src }) {
 }
 
 export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle, effBg = null, cardId, cellId, compare = false }) {
+  // A cell or family style can name a Google font; load it for every viewer,
+  // not only the author who picked it (audit NOTES-10, grid cells).
+  const cellFont = textStyle?.fontFamily;
+  useEffect(() => { if (cellFont) { try { ensureFontForCss(cellFont); } catch (_) {} } }, [cellFont]);
   const type = cell?.type || 'empty';
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
