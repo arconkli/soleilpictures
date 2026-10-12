@@ -233,3 +233,35 @@ test('VS-PANELS-08: the phone "Add your photos" card keeps a margin on the right
   if (await rail.count()) expect(r.l).toBeGreaterThanOrEqual((await rect(rail)).r);
   await page.screenshot({ path: test.info().outputPath('tour-390-dark.png') });
 });
+
+const LONG_EMAIL = 'jordan.longname.director@productioncompany-example.com';
+
+async function answerShareReads(page) {
+  const rpc = (name, rows) => page.route(`**/rest/v1/rpc/${name}*`, (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(rows),
+  }));
+  await rpc('list_board_shares', []);
+  await rpc('list_inherited_board_shares', []);
+  await rpc('list_pending_invites_for_workspace', []);
+  await rpc('list_pending_invites_for_board', [{
+    id: 'inv-1', email: LONG_EMAIL, role: 'editor', created_at: new Date().toISOString(),
+    invited_by: '00000000-0000-4000-8000-000000000001',
+  }]);
+}
+
+test('VS-PANELS-09: a long name in the Share list ends in an ellipsis, not a cut glyph', async ({ page }) => {
+  await answerShareReads(page);
+  await page.setViewportSize(PHONE);
+  await probe(page, 'mountShare');
+  const name = page.locator('.share-row-name', { hasText: 'jordan.longname' });
+  await expect(name).toBeVisible();
+  const m = await name.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { display: cs.display, overflow: cs.textOverflow, clipped: el.scrollWidth > el.clientWidth };
+  });
+  expect(m.clipped).toBe(true);
+  expect(m.overflow).toBe('ellipsis');
+  // text-overflow has no effect on the text of a flex container.
+  expect(m.display).not.toMatch(/flex/);
+  await page.screenshot({ path: test.info().outputPath('share-390-dark.png') });
+});
