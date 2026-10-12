@@ -268,6 +268,37 @@ test.describe('phone 390 layouts', () => {
   });
 });
 
+// ── VS-DOCS-08 ────────────────────────────────────────────────────────────
+// Body had a far-off filled triangle, Font a thin chevron beside its label and
+// Size a tiny ▾ glyph: three signs for one thing. Now one chevron, at the right
+// edge of each, in one ink.
+test.describe('mouse 1440 dropdowns', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  test('VS-DOCS-08: the style, font and size dropdowns share one chevron', async ({ page }) => {
+    await openDoc(page);
+    const r = await page.evaluate(() => {
+      const tb = document.querySelector('.doc-card-modal .doc-tb');
+      const sel = tb.querySelector('.doc-tb-select');
+      const font = tb.querySelector('.doc-tb-pill-label + svg').parentElement;
+      const arrow = tb.querySelector('.size-combo-arrow');
+      const mask = (cs) => cs.maskImage || cs.webkitMaskImage || '';
+      const fa = getComputedStyle(font, '::after');
+      const ab = getComputedStyle(arrow, '::before');
+      return {
+        sel: getComputedStyle(sel).backgroundImage, font: mask(fa), size: mask(ab),
+        fontIconShown: getComputedStyle(font.querySelector('svg')).display !== 'none',
+        colors: [fa.backgroundColor, ab.backgroundColor],
+      };
+    });
+    for (const img of [r.sel, r.font, r.size]) expect(decodeURIComponent(img)).toContain('m6 9 6 6 6-6');
+    expect(r.fontIconShown).toBe(false);
+    expect(r.colors[0]).toBe(r.colors[1]);
+    await page.evaluate(() => { const T = window.__soleilDocTest; T.setDocMode(T.ydoc, T.getScope(), 'screenplay'); });
+    // "Scene Heading" fits its select now (it was clipped at the prose width).
+    await expect(page.locator('.doc-card-modal .doc-tb-select--sp')).toHaveCSS('width', '120px');
+  });
+});
+
 // ── VS-DOCS-04 ────────────────────────────────────────────────────────────
 // The thread popover opened on the comment's own line: beside it on desktop
 // (hiding the rest of the sentence) and, clamped back from the right edge on
