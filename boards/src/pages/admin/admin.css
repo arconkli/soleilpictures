@@ -3933,6 +3933,13 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .admin-header > .clusters-mark,
 .admin-header > .admin-header-right { flex: none; }
 
+/* "← App" and "Sign out" are .auth-link, which is gold at rest for the sign-in
+   page's one link. Up here they were the only gold in the header beside the
+   active tab's underline, which is what gold is reserved for. Neutral ink at
+   rest, like the tabs; .auth-link's own focus glow still marks focus. */
+.admin-header-right .auth-link { color: var(--ink-2); }
+.admin-header-right .auth-link:hover:not(:disabled) { color: var(--ink-0); }
+
 .admin-tabs { gap: 2px; margin-right: auto; margin-left: 8px; }
 
 .admin-tab {
