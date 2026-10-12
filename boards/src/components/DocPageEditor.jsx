@@ -1402,10 +1402,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           onMouseEnter={cancelHoverTimers}
           onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200); }}
           onClose={() => setLinkHover(null)}
-          onSeeAll={() => {
-            const ref = linkHover.refs?.[0];
+          // The popover hands over (ref, name): on a term-only hover (an
+          // auto-detected name with no link refs) its ref is the matched
+          // entity, which linkHover.refs never had — ignoring the arguments
+          // made "See all references" do nothing there.
+          onSeeAll={(ref, name) => {
+            const r = linkHover.refs?.[0] || ref;
             setLinkHover(null);
-            if (ref) setBacklinksRef(ref);
+            if (r) setBacklinksRef(name ? { ...r, _name: name } : r);
           }}
         />
       )}
