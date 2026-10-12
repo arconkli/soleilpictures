@@ -194,9 +194,11 @@ export function PricingPageView({
                 this page be ours without also putting it in the sitemap. */}
             <a className="seo-frame-shot" href={shot.href}
                {...ctaProps('frame', shot.href, { intent: 'nav' })}>
+              {/* Lowercase `fetchpriority`, as in R2Image: React 18 has no
+                  camelCase fetchPriority prop and warns on every load. */}
               <img src={`/landing/${shot.slug}.webp`}
                    alt="The Clusters brand book, built in Clusters"
-                   width="2048" height="1000" fetchPriority="high" />
+                   width="2048" height="1000" fetchpriority="high" />
             </a>
             <figcaption className="seo-frame-cap">{shot.caption}</figcaption>
           </figure>
