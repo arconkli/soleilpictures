@@ -3,10 +3,18 @@
 // session volume so the operator can pick the segments that actually have data.
 // Extracted from the old AdminFunnelTab so the shell toolbar and the funnel
 // views can share it.
+//
+// The chosen value outlives its option. Options are refetched per range and
+// population, but the value persists (URL and state), so after a switch from 90
+// days to 7 a campaign with no traffic this week is still filtering the funnel
+// while a controlled <select> with no matching option DISPLAYS the first one,
+// "Campaign: all". The applied value is therefore always listed, marked as
+// having nothing in this window, so the control never contradicts the filter.
 
 import { formatCount } from '../../../../lib/adminFormat.js';
 
 export function SegmentSelect({ label, value, onChange, options }) {
+  const orphan = value && !options.some((o) => o.value === value);
   return (
     <select
       className="auth-input admin-filter-select"
@@ -16,6 +24,7 @@ export function SegmentSelect({ label, value, onChange, options }) {
       title={label}
     >
       <option value="">{label}: all</option>
+      {orphan && <option value={value}>{value} (none in this window)</option>}
       {options.map((o) => (
         <option key={o.value} value={o.value}>{o.value} ({formatCount(o.sessions)})</option>
       ))}
