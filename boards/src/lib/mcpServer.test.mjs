@@ -115,6 +115,18 @@ test('the npm package ships the same PROTOCOL the Worker serves', () => {
 
 // ── the shape of a tool ──────────────────────────────────────────────────────
 
+test('update_card can change every field add_cards can set', () => {
+  // The two schemas are written separately and update_card fell behind:
+  // with additionalProperties false, a validating client refused group_id,
+  // z, rotation and the audio/pdf kinds on an update (audit API-18).
+  const tool = (name) => TOOLS.find((t) => t.name === name);
+  const item = tool('add_cards').inputSchema.properties.cards.items;
+  const update = tool('update_card').inputSchema;
+  const missing = Object.keys(item.properties).filter((k) => !(k in update.properties));
+  assert.deepEqual(missing, [], `update_card is missing ${missing.join(', ')}`);
+  assert.deepEqual(update.properties.kind.enum, item.properties.kind.enum);
+});
+
 test('every tool is well formed', () => {
   const names = new Set();
   for (const t of TOOLS) {

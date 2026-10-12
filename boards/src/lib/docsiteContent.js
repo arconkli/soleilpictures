@@ -49912,7 +49912,47 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", plus any writable field"
+       "v": ", plus any field "
+      },
+      {
+       "t": "code",
+       "v": "add_cards"
+      },
+      {
+       "t": "text",
+       "v": " takes — "
+      },
+      {
+       "t": "code",
+       "v": "group_id"
+      },
+      {
+       "t": "text",
+       "v": " (empty to ungroup), "
+      },
+      {
+       "t": "code",
+       "v": "z"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "rotation"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "section_header"
+      },
+      {
+       "t": "text",
+       "v": ", and any of the eight kinds"
       }
      ]
     ],
