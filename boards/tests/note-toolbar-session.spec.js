@@ -96,6 +96,16 @@ test('a note size stored before sizes rendered keeps its 15px look', async ({ pa
   await expect(page.locator(`${A} .note-body`)).toHaveCSS('font-size', '16px');
 });
 
+test('with the caret in a heading the size box shows the note size it would change', async ({ page }) => {
+  await editA(page, 'Title');
+  await page.evaluate(() => window.__soleilNoteTest.getActiveEditor().commands.setHeading({ level: 1 }));
+  await expect(page.locator(`${A_EDIT} h1`)).toHaveText('Title');
+  const size = page.locator('.tob-size-combo');
+  await expect(size).toHaveValue('15');
+  await page.getByRole('button', { name: 'Increase font size' }).click();
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(16);
+});
+
 test('picking a whole-note font names it on the font button', async ({ page }) => {
   await editA(page);
   await page.getByTitle('Font family').click();
