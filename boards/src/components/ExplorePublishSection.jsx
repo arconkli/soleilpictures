@@ -99,7 +99,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
   // reason to reopen this section is almost always to check on a submission,
   // and a disclosure that hides its own status just gets opened every time.
   const statusChip = isLive ? '✓ Live'
-    : status === 'pending' ? '⏳ Pending review'
+    : status === 'pending' ? 'Pending review'
     : status === 'rejected' ? 'Not approved'
     : null;
 
@@ -117,7 +117,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
         </>
       ) : status === 'pending' ? (
         <>
-          <p className="share-hint">⏳ Submitted — pending review. We’ll publish it to Explore once approved.</p>
+          <p className="share-hint">Submitted — pending review. We’ll publish it to Explore once approved.</p>
           <button type="button" style={ghostBtn} disabled={busy} onClick={takeDown}>
             {busy ? 'Withdrawing…' : 'Withdraw submission'}
           </button>
