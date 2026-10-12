@@ -1025,6 +1025,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           {activePageId && awareness && (
             <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
                          paperRef={paperRef} editor={editorRef.current}
+                         getEditors={() => sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean)}
+                         zoom={effectiveZoom}
                          currentUser={currentUser} />
           )}
           {/* Screenplay title page — a real first page, before the script body. */}
