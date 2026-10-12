@@ -17,8 +17,8 @@ const PEER_USER = { id: 'peer-1', name: 'Pat Peer', color: '#3fa39a' };
 
 // Put a peer's caret at the start of `word`, with legacy pixel fields that are
 // deliberately wrong so a pixel-based render would miss.
-async function peerCaretAt(page, word) {
-  return page.evaluate(({ word, user }) => {
+async function peerCaretAt(page, word, user = PEER_USER, name = 'pat') {
+  return page.evaluate(({ word, user, name }) => {
     const T = window.__soleilDocTest;
     const ed = T.editor;
     let pos = null;
@@ -27,12 +27,12 @@ async function peerCaretAt(page, word) {
     });
     const scope = T.getScope();
     const pageId = (T.readPages(T.ydoc, scope)[0] || {}).id;
-    T.setPeer('pat', {
+    T.setPeer(name, {
       user,
       docCaret: { boardId: 'docqa-card', pageId, x: 5, y: 5, head: T.encodeAnchor(ed, pos) },
     });
     return pos;
-  }, { word, user: PEER_USER });
+  }, { word, user, name });
 }
 
 async function expectCaretOn(page, pos) {
@@ -90,4 +90,19 @@ test('PERF-07: an idle peer caret settles at the quiet opacity', async ({ page }
   // Typing window (1.5 s) closes → one re-render → eases to the idle level.
   await expect(caret).not.toHaveClass(/doc-peer-caret--typing/, { timeout: 4000 });
   await expect.poll(() => caret.evaluate(el => Number(getComputedStyle(el).opacity)), { timeout: 6000 }).toBeLessThan(0.6);
+});
+
+test('PERF-07: two peers whose typing windows overlap both settle', async ({ page }) => {
+  await openDoc(page);
+  await page.evaluate(() => {
+    window.__soleilDocTest.editor.commands.setContent('<p>Some target text and another word.</p>');
+  });
+  await peerCaretAt(page, 'target');
+  // The second peer stops typing well inside the first one's window, so only
+  // the first boundary is armed when the timer is scheduled from `peers`.
+  await page.waitForTimeout(600);
+  await peerCaretAt(page, 'another', { id: 'peer-2', name: 'Quinn Peer', color: '#a35b3f' }, 'quinn');
+  const carets = page.locator('.doc-peer-caret');
+  await expect(carets).toHaveCount(2);
+  await expect(page.locator('.doc-peer-caret--typing')).toHaveCount(0, { timeout: 5000 });
 });

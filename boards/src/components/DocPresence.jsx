@@ -145,8 +145,10 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, g
   // The idle fade is a CSS transition (see render). The only re-render it
   // needs is at the moment a peer's typing window closes — one timeout at the
   // nearest such boundary, instead of a 250ms interval running for as long as
-  // anyone shares the page.
-  const [, setFadeTick] = useState(0);
+  // anyone shares the page. The tick is a dep so each fired boundary
+  // schedules the next one: two peers whose windows close 500ms apart need
+  // two timeouts, and the first one's re-render alone would not re-arm.
+  const [fadeTick, setFadeTick] = useState(0);
   useEffect(() => {
     if (peers.length === 0) return undefined;
     const now = performance.now();
@@ -159,7 +161,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, g
     if (!Number.isFinite(wait)) return undefined;
     const id = setTimeout(() => setFadeTick(n => (n + 1) | 0), wait + 16);
     return () => clearTimeout(id);
-  }, [peers]);
+  }, [peers, fadeTick]);
 
   // ── Write our local mouse cursor (unzoomed sheet px) ────────────────────
   useEffect(() => {
