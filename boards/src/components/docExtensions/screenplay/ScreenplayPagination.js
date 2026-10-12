@@ -131,8 +131,11 @@ function computePageBreaks(doc) {
           // + char offset). Otherwise: break before the block.
           const breakPos = midBlock ? (blk.pos + 1 + off) : blk.pos;
           const safePos = Math.max(0, Math.min(breakPos, doc.content.size));
+          // The key carries everything the marker shows: ProseMirror reuses
+          // a widget whose key matches, so a key of the page index alone kept
+          // a stale "JON (CONT'D)" after the cue was renamed.
           decos.push(Decoration.widget(safePos, () => makeBreakEl(p + 1, more, f.contd || null), {
-            side: -1, key: `sp-pb-${p}`,
+            side: -1, key: `sp-pb-${p}-${more ? 1 : 0}-${f.contd || ''}`,
           }));
         }
       }
