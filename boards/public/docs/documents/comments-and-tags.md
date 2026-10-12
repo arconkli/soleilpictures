@@ -2,7 +2,7 @@
 
 > Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
-_Source: https://clusters.soleilpictures.com/docs/documents/comments-and-tags · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/documents/comments-and-tags · Updated 2026-10-12_
 
 Documents carry annotation in the margins, so the text stays clean and the
 apparatus stays visible.
@@ -18,6 +18,10 @@ a dot to open the thread.
 Comments thread, resolve, and support `@` mentions that notify the person you
 name. See [Comments](/docs/collaborate/comments) for the full model, which is
 shared with the canvas.
+
+Because a text comment is part of the document, it follows edit access. A
+viewer sees the dots and can open and read every thread, marked **View only**;
+adding, replying to, resolving or deleting a comment needs edit access.
 
 ## Tags on a range
 
