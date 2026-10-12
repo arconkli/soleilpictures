@@ -4737,6 +4737,8 @@ Every field optional:
 
 Reparenting is cycle-safe: moving a board into one of its own descendants is refused with 409 conflict, not allowed to create a loop. parent_board_id: null moves it to the top level.
 
+Renaming needs edit rights on the workspace. A board you can see but not edit — as a viewer, or through a share of that one board — answers 403 forbidden rather than 200 with the name unchanged.
+
 DELETE /boards/:id
 
 A soft delete, requiring the delete scope. The board goes to the trash and stays restorable for 30 days.
