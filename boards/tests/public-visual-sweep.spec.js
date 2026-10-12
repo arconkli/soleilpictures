@@ -123,6 +123,27 @@ test.describe('the landing finale on a phone', () => {
   });
 });
 
+test.describe('docs code blocks on a touch phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('the always-shown Copy button does not sit on the first line of code', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.goto('/docs/api/cards');
+    await expect(page.locator('.docs-code').first()).toBeVisible();
+    const clashes = await page.evaluate(() => [...document.querySelectorAll('.docs-code')].flatMap((block) => {
+      const btn = block.querySelector('.docs-copy');
+      const code = block.querySelector('pre code');
+      if (!btn || !code || Number(getComputedStyle(btn).opacity) < 0.5) return [];
+      const b = btn.getBoundingClientRect();
+      const r = document.createRange();
+      r.selectNodeContents(code);
+      const firstLine = r.getClientRects()[0];
+      return firstLine && firstLine.top < b.bottom ? [`${Math.round(firstLine.top)} < ${Math.round(b.bottom)}`] : [];
+    }));
+    expect(clashes).toEqual([]);
+  });
+});
+
 test.describe('/templates on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 

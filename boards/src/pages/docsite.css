@@ -287,7 +287,13 @@
 .docs-code:hover .docs-copy,
 .docs-copy:focus-visible { opacity: 1; }
 .docs-copy:hover { color: var(--ink-0); }
-@media (hover: none) { .docs-copy { opacity: 1; } }   /* touch has no hover */
+/* Touch has no hover, so the button is always shown, and it sat on the first
+   line of code. A right padding cannot clear it: a long line scrolls under the
+   button whatever the padding. Room above the first line can. */
+@media (hover: none) {
+  .docs-copy { opacity: 1; }
+  .docs-code pre { padding-top: 36px; }
+}
 
 /* ── Callouts ─────────────────────────────────────────────────────────── */
 /* A quiet indent, not a coloured panel. Every callout in this corpus is a
