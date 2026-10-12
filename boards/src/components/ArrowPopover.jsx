@@ -35,6 +35,7 @@ export function ArrowPopover({
   // the input). Otherwise a popover that flashed open during a selection
   // would otherwise paint an empty-string commit over an existing label.
   const labelTouchedRef = useRef(false);
+  const labelCancelRef = useRef(false);
   useEffect(() => () => {
     if (!labelTouchedRef.current) return;
     const v = (labelDraftRef.current || '').trim();
@@ -190,6 +191,10 @@ export function ArrowPopover({
           onChange={(e) => setLabelDraft(e.target.value)}
           onBlur={() => {
             setLabelEditing(false);
+            // Escape's blur: this closure still holds the typed draft (the
+            // revert hasn't rendered), so committing here applied the very
+            // label Escape was throwing away (NOTES-11).
+            if (labelCancelRef.current) { labelCancelRef.current = false; return; }
             const v = labelDraft.trim();
             if (v !== (arrow.label || '')) commit({ label: v || null });
           }}
@@ -198,6 +203,7 @@ export function ArrowPopover({
             if (e.key === 'Escape') {
               setLabelDraft(arrow.label || '');
               labelTouchedRef.current = false;
+              labelCancelRef.current = true;
               setLabelEditing(false);
               e.currentTarget.blur();
             }
