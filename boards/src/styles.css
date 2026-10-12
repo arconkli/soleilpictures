@@ -1518,6 +1518,32 @@ body {
 /* The type switch lives in the header now (next to the name): compact, no shrink. */
 .tag-detail-head .tag-profile-typeswitch { flex: 0 0 auto; gap: 4px; }
 .tag-detail-head .tag-profile-type-chip { padding: 4px 9px; font: 600 11px/1 var(--font-sans); }
+/* Phone: one row cannot hold the name, five type chips, the count, Manage and
+   close. The chips were the only part that refused to shrink, so the name
+   collapsed to 0px and the count, Manage and close were pushed past the right
+   edge, where nothing could scroll them into view. Wrap instead: name, count,
+   Manage and close keep the first row, and the chips drop to a second row that
+   scrolls sideways under the finger. */
+@media (max-width: 640px) {
+  .tag-detail-head { flex-wrap: wrap; row-gap: 10px; padding: 14px 16px 12px; }
+  /* Basis 0, so the line break is decided on the 8ch minimum rather than the
+     full name: a long name ellipsises instead of pushing close down a row. */
+  .tag-detail-name { flex: 1 1 0; min-width: 8ch; }
+  .tag-detail-count,
+  .tag-detail-manage-btn,
+  .tag-detail-close { flex: 0 0 auto; }
+  .tag-detail-spacer { display: none; }
+  .tag-detail-head .tag-profile-typeswitch {
+    order: 1;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tag-detail-head .tag-profile-typeswitch::-webkit-scrollbar { display: none; }
+  .tag-detail-head .tag-profile-type-chip { flex: 0 0 auto; }
+}
 /* Compact "open the board to view" peek for a tagged group whose members
    aren't synced into card_index yet (the board has never been opened). */
 .tag-detail-block-peek {
