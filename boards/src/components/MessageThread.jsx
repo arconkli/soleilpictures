@@ -27,6 +27,7 @@ import { lastMessageId } from '../lib/messagePaging.js';
 import { showingConversation } from '../lib/threadAttention.js';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
+import { isDmConversation } from '../lib/conversationState.js';
 
 const STICK_THRESHOLD_PX = 80;
 // Start fetching the previous page this far before the reader hits the top.
@@ -62,7 +63,10 @@ export function MessageThread({
     () => activeParticipants.filter(p => p.user_id !== userId),
     [activeParticipants, userId],
   );
-  const isDm = activeParticipants.length === 2;
+  // A DM is two participant ROWS, left or not. Counting only active ones
+  // turned a group that dropped to two members into a "DIRECT MESSAGE" with
+  // no way to rename it, add people or leave (COMMS-17).
+  const isDm = isDmConversation(conversation?.participants);
 
   // Resolve display names.
   useEffect(() => {
@@ -681,7 +685,9 @@ export function MessageThread({
           onRename={beginRename}
           onAdd={() => { setAddPickerAnchor(menuAnchor); setMenuAnchor(null); }}
           onLeave={openLeaveConfirm}
-          canLeave={activeParticipants.length > 2}
+          // Any group can be left. The old 3+ rule only existed because a
+          // group at two members was mistaken for a DM (COMMS-17).
+          canLeave
           onClose={() => setMenuAnchor(null)}
         />
       )}
