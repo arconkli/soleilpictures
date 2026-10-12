@@ -13,7 +13,8 @@
 // the trial ends.
 //
 // Success URL → APP_URL/pricing/success?session_id={CHECKOUT_SESSION_ID}
-// Cancel URL  → APP_URL/pricing
+// Cancel URL  → APP_URL/?checkout=canceled for a checkout started inside the
+//               app (IN_APP_SURFACES), else APP_URL/pricing
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
@@ -34,6 +35,14 @@ const STRIPE_KEY      = Deno.env.get("STRIPE_SECRET_KEY")!;
 const PRICE_MONTHLY   = Deno.env.get("STRIPE_PRICE_MONTHLY")!;
 const PRICE_ANNUAL    = Deno.env.get("STRIPE_PRICE_ANNUAL")!;
 const APP_URL         = Deno.env.get("APP_URL") || "";
+
+// Surfaces whose checkout starts inside the app (PricingModal's: the upgrade
+// chip, the first-value banner, the cap wall, storage, Settings). Cancelling
+// one sent people to the marketing /pricing page, outside the app, with the
+// board they were in a small brand link away; they go back to the app now.
+// Only a choice between two fixed urls — the client never supplies one. An
+// older client sends the same surfaces, so this is safe to deploy ahead of it.
+const IN_APP_SURFACES = new Set(["modal", "first_value", "cap_hit", "storage"]);
 
 const cors = {
   "access-control-allow-origin":  "*",
@@ -236,7 +245,9 @@ Deno.serve(async (req) => {
     }
 
     const successUrl = `${APP_URL}/pricing/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl  = `${APP_URL}/pricing`;
+    const cancelUrl  = IN_APP_SURFACES.has(surface)
+      ? `${APP_URL}/?checkout=canceled`
+      : `${APP_URL}/pricing`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
