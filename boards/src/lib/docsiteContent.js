@@ -23003,7 +23003,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " above the toolbar to open it."
+     "v": " above the toolbar to open it ("
+    },
+    {
+     "t": "strong",
+     "v": "Scenes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Scenes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in a screenplay, where the drawer also lists the scenes)."
     }
    ]
   },
@@ -23059,7 +23073,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "On a phone the text stays full size. A document set to real pages shows as one continuous sheet there (its exports and wider screens keep the pages), and a screenplay fits its text column to the screen, with the margins a swipe away."
+     "v": "On a phone the text stays full size. A document set to real pages shows as one continuous sheet there (its exports and wider screens keep the pages), and a screenplay fits its text column to the screen, with the margins (and the comment dots in them) a swipe away."
     }
    ]
   },
