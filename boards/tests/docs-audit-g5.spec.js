@@ -180,6 +180,33 @@ test('DOCS-18: find & replace fits a phone-width screen with Replace open', asyn
   expect(await one.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
 });
 
+// ── SHARE-13 ──────────────────────────────────────────────────────────────
+// The gutter now re-lays out on doc changes and reflow only (batched per
+// frame) — check the dot still follows its comment when text moves it.
+test('SHARE-13: a comment dot follows its text when a paragraph is added above', async ({ page }) => {
+  await openDoc(page);
+  const id = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const ed = T.editor;
+    ed.commands.setContent('<p>Intro.</p><p>The commented phrase.</p>');
+    let from = null;
+    ed.state.doc.descendants((n, p) => { if (from == null && n.isText && n.text.startsWith('The commented')) from = p; });
+    const id = T.addCommentThread(T.ydoc, { body: 'x', author: 'QA', authorColor: '#4f8df8', scope: T.getScope(), pageId: T.readPages(T.ydoc, T.getScope())[0].id });
+    ed.chain().setTextSelection({ from, to: from + 3 }).setMark('comment', { id }).run();
+    return id;
+  });
+  const aligned = () => page.evaluate((id) => {
+    const dot = document.querySelector(`.comment-gutter-dot[data-thread="${id}"]`);
+    const mark = document.querySelector(`.tt-comment[data-comment-id="${id}"]`);
+    if (!dot || !mark) return 'missing';
+    const d = dot.getBoundingClientRect(), m = mark.getBoundingClientRect();
+    return Math.abs((d.top + d.height / 2) - (m.top + m.height / 2)) < 24 ? 'aligned' : `off ${Math.round(d.top - m.top)}`;
+  }, id);
+  await expect.poll(aligned).toBe('aligned');
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.insertContentAt(0, '<p>One.</p><p>Two.</p><p>Three.</p><p>Four.</p>'));
+  await expect.poll(aligned).toBe('aligned');
+});
+
 // ── DOCS-14 ───────────────────────────────────────────────────────────────
 // A collaborator's edit arrives while the comment composer is open. It lands
 // as a whole-document replace, so raw offsets captured at "Add comment" no
