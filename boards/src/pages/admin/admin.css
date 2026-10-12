@@ -1952,6 +1952,15 @@
   border-color: transparent;
 }
 
+/* The range control's selected segment. The shared .tob-segmented
+   button.is-active rule sets its own small drop shadow, which outranks the
+   global focus glow, so a keyboard user tabbing onto "30d" saw nothing at
+   all. One class heavier than that rule, so the glow wins here. */
+.admin-range button.is-active:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow);
+}
+
 /* Inputs/selects: border melts into a soleil glow on focus (like pricing). */
 .admin-search-input, .admin-filter-select, .admin-grant-emails, .admin-grant-note {
   transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
