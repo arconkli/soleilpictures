@@ -13142,7 +13142,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    overlay (-side) and the split-pane one (-pane). */
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb { height: 36px; padding: 0 10px; gap: 1px; flex-wrap: nowrap; }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-btn { width: 26px; height: 26px; }
-:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-select { padding: 0 16px 0 6px; height: 26px; max-width: 90px; font-size: 11.5px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-select { padding: 0 22px 0 6px; height: 26px; max-width: 90px; font-size: 11.5px; }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-sep { margin: 0 4px; height: 14px; }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-spacer { display: none; }
 .doc-tb-btn {
@@ -13170,22 +13170,55 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   color: var(--ink-1);
   font: 500 12.5px/1 var(--font-sans);
   letter-spacing: -0.005em;
-  padding: 0 20px 0 8px;
+  padding: 0 24px 0 8px;
   height: 28px;
   /* Fixed width so the heading/size dropdowns don't grow/shrink as the
      caret moves through different blocks ("Body" vs "Heading 1" etc.).
      This was the source of the toolbar reflow that the user saw on
-     arrow-key navigation. */
-  width: 96px;
-  min-width: 96px;
+     arrow-key navigation. Sized to the longest option ("Heading 6") plus
+     the chevron, no wider. */
+  width: 92px;
+  min-width: 92px;
   border-radius: 6px;
   cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(160,160,160,.55)' d='M0 0h10L5 6z'/></svg>");
+  /* The toolbar's one dropdown affordance: the same 12px chevron as the Font
+     pill (lucide chevron-down) and the Size combo, in --ink-2, at the right
+     edge. It used to be a grey filled triangle here, a chevron on Font and a
+     tiny ▾ on Size — three different signs for the same thing. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888890' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   background-repeat: no-repeat;
+  background-size: 12px 12px;
   background-position: right 6px center;
   transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
+[data-theme='light'] .doc-tb-select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236a6a70' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+}
+/* Screenplay's element select: "Scene Heading" is its longest option, and at
+   the prose width it was clipped. */
+.doc-tb-select.doc-tb-select--sp { width: 120px; min-width: 120px; }
 .doc-tb-select:hover:not(:disabled) { background-color: var(--bg-hov); color: var(--ink-0); }
+/* Font pill: the same chevron at the pill's right edge, in the same ink, like
+   the two selects. Its own icon (a Phosphor thin caret, near-invisible at
+   12px) sat beside a short label with the rest of the fixed 110px pill empty
+   after it, which read as an uneven gap before Size. FontPickerDropdown is
+   shared with the note toolbar, so the swap is done here, scoped to .doc-tb.
+   Only the Font pill has an icon AFTER its label. */
+.doc-tb .doc-tb-pill-label + svg { display: none !important; }
+.doc-tb .doc-tb-pill:has(> .doc-tb-pill-label + svg)::after {
+  content: ''; flex: 0 0 auto; margin-left: auto;
+  width: 12px; height: 12px; background: var(--ink-2);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") center / 12px 12px no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") center / 12px 12px no-repeat;
+}
+/* Size combo: draw the same chevron in place of its 8px ▾ glyph. A mask so it
+   takes currentColor and follows the button's hover ink. */
+.doc-tb .size-combo-arrow { font-size: 0; color: var(--ink-2); right: 4px; }
+.doc-tb .size-combo-arrow::before {
+  content: ''; width: 12px; height: 12px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") center / 12px 12px no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") center / 12px 12px no-repeat;
+}
 
 /* Zoom segmented control (− [pct] +). Tabular figures so the percentage
    label doesn't shift width as it ticks through values.                  */
@@ -21720,6 +21753,7 @@ button, [role="button"], a {
    the base .doc-tb-pill's fixed 110px (or, previously, .doc-tb-btn's 28px)
    clipped/overflowed the word "Screenplay" and overlapped its neighbors. */
 .doc-tb-pill.doc-tb-screenplay-toggle,
+.doc-tb-pill.doc-tb-pages-toggle,
 .doc-tb-pill.doc-tb-titlepage-toggle,
 .doc-tb-pill.doc-tb-scenenum-toggle { width: auto; min-width: 0; max-width: none; gap: 5px; }
 .doc-tb-pill.doc-tb-screenplay-toggle.is-active,
@@ -21744,6 +21778,7 @@ button, [role="button"], a {
 .doc-tb-scenenum-item.is-active { color: var(--soleil, #ffa500); }
 /* Pane (side-dock) mode tightens; touch mode grows to match the 40px buttons. */
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-screenplay-toggle,
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-pages-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line-2); }

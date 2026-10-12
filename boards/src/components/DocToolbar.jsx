@@ -217,7 +217,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
         </button>
       )}
       {docMode === 'screenplay' ? (
-        <select className="doc-tb-select" value={screenplayElement || 'action'} disabled={disabled || !editor?.isActive('screenplayBlock')}
+        <select className="doc-tb-select doc-tb-select--sp" value={screenplayElement || 'action'} disabled={disabled || !editor?.isActive('screenplayBlock')}
                 onChange={(e) => setScreenplayElement(e.target.value)}
                 title="Screenplay element" aria-label="Screenplay element">
           {SP_ELEMENTS.map(el => <option key={el} value={el}>{SP_LABELS[el] || el}</option>)}
