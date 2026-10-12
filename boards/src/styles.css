@@ -8439,10 +8439,24 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   border-bottom: 1px solid var(--line-1);
   background: rgba(0,0,0,.10);
 }
+/* The 10% black above is a faint tint on the dark glass; on the light panel it
+   was a flat mid-grey band, darker than everything around it. */
+[data-theme='light'] .modal-actions { background: rgba(10,10,12,.025); }
+/* Phone: tabs, then the hint on its own full-width line. In one row the hint
+   was squeezed into a ~110px third column seven lines tall. */
+@media (max-width: 640px) {
+  .modal-actions { flex-wrap: wrap; row-gap: 8px; }
+  .modal-actions .modal-hint { flex: 1 1 100%; }
+}
 .modal-hint {
   font: 400 11px/1.4 var(--font-sans);
   color: var(--ink-3);
 }
+/* Version history's Snapshots / Name & appearance pair. .tb-btn has no
+   selected state of its own, so the two tabs looked identical and nothing
+   said which list you were reading. Same selected look as the Settings rail. */
+.hist-tabs { display: flex; gap: 4px; flex: 0 0 auto; }
+.hist-tabs .tb-btn.is-active { background: var(--bg-3); color: var(--ink-0); }
 .modal-body {
   flex: 1 1 auto;
   overflow-y: auto;
@@ -8470,6 +8484,10 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .hist-row:hover { background: var(--bg-hov); }
 .hist-meta { flex: 1; min-width: 0; }
 .hist-when { font: 500 13px/1.4 var(--font-sans); color: var(--ink-0); }
+/* "· 20 cards (-1)" after the time, on the same line. These spans used to
+   borrow .hist-sub, whose display:flex is for the sub-line div, so each one
+   became a block and the one-line summary broke over three lines. */
+.hist-when-meta { font: 400 11px/1.4 var(--font-sans); color: var(--ink-3); }
 .hist-sub {
   margin-top: 2px;
   font: 400 11px/1.4 var(--font-sans);
