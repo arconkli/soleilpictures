@@ -120,3 +120,55 @@ test.describe('VS-CANVAS-04 default shape ink follows the theme', () => {
     expect(lum(await strokeOf(page, 'sh-ink'))).toBeGreaterThan(200);
   });
 });
+
+// A week schedule at its default size, anchored on a fixed week so the title
+// is always 'Oct 12–18, 2026' (the sweep's worst case: a same-month week).
+const WEEK_SCHED = {
+  id: 'sched-wk', kind: 'schedule', schedView: 'week', anchor: '2026-10-14', anchorHour: 9,
+  cells: {}, gridMeta: {}, x: 120, y: 120, w: 640, h: 260,
+};
+
+const headFit = (page) => page.locator('[data-card-id="sched-wk"] .schedc-head').evaluate((head) => {
+  const card = head.closest('.schedc').getBoundingClientRect();
+  const txt = head.querySelector('.schedc-title-txt');
+  const kids = [...head.children].map((k) => k.getBoundingClientRect());
+  return {
+    headOver: head.scrollWidth - head.clientWidth,
+    titleText: txt?.textContent,
+    titleCut: txt ? txt.scrollWidth - txt.clientWidth : 0,
+    titleW: txt ? txt.clientWidth : 0,
+    pastCard: Math.max(...kids.map((r) => r.right)) - card.right,
+    k: getComputedStyle(head).getPropertyValue('--chrome-k'),
+  };
+});
+
+async function zoomOut(page, presses) {
+  for (let i = 0; i < presses; i++) await page.keyboard.press('Control+Minus');
+  await page.waitForTimeout(400);
+}
+
+test.describe('VS-CANVAS-05 the week schedule header fits its card when zoomed out', () => {
+  for (const dev of [
+    { name: 'desktop', viewport: { width: 1440, height: 900 }, hasTouch: false },
+    { name: 'touch tablet', viewport: { width: 1024, height: 768 }, hasTouch: true },
+  ]) {
+    test(`${dev.name}: the date stays readable and no control paints past the card`, async ({ browser }) => {
+      const ctx = await browser.newContext({ viewport: dev.viewport, hasTouch: dev.hasTouch });
+      const page = await ctx.newPage();
+      await plant(page, [WEEK_SCHED]);
+      await expect(page.locator('[data-card-id="sched-wk"] .schedc-head')).toBeVisible();
+      for (const presses of [0, 1, 2]) {
+        if (presses) await zoomOut(page, 1);
+        const lodFull = await page.locator('[data-card-id="sched-wk"] .schedc-head:not(.is-lod)').count();
+        if (!lodFull) break;
+        const f = await headFit(page);
+        expect(f.headOver, `header overflow at ${presses} zoom-outs (k=${f.k})`).toBeLessThanOrEqual(1);
+        expect(f.pastCard, `controls past the card at ${presses} zoom-outs`).toBeLessThanOrEqual(1);
+        expect(f.titleCut, `title '${f.titleText}' truncated at ${presses} zoom-outs`).toBeLessThanOrEqual(1);
+        expect(f.titleText).toMatch(/^Oct 12–18/);
+      }
+      await page.screenshot({ path: test.info().outputPath(`sched-${dev.name.replace(' ', '-')}.png`) });
+      await ctx.close();
+    });
+  }
+});
