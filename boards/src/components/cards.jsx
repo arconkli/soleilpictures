@@ -64,6 +64,8 @@ import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
+import { FilmPlayer } from './film/FilmPlayer.jsx';
+import { probeCardVideo } from '../hooks/useMediaFacts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -773,7 +775,9 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
-                     pending = false, uploadProgress = null }) {
+                     pending = false, uploadProgress = null, mediaJson = null, onExpand = null }) {
+  // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
+  const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. The context menu's Edit title opens it.
@@ -922,15 +926,14 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
           <Icon as={Download} size={14} />
         </button>
       )}
-      <div className="vc-vidwrap" onPointerEnter={onEnter} onPointerLeave={onLeave} onPointerDownCapture={onDownCapture}>
+      <div className="vc-vidwrap" onDoubleClick={onDbl}>
         {/* A clip that plays itself is a moving still — it keeps the plain
             element. Every other clip gets the film player: frame steps, a
             frame-accurate scrubber, timecode, and ⤢ into the review player. */}
-        {resolvedUrl && !autoplay && live
-          ? <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
-                        clickGate={clickGate} autoPlay={playOnMount} initialTime={syncTime}
+        {resolvedUrl && !autoplay
+          ? <FilmPlayer mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
                         probe={() => probeCardVideo({ kind: 'video', src })} />
-          : resolvedUrl && autoplay
+          : resolvedUrl
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
                    {...(posterUrl ? { poster: posterUrl } : {})}
                    {...(loop ? { loop: true } : {})}

@@ -78,7 +78,11 @@ export function canDropFrame(fps) {
 export function timeToFrame(t, fps, t0 = 0) {
   const r = toRate(fps);
   if (!r || !Number.isFinite(t)) return 0;
-  return Math.max(0, Math.floor(((t - t0) * r[0]) / r[1] + 1e-6));
+  // A presented frame's time is its start, and the browser reports it to the
+  // microsecond: 5/24 s comes back as 0.208333, a hair under the edge. Two
+  // hundredths of a frame of slack lands it on its own frame at any rate (a
+  // seek aims at a frame's centre, so it never comes near the edge).
+  return Math.max(0, Math.floor(((t - t0) * r[0]) / r[1] + 0.02));
 }
 
 export function frameStart(n, fps, t0 = 0) {

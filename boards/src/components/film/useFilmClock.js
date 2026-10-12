@@ -6,17 +6,13 @@ import { rateValue, snapFps, timeToFrame } from '../../lib/timecode.js';
 // currentTime, which runs ahead of the picture during playback and lands
 // between frames after a seek.
 //
-//   el      the <video> on show — the clock follows it when the player flips
-//           A/B, so it always counts the picture you're looking at
 //   fps     the rate to count in — from the file (lib/mediaProbe.js) when the
 //           card knows it, else MEASURED here from the first frames presented
-//   t0      the media time of frame 0, measured once while paused at the start
+//   t0      the media time of frame 0, measured once the video can show one
 //   onTick  called for every presented frame with (frame, mediaTime), outside
 //           React — the timecode and playhead write straight to the DOM, so
 //           playback never re-renders the player 24 times a second
-const PROVISIONAL = [24, 1];
-
-export function useFilmClock(el, { fps: knownFps = null, url, onTick }) {
+export function useFilmClock(videoRef, { fps: knownFps = null, url, onTick }) {
   const [fps, setFps] = useState(knownFps || null);
   const [t0, setT0] = useState(0);
   const tickRef = useRef(onTick);
@@ -25,28 +21,23 @@ export function useFilmClock(el, { fps: knownFps = null, url, onTick }) {
   fpsRef.current = fps;
   const t0Ref = useRef(0);
   t0Ref.current = t0;
-  // Read through a ref: a probe that lands after the clip started must stop
-  // the measuring, not be overwritten by it.
-  const knownRef = useRef(knownFps);
-  knownRef.current = knownFps;
 
-  useEffect(() => { if (knownFps) setFps(knownFps); }, [knownFps && knownFps.join?.('/')]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (knownFps) setFps(knownFps); }, [knownFps && knownFps.join?.('/')]);
 
   useEffect(() => {
-    const v = el;
+    const v = videoRef.current;
     if (!v || !url) return undefined;
     const rvfc = typeof v.requestVideoFrameCallback === 'function';
     let handle = null;
     let alive = true;
+    let measured = !!knownFps;
     const samples = [];
     let lastMedia = null;
     let firstSeen = false;
 
     const report = (mediaTime) => {
-      // Until the rate is known, count at the player's provisional 24 (shown
-      // as ≈24), so the playhead and a pause still land on a frame.
-      const r = fpsRef.current || PROVISIONAL;
-      const f = timeToFrame(mediaTime, r, t0Ref.current);
+      const r = fpsRef.current;
+      const f = r ? timeToFrame(mediaTime, r, t0Ref.current) : null;
       try { tickRef.current?.(f, mediaTime); } catch (_) {}
     };
 
@@ -63,7 +54,7 @@ export function useFilmClock(el, { fps: knownFps = null, url, onTick }) {
         if (v.paused && v.currentTime < 0.001 && (md?.presentedFrames ?? 1) <= 1 && mt < 0.25) { t0Ref.current = mt; setT0(mt); }
       }
       // Measure the rate from consecutive presented frames while playing at 1×.
-      if (!knownRef.current && !fpsRef.current && !v.paused && v.playbackRate === 1 && md?.presentedFrames != null) {
+      if (!measured && !v.paused && v.playbackRate === 1 && md?.presentedFrames != null) {
         if (lastMedia != null) {
           const d = mt - lastMedia.t;
           const frames = md.presentedFrames - lastMedia.n;
@@ -72,7 +63,7 @@ export function useFilmClock(el, { fps: knownFps = null, url, onTick }) {
             samples.sort((a, b) => a - b);
             const med = samples[Math.floor(samples.length / 2)];
             const r = snapFps(1 / med);
-            if (r && !knownRef.current) { fpsRef.current = r; setFps(r); }
+            if (r) { measured = true; fpsRef.current = r; setFps(r); }
           }
         }
         lastMedia = { t: mt, n: md.presentedFrames };
@@ -81,34 +72,30 @@ export function useFilmClock(el, { fps: knownFps = null, url, onTick }) {
       handle = v.requestVideoFrameCallback(onFrame);
     };
 
-    // No requestVideoFrameCallback (older browsers): poll on animation frames,
-    // but only while playing — a paused clip reports on seeked instead.
+    // No requestVideoFrameCallback (older browsers): poll on animation frames.
     const onRaf = () => {
       if (!alive) return;
       report(v.currentTime);
-      handle = !v.paused ? requestAnimationFrame(onRaf) : null;
+      handle = requestAnimationFrame(onRaf);
     };
-    const startRaf = () => { if (!rvfc && handle == null) handle = requestAnimationFrame(onRaf); };
 
     if (rvfc) handle = v.requestVideoFrameCallback(onFrame);
-    else if (!v.paused) startRaf();
+    else handle = requestAnimationFrame(onRaf);
     // A paused seek presents a frame too, but some browsers skip the callback
-    // for it: report on seeked (and on the first frame) as well.
+    // for it: report on seeked as well.
     const onSeeked = () => report(v.currentTime);
     v.addEventListener('seeked', onSeeked);
-    v.addEventListener('loadeddata', onSeeked);
-    v.addEventListener('playing', startRaf);
     return () => {
       alive = false;
       v.removeEventListener('seeked', onSeeked);
-      v.removeEventListener('loadeddata', onSeeked);
-      v.removeEventListener('playing', startRaf);
       if (handle != null) {
         if (rvfc) { try { v.cancelVideoFrameCallback(handle); } catch (_) {} }
         else cancelAnimationFrame(handle);
       }
     };
-  }, [el, url]);
+    // knownFps is read once per url: a probe landing later updates fps via setFps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoRef, url]);
 
   return { fps, t0, fpsValue: rateValue(fps) };
 }

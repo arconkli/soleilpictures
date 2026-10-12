@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-10-11
+updated: 2026-10-12
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -145,54 +145,23 @@ they fall through to whatever else is listening.
 ## Player
 
 While the [review player](/docs/files/video-and-audio#the-review-player) is
-open, it has the keyboard — nothing reaches the board behind it. Press `?` in
-the player for this list.
-
-**Transport**
+open, it has the keyboard — nothing reaches the board behind it.
 
 | Key | Action |
 |---|---|
 | `Space` | Play · pause |
 | `J` / `K` / `L` | Play backward · stop · forward — again to go faster |
-| `K+J` / `K+L` | Tap: one frame back · forward. Hold: play slowly |
+| `K+J` / `K+L` | One frame back · forward |
 | `←` / `→` | One frame back · forward |
-| `,` / `.` | One frame back · forward |
 | `⇧←` / `⇧→` | One second back · forward |
 | `Home` / `End` | First · last frame |
-| `⇧<` / `⇧>` | Slower · faster |
-| `0–9` | Type a timecode, frame or seconds to jump to |
-
-**Marking**
-
-| Key | Action |
-|---|---|
 | `I` / `O` | Set in · out |
-| `⇧I` / `⇧O` | Go to in · out |
-| `⇧Space` | Play from in to out |
-| `⌥L` | Loop (between in and out, or the whole clip) |
+| `⌥L` | Loop between in and out |
 | `⌥X` | Clear in and out |
-
-**View**
-
-| Key | Action |
-|---|---|
-| `⌥=` / `⌥−` | Zoom the timeline in · out |
-| `⌥0` | Fit the whole clip in the timeline |
-| `⇧Z` | Zoom the timeline to in and out |
-| `Z` | Zoom the picture: fit · 100% · 200% — drag to look around |
-| `G` | Framing guides — again for the next one |
-| `F` | Full screen |
 | `M` | Mute |
-| `⇧↑` / `⇧↓` | Volume up · down |
-
-**Review**
-
-| Key | Action |
-|---|---|
+| `F` | Full screen |
+| `G` | Framing guides |
 | `\` | Flip to the version you compare with |
-| `⌘C` | Copy the timecode |
-| `⇧⌘C` | Copy a link to this frame |
-| `?` | Show these shortcuts |
 | `Esc` | Close the player |
 
 ## Notes

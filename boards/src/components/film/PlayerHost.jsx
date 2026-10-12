@@ -1,23 +1,15 @@
 // The review player, mounted once per app shell (App.jsx, LocalBoardsApp.jsx)
 // beside the Info drawer. Anything opens it with openPlayer(): the ⤢ on a
-// video card, Quick look, Info → Versions, a frame link. It reads the LIVE
-// card on every render, so a new version arriving while it's open shows up in
-// its picker.
-//
-//   openPlayer({ boardId, cardId, versionId?, frame?, time?, playing?, card? })
-//   time     where the opener was (seconds) — a moment, so it lands on the
-//            same picture whatever rate each side counted in
-//   playing  whether to carry on playing (default: start playing, unless a
-//            frame or time was given)
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+// video card, Quick look, a frame comment's timecode in Info. It reads the
+// LIVE card, so a new version arriving while it's open shows up in its picker.
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { PLAYER_EVENT } from '../../lib/playerBus.js';
+import { openInfo } from '../../lib/infoBus.js';
 
 const FilmReview = lazy(() => import('./FilmReview.jsx').then((m) => ({ default: m.FilmReview })));
 
-export const PLAYER_CLOSED_EVENT = 'soleil-player-closed';
-
 export function PlayerHost({ resolveBoard, renderRail = null }) {
-  const [req, setReq] = useState(null);
+  const [req, setReq] = useState(null);   // { boardId, cardId, versionId, frame, commentId, card }
   useEffect(() => {
     const on = (e) => {
       const d = e.detail || {};
@@ -27,44 +19,20 @@ export function PlayerHost({ resolveBoard, renderRail = null }) {
     document.addEventListener(PLAYER_EVENT, on);
     return () => document.removeEventListener(PLAYER_EVENT, on);
   }, []);
-  const playerRef = useRef(null);
-  const reqRef = useRef(req);
-  reqRef.current = req;
-  // Closing tells the card where the review left off, so it shows that frame.
-  const close = useCallback(() => {
-    const r = reqRef.current;
-    const st = playerRef.current?.getState?.();
-    if (r && Number.isFinite(st?.time)) {
-      document.dispatchEvent(new CustomEvent(PLAYER_CLOSED_EVENT, { detail: { boardId: r.boardId, cardId: r.cardId, time: st.time } }));
-    }
-    setReq(null);
-  }, []);
-  const live = req ? resolveBoard?.(req.boardId) : null;
-  const card = req ? ((live?.cards || []).find((c) => c.id === req.cardId) || req.card || null) : null;
-  const ok = !!card && card.kind === 'video';
-  // The card it was showing is gone (deleted, or moved away): the request
-  // ends with it, rather than waiting to reopen the player if it comes back.
-  const shownRef = useRef(null);
-  useEffect(() => {
-    if (!req) return;
-    if (ok) shownRef.current = req;
-    else if (shownRef.current === req) setReq(null);
-  }, [req, ok]);
-  if (!req || !ok) return null;
+  if (!req) return null;
+  const live = resolveBoard?.(req.boardId);
+  const card = (live?.cards || []).find((c) => c.id === req.cardId) || req.card || null;
+  if (!card || card.kind !== 'video') return null;
   const title = card.title || card.fileName || 'Video';
-  const hasPos = Number.isFinite(req.frame) || Number.isFinite(req.time);
+  const close = () => setReq(null);
   return (
     <Suspense fallback={null}>
       <FilmReview
         key={`${req.boardId}:${req.cardId}`}
         card={card} title={title}
-        initialVersionId={req.versionId || null}
-        initialFrame={Number.isFinite(req.frame) && !Number.isFinite(req.time) ? req.frame : null}
-        initialTime={Number.isFinite(req.time) ? req.time : null}
-        autoPlay={req.playing != null ? !!req.playing : !hasPos}
-        boardId={req.boardId} cardId={req.cardId}
+        initialVersionId={req.versionId || null} initialFrame={Number.isFinite(req.frame) ? req.frame : null}
         onClose={close}
-        playerRef={playerRef}
+        onInfo={() => openInfo({ boardId: req.boardId, cardIds: [card.id] })}
         {...(renderRail ? renderRail({ req, card, live, close }) : {})}
       />
     </Suspense>

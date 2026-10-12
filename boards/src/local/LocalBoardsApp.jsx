@@ -63,6 +63,7 @@ import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 import { probeFile } from '../lib/mediaProbe.js';
 import { InfoHost } from '../components/info/InfoHost.jsx';
+import { PlayerHost } from '../components/film/PlayerHost.jsx';
 import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
 
 const TWEAK_DEFAULTS = {
@@ -2134,6 +2135,7 @@ export function LocalBoardsApp({ user, signOut }) {
           setFocusRequest({ boardId, ids, token: Date.now() });
         }}
       />
+      <PlayerHost resolveBoard={(id) => (id === currentId && boardState[id] ? { cards: boardState[id].cards || [] } : null)} />
 
       {ONBOARD_PREVIEW && onboardCoachOpen && currentId === ROOT_ID && currentSurface === 'board' && (
         <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} arm="B" />

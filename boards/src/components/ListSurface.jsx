@@ -58,6 +58,7 @@ import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
 import { canVersion, liveVersions } from '../lib/cardVersions.js';
 import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
+import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
@@ -1718,6 +1719,7 @@ export function ListSurface({
       return composeMenuSections([
         { items: [
           { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
+          item.kind === 'video' && card.src && !item.pending && onRevealOnCanvas && { id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: card.id, card }) },
           onRevealOnCanvas && !item.unplaced && { id: 'show', label: browsingFrom ? 'Show in cluster' : 'Show on board', run: () => onRevealOnCanvas([item.id]) },
           canEdit && item.unplaced && { id: 'put', label: 'Put on board', run: () => putOnBoard([item.id]) },
         ] },

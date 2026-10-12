@@ -76,19 +76,10 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
     return <ImageZoomStage src={card.src} alt={name} adjust={card.adjust} cardId={card.id} />;
   }
   if (item.kind === 'video' && card.src) {
-    // The film player sized to the picture, its controls over the bottom
-    // edge. Only , . J/K/L and M are its keys — Space closes, ←/→ still step
-    // between files. A public page has no review player to open.
-    const open = (st) => openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
-    const canOpen = !!item.boardId && !isPublicSurface();
-    return (
-      <div className="ql-media ql-film">
-        <FilmPlayer ref={playerRef} mode="preview" keyboard="preview" modalHandle={modalHandle}
-                    src={card.src} poster={card.poster} media={card.media || null} title={name} autoPlay
-                    onOpenPlayer={canOpen ? open : null}
-                    probe={() => probeCardVideo(card)} />
-      </div>
-    );
+    // The film player without its keys — Quick look's own arrows step
+    // between files. Its buttons step frames; ⤢ opens the review player.
+    return <div className="ql-media ql-film"><FilmPlayer mode="full" src={card.src} poster={card.poster} media={card.media || null} title={name} autoPlay
+                                                             probe={() => probeCardVideo(card)} /></div>;
   }
   if (item.kind === 'audio' && card.src) {
     return (
@@ -227,6 +218,11 @@ export default function QuickLook({
         {onPutOnBoard && item.unplaced && (
           <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
             <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
+          </button>
+        )}
+        {item.kind === 'video' && item.card?.src && item.boardId && (
+          <button type="button" className="ql-btn" onClick={() => openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card })} title="Open in the review player">
+            <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
           </button>
         )}
         {canDownload && (

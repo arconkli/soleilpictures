@@ -169,6 +169,4 @@ export {
   Repeat,
   CornersOut,
   CornersIn,
-  SpeakerLow,
-  Keyboard,
 } from '@phosphor-icons/react';
