@@ -13,6 +13,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
+import { TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
+import { isDeleteEvent } from '../lib/tagSurface.js';
 
 export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
   const [ranges, setRanges] = useState([]);
@@ -71,27 +73,27 @@ export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
     const ch = supabase.channel(`tag-ranges:${docCardId}:${pageId}:${sfx}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'entity_links',
+        // Workspace-scoped (see tagSurface.js). Unfiltered, every open doc
+        // page received every entity_links DELETE on the platform — a
+        // DELETE's `old` is only the row id — and reloaded on each one, so
+        // anyone's typing anywhere refetched every open doc's ranges.
+        filter: `source_workspace=eq.${workspaceId}`,
       }, (payload) => {
-        // Supabase realtime DELETE payloads only carry the primary key
-        // (REPLICA IDENTITY DEFAULT), so we can't filter by row fields
-        // for deletes. INSERT / UPDATE payloads do carry the full row.
-        // Strategy: when fields are present, scope to this doc page;
-        // when they aren't (DELETE), just reload — the query itself is
-        // cheap and already filtered server-side to this page.
-        const r = payload?.new || payload?.old || {};
-        const knownTagDoc =
-          r.target_kind && r.source_kind && r.source_id && r.source_page_id;
-        if (knownTagDoc) {
-          if (r.target_kind !== 'tag') return;
-          if (r.source_kind !== 'doc') return;
-          if (r.source_id !== docCardId) return;
-          if (r.source_page_id !== pageId) return;
-        }
+        // A bare DELETE can't be attributed to this page; realtime drops
+        // them on a filtered channel anyway. This tab's removals arrive
+        // through TAG_LINKS_CHANGED below; a peer's shows on the next load.
+        if (isDeleteEvent(payload)) return;
+        const r = payload?.new || {};
+        if (r.target_kind !== 'tag' || r.link_kind !== 'applied') return;
+        if (r.source_kind !== 'doc' || r.source_id !== docCardId) return;
+        if (r.source_page_id !== pageId) return;
         load();
       })
       .subscribe();
+    document.addEventListener(TAG_LINKS_CHANGED, load);
     return () => {
       cancelled = true;
+      document.removeEventListener(TAG_LINKS_CHANGED, load);
       try { supabase.removeChannel(ch); } catch (_) {}
     };
   }, [workspaceId, docCardId, pageId]);
