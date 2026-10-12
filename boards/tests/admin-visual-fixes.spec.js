@@ -230,3 +230,18 @@ test.describe('the What changed date field on a touch tablet (VS-ADMIN-11)', () 
     expect(w).toBeGreaterThanOrEqual(intrinsic - 0.5);
   });
 });
+
+test('header text buttons are neutral ink at rest, not gold (VS-ADMIN-12)', async ({ page }) => {
+  for (const theme of ['dark', 'light']) {
+    await openAdmin(page, { theme });
+    const link = page.locator('.admin-header-right .auth-link').first();
+    await expect(link).toBeVisible({ timeout: 15000 });
+    const [color, gold] = await link.evaluate((el) => [
+      getComputedStyle(el).color,
+      // Resolve --soleil to the same rgb() form the computed colour uses.
+      (() => { const p = document.createElement('i'); p.style.color = 'var(--soleil)'; document.body.appendChild(p);
+        const c = getComputedStyle(p).color; p.remove(); return c; })(),
+    ]);
+    expect(color, theme).not.toBe(gold);
+  }
+});
