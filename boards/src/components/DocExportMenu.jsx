@@ -19,11 +19,18 @@ import {
 import { buildScreenplayPdfBlob } from '../lib/screenplayPdf.js';
 import { parseScriptText } from '../lib/scriptImport.js';
 import { deliverFile } from '../lib/exportDelivery.js';
+import { Capacitor } from '@capacitor/core';
 import { docPrintCSS } from '../lib/docTypography.js';
 import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+
+// Inside the iOS / Android app the WebView has no window.print(): a print
+// never opens a dialog and afterprint never fires.
+const inNativeApp = () => {
+  try { return !!Capacitor?.isNativePlatform?.(); } catch (_) { return false; }
+};
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
@@ -168,11 +175,19 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
         const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
         const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: docTitle, titlePage, sceneNumbers });
         await deliverFile(blob, `${sanitizeName(docTitle)}.pdf`);
+      } else if (inNativeApp()) {
+        // No print dialog in the app: hand over the same printable page
+        // through the share sheet (Files / Safari can print it or save a
+        // PDF) instead of a tap that did nothing and locked the menu for 60s.
+        await deliverFile(new Blob([printableHTML(await fullBodyHtml())], { type: 'text/html' }), `${sanitizeName(currentDocTitle())}.html`);
       } else {
         // Prose docs print through a hidden same-origin iframe → the system
         // "Save as PDF". Avoids the popup path (popup blockers + the
         // window.open(...'noopener') === null gotcha that silently no-op'd).
-        await printHtmlViaIframe(printableHTML(await fullBodyHtml()));
+        // Not awaited: the promise settles at afterprint (or a 60s safety
+        // net), and the menu must close and the other exports stay usable
+        // meanwhile — busy is released in finally below.
+        printHtmlViaIframe(printableHTML(await fullBodyHtml()));
       }
       // Screenplay PDF is the most defensibly professional artifact the product
       // makes — industry format, real vector output — and it was invisible.
@@ -271,7 +286,7 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
           <button role="menuitem" onClick={exportHTML}>Export HTML</button>
           <button role="menuitem" onClick={exportMarkdown}>Export Markdown</button>
           <button role="menuitem" onClick={exportPDF}>
-            {docMode === 'screenplay' ? 'Export PDF' : 'Print / Save as PDF'}
+            {docMode === 'screenplay' ? 'Export PDF' : inNativeApp() ? 'Share printable page' : 'Print / Save as PDF'}
           </button>
         </div>,
         document.body
