@@ -13188,7 +13188,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   /* The toolbar's one dropdown affordance: the same 12px chevron as the Font
      pill (lucide chevron-down) and the Size combo, in --ink-2, at the right
      edge. It used to be a grey filled triangle here, a chevron on Font and a
-     tiny ▾ on Size — three different signs for the same thing. */
+     tiny ▾ on Size — three different signs for the same thing.
+     A <select> can't carry a pseudo-element, so unlike the masked Font and
+     Size chevrons this one is a background image and can't read var(): the
+     stroke is --ink-2's hex, copied (#888890 dark, #6a6a70 light below). It
+     doesn't follow hover ink; change these two if --ink-2 changes. */
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888890' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-size: 12px 12px;
@@ -13470,7 +13474,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    1in/1.5in page margin is empty space, which is where a margin dot belongs
    anyway, and it scales with the sheet instead of needing a padding
    counterweight (which would be circular — the paper's padding is an input to
-   the zoom calculation). */
+   the zoom calculation). Fit mode is screenplay-only and fits the TEXT
+   COLUMN, so these margins open just off-screen: the dots are a swipe away,
+   like the scene numbers, and the help page says so. Pulling them into the
+   column would sit them on the dialogue and action lines. */
 .doc-paper.is-fit-width .comment-gutter { right: 4px; }
 .doc-paper.is-fit-width .doc-tag-gutter { left: 4px; }
 

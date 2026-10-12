@@ -54,7 +54,8 @@ still takes you to where *they* are.
 multi-page, and pages nest. A new page is created automatically when the current
 one fills up, so long-form writing does not stop to manage pagination. On a
 phone or a touch tablet the tree folds into a drawer: tap **Page list** above
-the toolbar to open it.
+the toolbar to open it (**Scenes** in a screenplay, where the drawer also lists
+the scenes).
 
 **Bookmarks** under the page tree — durable anchors into specific places in the
 text, which survive editing around them. Add one with the bookmark button in the
@@ -66,7 +67,8 @@ Zoom runs from 25% to 200%.
 
 On a phone the text stays full size. A document set to real pages shows as one
 continuous sheet there (its exports and wider screens keep the pages), and a
-screenplay fits its text column to the screen, with the margins a swipe away.
+screenplay fits its text column to the screen, with the margins (and the
+comment dots in them) a swipe away.
 
 ## Writing and formatting
 
