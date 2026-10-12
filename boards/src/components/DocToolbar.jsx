@@ -64,6 +64,46 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
     };
   }, [editor]);
 
+  // Wherever the bar still scrolls sideways (touch, and the narrow docked
+  // panes — a full-size overlay on a mouse wraps instead, see .doc-tb in
+  // styles.css), say so: a fade on each edge that has more controls past it,
+  // and a vertical mouse wheel scrolls it. The scrollbar is hidden, so without
+  // these Find, Export, Zoom, Undo and Redo sat off-screen with the bar
+  // appearing to end at the bookmark icon.
+  const barRef = useRef(null);
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return undefined;
+    const sync = () => {
+      const max = bar.scrollWidth - bar.clientWidth;
+      bar.classList.toggle('has-more-start', max > 1 && bar.scrollLeft > 1);
+      bar.classList.toggle('has-more-end', max > 1 && bar.scrollLeft < max - 1);
+      // A wrapped bar is taller than one row: the find bar hangs below
+      // wherever it actually ends (see .doc-find), not at a fixed 52px.
+      bar.parentElement?.style.setProperty('--doc-tb-bottom', `${bar.offsetTop + bar.offsetHeight}px`);
+    };
+    const onWheel = (e) => {
+      if (bar.scrollWidth - bar.clientWidth <= 1) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // trackpad pans natively
+      e.preventDefault();
+      bar.scrollLeft += e.deltaY;
+    };
+    sync();
+    bar.addEventListener('scroll', sync, { passive: true });
+    bar.addEventListener('wheel', onWheel, { passive: false });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
+    ro?.observe(bar);
+    // Controls come and go with the mode (screenplay, view-only) — re-measure.
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(sync) : null;
+    mo?.observe(bar, { childList: true });
+    return () => {
+      bar.removeEventListener('scroll', sync);
+      bar.removeEventListener('wheel', onWheel);
+      ro?.disconnect();
+      mo?.disconnect();
+    };
+  }, []);
+
   const disabled = !editor;
   const customFonts = useCustomFonts();
   const recentFonts = useRecentFonts();
@@ -152,7 +192,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
   const isScreenplay = docMode === 'screenplay';
 
   return (
-    <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
+    <div className="doc-tb" ref={barRef} role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
       {canEdit && (<>
       {/* Click-to-open insert menu — only the things with no other toolbar home
           (image, table, divider, code, embed). Doc mode only: in screenplay mode

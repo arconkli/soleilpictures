@@ -114,3 +114,84 @@ test.describe('phone 390', () => {
     for (const x of cx.rows) expect(Math.abs(x - cx.root)).toBeLessThan(2);
   });
 });
+
+// ── VS-DOCS-03 ────────────────────────────────────────────────────────────
+// With the page rail open the bar is wider than a 1440 overlay, and with its
+// scrollbar hidden Find, Export, Zoom, Undo and Redo sat silently off-screen.
+// On a mouse it now wraps; where it still scrolls (touch) the edges fade.
+async function offBarControls(page) {
+  return page.evaluate(() => {
+    const bar = document.querySelector('.doc-card-modal .doc-tb');
+    const br = bar.getBoundingClientRect();
+    return [...bar.querySelectorAll('button, select, input')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && (r.right > br.right + 1 || r.left < br.left - 1 || r.bottom > br.bottom + 1);
+    }).map((el) => el.getAttribute('aria-label') || el.title);
+  });
+}
+
+for (const vp of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
+  test.describe(`mouse ${vp.width}x${vp.height}`, () => {
+    test.use({ viewport: vp });
+    test('VS-DOCS-03: every toolbar control is on screen with the page rail open', async ({ page }) => {
+      await openDoc(page);
+      await expect(page.locator('.doc-card-modal .doc-rail-left')).toBeVisible();
+      expect(await offBarControls(page)).toEqual([]);
+      for (const name of ['Find (⌘F)', 'Zoom in', 'Undo (⌘Z)', 'Redo (⌘⇧Z)']) {
+        await expect(page.locator(`.doc-card-modal .doc-tb [aria-label="${name}"]`)).toBeInViewport();
+      }
+      // The find bar hangs below the (now taller) toolbar, not over its last row.
+      await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
+      await expect(page.locator('.doc-find')).toBeVisible();
+      const gap = await page.evaluate(() =>
+        document.querySelector('.doc-find').getBoundingClientRect().top
+        - document.querySelector('.doc-card-modal .doc-tb').getBoundingClientRect().bottom);
+      expect(gap).toBeGreaterThanOrEqual(0);
+    });
+  });
+}
+
+test.describe('phone 390 toolbar', () => {
+  test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
+
+  test('VS-DOCS-03: the swipeable bar fades the edge that has more past it', async ({ page }) => {
+    await openDoc(page);
+    const bar = page.locator('.doc-card-modal .doc-tb');
+    await expect(bar).toHaveClass(/has-more-end/);
+    await expect(bar).not.toHaveClass(/has-more-start/);
+    await bar.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
+    await expect(bar).toHaveClass(/has-more-start/);
+    await expect(bar).not.toHaveClass(/has-more-end/);
+  });
+
+  // ── VS-DOCS-06 ──────────────────────────────────────────────────────────
+  test('VS-DOCS-06: the find bar hides the toolbar row and its two fields line up', async ({ page }) => {
+    await openDoc(page);
+    const findBtn = page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]');
+    await findBtn.evaluate((el) => el.scrollIntoView({ inline: 'center' }));
+    await findBtn.tap();
+    const bar = page.locator('.doc-find');
+    await expect(bar).toBeVisible();
+    await bar.locator('button[aria-label="Toggle replace"]').click();
+    await expect(bar.locator('input[aria-label="Replace with"]')).toBeVisible();
+    const m = await page.evaluate(() => {
+      const f = document.querySelector('.doc-find').getBoundingClientRect();
+      const [a, b] = [...document.querySelectorAll('.doc-find input')].map((i) => i.getBoundingClientRect());
+      const edge = document.elementFromPoint(window.innerWidth - 4, f.top + 14);
+      return {
+        lefts: [a.left, b.left], rights: [a.right, b.right],
+        peek: !!edge?.closest('.doc-tb'),
+        tb: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb')).visibility,
+        closeOnFirstRow: document.querySelector('.doc-find-x').getBoundingClientRect().top < b.top,
+      };
+    });
+    expect(Math.abs(m.lefts[0] - m.lefts[1])).toBeLessThan(1);
+    expect(Math.abs(m.rights[0] - m.rights[1])).toBeLessThan(1);
+    expect(m.peek).toBe(false);
+    expect(m.tb).toBe('hidden');
+    expect(m.closeOnFirstRow).toBe(true);
+    // Closing brings the toolbar back.
+    await bar.locator('.doc-find-x').click();
+    await expect(page.locator('.doc-card-modal .doc-tb')).toBeVisible();
+  });
+});

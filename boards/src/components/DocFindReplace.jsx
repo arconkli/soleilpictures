@@ -274,7 +274,7 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
         <>
           <span className="doc-find-sep" aria-hidden="true" />
           <input ref={replaceInputRef}
-                 className="doc-find-input"
+                 className="doc-find-input doc-find-input--replace"
                  placeholder="Replace"
                  aria-label="Replace with"
                  value={r}
