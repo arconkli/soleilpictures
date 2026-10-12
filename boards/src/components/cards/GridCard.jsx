@@ -95,8 +95,12 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     // a word typed, it would keep none of an empty cell's hint, styling or
     // direct Image / Link buttons. Read live (the editor has just committed),
     // and keep any pinned style: setCellContent with a type preserves it.
+    // isCellFilled strips tags, so it would also call an empty checklist or a
+    // lone rule "empty"; only revert when nothing but paragraphs and breaks
+    // was left behind.
     const live = readGridModel(card, ydoc, templates).cells[cellId];
-    if (live && live.type === 'text' && !isCellFilled(live)) gridActions?.setCellContent?.(card.id, cellId, { type: 'empty' });
+    const bare = (html) => !String(html || '').replace(/<\/?(p|br)\b[^>]*>/gi, '').replace(/&nbsp;|\s/g, '');
+    if (live && live.type === 'text' && !isCellFilled(live) && bare(live.html)) gridActions?.setCellContent?.(card.id, cellId, { type: 'empty' });
   };
   // Deletes in here get the house Undo toast (gridActions.withUndoToast);
   // without it they fall back to the bare mutator.
