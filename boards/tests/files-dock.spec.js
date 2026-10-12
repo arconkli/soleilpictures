@@ -112,7 +112,7 @@ test('the panel browses into a folder and back without moving the board', async 
   const p = panel(page);
   await p.locator('.ft', { hasText: 'Features' }).dblclick();
   await expect(p.locator('.pb .pb-step.is-here')).toContainText('Features');
-  await expect(p.locator('.cbt-ro')).toHaveText('View only');
+  await expect(p.locator('.cbt-ro')).toHaveText('Browsing');
   // The board hasn't gone anywhere.
   await expect(page.locator('.crumb.here')).toHaveText(crumb);
   await expect(page.locator('.canvas-wrap')).toBeVisible();

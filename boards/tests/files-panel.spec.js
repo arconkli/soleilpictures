@@ -91,7 +91,7 @@ test('the title row navigates: ▾ on the current cluster lists the clusters ins
   await expect(menu.locator('.pb-menu-item:not(.pb-menu-goto)')).toHaveCount(n);
   await menu.locator('.pb-menu-item', { hasText: 'Features' }).click();
   await expect(panel(page).locator('.pb-step.is-here')).toContainText('Features');
-  await expect(panel(page).locator('.cbt-ro')).toHaveText('View only');
+  await expect(panel(page).locator('.cbt-ro')).toHaveText('Browsing');
 });
 
 test('panel folders: two rows until Show all, remembered on this device', async ({ page }) => {
