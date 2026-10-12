@@ -80,6 +80,10 @@ toolbar; click it in the list to jump there.
 
 Zoom runs from 25% to 200%.
 
+On a phone the text stays full size. A document set to real pages shows as one
+continuous sheet there (its exports and wider screens keep the pages), and a
+screenplay fits its text column to the screen, with the margins a swipe away.
+
 ## Writing and formatting
 
 The toolbar carries the usual: headings, bold, italic, underline, highlight,

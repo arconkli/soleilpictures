@@ -196,6 +196,78 @@ test.describe('phone 390 toolbar', () => {
   });
 });
 
+// ── VS-DOCS-05 ────────────────────────────────────────────────────────────
+// Fitting the whole 8.5in sheet to a phone rendered 12pt text at ~6px. Paged
+// prose now shows continuous on a phone; screenplay fits its text column.
+test.describe('phone 390 layouts', () => {
+  test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
+
+  test('VS-DOCS-05: paged prose reads at full size, continuous, without changing the setting', async ({ page }) => {
+    await openDoc(page);
+    await page.evaluate(() => { const T = window.__soleilDocTest; T.setPageless(T.ydoc, T.getScope(), false); });
+    await expect(page.locator('.doc-card-modal .doc-paper.is-pageless')).toBeVisible();
+    await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
+    await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>The quick brown fox jumps over the lazy dog, twice over.</p>'));
+    const r = await page.evaluate(() => {
+      const T = window.__soleilDocTest;
+      const paper = document.querySelector('.doc-card-modal .doc-paper');
+      const p = paper.querySelector('.ProseMirror p');
+      const zoom = parseFloat(getComputedStyle(paper).getPropertyValue('--doc-zoom')) || 1;
+      return {
+        px: parseFloat(getComputedStyle(p).fontSize) * zoom,
+        fit: paper.classList.contains('is-fit-width'),
+        // Same measure as the pageless case in mobile/docs-fit-width.spec.js.
+        sideways: paper.querySelector('.doc-editor-wrap').getBoundingClientRect().width - paper.clientWidth,
+        stillPaged: T.getPageless(T.ydoc, T.getScope()) === false,
+      };
+    });
+    expect(r.px).toBeGreaterThanOrEqual(15);
+    expect(r.fit).toBe(false);
+    expect(r.sideways).toBeLessThanOrEqual(1);
+    expect(r.stillPaged).toBe(true);
+    await expect(page.locator('.doc-card-modal .doc-tb-pages-toggle')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('VS-DOCS-05: screenplay fits its text column, keeping the true sheet', async ({ page }) => {
+    await openDoc(page);
+    await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').tap();
+    await page.waitForFunction(() =>
+      window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock', null, { timeout: 10000 });
+    await page.evaluate(() => {
+      const S = window.__soleilDocTest.screenplay;
+      window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+        { element: 'scene', text: 'INT. KITCHEN - NIGHT' },
+        { element: 'action', text: 'The fridge hums. A long action line that runs the full sixty characters of the column and wraps.' },
+        { element: 'character', text: 'JON' },
+        { element: 'dialogue', text: 'Is anyone there? I heard the door, and then nothing at all.' },
+      ]));
+    });
+    await expect(page.locator('.doc-card-modal .doc-paper.is-fit-width')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.querySelector('.doc-card-modal .doc-paper').scrollLeft)).toBeGreaterThan(0);
+    const r = await page.evaluate(() => {
+      const paper = document.querySelector('.doc-card-modal .doc-paper');
+      const wrap = paper.querySelector('.doc-editor-wrap:not(.sp-title-page)');
+      const zoom = parseFloat(getComputedStyle(paper).getPropertyValue('--doc-zoom')) || 1;
+      const pr = paper.getBoundingClientRect();
+      const el = paper.querySelector('[data-screenplay-element]');
+      const lines = [...paper.querySelectorAll('[data-screenplay-element]')].map((n) => n.getBoundingClientRect());
+      return {
+        px: parseFloat(getComputedStyle(el).fontSize) * zoom,
+        offsetWidth: wrap.offsetWidth,
+        padLeft: parseFloat(getComputedStyle(wrap).paddingLeft),
+        allInView: lines.every((b) => b.left >= pr.left - 1 && b.right <= pr.right + 1),
+      };
+    });
+    // 12pt Courier at the fitted zoom: was ~6.4px for the whole sheet.
+    expect(r.px).toBeGreaterThanOrEqual(9.6);
+    // The sheet's geometry is untouched (paginator / PDF agreement).
+    expect(Math.abs(r.offsetWidth - 816)).toBeLessThanOrEqual(1);
+    expect(r.padLeft).toBeCloseTo(144, 0);
+    // Every line of the column is on screen.
+    expect(r.allInView).toBe(true);
+  });
+});
+
 // ── VS-DOCS-04 ────────────────────────────────────────────────────────────
 // The thread popover opened on the comment's own line: beside it on desktop
 // (hiding the rest of the sentence) and, clamped back from the right edge on

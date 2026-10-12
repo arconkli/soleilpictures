@@ -66,6 +66,14 @@ const ZOOM_KEY = 'soleil.boards.docZoom';
 // 0.25 (not 0.5) because a phone in fit-to-width needs ~0.42 for an 8.5in
 // sheet, and stepping OUT from there must stay on the same continuous scale.
 const ZOOM_MIN = 0.25;
+// The screenplay sheet's text block: 816px less the industry 1.5in/1.0in
+// left/right margins (see .doc-paper.is-screenplay in styles.css). Phone fit
+// mode scales THIS to the width, not the whole sheet.
+const SP_LEFT_MARGIN = 144;
+const SP_COLUMN_W = PAGE_W - SP_LEFT_MARGIN - 96;
+// 12pt (16px) Courier at 0.6 renders ~9.6px: the smallest the fitted script
+// is allowed to get.
+const FIT_MIN = 0.6;
 // Auto-create a new sheet under the active page when the last sheet's actual
 // CONTENT nearly fills its printed page. We measure the inner ProseMirror
 // content height against the sheet's printable area (the wrap's min-height
@@ -359,12 +367,21 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // Phones start fitted; any manual zoom leaves fit mode; the zoom-reset
   // button (⌘0 / the % pill) returns to it.
   //
-  // Scoped to layouts whose sheet is genuinely a FIXED 816px box — screenplay,
-  // and paged prose (.doc-flow). Pageless prose is already fluid
-  // (.doc-editor-wrap is width:100%, max-width:816px), so it fits a phone on
-  // its own; scaling that would shrink perfectly readable text for nothing.
+  // Scoped to screenplay, the one layout whose sheet must stay a FIXED 816px
+  // box. And it fits the 6.0in TEXT COLUMN to the width, not the whole sheet:
+  // the full 8.5in fitted a 390px phone at ~0.4, which rendered 12pt Courier
+  // at about 6px — unreadable, let alone editable. The column (60ch, the part
+  // with words in it) fills the width instead; the margins sit just off either
+  // edge, a pan away, and the sheet's geometry is untouched.
+  //
+  // Paged prose has no such contract — pagination is decoration over a single
+  // content fragment — so on a phone it simply shows continuous (the reader's
+  // view only: the doc's Pages setting, exports and wider screens keep real
+  // pages). Pageless prose is already fluid and fits a phone on its own.
   const { isPhone } = useBreakpoint();
-  const fitEligible = isPhone && (docMode === 'screenplay' || !pageless);
+  const phoneReflow = isPhone && docMode !== 'screenplay' && !pageless;
+  const layoutPageless = pageless || phoneReflow;
+  const fitEligible = isPhone && docMode === 'screenplay';
   const [fitWanted, setFitWanted] = useState(true);
   const fitMode = fitEligible && fitWanted;
   const [fitZoom, setFitZoom] = useState(1);
@@ -384,8 +401,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       // 816 × zoom wider than the space we just measured, and the sheet
       // overflows by a couple of px — enough to leave the paper horizontally
       // scrollable, which is the exact thing fit mode exists to prevent.
-      const raw = avail / PAGE_W;
-      setFitZoom(Math.max(ZOOM_MIN, Math.floor(raw * 100) / 100));
+      // Floored at FIT_MIN: on the narrowest phones the column would land
+      // below ~10px type, so there the line ends pan instead.
+      const raw = avail / SP_COLUMN_W;
+      setFitZoom(Math.min(1, Math.max(FIT_MIN, Math.floor(raw * 100) / 100)));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -395,6 +414,15 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // padding, and show-scene-numbers widens it further.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitMode, docMode, sceneNumbersShow]);
+
+  // Column fit: the sheet is now wider than the paper, so open it scrolled to
+  // where the column starts (the left margin is a pan away). Re-run when the
+  // fitted zoom changes, e.g. on rotation.
+  useLayoutEffect(() => {
+    if (!fitMode || !paperRef.current) return;
+    paperRef.current.scrollLeft = SP_LEFT_MARGIN * fitZoom;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitMode, fitZoom]);
 
   // What actually gets applied. Everything downstream (CSS var, toolbar
   // readout, DocPresence coordinate math) must use this, never raw `zoom`.
@@ -1039,6 +1067,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     sceneNumbersShow={sceneNumbersShow}
                     onSetSceneNumbersShow={onSetSceneNumbersShow}
                     pageless={pageless}
+                    pagesShownContinuous={phoneReflow}
                     onTogglePageless={onTogglePageless}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onInsertImage={pickImageFromDisk}
@@ -1058,7 +1087,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         open={findOpen}
                         canEdit={canEdit && !isPublic}
                         onClose={() => setFindOpen(false)} />
-        <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && pageless ? ' is-pageless' : ''}`} ref={paperRef}
+        <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && layoutPageless ? ' is-pageless' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': effectiveZoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the
@@ -1085,11 +1114,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               <DocPageEditor
                 // Screenplay has its own page model, so the prose layout
                 // flag is no reason to rebuild (and lose the caret) there.
-                key={`${sid}:${docMode === 'screenplay' ? 'sp' : (pageless ? 'pl' : 'pg')}`}
+                key={`${sid}:${docMode === 'screenplay' ? 'sp' : (layoutPageless ? 'pl' : 'pg')}`}
                 ydoc={ydoc}
                 scope={scope}
                 docMode={docMode}
-                pageless={pageless}
+                pageless={layoutPageless}
                 zoom={effectiveZoom}
                 pageId={activePageId}
                 sheetId={sid}
