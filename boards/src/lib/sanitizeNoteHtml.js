@@ -20,7 +20,7 @@ import DOMPurify from 'dompurify';
 // comes from something that actually produces note html:
 //   • noteExtensions.js — StarterKit (codeBlock and horizontalRule explicitly
 //     OFF, heading levels 1-3), BulletList, OrderedList, Underline, TextStyle,
-//     Color, FontFamily, FontSize, TextAlign
+//     Color, FontFamily, FontSize, TextAlign, Link (a[href][target][rel])
 //   • NoteChecklist.js  — ul.note-checklist > li.ck > span.ck-box + div.ck-text
 //   • NoteMention.js    — span[data-entity-ref].tt-link.tt-link-manual
 //   • CommentMark.js    — span[data-comment-id].tt-comment

@@ -189,9 +189,15 @@ export function NoteTiptapSurface({
   const sawContentRef = useRef(false);
   const writeTextCache = () => {
     if (!fragment) return;
-    if (!noteFragmentIsBlank(fragment)) sawContentRef.current = true;
+    const blank = noteFragmentIsBlank(fragment);
+    if (!blank) sawContentRef.current = true;
     else if (!sawContentRef.current && bodyHasText(cardYMap?.get?.('body'))) return;
-    writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null });
+    const serialized = noteFragmentToHtml(fragment);
+    // noteFragmentToHtml answers '' when it can't serialize (a node or mark
+    // this build's schema doesn't know, say from a newer peer). From a
+    // fragment that holds text that is a failure, not an edit: keep the cache.
+    if (!serialized && !blank) return;
+    writeCache({ html: linkifyNoteHtml(serialized), body: null });
   };
 
   // @-mention picker state, driven by the suggestion plugin.
