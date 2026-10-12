@@ -78,8 +78,9 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
       }, (payload) => {
         // Only re-fetch when the change touches an applied tag — most
         // entity_links activity is mention-flavored and irrelevant to the
-        // chip rendering. A DELETE carries only the row id (replica identity
-        // default + RLS), so it can't be ruled out and always refreshes.
+        // chip rendering. A filtered channel never receives a DELETE (its
+        // `old` is only the row id, so it can't match source_workspace):
+        // removals come through TAG_LINKS_CHANGED below.
         if (touchesAppliedTag(payload)) refresh();
       })
       .subscribe();

@@ -13,9 +13,10 @@
 
 import { supabase } from './supabase.js';
 
-// Removals are the half realtime can't describe: a DELETE on entity_links
-// carries only the row id (replica identity default + RLS), so a listener
-// can't tell it was a tag application. Every removal (and every bulk move:
+// Removals are the half realtime can't deliver: a DELETE on entity_links
+// carries only the row id (replica identity default + RLS), so it can't
+// pass a source_workspace filter and a filtered listener never sees it (a
+// peer's removal shows on the next load). Every removal (and every bulk move:
 // delete / restore / merge) also announces itself in-page, so the sidebar
 // counts and an open tag profile catch this tab's own changes whatever
 // realtime delivers.

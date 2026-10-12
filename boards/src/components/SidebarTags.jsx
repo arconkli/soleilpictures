@@ -160,8 +160,9 @@ export function SidebarTags({
         event: '*', schema: 'public', table: 'entity_links',
         filter: `source_workspace=eq.${workspaceId}`,
       }, (payload) => {
-        // A DELETE carries only the row id (replica identity default + RLS),
-        // so a removed tag never matched and its count never dropped.
+        // A filtered channel never receives a DELETE (its `old` is only the
+        // row id, so it can't match source_workspace): a removal's count
+        // drop comes through TAG_LINKS_CHANGED below.
         if (touchesAppliedTag(payload)) reloadCounts();
       })
       .subscribe();

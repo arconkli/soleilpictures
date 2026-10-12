@@ -203,12 +203,6 @@ export function EntityHoverPopover({
   const headingTerm = term || sortedEntities[0]?.title || '';
   const totalCount = sortedEntities.length + totalAppears;
 
-  // "See all references" / "+ N more →". A host that has its own drawer
-  // (DocPageEditor) passes onSeeAll; everywhere else — messages, notes, card
-  // titles — nobody did, so the primary button just closed the popover.
-  // Default to the app-wide backlinks drawer (App listens for
-  // soleil-open-backlinks). With nothing to anchor the drawer on, hide the
-  // buttons rather than show a dead end.
   // The auto-link kill switches. supabase-js RESOLVES with { error } rather
   // than throwing, so an RLS refusal used to look like success; and the
   // toasts used { kind, title }, which the toast API ignores, so neither
@@ -226,6 +220,12 @@ export function EntityHoverPopover({
     onClose?.();
   };
 
+  // "See all references" / "+ N more →". A host that has its own drawer
+  // (DocPageEditor) passes onSeeAll; everywhere else — messages, notes, card
+  // titles — nobody did, so the primary button just closed the popover.
+  // Default to the app-wide backlinks drawer (App listens for
+  // soleil-open-backlinks). With nothing to anchor the drawer on, hide the
+  // buttons rather than show a dead end.
   const seeAllRef = refs?.[0] || rowToRef(sortedEntities[0]);
   const canSeeAll = Boolean(onSeeAll || seeAllRef);
   const seeAll = () => {
