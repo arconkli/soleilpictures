@@ -3861,6 +3861,16 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 .admin-header > * { min-width: 0; }
 
+/* A tab row longer than the header used to shrink under min-width 0 and
+   overflow visibly, so the last tabs printed over the right-hand controls and
+   took their clicks. The wordmark and the controls now keep their size and the
+   header wraps instead: a row that fits is unchanged, one that does not puts
+   the controls on their own line rather than under a tab. Not overflow-x on
+   the tabs, which would clip the More menu that drops out of them. */
+.admin-header { flex-wrap: wrap; row-gap: 12px; }
+.admin-header > .clusters-mark,
+.admin-header > .admin-header-right { flex: none; }
+
 .admin-tabs { gap: 2px; margin-right: auto; margin-left: 8px; }
 
 .admin-tab {

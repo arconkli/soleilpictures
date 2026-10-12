@@ -48,3 +48,22 @@ test.describe('Command Center at tablet width (VS-ADMIN-01)', () => {
     }
   });
 });
+
+test.describe('admin header (VS-ADMIN-02)', () => {
+  test.use({ viewport: { width: 1024, height: 768 } });
+
+  test('a tab row too long for the header never runs under the right-hand controls', async ({ page }) => {
+    await openAdmin(page);
+    await expect(page.getByRole('tab', { name: /^overview$/i })).toBeVisible({ timeout: 15000 });
+    const overlap = await page.evaluate(() => {
+      const right = document.querySelector('.admin-header-right').getBoundingClientRect();
+      return [...document.querySelectorAll('.admin-header .admin-tab')].some((t) => {
+        const r = t.getBoundingClientRect();
+        return r.right > right.left && r.left < right.right && r.bottom > right.top && r.top < right.bottom;
+      });
+    });
+    expect(overlap).toBe(false);
+    // The control a tab used to cover takes its own click.
+    await page.locator('.admin-header-right .auth-link').click();
+  });
+});
