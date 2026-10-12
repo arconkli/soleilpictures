@@ -122,3 +122,26 @@ test.describe('the landing finale on a phone', () => {
     await expect.poll(() => footerClashes(page, ['.sb-card'])).toEqual([]);
   });
 });
+
+test.describe('/templates on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('every sort label sits on one line and the toolbar does not pan sideways', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.goto('/templates');
+    const sorts = page.locator('.exp-sorts .exp-sort-btn');
+    await expect(sorts.first()).toBeVisible();
+    expect(await sorts.count()).toBeGreaterThanOrEqual(4);
+    const m = await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('.exp-sorts .exp-sort-btn')];
+      const line = (el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize);
+      const tb = document.querySelector('.exp-toolbar');
+      return {
+        wrapped: btns.filter((b) => b.clientHeight - 16 > line(b) * 1.5).map((b) => b.textContent),
+        toolbarOverflow: tb.scrollWidth - tb.clientWidth,
+      };
+    });
+    expect(m.wrapped).toEqual([]);
+    expect(m.toolbarOverflow).toBeLessThanOrEqual(0);
+  });
+});

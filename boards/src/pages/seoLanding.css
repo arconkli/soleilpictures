@@ -771,6 +771,8 @@
   font: 600 0.82rem/1 var(--font-sans);
   padding: 8px 12px;
   border-radius: 7px;
+  /* A label never breaks: squeezed, "A–Z" split into "A–" over "Z". */
+  white-space: nowrap;
   cursor: pointer;
   transition: color var(--dur-fast, 120ms) var(--ease), background var(--dur-fast, 120ms) var(--ease);
 }
@@ -926,6 +928,12 @@
   /* /explore: search takes its own row; sort + count share the second. */
   .exp-toolbar { margin: 0 -8px 12px; padding: 8px; }
   .exp-search { flex-basis: 100%; }
+  /* /templates has four sorts, which do not fit a phone row on one line each:
+     the strip scrolls sideways instead of wrapping every label onto two lines
+     and doubling the height of a toolbar that stays stuck on screen. */
+  .exp-sorts { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .exp-sorts::-webkit-scrollbar { display: none; }
+  .exp-sort-btn { flex: 0 0 auto; padding: 8px 6px; }
 }
 
 /* ── The template store (/templates and /templates/<slug>) ─────────────────
