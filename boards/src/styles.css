@@ -5001,7 +5001,11 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
      word inside the zoom-transformed canvas. */
   /* Inherit the note's resolved ink (see .note) so painted-note + theme
      contrast is handled in one place; per-span colors still override inline. */
-  font-size: 15px; line-height: 1.5; color: inherit;
+  /* The card-level size arrives as --note-font-size on .note. An inline
+     font-size on .note alone never reached this element (this rule beats
+     inheritance), so a whole-note size pick or the workspace default changed
+     nothing on screen. */
+  font-size: var(--note-font-size, 15px); line-height: 1.5; color: inherit;
   letter-spacing: -0.002em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;

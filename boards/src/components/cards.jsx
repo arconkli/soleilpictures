@@ -912,6 +912,17 @@ function noteCollabOn() {
   } catch (_) { return true; }
 }
 
+// A note's card-level font as inline style on .note. The size also goes out as
+// --note-font-size, because .note-body sets its own default size and an
+// inherited one never reached the text: a whole-note size pick (or the
+// workspace default) changed nothing on screen.
+function noteFontStyle(fontFamily, fontSize) {
+  const s = {};
+  if (fontFamily) s.fontFamily = fontFamily;
+  if (fontSize) { s.fontSize = `${fontSize}px`; s['--note-font-size'] = `${fontSize}px`; }
+  return s;
+}
+
 // Flip the `index`-th .ck-box in a note's STORED html (never the rendered
 // display; see onBodyClick). Only for a note with no Y.Doc to toggle in.
 // Returns null when there is no such box.
@@ -951,9 +962,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   const lastTapRef = useRef({});
   const theme = useThemeAttr();
 
-  const fontStyle = {};
-  if (fontFamily) fontStyle.fontFamily = fontFamily;
-  if (fontSize) fontStyle.fontSize = `${fontSize}px`;
+  const fontStyle = noteFontStyle(fontFamily, fontSize);
   const hasBg = !!bgColor && bgColor !== 'transparent';
   const isTransparent = bgColor === 'transparent';
   // Luminance-based surface tone (theme-independent for an explicitly painted
@@ -1096,9 +1105,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   // Workspace defaults can pin a fontFamily/fontSize at create time —
   // pass them through as inline styles so existing notes that didn't
   // capture them keep falling back to the page default.
-  const fontStyle = {};
-  if (fontFamily) fontStyle.fontFamily = fontFamily;
-  if (fontSize) fontStyle.fontSize = `${fontSize}px`;
+  const fontStyle = noteFontStyle(fontFamily, fontSize);
   // Read-only path still shows the clipped-text fade (no chip — viewers
   // can't resize). Hooks run unconditionally; the ref stays null on the
   // editable path so the hook is inert there.

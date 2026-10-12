@@ -630,7 +630,8 @@ export function RichNoteEditor({
 
   const noteStyle = { background: bg, color: textColor ? readableOn(textColor, effBg) : undefined };
   if (fontFamily) noteStyle.fontFamily = fontFamily;
-  if (fontSize) noteStyle.fontSize = `${fontSize}px`;
+  // The variable is what .note-body actually reads (see styles.css).
+  if (fontSize) { noteStyle.fontSize = `${fontSize}px`; noteStyle['--note-font-size'] = `${fontSize}px`; }
   // Expose the bg color to CSS so .has-bg rules can keep their material
   // polish even when the inline `background` is locally overridden by
   // editing-state tints.
