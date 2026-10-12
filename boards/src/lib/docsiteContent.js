@@ -39618,7 +39618,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " if that move is refused). A matched board you cannot edit is a "
+     "v": " if that move is refused). A matched board in the Trash is renamed but not moved, and comes back with "
+    },
+    {
+     "t": "code",
+     "v": "\"deleted\": true"
+    },
+    {
+     "t": "text",
+     "v": "; restoring it in the app puts it back in place. A matched board you cannot edit is a "
     },
     {
      "t": "code",

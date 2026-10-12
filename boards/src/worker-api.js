@@ -2214,7 +2214,10 @@ async function dispatch(url, request, env, ctx) {
             `id=eq.${b.id}`, { name: b.name, view: b.view });
           // RLS turns an update it refuses into zero rows, not an error.
           if (!Array.isArray(rows) || !rows.length) refused.push(b.id);
-          else b.parent_board_id = rows[0].parent_board_id ?? null;
+          else {
+            b.parent_board_id = rows[0].parent_board_id ?? null;
+            b.deleted_at = rows[0].deleted_at ?? null;
+          }
         });
         if (refused.length) {
           throw fail(403, 'forbidden',
@@ -2223,10 +2226,13 @@ async function dispatch(url, request, env, ctx) {
 
         // Reparenting goes through move_boards_under and nowhere else, as on
         // PATCH /boards/:id — and only where the caller named a parent. One
-        // call per destination.
+        // call per destination. A match in the Trash is left where it is:
+        // move_boards_under skips it as 'missing', which would fail the batch
+        // after the renames and creates had landed, and restore_board puts it
+        // back under its nearest live ancestor anyway.
         const byTarget = new Map();
         for (const b of updates) {
-          if (!b._parentGiven) continue;
+          if (!b._parentGiven || b.deleted_at) continue;
           const target = b._target ?? null;
           if (!byTarget.has(target)) byTarget.set(target, []);
           byTarget.get(target).push(b);

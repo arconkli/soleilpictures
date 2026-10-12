@@ -387,6 +387,27 @@ test('a named parent on a matched board goes through move_boards_under', async (
   assert.deepEqual(moves, [{ p_child_ids: [B1], p_target_id: P1 }]);
 });
 
+test('a matched board in the Trash is renamed and keeps its place instead of failing the batch', async () => {
+  // move_boards_under skips a trashed child as 'missing'. After the rename and
+  // the creates had landed, that skip turned the whole re-run into a 409.
+  putBoard(B1, [], { workspace_id: W1, parent_board_id: null, deleted_at: '2026-10-02T00:00:00+00:00' });
+  idents = [boardIdent(B1, '1')];
+  const moves = [];
+  on('POST', 'rpc/move_boards_under', (c) => {
+    moves.push(c.body);
+    return reply({ moved: [], skipped: c.body.p_child_ids.map((id) => ({ id, reason: 'missing' })) });
+  });
+  const r = await api('POST', '/boards', {
+    on_conflict: 'identifier', workspace_id: W1,
+    boards: [{ name: 'Shot 1', parent_board_id: P1, identifiers: [{ scope: 'sg', value: '1' }] }],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(boards.get(B1).row.name, 'Shot 1');
+  assert.equal(moves.length, 0, 'a trashed board is not offered to move_boards_under');
+  assert.equal(r.body.boards[0].parent_board_id, null, 'it reports where it actually is');
+  assert.equal(r.body.boards[0].deleted, true);
+});
+
 test('new boards keep their identifiers even when a matched board refuses the rename', async () => {
   putBoard(B1, [], { workspace_id: W1 });
   boards.get(B1).readOnly = true;

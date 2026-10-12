@@ -4625,7 +4625,7 @@ Give each board an identifiers array and pass "on_conflict": "identifier", and a
 
 The response adds updated, and each board carries created: true|false. This is what makes an import re-runnable — see Identifiers and properties.
 
-An update changes name and view. A matched board stays where it is unless the entry names a parent_board_id, in which case it is moved there the same way POST /boards/move moves it (409 if that move is refused). A matched board you cannot edit is a 403, and the boards the batch created keep their identifiers, so running it again finds them instead of creating them twice.
+An update changes name and view. A matched board stays where it is unless the entry names a parent_board_id, in which case it is moved there the same way POST /boards/move moves it (409 if that move is refused). A matched board in the Trash is renamed but not moved, and comes back with "deleted": true; restoring it in the app puts it back in place. A matched board you cannot edit is a 403, and the boards the batch created keep their identifiers, so running it again finds them instead of creating them twice.
 
 GET /boards/:id
 
