@@ -266,6 +266,36 @@ test.describe('phone 390 layouts', () => {
     // Every line of the column is on screen.
     expect(r.allInView).toBe(true);
   });
+
+  // The first open of a script on a device: no remembered page, so the sheet
+  // mounts a beat after fit mode measures. The scroll to the column has to
+  // wait for it, or every line opens cut off on the right.
+  test('VS-DOCS-05: a screenplay opened cold starts scrolled to its column', async ({ page }) => {
+    await page.goto('/?docqa=1');
+    await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
+    await page.evaluate(() => {
+      const T = window.__soleilDocTest;
+      T.setDocMode(T.ydoc, T.getScope(), 'screenplay');
+      T.openCard();
+    });
+    await expect(page.locator('.doc-card-modal .doc-paper.is-fit-width')).toBeVisible();
+    await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
+    await page.evaluate(() => {
+      const S = window.__soleilDocTest.screenplay;
+      window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+        { element: 'scene', text: 'INT. KITCHEN - NIGHT' },
+        { element: 'action', text: 'The fridge hums. A long action line that runs the full sixty characters of the column and wraps.' },
+      ]));
+    });
+    await expect.poll(() => page.evaluate(() => document.querySelector('.doc-card-modal .doc-paper').scrollLeft)).toBeGreaterThan(0);
+    const allInView = await page.evaluate(() => {
+      const paper = document.querySelector('.doc-card-modal .doc-paper');
+      const pr = paper.getBoundingClientRect();
+      return [...paper.querySelectorAll('[data-screenplay-element]')]
+        .every((n) => { const b = n.getBoundingClientRect(); return b.left >= pr.left - 1 && b.right <= pr.right + 1; });
+    });
+    expect(allInView).toBe(true);
+  });
 });
 
 // ── VS-DOCS-08 ────────────────────────────────────────────────────────────
