@@ -183,7 +183,9 @@ Click a file to select it, `⌘`-click to add to the selection, `⇧`-click for 
 range, `⌘A` for everything showing. In the grid, the round check that appears
 in a tile's corner on hover adds it without a modifier key. Click empty space
 or press `Esc` to clear it. The arrow keys move a highlight through the files,
-`Enter` selects it and `⇧Space` adds it to the selection.
+`Enter` selects it and `⇧Space` adds it to the selection. `Tab` reaches each
+folder (`Enter` opens it) and then the files, which take one `Tab` stop between
+them: the arrows move inside it.
 
 A selection gets a bar along the bottom:
 

@@ -304,6 +304,7 @@ Files
 In Files, beside the board or full screen. Beside the board, these keys go to whichever side the pointer was last over.
 
 Key | Action
+Tab | Into the folders — one stop each, where Enter opens it and Space selects it — then the files, as a single stop
 ← → ↑ ↓ | Move through files — in the grid, ↑ / ↓ go to the nearest tile in the next row
 Enter | Select the highlighted file
 ⇧Space | Add the highlighted file to the selection, or take it out — the keyboard version of a tile's round check
@@ -2070,7 +2071,7 @@ The combination is the answer to "where is that PDF someone dropped in here last
 
 Selecting and moving
 
-Click a file to select it, ⌘-click to add to the selection, ⇧-click for a range, ⌘A for everything showing. In the grid, the round check that appears in a tile's corner on hover adds it without a modifier key. Click empty space or press Esc to clear it. The arrow keys move a highlight through the files, Enter selects it and ⇧Space adds it to the selection.
+Click a file to select it, ⌘-click to add to the selection, ⇧-click for a range, ⌘A for everything showing. In the grid, the round check that appears in a tile's corner on hover adds it without a modifier key. Click empty space or press Esc to clear it. The arrow keys move a highlight through the files, Enter selects it and ⇧Space adds it to the selection. Tab reaches each folder (Enter opens it) and then the files, which take one Tab stop between them: the arrows move inside it.
 
 A selection gets a bar along the bottom:
 

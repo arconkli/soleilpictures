@@ -8999,6 +8999,10 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 }
 .cbt-add:hover { background: var(--files-primary-hi, var(--ink-0)); color: var(--files-on-primary, var(--bg-0)); }
 .cbt-btn:focus-visible, .cbt-add:focus-visible, .cbt-add-ico:focus-visible, .cb-pagehead-dl:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* The segmented Grid/List and tile-size buttons too. The global ring is a
+   box-shadow, and the on segment's own lift shadow replaced it, so the
+   focused active button showed no ring at all. */
+.cbt .view-pill-btn:focus-visible, .cbt-menu .view-pill-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 /* Quiet storage upsell next to Add files (free workspace owners only) —
    muted ink, not gold: gold stays reserved for active/selection. */
 .cbt-upsell {
@@ -9151,6 +9155,13 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   transition: background var(--dur-quick) var(--ease);
 }
 .ct-row.is-active::before, .ct-row.is-playing::before { background: var(--soleil); }
+/* Keyboard focus on the list's tab stop (ListSurface's roving tabindex) and on
+   a folder. Outlines, because the global ring is a box-shadow that a folder's
+   own lift shadow replaced and that a full-width row would round off. */
+.ct-row:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; box-shadow: none; border-radius: 0; }
+.ct-tile:focus-visible { outline: none; }
+.ct-tile:not(.ct-group-tile):focus-visible { box-shadow: none; }
+.ft:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
 
 /* The sounding row fills with gold as it plays. Driven by a custom property
    written straight onto the row's DOM node from `timeupdate`, so the four
@@ -23152,6 +23163,9 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 /* The Grid's keyboard cursor: a thin ring on the preview (gold is focus). */
 .ct-jg .ct-tile.is-active .ct-tile-preview { outline: 1px solid var(--soleil); outline-offset: 2px; }
 .ct-jg .ct-tile.is-active.is-selected .ct-tile-preview { outline-width: 2px; outline-offset: 2px; }
+/* …and keyboard FOCUS on a tile (the list's tab stop) a full 2px gold ring,
+   whatever else the tile is. After the cursor and selection rules on purpose. */
+.ct-jg .ct-tile:focus-visible .ct-tile-preview { outline: 2px solid var(--soleil); outline-offset: 2px; }
 .cb-slimbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .lp-drop {
   height: var(--ctl-h); box-sizing: border-box; padding: 0 12px;

@@ -491,8 +491,41 @@ export function ListSurface({
   }, []);
   useEffect(() => {
     if (!activeId) return;
-    rowRefs.current.get(activeId)?.scrollIntoView?.({ block: 'nearest' });
+    const el = rowRefs.current.get(activeId);
+    el?.scrollIntoView?.({ block: 'nearest' });
+    // Focus rides with the cursor once the keyboard is in the list (on a file
+    // or a folder) — never off a button inside a row, which a click put there.
+    const f = document.activeElement;
+    if (el && f && f !== el && f.matches?.('[data-item-id], [data-folder-id]')
+        && listWrapRef.current?.contains(f)) {
+      el.tabIndex = 0;   // the stop moves here; the effect below catches up
+      el.focus({ preventScroll: true });
+    }
   }, [activeId]);
+  // Tab reaches the files: ONE tab stop among them (a roving tabindex), on the
+  // cursor or else the first file, so the arrows move within the list and Tab
+  // moves on past it. Written onto the nodes rather than passed down as props
+  // so a cursor step doesn't re-render every row. No deps: rows mount and
+  // re-order under sorts, filters and the gallery's re-layout.
+  const tabStopId = activeId && navItems.some((it) => it.id === activeId) ? activeId : (navItems[0]?.id || null);
+  useEffect(() => {
+    for (const [id, el] of rowRefs.current) {
+      if (id === tabStopId) { if (el.tabIndex !== 0) el.tabIndex = 0; }
+      else if (el.hasAttribute('tabindex')) el.removeAttribute('tabindex');
+    }
+  });
+  // Tabbing onto the stop puts the cursor there, so ↑/↓, Space and Enter act
+  // on the file that has focus. Keyboard focus only: a click selects, and
+  // must not also leave the cursor bar on the row.
+  // Keyboard focus in Files also hands Files the keyboard, as the pointer
+  // entering it does — or beside the board the keys would still go there.
+  const onListFocus = useCallback((e) => {
+    const el = e.target;
+    if (!el?.matches?.('[data-item-id], [data-folder-id]') || !el.matches(':focus-visible')) return;
+    setActivePane(paneId);
+    const id = el.dataset.itemId;
+    if (id && rowRefs.current.get(id) === el) setActiveId(id);
+  }, [paneId]);
 
   // ONE <audio> element for the whole list, re-pointed as you move through the
   // pack — not a mounted AudioCard per row. A row renders a CardPreview, not a
@@ -1587,9 +1620,43 @@ export function ListSurface({
 
   // Click, double-click, drag (reparent) and drop handlers for one sub-cluster
   // tile — shared by the full-mode cluster cards and the panel's folder tiles.
+  const springTimer = useSpring();
+  // Never spring into a folder that is itself being dragged, or into one of
+  // its descendants — nothing could be dropped there.
+  const springable = (id) => {
+    const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
+    return !ids.some((x) => wouldCreateCycle(boards, x, id));
+  };
+  const armFolder = (id) => { if (spring && springable(id)) springTimer.enter(`folder:${id}`, () => spring.into(id)); };
+  // Nest clusters under a cluster; resolves whether anything moved — after
+  // App has finished (and taken the cluster card off this board), so a sprung
+  // full Files only goes there once it's safe to leave.
+  const reparentInto = (childIds, targetId) => new Promise((res) => {
+    document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+      detail: {
+        childIds, targetId, sourceSurface: 'list',
+        onDone: (r) => res(!!r?.moved?.length),
+        onFailed: () => res(false),
+      },
+    }));
+  });
+  // Full Files' way back up: shown when there's an ancestor, or a spring to undo.
+  const hasTrail = !isPanel && !!fullPathBar && (fullPathBar.canBack || (fullPathBar.path?.length || 0) > 1);
+  // A folder is a tab stop of its own: Enter opens it and Space selects it,
+  // as a double-click and a click do. Stopped here so the list's window key
+  // handler doesn't also act on the file cursor.
+  const folderKeys = (kind, id) => ({
+    tabIndex: 0,
+    onKeyDown: (e) => {
+      if (e.target !== e.currentTarget || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onTileDoubleClick(e, kind, id); }
+      else if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); onTileClick(e, kind, id); }
+    },
+  });
   const folderProps = (b) => ({
     onClick: (e) => onTileClick(e, 'board', b.id),
     onDoubleClick: (e) => onTileDoubleClick(e, 'board', b.id),
+    ...folderKeys('board', b.id),
     onDragStart: (e) => {
       const ids = (selectedBoards.size > 1 && selectedBoards.has(b.id)) ? [...selectedBoards] : [b.id];
       try { window.__soleilBoardDrag = { boardIds: ids }; } catch (_) {}
@@ -1623,6 +1690,35 @@ export function ListSurface({
       }));
     },
   });
+
+  const renderSubFolder = (b) => (
+    <FolderTile key={b.id} board={b} compact={isPanel}
+                selected={selectedBoards.has(b.id)}
+                dropTarget={dropTileId === b.id}
+                springing={springTimer.armed === `folder:${b.id}`}
+                peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
+                draggable={canEdit}
+                rename={renameFor(b.id)}
+                {...folderProps(b)} />
+  );
+  const renderLinkedFolder = (c) => {
+    const t = boards[c.target];
+    return (
+      <FolderTile key={c.id} board={t} linked compact={isPanel}
+                  name={t?.name || c.name}
+                  missing={!t && boardsReady}
+                  selected={selectedCards.has(c.id)}
+                  springing={springTimer.armed === `folder:${c.target}`}
+                  // Hold a drag over it and Files opens the cluster it links to.
+                  onDragEnter={t && spring ? () => armFolder(c.target) : undefined}
+                  onDragOver={t && spring ? () => armFolder(c.target) : undefined}
+                  onDragLeave={t && spring ? (e) => springTimer.leave(`folder:${c.target}`, e) : undefined}
+                  data-link-id={c.id}
+                  onClick={(e) => onTileClick(e, 'boardlink', c.id)}
+                  onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)}
+                  {...folderKeys('boardlink', c.id)} />
+    );
+  };
 
   // One toolbar, two placements: in full Files it sits under the Files label;
   // beside the board it is the panel's header — compact, always present (it
@@ -1760,6 +1856,7 @@ export function ListSurface({
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}
+         onFocus={onListFocus}
          onClick={(e) => {
            // A click on empty floor clears the selection; one on a control,
            // a tile or a menu is that thing's business.
