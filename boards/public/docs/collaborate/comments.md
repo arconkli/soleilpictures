@@ -2,7 +2,7 @@
 
 > A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/comments · Updated 2026-09-10_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/comments · Updated 2026-10-12_
 
 Comments attach to the thing they are about. This is the whole design: feedback
 that lives in a sidebar, ordered by time, loses the connection to what it
@@ -25,6 +25,10 @@ Right-click → **Comment**, or the rail's **+** → *Annotate* → **Comment**.
 Comments thread with replies. **Resolve** when the thing is dealt with —
 resolved comments are archived rather than deleted, so the record of why
 something changed survives.
+
+Resolving, hiding and deleting a comment is for its author and for people who
+can edit the board. Someone with view-only access sees those buttons on their
+own comments only.
 
 ## Mentions
 

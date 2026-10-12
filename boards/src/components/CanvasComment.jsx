@@ -53,6 +53,12 @@ export function CanvasCommentLayer({
   // bubble opens to clear the dot.
   viewsByRootId = new Map(),
   onMarkViewed,
+  // Whether the caller can write this board. RLS lets a comment's author OR
+  // a board writer resolve / hide it; anyone else's press matched zero rows
+  // and did nothing, so those actions are only offered to the people they
+  // work for. Defaults true so a call site that never passed it keeps the old
+  // behaviour (the write still reports a refusal now).
+  canEdit = true,
 }) {
   // Re-render whenever the userProfiles cache resolves a new entry.
   // One subscription for the whole layer (cheaper than per-bubble),
@@ -122,6 +128,7 @@ export function CanvasCommentLayer({
           onLocallyRemoved={onLocallyRemoved}
           lastViewedAt={viewsByRootId.get(c.id) || null}
           onMarkViewed={onMarkViewed}
+          canEdit={canEdit}
         />
       ))}
       {draft && (
@@ -248,12 +255,14 @@ function resolveAuthor(authorId, currentUser) {
   };
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, currentUser, zoom = 1, resolveCardBBox, resolveGroupBBox, onLocallyRemoved, lastViewedAt = null, onMarkViewed }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, currentUser, zoom = 1, resolveCardBBox, resolveGroupBBox, onLocallyRemoved, lastViewedAt = null, onMarkViewed, canEdit = true }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const isAuthor = comment.author === userId;
+  // Resolve / Hide pass RLS for the author or a board writer (0366).
+  const canModerate = isAuthor || canEdit;
   const _resolved = resolveAuthor(comment.author, currentUser);
   const author = _resolved.name;
   const authorColor = _resolved.color;
@@ -639,15 +648,17 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                     className="canvas-comment-reply-send"
                     disabled={!reply.trim() || busy}>Send</button>
           </form>
-          <div className="canvas-comment-actions">
-            <button type="button" onClick={onResolve}>
-              {comment.resolved ? 'Reopen' : 'Resolve'}
-            </button>
-            {comment.hidden
-              ? <button type="button" onClick={onUnhide}>Unhide</button>
-              : <button type="button" onClick={onHide}>Hide</button>}
-            {isAuthor && <button type="button" className="danger" onClick={onDelete}>Delete</button>}
-          </div>
+          {canModerate && (
+            <div className="canvas-comment-actions">
+              <button type="button" onClick={onResolve}>
+                {comment.resolved ? 'Reopen' : 'Resolve'}
+              </button>
+              {comment.hidden
+                ? <button type="button" onClick={onUnhide}>Unhide</button>
+                : <button type="button" onClick={onHide}>Hide</button>}
+              {isAuthor && <button type="button" className="danger" onClick={onDelete}>Delete</button>}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -766,6 +777,9 @@ function CommentConnectorLine({ ax, ay, bx, by, color }) {
 // modal's Comments tab covers richer auditing.
 export function CommentArchivePopover({
   comments, anchorRect, userId, wsPeers = [], currentUser, onClose, onLocallyRemoved,
+  // As CanvasCommentLayer: Reopen / Unhide / Delete on someone else's comment
+  // are only offered to a board writer, the only other person RLS lets do it.
+  canEdit = true,
 }) {
   const feedback = useFeedback();
   const ref = useRef(null);
@@ -864,12 +878,14 @@ export function CommentArchivePopover({
                 <span className={`comment-archive-tag is-${status}`}>{status}</span>
               </div>
               <div className="comment-archive-body-text" title={c.body}>{c.body}</div>
-              <div className="comment-archive-row-actions">
-                {c.resolved
-                  ? <button onClick={() => onReopen(c)}>Reopen</button>
-                  : <button onClick={() => onUnhide(c)}>Unhide</button>}
-                <button className="danger" onClick={() => onDeleteRow(c)}>Delete</button>
-              </div>
+              {(c.author === userId || canEdit) && (
+                <div className="comment-archive-row-actions">
+                  {c.resolved
+                    ? <button onClick={() => onReopen(c)}>Reopen</button>
+                    : <button onClick={() => onUnhide(c)}>Unhide</button>}
+                  <button className="danger" onClick={() => onDeleteRow(c)}>Delete</button>
+                </div>
+              )}
             </div>
           );
         })}

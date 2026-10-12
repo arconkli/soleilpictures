@@ -28514,6 +28514,15 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Resolving, hiding and deleting a comment is for its author and for people who can edit the board. Someone with view-only access sees those buttons on their own comments only."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Mentions",
