@@ -132,6 +132,29 @@ test('clicking the toolbar between buttons keeps the note in edit mode', async (
   await expect(page.locator('.font-pop')).toBeVisible();
 });
 
+// NOTES-17: the editor chunk loads on the first edit of a session, and the
+// note sat blank while it did.
+test('a note keeps showing its text while the editor loads', async ({ page }) => {
+  page.on('pageerror', (e) => { throw e; });
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  await page.route('**/src/components/NoteTiptapSurface.jsx*', async (route) => { await gate; await route.continue(); });
+  await page.goto('/?noteqa=1');
+  await expect(page.locator('#noteqa-ready')).toHaveText('noteqa ready', { timeout: 15000 });
+  await page.evaluate(() => {
+    const t = window.__soleilNoteTest;
+    t.docA.transact(() => t.cardA.set('html', '<p>keep me visible</p>'), 'local');
+  });
+  await expect(page.locator(A)).toContainText('keep me visible');
+  await page.locator(A).dblclick();
+  await page.waitForTimeout(300);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  await expect(page.locator(A)).toContainText('keep me visible');
+  release();
+  await expect(page.locator(A_EDIT)).toBeVisible();
+  await expect(page.locator(A_EDIT)).toContainText('keep me visible');
+});
+
 test('Add custom font from the legacy note editor stays open too', async ({ page }) => {
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();

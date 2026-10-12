@@ -20,6 +20,15 @@ import './noteChecklist.css';
 // shared one-shot reload instead of stranding the note on the SurfaceErrorBoundary.
 const NoteTiptapSurface = lazyWithReload(() =>
   import('./NoteTiptapSurface.jsx').then(m => ({ default: m.NoteTiptapSurface })));
+// Start fetching that chunk when a pointer comes onto an editable note, so a
+// double-click usually finds it loaded. Once per session; a failure here is
+// left for the real import (and its reload recovery) to meet.
+let noteEditorPrefetched = false;
+function prefetchNoteEditor() {
+  if (noteEditorPrefetched) return;
+  noteEditorPrefetched = true;
+  import('./NoteTiptapSurface.jsx').catch(() => { noteEditorPrefetched = false; });
+}
 // Reading a comment thread on a NON-editing note must not drag in Tiptap — the
 // popover only needs the Yjs thread store, so it's its own lazy chunk. Wrapper
 // component because the popover takes a docState `scope`, which for a note is
@@ -1082,7 +1091,10 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   if (editing) {
     return (
       <div ref={ref} className={cls} style={noteStyle}>
-        <Suspense fallback={<div className="note-body" />}>
+        {/* The editor is its own chunk, fetched on the session's first edit.
+            Until it lands, keep showing the note as it reads — the empty
+            fallback blanked its text for the whole load (NOTES-17). */}
+        <Suspense fallback={<NoteAutoLinkBody html={safeDisplay} />}>
           <NoteTiptapSurface
             ydoc={ydoc} cardYMap={cardYMap} html={html} body={body}
             cardId={cardId} boardId={boardId} awareness={awareness}
@@ -1177,6 +1189,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   };
   return (
     <div ref={ref} className={cls} style={noteStyle}
+         onPointerEnter={prefetchNoteEditor}
          onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
       <NoteAutoLinkBody html={safeDisplay} />
       {openThread && ydoc && cardYMap && (
