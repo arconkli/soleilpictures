@@ -32,8 +32,8 @@ asks first.
 Owners and co-owners can revoke any link on the cluster. An editor can revoke
 the links they made themselves, so when an editor picks **Only invited people**
 their own links are revoked and the panel says how many links other people made
-are still live. Those stay until the person who made them, or the workspace
-owner, revokes them.
+are still live. Those stay until the person who made them, the owner or a
+co-owner revokes them.
 
 An edit link is not an editable public link. It grants nothing on its own: the
 person who opens it sees a preview and an explicit **Join** step, and access is

@@ -340,8 +340,8 @@ export function ShareModal({
       const { mine, others } = revocableLinks(publicLinks, { isManager, selfUserId });
       const othersNote = others.length === 0 ? ''
         : others.length === 1
-          ? ' 1 link someone else created stays live — only they or the workspace owner can revoke it.'
-          : ` ${others.length} links other people created stay live — only they or the workspace owner can revoke them.`;
+          ? ' 1 link someone else created stays live — only they, the owner or a co-owner can revoke it.'
+          : ` ${others.length} links other people created stay live — only they, the owner or a co-owner can revoke them.`;
       if (mine.length > 0) {
         const ok = await feedback.confirm({
           title: others.length > 0
@@ -769,7 +769,7 @@ export function ShareModal({
   // from the picker, so it can never claim a link that does not exist.
   const accessHint = accessMode === 'off'
     ? (live.length > 0
-        ? 'Only the people listed below can open this cluster, plus anyone holding a link that is still live. Links other people created can only be revoked by them or the workspace owner.'
+        ? 'Only the people listed below can open this cluster, plus anyone holding a link that is still live. Links other people created can only be revoked by them, the owner or a co-owner.'
         : 'Only the people listed below can open this cluster.')
     : accessMode === 'edit'
       ? 'Anyone with the link can preview this cluster and join as an editor with one click. They sign in to accept; sub-clusters are included.'

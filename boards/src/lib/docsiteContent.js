@@ -27130,7 +27130,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, or the workspace owner, revokes them."
+     "v": " their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them."
     }
    ]
   },
