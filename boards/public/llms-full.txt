@@ -6274,6 +6274,8 @@ curl "$SOLEIL_API/webhooks/$HOOK/deliveries?limit=50" -H "Authorization: Bearer 
 
 Every attempt, with its status, duration, error and the exact payload sent. "We sent it" without a record is not an answer, so there is a record.
 
+Newest first, up to 500 per page. While has_more is true, pass next_cursor back as cursor for the next page. The cursor carries the delivery's id as well as its time, because one change fans out to many deliveries created in the same instant, and a time alone would skip the rest of them.
+
 # Send a real delivery through the real path, to check signing end to end
 curl -X POST "$SOLEIL_API/webhooks/$HOOK/test" -H "Authorization: Bearer $SOLEIL_TOKEN"
 
@@ -6281,7 +6283,17 @@ curl -X POST "$SOLEIL_API/webhooks/$HOOK/test" -H "Authorization: Bearer $SOLEIL
 curl -X POST "$SOLEIL_API/webhooks/$HOOK/deliveries/$DELIVERY/redeliver" \
   -H "Authorization: Bearer $SOLEIL_TOKEN"
 
-POST /webhooks/:id/test sends through the delivery path everything else uses, so what it proves is what will actually happen. POST /webhooks/:id/deliveries/:deliveryId/redeliver requeues rather than sending inline, so a replay is retried and recorded exactly like any other delivery.
+POST /webhooks/:id/test sends through the delivery path everything else uses, so what it proves is what will actually happen. It sends that one delivery straight away and answers with what happened to it:
+
+{ "sent": true,
+  "delivery": { "id": "…", "delivered": true, "status": 200, "attempt": 1,
+                "response_ms": 84, "error": null } }
+
+"sent": false carries your receiver's status or the connection error in delivery.error. If another delivery run already has it in hand, delivery says "queued": true: it is on its way, and its result appears in the delivery log.
+
+POST /webhooks/:id/deliveries/:deliveryId/redeliver puts the delivery back in the queue and sends it at once through the same path, answering with the same delivery object. A replay that fails is retried and recorded exactly like any other delivery.
+
+Each change reaches each webhook as one delivery, even when several delivery runs overlap. A receiver that times out or answers non-2xx gets the same delivery again on retry, under the same X-Soleil-Delivery id, so de-duplicate on that.
 
 Deliveries are kept for 30 days.
 

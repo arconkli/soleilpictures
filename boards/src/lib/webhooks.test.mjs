@@ -13,7 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  signBody, verifySignature, webhookUrlProblem, fanOutEvents, deliverDue,
+  signBody, verifySignature, webhookUrlProblem, fanOutEvents, deliverDue, deliverOne,
   WEBHOOK_EVENTS, MAX_ATTEMPTS, DISABLE_AFTER_FAILURES, REPLAY_WINDOW_SECONDS,
 } from './webhooks.js';
 
@@ -297,4 +297,84 @@ test('a hook is disabled only for a sustained failure, not a bad afternoon', () 
   // At the schedule above, 20 consecutive failures is days of being dead.
   assert.ok(DISABLE_AFTER_FAILURES >= 10,
     'too low and one receiver deploy switches the integration off');
+});
+
+// ── overlapping drains (API-10) and the test delivery (API-17) ───────────────
+
+// What 0409 gives the drain: claims that hand each row out ONCE. Two drains
+// running at the same moment are modelled by two calls racing on one store.
+function claimingDb({ deliveries = [], hooks = [] } = {}) {
+  const base = fakeDb({ hooks });
+  const store = deliveries.map((d) => ({ ...d }));
+  const rpcCalls = [];
+  base.rpc = async (_env, fn, args) => {
+    rpcCalls.push({ fn, args });
+    if (fn === 'webhook_fan_out') return [{ events: 2, deliveries: 3 }];
+    if (fn === 'webhook_deliveries_claim') {
+      await new Promise((r) => setTimeout(r, 1));   // let the other drain interleave
+      const free = store.filter((d) => !d.leased && (!args.p_id || d.id === args.p_id));
+      const taken = free.slice(0, args.p_limit);
+      for (const d of taken) d.leased = true;
+      return taken;
+    }
+    throw Object.assign(new Error('no such function'), { status: 404 });
+  };
+  const select = base.select;
+  base.select = async (env, tbl, query) => {
+    if (tbl !== 'webhooks') throw new Error('the claim path must not fall back to an unclaimed select');
+    return select(env, tbl, query);
+  };
+  return Object.assign(base, { rpcCalls });
+}
+
+test('fan-out goes through the claiming RPC when it exists', async () => {
+  const db = claimingDb();
+  assert.deepEqual(await fanOutEvents({}, { db, limit: 50 }), { events: 2, deliveries: 3 });
+  assert.deepEqual(db.rpcCalls, [{ fn: 'webhook_fan_out', args: { p_limit: 50 } }]);
+  assert.equal(db.writes.inserted.length, 0, 'nothing is fanned out a second time in JS');
+});
+
+test('before 0409 is applied, fan-out falls back to the old path', async () => {
+  const db = fakeDb({ events: [ev()], hooks: [hook()] });
+  db.rpc = async () => { throw Object.assign(new Error('rpc webhook_fan_out 404: PGRST202'), { status: 404 }); };
+  const out = await fanOutEvents({}, { db });
+  assert.equal(out.deliveries, 1);
+});
+
+test('two drains at once never send the same delivery twice', async () => {
+  const deliveries = Array.from({ length: 6 }, (_, i) => pending({ id: `d-${i}` }));
+  const db = claimingDb({ deliveries, hooks: [hook()] });
+  const sent = [];
+  const fetchImpl = async (_url, init) => { sent.push(init.headers['x-soleil-delivery']); return { ok: true, status: 200 }; };
+  const [a, b] = await Promise.all([
+    deliverDue({}, { db, fetchImpl, limit: 4 }),
+    deliverDue({}, { db, fetchImpl, limit: 4 }),
+  ]);
+  assert.equal(a.attempted + b.attempted, 6);
+  assert.equal(new Set(sent).size, sent.length, `duplicates sent: ${sent.join(',')}`);
+  const lease = db.rpcCalls.find((c) => c.fn === 'webhook_deliveries_claim').args.p_lease_seconds;
+  assert.ok(lease >= 900, 'a lease shorter than an invocation lets a second drain re-take a slow batch');
+});
+
+test('a test delivery is sent by id, whatever else is due, and reports only itself', async () => {
+  const backlog = Array.from({ length: 30 }, (_, i) => pending({ id: `old-${i}`, webhook_id: 'h-other' }));
+  const db = claimingDb({
+    deliveries: [...backlog, pending({ id: 'test-1', event: 'webhook.test' })],
+    hooks: [hook(), hook({ id: 'h-other' })],
+  });
+  const sent = [];
+  const out = await deliverOne({}, 'test-1', {
+    db, fetchImpl: async (_url, init) => { sent.push(init.headers['x-soleil-delivery']); return { ok: true, status: 204 }; },
+  });
+  assert.deepEqual(sent, ['test-1']);
+  assert.equal(out.outcome.id, 'test-1');
+  assert.equal(out.outcome.delivered, true);
+  assert.equal(out.outcome.status, 204);
+});
+
+test('a test delivery the receiver refuses says so, rather than "sent"', async () => {
+  const db = claimingDb({ deliveries: [pending({ id: 'test-1' })], hooks: [hook()] });
+  const out = await deliverOne({}, 'test-1', { db, fetchImpl: async () => ({ ok: false, status: 401 }) });
+  assert.equal(out.outcome.delivered, false);
+  assert.match(out.outcome.error, /401/);
 });

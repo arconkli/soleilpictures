@@ -54386,6 +54386,39 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Newest first, up to 500 per page. While "
+    },
+    {
+     "t": "code",
+     "v": "has_more"
+    },
+    {
+     "t": "text",
+     "v": " is true, pass "
+    },
+    {
+     "t": "code",
+     "v": "next_cursor"
+    },
+    {
+     "t": "text",
+     "v": " back as "
+    },
+    {
+     "t": "code",
+     "v": "cursor"
+    },
+    {
+     "t": "text",
+     "v": " for the next page. The cursor carries the delivery's id as well as its time, because one change fans out to many deliveries created in the same instant, and a time alone would skip the rest of them."
+    }
+   ]
+  },
+  {
    "type": "code",
    "lang": "sh",
    "code": "# Send a real delivery through the real path, to check signing end to end\ncurl -X POST \"$SOLEIL_API/webhooks/$HOOK/test\" -H \"Authorization: Bearer $SOLEIL_TOKEN\"\n\n# Replay one you missed\ncurl -X POST \"$SOLEIL_API/webhooks/$HOOK/deliveries/$DELIVERY/redeliver\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\""
@@ -54399,15 +54432,109 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sends through the delivery path everything else uses, so what it proves is what will actually happen. "
+     "v": " sends through the delivery path everything else uses, so what it proves is what will actually happen. It sends that one delivery straight away and answers with what happened to it:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"sent\": true,\n  \"delivery\": { \"id\": \"…\", \"delivered\": true, \"status\": 200, \"attempt\": 1,\n                \"response_ms\": 84, \"error\": null } }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "\"sent\": false"
     },
+    {
+     "t": "text",
+     "v": " carries your receiver's status or the connection error in "
+    },
+    {
+     "t": "code",
+     "v": "delivery.error"
+    },
+    {
+     "t": "text",
+     "v": ". If another delivery run already has it in hand, "
+    },
+    {
+     "t": "code",
+     "v": "delivery"
+    },
+    {
+     "t": "text",
+     "v": " says "
+    },
+    {
+     "t": "code",
+     "v": "\"queued\": true"
+    },
+    {
+     "t": "text",
+     "v": ": it is on its way, and its result appears in the delivery log."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
     {
      "t": "code",
      "v": "POST /webhooks/:id/deliveries/:deliveryId/redeliver"
     },
     {
      "t": "text",
-     "v": " requeues rather than sending inline, so a replay is retried and recorded exactly like any other delivery."
+     "v": " puts the delivery back in the queue and sends it at once through the same path, answering with the same "
+    },
+    {
+     "t": "code",
+     "v": "delivery"
+    },
+    {
+     "t": "text",
+     "v": " object. A replay that fails is retried and recorded exactly like any other delivery."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each change reaches each webhook as "
+    },
+    {
+     "t": "strong",
+     "v": "one",
+     "children": [
+      {
+       "t": "text",
+       "v": "one"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " delivery, even when several delivery runs overlap. A receiver that times out or answers non-"
+    },
+    {
+     "t": "code",
+     "v": "2xx"
+    },
+    {
+     "t": "text",
+     "v": " gets the same delivery again on retry, under the same "
+    },
+    {
+     "t": "code",
+     "v": "X-Soleil-Delivery"
+    },
+    {
+     "t": "text",
+     "v": " id, so de-duplicate on that."
     }
    ]
   },

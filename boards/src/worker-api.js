@@ -54,7 +54,7 @@ import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from '.
 import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
-  webhookUrlProblem, runWebhooks, hasPendingWork, WEBHOOK_EVENTS,
+  webhookUrlProblem, runWebhooks, deliverOne, hasPendingWork, WEBHOOK_EVENTS,
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
 import {
@@ -742,6 +742,17 @@ async function dropStaleForeignMatches(env, token, matches, boardId) {
   }
 }
 
+// What a test or a redelivery did, for the caller. Null outcome means the row
+// could not be claimed just now (another drain holds it); it is still due and
+// goes out with the next one.
+function deliveryOutcome(id, o) {
+  if (!o) return { id: id || null, delivered: false, status: null, error: null, queued: true };
+  return {
+    id: o.id, delivered: !!o.delivered, status: o.status ?? null, attempt: o.attempt ?? null,
+    response_ms: o.response_ms ?? null, error: o.error ?? null,
+  };
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 // The scope a request needs, from its method — except the MCP transport.
@@ -1313,7 +1324,7 @@ async function dispatch(url, request, env, ctx) {
       const rows = await userRpc(env, token, 'webhook_list', { p_workspace_id: null });
       const w = (rows || []).find((x) => x.id === id);
       if (!w) throw fail(404, 'not_found', 'no such webhook');
-      await scoutInsert(env, 'webhook_deliveries', [{
+      const inserted = await scoutInsert(env, 'webhook_deliveries', [{
         webhook_id: id,
         event: 'webhook.test',
         payload: {
@@ -1324,24 +1335,61 @@ async function dispatch(url, request, env, ctx) {
           data: { message: 'If you are reading this, delivery and signing work.' },
           occurred_at: new Date().toISOString(),
         },
-      }]);
-      const out = await runWebhooks(env, { limit: 25 });
-      return json({ sent: true, result: out, check: `GET /api/v1/webhooks/${id}/deliveries` });
+      }], { returning: 'representation' });
+      // THIS row, sent now — not a general drain of whatever is oldest across
+      // every workspace, which with any backlog left the test unsent while the
+      // reply said `sent: true` beside other people's counts.
+      const deliveryId = inserted?.[0]?.id;
+      const out = deliveryId ? await deliverOne(env, deliveryId) : null;
+      return json({
+        sent: !!out?.outcome?.delivered,
+        delivery: deliveryOutcome(deliveryId, out?.outcome),
+        check: `GET /api/v1/webhooks/${id}/deliveries`,
+      });
     }
 
     if (id && sub === 'deliveries' && method === 'GET' && !subId) {
-      const { limit } = pageParams(url);
-      const cursor = url.searchParams.get('cursor');
-      const rows = await userRpc(env, token, 'webhook_deliveries_list', {
-        p_webhook_id: id, p_limit: limit, p_cursor: cursor || null,
-      });
-      const items = rows || [];
+      let { limit } = pageParams(url);
+      // `created_at|id`. A bare timestamp — what this route issued before —
+      // is still accepted and continues from that instant.
+      const raw = url.searchParams.get('cursor');
+      const [cursorTs, cursorId] = raw ? String(raw).split('|') : [null, null];
+      if (cursorTs && Number.isNaN(Date.parse(cursorTs))) {
+        throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
+      }
+      if (cursorId && !isUuid(cursorId)) {
+        throw fail(400, 'bad_request', 'cursor must be a next_cursor from a previous response');
+      }
+
+      // Keyset on (created_at, id), one row over the page to learn whether
+      // there is another. The old function paged on the timestamp alone — and
+      // one fan-out inserts many deliveries with the same now(), so the rest
+      // of a tied run could never be listed or redelivered — and capped at 200
+      // while this route allowed 500 and reported has_more by `rows = limit`,
+      // which a 500 request could never satisfy (audit API-11, 0409).
+      let rows;
+      try {
+        rows = await userRpc(env, token, 'webhook_deliveries_page', {
+          p_webhook_id: id, p_limit: limit + 1,
+          p_cursor_ts: cursorTs || null, p_cursor_id: cursorId || null,
+        });
+      } catch (e) {
+        if (!(e?.status === 404 && /PGRST202|could not find the function/i.test(e?.detail || ''))) throw e;
+        // Before 0409: the old function, inside its own 200-row cap.
+        limit = Math.min(limit, 199);
+        rows = await userRpc(env, token, 'webhook_deliveries_list', {
+          p_webhook_id: id, p_limit: limit + 1, p_cursor: cursorTs || null,
+        });
+      }
+      const all = rows || [];
+      const items = all.slice(0, limit);
+      const hasMore = all.length > limit;
       const last = items[items.length - 1];
       return json({
         deliveries: items,
         limit,
-        has_more: items.length === limit,
-        next_cursor: items.length === limit && last ? last.created_at : null,
+        has_more: hasMore,
+        next_cursor: hasMore && last ? `${last.created_at}|${last.id}` : null,
       });
     }
 
@@ -1350,8 +1398,10 @@ async function dispatch(url, request, env, ctx) {
       // so the retry goes through the same path and is recorded the same way.
       const ok = await userRpc(env, token, 'webhook_redeliver', { p_delivery_id: subId });
       if (!ok) throw fail(404, 'not_found', 'no such delivery');
-      const out = await runWebhooks(env, { limit: 25 });
-      return json({ requeued: true, delivery_id: subId, result: out });
+      // Sent now, by id, through the same delivery path — and the answer is
+      // about this delivery, not the 25 oldest due rows across every workspace.
+      const out = await deliverOne(env, subId);
+      return json({ requeued: true, delivery_id: subId, delivery: deliveryOutcome(subId, out?.outcome) });
     }
 
     throw fail(405, 'method_not_allowed', `${method} is not supported here`);
