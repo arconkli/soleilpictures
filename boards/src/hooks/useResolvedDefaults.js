@@ -102,10 +102,16 @@ export function useResolvedDefaults({ workspaceId, userId }) {
   const [mySettingsLoaded, setMySettingsLoaded] = useState(false);
   const [role, setRole] = useState(null);
   const [tick, setTick] = useState(0);
+  const [roleTick, setRoleTick] = useState(0);
 
   // Re-fetch whenever workspace/user changes or callers explicitly
   // refresh (e.g. after the SettingsPanel saves).
   const refresh = useCallback(() => setTick(t => t + 1), []);
+  // Re-read only the caller's role, after something that moves it without
+  // changing the workspace id: handing the workspace over. Nothing bumped
+  // `tick` then, so Settings kept rendering owner controls to the ex-owner,
+  // and every one of them failed server-side.
+  const refreshRole = useCallback(() => setRoleTick(t => t + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +129,7 @@ export function useResolvedDefaults({ workspaceId, userId }) {
       setRole(r);
     });
     return () => { cancelled = true; };
-  }, [workspaceId, tick]);
+  }, [workspaceId, tick, roleTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,5 +161,5 @@ export function useResolvedDefaults({ workspaceId, userId }) {
     return out;
   }, [workspaceSettings, mySettings]);
 
-  return { defaults, role, refresh, workspaceSettings, mySettings, mySettingsLoaded };
+  return { defaults, role, refresh, refreshRole, workspaceSettings, mySettings, mySettingsLoaded };
 }

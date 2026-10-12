@@ -975,7 +975,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Resolved defaults — workspace > user > hardcoded fallback. Drives every
   // addX mutator's initial values + the SettingsPanel UI. Stash in a ref
   // so mutators read the latest at call time without re-memo cascades.
-  const { defaults, role: workspaceRole, refresh: refreshSettings,
+  const { defaults, role: workspaceRole, refresh: refreshSettings, refreshRole: refreshWorkspaceRole,
           workspaceSettings, mySettings, mySettingsLoaded } = useResolvedDefaults({
     workspaceId: workspace?.id,
     userId: user?.id,
@@ -9077,7 +9077,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onSignOut={signOut}
         workspaceId={workspace?.id}
         workspaceName={workspace?.name}
-        onWorkspacesChanged={onWorkspacesChanged}
+        // A transfer or a role change moves workspaceRole too (ACCOUNT-05).
+        onWorkspacesChanged={() => { refreshWorkspaceRole(); return onWorkspacesChanged?.(); }}
         onSaved={() => onWorkspacesChanged?.()}
         role={workspaceRole}
         refresh={refreshSettings}
@@ -9577,7 +9578,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             initialSection={shareInitialSection}
             onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }}
             onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
-            onWorkspacesChanged={() => { onWorkspacesChanged?.(); }}
+            onWorkspacesChanged={() => { refreshWorkspaceRole(); onWorkspacesChanged?.(); }}
             onSharesChanged={() => { refreshSharedBoards?.(); }}
             onLinkCreated={() => {
               try {
