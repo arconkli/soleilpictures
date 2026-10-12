@@ -4009,11 +4009,15 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
    first tile of row two behind a stray rule. The column count is auto-fit, so
    no selector can name "first in its row"; instead each tile's rule sits one
    pixel left of its track, the grid reaches one tile-padding past the column
-   on both sides, and clipping that edge hides the leftmost rule of every row
-   and its padding. Nothing focusable lives in a tile, and overflow-x: clip
-   (not hidden) leaves the vertical axis alone. The rows get a gap of their
-   own, too: they used to touch. */
-.admin-stat-grid { margin-inline: -26px; overflow-x: clip; row-gap: 22px; }
+   on its leading side, and clipping that edge hides the leftmost rule of
+   every row and its padding. Only the leading side: a strip that also bled
+   right overhung its container, and Multiplayer, Referrals and Storage put a
+   strip straight inside a chart panel, which scrolls sideways for its tables,
+   so the whole panel scrolled by a tile's padding. The last tile's right
+   padding simply stays inside the grid. Nothing focusable lives in a tile,
+   and overflow-x: clip (not hidden) leaves the vertical axis alone. The rows
+   get a gap of their own, too: they used to touch. */
+.admin-stat-grid { margin-left: -26px; overflow-x: clip; row-gap: 22px; }
 
 /* A strip owns the space under it. Neither it nor the panel or title that
    follows had a margin there, so "Issue a grant", "Top errors", "Calls per

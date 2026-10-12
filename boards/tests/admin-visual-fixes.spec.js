@@ -101,6 +101,27 @@ test.describe('stat strips that wrap (VS-ADMIN-03)', () => {
       }
     });
   }
+
+  // Multiplayer, Referrals and Storage put a strip straight inside a chart
+  // panel, which scrolls sideways (overflow-x: auto) for its tables. A strip
+  // that bled past the panel's right edge made the whole panel scroll by a
+  // tile's padding. The harness renders none of those sections, so the guard
+  // moves a real strip into a panel of its own.
+  test('a strip inside a chart panel does not make the panel scroll sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openAdmin(page, { tab: 'api' });
+    const grid = page.locator('.admin-stat-grid:not([aria-busy])').first();
+    await expect(grid.locator('.admin-stat-card').nth(5)).toBeVisible({ timeout: 15000 });
+    const [scroll, client] = await grid.evaluate((g) => {
+      const panel = document.createElement('div');
+      panel.className = 'admin-chart-panel';
+      g.parentNode.insertBefore(panel, g);
+      panel.appendChild(g.cloneNode(true));
+      return [panel.scrollWidth, panel.clientWidth];
+    });
+    expect(client).toBeGreaterThan(0);
+    expect(scroll).toBeLessThanOrEqual(client);
+  });
 });
 
 test.describe('the 8/4 deck between 1001 and 1400px (VS-ADMIN-04)', () => {
