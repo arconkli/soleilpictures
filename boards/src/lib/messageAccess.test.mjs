@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { messagingAccess, readOnlyCopy, MESSAGE_WRITER_ROLES } from './messageAccess.js';
+import { messagingAccess, readOnlyCopy, MESSAGE_WRITER_ROLES, startChatErrorMessage } from './messageAccess.js';
 
 const me = 'u-me';
 const theirs = { id: 'ws-1', created_by: 'u-owner' };
@@ -38,6 +38,19 @@ test('the writer roles match _workspace_member_can_write (0391)', () => {
   for (const r of roles) {
     assert.equal(messagingAccess({ tier: 'demo', workspace: theirs, role: r, userId: me }).canSend, true, r);
   }
+});
+
+// COMMS-25: starting a DM or a group that the server refused just re-enabled
+// the button. The picker now says why.
+test('a refused new chat is explained', () => {
+  assert.match(startChatErrorMessage({ message: 'cannot message this user' }), /can't message this person/);
+  assert.match(startChatErrorMessage({ message: 'cannot message one or more selected users' }, { group: true }), /one or more/);
+  assert.match(startChatErrorMessage({ message: 'must be a workspace member' }), /not a member of this workspace/);
+  assert.match(startChatErrorMessage(new TypeError('Failed to fetch')), /Check your connection/);
+  assert.equal(startChatErrorMessage(null, { group: true }), "Couldn't create the group — try again.");
+  const picker = readFileSync(new URL('../components/NewConversationPicker.jsx', import.meta.url), 'utf8');
+  assert.match(picker, /feedback\.toast\(\{ type: 'error', message: startChatErrorMessage\(e\) \}\)/);
+  assert.match(picker, /feedback\.toast\(\{ type: 'error', message: startChatErrorMessage\(e, \{ group: true \}\) \}\)/);
 });
 
 test('App passes the role-based answer, with no plan branch left', () => {
