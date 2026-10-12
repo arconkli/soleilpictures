@@ -164,3 +164,34 @@ test('VS-PANELS-05: the Settings dialog keeps its size and place across tab swit
   const pane = await page.locator('.settings-pane').evaluate((el) => getComputedStyle(el).overflowY);
   expect(pane).toBe('auto');
 });
+
+const overlaps = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+
+test('VS-PANELS-06: on a phone, a toast over a full-screen sheet clears the sheet header', async ({ page }) => {
+  await answerRest(page, 'boards', [{
+    id: 'b-del', workspace_id: 'ws-probe', name: 'Old moodboard', view: 'canvas',
+    parent_board_id: null, deleted_at: new Date(Date.now() - 3600000).toISOString(), deleted_batch_id: null,
+  }]);
+  await page.setViewportSize(PHONE);
+  await probe(page, 'mountTrash');
+  const close = page.locator('.modal-shell .modal-x');
+  await expect(close).toBeVisible();
+  await page.evaluate(() => window.__probeToast('Cluster deleted.'));
+  const toast = page.locator('.toast-stack .toast').last();
+  await expect(toast).toBeVisible();
+  await page.waitForTimeout(300);   // toastIn slides 12px
+  const t = await rect(toast);
+  expect(overlaps(t, await rect(close)), 'the toast must not sit on the close button').toBe(false);
+  expect(t.b).toBeGreaterThan(PHONE.height - 120);
+  expect(t.b).toBeLessThanOrEqual(PHONE.height);
+  await page.screenshot({ path: test.info().outputPath('toast-trash-390-dark.png') });
+});
+
+test('VS-PANELS-06: with no sheet open the phone toast stays under the topbar', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await probe(page, 'mountSettings', 'profile', 'owner');   // closed until clicked
+  await page.evaluate(() => window.__probeToast('Cluster deleted.'));
+  const toast = page.locator('.toast-stack .toast').last();
+  await expect(toast).toBeVisible();
+  expect((await rect(toast)).t).toBeLessThan(120);
+});
