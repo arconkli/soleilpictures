@@ -54,6 +54,7 @@ import { Deck, Well, Plate } from '../../viz/Well.jsx';
 import { VAR } from '../../viz/palette.js';
 import { WeeklyMultiples } from '../widgets/WeeklyMultiples.jsx';
 import { MarkersPanel } from '../widgets/MarkersPanel.jsx';
+import { stalledSignups } from '../stalledSignups.js';
 
 // The browser's zone, so the heatmap buckets by the hours the owner keeps
 // rather than by UTC — which would smear a US-hours product diagonally across
@@ -137,9 +138,11 @@ function WhoStalled({ rows }) {
           <span className="admin-people-what">
             {r.active_day_count > 1
               ? `came back ${formatCount(r.active_day_count)}×, never made a card`
-              : 'one visit, never made a card'}
+              : (r.active_day_count === 1 ? 'one visit, never made a card' : 'never opened the app')}
           </span>
-          <span className="admin-people-when">{formatCount(r.days_dormant)}d quiet</span>
+          <span className="admin-people-when">
+            {r.days_dormant != null ? `${formatCount(r.days_dormant)}d quiet` : `joined ${formatCount(r.signup_age)}d ago`}
+          </span>
         </div>
       ))}
     </div>
@@ -201,10 +204,8 @@ export function TodayView() {
       users: val(users) || [],
       lifetime: val(life) || null,
       heatmap: val(heat) || [],
-      stalled: (val(dorm) || [])
-        .filter((r) => !r.did_card && (num(r.days_dormant) ?? 999) <= 14)
-        .sort((a, b) => (num(b.active_day_count) || 0) - (num(a.active_day_count) || 0))
-        .slice(0, 6),
+      // By signup age, never-opened accounts included: see stalledSignups.js.
+      stalled: stalledSignups(val(dorm) || []),
     };
   }, [f.excludeInternal, f.verifiedOnly],
      { pollIntervalMs: POLL_MS.today, refetchOnFocus: true });
@@ -654,8 +655,9 @@ export function TodayView() {
           <Plate span={6} title="Just arrived" meta={`newest ${d?.users?.length || 0}`}>
             <WhoArrived users={d?.users || []} />
           </Plate>
-          <Plate span={6} title="Arrived and stalled" meta="signed up ≤14d ago, no card ever">
-            <WhoStalled rows={d?.stalled || []} />
+          <Plate span={6} title="Arrived and stalled"
+                 meta={`signed up ≤14d ago, no card ever${d?.stalled?.total > (d?.stalled?.rows?.length || 0) ? ` · ${formatCount(d.stalled.rows.length)} of ${formatCount(d.stalled.total)}` : ''}`}>
+            <WhoStalled rows={d?.stalled?.rows || []} />
           </Plate>
         </Deck>
       </div>
