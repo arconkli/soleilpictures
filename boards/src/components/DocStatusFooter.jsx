@@ -13,17 +13,23 @@ export function DocStatusFooter({ editor, ydoc, boardId = null }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
-  // Word/char count for current page.
+  // Word/char count for current page. Counted once typing pauses: the full
+  // textContent + split per keystroke was a whole-document pass on every
+  // character of a long doc, for a number nobody reads mid-word.
   useEffect(() => {
     if (!editor) { setCounts({ words: 0, chars: 0 }); return; }
-    const tick = () => {
+    let timer = 0;
+    const count = () => {
+      timer = 0;
+      if (editor.isDestroyed) return;
       const text = editor.state.doc.textContent || '';
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      setCounts({ words, chars: text.length });
+      setCounts((c) => (c.words === words && c.chars === text.length ? c : { words, chars: text.length }));
     };
-    tick();
+    const tick = () => { clearTimeout(timer); timer = setTimeout(count, 300); };
+    count();
     editor.on('update', tick);
-    return () => { editor.off('update', tick); };
+    return () => { clearTimeout(timer); editor.off('update', tick); };
   }, [editor]);
 
   // Save indicator driven by yboard's actual save lifecycle.

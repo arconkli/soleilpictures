@@ -35,7 +35,7 @@ import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover
 import { DocTagGutter } from './DocTagGutter.jsx';
 import { DocCandidateGutter } from './DocCandidateGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
-import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
+import { makeAutoDetectPlugin, AUTO_DETECT_KEY } from './docExtensions/AutoDetectPlugin.js';
 import { makeCandidateNamePlugin, CANDIDATE_NAME_KEY } from './docExtensions/CandidateNamePlugin.js';
 import { useCandidateTagging } from '../hooks/useCandidateTagging.js';
 import { CandidatePromptPopover } from './CandidatePromptPopover.jsx';
@@ -222,7 +222,15 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // patches itself on entity create / rename / alias change in realtime.
   const { trie: workspaceTrie } = useEntityNameTrie(workspaceId);
   const nameIndexRef = useRef(createNameIndex());
-  useEffect(() => { nameIndexRef.current = workspaceTrie; }, [workspaceTrie]);
+  // AutoDetectPlugin re-walks only on a doc change or this meta, so anything
+  // it reads from outside the doc (the trie, the ignore set, the applied
+  // ranges) has to ask for a recompute when it moves.
+  const refreshAutoDetect = () => {
+    const ed = editorRef.current;
+    if (!ed?.view || ed.isDestroyed) return;
+    try { ed.view.dispatch(ed.state.tr.setMeta(AUTO_DETECT_KEY, true).setMeta('addToHistory', false)); } catch (_) {}
+  };
+  useEffect(() => { nameIndexRef.current = workspaceTrie; refreshAutoDetect(); }, [workspaceTrie]);
 
   // Candidate names — recurring proper nouns not yet tagged. Painted as a
   // faint dotted underline by CandidateNamePlugin; tap → promote/dismiss.
@@ -306,7 +314,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // (so a newly-applied range suppresses any candidate it now covers).
       const tr = ed.state.tr
         .setMeta(TAG_RANGE_KEY, { changed: true })
-        .setMeta(CANDIDATE_NAME_KEY, { changed: true });
+        .setMeta(CANDIDATE_NAME_KEY, { changed: true })
+        .setMeta(AUTO_DETECT_KEY, true);
       ed.view.dispatch(tr);
     }
   }, [appliedTagRanges]);
@@ -367,6 +376,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           .eq('scope_id', docCardIdForIgnore);
         if (cancelled) return;
         docIgnoreRef.current = new Set((data || []).map(r => (r.term || '').toLowerCase()));
+        refreshAutoDetect();
       } catch (_) {}
     };
     reload();
@@ -989,10 +999,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // Keep applied-range absolute boxes in sync with the live doc so the
   // auto-detect plugin can suppress decorations under colored ranges.
   // Paragraph positions shift as the user types above/below; the
-  // hashes don't, so we re-derive boxes on every transaction.
+  // hashes don't, so we re-derive boxes on every doc change (a caret move
+  // moves nothing).
   useEffect(() => {
     if (!editor) return;
-    const onTr = () => refreshAppliedRangeBoxes();
+    const onTr = ({ transaction } = {}) => {
+      if (transaction && !transaction.docChanged) return;
+      refreshAppliedRangeBoxes();
+    };
     editor.on('transaction', onTr);
     onTr();
     return () => editor.off('transaction', onTr);
