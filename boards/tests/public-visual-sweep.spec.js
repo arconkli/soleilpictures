@@ -206,6 +206,19 @@ test.describe('/pricing layout', () => {
   });
 });
 
+for (const path of ['/vs/milanote', '/pricing']) {
+  test(`${path} loads without React prop warnings and keeps the hero image's high priority`, async ({ page }) => {
+    await routeAnalytics(page, []);
+    const warnings = [];
+    page.on('console', (m) => { if (/does not recognize the/.test(m.text())) warnings.push(m.text()); });
+    await page.goto(path);
+    const hero = page.locator('.seo-frame-shot img');
+    await expect(hero).toBeVisible();
+    expect(await hero.getAttribute('fetchpriority')).toBe('high');
+    expect(warnings).toEqual([]);
+  });
+}
+
 test.describe('/templates on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 

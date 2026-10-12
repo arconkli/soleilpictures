@@ -253,9 +253,11 @@ export function SeoLandingPage({ spec: specProp, path }) {
                 <span className="seo-frame-url">clusters.soleilpictures.com/c/{hero.slug}</span>
               </div>
               <a className="seo-frame-shot" href={`/c/${hero.slug}`} onClick={() => lp.exampleClick(hero.slug, 'frame')}>
+                {/* Lowercase `fetchpriority`, as in R2Image: React 18 has no
+                    camelCase fetchPriority prop and warns on every load. */}
                 <img src={`/landing/${hero.slug}.webp`}
                      alt={`${hero.title} — a real board made with Clusters, open in the app`}
-                     width="2048" height="1000" fetchPriority="high" />
+                     width="2048" height="1000" fetchpriority="high" />
               </a>
               <figcaption className="seo-frame-cap">
                 This is a real board published from Clusters — <b>open it live</b>, pan around, and copy its palettes.
