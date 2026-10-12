@@ -3,6 +3,8 @@ import { fetchConversationMessages, fetchConversationRange, markRead } from '../
 import { subscribeConversation } from '../lib/messageRealtime.js';
 import { MESSAGE_PAGE, mergeNewestPage, prependOlder, lastMessageId } from '../lib/messagePaging.js';
 import { tabIsAttended } from '../lib/threadAttention.js';
+import { subscribeInbox } from '../lib/inboxBus.js';
+import { watchForResync } from '../lib/messageResync.js';
 
 // Returns { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder }
 // for a single conversation. `messages` is the newest page plus whatever
@@ -136,8 +138,16 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
         });
       }, 3000);
     };
-    const unsub = subscribeConversation({ conversationId, onMessage, onTyping });
-    return () => unsub();
+    // Read again whenever the live feed may have dropped something: the
+    // channel (re)joining, the tab coming back, the network returning, or an
+    // inbox ping for this conversation — which also lands when the conv:
+    // join itself failed, so the thread can't freeze silently (COMMS-04).
+    const resync = watchForResync(() => refetch());
+    const unsub = subscribeConversation({ conversationId, onMessage, onTyping, onSubscribed: resync.kick });
+    const unsubInbox = subscribeInbox(userId, (payload) => {
+      if (payload?.conversation_id === conversationId) resync.kick();
+    });
+    return () => { resync.stop(); unsubInbox(); unsub(); };
   }, [conversationId, userId, refetch]);
 
   return { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder };

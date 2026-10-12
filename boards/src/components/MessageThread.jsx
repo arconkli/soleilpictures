@@ -12,7 +12,7 @@ import {
   addParticipants, leaveConversation, renameConversation,
 } from '../lib/messages.js';
 import {
-  broadcastConversationMessage, broadcastConversationTyping,
+  broadcastConversationMessage, broadcastConversationTyping, broadcastConversationChange,
 } from '../lib/messageRealtime.js';
 import { MessageBubble } from './MessageBubble.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
@@ -213,12 +213,15 @@ export function MessageThread({
   // ── Pinned strip ─────────────────────────────────────────────────────
   const [pinned, setPinned] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
+  // Also re-read when a loaded message is pinned or unpinned: a peer's pin
+  // arrives as a refetch that leaves the count where it was.
+  const pinnedSig = messages.filter(m => m.is_pinned).map(m => m.id).join(',');
   useEffect(() => {
     if (!conversationId) return;
     let cancelled = false;
     listPinnedForConversation({ conversationId }).then(rows => { if (!cancelled) setPinned(rows); });
     return () => { cancelled = true; };
-  }, [conversationId, messages.length]);
+  }, [conversationId, messages.length, pinnedSig]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
   useEffect(() => {
@@ -431,10 +434,17 @@ export function MessageThread({
     try {
       await deleteMessage({ id: msg.id });
       refetch();
+      // Peers only learn of a change already in the thread from a nudge:
+      // messages aren't in the realtime publication (COMMS-04).
+      broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
       undoToast(feedback, {
         message: 'Message deleted',
         onUndo: async () => {
-          try { await restoreMessage({ id: msg.id }); refetch(); }
+          try {
+            await restoreMessage({ id: msg.id });
+            refetch();
+            broadcastConversationChange({ conversationId, changed: 'restore', id: msg.id });
+          }
           catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' }); }
         },
       });
@@ -442,27 +452,29 @@ export function MessageThread({
       console.warn('delete failed', e);
       feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });
     }
-  }, [refetch, feedback]);
+  }, [conversationId, refetch, feedback]);
 
   const handleEdit = useCallback(async (msg, newBody) => {
     try {
       await editMessage({ id: msg.id, body: newBody });
       refetch();
+      broadcastConversationChange({ conversationId, changed: 'edit', id: msg.id });
     } catch (e) {
       console.warn('edit failed', e);
       feedback.toast({ type: 'error', message: 'Could not save your edit — try again.' });
     }
-  }, [refetch, feedback]);
+  }, [conversationId, refetch, feedback]);
 
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
     try {
       await toggleReaction({ messageId: msg.id, emoji, userId });
       refetch();
+      broadcastConversationChange({ conversationId, changed: 'react', id: msg.id });
     } catch (e) {
       feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
     }
-  }, [userId, refetch, feedback]);
+  }, [conversationId, userId, refetch, feedback]);
 
   const handleReply = useCallback((msg) => {
     setReplyParent(msg);
@@ -473,6 +485,7 @@ export function MessageThread({
     try {
       await togglePin(msg.id);
       refetch();
+      broadcastConversationChange({ conversationId, changed: 'pin', id: msg.id });
       const rows = await listPinnedForConversation({ conversationId });
       setPinned(rows);
     } catch (e) { console.warn('pin failed', e); }
@@ -633,7 +646,10 @@ export function MessageThread({
           existingIds={new Set(activeParticipants.map(p => p.user_id))}
           anchor={addPickerAnchor}
           onClose={() => setAddPickerAnchor(null)}
-          onAdded={() => { setAddPickerAnchor(null); onChanged?.(); refetch(); }}
+          onAdded={() => {
+            setAddPickerAnchor(null); onChanged?.(); refetch();
+            broadcastConversationChange({ conversationId, changed: 'participants' });
+          }}
           actorId={userId}
           currentUser={currentUser}
         />

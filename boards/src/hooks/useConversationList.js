@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { listConversations, listMyConversationParticipants, getUnreadCounts } from '../lib/messages.js';
 import { supabase } from '../lib/supabase.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
+import { watchForResync } from '../lib/messageResync.js';
 
 // Returns the unified Messages-panel list:
 //   {
@@ -16,6 +17,9 @@ import { subscribeInbox } from '../lib/inboxBus.js';
 //   - postgres_changes on conversations + conversation_participants
 //     (debounced 350ms to coalesce trigger bursts)
 //   - inboxBus ping for the current user (optimistic +1 unread)
+//   - the realtime channel REjoining, the tab coming back to the front and
+//     the network returning — changes made while the socket was down never
+//     arrive as events, so the counts would stay stale (COMMS-04)
 export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   const [conversations, setConversations] = useState([]);
   const [participants, setParticipants] = useState([]);
@@ -61,12 +65,21 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
         refresh().catch(() => {});
       }, 350);
     };
+    const resync = watchForResync(schedule);
+    // The first join follows the mount fetch; only a REjoin can have missed
+    // something.
+    let joined = false;
     const ch = supabase.channel(`conv-list:${userId}:${Math.random().toString(36).slice(2, 9)}`)
       .on('postgres_changes', { event: '*',      schema: 'public', table: 'conversations' }, schedule)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` }, schedule)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` }, schedule)
-      .subscribe();
+      .subscribe((status) => {
+        if (status !== 'SUBSCRIBED') return;
+        if (joined) resync.kick();
+        joined = true;
+      });
     return () => {
+      resync.stop();
       if (debounceRef.current) clearTimeout(debounceRef.current);
       try { supabase.removeChannel(ch); } catch (_) {}
     };
