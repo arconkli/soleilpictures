@@ -97,3 +97,26 @@ test.describe('VS-CANVAS-02/03 context menus stay inside the window', () => {
     await page.screenshot({ path: test.info().outputPath('bg-menu-br.png') });
   });
 });
+
+// Perceived brightness 0–255 of a computed `rgb(…)` colour.
+const lum = (rgb) => { const [r, g, b] = rgb.match(/\d+(\.\d+)?/g).map(Number); return 0.299 * r + 0.587 * g + 0.114 * b; };
+const strokeOf = (page, id) => page.locator(`[data-card-id="${id}"] .shape svg > *`).first()
+  .evaluate((el) => getComputedStyle(el).stroke);
+
+test.describe('VS-CANVAS-04 default shape ink follows the theme', () => {
+  test('a default-ink shape is dark on the light canvas and light on the dark one; a chosen colour is kept', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await plant(page, [
+      { id: 'sh-unset', kind: 'shape', shape: 'rect', x: 120, y: 120, w: 160, h: 90 },
+      { id: 'sh-ink', kind: 'shape', shape: 'ellipse', x: 340, y: 120, w: 160, h: 90, stroke: '#f5f5f6' },
+      { id: 'sh-blue', kind: 'shape', shape: 'rect', x: 560, y: 120, w: 160, h: 90, stroke: '#3b82f6' },
+    ]);
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+    expect(lum(await strokeOf(page, 'sh-unset'))).toBeLessThan(80);
+    expect(lum(await strokeOf(page, 'sh-ink'))).toBeLessThan(80);
+    expect(await strokeOf(page, 'sh-blue')).toBe('rgb(59, 130, 246)');
+    await page.screenshot({ path: test.info().outputPath('shapes-light.png') });
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    expect(lum(await strokeOf(page, 'sh-ink'))).toBeGreaterThan(200);
+  });
+});

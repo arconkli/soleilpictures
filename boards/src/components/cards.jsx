@@ -1851,12 +1851,24 @@ function ScheduleCard({ title, rows, onUpdate = null, editTitleAt = 0 }) {
 // `dash`: 'solid' (default) | 'dashed' | 'dotted'.
 // No inline text — shapes are just shapes; edit colors / stroke / etc. via
 // the toolbar (revealed when a shape is selected).
+// '#f5f5f6' is the app's default ink: every new shape is saved with it, and it
+// is the first stroke swatch. It is the dark theme's text colour, so in the
+// light theme a default shape was a near-white outline on a near-white canvas —
+// new users drew invisible boxes. Paint that one value as the theme's ink
+// (currentColor, set to --ink-0 below) so it reads in both themes, the way the
+// doc editor overrides near-white text on its white sheet. Any other colour is
+// someone's deliberate choice and paints as stored.
+const THEME_INK_STROKE = '#f5f5f6';
+const isThemeInk = (c) => typeof c === 'string' && c.trim().toLowerCase() === THEME_INK_STROKE;
+
 // Pure SVG silhouette for a shape kind, in a normalized 0–100 viewBox that
 // stretches to any box (preserveAspectRatio:none). Extracted from ShapeCard so
 // the cluster-browser preview mark draws the SAME geometry (single source of
 // truth — no drift when a shape is added). strokeWidth 0 = "No Border" on
 // fillable shapes; line/arrow clamp to 1 so they never vanish.
-export function ShapeGlyph({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid', className }) {
+export function ShapeGlyph({ shape = 'rect', stroke: storedStroke = THEME_INK_STROKE, fill = 'transparent', strokeWidth = 2, dash = 'solid', className }) {
+  const themeInk = isThemeInk(storedStroke);
+  const stroke = themeInk ? 'currentColor' : storedStroke;
   const isStrokeOnly = shape === 'line' || shape === 'arrow';
   const sw = strokeWidth === 0 && isStrokeOnly ? 1 : strokeWidth;
   const dashArray = dash === 'dashed' ? '6,4' : dash === 'dotted' ? '2,3' : undefined;
@@ -1864,7 +1876,8 @@ export function ShapeGlyph({ shape = 'rect', stroke = '#f5f5f6', fill = 'transpa
     ? { stroke: 'none', fill, vectorEffect: 'non-scaling-stroke' }
     : { stroke, fill, strokeWidth: sw, vectorEffect: 'non-scaling-stroke', strokeDasharray: dashArray };
   return (
-    <svg className={className} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+    <svg className={className} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"
+         style={themeInk ? { color: 'var(--ink-0)' } : undefined}>
       {shape === 'rect' && <rect x={sw/2} y={sw/2} width={100 - sw} height={100 - sw} {...common} />}
       {shape === 'ellipse' && <ellipse cx="50" cy="50" rx={50 - sw/2} ry={50 - sw/2} {...common} />}
       {shape === 'line' && <line x1="0" y1="0" x2="100" y2="100" stroke={stroke} strokeWidth={sw} strokeDasharray={dashArray} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
@@ -1886,7 +1899,7 @@ export function ShapeGlyph({ shape = 'rect', stroke = '#f5f5f6', fill = 'transpa
   );
 }
 
-function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid',
+function ShapeCard({ shape = 'rect', stroke = THEME_INK_STROKE, fill = 'transparent', strokeWidth = 2, dash = 'solid',
                      label = null, onUpdate = null, editLabelAt = 0 }) {
   const isStrokeOnly = shape === 'line' || shape === 'arrow';
   // Optional centered label — double-click the shape (or right-click →
