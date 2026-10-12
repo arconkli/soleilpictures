@@ -9065,7 +9065,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 /* …which leaves BPM's digits pressed against Key, so give Key the gap back. */
 .ct-cell.ct-c-key, .ct-th.ct-c-key { padding-left: 16px; }
 .ct-nil { color: var(--ink-4); }
-.ct-cell.ct-c-dur { color: var(--ink-2); }
+/* Format too: at --ink-3, 11px 'WAV' measured under 3:1 in both themes.
+   --ink-2 keeps it secondary to BPM/Key and readable. */
+.ct-cell.ct-c-dur, .ct-cell.ct-c-fmt { color: var(--ink-2); }
 /* Skip layout and paint for rows and tiles that are off screen. Two
    declarations buy most of what a virtualizer would, and unlike a virtualizer
    they do not break scrollIntoView on the keyboard cursor, grid-family

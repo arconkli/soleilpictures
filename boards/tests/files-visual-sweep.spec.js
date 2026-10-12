@@ -38,6 +38,37 @@ test('VS-FILES-01: stepping through Quick look moves a one-file selection with i
   await expect(full(page).locator('.ct-row.is-active')).toHaveCount(1);
 });
 
+// The colour a token resolves to here, through a probe element.
+async function tokenColor(page, token) {
+  return page.evaluate((t) => {
+    const probe = document.createElement('i');
+    probe.style.color = `var(${t})`;
+    document.body.appendChild(probe);
+    const c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
+  }, token);
+}
+
+// A blank board with three loops on it: the whole cluster is an audio pack.
+async function audioPack(page, opts = {}) {
+  await go(page, { blank: true, ...opts });
+  await page.waitForFunction(() => !!window.__soleilAudioLive);
+  await page.evaluate(() => {
+    for (let i = 0; i < 3; i++) window.__soleilAudioLive.addAudio({ x: 900 + i * 40, y: 500 + i * 40 });
+  });
+}
+
+test('VS-FILES-03: the audio list Format column is set in --ink-2, like Time', async ({ page }) => {
+  await audioPack(page);
+  await openFullFiles(page);
+  await page.getByRole('button', { name: 'List layout' }).click();
+  const fmt = full(page).locator('.ct-row .ct-cell.ct-c-fmt').first();
+  await expect(fmt).toBeVisible();
+  const ink2 = await tokenColor(page, '--ink-2');
+  expect(await fmt.evaluate((el) => getComputedStyle(el).color)).toBe(ink2);
+});
+
 test.describe('on a phone', () => {
   test.use({ hasTouch: true });
 
