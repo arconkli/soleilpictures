@@ -36,7 +36,7 @@ const inNativeApp = () => {
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
 // `editor` is only a fallback for the rare caller without doc state.
 // Screenplay docs additionally get Fountain/FDX export + import.
-export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc', authorName = '', canEdit = true }) {
+export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc', canEdit = true }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -166,12 +166,11 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
         // on web AND the native app, where window.print() is unavailable.
         const docTitle = currentDocTitle();
         const stored = ydoc ? getTitlePage(ydoc, scope) : null;
-        // Always include a title page so every exported script has a proper
-        // cover sheet: use the writer's when they've enabled one, else synthesize
-        // a minimal one from the document title (+ author).
-        const titlePage = (stored && stored.enabled)
-          ? stored
-          : { enabled: true, title: docTitle, credit: 'Written by', authors: authorName || '' };
+        // The writer's title page when they turned it on, and none when they
+        // turned it off — the same rule Fountain and FDX follow. (A cover
+        // used to be synthesized regardless, crediting whoever happened to
+        // be exporting as the author.)
+        const titlePage = (stored && stored.enabled) ? stored : null;
         const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
         const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: docTitle, titlePage, sceneNumbers });
         await deliverFile(blob, `${sanitizeName(docTitle)}.pdf`);
