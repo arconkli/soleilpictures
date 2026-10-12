@@ -122,6 +122,41 @@ test('DOCS-16: a bookmark shows under the page tree, jumps there, and removes wi
   await expect(item).toHaveText('Act two out');
 });
 
+// ── DOCS-17 ───────────────────────────────────────────────────────────────
+test('DOCS-17: the resize handle and align bar sit on the image, and a drag tracks the pointer under zoom', async ({ page }) => {
+  await openDoc(page);
+  // Zoom the doc first: 3 × +10%.
+  const zoomIn = page.locator('.doc-card-modal .doc-tb button[aria-label="Zoom in"]');
+  for (let i = 0; i < 3; i++) await zoomIn.click();
+  await page.evaluate(() => {
+    window.__soleilDocTest.editor.commands.setContent(`<p>a</p><img src="${location.origin}/apple-touch-icon.png" style="width: 160px">`);
+  });
+  const img = page.locator('.doc-card-modal .tt-img').first();
+  await expect(img).toBeVisible();
+  await img.click();
+  await expect(page.locator('.doc-card-modal .tt-img-wrap.is-selected')).toHaveCount(1);
+  const geo = async () => page.evaluate(() => {
+    const im = document.querySelector('.doc-card-modal .tt-img').getBoundingClientRect();
+    const h = document.querySelector('.doc-card-modal .tt-img-resize').getBoundingClientRect();
+    const tb = document.querySelector('.doc-card-modal .tt-img-tb').getBoundingClientRect();
+    return { im: { l: im.left, r: im.right, b: im.bottom, w: im.width }, h: { cx: h.left + h.width / 2, cy: h.top + h.height / 2 }, tbc: tb.left + tb.width / 2 };
+  });
+  const g = await geo();
+  // Handle on the image's bottom-right corner, bar centred over the image.
+  expect(Math.abs(g.h.cx - g.im.r)).toBeLessThan(20);
+  expect(Math.abs(g.h.cy - g.im.b)).toBeLessThan(20);
+  expect(Math.abs(g.tbc - (g.im.l + g.im.w / 2))).toBeLessThan(4);
+  expect(await page.locator('.doc-card-modal .tt-img-resize').evaluate(el => getComputedStyle(el).touchAction)).toBe('none');
+  // Drag the handle 60 screen px right: the image's right edge follows it.
+  await page.mouse.move(g.h.cx, g.h.cy);
+  await page.mouse.down();
+  await page.mouse.move(g.h.cx + 30, g.h.cy, { steps: 3 });
+  await page.mouse.move(g.h.cx + 60, g.h.cy, { steps: 3 });
+  const mid = await geo();
+  await page.mouse.up();
+  expect(Math.abs((mid.im.w - g.im.w) - 60)).toBeLessThan(4);
+});
+
 // ── DOCS-14 ───────────────────────────────────────────────────────────────
 // A collaborator's edit arrives while the comment composer is open. It lands
 // as a whole-document replace, so raw offsets captured at "Add comment" no

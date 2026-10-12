@@ -96,7 +96,13 @@ export const ImageResizable = Image.extend({
       if (node.attrs.title) img.title = node.attrs.title;
       if (node.attrs.width) img.style.width = node.attrs.width;
       img.draggable = false;
-      dom.appendChild(img);
+      // The handle and the align bar sit in a frame shrink-wrapped to the
+      // image. Placed on the full-width wrap, they floated at the column's
+      // right edge and centre, nowhere near a centred 300px image.
+      const frame = document.createElement('span');
+      frame.className = 'tt-img-frame';
+      frame.appendChild(img);
+      dom.appendChild(frame);
       let curSrc = node.attrs.src || '';
       reserveSize(img, curSrc);
       img.addEventListener('load', () => rememberSize(curSrc, img.naturalWidth, img.naturalHeight));
@@ -107,7 +113,7 @@ export const ImageResizable = Image.extend({
       const handle = document.createElement('div');
       handle.className = 'tt-img-resize';
       handle.title = 'Drag to resize';
-      dom.appendChild(handle);
+      frame.appendChild(handle);
 
       // Alignment toolbar (top, floating). Only visible when selected.
       const tb = document.createElement('div');
@@ -141,25 +147,38 @@ export const ImageResizable = Image.extend({
         editor.chain().focus().setNodeSelection(pos).deleteSelection().run();
       });
       tb.appendChild(remove);
-      dom.appendChild(tb);
+      frame.appendChild(tb);
 
       // ── Resize logic ────────────────────────────────────────────────────
-      let dragState = null; // { startX, startW, parentW }
+      // Widths are CSS px; the pointer moves in screen px. Under the doc's
+      // CSS zoom the two differ, so the drag is scaled by the image's own
+      // screen-to-CSS ratio — otherwise the edge trails or outruns the finger.
+      let dragState = null; // { startX, startW, parentW, k, startStyle }
       handle.addEventListener('pointerdown', (e) => {
         e.preventDefault(); e.stopPropagation();
         // A read-only reader (view-only member, public viewer): commands still
         // apply to a non-editable editor, so every image tool must bail here
         // or it rewrites a local copy the board room never accepts.
         if (!editor.isEditable) return;
-        const parentW = (img.parentElement?.parentElement?.clientWidth) || 760;
-        dragState = { startX: e.clientX, startW: img.offsetWidth, parentW };
+        const cssW = parseFloat(getComputedStyle(img).width) || img.offsetWidth || 1;
+        const screenW = img.getBoundingClientRect().width || cssW;
+        const parentW = parseFloat(getComputedStyle(dom).width) || 760;
+        dragState = { startX: e.clientX, startW: cssW, parentW, k: screenW / cssW || 1, startStyle: img.style.width };
         try { handle.setPointerCapture(e.pointerId); } catch (_) {}
       });
       handle.addEventListener('pointermove', (e) => {
         if (!dragState) return;
-        const dx = e.clientX - dragState.startX;
+        const dx = (e.clientX - dragState.startX) / dragState.k;
         const next = Math.max(60, Math.min(dragState.parentW, dragState.startW + dx));
-        img.style.width = next + 'px';
+        img.style.width = Math.round(next) + 'px';
+      });
+      // A cancelled gesture (the OS took the touch, a scroll began) puts the
+      // image back rather than committing a half-drag.
+      handle.addEventListener('pointercancel', (e) => {
+        if (!dragState) return;
+        img.style.width = dragState.startStyle;
+        dragState = null;
+        try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
       });
       handle.addEventListener('pointerup', (e) => {
         if (!dragState) return;
