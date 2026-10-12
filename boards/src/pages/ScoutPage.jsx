@@ -386,16 +386,29 @@ export function ScoutPage() {
       if (vv) sceneEl.style.setProperty('--sc-vvh', `${Math.round(vv.height)}px`);
     };
 
+    // Frames run ON DEMAND, not forever. An unconditional loop did two rect
+    // reads, a pass over the whole thread and the style writes at display rate
+    // indefinitely — on a page whose audience is phones, mostly while someone
+    // sat typing a number into the box. A scroll, a resize, a re-measure or the
+    // box changing size kicks a frame; each frame reschedules itself only while
+    // its inputs are still moving, so momentum scrolling and the box's own
+    // transitions are followed to rest and then the loop stops.
     let raf = 0;
+    let lastKey = '';
+    const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
     const frame = () => {
+      raf = 0;
       const stageEl = stageRef.current;
-      if (!stageEl) { raf = requestAnimationFrame(frame); return; }
+      if (!stageEl) { kick(); return; }
 
       // Read both rects BEFORE writing any transform this frame, so there is no
       // layout thrash. The box rect is read every frame rather than cached
       // because the box changes height when it flips to its success state.
       const sr = stageEl.getBoundingClientRect();
       const br = boxEl ? boxEl.getBoundingClientRect() : sr;
+      const key = `${scrollEl.scrollTop}|${sr.top}|${sr.height}|${br.top}|${br.height}`;
+      if (key === lastKey) return;                       // at rest: stop until kicked
+      lastKey = key;
       const vh = sr.height || 1;
       const boxTop = br.top - sr.top - vh / 2;
 
@@ -458,21 +471,34 @@ export function ScoutPage() {
         el.style.transform = `translate(-50%, -50%) translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
       }
 
-      raf = requestAnimationFrame(frame);
+      kick();                                            // follow it until it settles
     };
+
+    // A re-measure moves every bubble's offsets without touching any of the
+    // frame's inputs, so it must force the next frame through.
+    const remeasure = () => { measure(); lastKey = ''; kick(); };
+    const onViewport = () => { syncVisible(); kick(); };
 
     measure();
     syncVisible();
-    raf = requestAnimationFrame(frame);
-    window.addEventListener('resize', measure);
-    vv?.addEventListener('resize', syncVisible);
+    kick();
+    scrollEl.addEventListener('scroll', kick, { passive: true });
+    window.addEventListener('resize', remeasure);
+    vv?.addEventListener('resize', onViewport);
+    // The box changes height when it flips to its success state, and the stage
+    // follows the visible viewport (--sc-vvh); neither fires a scroll.
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(kick) : null;
+    if (ro) { ro.observe(stageRef.current || sceneEl); if (boxEl) ro.observe(boxEl); }
     // A font swapping in after the first measure would desync every offset in
     // the stack, since the whole layout is cumulative.
-    document.fonts?.ready?.then(measure).catch(() => {});
+    document.fonts?.ready?.then(remeasure).catch(() => {});
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('resize', measure);
-      vv?.removeEventListener('resize', syncVisible);
+      raf = -1;                                          // a late fonts.ready must not restart it
+      scrollEl.removeEventListener('scroll', kick);
+      window.removeEventListener('resize', remeasure);
+      vv?.removeEventListener('resize', onViewport);
+      ro?.disconnect();
       sceneEl.classList.remove('is-runway');
     };
   }, [thread]);
