@@ -26,6 +26,7 @@ import { downloadImage } from './imageExport.js';
 import { createStoreZip, assertZipFits, ZipLimitError, ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from './zipStore.js';
 import { makeLimiter } from './asyncPool.js';
 import { wantsDirectDownload, knownBytes, DIRECT_DOWNLOAD_MIN_BYTES } from './downloadPlan.js';
+import { getDeviceInfo } from './device.js';
 import { DOWNLOADABLE, assetSrcFor, assetFilename } from './cardAssetName.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
@@ -135,7 +136,9 @@ async function handToBrowser(src, name) {
   }
   // A hidden frame, not a link click or location change: an attachment
   // response there starts a download without navigating the app (no
-  // beforeunload, no lost state), on every desktop and mobile browser.
+  // beforeunload, no lost state). Nothing reports whether the browser
+  // actually saved it, which is why iOS WebKit, unverified, never gets here
+  // (see wantsDirectDownload).
   const frame = document.createElement('iframe');
   frame.style.display = 'none';
   frame.src = url;
@@ -178,7 +181,7 @@ async function downloadCardAssetNow(card, kind, { surface = null } = {}) {
   const src = assetSrcFor(card, kind);
   if (!src) return false;
   const name = assetFilename(card, kind);
-  if (wantsDirectDownload(card, kind, { native: !bulkDownloadSupported() })
+  if (wantsDirectDownload(card, kind, { native: !bulkDownloadSupported(), ios: isIOSWebKit() })
       && await handToBrowser(src, name)) {
     logEvent(EV.FILE_DOWNLOAD, { kind, is_public: isPublicSurface(), surface, bulk: false, direct: true });
     return true;
@@ -210,6 +213,12 @@ async function downloadCardAssetNow(card, kind, { surface = null } = {}) {
     } catch (_) { /* fall through */ }
     throw err;
   }
+}
+
+// Every iOS browser is WebKit, and iPadOS reports a Mac UA; getDeviceInfo
+// folds both into os === 'iOS'.
+function isIOSWebKit() {
+  try { return getDeviceInfo().os === 'iOS'; } catch (_) { return false; }
 }
 
 // Bulk zip is web-only, on purpose.

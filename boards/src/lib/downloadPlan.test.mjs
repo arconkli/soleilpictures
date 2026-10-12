@@ -22,6 +22,9 @@ test('big or unknown-size files go to the browser; small ones, images and native
   assert.equal(wantsDirectDownload({ sizeBytes: 3 * MB }, 'audio'), false);
   assert.equal(wantsDirectDownload({ sizeBytes: 900 * MB }, 'image'), false, 'images may need a bake');
   assert.equal(wantsDirectDownload({ sizeBytes: 900 * MB }, 'file', { native: true }), false);
+  assert.equal(wantsDirectDownload({ sizeBytes: 900 * MB }, 'file', { ios: true }), false,
+    'iOS WebKit keeps the Blob path until the hidden-frame hand-off is verified there');
+  assert.equal(wantsDirectDownload({}, 'video', { ios: true }), false);
 });
 
 test('a selection over the cap is refused from the sizes cards carry', () => {
