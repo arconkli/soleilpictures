@@ -21,7 +21,8 @@ async function openAdmin(page, { tab = 'overview', view, theme = 'dark', query =
  * shared fixture does not hold. Vite serves one module instance per URL, so the
  * import below is the very client the dashboard calls. Every call to a patched
  * name is recorded in window.__patchedRpc as [name, params]. A value is the
- * resolved { data, error }.
+ * resolved { data, error }, or { withParam, yes, no } to answer differently
+ * depending on whether the call passed that argument.
  */
 async function patchRpc(page, overrides) {
   await page.evaluate(async (ov) => {
@@ -31,7 +32,12 @@ async function patchRpc(page, overrides) {
     supabase.rpc = (name, params) => {
       if (!Object.prototype.hasOwnProperty.call(ov, name)) return orig(name, params);
       window.__patchedRpc.push([name, params]);
-      return Promise.resolve(ov[name]);
+      const v = ov[name];
+      if (v && v.withParam) {
+        const has = !!params && Object.prototype.hasOwnProperty.call(params, v.withParam);
+        return Promise.resolve(has ? v.yes : v.no);
+      }
+      return Promise.resolve(v);
     };
   }, overrides);
 }
@@ -164,5 +170,36 @@ test.describe('admin Discover GSC import (ADMIN-8)', () => {
     const params = await page.evaluate(() => window.__patchedRpc.find(([n]) => n === 'admin_import_gsc_csv')?.[1]);
     expect(params.p_rows).toHaveLength(1);
     expect(Object.prototype.hasOwnProperty.call(params, 'p_as_of')).toBe(false);
+  });
+});
+
+test.describe('admin Retention return curve (ADMIN-10)', () => {
+  const ROWS = Array.from({ length: 10 }, (_, d) => ({
+    segment: 'all', day_offset: d, eligible: 50, active: Math.max(1, 30 - d * 3), active_pct: Math.max(1, 30 - d * 3) / 50,
+  }));
+  const panel = (page) => page.locator('section').filter({ has: page.locator('.adm-well-title', { hasText: /^Return curve$/ }) });
+
+  test('the curve asks for work-days and says so', async ({ page }) => {
+    await openAdmin(page, { view: 'retention' });
+    await expect(page.getByText('Return curve', { exact: true })).toBeVisible({ timeout: 15000 });
+    await patchRpc(page, { admin_retention_curve: { data: ROWS, error: null } });
+    await page.getByRole('button', { name: 'Refresh' }).first().click();
+    await expect.poll(() => page.evaluate(() => window.__patchedRpc.length)).toBeGreaterThan(0);
+    const params = await page.evaluate(() => window.__patchedRpc[0][1]);
+    expect(params.p_require_work).toBe(true);
+    await expect(panel(page)).toContainText('Work-days, not app-open days');
+  });
+
+  test('against a database without the work argument, it falls back and captions presence', async ({ page }) => {
+    await openAdmin(page, { view: 'retention' });
+    await expect(page.getByText('Return curve', { exact: true })).toBeVisible({ timeout: 15000 });
+    await patchRpc(page, { admin_retention_curve: {
+      withParam: 'p_require_work',
+      yes: { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } },
+      no: { data: ROWS, error: null },
+    } });
+    await page.getByRole('button', { name: 'Refresh' }).first().click();
+    await expect(panel(page)).toContainText('App-open days (presence), not work');
+    await expect(page.locator('.admin-error')).toHaveCount(0);
   });
 });

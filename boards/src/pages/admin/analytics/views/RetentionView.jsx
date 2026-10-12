@@ -49,6 +49,25 @@ import { AdminCardsSection } from '../../AdminCardsSection.jsx';
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
 
 /**
+ * admin_retention_curve on work-days, falling back to presence.
+ *
+ * The panel is captioned as work-days, and its neighbours all are, but the RPC
+ * counted any app-open day until 0410 gave it p_require_work. Asked of a
+ * database without 0410, the 4-argument call is an unknown function
+ * (PostgREST PGRST202), so it is retried without the argument and the result
+ * says which measure it is: the caption follows `work`, never the other way.
+ * Resolves { rows, work }; rejects with the RPC's error otherwise.
+ */
+async function fetchRetentionCurve(args) {
+  const r = await supabase.rpc('admin_retention_curve', { ...args, p_require_work: true });
+  if (!r.error) return { rows: r.data || [], work: true };
+  if (r.error.code !== 'PGRST202' && r.error.code !== '42883') throw r.error;
+  const p = await supabase.rpc('admin_retention_curve', args);
+  if (p.error) throw p.error;
+  return { rows: p.data || [], work: false };
+}
+
+/**
  * The retention curve, as a line.
  *
  * The old daily cohort grid is still gone, and for the reason its own header
@@ -56,7 +75,7 @@ const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
  * has come back beside this is a WEEKLY matrix at 25-51 per cohort, which is a
  * different chart with a different denominator — see CohortMatrix.
  */
-function RetentionCurvePanel({ rows, windowDays }) {
+function RetentionCurvePanel({ rows, windowDays, work }) {
   // admin_retention_curve returns THREE rows per day_offset — segment all /
   // demo / paid — and this panel plotted every one of them in RPC order. The
   // result was a 22-day decay drawn as a 66-point sawtooth, with the zigzag
@@ -75,7 +94,9 @@ function RetentionCurvePanel({ rows, windowDays }) {
       span={4}
       title="Return curve"
       meta={`n=${formatCount(eligible)} · ${windowDays}d`}
-      foot="Work-days, not app-open days — user_active_day carries no work event on 54% of its rows."
+      foot={work
+        ? 'Work-days, not app-open days — user_active_day carries no work event on 54% of its rows. Starts at the first day work was recorded.'
+        : 'App-open days (presence), not work — this database predates the work-gated curve, so it reads higher than the panels beside it.'}
     >
       <TrendLine
         points={points}
@@ -179,7 +200,7 @@ export function RetentionView() {
   const q = useAdminData(async () => {
     const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb, bt, ss, bmA, bmB] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_retention_curve', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      fetchRetentionCurve({ p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // p_require_work: the old call omitted it, so this panel and the habit
       // curve below disagreed about who counts.
       supabase.rpc('admin_return_rate', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_require_work: true }),
@@ -237,7 +258,9 @@ export function RetentionView() {
     const signupTotal = signupDays.reduce((a, d) => a + (Number(d?.signups) || 0), 0);
     return {
       activation: val(af),
-      retention: val(rc) || [],
+      // fetchRetentionCurve resolves { rows, work } rather than { data, error }.
+      retention: rc.status === 'fulfilled' ? rc.value.rows : [],
+      retentionWork: rc.status === 'fulfilled' && rc.value.work,
       returnRate: val(rr) || [],
       habitPresence: val(hp) || [],
       habitWork: val(hw) || [],
@@ -387,7 +410,7 @@ export function RetentionView() {
           >
             <CohortMatrix rows={q.data?.cohorts || []} />
           </Well>
-          <RetentionCurvePanel rows={q.data?.retention} windowDays={Math.max(f.days, 30)} />
+          <RetentionCurvePanel rows={q.data?.retention} windowDays={Math.max(f.days, 30)} work={q.data?.retentionWork} />
         </Deck>
 
         <h2 className="admin-section-title">How deep does it go</h2>
