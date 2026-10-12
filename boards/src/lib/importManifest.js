@@ -146,7 +146,9 @@ export function cardSpecFor(item, { kind, stored = null, importedAt }) {
 
   if (kind === 'image') {
     spec.image_key = stored.imageKey;
-    if (item.caption || item.title) spec.caption = item.caption || item.title;
+    // `body`, which is the wire name for an image's caption — normalizeIncomingCard
+    // has no `caption` key, so writing that silently dropped every label.
+    if (item.caption || item.title) spec.body = item.caption || item.title;
     // Real pixel dimensions when we could read them, so the card is not laid
     // out as a square and then jump when it first renders.
     if (Number.isFinite(stored.width) && Number.isFinite(stored.height)) {
