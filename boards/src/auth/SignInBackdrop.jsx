@@ -356,6 +356,21 @@ export function SignInBackdrop({ children, exploreHref }) {
       const cxv = cx(), cyv = cy();
       const br = boxRef.current ? boxRef.current.getBoundingClientRect() : null;
 
+      // The footer is pinned to the stage bottom while the box is centred in the
+      // VISIBLE height, so a short viewport (a phone with its keyboard up, the
+      // code step's longer copy) drew the tagline and the explore pill straight
+      // over the footer links. Step the footer aside while the box reaches it;
+      // it keeps its layout (visibility, not display), so footTop stays true.
+      const footEl = footRef.current;
+      const footTop = footEl ? footEl.getBoundingClientRect().top : ch();
+      let footCrowded = false;
+      if (footEl && br) {
+        const exEl = exploreRef.current;
+        const exBottom = exEl && Number(exEl.style.opacity) > 0.01 ? exEl.getBoundingClientRect().bottom : 0;
+        footCrowded = Math.max(br.bottom, exBottom) > footTop - 6;
+        footEl.classList.toggle('sb-foot-crowded', footCrowded);
+      }
+
       // Mobile note safe-band: notes must stay clear of the faux topbar (top), the
       // footer + the always-on "explore" pill (bottom), and the on-screen keyboard.
       // Reserve the topbar height ALWAYS (its opacity ramps 0.74→0.90) so notes don't
@@ -364,8 +379,6 @@ export function SignInBackdrop({ children, exploreHref }) {
       if (coarse && br) {
         const chromeH = chrome ? chrome.getBoundingClientRect().height : 48;   // 48 + safe-top
         noteBandTop = chromeH + 10;
-        const footEl = footRef.current;
-        const footTop = footEl ? footEl.getBoundingClientRect().top : ch() - 40;
         const vvh = vv ? vv.height : ch();                                     // keep above keyboard
         noteBandBot = Math.min(footTop, vvh) - 10;
         const exEl = exploreRef.current;                                       // always-on pill on touch
@@ -428,6 +441,16 @@ export function SignInBackdrop({ children, exploreHref }) {
           const outDX = sgnX * 46, outDY = 26;
           ox = c.x * sx + inDX * (1 - e) * sx + outDX * o * sx + (s.dragX || 0);
           oy = c.y * sy + inDY * (1 - e) + outDY * o + wob + (s.dragY || 0);
+          // The finale's resting cards stay above the footer: on a phone the
+          // board card's name row landed on the legal links and neither could be
+          // read. Half-height of the rotated, scaled card, so a tilt can't dip
+          // a corner in. Skipped while the footer is stepped aside.
+          if (c.stay && !footCrowded) {
+            const rad = rot * Math.PI / 180;
+            const w = (c.w || 116) * sc, h = (c.h || 34) * sc;
+            const halfH = (Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad))) / 2;
+            oy = Math.min(oy, footTop - 8 - halfH - cyv);
+          }
         }
         const el = cardEls[i];
         el.style.opacity = v;

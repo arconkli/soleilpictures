@@ -223,7 +223,11 @@
 .sb-scene .sb-foot { position: absolute; left: 0; right: 0; bottom: calc(12px + var(--safe-bottom, 0px)); z-index: 6;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 0 clamp(14px, 4vw, 28px);
-  color: var(--ink-3); font: 400 11px/1.4 var(--font-sans); letter-spacing: .04em; pointer-events: none; }
+  color: var(--ink-3); font: 400 11px/1.4 var(--font-sans); letter-spacing: .04em; pointer-events: none;
+  transition: opacity .2s ease, visibility .2s; }
+/* set from the rAF loop while the box (or the explore pill under it) reaches
+   the footer — a short visible viewport, e.g. a phone with its keyboard up */
+.sb-scene .sb-foot.sb-foot-crowded { opacity: 0; visibility: hidden; }
 .sb-foot-left { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; min-width: 0; }
 .sb-foot-copy { color: var(--ink-3); white-space: nowrap; }
 .sb-foot-link, .sb-foot-email { pointer-events: auto; color: var(--ink-3); text-decoration: none; white-space: nowrap;

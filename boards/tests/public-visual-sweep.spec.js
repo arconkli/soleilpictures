@@ -45,3 +45,64 @@ test.describe('the signed-out front door on a light theme', () => {
     for (const bg of bgs) expect(bg).toBe(DARK_BG);
   });
 });
+
+// Rects of the footer and of what must never be drawn over it. A footer that
+// has stepped aside (visibility:hidden) cannot be overlapped.
+function footerClashes(page, selectors) {
+  return page.evaluate((sels) => {
+    const foot = document.querySelector('.sb-foot');
+    if (!foot || getComputedStyle(foot).visibility === 'hidden') return [];
+    const fr = foot.getBoundingClientRect();
+    const out = [];
+    for (const sel of sels) {
+      document.querySelectorAll(sel).forEach((el) => {
+        if (Number(getComputedStyle(el).opacity) < 0.5) return;
+        const r = el.getBoundingClientRect();
+        if (!r.height) return;
+        const overlaps = r.bottom > fr.top + 1 && r.top < fr.bottom && r.right > fr.left && r.left < fr.right;
+        if (overlaps) out.push(`${sel} ${Math.round(r.top)}-${Math.round(r.bottom)} vs footer ${Math.round(fr.top)}-${Math.round(fr.bottom)}`);
+      });
+    }
+    return out;
+  }, selectors);
+}
+
+test.describe('a phone with the keyboard up (a short visible viewport)', () => {
+  test.use({ viewport: { width: 390, height: 480 }, hasTouch: true, isMobile: true });
+
+  test('the code step tagline is never drawn over the footer links', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('soleil.auth.pendingCode', JSON.stringify({
+          email: 'someone.with.a.longish.address@studio.film', sentAt: Date.now(),
+        }));
+      } catch { /* ignore */ }
+    });
+    await page.goto('/');
+    await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 15000 });
+    await expect.poll(() => footerClashes(page, ['.sb-trust', '.sb-frost'])).toEqual([]);
+  });
+
+  test('the explore pill under the email step is never drawn over the footer links', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.goto('/');
+    await expect(page.locator('.sb-explore')).toBeVisible();
+    await expect.poll(() => footerClashes(page, ['.sb-explore', '.sb-trust'])).toEqual([]);
+  });
+});
+
+test.describe('the landing finale on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('the resting board cards stay above the footer', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.goto('/');
+    await expect(page.locator('.sb-frost .auth-btn')).toBeVisible();
+    // The scene's own hook for pinning its scroll progress: 1 = the finale.
+    await page.evaluate(() => { window.__sbForceP = 1; });
+    await page.waitForTimeout(1200);
+    await expect(page.locator('.sb-foot')).toBeVisible();
+    await expect.poll(() => footerClashes(page, ['.sb-card'])).toEqual([]);
+  });
+});
