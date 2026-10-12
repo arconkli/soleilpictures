@@ -72,8 +72,10 @@ function ScoutSection({ user }) {
           // user's inbox, out of band, with no webhook back — so the flag can
           // only clear the next time someone asks, and this tab is where a
           // Scout user turns up. Cheap, self-keyed on auth.uid(), and a no-op
-          // for the accounts that were never shells.
-          supabase.rpc('scout_settle_shell').catch(() => {}),
+          // for the accounts that were never shells. `.then(ok, err)`, never
+          // `.catch`: the rpc builder has no catch method, and calling one threw
+          // here, before Promise.all ran, so this tab always showed an error.
+          supabase.rpc('scout_settle_shell').then(() => {}, () => {}),
         ]);
         if (!alive) return;
         if (codeRes.error) setErr(true); else setCode(codeRes.data || null);
