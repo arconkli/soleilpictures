@@ -23443,8 +23443,20 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .list-selbar-act.is-on { background: var(--bg-4); border-color: transparent; color: var(--ink-0); }
 @media (max-width: 720px) {
   .ql-btn span { display: none; }
-  .ql-nav { display: none; }
+  /* No room for the arrows beside the picture, so they ride on its edges —
+     hidden, they left a phone (no ← → keys) with no sign there was a next. */
+  .ql-nav {
+    position: absolute; top: 50%; z-index: 1; transform: translateY(-50%);
+    width: 44px; height: 44px;
+    background: rgba(8, 8, 10, 0.55); border-color: rgba(255, 255, 255, 0.12);
+  }
+  .ql-prev { left: 6px; }
+  .ql-next { right: 6px; }
   .ql .cb-detail.is-inline { display: none; }
+}
+/* Finger-sized: the bar's buttons were 38×30 and Close 34×30. */
+@media (pointer: coarse) {
+  .ql-btn { height: 44px; min-width: 44px; justify-content: center; }
 }
 
 /* ── Files: rename in place (InlineRename) ───────────────────────────────── */
