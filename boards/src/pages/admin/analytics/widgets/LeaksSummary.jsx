@@ -1,39 +1,28 @@
 // LeaksSummary — the biggest single step-to-step drop, plus the raw friction
 // events (errors / abandons) that sit off the happy path. Extracted from the
 // old AdminFunnelTab. Takes the full admin_signup_funnel `steps` array and
-// derives the waitlist / pricing chains + the leak rows itself.
+// derives the pricing chain + the leak rows itself.
 
 import { useMemo } from 'react';
 import { formatCount, formatPct } from '../../../../lib/adminFormat.js';
 import { Well } from '../../viz/Well.jsx';
 import { BarRows } from '../../viz/BarRows.jsx';
+import { buildFunnelRows } from '../../viz/funnelRows.js';
 
-function toSteps(rows) {
-  return rows.map((r, i) => {
-    const sessions = Number(r.sessions) || 0;
-    const prev = i > 0 ? (Number(rows[i - 1].sessions) || 0) : null;
-    return {
-      label: r.label,
-      drop: prev != null ? prev - sessions : 0,
-      dropPct: prev && prev > 0 ? (prev - sessions) / prev : 0,
-    };
-  });
-}
+// The pricing branch only, because it is the only branch the funnel beside
+// this draws: the waitlist chain is all zeros since the waitlist came off, and
+// scanning it alongside is how this panel used to disagree with the ⚠.
+const BRANCHES = ['pricing'];
 
 export function LeaksSummary({ steps = [] }) {
-  const core = steps.filter((s) => s.branch === 'core');
-  const waitlist = [...core, ...steps.filter((s) => s.branch === 'waitlist')];
-  const pricing  = [...core, ...steps.filter((s) => s.branch === 'pricing')];
-  const leaks    = steps.filter((s) => s.branch === 'leak');
+  const leaks = steps.filter((s) => s.branch === 'leak');
 
+  // Same rows, same rule as FunnelSteps (funnelRows.js): retired steps dropped,
+  // the fork into a branch never counted as a leak.
   const biggest = useMemo(() => {
-    const scan = (rows, name) => toSteps(rows)
-      .map((d, i) => (i === 0 ? null : { branch: name, to: d.label, from: rows[i - 1].label, drop: d.drop, dropPct: d.dropPct }))
-      .filter((x) => x && x.drop > 0);
-    const all = [...scan(waitlist, 'waitlist'), ...scan(pricing, 'pricing')];
-    all.sort((a, b) => b.dropPct - a.dropPct);
-    return all[0] || null;
-  }, [waitlist, pricing]);
+    const b = buildFunnelRows(steps, BRANCHES).biggest;
+    return b ? { from: b.from, to: b.label, drop: b.drop, dropPct: b.dropPct } : null;
+  }, [steps]);
 
   const frictionRows = leaks
     .filter((l) => Number(l.sessions) > 0)
