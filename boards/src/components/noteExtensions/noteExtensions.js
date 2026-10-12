@@ -26,6 +26,17 @@ import { NoteMention } from './NoteMention.js';
 import { NoteChecklist, NoteChecklistItem } from './NoteChecklist.js';
 import { ClearFormatting } from '../docExtensions/ClearFormatting.js';
 
+// Whether html anchors (a seeded older note, a paste) become link marks in
+// the note fragment. OFF until every open tab runs a build whose schema knows
+// the mark. y-prosemirror meets a mark its schema doesn't know by DELETING
+// that paragraph's text from the shared fragment, for every collaborator
+// (createTextNodesFromYText), and that delete is not on anyone's undo stack.
+// A tab still on a build from before Link was in this list would do exactly
+// that to the first note holding a link. So this ships in two promotes:
+// first the mark alone (this), then this flag flipped to true once the
+// pre-Link builds have aged out of open tabs.
+export const NOTE_LINK_MARKS = false;
+
 export const noteExtensions = [
   StarterKit.configure({
     // Collaboration registers its own (yUndo) history; double-registering the
@@ -66,10 +77,17 @@ export const noteExtensions = [
   // hyperlink kept only its words, and opening a note whose html had one
   // rewrote it without the URL (NOTES-09). Bare URLs are NOT stored as links:
   // they stay plain text (stripNoteChromeForSeed unwraps old auto-links) and
-  // noteLinkify links them, with their preview, on every write-through.
+  // noteLinkify links them, with their preview, on every write-through — so
+  // Link's paste rule (which marks every pasted URL) is off for good.
   // Clicks don't navigate while editing; the read-only note is where a link
   // opens. Link's own URI check drops javascript: and friends on parse.
-  Link.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
+  //
+  // Phase 1: the mark is in the schema but nothing parses INTO it (see
+  // NOTE_LINK_MARKS above), so no link mark reaches a shared fragment yet.
+  Link.extend({
+    parseHTML() { return NOTE_LINK_MARKS ? this.parent?.() : []; },
+    addPasteRules() { return []; },
+  }).configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
   ClearFormatting,
   // Custom nodes — must keep their exact html contract (see each file).
   NoteMention,

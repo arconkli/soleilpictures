@@ -144,7 +144,8 @@ export function stripNoteChromeForSeed(html) {
   // An auto-link (an anchor whose text IS its URL) is linkify's own output,
   // not something the author made: keep it as the plain URL text the editor
   // stores, so linkify re-links it (and its preview) on write-through. Only a
-  // NAMED link becomes a link mark in the fragment.
+  // NAMED link becomes a link mark in the fragment (once NOTE_LINK_MARKS in
+  // noteExtensions.js is on; until then it seeds as its words alone).
   root.querySelectorAll('a[href]').forEach((a) => {
     const text = (a.textContent || '').trim();
     const asUrl = /^https?:\/\//i.test(text) ? text : `https://${text}`;
