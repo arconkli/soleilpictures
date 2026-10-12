@@ -22868,7 +22868,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A new page is created automatically when the current one fills up, so long-form writing does not stop to manage pagination."
+     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A new page is created automatically when the current one fills up, so long-form writing does not stop to manage pagination. On a phone or a touch tablet the tree folds into a drawer: tap "
+    },
+    {
+     "t": "strong",
+     "v": "Page list",
+     "children": [
+      {
+       "t": "text",
+       "v": "Page list"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " above the toolbar to open it."
     }
    ]
   },

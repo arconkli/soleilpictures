@@ -21759,16 +21759,22 @@ button, [role="button"], a {
 .sp-scenenav-text { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
 .sp-scenenav-title { text-transform: none; color: var(--ink-2); }
 
-/* Phone: page rail becomes a slide-over drawer (desktop rail is display:none
-   at <=640px, which stranded multi-page navigation). */
+/* Phone and touch tablet: page rail becomes a slide-over drawer. The desktop
+   rail is display:none under the mobile-shell query (phone OR coarse tablet up
+   to 1024px), so the drawer has to switch on under that SAME query — gated on
+   640px alone, an iPad had a hidden rail and no button, and no way to reach a
+   second page at all. */
 .doc-mobile-pages-btn { display: none; }
-@media (max-width: 640px) {
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  /* The toolbar's typeface, not the display face: this sits directly above
+     the toolbar and read as a different kind of control. */
   .doc-mobile-pages-btn {
     display: inline-flex; align-items: center; gap: 6px;
     margin: 6px 8px; padding: 6px 12px; min-height: 36px;
     border: 1px solid var(--line-2); border-radius: 8px;
     background: var(--bg-3); color: var(--ink-1);
-    font: 600 12px var(--font-display, sans-serif); cursor: pointer;
+    font: 500 12px var(--font-sans); cursor: pointer;
   }
   .doc-surface.mobile-rail-open .doc-rail.doc-rail-left {
     display: block; position: absolute; left: 0; top: 0; bottom: 0;
@@ -21778,6 +21784,10 @@ button, [role="button"], a {
     padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   }
   .doc-surface.mobile-rail-open .doc-rail-toggle { display: none; }
+  /* The header's right padding reserves the desktop collapse chevron's slot.
+     The drawer hides that chevron, so line "New page" up with the rows'
+     "Add sub-page" column instead (body 6 + row margin 4 + row padding 10). */
+  .doc-surface.mobile-rail-open .doc-tree-head { padding-right: 20px; }
   .doc-rail-backdrop { position: absolute; inset: 0; z-index: 29; background: rgba(0,0,0,.45); }
 }
 
