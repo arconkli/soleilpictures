@@ -370,8 +370,8 @@ export function AdminDiscoverTab() {
                         </span>
                         <span style={{
                           fontSize: '.68rem', fontWeight: 700, letterSpacing: '.03em', padding: '2px 7px', borderRadius: 999,
-                          background: b.is_published ? 'rgba(80,200,120,.16)' : 'rgba(255,255,255,.08)',
-                          color: b.is_published ? '#74e39b' : 'var(--ink-2)',
+                          background: b.is_published ? 'color-mix(in srgb, var(--ok) 16%, transparent)' : 'var(--bg-2)',
+                          color: b.is_published ? 'var(--ok)' : 'var(--ink-2)',
                         }}>{b.is_published ? 'LIVE' : 'DRAFT'}</span>
                       </div>
                       <div className="t-meta admin-muted" style={{ marginTop: 2 }}>
@@ -381,14 +381,14 @@ export function AdminDiscoverTab() {
                         const st = statsBySlug[b.slug];
                         if (st && st.impressions > 0) {
                           return (
-                            <div className="t-meta" style={{ marginTop: 3, color: '#74e39b' }}>
+                            <div className="t-meta" style={{ marginTop: 3, color: 'var(--ok)' }}>
                               {st.impressions} impr · {st.clicks} clicks · pos {st.position ?? '—'}
                             </div>
                           );
                         }
                         if (b.is_published) {
                           return (
-                            <div className="t-meta" style={{ marginTop: 3, color: '#e0a366' }}>
+                            <div className="t-meta" style={{ marginTop: 3, color: 'var(--warn)' }}>
                               no search impressions yet
                             </div>
                           );
@@ -423,11 +423,11 @@ export function AdminDiscoverTab() {
                   )}
 
                   <label style={labelStyle}>Slug</label>
-                  <input style={{ ...inputStyle, borderColor: slugErr ? '#e06666' : inputStyle.border }}
+                  <input style={{ ...inputStyle, borderColor: slugErr ? 'var(--danger)' : 'var(--line-2)' }}
                          value={form.slug} onChange={onField('slug')}
                          onBlur={() => setForm((f) => ({ ...f, slug: slugify(f.slug) }))}
                          placeholder="backrooms-fanart" />
-                  <div className="t-meta" style={{ marginTop: 4, color: slugErr ? '#e06666' : 'var(--ink-2)' }}>
+                  <div className="t-meta" style={{ marginTop: 4, color: slugErr ? 'var(--danger)' : 'var(--ink-2)' }}>
                     {slugErr || `${SITE_ORIGIN}/c/${form.slug || '…'}`}
                   </div>
 
@@ -476,15 +476,15 @@ export function AdminDiscoverTab() {
                       <span style={{ fontWeight: 600 }}>SEO readiness</span>
                       <span style={{
                         fontSize: '.78rem', fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                        background: publishable ? 'rgba(80,200,120,.16)' : 'rgba(224,166,102,.16)',
-                        color: publishable ? '#74e39b' : '#e0a366',
+                        background: publishable ? 'color-mix(in srgb, var(--ok) 16%, transparent)' : 'color-mix(in srgb, var(--warn) 16%, transparent)',
+                        color: publishable ? 'var(--ok)' : 'var(--warn)',
                       }}>{score}% {publishable ? '· ready' : '· needs work'}</span>
                       {isNew && <span className="t-meta admin-muted">save as draft to run image/uniqueness checks</span>}
                     </div>
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 3 }}>
                       {checks.map((c, i) => (
                         <li key={i} className="t-meta" style={{
-                          color: c.pending ? 'var(--ink-2)' : (c.ok ? '#74e39b' : (c.required ? '#e06666' : '#e0a366')),
+                          color: c.pending ? 'var(--ink-2)' : (c.ok ? 'var(--ok)' : (c.required ? 'var(--danger)' : 'var(--warn)')),
                         }}>
                           {c.pending ? '○' : (c.ok ? '✓' : (c.required ? '✗' : '!'))} {c.label}{!c.required ? ' (recommended)' : ''}
                         </li>
@@ -498,7 +498,7 @@ export function AdminDiscoverTab() {
                     return (
                       <div className="t-meta" style={{ marginTop: 12, color: 'var(--ink-2)' }}>
                         {st && st.impressions > 0
-                          ? <>Search (last snapshot): <b style={{ color: '#74e39b' }}>{st.impressions}</b> impressions · {st.clicks} clicks · avg position {st.position ?? '—'}{st.top_query ? <> · top query “{st.top_query}”</> : null}</>
+                          ? <>Search (last snapshot): <b style={{ color: 'var(--ok)' }}>{st.impressions}</b> impressions · {st.clicks} clicks · avg position {st.position ?? '—'}{st.top_query ? <> · top query “{st.top_query}”</> : null}</>
                           : (current.is_published
                               ? <>No search impressions yet — give it time, then check it’s indexed in GSC. Import a GSC CSV to track it here.</>
                               : <>Publish + import a GSC CSV to track search performance here.</>)}
@@ -534,7 +534,7 @@ export function AdminDiscoverTab() {
                   </div>
 
                   {current?.deleted && (
-                    <p className="t-meta" style={{ color: '#e0a366', marginTop: 12 }}>
+                    <p className="t-meta" style={{ color: 'var(--warn)', marginTop: 12 }}>
                       ⚠ The underlying board was deleted — its /c page already returns nothing. Unpublish to tidy up.
                     </p>
                   )}

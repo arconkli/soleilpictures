@@ -92,6 +92,44 @@ test.describe('admin Discover (ADMIN-3)', () => {
   });
 });
 
+test.describe('admin Discover in light theme (ADMIN-12)', () => {
+  test('the editor fields and status chips are readable', async ({ page }) => {
+    await openAdmin(page, { tab: 'users', theme: 'light' });
+    await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
+    await patchRpc(page, {
+      admin_list_public_boards: { data: [{
+        board_id: '00000000-0000-4000-8000-000000000002', board_name: 'Lookbook', slug: 'lookbook',
+        is_published: true, seo_title: 'Title', seo_description: 'Desc', seo_body: '', target_keyword: '', priority: 0,
+      }], error: null },
+    });
+    await switchTab(page, 'Discover');
+    await page.getByRole('button', { name: /Lookbook/ }).click();
+    const slug = page.locator('input[placeholder="backrooms-fanart"]');
+    await expect(slug).toHaveValue('lookbook');
+
+    // WCAG contrast of an element's text against the first opaque background up its tree.
+    const contrast = (loc) => loc.evaluate((el) => {
+      const rgb = (s) => (s.match(/[\d.]+/g) || []).map(Number);
+      const lum = ([r, g, b]) => {
+        const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+      };
+      const fg = rgb(getComputedStyle(el).color);
+      let n = el; let bg = null;
+      while (n && !bg) {
+        const c = rgb(getComputedStyle(n).backgroundColor);
+        if (c.length >= 3 && (c.length < 4 || c[3] > 0.9)) bg = c;
+        n = n.parentElement;
+      }
+      bg = bg || [255, 255, 255];
+      const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      return (a + 0.05) / (b + 0.05);
+    });
+    expect(await contrast(slug)).toBeGreaterThan(4.5);
+    expect(await contrast(page.getByText('LIVE', { exact: true }).first())).toBeGreaterThan(3);
+  });
+});
+
 test.describe('admin background refresh (ADMIN-5)', () => {
   test('a failed refresh keeps the view and a half-typed note, under a notice', async ({ page }) => {
     await openAdmin(page, { view: 'today' });
