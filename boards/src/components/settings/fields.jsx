@@ -5,7 +5,7 @@
 // each widget takes a value and an onChange and lets the tab own persistence.
 //
 // Lifted verbatim out of SettingsPanel.jsx when that file passed 1900 lines.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ColorPicker } from '../ColorPicker.jsx';
 import { R2Image } from '../R2Image.jsx';
 
@@ -337,21 +337,26 @@ export function Field({ label, children }) {
   );
 }
 
+// The whole row is the click target, words included — it is drawn as one
+// (cursor:pointer), and a <label> wrapping only spans has no control to
+// forward a click to, so clicking "Comment replies" used to do nothing. The
+// switch keeps the focus and the keyboard, and takes its name from the label.
 export function Toggle({ label, desc, value, onChange }) {
+  const labelId = useId();
   return (
-    <label className="settings-toggle">
+    <div className="settings-toggle" onClick={() => onChange(!value)}>
       <span className="settings-toggle-text">
-        <span className="settings-toggle-label">{label}</span>
+        <span className="settings-toggle-label" id={labelId}>{label}</span>
         {desc && <span className="settings-toggle-desc">{desc}</span>}
       </span>
       <span className={`settings-toggle-switch ${value ? 'is-on' : ''}`}
-            onClick={() => onChange(!value)}
             onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onChange(!value); } }}
             role="switch"
             tabIndex={0}
+            aria-labelledby={labelId}
             aria-checked={value}>
         <span className="settings-toggle-thumb" />
       </span>
-    </label>
+    </div>
   );
 }
