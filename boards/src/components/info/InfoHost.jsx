@@ -8,7 +8,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DetailPanel } from '../clusterBrowser/DetailPanel.jsx';
 import { toListItem } from '../../lib/listItem.js';
 import { getMeta } from '../../lib/imageMeta.js';
-import { registerBackLayer } from '../../lib/modalGuard.js';
+// A namespace import: production's modal guard predates registerBackLayer.
+import * as modalGuard from '../../lib/modalGuard.js';
 import { INFO_EVENT, INFO_CLOSE_EVENT, readSelection, subscribeSelection, targetForSelection } from '../../lib/infoBus.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 
@@ -137,7 +138,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
     const root = document.documentElement;
     const narrow = !!window.matchMedia?.('(max-width: 640px)').matches;
     if (!narrow) root.style.setProperty('--info-drawer-w', '348px');
-    const offBack = narrow ? registerBackLayer(close) : null;
+    const offBack = narrow && typeof modalGuard.registerBackLayer === 'function' ? modalGuard.registerBackLayer(close) : null;
     return () => { root.style.removeProperty('--info-drawer-w'); offBack?.(); };
   }, [open, close]);
 
