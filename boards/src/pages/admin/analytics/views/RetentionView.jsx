@@ -261,7 +261,7 @@ export function RetentionView() {
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh}
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh}
       skeleton={<><AdminSkeleton variant="chart" /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}>
       <div className="adm-view">
         <h2 className="admin-section-title">Did they make anything</h2>
@@ -443,7 +443,7 @@ function LazyPredictors({ f }) {
   }, [f.excludeInternal, f.verifiedOnly]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <ReturnPredictors rows={q.data?.predictors || []} />
       <FirstSessionCompare rows={q.data?.firstSession || []} />
       <SessionOutcomes rows={q.data?.outcomes || []} />
@@ -463,7 +463,7 @@ function LazyFriction({ days, f }) {
   }, [days, f.excludeInternal]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
       <PostSignupDropoff data={q.data?.journeyDropoff} />
       <TimeToFirstCard data={q.data?.timeToCard} />
       <FirstCardFriction data={q.data?.friction} />
@@ -494,7 +494,7 @@ function LazySegments({ days, f }) {
   }, [days, f.excludeInternal, f.verifiedOnly]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <ActivationByDevice rows={q.data?.byDevice || []} days={days} />
       <RetentionBySource rows={q.data?.bySource || []} />
       <UserDormancy rows={q.data?.dormancy || []} />
@@ -519,7 +519,7 @@ function LazyProduct({ days, f }) {
   }, [days, f.excludeInternal, f.verifiedOnly]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <FeatureReach rows={q.data?.reach || []} />
       <FeatureAdoption rows={q.data?.adoption || []} days={Math.max(days, 30)} />
       <AdminCardsSection perDay={q.data?.perDay || []} cardStats={q.data?.cardStats} days={days} />

@@ -228,6 +228,7 @@ export function AdminTaggingTab() {
       <AdminAsync
         loading={q.loading}
         error={q.error}
+        hasData={q.hasData}
         onRetry={q.refresh}
         skeleton={<><AdminSkeleton variant="cards" rows={3} /><div style={{ height: 16 }} /><AdminSkeleton variant="table" rows={6} cols={8} /></>}
         isEmpty={tagStats.length === 0}

@@ -62,7 +62,7 @@ function WaitlistGatePanel() {
   const feedback = useFeedback();
   const [busy, setBusy] = useState(false);
 
-  const { data, loading, error, refreshing, refresh } = useAdminData(async () => {
+  const { data, loading, error, refreshing, hasData, refresh } = useAdminData(async () => {
     const { data: row, error: err } = await supabase
       .from('app_config').select('value').eq('key', 'waitlist_enabled').maybeSingle();
     if (err) throw err;
@@ -111,6 +111,7 @@ function WaitlistGatePanel() {
       <AdminAsync
         loading={loading}
         error={error}
+        hasData={hasData}
         onRetry={refresh}
         skeleton={<AdminSkeleton variant="cards" rows={1} />}
         isEmpty={false}
@@ -158,7 +159,7 @@ export function AdminWaitlistTab() {
   useEffect(() => { setPage(0); }, [debounced, statusFilter, contacted]);
   useEffect(() => { setSelected(new Set()); }, [debounced, statusFilter, contacted, page]);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
     const q = debounced || null;
     const s = statusFilter || null;
     const c = contacted || null;
@@ -395,6 +396,7 @@ export function AdminWaitlistTab() {
         <AdminAsync
           loading={loading}
           error={error}
+          hasData={hasData}
           onRetry={refresh}
           skeleton={<AdminSkeleton variant="table" rows={6} cols={COLS} />}
           isEmpty={rows.length === 0}

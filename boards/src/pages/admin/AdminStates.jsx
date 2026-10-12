@@ -138,27 +138,57 @@ export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false,
 // Renders skeleton → error(+retry) → empty → children, guaranteeing the
 // three states are mutually exclusive and empty never shadows an error.
 //   <AdminAsync loading={loading} error={error} onRetry={refresh}
+//               hasData={data !== undefined}
 //               skeleton={<AdminSkeleton variant="table" />}
 //               isEmpty={rows.length === 0}
 //               empty={{ icon: Inbox, title: 'Nothing yet', body: '…' }}>
 //     …content…
 //   </AdminAsync>
+//
+// `hasData` is for views that refresh themselves. useAdminData keeps the prior
+// data when a refetch fails, but this boundary used to swap the whole view for
+// the error anyway: one timed-out poll on Today blanked every tile and chart
+// and unmounted a half-typed marker note. With data in hand, a failed refresh
+// is a strip above the content, not a replacement for it.
 export function AdminAsync({
   loading, error, onRetry, skeleton,
+  hasData = false,
   isEmpty = false, empty,
   children,
 }) {
   if (loading) return skeleton || <AdminSkeleton />;
-  if (error)   return <AdminError error={error} onRetry={onRetry} />;
-  if (isEmpty) {
-    return (
-      <EmptyState
-        icon={empty?.icon || Inbox}
-        title={empty?.title || 'Nothing here yet'}
-        body={empty?.body}
-        action={empty?.action}
-      />
-    );
-  }
-  return children;
+  if (error && !hasData) return <AdminError error={error} onRetry={onRetry} />;
+  const body = isEmpty ? (
+    <EmptyState
+      icon={empty?.icon || Inbox}
+      title={empty?.title || 'Nothing here yet'}
+      body={empty?.body}
+      action={empty?.action}
+    />
+  ) : children;
+  // One shape whether or not the notice shows: returning bare `body` on success
+  // and a fragment on failure would change the element type at this position,
+  // and React would remount the whole view, losing exactly the state above.
+  return (
+    <>
+      {error ? <AdminStaleNotice error={error} onRetry={onRetry} /> : null}
+      {body}
+    </>
+  );
+}
+
+// The strip a failed refresh leaves above data that is still on screen. Same
+// words as the user drawer's (AdminUserDetail), so the dashboard says it one way.
+export function AdminStaleNotice({ error, onRetry }) {
+  return (
+    <div className="admin-stale-notice" role="status">
+      <Icon as={Warning} size={13} />
+      <span className="admin-stale-notice-text" title={error || undefined}>
+        Couldn’t refresh — showing last loaded data.
+      </span>
+      {onRetry && (
+        <button type="button" className="admin-stale-notice-retry" onClick={onRetry}>Retry</button>
+      )}
+    </div>
+  );
 }

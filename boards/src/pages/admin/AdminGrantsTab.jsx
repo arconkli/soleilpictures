@@ -105,7 +105,7 @@ export function AdminGrantsTab() {
   // Reset page when filters change
   useEffect(() => { setPage(0); }, [debounced, statusFilter]);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
     const q = debounced || null;
     const s = statusFilter || null;
     const [listRes, countRes, statsRes] = await Promise.all([
@@ -359,6 +359,7 @@ export function AdminGrantsTab() {
         <AdminAsync
           loading={loading}
           error={error}
+          hasData={hasData}
           onRetry={refresh}
           skeleton={<AdminSkeleton variant="table" rows={6} cols={7} />}
           isEmpty={rows.length === 0}

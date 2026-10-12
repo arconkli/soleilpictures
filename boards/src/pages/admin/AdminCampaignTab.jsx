@@ -22,7 +22,7 @@ export function AdminCampaignTab() {
   const feedback = useFeedback();
   const [busy, setBusy] = useState(false);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
     const [flagRes, countRes] = await Promise.all([
       supabase.from('app_config').select('value').eq('key', 'ad_instant_demo').maybeSingle(),
       supabase.from('ad_signups').select('user_id', { count: 'exact', head: true }),
@@ -84,6 +84,7 @@ export function AdminCampaignTab() {
         <AdminAsync
           loading={loading}
           error={error}
+          hasData={hasData}
           onRetry={refresh}
           skeleton={<AdminSkeleton variant="cards" rows={1} />}
           isEmpty={false}

@@ -1190,6 +1190,21 @@
 
 .admin-detail-refresh-error:hover { background: rgba(217,144,51,.16); }
 
+/* AdminAsync's failed-refresh strip (AdminStaleNotice): the data under it is
+   still the last good read, so this sits above it instead of replacing it. */
+.admin-stale-notice {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 12px; padding: 7px 12px; border-radius: 8px;
+  font: 600 11.5px/1.4 var(--font-sans);
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 24%, transparent);
+}
+.admin-stale-notice-text { flex: 1; min-width: 0; }
+.admin-stale-notice-retry {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0 2px;
+  text-decoration: underline; cursor: pointer;
+}
+
 /* ── Activation timeline ── */
 .admin-timeline {
   list-style: none; margin: 0; padding: 0;

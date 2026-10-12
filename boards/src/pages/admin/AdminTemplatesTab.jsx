@@ -46,7 +46,7 @@ export function AdminTemplatesTab() {
   const [filter, setFilter] = useState('published');
   const [busyId, setBusyId] = useState(null);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(
     () => adminListGridLayouts(filter === 'all' ? null : filter),
     [filter],
   );
@@ -112,6 +112,7 @@ export function AdminTemplatesTab() {
       <AdminAsync
         loading={loading}
         error={error}
+        hasData={hasData}
         onRetry={refresh}
         skeleton={<AdminSkeleton variant="list" rows={4} />}
         isEmpty={rows.length === 0}

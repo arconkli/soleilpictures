@@ -16,7 +16,7 @@ import { TierPill } from './AdminPills.jsx';
 const TIER_ORDER = ['admin', 'paid', 'demo', 'waitlist'];
 
 export function AdminStorageSection() {
-  const { data, loading, error, refreshing, refresh } = useAdminData(async () => {
+  const { data, loading, error, refreshing, hasData, refresh } = useAdminData(async () => {
     const [s, t] = await Promise.all([
       supabase.rpc('admin_storage_stats'),
       supabase.rpc('admin_storage_per_user', { p_limit: 20 }),
@@ -47,6 +47,7 @@ export function AdminStorageSection() {
         <AdminAsync
           loading={loading}
           error={error}
+          hasData={hasData}
           onRetry={refresh}
           skeleton={<AdminSkeleton variant="cards" rows={4} />}
         >

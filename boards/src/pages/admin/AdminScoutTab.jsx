@@ -41,7 +41,7 @@ function health(lastSeen) {
 }
 
 export function AdminScoutTab() {
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(
     async () => {
       const { data: rows, error: err } = await supabase.rpc('scout_admin_overview');
       if (err) throw err;
@@ -63,6 +63,7 @@ export function AdminScoutTab() {
       <AdminAsync
         loading={loading}
         error={error}
+        hasData={hasData}
         onRetry={refresh}
         skeleton={<AdminSkeleton variant="cards" rows={4} />}
       >

@@ -123,6 +123,7 @@ function Journeys({ userId, excludeInternal }) {
       <AdminAsync
         loading={q.loading}
         error={q.error}
+        hasData={q.hasData}
         onRetry={q.refresh}
         skeleton={<AdminSkeleton variant="list" rows={4} />}
         isEmpty={!q.loading && !q.error && journeys.length === 0}

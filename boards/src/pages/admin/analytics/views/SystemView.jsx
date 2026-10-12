@@ -189,7 +189,7 @@ export function SystemView() {
   const experiments = getActiveExperiments();
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <div className="adm-view">
         <h2 className="admin-section-title">Honesty</h2>
         <Deck>
@@ -244,7 +244,7 @@ function LazyExperiments({ days, f, keys }) {
   }, [days, f.excludeInternal, keys.join(',')]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       {(q.data?.arms || []).map((e) => (
         <ActivationByExperiment key={e.key} expKey={e.key} rows={e.rows} state={e.state} />
       ))}

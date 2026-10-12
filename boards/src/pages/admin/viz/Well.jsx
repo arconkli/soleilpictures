@@ -102,6 +102,7 @@ export function AsyncWell({ query, span, title, meta, foot, children, ...rest })
       <AdminAsync
         loading={query.loading}
         error={query.error}
+        hasData={query.hasData}
         onRetry={query.refresh}
         skeleton={<div className="adm-well-skeleton" />}
       >

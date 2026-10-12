@@ -55,7 +55,7 @@ export function AdminApprovalsTab({ onCountsChange }) {
   const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
   const [preview, setPreview] = useState(null);   // { board_id, board_name, slug }
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(
     () => adminListPublicBoardSubmissions(filter === 'all' ? null : filter),
     [filter],
   );
@@ -145,6 +145,7 @@ export function AdminApprovalsTab({ onCountsChange }) {
         <AdminAsync
           loading={loading}
           error={error}
+          hasData={hasData}
           onRetry={refresh}
           skeleton={<AdminSkeleton variant="list" rows={4} />}
           isEmpty={rows.length === 0}
