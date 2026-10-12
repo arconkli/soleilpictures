@@ -411,18 +411,33 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     ro.observe(paper);
     return () => ro.disconnect();
     // Re-measure when the layout changes: .is-fit-width alters the paper's own
-    // padding, and show-scene-numbers widens it further.
+    // padding, and show-scene-numbers widens it further. `ready` because the
+    // paper itself only mounts once the doc has loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitMode, docMode, sceneNumbersShow]);
+  }, [fitMode, docMode, sceneNumbersShow, ready]);
 
   // Column fit: the sheet is now wider than the paper, so open it scrolled to
-  // where the column starts (the left margin is a pan away). Re-run when the
-  // fitted zoom changes, e.g. on rotation.
+  // where the column starts (the left margin is a pan away). Once per fitted
+  // zoom, so rotation re-centres it but a sheet added while typing doesn't
+  // yank a panned view back. It has to wait for the sheet itself: on a cold
+  // open (no remembered page) the paper first renders the empty state, and
+  // even then the editor's wrap mounts a beat after the page id lands, so
+  // setting scrollLeft before the paper overflows clamps to 0 and leaves
+  // every line cut off on the right. Watch the paper until it can scroll.
   useLayoutEffect(() => {
-    if (!fitMode || !paperRef.current) return;
-    paperRef.current.scrollLeft = SP_LEFT_MARGIN * fitZoom;
+    const paper = paperRef.current;
+    if (!fitMode || !paper) return undefined;
+    const apply = () => {
+      if (paper.scrollWidth <= paper.clientWidth) return false;
+      paper.scrollLeft = SP_LEFT_MARGIN * fitZoom;
+      return true;
+    };
+    if (apply() || typeof MutationObserver === 'undefined') return undefined;
+    const mo = new MutationObserver(() => { if (apply()) mo.disconnect(); });
+    mo.observe(paper, { childList: true, subtree: true });
+    return () => mo.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitMode, fitZoom]);
+  }, [fitMode, fitZoom, ready]);
 
   // What actually gets applied. Everything downstream (CSS var, toolbar
   // readout, DocPresence coordinate math) must use this, never raw `zoom`.
