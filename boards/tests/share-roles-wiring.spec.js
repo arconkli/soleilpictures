@@ -72,7 +72,9 @@ test.describe('workspace roles wiring', () => {
   });
 
   test('the upload party reports the object size it measured', () => {
-    expect(read('party/upload.ts')).toContain('{ key, bytes: result.bytes ?? null }');
+    // Since 0387 an object is finalized only once R2 has measured it, so the
+    // success response always carries that measurement.
+    expect(read('party/upload.ts')).toContain('return Response.json({ key, bytes: result.bytes }');
     expect(read('src/lib/uploads.js')).toContain('sizeBytes: serverBytes');
   });
 });
