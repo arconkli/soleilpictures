@@ -318,6 +318,20 @@ export async function leaveConversation({ conversationId, userId }) {
   return true;
 }
 
+// Undo a hide / leave: clear your own left_at ("participants update self"
+// allows exactly your own row). Also how a hidden DM you open again takes
+// you back in, so a reply from it isn't refused for not being a member.
+export async function rejoinConversation({ conversationId, userId }) {
+  if (!conversationId || !userId) return false;
+  const { error } = await supabase
+    .from('conversation_participants')
+    .update({ left_at: null })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', userId);
+  if (error) { console.warn('rejoinConversation', error); return false; }
+  return true;
+}
+
 // ── Conversation lifecycle ──────────────────────────────────────────
 
 // Find an existing DM with peer (in this workspace) or create one.

@@ -3,6 +3,7 @@ import { listConversations, listMyConversationParticipants, getUnreadCounts } fr
 import { supabase } from '../lib/supabase.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
 import { watchForResync } from '../lib/messageResync.js';
+import { hiddenFromInbox } from '../lib/conversationState.js';
 
 // Returns the unified Messages-panel list:
 //   {
@@ -121,7 +122,12 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
     const unread = new Map();
     for (const conv of conversations) {
       const v = counts[conv.conversation_id];
-      unread.set(conv.conversation_id, typeof v === 'number' ? v : 0);
+      // A conversation the inbox doesn't show counts for nothing: the badge
+      // and title stayed lit for a hidden row nobody could click (COMMS-11).
+      const hidden = hiddenFromInbox({
+        conv, me: mine.get(conv.conversation_id), participants: byConv.get(conv.conversation_id),
+      });
+      unread.set(conv.conversation_id, !hidden && typeof v === 'number' ? v : 0);
     }
     return { participantsByConv: byConv, myStateByConv: mine, unreadByConv: unread };
   }, [conversations, participants, counts, userId]);

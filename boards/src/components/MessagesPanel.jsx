@@ -1,8 +1,12 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Plus, X } from '../lib/icons.js';
+import { Plus, X, EyeOff, LogOut } from '../lib/icons.js';
 import { useConversationList } from '../hooks/useConversationList.js';
-import { findOrCreateDm, leaveConversation } from '../lib/messages.js';
+import { findOrCreateDm, leaveConversation, rejoinConversation } from '../lib/messages.js';
+import { hiddenFromInbox, isDmConversation } from '../lib/conversationState.js';
+import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
 import { NewConversationPicker } from './NewConversationPicker.jsx';
 import { MessageThread } from './MessageThread.jsx';
 import { readOnlyCopy } from '../lib/messageAccess.js';
@@ -109,27 +113,71 @@ export function MessagesPanel({
   const [, force] = useState(0);
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
-  // Filter out conversations the current user has left.
+  // Filter out conversations the current user has left or hidden (a hidden
+  // DM comes back when the other person writes — see conversationState.js).
   const visibleConversations = useMemo(() => {
-    return (conversations || []).filter(c => {
-      const me = myStateByConv.get(c.conversation_id);
-      // If we're not a participant (shouldn't happen via RLS, but safety) — hide.
-      if (!me) return false;
-      if (me.left_at) return false;
-      return true;
-    });
-  }, [conversations, myStateByConv]);
+    return (conversations || []).filter(c => !hiddenFromInbox({
+      conv: c,
+      me: myStateByConv.get(c.conversation_id),
+      participants: participantsByConv.get(c.conversation_id),
+    }));
+  }, [conversations, myStateByConv, participantsByConv]);
 
   const handleConversationCreated = useCallback((convId) => {
     setOpenConversationId(convId);
     onRefreshRequested?.();
   }, [onRefreshRequested]);
 
+  // Hide a DM, or leave a group, from the row's menu. It used to fire on a
+  // bare right-click (or an Android long-press) with no confirmation and no
+  // undo — a full Leave for a group (COMMS-11). Now: a menu, a confirm for a
+  // group, and the house Undo toast either way.
+  const feedback = useFeedback();
+  const [rowMenu, setRowMenu] = useState(null); // { convId, x, y }
   const handleHideRow = useCallback(async (convId) => {
     if (!userId || !convId) return;
-    await leaveConversation({ conversationId: convId, userId });
+    const isGroup = !isDmConversation(participantsByConv.get(convId));
+    if (isGroup) {
+      const ok = await feedback.confirm({
+        title: 'Leave conversation',
+        message: "Leave this group? You'll stop receiving its messages.",
+        confirmLabel: 'Leave',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    const done = await leaveConversation({ conversationId: convId, userId });
+    if (!done) {
+      feedback.toast({ type: 'error', message: isGroup ? "Couldn't leave the conversation — try again." : "Couldn't hide the conversation — try again." });
+      return;
+    }
     onRefreshRequested?.();
-  }, [userId, onRefreshRequested]);
+    undoToast(feedback, {
+      message: isGroup ? 'You left the conversation' : 'Conversation hidden',
+      onUndo: async () => {
+        const back = await rejoinConversation({ conversationId: convId, userId });
+        if (!back) { feedback.toast({ type: 'error', message: "Couldn't bring the conversation back — try again." }); return; }
+        onRefreshRequested?.();
+      },
+    });
+  }, [userId, participantsByConv, onRefreshRequested, feedback]);
+
+  // Opening a DM you hid — through a toast, a permalink, or because the
+  // other person wrote again — takes you back in. Until then the server
+  // refuses your replies: you're not an active participant.
+  const myOpenState = openConversationId ? myStateByConv.get(openConversationId) : null;
+  const openIsDm = isDmConversation(openConversationId ? participantsByConv.get(openConversationId) : null);
+  const rejoinedRef = useRef(null);
+  useEffect(() => {
+    if (!openConversationId || !userId || !myOpenState?.left_at || !openIsDm) return;
+    // Once per hide: a failed attempt isn't retried on every render.
+    const key = `${openConversationId}:${myOpenState.left_at}`;
+    if (rejoinedRef.current === key) return;
+    rejoinedRef.current = key;
+    rejoinConversation({ conversationId: openConversationId, userId }).then((ok) => {
+      if (ok) onRefreshRequestedRef.current?.();
+    });
+  }, [openConversationId, userId, myOpenState?.left_at, openIsDm]);
 
   if (openConversationId) {
     const conv = conversations.find(c => c.conversation_id === openConversationId);
@@ -138,8 +186,10 @@ export function MessagesPanel({
       <MessageThread
         workspaceId={workspaceId}
         currentUser={currentUser}
-        canSend={canSendMessages}
-        readOnlyReason={readOnlyReason}
+        // A group you left is readable (a permalink, a toast) but not yours
+        // to post in; a hidden DM is rejoined above.
+        canSend={canSendMessages && !(myOpenState?.left_at && !openIsDm)}
+        readOnlyReason={canSendMessages ? 'left' : readOnlyReason}
         conversation={{
           id: openConversationId,
           title: conv?.title || null,
@@ -214,10 +264,26 @@ export function MessagesPanel({
             unreadCount={unreadByConv.get(conv.conversation_id) || 0}
             currentUserId={userId}
             onOpen={() => setOpenConversationId(conv.conversation_id)}
-            onHide={() => handleHideRow(conv.conversation_id)}
+            onMenu={(x, y) => setRowMenu({ convId: conv.conversation_id, x, y })}
           />
         ))}
       </div>
+
+      {rowMenu && (() => {
+        const parts = participantsByConv.get(rowMenu.convId) || [];
+        const isGroup = !isDmConversation(parts);
+        // Same rule as the thread's ⋯ menu: a group needs 3+ members to leave.
+        const canLeave = !isGroup || parts.filter(p => !p.left_at).length > 2;
+        return (
+          <ConversationRowMenu
+            x={rowMenu.x} y={rowMenu.y}
+            isGroup={isGroup}
+            canLeave={canLeave}
+            onPick={() => { const id = rowMenu.convId; setRowMenu(null); handleHideRow(id); }}
+            onClose={() => setRowMenu(null)}
+          />
+        );
+      })()}
 
       {composeAnchor && (
         <NewConversationPicker
@@ -233,7 +299,7 @@ export function MessagesPanel({
   );
 }
 
-function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onHide }) {
+function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
   const isUnread = unreadCount > 0;
   const peers = participants.filter(p => p.user_id !== currentUserId && !p.left_at);
   const isDm = participants.filter(p => !p.left_at).length === 2;
@@ -269,7 +335,14 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
     <button
       className={`msg-row ${isUnread ? 'is-unread' : ''}`}
       onClick={onOpen}
-      onContextMenu={(e) => { e.preventDefault(); onHide(); }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        // Keyboard context-menu key: no pointer position, so anchor on the row.
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX || r.left + 24;
+        const y = e.clientY || r.bottom;
+        onMenu(x, y);
+      }}
       title={title}
     >
       {isUnread && <span className="msg-row-dot" />}
@@ -295,6 +368,51 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
         : <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>}
     </button>
   );
+}
+
+// The row's right-click / long-press menu: Hide (a DM) or Leave (a group).
+function ConversationRowMenu({ x, y, isGroup, canLeave, onPick, onClose }) {
+  const popRef = useRef(null);
+  const [pos, setPos] = useState({ top: y, left: x });
+  useLayoutEffect(() => {
+    const el = popRef.current;
+    const w = el?.offsetWidth || 180, h = el?.offsetHeight || 40;
+    setPos({
+      top: Math.max(8, Math.min(y, window.innerHeight - h - 8)),
+      left: Math.max(8, Math.min(x, window.innerWidth - w - 8)),
+    });
+  }, [x, y]);
+  useEffect(() => {
+    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
+    // Claim Escape so the panel underneath stays open.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+  useEffect(() => { popRef.current?.querySelector('button:not(:disabled)')?.focus(); }, []);
+  return createPortal((
+    <div ref={popRef} className="msg-group-menu" role="menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
+      {isGroup ? (
+        <button
+          type="button" role="menuitem"
+          className="msg-group-menu-item is-danger"
+          onClick={canLeave ? onPick : undefined}
+          disabled={!canLeave}
+          title={canLeave ? 'Leave conversation' : 'Need 3+ members to leave'}
+        >
+          <Icon as={LogOut} size={12} /> Leave…
+        </button>
+      ) : (
+        <button type="button" role="menuitem" className="msg-group-menu-item" onClick={onPick}>
+          <Icon as={EyeOff} size={12} /> Hide conversation
+        </button>
+      )}
+    </div>
+  ), document.body);
 }
 
 function relTime(iso) {

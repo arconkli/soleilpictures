@@ -20,8 +20,12 @@ export function messagingAccess({ tier, workspace, role, userId }) {
 }
 
 // What the thread says in place of the composer, and the New chat button's
-// title, when sending isn't allowed here.
+// title, when sending isn't allowed here. 'left' is a group you left, opened
+// from a permalink or a toast.
 export function readOnlyCopy(reason) {
+  if (reason === 'left') {
+    return { notice: 'You left this conversation. You can still read it.', newChatTitle: 'New chat' };
+  }
   if (reason === 'waitlist') {
     return {
       notice: 'You can read this conversation. Sending messages opens once your account is off the waitlist.',
