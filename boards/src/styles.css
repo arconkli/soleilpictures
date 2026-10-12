@@ -8180,6 +8180,11 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   font: 500 11px/1 var(--font-sans); color: var(--ink-2);
   padding: 0; border: 0; background: none;
 }
+/* A touch-only device (a tablet or phone without a keyboard) can't press
+   Ctrl+X: the hint is noise there. */
+@media (hover: none) and (pointer: coarse) {
+  .ctx-shortcut { display: none; }
+}
 .ctx-divider { height: 1px; background: var(--line-2); margin: 4px 6px; }
 /* Non-interactive section label inside a context menu / its "Add" submenu. */
 .ctx-header {

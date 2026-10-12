@@ -468,6 +468,9 @@ function pickPresenceColor(id) {
   return PRESENCE_COLORS[Math.abs(h) % PRESENCE_COLORS.length];
 }
 const cmdKey = isMac ? '⌘' : 'Ctrl';
+// A menu's shortcut hint in the platform's own notation: '⌘X' on a Mac,
+// 'Ctrl+X' elsewhere. Gluing cmdKey to the key read 'CtrlX' off a Mac.
+const modShortcut = (key) => (isMac ? `⌘${key}` : `Ctrl+${key}`);
 
 // Shared canonical "is the user typing in an editor?" guard (see
 // lib/isEditableTarget.js). Aliased to the historical name used throughout
@@ -7284,11 +7287,11 @@ export function CanvasSurface({
             window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
           }});
         }
-        metaItems.push({ id: 'info', label: 'Info', shortcut: `${cmdKey}I`,
+        metaItems.push({ id: 'info', label: 'Info', shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }) });
         metaItems.push({ backlinks: true });
       } else {
-        metaItems.push({ id: 'info', label: `Info (${selected.size})`, shortcut: `${cmdKey}I`,
+        metaItems.push({ id: 'info', label: `Info (${selected.size})`, shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [...selected], follow: infoFollow }) });
       }
       return composeMenuSections([
@@ -7648,11 +7651,11 @@ export function CanvasSurface({
     // Info lives in the bottom meta group (added here so it's the first meta
     // row, above the backlinks + delete pushed at the very end). It opens the
     // app's Info drawer (lib/infoBus.js), which then follows the selection.
-    metaItems.push({ id: 'info', label: multi ? `Info (${selected.size})` : 'Info', shortcut: `${cmdKey}I`,
+    metaItems.push({ id: 'info', label: multi ? `Info (${selected.size})` : 'Info', shortcut: modShortcut('I'),
       run: () => openInfo({ boardId: board.id, cardIds: multi ? [...selected] : [c.id], follow: infoFollow }) });
-    clipboardItems.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
-    clipboardItems.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
-    clipboardItems.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: `${cmdKey}D`, run: doDuplicate });
+    clipboardItems.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: modShortcut('X'), run: doCut });
+    clipboardItems.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: modShortcut('C'), run: doCopy });
+    clipboardItems.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: modShortcut('D'), run: doDuplicate });
     // Arrange (z-order): mutators are singular, so for multi-select we
     // iterate in an order that preserves relative stacking:
     //   front:    low-z first  → top-most selected ends up top-most
@@ -8661,11 +8664,11 @@ export function CanvasSurface({
     }
     // View-only states (viewer share, no access) — just expose the safe
     // read-only actions. (The demo-tier upgrade CTA died with 0188.)
-    const clusterInfo = { id: 'cluster-info', label: 'Cluster info', shortcut: `${cmdKey}I`,
+    const clusterInfo = { id: 'cluster-info', label: 'Cluster info', shortcut: modShortcut('I'),
       run: () => openInfo({ boardId: board.id, clusterId: board.id, follow: infoFollow }) };
     if (!canEdit) {
       return [
-        { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
+        { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
         clusterInfo,
       ];
     }
@@ -8711,9 +8714,9 @@ export function CanvasSurface({
       { id: 'add', label: 'Add', submenu: addSubmenu },
       { header: SECTION.CLIPBOARD },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
-        shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,
+        shortcut: modShortcut('V'), disabled: clipboardSize() === 0,
         run: () => doPaste(pos) },
-      { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
+      { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
       { header: 'BOARD' },
       clusterInfo,
       { id: 'bg', label: 'Background', submenu: [
@@ -8734,7 +8737,7 @@ export function CanvasSurface({
           });
         }},
       ]},
-      { id: 'fit', label: 'Reset zoom (⌘0)', run: () => zoomAroundCenter(1 / zoomRef.current) },
+      { id: 'fit', label: 'Reset zoom', shortcut: modShortcut('0'), run: () => zoomAroundCenter(1 / zoomRef.current) },
       { id: 'export', label: 'Export', submenu: [
         { id: 'export-png', label: 'PNG image', run: async () => {
           setExportSvgMounted(true);

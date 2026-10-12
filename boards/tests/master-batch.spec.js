@@ -712,7 +712,7 @@ test.describe('Integration — new right-click items don\'t conflict', () => {
     // Old items still present.
     await expect(menu.getByText('Add', { exact: true })).toBeVisible();
     await expect(menu.getByText('Background')).toBeVisible();
-    await expect(menu.getByText('Reset zoom (⌘0)')).toBeVisible();
+    await expect(menu.getByText('Reset zoom', { exact: true })).toBeVisible();
     // New items present.
     await expect(menu.getByText('Add comment', { exact: true })).toBeVisible();
     await expect(menu.getByText('Add link…')).toBeVisible();
