@@ -12909,6 +12909,28 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-tree-add:focus-visible { opacity: 1; }
 .doc-tree-children {}
 
+/* ── Bookmarks list (under the page tree) ─────────────────────────────── */
+.doc-bookmarks { padding: 8px 4px; border-top: 1px solid var(--line-1); overflow-y: auto; max-height: 40%; flex-shrink: 0; }
+.doc-bookmarks-head { padding: 2px 8px 6px; color: var(--ink-3); }
+.doc-bookmarks-row { display: flex; align-items: center; gap: 2px; border-radius: 6px; }
+.doc-bookmarks-row:hover { background: var(--bg-hov); }
+.doc-bookmarks-item {
+  flex: 1 1 auto; min-width: 0; text-align: left; appearance: none; border: 0;
+  background: transparent; color: var(--ink-1); padding: 5px 8px;
+  cursor: pointer; font: 500 12.5px/1.3 var(--font-sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-bookmarks-row:hover .doc-bookmarks-item { color: var(--ink-0); }
+.doc-bookmarks-x {
+  appearance: none; border: 0; background: transparent; color: var(--ink-3);
+  width: 24px; height: 24px; border-radius: var(--radius); cursor: pointer;
+  display: grid; place-items: center; font-size: 14px; line-height: 1;
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.doc-bookmarks-row:hover .doc-bookmarks-x, .doc-bookmarks-x:focus-visible { opacity: 1; }
+.doc-bookmarks-x:hover { color: var(--ink-0); }
+@media (hover: none) { .doc-bookmarks-x { opacity: 1; } }
+
 /* ── Page-tree peer presence dots (live cursors at the tree level) ────── */
 /* Stack of small colored dots inline on the right of each page row, one
    per peer currently viewing/editing that page. Click → jumpToPeer.    */

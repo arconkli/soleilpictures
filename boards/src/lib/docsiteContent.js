@@ -22202,14 +22202,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "The three panes",
+   "text": "Layout",
    "inline": [
     {
      "t": "text",
-     "v": "The three panes"
+     "v": "Layout"
     }
    ],
-   "id": "the-three-panes"
+   "id": "layout"
   },
   {
    "type": "para",
@@ -22235,6 +22235,25 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "Bookmarks",
+     "children": [
+      {
+       "t": "text",
+       "v": "Bookmarks"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " under the page tree — durable anchors into specific places in the text, which survive editing around them. Add one with the bookmark button in the toolbar; click it in the list to jump there."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "The body",
      "children": [
       {
@@ -22246,25 +22265,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " in the middle, with the formatting toolbar above it."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Bookmarks",
-     "children": [
-      {
-       "t": "text",
-       "v": "Bookmarks"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " on the right — durable anchors into specific places in the text, which survive editing around them."
     }
    ]
   },
@@ -24231,7 +24231,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Not annotation but adjacent: bookmarks are durable anchors into specific places in a document, listed in the right pane. They survive edits around them, so a bookmark on \"the end of act two\" stays there as the act changes length."
+     "v": "Not annotation but adjacent: bookmarks are durable anchors into specific places in a document, listed under the page tree. They survive edits around them, so a bookmark on \"the end of act two\" stays there as the act changes length."
     }
    ]
   }

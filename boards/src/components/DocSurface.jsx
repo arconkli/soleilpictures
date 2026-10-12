@@ -26,6 +26,7 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { DocPageTree } from './DocPageTree.jsx';
+import { DocBookmarkList } from './DocBookmarkList.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
@@ -572,12 +573,23 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // an empty sheet" effect — which never moved content and stranded the caret —
   // is gone. Screenplay still uses its own line-accurate ScreenplayPagination.
 
-  // Honor a "jump to this bookmark on open" request that came in via a
-  // soleil:// link from another doc. Switch to its page first; the editor
-  // mounts and we scroll once it's ready.
+  // Honor a "jump to this bookmark" request: from the Bookmarks list under
+  // the page tree, a soleil://bookmark link inside this doc, or a host's
+  // pendingBookmark prop. Switch to its page first; the editor mounts and we
+  // scroll once it's ready.
+  const [localBookmarkJump, setLocalBookmarkJump] = useState(null);
+  const bookmarkJump = localBookmarkJump || pendingBookmark || null;
   useEffect(() => {
-    if (!pendingBookmark || !ready) return;
-    const target = bookmarks.find(b => b.id === pendingBookmark.bookmarkId);
+    const onOpen = (e) => {
+      const id = e.detail?.bookmarkId;
+      if (id && bookmarks.some(b => b.id === id)) setLocalBookmarkJump({ bookmarkId: id });
+    };
+    document.addEventListener('soleil-open-bookmark', onOpen);
+    return () => document.removeEventListener('soleil-open-bookmark', onOpen);
+  }, [bookmarks]);
+  useEffect(() => {
+    if (!bookmarkJump || !ready) return;
+    const target = bookmarks.find(b => b.id === bookmarkJump.bookmarkId);
     if (!target) return;
     setActivePageId(target.pageId);
     let tries = 0;
@@ -602,11 +614,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         const el = dom?.nodeType === 3 ? dom.parentElement : dom;
         el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       } catch (_) {}
-      onPendingBookmarkConsumed?.();
+      if (localBookmarkJump) setLocalBookmarkJump(null);
+      else onPendingBookmarkConsumed?.();
     };
     tick();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingBookmark, ready, bookmarks]);
+  }, [bookmarkJump, ready, bookmarks]);
 
   const handleNavigateTarget = (target) => {
     switch (target?.kind) {
@@ -757,7 +770,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // ({ pageId: null, scrollTop: 0 }), so only a pendingScroll that names a
     // page or a spot is a real jump.
     const jumping = !!pendingScroll && (!!pendingScroll.pageId || (pendingScroll.scrollTop || 0) > 0);
-    restoreRef.current = (saved && saved.pageId === activePageId && !jumping && !pendingBookmark)
+    restoreRef.current = (saved && saved.pageId === activePageId && !jumping && !bookmarkJump)
       ? saved : false;
   }
 
@@ -956,6 +969,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit && !isPublic}
+          />
+        )}
+        {rails.left && (
+          <DocBookmarkList
+            ydoc={ydoc}
+            scope={scope}
+            bookmarks={bookmarks}
+            pages={pages}
+            canEdit={canEdit && !isPublic}
+            onJump={(id) => { setLocalBookmarkJump({ bookmarkId: id }); setMobileRailOpen(false); }}
           />
         )}
         {rails.left && docMode === 'screenplay' && (
