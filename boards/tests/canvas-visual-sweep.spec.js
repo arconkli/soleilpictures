@@ -52,3 +52,48 @@ test.describe('VS-CANVAS-01 shape labels', () => {
     await page.screenshot({ path: test.info().outputPath('shapes-dark.png') });
   });
 });
+
+// The full menu, measured: its box, whether the last row is inside the window
+// after scrolling it to the end, and its row texts.
+const menuState = (page) => page.locator('.ctx-menu:not(.ctx-submenu)').first().evaluate(async (el) => {
+  // The open animation slides the menu 4px; measure where it comes to rest.
+  await Promise.all(el.getAnimations().map((a) => a.finished));
+  el.scrollTop = el.scrollHeight;
+  const r = el.getBoundingClientRect();
+  const rows = [...el.querySelectorAll(':scope > .ctx-item, :scope > .ctx-submenu-wrap > .ctx-item')];
+  const last = rows[rows.length - 1].getBoundingClientRect();
+  return { top: r.top, bottom: r.bottom, lastBottom: last.bottom, ih: window.innerHeight, text: rows.map((b) => b.textContent) };
+});
+
+test.describe('VS-CANVAS-02/03 context menus stay inside the window', () => {
+  test('a touch tablet card menu opened low keeps Delete reachable', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 }, hasTouch: true });
+    const page = await ctx.newPage();
+    await plant(page, [{ id: 'sh1', kind: 'shape', shape: 'rect', x: 140, y: 360, w: 160, h: 90, label: 'Low' }]);
+    const card = await rect(page, '[data-card-id="sh1"]');
+    // A right-click near the card's top, the way the sweep opened it.
+    await page.mouse.click(card.x + 20, Math.min(card.y + 10, 600), { button: 'right' });
+    await expect(page.locator('.ctx-menu:not(.ctx-submenu)')).toBeVisible();
+    const m = await menuState(page);
+    expect(m.text.at(-1)).toContain('Delete');
+    expect(m.top).toBeGreaterThanOrEqual(8);
+    expect(m.bottom).toBeLessThanOrEqual(m.ih - 8 + 0.5);
+    expect(m.lastBottom).toBeLessThanOrEqual(m.ih);
+    await page.screenshot({ path: test.info().outputPath('tablet-card-menu.png') });
+    await ctx.close();
+  });
+
+  test('the canvas menu opened at the bottom-right corner is fully on screen', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await plant(page, []);
+    await page.mouse.click(1380, 820, { button: 'right' });
+    // Park the pointer off the menu so a hovered row doesn't open a submenu.
+    await page.mouse.move(700, 120);
+    await expect(page.locator('.ctx-menu:not(.ctx-submenu)')).toBeVisible();
+    const m = await menuState(page);
+    expect(m.top).toBeGreaterThanOrEqual(8);
+    expect(m.bottom).toBeLessThanOrEqual(m.ih - 8 + 0.5);
+    expect(m.lastBottom).toBeLessThanOrEqual(m.ih);
+    await page.screenshot({ path: test.info().outputPath('bg-menu-br.png') });
+  });
+});

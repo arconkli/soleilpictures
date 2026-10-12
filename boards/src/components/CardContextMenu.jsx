@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
+import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
 
 export function CardContextMenu({ open, x, y, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
@@ -136,11 +137,17 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
     };
   }, [open, onClose]);
 
-  if (!open) return null;
   // The TAGS block (head + chip row + divider) is ~44px on top of the rows.
   // Reserved whenever the tags fetch runs, not once tags arrive: they load
   // after the menu opens, and a menu near the bottom jumped up 44px then.
   const canHaveTags = !!(supabase && workspaceId && boardId && card?.id);
+  const tagReserve = canHaveTags && appliedTags.length === 0 ? 44 : 0;
+  // The row-count guess below only seeds the first render; this measures the
+  // rendered menu and re-fits it before paint (see lib/ctxMenuFit.js).
+  const menuRef = useRef(null);
+  useFitMenuToViewport(menuRef, open, y, tagReserve);
+
+  if (!open) return null;
   const w = 220, hEst = items.length * 30 + 8 + (canHaveTags ? 44 : 0);
   const px = Math.max(8, Math.min(x, window.innerWidth  - w  - 8));
   // Floored at the top edge: on a short window (a landscape phone, or an image
@@ -169,7 +176,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   const hasBacklinksPlaceholder = items.some(it => it.backlinks);
 
   return (
-    <div className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={onMenuKeyDown}>
+    <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={onMenuKeyDown}>
       {card?.id && appliedTags.length > 0 && (
         <>
           <div className="ctx-tags-head">TAGS</div>

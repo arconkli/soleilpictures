@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
+import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
 
 export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId, boardId, boardName }) {
   // Combined count from BOTH manual entity_links targeting the board
@@ -60,6 +61,12 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
     };
   }, [open, onClose]);
 
+  // The row-count guess below only seeds the first render (it counted headers
+  // and dividers as 30px rows; real rows are 33px): this measures the rendered
+  // menu and re-fits it before paint (see lib/ctxMenuFit.js).
+  const menuRef = useRef(null);
+  useFitMenuToViewport(menuRef, open, y);
+
   if (!open) return null;
   const w = 240, hEst = items.length * 30 + 8;
   const px = Math.max(8, Math.min(x, window.innerWidth  - w  - 8));
@@ -68,7 +75,7 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
   const py = Math.max(8, Math.min(y, window.innerHeight - hEst - 8));
 
   return (
-    <div className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu">
+    <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu">
       {items.map((it, i) => {
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
         if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
