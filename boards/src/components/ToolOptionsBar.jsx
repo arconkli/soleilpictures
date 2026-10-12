@@ -175,7 +175,21 @@ function applyStyleOrNoteDefault(style, applyNoteDefault) {
     // Selection → style the selection (inline mark); collapsed caret → set the
     // whole-note base via the card-level prop. Same contract as the legacy path.
     if (!editor.state.selection.empty) applyEditorStyle(editor, style);
-    else applyNoteDefault?.();
+    else {
+      applyNoteDefault?.();
+      // The card write never touches the editor, so focus stayed wherever the
+      // control left it (the size box blurs to <body> on Enter) and the note,
+      // which only leaves edit mode on its own blur, sat "editing" with
+      // nothing focused (NOTES-13). Hand the caret back — unless the user is
+      // still typing into a control (the custom colour pad's hex field
+      // applies live, keystroke by keystroke).
+      requestAnimationFrame(() => {
+        if (getActiveNoteEditor() !== editor || editor.isDestroyed || editor.isFocused) return;
+        const a = document.activeElement;
+        if (a && a !== document.body && a.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+        editor.commands.focus();
+      });
+    }
     notifyFormatChanged();
     return;
   }
@@ -954,7 +968,12 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
   return (
     <div {...tobProps}
          ref={barRef}
-         onPointerDown={(e) => e.stopPropagation()}>
+         onPointerDown={(e) => e.stopPropagation()}
+         // A press on the bar's padding, a separator or a label would move
+         // focus to <body>, which the note reads as leaving it: editing ended
+         // and the bar vanished under the cursor (NOTES-14). Fields still
+         // take focus normally.
+         onMouseDown={(e) => { if (!e.target.closest?.('input, select, textarea')) e.preventDefault(); }}>
       {showTypography && (
         <>
           <FontPicker currentLabel={display.fontFamily || 'Font'}

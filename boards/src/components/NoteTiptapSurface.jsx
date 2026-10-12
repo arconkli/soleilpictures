@@ -44,6 +44,7 @@ import { linkifyNoteHtml } from '../lib/noteLinkify.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
+import { anyModalOpen } from '../lib/modalGuard.js';
 import { startTouchScrollGesture } from '../lib/touchScroll.js';
 import './noteTiptap.css';
 
@@ -54,8 +55,9 @@ const NOTE_AUTOSIZE_MAX = 480;
 // custom-font dialog (.cfont) is one: it takes focus for its name field, and
 // reading that as an exit unmounted the bar that owns it, so the dialog
 // vanished within a frame (NOTES-04). Modal hands focus back to the note when
-// it closes.
-const EDIT_SESSION_UI = '.tob, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
+// it closes. The toolbar's own popovers (swatches, fonts, size presets) are
+// portaled out of .tob, so they are named too.
+const EDIT_SESSION_UI = '.tob, .tob-pop, .font-pop, .size-combo-pop, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
 const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
 
 export function NoteTiptapSurface({
@@ -376,6 +378,29 @@ export function NoteTiptapSurface({
     editor.on('blur', onBlur);
     return () => editor.off('blur', onBlur);
   }, [editor, fragment]);
+
+  // The blur above is the only exit, so once focus has moved into a toolbar
+  // field (the size box, the colour pad's hex) and then gone nowhere, the note
+  // stayed in edit mode with nothing focused: a click on the canvas no longer
+  // closed it, and opening another note left two "editing" (NOTES-13). A press
+  // outside the note and its session UI, while the editor is not focused, is
+  // that missing exit. A field still holding a typed value is blurred first,
+  // so the value it commits on blur lands before the bar unmounts.
+  useEffect(() => {
+    if (!editor) return undefined;
+    const onDown = (e) => {
+      if (editor.isDestroyed || editor.isFocused) return;
+      if (mentionOpenRef.current || commentUiOpenRef.current || anyModalOpen()) return;
+      const t = e.target;
+      if (editor.view.dom.contains(t) || inEditSessionUi(t)) return;
+      const a = document.activeElement;
+      if (a && a !== document.body && inEditSessionUi(a)) { try { a.blur(); } catch (_) {} }
+      exitEdit();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
 
   // When the comment UI closes the editor no longer has focus, so the blur
   // that normally ends editing will never come. A click somewhere else on the
