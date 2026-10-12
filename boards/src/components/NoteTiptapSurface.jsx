@@ -49,6 +49,15 @@ import './noteTiptap.css';
 
 const NOTE_AUTOSIZE_MAX = 480;
 
+// UI that belongs to this editing session, wherever it is portaled: focus or a
+// click landing in any of these is still "in the note", not leaving it. The
+// custom-font dialog (.cfont) is one: it takes focus for its name field, and
+// reading that as an exit unmounted the bar that owns it, so the dialog
+// vanished within a frame (NOTES-04). Modal hands focus back to the note when
+// it closes.
+const EDIT_SESSION_UI = '.tob, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
+const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
+
 export function NoteTiptapSurface({
   ydoc,
   cardYMap,
@@ -360,11 +369,7 @@ export function NoteTiptapSurface({
   useEffect(() => {
     if (!editor) return undefined;
     const onBlur = ({ event }) => {
-      const next = event?.relatedTarget;
-      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker') || next.closest?.('.cand-pop')
-          || next.closest?.('.inline-composer') || next.closest?.('.comment-inline-pop'))) {
-        return;
-      }
+      if (inEditSessionUi(event?.relatedTarget)) return;
       if (mentionOpenRef.current || commentUiOpenRef.current) return;
       exitEdit();
     };
