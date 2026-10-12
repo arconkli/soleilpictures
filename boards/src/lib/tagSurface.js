@@ -79,3 +79,19 @@ export function effectiveTypeFilter(stored, typeCounts) {
   const n = typeCounts?.get ? typeCounts.get(stored) : 0;
   return n > 0 ? stored : 'all';
 }
+
+// ── Menu placement ──────────────────────────────────────────────────────
+// Place a fixed context menu of (width × height) at the pointer, flipping to
+// the other side of the cursor when it would run off the right or bottom
+// edge, and never past the padding on any side. The sidebar tag menu and the
+// tag page's item menu used the raw pointer, so near the bottom of a long
+// tag list "Delete tag" was clipped off-screen (a fixed menu can't scroll).
+export function clampMenuPosition({ x, y, width, height, vw, vh, pad = 8 }) {
+  let left = x;
+  let top = y;
+  if (left + width + pad > vw) left = x - width;
+  if (top + height + pad > vh) top = y - height;
+  left = Math.max(pad, Math.min(left, vw - width - pad));
+  top = Math.max(pad, Math.min(top, vh - height - pad));
+  return { left, top };
+}

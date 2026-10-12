@@ -41,3 +41,23 @@ test('TAGS-13: Escape while feedback is sending keeps the modal, and a failed se
   await page.keyboard.press('Escape');
   await expect(modal).toBeHidden();
 });
+
+test('TAGS-15: the sidebar tag menu opened near the bottom of the window stays on screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await probe(page, 'mountSidebarTags', 40);
+  const rows = page.locator('.tags-probe-host .sb-tag-row');
+  await expect(rows.first()).toBeVisible();
+  const last = rows.last();
+  await last.scrollIntoViewIfNeeded();
+  const box = await last.boundingBox();
+  // Right-click the bottom row a few px above the window's bottom edge.
+  await last.click({ button: 'right', position: { x: 20, y: Math.max(2, box.height - 4) } });
+  const menu = page.locator('.sb-tag-menu');
+  await expect(menu).toBeVisible();
+  const m = await menu.boundingBox();
+  expect(m.y).toBeGreaterThanOrEqual(0);
+  expect(m.y + m.height, 'menu bottom inside the viewport').toBeLessThanOrEqual(700);
+  expect(m.x + m.width, 'menu right edge inside the viewport').toBeLessThanOrEqual(1200);
+  const del = await menu.getByText('Delete tag').boundingBox();
+  expect(del.y + del.height, '"Delete tag" reachable').toBeLessThanOrEqual(700);
+});

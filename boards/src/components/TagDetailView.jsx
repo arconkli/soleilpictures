@@ -32,6 +32,7 @@ import {
   getRelatedEntities, TAG_LINKS_CHANGED,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { useClampedMenuPosition } from '../hooks/useClampedMenuPosition.js';
 import { undoToast } from '../lib/undoToast.js';
 import { getKind } from '../lib/entityKinds.js';
 import { ImageLightbox } from './ImageLightbox.jsx';
@@ -145,6 +146,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   };
   // Right-click menu state.
   const [menu, setMenu] = useState(null); // { x, y, kind, id, boardId, source }
+  const menuRef = useRef(null);
+  const menuPos = useClampedMenuPosition(menuRef, menu?.x, menu?.y);
   useEffect(() => {
     if (!menu) return;
     const onAway = (e) => { if (!e.target.closest?.('.tag-detail-menu')) setMenu(null); };
@@ -1172,7 +1175,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
 
       {menu && (
         <div className="tag-detail-menu" role="menu"
-             style={{ position: 'fixed', left: menu.x, top: menu.y, zIndex: 60 }}
+             ref={menuRef}
+             style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, zIndex: 60 }}
              onMouseDown={(e) => e.stopPropagation()}>
           <button className="tag-detail-menu-item" role="menuitem"
                   onClick={() => {

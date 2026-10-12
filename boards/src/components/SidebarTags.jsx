@@ -22,6 +22,7 @@ import { coalesce, touchesAppliedTag } from '../lib/tagSurface.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useCandidateNames } from '../hooks/useCandidateNames.js';
+import { useClampedMenuPosition } from '../hooks/useClampedMenuPosition.js';
 import { ENTITY_TYPES, entityTypeLabel, guessEntityType } from '../lib/entityTypes.js';
 import { levenshtein } from '../lib/stringSim.js';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -79,6 +80,8 @@ export function SidebarTags({
   const [counts, setCounts] = useState(new Map());
   const [tagFilter, setTagFilter] = useState(''); // filter the main tag list when there are many
   const [menuFor, setMenuFor] = useState(null);  // { tag, x, y }
+  const menuRef = useRef(null);
+  const menuPos = useClampedMenuPosition(menuRef, menuFor?.x, menuFor?.y);
   // Merge picker — { fromTag, query } when user picks "Merge into…"
   const [mergePicker, setMergePicker] = useState(null);
   // Color picker for recolor — { tag, x, y } when active.
@@ -540,7 +543,8 @@ export function SidebarTags({
 
       {menuFor && (
         <div className="sb-tag-menu"
-             style={{ position: 'fixed', left: menuFor.x, top: menuFor.y }}
+             ref={menuRef}
+             style={{ position: 'fixed', left: menuPos.left, top: menuPos.top }}
              role="menu">
           <button className="sb-tag-menu-item" onClick={() => promptRename(menuFor.tag)}>Rename</button>
           <button className="sb-tag-menu-item" onClick={() => promptRecolor(menuFor.tag)}>Recolor</button>

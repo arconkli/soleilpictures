@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isDeleteEvent, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, coalesce,
-  effectiveTypeFilter,
+  effectiveTypeFilter, clampMenuPosition,
 } from './tagSurface.js';
 
 // What Supabase realtime actually delivers for entity_links under RLS +
@@ -92,4 +92,19 @@ test('a remembered type filter only applies to a tag that has that kind', () => 
   assert.equal(effectiveTypeFilter('all', counts), 'all');
   assert.equal(effectiveTypeFilter(null, counts), 'all');
   assert.equal(effectiveTypeFilter('note', new Map()), 'all', 'nothing synced yet → nothing to filter');
+});
+
+test('a context menu stays on screen: it opens at the pointer, or flips', () => {
+  const vp = { vw: 1000, vh: 800, width: 180, height: 200 };
+  assert.deepEqual(clampMenuPosition({ ...vp, x: 100, y: 100 }), { left: 100, top: 100 }, 'room: at the pointer');
+  // Right-clicked a row 60px from the bottom: open upward, ending at the pointer.
+  assert.deepEqual(clampMenuPosition({ ...vp, x: 100, y: 740 }), { left: 100, top: 540 });
+  // Near the right edge: open leftward.
+  assert.deepEqual(clampMenuPosition({ ...vp, x: 950, y: 100 }), { left: 770, top: 100 });
+  // Bottom-right corner: both.
+  assert.deepEqual(clampMenuPosition({ ...vp, x: 990, y: 790 }), { left: 810, top: 590 });
+  // A menu taller than the room above and below still lands inside the padding.
+  const tall = clampMenuPosition({ vw: 400, vh: 300, width: 180, height: 280, x: 10, y: 150 });
+  assert.equal(tall.top, 8);
+  assert.ok(tall.left >= 8 && tall.left + 180 <= 400 - 8);
 });
