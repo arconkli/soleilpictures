@@ -88,6 +88,12 @@ function _scheduleWhenIdle(fn) {
   return () => { cancelled = true; };
 }
 
+// Soft-deleted tags (0240 — also what a merge leaves behind) keep their row
+// for 30 days. Scoring them kept writing hidden applications and suggestions
+// that resurfaced on restore / undo-merge / recreate. Same filter as
+// listWorkspaceTags: or() rather than neq() so a NULL status stays live.
+const LIVE_TAGS = 'status.is.null,status.neq.deleted';
+
 // Strip HTML tags / entities and collapse whitespace before sending text to
 // the embedding model. Saves tokens and improves quality — `<span style=...>`
 // markup has no semantic meaning, but the embedder will still weight it.
@@ -175,6 +181,13 @@ export function useAiTagger(workspaceId) {
   // tagId -> centroid (plain number[]). In-memory only; persisted to
   // tag_centroids table for cold-start performance.
   const centroidsRef = useRef(new Map());
+  // Centroids of LIVE tags only, for workspace discovery. centroidsRef keeps
+  // a deleted tag's centroid (a restore would otherwise re-seed it from the
+  // name and overwrite the learned one), so discovery gets a filtered view.
+  const liveCentroids = () => {
+    const live = new Set(tagsRef.current.map(t => t.id));
+    return new Map([...centroidsRef.current].filter(([id]) => live.has(id)));
+  };
   // tag-name embedding promise dedup — multiple suggestTags calls in flight
   // shouldn't each kick off the same embed call for an uncentroided tag.
   const centroidPromisesRef = useRef(new Map());
@@ -223,7 +236,8 @@ export function useAiTagger(workspaceId) {
       const [tagsResp, centroidsResp, appliedResp] = await Promise.all([
         supabase.from('tags')
           .select('id, name, slug, color, description')
-          .eq('workspace_id', workspaceId),
+          .eq('workspace_id', workspaceId)
+          .or(LIVE_TAGS),
         supabase.from('tag_centroids')
           .select('tag_id, centroid')
           .eq('workspace_id', workspaceId),
@@ -282,7 +296,7 @@ export function useAiTagger(workspaceId) {
               if (cancelled) return;
               runWorkspaceDiscovery({
                 workspaceId,
-                tagCentroids: centroidsRef.current,
+                tagCentroids: liveCentroids(),
                 embeddingCache: cardEmbeddingCacheRef.current,
               }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
             });
@@ -474,7 +488,7 @@ export function useAiTagger(workspaceId) {
             // Update tagsRef.
             const { data } = await supabase.from('tags')
               .select('id, name, slug, color, description')
-              .eq('workspace_id', workspaceId);
+              .eq('workspace_id', workspaceId).or(LIVE_TAGS);
             tagsRef.current = data || [];
             // Seed centroid from name (lazy fallback) then kick off backfill.
             const centroid = await ensureCentroidFn.current?.(tag);
@@ -501,7 +515,7 @@ export function useAiTagger(workspaceId) {
           async () => {
             const { data } = await supabase.from('tags')
               .select('id, name, slug, color, description')
-              .eq('workspace_id', workspaceId);
+              .eq('workspace_id', workspaceId).or(LIVE_TAGS);
             tagsRef.current = data || [];
           })
       .on('postgres_changes',
@@ -514,7 +528,7 @@ export function useAiTagger(workspaceId) {
             }
             const { data } = await supabase.from('tags')
               .select('id, name, slug, color, description')
-              .eq('workspace_id', workspaceId);
+              .eq('workspace_id', workspaceId).or(LIVE_TAGS);
             tagsRef.current = data || [];
           });
     ch.subscribe();
@@ -583,7 +597,7 @@ export function useAiTagger(workspaceId) {
       discoveryDebounceRef.current = null;
       runWorkspaceDiscovery({
         workspaceId,
-        tagCentroids: centroidsRef.current,
+        tagCentroids: liveCentroids(),
         embeddingCache: cardEmbeddingCacheRef.current,
       }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
     }, 4000);
