@@ -42,7 +42,7 @@ export function MessageThread({
   const conversationId = conversation?.id;
   const feedback = useFeedback();
 
-  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed } = useMessageThread({
+  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
   });
@@ -780,6 +780,9 @@ export function MessageThread({
             <span>Couldn't load messages.</span>
             <button type="button" className="msg-retry-btn" onClick={() => refetch()}>Retry</button>
           </div>
+        ) : isEmpty && loading ? (
+          // Still reading this conversation: not "No messages yet".
+          null
         ) : isEmpty ? (
           <div className="msg-empty msg-empty-hero">
             <SoleilMark size={32} color="var(--soleil)" glow />

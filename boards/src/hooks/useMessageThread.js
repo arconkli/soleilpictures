@@ -6,7 +6,9 @@ import { tabIsAttended } from '../lib/threadAttention.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
 import { watchForResync } from '../lib/messageResync.js';
 
-// Returns { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed }
+const NO_MESSAGES = [];
+
+// Returns { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed, loading }
 // for a single conversation. `messages` is the newest page plus whatever
 // older history the reader has paged back to with loadOlder().
 //   conversationId — the conversation to load
@@ -40,35 +42,59 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   // to old messages reach the screen (the newest page alone never covers them).
   const historyFromRef = useRef(null);
 
+  // The conversation whose first read has settled — until then the thread is
+  // loading, not empty.
+  const [loadedFor, setLoadedFor] = useState(null);
+  // Reads overlap (a send's refetch, a peer's nudge, a resync); only the
+  // newest one may paint. An older snapshot landing last took back a message
+  // you had just sent, after its optimistic bubble was gone (COMMS-23).
+  const seqRef = useRef(0);
+  const latestReadRef = useRef(null);
+
   useEffect(() => {
     reachedStartRef.current = false;
     historyFromRef.current = null;
     setHasOlder(false);
     setFailed(false);
+    // The thread isn't remounted on a switch: drop the last conversation's
+    // rows rather than show them under this one's header (COMMS-23).
+    setMessages(prev => (prev.length && prev[0].conversation_id !== conversationId ? [] : prev));
   }, [conversationId]);
 
-  const refetch = useCallback(async () => {
-    if (!conversationId) { setMessages([]); setHasOlder(false); setFailed(false); return; }
-    const rows = await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
-    if (convRef.current !== conversationId) return;
-    setFailed(rows == null);
-    if (rows == null) {
-      // A failed read keeps this thread on screen, but never the previous
-      // one: the thread isn't remounted on a switch, so a failed first read
-      // would otherwise paint the last conversation under this header.
-      setMessages(prev => prev.filter(m => m.conversation_id === conversationId));
-      return;
-    }
-    const historyFrom = historyFromRef.current;
-    let history = null;
-    if (historyFrom && rows.length >= MESSAGE_PAGE) {
-      history = await fetchConversationRange({ conversationId, from: historyFrom, to: rows[0].created_at });
+  const refetch = useCallback(() => {
+    const seq = ++seqRef.current;
+    // A read overtaken by a newer one resolves when THAT one has painted, so
+    // a caller awaiting refetch() (the optimistic send) still finds its row
+    // on screen when it resumes.
+    const superseded = () => seq !== seqRef.current;
+    const read = (async () => {
+      if (!conversationId) { setMessages([]); setHasOlder(false); setFailed(false); return; }
+      const rows = await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
       if (convRef.current !== conversationId) return;
-    }
-    setMessages(prev => mergeNewestPage(prev, rows, {
-      conversationId, pageSize: MESSAGE_PAGE, history, historyFrom,
-    }));
-    setHasOlder(rows.length >= MESSAGE_PAGE && !reachedStartRef.current);
+      if (superseded()) return latestReadRef.current;
+      setFailed(rows == null);
+      setLoadedFor(conversationId);
+      if (rows == null) {
+        // A failed read keeps this thread on screen, but never the previous
+        // one: the thread isn't remounted on a switch, so a failed first read
+        // would otherwise paint the last conversation under this header.
+        setMessages(prev => prev.filter(m => m.conversation_id === conversationId));
+        return;
+      }
+      const historyFrom = historyFromRef.current;
+      let history = null;
+      if (historyFrom && rows.length >= MESSAGE_PAGE) {
+        history = await fetchConversationRange({ conversationId, from: historyFrom, to: rows[0].created_at });
+        if (convRef.current !== conversationId) return;
+        if (superseded()) return latestReadRef.current;
+      }
+      setMessages(prev => mergeNewestPage(prev, rows, {
+        conversationId, pageSize: MESSAGE_PAGE, history, historyFrom,
+      }));
+      setHasOlder(rows.length >= MESSAGE_PAGE && !reachedStartRef.current);
+    })();
+    latestReadRef.current = read;
+    return read;
   }, [conversationId]);
 
   useEffect(() => { refetch(); }, [refetch]);
@@ -116,7 +142,10 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   // reader comes back to the tab — keyed on the newest id, not the length,
   // which stops moving at a full page and jumps when older history loads.
   // After marking, notify the parent so unread counts refresh.
-  const lastId = lastMessageId(messages);
+  // Never hand out the previous conversation's rows, not even for the one
+  // render before the switch effect clears them.
+  const shown = messages.length && messages[0].conversation_id !== conversationId ? NO_MESSAGES : messages;
+  const lastId = lastMessageId(shown);
   useEffect(() => {
     if (!userId || !conversationId || !attended) return;
     let cancelled = false;
@@ -155,5 +184,8 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     return () => { resync.stop(); unsubInbox(); unsub(); };
   }, [conversationId, userId, refetch]);
 
-  return { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed };
+  return {
+    messages: shown, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed,
+    loading: !!conversationId && loadedFor !== conversationId,
+  };
 }
