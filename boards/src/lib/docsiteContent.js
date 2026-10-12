@@ -32199,7 +32199,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (opens, reads, comments and votes, but does not change anything). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Only the owner can hand the workspace to another member. Everyone else sees the list."
+     "v": " (opens, reads, comments and votes, but does not change anything). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Someone invited who has no account yet is listed too, as an invite that gets access when they sign up, and the owner and co-owners can revoke it from there. Only the owner can hand the workspace to another member. Everyone else sees the list."
     }
    ]
   },

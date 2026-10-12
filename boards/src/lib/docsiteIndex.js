@@ -2576,7 +2576,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-10-10",
+    "updated": "2026-10-12",
     "navLabel": "Settings",
     "headings": [
       {
