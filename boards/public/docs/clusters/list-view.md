@@ -293,6 +293,10 @@ version…** too.
 Drag files into Files, or use **Add files** in the toolbar. They land on the
 cluster exactly as if dropped on the canvas, auto-placed in free space.
 
+Drop a single file onto a file of the same kind instead, and it becomes that
+file's [next version](/docs/files#versions) — the file lights up and says so
+first. Hold `⌥` to add it as a separate file.
+
 ## Presence
 
 Files shows who else is in the cluster, and what they have selected — the

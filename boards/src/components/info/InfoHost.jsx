@@ -8,13 +8,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DetailPanel } from '../clusterBrowser/DetailPanel.jsx';
 import { toListItem } from '../../lib/listItem.js';
 import { getMeta } from '../../lib/imageMeta.js';
-import { registerBackLayer } from '../../lib/modalGuard.js';
+// A namespace import: production's modal guard predates registerBackLayer.
+import * as modalGuard from '../../lib/modalGuard.js';
 import { INFO_EVENT, INFO_CLOSE_EVENT, readSelection, subscribeSelection, targetForSelection } from '../../lib/infoBus.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { planPutOnBoard } from '../../lib/placement.js';
 import { getViewCenter } from '../../lib/viewCenter.js';
 import { undoToast } from '../../lib/undoToast.js';
+import { uploadContext } from '../../lib/uploadContext.js';
 
 function sameRequest(a, b) {
   if (!a || !b) return false;
@@ -149,7 +151,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
     const root = document.documentElement;
     const narrow = !!window.matchMedia?.('(max-width: 640px)').matches;
     if (!narrow) root.style.setProperty('--info-drawer-w', '348px');
-    const offBack = narrow ? registerBackLayer(close) : null;
+    const offBack = narrow && typeof modalGuard.registerBackLayer === 'function' ? modalGuard.registerBackLayer(close) : null;
     return () => { root.style.removeProperty('--info-drawer-w'); offBack?.(); };
   }, [open, close]);
 
@@ -177,6 +179,12 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
     const deleted = await muts.deleteCards?.(ids);
     undoToast(feedback, { message: 'Card deleted', undoManager: muts.undoManager, stackItem: deleted?.stackItem || null, onUndo: () => muts.undo?.() });
   } : null;
+  // Versions are editable where the cluster is open and you can edit it.
+  const versionEnv = target.type === 'card' && live?.canEdit && live?.mutators ? {
+    mutators: live.mutators, feedback, userId: selfId,
+    getCard: (id) => (resolveBoard?.(req.boardId)?.cards || []).find((c) => c.id === id) || null,
+    ctx: uploadContext({ boardId: req.boardId }),
+  } : null;
   return (
     <div className="info-host" ref={hostRef} onContextMenu={swallowContextMenu}>
       <DetailPanel
@@ -185,6 +193,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
         boards={boards}
         canEdit={!!live?.canEdit}
         writeMeta={live?.mutators?.updateCardMeta || null}
+        versionEnv={versionEnv}
         selfId={selfId}
         gridTemplates={live?.gridTemplates || {}}
         onClose={close}

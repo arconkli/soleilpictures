@@ -58,7 +58,6 @@ import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
 import { canVersion, liveVersions } from '../lib/cardVersions.js';
 import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
-import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
@@ -1499,6 +1498,17 @@ export function ListSurface({
       searchRef={searchRef}
       compact={isPanel}
       clusterName={board?.name}
+      pathBar={isPanel ? pathBar : null}
+      readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
+      dropBanner={dragNote === 'move'
+        ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
+        : dragNote === 'version'
+        ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
+        : dragNote === 'files'
+        ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
+        : dragNote === 'blocked'
+          ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
+          : null}
       dockControls={dockControls ? { ...dockControls, mode } : null}
     />
   );
@@ -1564,6 +1574,7 @@ export function ListSurface({
         ] },
         { items: [
           renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
+          canVersionHere && canVersion(card) && { id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), card.id) },
           DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: 'Download', run: () => downloadOne(item) },
           // An app action: a signed-out visitor's link wouldn't resolve.
           onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
@@ -1795,6 +1806,7 @@ export function ListSurface({
                   target={detailTarget} boards={boards} canEdit={canEdit}
                   selfId={selfId} gridTemplates={gridTemplates}
                   writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
+                  versionEnv={canVersionHere ? versionEnv() : null}
                   onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
                   onClose={toggleInfo}
                   onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}

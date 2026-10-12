@@ -115,6 +115,10 @@ import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
+import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
+import { canVersion, liveVersions, currentOf, versionLabel } from '../lib/cardVersions.js';
+import { kindFromMime } from '../lib/versionUpload.js';
+import { uploadContext } from '../lib/uploadContext.js';
 import { probeFile } from '../lib/mediaProbe.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
@@ -7280,10 +7284,6 @@ export function CanvasSurface({
     }
 
     if (!multi) {
-      // The review player: frame steps, J/K/L, in/out, guides, versions side by side.
-      if (c.kind === 'video' && c.src && !c.pending && !isPublic) {
-        items.push({ id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: c.id, ...(takeCardPlayer(c.id) || {}) }) });
-      }
       // A new version of a video, audio, PDF or file (an image's is in its Edit menu).
       if (canVersion(c) && c.kind !== 'image') {
         items.push({ id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), c.id) });
