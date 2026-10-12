@@ -298,10 +298,10 @@ export function VersionHistoryModal({
           <div className="hist-when" title={fmtDate(row.snapshot_at)}>
             {relTime(row.snapshot_at)}
             {typeof row.card_count === 'number' && (
-              <span className="hist-sub"> · {row.card_count} card{row.card_count === 1 ? '' : 's'}</span>
+              <span className="hist-when-meta"> · {row.card_count} card{row.card_count === 1 ? '' : 's'}</span>
             )}
             {typeof delta === 'number' && delta !== 0 && (
-              <span className="hist-sub"> ({delta > 0 ? `+${delta}` : delta})</span>
+              <span className="hist-when-meta"> ({delta > 0 ? `+${delta}` : delta})</span>
             )}
           </div>
           <div className="hist-sub">
@@ -334,8 +334,12 @@ export function VersionHistoryModal({
       </div>
 
       <div className="modal-actions">
-        <button className={`tb-btn ${tab === 'versions' ? 'is-active' : ''}`} onClick={() => setTab('versions')}>Snapshots</button>
-        <button className={`tb-btn ${tab === 'changes' ? 'is-active' : ''}`} onClick={() => setTab('changes')}>Name & appearance</button>
+        <div className="hist-tabs" role="tablist" aria-label="History">
+          <button className={`tb-btn ${tab === 'versions' ? 'is-active' : ''}`} role="tab"
+                  aria-selected={tab === 'versions'} onClick={() => setTab('versions')}>Snapshots</button>
+          <button className={`tb-btn ${tab === 'changes' ? 'is-active' : ''}`} role="tab"
+                  aria-selected={tab === 'changes'} onClick={() => setTab('changes')}>Name & appearance</button>
+        </div>
         <span className="modal-hint">
           {!canEdit
             ? 'View only — you can browse and preview. Ask an editor to restore or revert.'

@@ -86,3 +86,61 @@ test('VS-PANELS-02: Settings takes focus, keeps Tab inside, and gives focus back
   await expect(modal).toBeHidden();
   await expect(trigger).toBeFocused();
 });
+
+function versionRows() {
+  const at = (minAgo) => new Date(Date.now() - minAgo * 60000).toISOString();
+  return [
+    { id: 'v1', snapshot_at: at(1), card_count: 20, label: 'manual', made_by: null, session_id: 's1', trigger_kind: 'manual', op_summary: null, parent_version_id: null },
+    { id: 'v2', snapshot_at: at(30), card_count: 21, label: null, made_by: null, session_id: 's2', trigger_kind: 'auto', op_summary: null, parent_version_id: null },
+    { id: 'v3', snapshot_at: at(90), card_count: 18, label: null, made_by: null, session_id: 's3', trigger_kind: 'auto', op_summary: null, parent_version_id: null },
+  ];
+}
+
+test('VS-PANELS-03/04/11: Version history rows stay on one line, the selected tab shows, the band suits the theme', async ({ page }) => {
+  await answerRest(page, 'board_versions', versionRows());
+  await answerRest(page, 'board_meta_history', []);
+  await page.setViewportSize(DESKTOP);
+  await probe(page, 'mountVersionHistory');
+  const when = page.locator('.hist-when').first();
+  await expect(when).toContainText('20 cards');
+  // VS-03: one line — "1m ago · 20 cards (-1)", no stacked flex spans.
+  const lh = await when.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+  expect((await rect(when)).h).toBeLessThan(lh * 1.5);
+  expect(await when.innerText()).not.toContain('\n');
+
+  // VS-04: the selected tab looks selected, and says so.
+  const tabs = page.locator('.hist-tabs [role="tab"]');
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  const look = (i) => tabs.nth(i).evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return `${cs.backgroundColor}|${cs.color}`;
+  });
+  expect(await look(0)).not.toBe(await look(1));
+  await tabs.nth(1).click();
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  expect(await look(1)).not.toBe(await look(0));
+  await tabs.nth(0).click();
+  await page.mouse.move(1, 1);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: test.info().outputPath('versions-1440-dark.png') });
+
+  // VS-11: in light, the band is a faint tint, not a mid-grey strip.
+  await setTheme(page, 'light');
+  const bandAlpha = await page.locator('.modal-actions').evaluate((el) => {
+    const m = getComputedStyle(el).backgroundColor.match(/rgba?\(([^)]+)\)/);
+    const parts = m[1].split(',').map(Number);
+    return parts.length === 4 ? parts[3] : 1;
+  });
+  expect(bandAlpha).toBeLessThanOrEqual(0.05);
+  await page.waitForTimeout(300);   // let the tabs' colour transition settle
+  await page.screenshot({ path: test.info().outputPath('versions-1440-light.png') });
+
+  // VS-11 on a phone: the hint gets its own line instead of a 7-line column.
+  await page.setViewportSize(PHONE);
+  const hint = page.locator('.modal-actions .modal-hint');
+  const hr = await rect(hint);
+  expect(hr.w).toBeGreaterThan(300);
+  expect(hr.h).toBeLessThan(70);
+  await page.screenshot({ path: test.info().outputPath('versions-390-light.png') });
+});
