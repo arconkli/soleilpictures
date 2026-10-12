@@ -279,6 +279,10 @@ curl -X PATCH "$SOLEIL_API/boards/$BOARD/cards/$CARD" \
 Write access is checked on **both** boards. Returns
 `{ "moved": 2, "cards": [ … ], "live": true }`.
 
+Moving cards to a board that **someone else owns** counts them against that
+owner's [card allowance](#card-caps), the same as creating them there. If they
+don't fit, nothing moves and the call returns `402 limit_reached`.
+
 ## `DELETE /boards/:id/cards/:cardId`
 
 Requires the `delete` scope — see

@@ -793,6 +793,28 @@ test('a deleted account\'s shared workspace passes to an editor, who becomes its
   assert.match(read('../../content/docs/account/data-and-privacy.md'), /A viewer never\s+inherits a workspace\./);
 });
 
+test('an account an admin deletes hands its workspaces over too (0408)', () => {
+  // admin-account-action went straight to deleteUser, and the FK SET NULLed
+  // created_by on every workspace the account owned: co-owners locked out,
+  // uploads refused, no cap. prepare_account_deletion refuses a suspended
+  // account (0371), which is the usual kind an admin deletes.
+  const prep = latestDefinition('prepare_admin_account_deletion');
+  assert.ok(prep, 'prepare_admin_account_deletion must exist');
+  assert.match(prep.body, /public\._deletion_heir\(w\.id, p_user_id\)/, 'the same heir as self-deletion');
+  assert.match(prep.body, /update workspace_members set role = 'owner' where workspace_id = r\.id and user_id = r\.to_user;/);
+  assert.doesNotMatch(prep.body, /_user_banned\(p_user_id\)/, 'an admin may delete a suspended account');
+  const file = readFileSync(new URL(`../../../supabase/migrations/${prep.file}`, import.meta.url), 'utf8');
+  assert.match(file, /revoke execute on function public\.prepare_admin_account_deletion\(uuid\) from public, anon, authenticated;/,
+    'service role only');
+  const fn = read('../../../supabase/functions/admin-account-action/index.ts');
+  const del = fn.slice(fn.indexOf('case "delete"'), fn.indexOf('case "resync_subscription"'));
+  const at = (needle) => del.indexOf(needle);
+  assert.ok(at('"prepare_admin_account_deletion"') > 0, 'the admin delete hands workspaces over');
+  assert.ok(at('.from("workspaces").delete().eq("created_by", body.user_id)') > at('"prepare_admin_account_deletion"'),
+    'and removes only what nobody inherited, after the hand-over');
+  assert.ok(at('admin.auth.admin.deleteUser') > at('.from("workspaces").delete()'), 'all before the user goes');
+});
+
 // ── Phase 5: the CSP dry run reports somewhere ──────────────────────────────
 
 test('the Report-Only policy reports to an endpoint that keeps origins and paths only', async () => {

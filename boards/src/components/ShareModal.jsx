@@ -27,7 +27,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal.jsx';
 import {
-  shareBoard, unshareBoard, listBoardShares,
+  shareBoard, unshareBoard, restoreBoardShare, listBoardShares,
   removeWorkspaceMember, transferWorkspaceOwnership, setWorkspaceMemberRole,
   createCollabLink, revokePublicLink, listPublicLinks, ensurePublicLink,
   setPublicLinkSubboards, setPublicLinkIndexing,
@@ -664,14 +664,13 @@ export function ShareModal({
       await unshareBoard({ boardId: board.id, userId: share.user_id });
       setShares(s => s.filter(x => x.user_id !== share.user_id));
       onSharesChanged?.();
-      // share_board is an email-keyed upsert, so re-sharing with the same
-      // role is a faithful inverse (their account still exists — only the
-      // share row was removed).
+      // Not share_board: on a removed row that takes the new-share path,
+      // emailing them "shared with you" and spending an invite (0405).
       undoToast(feedback, {
         message: `Removed ${share.email}'s access`,
         onUndo: async () => {
           try {
-            await shareBoard({ boardId: board.id, email: share.email, role: share.role || 'viewer' });
+            await restoreBoardShare({ boardId: board.id, userId: share.user_id });
             setShares(s => (s.some(x => x.user_id === share.user_id) ? s : [...s, share]));
             onSharesChanged?.();
           } catch (e) {

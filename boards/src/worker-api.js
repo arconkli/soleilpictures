@@ -40,7 +40,7 @@ import {
   saveMeta, saveMetaBulk, withMeta, parseInclude, purgeCardMeta, repointCardMeta,
   resolveUpsert, OBJECT_TYPES,
 } from './lib/objectMeta.js';
-import { scoutRpc, scoutDelete, scoutInsert } from './lib/scoutDb.js';
+import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.js';
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
@@ -3109,6 +3109,30 @@ async function dispatch(url, request, env, ctx) {
     const dest = await boardForUser(env, token, to);
     if (!dest) throw fail(404, 'not_found', 'destination board not found');
     await requireBoardWrite(env, token, to);
+
+    // Cards moved onto another owner's meter cost them what an insert would,
+    // and the card_index trigger refuses a move past their cap (0403). It
+    // refuses after the destination board is already written, though, which
+    // would leave the cards on both boards, so ask first.
+    if (dest.workspace_id !== board.workspace_id) {
+      const owners = await scoutSelect(env, 'workspaces',
+        `id=in.(${board.workspace_id},${dest.workspace_id})&select=id,created_by`).catch(() => []);
+      const ownerOf = (ws) => owners.find((w) => w.id === ws)?.created_by || null;
+      if (ownerOf(board.workspace_id) !== ownerOf(dest.workspace_id)) {
+        const capRows = await userRpc(env, token, 'get_board_capacity', { p_board_id: to }).catch(() => null);
+        const cap = Array.isArray(capRows) ? capRows[0] : capRows;
+        if (cap?.is_capped === true && cap.cap != null) {
+          const ids = cardIds.map((c) => `"${c.replace(/"/g, '')}"`).join(',');
+          const rows = await userSelect(env, token, 'card_index',
+            `board_id=eq.${id}&card_id=in.${encodeURIComponent(`(${ids})`)}&select=weight`).catch(() => []);
+          const cost = rows.reduce((n, r) => n + Math.max(0, Number(r.weight) || 0), 0);
+          if (Number(cap.used ?? 0) + cost > Number(cap.cap)) {
+            throw fail(402, 'limit_reached',
+              `those cards would take the destination board's owner past their limit of ${cap.cap} cards`);
+          }
+        }
+      }
+    }
 
     const out = await moveCardsBetweenBoards(env, {
       fromBoardId: id,
