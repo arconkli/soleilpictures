@@ -101,7 +101,13 @@ function itemExcerpt(it) {
   return null;
 }
 
-export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose }) {
+// The null-tag bail-out lives out here so every hook below runs on every
+// render of TagDetailViewBody, in the same order.
+export function TagDetailView(props) {
+  return props.tag ? <TagDetailViewBody {...props} /> : null;
+}
+
+function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
   const feedback = useFeedback();
   const [rows, setRows] = useState([]);
   const [boardCards, setBoardCards] = useState(new Map());
@@ -465,7 +471,6 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     return () => { cancelled = true; };
   }, [allGroups, workspaceId]);
 
-  if (!tag) return null;
   const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
 
   // Index for "is this card directly tagged" lookup — controls
@@ -558,11 +563,14 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           boardId: s.board_id || null, tagId: tag.id, source: 'user',
         });
       }
-      await supabase.from('tag_suggestions')
+      // supabase-js resolves {error}; an unread one left the suggestion in the
+      // table to reappear on the next load.
+      const { error: consumeErr } = await supabase.from('tag_suggestions')
         .delete()
         .eq('tag_id', tag.id)
         .eq('source_kind', s.source_kind)
         .eq('source_id', s.source_id);
+      if (consumeErr) throw consumeErr;
       // Optimistic local update — realtime will catch up too.
       setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
     } catch (err) {
@@ -575,11 +583,12 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   // passes skip it (the ignoreDuplicates upsert won't overwrite).
   const dismissSuggestion = async (s) => {
     try {
-      await supabase.from('tag_suggestions')
+      const { error } = await supabase.from('tag_suggestions')
         .update({ dismissed_at: new Date().toISOString() })
         .eq('tag_id', tag.id)
         .eq('source_kind', s.source_kind)
         .eq('source_id', s.source_id);
+      if (error) throw error;
       setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
     } catch (err) {
       feedback?.toast?.({ type: 'error', message: 'Dismiss failed: ' + (err.message || err) });

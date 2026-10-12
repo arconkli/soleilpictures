@@ -131,11 +131,14 @@ export function SidebarTags({
   const dismissCandidate = async (name) => {
     if (!workspaceId || !name) return;
     try {
-      await supabase.from('entity_ignore_terms').insert({
+      // supabase-js resolves {error} rather than throwing; 23505 means the
+      // term is already ignored, which is what the user wanted.
+      const { error } = await supabase.from('entity_ignore_terms').insert({
         workspace_id: workspaceId, scope: 'workspace', scope_id: null, term: name, created_by: userId || null,
       });
+      if (error && error.code !== '23505') throw error;
     } catch (err) {
-      if (err?.code && err.code !== '23505') feedback.toast({ type: 'error', message: 'Dismiss failed' });
+      feedback.toast({ type: 'error', message: 'Dismiss failed' });
     } finally {
       try { logEvent(EV.TAG_CANDIDATE_DISMISS, { via: 'sidebar' }); } catch (_) {}
       document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
