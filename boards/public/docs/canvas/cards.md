@@ -2,7 +2,7 @@
 
 > A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-11_
 
 Everything on a canvas is a card. They differ in what they hold and nothing
 else — position, size, stacking order, selection, grouping, tagging, commenting
@@ -73,6 +73,27 @@ once. Moving cards doesn't change how many you have.
 
 **Copy link** — a deep link that opens the board with that card selected. Useful
 in a message or a doc.
+
+## Info
+
+Right-click anything — a card, several cards, a group, the empty board, a
+cluster in the sidebar or a folder in Files — and choose **Info**, or select it
+and press `⌘I`. A panel opens at the right with what it is and where it came
+from:
+
+| | What Info shows |
+|---|---|
+| **Details** | The kind and file format, the name it was uploaded with, its size — plus what that kind has: dimensions for an image; resolution and length for a video; length, tempo, key, sample rate and channels for audio; pages for a PDF; words in a note; the address of a link |
+| **History** | **Uploaded** — who put the file in storage, and the date and time. **Added here** — who added it to this cluster, when that was later (a copy from another cluster). **Modified** — the last change, and who made it |
+| **Location** | The cluster it's in, and whether it's on the board or waiting in Files |
+
+Several cards together get a summary — how many of each kind, their total
+size, and the oldest and newest. The empty board, a folder or a sidebar
+cluster gets the cluster's: what it holds, where it sits, and who made it.
+
+Info follows the selection while it's open, so clicking through cards walks
+it through them. `⌘I` again, the **×**, or `Esc` while it has focus closes it.
+On a [shared link](/docs/collaborate/sharing) Info shows dates but never names.
 
 ## Removing a card from the board
 

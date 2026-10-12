@@ -295,10 +295,15 @@ pack plays through with `↓` and `Space`.
 
 ## Info
 
-**Info** — `⌘I`, or the button in Quick look and on the selection bar — shows
-a selected item's large preview and metadata: type, size, dimensions, dates,
-and where it lives. Whether it's open is remembered on your device; it no
-longer opens on every click. From there:
+**Info** — `⌘I`, **Get info** in the right-click menu, or the button in Quick
+look and on the selection bar — describes whatever is selected: a file's
+large preview, its kind and format, size, dimensions, who uploaded it and
+exactly when, and where it lives; a folder's contents; a summary of several
+things; and, with nothing selected, the cluster you're in. The same
+[Info](/docs/canvas/cards#info) opens from the board. In full-screen Files it
+sits beside the list and whether it's open is remembered on your device;
+beside the board, where there's no room for it, it opens as a panel of its
+own. From there:
 
 | Action | What it does |
 |---|---|

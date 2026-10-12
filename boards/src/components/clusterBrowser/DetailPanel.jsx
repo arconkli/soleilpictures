@@ -1,53 +1,152 @@
-// Right-side detail popout for the cluster browser. Click an item → this panel
-// shows a large preview + metadata (type / size / dimensions / dates / location)
-// and the actions Open-on-canvas · Download · Copy link · Delete. A grid FAMILY
-// (group node) shows a family overview + a jumpable member list. Inline
-// <aside> in the split layout (modeled on EntityBacklinksPanel's frosted panel).
+// Info. One panel for everything Info can describe — a file or card, a
+// cluster, several things at once, a canvas group, a grid family — wherever it
+// opens: beside Files (the split layout), beside Quick look (`inline`), and as
+// the app-wide drawer that every right-click menu and ⌘I open (`variant=
+// "drawer"`, mounted by info/InfoHost.jsx). The rows come from lib/cardInfo.js,
+// so what Info says is the same in all three places.
+//
+//   target  { type: 'card', item }                 item from lib/listItem.toListItem
+//           { type: 'group', group }               a grid family (Files)
+//           { type: 'cluster', board, cards? }     cards when the cluster is open
+//           { type: 'selection', cards }
+//           { type: 'canvasGroup', group, members }
+import { useEffect, useReducer } from 'react';
 import { CardPreview } from './CardPreview.jsx';
 import { copyCardLink } from '../../lib/cardLink.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
-import { X, Download, Trash2 as TrashIcon, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
-import { humanSize } from '../cards/FileCard.jsx';
+import { X, Download, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
-import { getMeta } from '../../lib/imageMeta.js';
+import { getMeta as getMetaDefault, primeFileFacts, subscribeMeta } from '../../lib/imageMeta.js';
 import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
-import { formatDuration, formatKey } from '../../lib/loopMeta.js';
+import * as userProfiles from '../../lib/userProfiles.js';
+import { describeCard, describeCluster, describeSelection, describeGroup, fileKeyOf, formatSize, formatWhen } from '../../lib/cardInfo.js';
 
-
-
-function MetaRow({ label, value }) {
+function MetaRow({ label, value, title }) {
   if (!value) return null;
   return (
     <div className="cbd-meta-row">
       <span className="cbd-meta-k">{label}</span>
-      <span className="cbd-meta-v" title={typeof value === 'string' ? value : undefined}>{value}</span>
+      <span className="cbd-meta-v" title={title || (typeof value === 'string' ? value : undefined)}>{value}</span>
     </div>
   );
 }
 
+function Section({ label, children }) {
+  return (
+    <section className="cbd-section" aria-label={label}>
+      <h3 className="cbd-section-label">{label}</h3>
+      {children}
+    </section>
+  );
+}
+
+// Names arrive asynchronously (userProfiles batches a lookup); re-render when
+// they do.
+function useProfiles(ids) {
+  const [, tick] = useReducer((x) => x + 1, 0);
+  useEffect(() => userProfiles.subscribe(tick), []);
+  const key = (ids || []).filter(Boolean).join(',');
+  useEffect(() => {
+    for (const id of key ? key.split(',') : []) userProfiles.resolve(id);
+  }, [key]);
+}
+
+function personName(id, selfId) {
+  if (!id) return null;
+  if (selfId && id === selfId) return 'You';
+  const e = userProfiles.get(id);
+  return e?.name || e?.email || 'A teammate';
+}
+
+function PersonRow({ k, by, at, selfId }) {
+  const name = personName(by, selfId);
+  const abs = formatWhen(at);
+  const rel = abs ? relativeTimeShort(at) : '';
+  if (!name && !abs) return null;
+  return (
+    <div className="cbd-meta-row cbd-person">
+      <span className="cbd-meta-k">{k}</span>
+      <span className="cbd-person-v">
+        {name && <span className="cbd-person-name">{name}</span>}
+        {abs && <span className="cbd-person-when" title={abs}>{abs}{rel ? ` · ${rel}` : ''}</span>}
+      </span>
+    </div>
+  );
+}
+
+function Rows({ details }) {
+  return details.map((r) => <MetaRow key={r.k} label={r.k} value={r.v} title={r.title} />);
+}
+
+function People({ people, selfId }) {
+  people = people.filter((p) => p.by || formatWhen(p.at));
+  if (!people.length) return null;
+  return (
+    <Section label="History">
+      {people.map((p) => <PersonRow key={p.k} {...p} selfId={selfId} />)}
+    </Section>
+  );
+}
+
+// Re-render when the images-row facts for this key land (size, uploader).
+function useFileMeta(key, getMeta) {
+  const [, tick] = useReducer((x) => x + 1, 0);
+  useEffect(() => {
+    if (!key) return undefined;
+    const off = subscribeMeta(key, tick);
+    if (getMeta === getMetaDefault && !getMeta(key)?.uploadedAt) primeFileFacts([key]);
+    return off;
+  }, [key, getMeta]);
+}
 
 // `inline`: Info beside Quick look, which is already showing the preview.
-export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false, onPutOnBoard = null }) {
+export function DetailPanel({
+  target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false, onPutOnBoard = null,
+  variant = 'split', selfId = null, onOpenCluster = null, gridTemplates = {}, getMeta = getMetaDefault,
+}) {
   const feedback = useFeedback();
+  const card = target?.type === 'card' ? (target.item?.card || {}) : null;
+  const key = card ? fileKeyOf(card) : '';
+  useFileMeta(key, getMeta);
+
+  const info = !target ? null
+    : target.type === 'card' ? describeCard(card, { getMeta, boards, gridTemplates })
+    : target.type === 'cluster' ? describeCluster(target.board, { boards, cards: target.cards || null, getMeta })
+    : target.type === 'selection' ? describeSelection(target.cards, { getMeta })
+    : target.type === 'canvasGroup' ? describeGroup(target.group, target.members)
+    : null;
+  // A published pack shows when, never who: a visitor has no session to look
+  // a teammate up with, and their names aren't the visitor's business.
+  if (info && isPublicSurface()) info.people = info.people.map((p) => ({ ...p, by: null }));
+  useProfiles((info?.people || []).map((p) => p.by));
 
   // Esc closes it through ListSurface's keyboard handler (clearing the
   // selection it shows), which already defers to an open dialog and to the
-  // pane that has the keyboard — its own window listener did neither.
+  // pane that has the keyboard — its own window listener did neither. The
+  // drawer is the exception: it isn't inside Files, so it takes Esc itself
+  // while it has focus (InfoHost).
 
   if (!target) return null;
-
-  const copyLink = (cardId, boardId) => copyCardLink(cardId, boardId, feedback);
+  const cls = `cb-detail surface-frosted${inline ? ' is-inline' : ''}${variant === 'drawer' ? ' is-drawer' : ''}`;
+  // The drawer takes focus when it opens (InfoHost), so Esc reaches it.
+  const asideProps = { className: cls, 'aria-label': 'Info', 'data-target': target.type, tabIndex: variant === 'drawer' ? -1 : undefined };
+  const head = (title, sub) => (
+    <div className="cbd-head">
+      <div className="cbd-titles">
+        <span className="cbd-title" title={title}>{title}</span>
+        {sub && <span className="cbd-sub">{sub}</span>}
+      </div>
+      <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} weight="light" /></button>
+    </div>
+  );
 
   // ── Grid family view ────────────────────────────────────────────────────────
   if (target.type === 'group') {
     const g = target.group;
     return (
-      <aside className="cb-detail surface-frosted">
-        <div className="cbd-head">
-          <span className="cbd-title" title={g.name}>{g.name}</span>
-          <button className="cbd-close" onClick={onClose} aria-label="Close"><Icon as={X} size={16} weight="light" /></button>
-        </div>
+      <aside {...asideProps}>
+        {head(g.name, 'Grid family')}
         <div className="cbd-body">
           <div className="cbd-preview"><CardPreview key={g.id} item={g} size="tile" /></div>
           <MetaRow label="Type" value="Grid family" />
@@ -67,13 +166,31 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
     );
   }
 
+  // ── A cluster, several things, a canvas group ───────────────────────────────
+  if (target.type !== 'card') {
+    const isCluster = target.type === 'cluster';
+    return (
+      <aside {...asideProps}>
+        {head(info.title, info.subtitle)}
+        <div className="cbd-body">
+          <Section label="Details"><Rows details={info.details} /></Section>
+          <People people={info.people} selfId={selfId} />
+        </div>
+        {isCluster && onOpenCluster && (
+          <div className="cbd-actions">
+            <button className="cbd-act is-primary" onClick={() => onOpenCluster(target.board.id)}>
+              <Icon as={ArrowsOutSimple} size={16} weight="light" /><span>Open cluster</span>
+            </button>
+          </div>
+        )}
+      </aside>
+    );
+  }
+
   // ── Single card view ────────────────────────────────────────────────────────
   const item = target.item;
-  const card = item.card || {};
-  const key = String(card.src || card.poster || card.pdfSrc || '').replace(/^r2:/, '');
-  const meta = key ? getMeta(key) : null;
-  const dims = meta && meta.w && meta.h ? `${meta.w} × ${meta.h}` : null;
-  const downloadable = DOWNLOADABLE.has(item.kind);
+  // Only when there's a file behind it — a tag-index snapshot has none.
+  const downloadable = DOWNLOADABLE.has(item.kind) && !item.pending && !!(card.src || card.fileSrc || card.pdfSrc);
   // The filename is resolved inside the helper from fileName → ext → mime →
   // the R2 key's own suffix. This panel used to build it from
   // `card.fileName || card.name || item.name`, which for an audio card meant
@@ -87,31 +204,19 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
     }
   };
   const location = boards[item.boardId]?.name || null;
+  const size = info.details.find((r) => r.k === 'Size')?.v || (item.sizeBytes != null ? formatSize(item.sizeBytes) : '');
+  const sub = [info.details.find((r) => r.k === 'Kind')?.v || item.typeLabel, size].filter(Boolean).join(' · ');
 
   return (
-    <aside className={`cb-detail surface-frosted${inline ? ' is-inline' : ''}`} aria-label="Info">
-      <div className="cbd-head">
-        <div className="cbd-titles">
-          <span className="cbd-title" title={item.name}>{item.name}</span>
-          <span className="cbd-sub">{[item.typeLabel, item.sub || (item.sizeBytes != null ? humanSize(item.sizeBytes) : null)].filter(Boolean).join(' · ')}</span>
-        </div>
-        <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} weight="light" /></button>
-      </div>
+    <aside {...asideProps}>
+      {head(item.name, sub)}
       <div className="cbd-body">
         {!inline && <div className="cbd-preview"><CardPreview key={item.id} item={item} size="tile" /></div>}
-        {/* For a loop these four ARE the metadata. Without them the panel a
-            producer taps on a published pack reported type, size and two
-            dates, and not one of the things they opened it to find out. */}
-        {item.kind === 'audio' && <MetaRow label="Length" value={formatDuration(item.durationSec) || null} />}
-        {item.kind === 'audio' && <MetaRow label="Tempo" value={item.bpm != null ? `${item.bpm} BPM` : null} />}
-        {item.kind === 'audio' && <MetaRow label="Key" value={formatKey(item.musicalKey) || null} />}
-        {item.kind === 'audio' && <MetaRow label="Format" value={item.format || null} />}
-        <MetaRow label="Size" value={item.sizeBytes != null ? humanSize(item.sizeBytes) : null} />
-        <MetaRow label="Dimensions" value={dims} />
-        {item.kind === 'pdf' && <MetaRow label="Pages" value={item.sub} />}
-        <MetaRow label="Modified" value={item.updatedAt ? relativeTimeShort(item.updatedAt) : null} />
-        <MetaRow label="Added" value={item.createdAt ? relativeTimeShort(item.createdAt) : null} />
-        <MetaRow label="Location" value={location} />
+        <Section label="Details">
+          <Rows details={info.details} />
+          <MetaRow label="Location" value={location ? (item.unplaced ? `${location} · not on the board` : location) : null} />
+        </Section>
+        <People people={info.people} selfId={selfId} />
       </div>
       <div className="cbd-actions">
         {/* Both of these used to render unconditionally, and both are dead on a
@@ -135,13 +240,13 @@ export function DetailPanel({ target, boards = {}, canEdit = true, onClose, onRe
             <Icon as={Download} size={16} weight="light" />
           </button>
         )}
-        {!isPublicSurface() && (
-          <button className="cbt-iconbtn cbd-icon" onClick={() => copyLink(item.id, item.boardId)} aria-label="Copy link" title="Copy link">
+        {!isPublicSurface() && item.boardId && (
+          <button className="cbt-iconbtn cbd-icon" onClick={() => copyCardLink(item.id, item.boardId, feedback)} aria-label="Copy link" title="Copy link">
             <Icon as={LinkIcon} size={16} weight="light" />
           </button>
         )}
-        {canEdit && (
-          <button className="cbd-act cbd-act-danger" onClick={() => onDelete?.([item.id])}>
+        {canEdit && onDelete && (
+          <button className="cbd-act cbd-act-danger" onClick={() => onDelete([item.id])}>
             <span>Delete</span>
           </button>
         )}

@@ -61,6 +61,7 @@ import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
+import { InfoHost } from '../components/info/InfoHost.jsx';
 import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
 
 const TWEAK_DEFAULTS = {
@@ -545,10 +546,20 @@ export function LocalBoardsApp({ user, signOut }) {
   // Same contract as App's mutators (no cap here): addCard returns the id it
   // placed, addCards what it placed — a cross-pane move deletes from its
   // source only what landed.
+  // Twin of App.jsx's stampCreate / writeUpdateStamp: who made a card and
+  // when, for Info (lib/cardInfo.js). A card that already carries them keeps
+  // its own.
+  const localUid = user?.id ?? 'local-user';
+  const stampLocal = (card) => {
+    const now = new Date().toISOString();
+    return { createdBy: localUid, createdAt: now, updatedBy: localUid, updatedAt: now, ...card };
+  };
+  const stampUpdate = (patch) => ({ ...patch, updatedBy: localUid, updatedAt: new Date().toISOString() });
+
   const addCard = (card) => {
     updateBoardState(state => ({
       ...state,
-      cards: [...state.cards, { z: getNextZ(state.cards), ...card }],
+      cards: [...state.cards, { z: getNextZ(state.cards), ...stampLocal(card) }],
     }));
     if (card?.kind !== 'board') tourFireRef.current?.({ type: 'content_added', boardId: currentId, kind: card?.kind || 'card' });
     return card?.id ?? null;
@@ -560,7 +571,7 @@ export function LocalBoardsApp({ user, signOut }) {
       let z = getNextZ(state.cards);
       return {
         ...state,
-        cards: [...state.cards, ...cardsToAdd.map(card => ({ z: z++, ...card }))],
+        cards: [...state.cards, ...cardsToAdd.map(card => ({ z: z++, ...stampLocal(card) }))],
       };
     });
     return { added: cardsToAdd.length, requested: cardsToAdd.length, capHit: false, placedIds: cardsToAdd.map((c) => c.id) };
@@ -569,7 +580,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const updateCard = (cardId, patch) => {
     updateBoardState(state => ({
       ...state,
-      cards: state.cards.map(card => card.id === cardId ? { ...card, ...patch } : card),
+      cards: state.cards.map(card => card.id === cardId ? { ...card, ...stampUpdate(patch) } : card),
     }));
   };
 
@@ -577,7 +588,7 @@ export function LocalBoardsApp({ user, signOut }) {
     const patches = new Map((updates || []).map(({ id, patch }) => [id, patch]));
     updateBoardState(state => ({
       ...state,
-      cards: state.cards.map(card => patches.has(card.id) ? { ...card, ...patches.get(card.id) } : card),
+      cards: state.cards.map(card => patches.has(card.id) ? { ...card, ...stampUpdate(patches.get(card.id)) } : card),
     }));
   };
 
@@ -1565,6 +1576,11 @@ export function LocalBoardsApp({ user, signOut }) {
     addCards,
     updateCard,
     updateCards,
+    // Twin of App.jsx's: a fact about a card (a probe, a backfill), not an edit — no stamp.
+    updateCardMeta: (cardId, patch) => updateBoardState(state => ({
+      ...state,
+      cards: state.cards.map(card => card.id === cardId ? { ...card, ...patch } : card),
+    })),
     deleteCard: (id) => deleteCards([id]),
     deleteCards,
     deleteCardsForMove,
@@ -2100,6 +2116,22 @@ export function LocalBoardsApp({ user, signOut }) {
       )}
 
       <LocalSettingsPanel tweak={tweak} setTweak={setTweak} />
+
+      {/* Twin of App.jsx's Info drawer (lib/infoBus.js). */}
+      <InfoHost
+        boards={boards}
+        selfId={user?.id ?? 'local-user'}
+        resolveBoard={(id) => (boardState[id] ? {
+          cards: boardState[id].cards || [], groups: boardState[id].groups || [],
+          gridTemplates: gridTplState[id] || {}, canEdit: !readOnlyQa,
+        } : null)}
+        onOpenCluster={(id) => { if (boards[id]) { setStack(ancestorPath(boards, id)); recents.push(id); setCurrentSurface('board'); } }}
+        onReveal={(boardId, ids) => {
+          if (!boards[boardId]) return;
+          setStack(ancestorPath(boards, boardId));
+          setFocusRequest({ boardId, ids, token: Date.now() });
+        }}
+      />
 
       {ONBOARD_PREVIEW && onboardCoachOpen && currentId === ROOT_ID && currentSurface === 'board' && (
         <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} arm="B" />

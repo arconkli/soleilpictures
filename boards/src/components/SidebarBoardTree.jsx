@@ -17,6 +17,7 @@ import { CardContextMenu } from './CardContextMenu.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { boardClipboardSize } from '../lib/boardClipboard.js';
+import { openInfo } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 
 const HOVER_PREFETCH_MS = 80;
@@ -199,7 +200,7 @@ export function SidebarBoardTree({
     ];
     const editItems = [];
     const clipboardItems = [{ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) }];
-    const metaItems = [];
+    const metaItems = [{ id: 'info', label: 'Info', run: () => openInfo({ clusterId: board.id }) }];
 
     if (canEdit) {
       editItems.push({ id: 'rename', label: 'Rename', run: () => beginRename(board) });

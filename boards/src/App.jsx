@@ -111,6 +111,7 @@ import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
+import { InfoHost } from './components/info/InfoHost.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
 // dead since the settings unification.
@@ -2095,6 +2096,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         writeUpdateStamp(ym);
       }, 'upload');
     };
+    // A fact about a card rather than an edit to it — a probed frame rate, a
+    // backfilled poster or waveform, a rehosted image. Off the undo stack like
+    // updateCardSilent, but NOT stamped: whoever's client happened to run the
+    // backfill didn't modify the card, and Info's "Modified" would say they did.
+    const updateCardMeta = (cardId, patch) => {
+      const m = cardsMap(); if (!m) return;
+      const ym = m.get(cardId); if (!ym) return;
+      ydoc.transact(() => {
+        for (const [k, v] of Object.entries(patch)) ym.set(k, v);
+      }, 'upload');
+    };
 
     // Shared card + arrow-cascade removal, used by deleteCards (origin
     // 'local', undoable) and deleteCardsSilent (origin 'upload', off-stack).
@@ -3877,7 +3889,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
-      addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addNewProject, addPalette,
+      addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, updateCardMeta, addNewBoard, addNewProject, addPalette,
       addDocCard, addScriptCard, addStarterDoc, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
@@ -8465,7 +8477,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useVideoPosterBackfill({
     cards: currentCards, canEdit: canEditCurrent,
     workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
-    updateCardSilent: mainMutators.updateCardSilent,
+    updateCardSilent: mainMutators.updateCardMeta,
   });
 
   // Same idea for audio: every card from before the analysis pipeline is
@@ -8474,7 +8486,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useAudioPeaksBackfill({
     cards: currentCards, canEdit: canEditCurrent,
     workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
-    updateCardSilent: mainMutators.updateCardSilent,
+    updateCardSilent: mainMutators.updateCardMeta,
   });
 
   // Surface renderer used for both the main pane and the split pane. Reads
@@ -9567,6 +9579,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onClose={() => setBacklinksRef(null)}
         />
       )}
+      {/* Info for anything, from any right-click or ⌘I (lib/infoBus.js). It
+          reads the open panes' live cards, so it changes as the file does. */}
+      <InfoHost
+        boards={boards}
+        selfId={user.id}
+        resolveBoard={(id) => {
+          if (!id) return null;
+          const pane = yb.ready && yb.boardId === id ? yb : (splitYb.ready && splitYb.boardId === id ? splitYb : null);
+          if (!pane) return null;
+          return {
+            cards: pane.cards, groups: pane.groups || [], gridTemplates: pane.gridTemplates || {},
+            canEdit: id === currentBoard.id ? canEditCurrent : !!(splitBoard?.id === id && splitBoardPerm.canEdit),
+          };
+        }}
+        onOpenCluster={(id) => {
+          if (!boards[id]) return;
+          setStack(ancestorPath(boards, id)); recents.push(id);
+          setCurrentSurface('board'); setActiveTag(null);
+        }}
+        onReveal={(boardId, ids) => {
+          // Already on screen in the split pane: just fly to it there.
+          if (splitBoard?.id === boardId && splitBoard.id !== currentBoard.id) {
+            setFocusRequest({ boardId, ids, token: Date.now() });
+            return;
+          }
+          setCurrentSurface('board'); setActiveTag(null);
+          showInCluster(boardId, ids);
+        }}
+      />
 
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
           and choosing the partial keeps the cards they're entitled to. Rendered

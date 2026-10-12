@@ -2353,6 +2353,31 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⌘I"
+      }
+     ],
+     [
+      {
+       "t": "link",
+       "v": "Info",
+       "href": "/docs/canvas/cards#info",
+       "children": [
+        {
+         "t": "text",
+         "v": "Info"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — the selection, or the cluster when nothing is selected"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "⌘0"
       }
      ],
@@ -2788,7 +2813,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Info for the selected file — remembered on your device"
+       "v": "Info for the selection, or the cluster — in full-screen Files, remembered on your device"
       }
      ]
     ],
@@ -6542,6 +6567,229 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " — a deep link that opens the board with that card selected. Useful in a message or a doc."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Info",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Info"
+    }
+   ],
+   "id": "info"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-click anything — a card, several cards, a group, the empty board, a cluster in the sidebar or a folder in Files — and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or select it and press "
+    },
+    {
+     "t": "code",
+     "v": "⌘I"
+    },
+    {
+     "t": "text",
+     "v": ". A panel opens at the right with what it is and where it came from:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What Info shows"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Details",
+       "children": [
+        {
+         "t": "text",
+         "v": "Details"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The kind and file format, the name it was uploaded with, its size — plus what that kind has: dimensions for an image; resolution and length for a video; length, tempo, key, sample rate and channels for audio; pages for a PDF; words in a note; the address of a link"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "History",
+       "children": [
+        {
+         "t": "text",
+         "v": "History"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "strong",
+       "v": "Uploaded",
+       "children": [
+        {
+         "t": "text",
+         "v": "Uploaded"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — who put the file in storage, and the date and time. "
+      },
+      {
+       "t": "strong",
+       "v": "Added here",
+       "children": [
+        {
+         "t": "text",
+         "v": "Added here"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — who added it to this cluster, when that was later (a copy from another cluster). "
+      },
+      {
+       "t": "strong",
+       "v": "Modified",
+       "children": [
+        {
+         "t": "text",
+         "v": "Modified"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — the last change, and who made it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Location",
+       "children": [
+        {
+         "t": "text",
+         "v": "Location"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The cluster it's in, and whether it's on the board or waiting in Files"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Several cards together get a summary — how many of each kind, their total size, and the oldest and newest. The empty board, a folder or a sidebar cluster gets the cluster's: what it holds, where it sits, and who made it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Info follows the selection while it's open, so clicking through cards walks it through them. "
+    },
+    {
+     "t": "code",
+     "v": "⌘I"
+    },
+    {
+     "t": "text",
+     "v": " again, the "
+    },
+    {
+     "t": "strong",
+     "v": "×",
+     "children": [
+      {
+       "t": "text",
+       "v": "×"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " while it has focus closes it. On a "
+    },
+    {
+     "t": "link",
+     "v": "shared link",
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "shared link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Info shows dates but never names."
     }
    ]
   },
@@ -18023,7 +18271,36 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or the button in Quick look and on the selection bar — shows a selected item's large preview and metadata: type, size, dimensions, dates, and where it lives. Whether it's open is remembered on your device; it no longer opens on every click. From there:"
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Get info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Get info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the right-click menu, or the button in Quick look and on the selection bar — describes whatever is selected: a file's large preview, its kind and format, size, dimensions, who uploaded it and exactly when, and where it lives; a folder's contents; a summary of several things; and, with nothing selected, the cluster you're in. The same "
+    },
+    {
+     "t": "link",
+     "v": "Info",
+     "href": "/docs/canvas/cards#info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens from the board. In full-screen Files it sits beside the list and whether it's open is remembered on your device; beside the board, where there's no room for it, it opens as a panel of its own. From there:"
     }
    ]
   },

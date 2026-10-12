@@ -115,6 +115,7 @@ import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
+import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
@@ -967,6 +968,11 @@ export function CanvasSurface({
   const [smoothXform, setSmoothXform] = useState(false); // true → CSS transition on canvas transform
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
+  // The Info drawer follows this pane's selection (lib/infoBus.js).
+  const infoFollow = `canvas:${paneId}`;
+  useEffect(() => { reportSelection(infoFollow, board?.id || null, [...selected]); }, [selected, board?.id, infoFollow]);
+  // The board went away (Files full screen, the pane closed): so does a drawer following it.
+  useEffect(() => () => { closeInfo({ follow: infoFollow }); clearSelection(infoFollow); }, [infoFollow]);
   const [selectedStrokes, setSelectedStrokes] = useState(() => new Set());
   const [selectedArrows, setSelectedArrows] = useState(() => new Set());
   // True while the arrow bend (midpoint curve) dot is being dragged — used to
@@ -1099,7 +1105,6 @@ export function CanvasSurface({
   const [linkHoverIds, setLinkHoverIds] = useState(() => new Set());
   // Card-info popover state (right-click → Info). Anchored to the click
   // point. cardId is the card we're showing metadata for.
-  const [infoFor, setInfoFor] = useState(null);
   // While dragging cards, this holds the id of the board *card* the user
   // is hovering over — so when they release we can move the dragged cards
   // INTO that board. Drives a .is-card-drop-target class on the matching
@@ -3833,7 +3838,9 @@ export function CanvasSurface({
         // Judged as the card is NOW: one edited or re-pointed meanwhile is left alone.
         const live = (cardsRef.current || []).find((x) => x.id === c.id);
         if (!live || live.src !== c.src) continue;
-        sweepMutatorsRef.current?.updateCardSilent?.(c.id, {
+        // Rehosting isn't an edit: no "modified by" stamp (updateCardMeta).
+        const m = sweepMutatorsRef.current;
+        (m?.updateCardMeta || m?.updateCardSilent)?.(c.id, {
           src: res.src, sourceUrl: c.src, ...(res.fileName && !live.fileName ? { fileName: res.fileName } : {}),
         });
       }
@@ -5338,6 +5345,13 @@ export function CanvasSurface({
         mutators.redo?.();
         return;
       }
+      // Info on whatever is selected — the cluster itself when nothing is. A
+      // note's own ⌘I (italic) never gets here: isEditorTarget returned above.
+      if (cmd && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+        e.preventDefault();
+        openInfo({ boardId: board?.id, follow: infoFollow, toggle: true });
+        return;
+      }
       if (cmd && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
       if (cmd && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); doDuplicate(); return; }
       if (cmd && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); doCopy(); return; }
@@ -5441,7 +5455,7 @@ export function CanvasSurface({
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
       ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
-      hasSplit, paneId]);
+      hasSplit, paneId, board?.id]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
   // On each undoable action the UndoManager fires 'stack-item-added'; we stash
@@ -7178,9 +7192,12 @@ export function CanvasSurface({
             window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
           }});
         }
-        metaItems.push({ id: 'info', label: 'Info',
-          run: () => setInfoFor({ cardId: c.id, x: ctx.x, y: ctx.y }) });
+        metaItems.push({ id: 'info', label: 'Info', shortcut: `${cmdKey}I`,
+          run: () => openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }) });
         metaItems.push({ backlinks: true });
+      } else {
+        metaItems.push({ id: 'info', label: `Info (${selected.size})`, shortcut: `${cmdKey}I`,
+          run: () => openInfo({ boardId: board.id, cardIds: [...selected], follow: infoFollow }) });
       }
       return composeMenuSections([
         { items: openItems },
@@ -7525,14 +7542,12 @@ export function CanvasSurface({
           const anchorRect = { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 };
           openTagPicker(c.id, anchorRect);
         }});
-      // Info lives in the bottom meta group (added here so it's the first meta
-      // row, above the backlinks + delete pushed at the very end).
-      metaItems.push({ id: 'info', label: 'Info', run: () => {
-        // Anchor the info popover at the click point so it sits next
-        // to the card the user invoked it on.
-        setInfoFor({ cardId: c.id, x: ctx.x, y: ctx.y });
-      }});
     }
+    // Info lives in the bottom meta group (added here so it's the first meta
+    // row, above the backlinks + delete pushed at the very end). It opens the
+    // app's Info drawer (lib/infoBus.js), which then follows the selection.
+    metaItems.push({ id: 'info', label: multi ? `Info (${selected.size})` : 'Info', shortcut: `${cmdKey}I`,
+      run: () => openInfo({ boardId: board.id, cardIds: multi ? [...selected] : [c.id], follow: infoFollow }) });
     clipboardItems.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
     clipboardItems.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
     clipboardItems.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: `${cmdKey}D`, run: doDuplicate });
@@ -7688,27 +7703,14 @@ export function CanvasSurface({
             x: ctx.x, y: ctx.y, allowTransparent: false,
           });
         }},
-        { id: 'group-info', label: 'Group info', run: () => {
-          const memberCount = (cards || []).filter(cc => cc.groupId === g.id).length;
-          const lines = [`${memberCount} member${memberCount === 1 ? '' : 's'}`];
-          if (g.createdAt) lines.push(`created ${relativeTimeShort(g.createdAt)}`);
-          if (g.createdBy) {
-            const cached = userProfiles.resolve(g.createdBy);
-            const name = g.createdBy === userId
-              ? 'you'
-              : (cached?.name || (cached?.email ? cached.email.split('@')[0] : null) || 'someone');
-            lines.push(`by ${name}`);
-          }
-          feedback.toast({ type: 'info', message: lines.join(' · ') });
-        }},
+        { id: 'group-info', label: 'Group info', run: () => openInfo({ boardId: board.id, groupId: g.id }) },
         { divider: true },
         { id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) },
       ]});
     }
 
-    // Info (created-by/when) is the CardInfoPopover row already in metaItems for
-    // single-select; the old audit-toast duplicate "Info" was removed here so the
-    // menu never shows two "Info" rows.
+    // Info is the one row already in metaItems; the old audit-toast duplicate
+    // was removed here so the menu never shows two "Info" rows.
 
     // Off the board, still in the cluster: the file waits in Files
     // (lib/placement.js). Offered only when every card in the selection can go.
@@ -8509,6 +8511,7 @@ export function CanvasSurface({
           if (name == null) return;
           mutators.renameGroup?.(gid, name);
         }});
+        items.push({ id: 'group-info', label: 'Group info', run: () => openInfo({ boardId: board.id, groupId: gid }) });
         items.push({ id: 'group-outline', label: g.outline ? 'Hide outline' : 'Show outline',
           run: () => mutators.setGroupOutline?.(gid, { outline: !g.outline }) });
         items.push({ id: 'group-hide-label',
@@ -8558,9 +8561,12 @@ export function CanvasSurface({
     }
     // View-only states (viewer share, no access) — just expose the safe
     // read-only actions. (The demo-tier upgrade CTA died with 0188.)
+    const clusterInfo = { id: 'cluster-info', label: 'Cluster info', shortcut: `${cmdKey}I`,
+      run: () => openInfo({ boardId: board.id, clusterId: board.id, follow: infoFollow }) };
     if (!canEdit) {
       return [
         { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
+        clusterInfo,
       ];
     }
     // Resolve the placement point. Prefer recomputing from the stored SCREEN
@@ -8609,6 +8615,7 @@ export function CanvasSurface({
         run: () => doPaste(pos) },
       { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
       { header: 'BOARD' },
+      clusterInfo,
       { id: 'bg', label: 'Background', submenu: [
         { id: 'bg-default', swatch: 'transparent', label: 'Default', run: () => mutators.setBoardBgColor?.(null) },
         { id: 'bg-paper',   swatch: '#f5f2ec', label: 'Paper',   run: () => mutators.setBoardBgColor?.('#f5f2ec') },
@@ -12662,20 +12669,6 @@ export function CanvasSurface({
         />
       )}
 
-      {infoFor && (() => {
-        const c = cardById[infoFor.cardId];
-        if (!c) return null;
-        return (
-          <CardInfoPopover
-            x={infoFor.x} y={infoFor.y}
-            card={c}
-            currentUserId={currentUser?.id}
-            getAwareness={getAwareness}
-            onClose={() => setInfoFor(null)}
-          />
-        );
-      })()}
-
       <BackgroundContextMenu
         open={bgCtx.open}
         x={bgCtx.x}
@@ -13088,87 +13081,3 @@ const CardStrokesOverlay = memo(function CardStrokesOverlay({ card, w, h }) {
     </svg>
   );
 });
-
-// ── CardInfoPopover ──────────────────────────────────────────────────────
-// Tiny "Info" panel — shown on right-click → Info. Surfaces who created
-// the card (via stampCreate's createdBy) and when (createdAt). Looks
-// the creator up via Yjs awareness so an online peer's display name +
-// color show up; falls back to "Someone else" for offline / unknown.
-function CardInfoPopover({ x, y, card, currentUserId, getAwareness, onClose }) {
-  // Click-away to close.
-  const ref = useRef(null);
-  useEffect(() => {
-    const onDocDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    // Capture + pointerdown so a tap outside closes it on touch.
-    document.addEventListener('pointerdown', onDocDown, true);
-    document.addEventListener('mousedown', onDocDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDocDown, true);
-      document.removeEventListener('mousedown', onDocDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
-  const creator = (() => {
-    const id = card?.createdBy;
-    if (!id) return { name: 'Unknown', color: '#5b574e' };
-    if (id === currentUserId) return { name: 'You', color: 'var(--soleil)' };
-    try {
-      const aw = getAwareness?.();
-      if (aw) {
-        for (const state of aw.getStates().values()) {
-          if (state?.user?.id === id) return { name: state.user.name || state.user.email || 'Teammate', color: state.user.color || '#4f8df8' };
-        }
-      }
-    } catch (_) {}
-    return { name: 'Someone else', color: '#5b574e' };
-  })();
-
-  const when = (() => {
-    const t = card?.createdAt;
-    if (!t) return null;
-    const d = typeof t === 'string' ? new Date(t) : new Date(t);
-    if (isNaN(d.getTime())) return null;
-    const diff = Date.now() - d.getTime();
-    const min = Math.floor(diff / 60000);
-    let rel;
-    if (min < 1) rel = 'just now';
-    else if (min < 60) rel = `${min}m ago`;
-    else if (min < 60 * 24) rel = `${Math.floor(min / 60)}h ago`;
-    else if (min < 60 * 24 * 30) rel = `${Math.floor(min / (60 * 24))}d ago`;
-    else rel = d.toLocaleDateString();
-    return { rel, abs: d.toLocaleString() };
-  })();
-
-  // Anchor near the click but keep on-screen.
-  const W = 240, H = 110;
-  const left = Math.min(window.innerWidth - W - 8, Math.max(8, x));
-  const top  = Math.min(window.innerHeight - H - 8, Math.max(8, y));
-
-  return (
-    <div ref={ref}
-         className="card-info-popover"
-         style={{ position: 'fixed', left, top, zIndex: 2147483647 }}
-         onClick={(e) => e.stopPropagation()}>
-      <div className="card-info-popover-row">
-        <span className="card-info-popover-label">Created by</span>
-        <span className="card-info-popover-value">
-          <span className="card-info-popover-dot" style={{ background: creator.color }} />
-          {creator.name}
-        </span>
-      </div>
-      <div className="card-info-popover-row">
-        <span className="card-info-popover-label">Created</span>
-        <span className="card-info-popover-value" title={when?.abs || ''}>
-          {when ? when.rel : 'Unknown'}
-        </span>
-      </div>
-      <div className="card-info-popover-row">
-        <span className="card-info-popover-label">Type</span>
-        <span className="card-info-popover-value">{card?.kind || 'card'}</span>
-      </div>
-    </div>
-  );
-}
