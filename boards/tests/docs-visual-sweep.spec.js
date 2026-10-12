@@ -41,6 +41,22 @@ for (const vp of [{ width: 1024, height: 768 }, { width: 820, height: 1180 }]) {
       await page.locator('.doc-card-modal .doc-tree-name', { hasText: 'Chapter Three' }).first().tap();
       await expect(surface).not.toHaveClass(/mobile-rail-open/);
     });
+    // The page-list button pushes the toolbar down, so a find bar at a fixed
+    // 52px landed on top of the toolbar row. It hangs below the bar instead.
+    test('VS-DOCS-01: the find bar hangs below the toolbar, not over it', async ({ page }) => {
+      await openDoc(page);
+      const findBtn = page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]');
+      await findBtn.evaluate((el) => el.scrollIntoView({ inline: 'center' }));
+      await findBtn.tap();
+      await expect(page.locator('.doc-find')).toBeVisible();
+      const m = await page.evaluate(() => ({
+        find: document.querySelector('.doc-find').getBoundingClientRect().top,
+        tb: document.querySelector('.doc-card-modal .doc-tb').getBoundingClientRect().bottom,
+        tbVisible: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb')).visibility,
+      }));
+      expect(m.find).toBeGreaterThanOrEqual(m.tb);
+      expect(m.tbVisible).toBe('visible');
+    });
   });
 }
 
@@ -150,6 +166,48 @@ for (const vp of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
     });
   });
 }
+
+// The docked pane keeps one scrolling row even on a mouse: a vertical wheel
+// scrolls it, and the fades follow the bar — including when a control inside
+// it changes width (the Font label), which doesn't resize the bar's own box.
+test.describe('mouse 1440 side dock', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  test('VS-DOCS-03: the docked bar wheels sideways and its fades stay current', async ({ page }) => {
+    await openDoc(page);
+    await page.locator('.doc-card-icon[aria-label="Dock to side"]').click();
+    await expect(page.locator('.doc-card-modal-side')).toBeVisible();
+    const bar = page.locator('.doc-card-modal-side .doc-tb');
+    await expect(bar).toHaveClass(/has-more-end/);
+    await expect(bar).not.toHaveClass(/has-more-start/);
+    await bar.hover();
+    await page.mouse.wheel(0, 200);
+    await expect(bar).toHaveClass(/has-more-start/);
+    await bar.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
+    await expect(bar).not.toHaveClass(/has-more-end/);
+    // A control grows in place: there is more past the right edge again.
+    await bar.evaluate((el) => { el.firstElementChild.style.minWidth = '400px'; });
+    await expect(bar).toHaveClass(/has-more-end/);
+  });
+});
+
+// A narrow MOUSE window wraps the bar like any mouse; the find bar hangs below
+// it rather than hiding it (which left an empty gap above the find bar).
+test.describe('mouse 390 find', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+  test('VS-DOCS-06: a narrow mouse window keeps the toolbar and hangs find below it', async ({ page }) => {
+    await openDoc(page);
+    await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
+    await expect(page.locator('.doc-find')).toBeVisible();
+    const m = await page.evaluate(() => ({
+      find: document.querySelector('.doc-find').getBoundingClientRect().top,
+      tb: document.querySelector('.doc-card-modal .doc-tb').getBoundingClientRect().bottom,
+      tbVisible: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb')).visibility,
+    }));
+    expect(m.tbVisible).toBe('visible');
+    expect(m.find).toBeGreaterThanOrEqual(m.tb);
+    expect(m.find - m.tb).toBeLessThanOrEqual(16);
+  });
+});
 
 test.describe('phone 390 toolbar', () => {
   test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });

@@ -13111,9 +13111,15 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
     height: auto; min-height: 40px;
     padding-top: 4px; padding-bottom: 4px;
   }
-  /* Hang the find bar below the (possibly two-row) toolbar, not over its
-     second row. DocToolbar publishes where the bar ends. (Two classes: the
-     base .doc-find rule comes later in this file.) */
+}
+/* Hang the find bar below the toolbar, wherever it actually ends: under a
+   mouse's (possibly two-row) wrapped bar, and on a touch tablet, where the
+   page-list button sits above the bar and pushes it down — a fixed 52px put
+   the find bar on top of the toolbar row there. DocToolbar publishes where
+   the bar ends. Not on a touch phone: there the find bar deliberately
+   overlays the toolbar row and hides it (see .doc-find below). (Two classes:
+   the base .doc-find rule comes later in this file.) */
+@media (hover: hover) and (pointer: fine), (min-width: 641px) {
   .doc-center .doc-find { top: calc(var(--doc-tb-bottom, 40px) + 12px); }
 }
 /* Where it still scrolls, fade whichever edge has more controls past it
@@ -14250,8 +14256,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   .doc-find-sep { display: none; }
   .doc-find-x { grid-row: 1; grid-column: 6; }
   .doc-find-input--replace { grid-row: 2; grid-column: 1; }
-  /* The find bar overlays the toolbar row here. Hide that row while it is
-     open, or its controls peek out past the bar's edges ("Fo" of Font). */
+}
+/* On a touch phone the find bar overlays the toolbar row. Hide that row while
+   it is open, or its controls peek out past the bar's edges ("Fo" of Font).
+   Touch only: a narrow mouse window hangs the find bar below its wrapped bar
+   (above), and hiding the bar there just left an empty gap over the find bar. */
+@media (max-width: 640px) and (hover: none), (max-width: 640px) and (pointer: coarse) {
   .doc-center:has(> .doc-find) > .doc-tb { visibility: hidden; }
 }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find {
