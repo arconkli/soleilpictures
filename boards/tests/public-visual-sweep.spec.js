@@ -144,6 +144,19 @@ test.describe('docs code blocks on a touch phone', () => {
   });
 });
 
+test('a /best page sets its answer card on the same left edge as its heading', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/best/pureref-alternatives');
+  const card = page.locator('.seo-li-answer');
+  await expect(card).toBeVisible();
+  const lefts = await card.evaluate((el) => ({
+    card: Math.round(el.getBoundingClientRect().left),
+    heading: Math.round(el.closest('section').querySelector('h2').getBoundingClientRect().left),
+  }));
+  expect(Math.abs(lefts.card - lefts.heading)).toBeLessThanOrEqual(1);
+});
+
 test.describe('/templates on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
