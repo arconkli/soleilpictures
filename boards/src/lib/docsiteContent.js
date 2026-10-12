@@ -19003,7 +19003,87 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files."
+     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files, and the cluster above it sits over the title as "
+    },
+    {
+     "t": "strong",
+     "v": "‹ its name",
+     "children": [
+      {
+       "t": "text",
+       "v": "‹ its name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — click it to go up. The full path is in the breadcrumb at the top of the screen."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Springing into folders while you drag",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Springing into folders while you drag"
+    }
+   ],
+   "id": "springing-into-folders-while-you-drag"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "As in Finder, you can move something into a folder you can't see yet. Drag a file (or a folder), "
+    },
+    {
+     "t": "strong",
+     "v": "hold it over a folder for a moment",
+     "children": [
+      {
+       "t": "text",
+       "v": "hold it over a folder for a moment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and Files opens that folder with the drag still in your hand; hold it over "
+    },
+    {
+     "t": "strong",
+     "v": "Back",
+     "children": [
+      {
+       "t": "text",
+       "v": "Back"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or a step of the path to go back up. Let go on the folder's files, or on a folder inside it, to move what you're dragging there. The folder blinks just before it opens."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Beside the board, the panel stays where you dropped. In full-screen Files you land in that cluster once the move is saved. Let go anywhere else, or press "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": ", and Files goes back to where the drag started."
     }
    ]
   },

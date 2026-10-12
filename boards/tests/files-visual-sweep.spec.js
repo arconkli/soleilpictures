@@ -121,6 +121,25 @@ test('VS-FILES-04: Enter on a focused folder opens it', async ({ page }) => {
   await expect(full(page).getByRole('heading', { level: 1, name })).toBeVisible();
 });
 
+test('VS-FILES-10: inside a folder, full Files offers one way up, not a second breadcrumb', async ({ page }) => {
+  await go(page);
+  await openFullFiles(page);
+  await full(page).locator('[data-folder-id]', { hasText: 'Features' }).dblclick();
+  await expect(page.locator('.cb-pagehead-title')).toHaveText('Features');
+  const trail = page.locator('.cb-pagehead-trail');
+  await expect(trail.getByRole('button')).toHaveCount(1);
+  await expect(trail.getByRole('button', { name: 'Studio' })).toHaveAttribute('title', 'Up to Studio');
+  await expect(trail.locator('.pb-up')).toHaveCount(1);
+  // No '/' after it: the separator was the duplicate-breadcrumb tell.
+  expect(await trail.locator('.pb-step').evaluate((el) => getComputedStyle(el, '::after').content)).toMatch(/^(none|normal)$/);
+  // Two deep, still only the parent.
+  await full(page).locator('[data-folder-id]').first().dblclick();
+  await expect(trail.getByRole('button')).toHaveCount(1);
+  await expect(trail.getByRole('button', { name: 'Features' })).toBeVisible();
+  await trail.getByRole('button', { name: 'Features' }).click();
+  await expect(page.locator('.cb-pagehead-title')).toHaveText('Features');
+});
+
 test.describe('on a phone', () => {
   test.use({ hasTouch: true });
 
