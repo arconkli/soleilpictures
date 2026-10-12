@@ -68,6 +68,21 @@ export function MessageBubble({
     ? new Date(msg.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
     : '';
 
+  // The thread's `e` shortcut asks the focused message to edit itself; nothing
+  // listened, so the advertised key did nothing (COMMS-24). Only your own
+  // message, inside the 15-minute edit window, the same rule as the button.
+  const canEdit = isMine && within15min && !sendState;
+  useEffect(() => {
+    if (!canEdit) return;
+    const onEditRequest = (e) => {
+      if (e.detail?.id !== msg.id) return;
+      setEditBody(msg.body);
+      setEditing(true);
+    };
+    document.addEventListener('soleil-msg-edit', onEditRequest);
+    return () => document.removeEventListener('soleil-msg-edit', onEditRequest);
+  }, [canEdit, msg.id, msg.body]);
+
   const submitEdit = async () => {
     const v = editBody.trim();
     if (!v) return;

@@ -531,10 +531,16 @@ export function MessageThread({
     } catch (e) { console.warn('pin failed', e); }
   }, [conversationId, refetch]);
 
+  // Say whether it worked: a silent copy left you guessing (COMMS-24).
   const handleCopyLink = useCallback(async (msg) => {
     const url = `${window.location.origin}${window.location.pathname}?m=${msg.id}`;
-    try { await navigator.clipboard.writeText(url); } catch (_) {}
-  }, []);
+    try {
+      await navigator.clipboard.writeText(url);
+      feedback.toast({ type: 'success', message: 'Link copied' });
+    } catch (_) {
+      feedback.toast({ type: 'error', message: "Couldn't copy the link — your browser blocked the clipboard." });
+    }
+  }, [feedback]);
 
   const handleTyping = useCallback(() => {
     if (!conversationId) return;
