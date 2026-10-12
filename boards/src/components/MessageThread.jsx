@@ -40,7 +40,7 @@ export function MessageThread({
   const conversationId = conversation?.id;
   const feedback = useFeedback();
 
-  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder } = useMessageThread({
+  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
   });
@@ -727,6 +727,12 @@ export function MessageThread({
               </button>
             ))}
           </>
+        ) : isEmpty && loadFailed ? (
+          // A failed read is not an empty conversation (COMMS-15).
+          <div className="msg-empty msg-load-failed" role="alert">
+            <span>Couldn't load messages.</span>
+            <button type="button" className="msg-retry-btn" onClick={() => refetch()}>Retry</button>
+          </div>
         ) : isEmpty ? (
           <div className="msg-empty msg-empty-hero">
             <SoleilMark size={32} color="var(--soleil)" glow />
