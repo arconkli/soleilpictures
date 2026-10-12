@@ -19,6 +19,25 @@ export function messagingAccess({ tier, workspace, role, userId }) {
   return { canSend: false, reason: 'viewer' };
 }
 
+// Why starting a DM or a group failed, in words — the picker used to just
+// re-enable its button (COMMS-25). Maps the find_or_create_dm /
+// create_group_conversation exceptions (0178).
+export function startChatErrorMessage(error, { group = false } = {}) {
+  const msg = String(error?.message || error || '').toLowerCase();
+  if (msg.includes('cannot message one or more')) {
+    return "You can't message one or more of those people from this workspace.";
+  }
+  if (msg.includes('cannot message')) return "You can't message this person from this workspace.";
+  if (msg.includes('workspace member')) {
+    return "You're not a member of this workspace. Switch to one you belong to and try again.";
+  }
+  if (msg.includes('suspended')) return 'This account is suspended.';
+  if (msg.includes('failed to fetch') || msg.includes('network')) {
+    return `Couldn't ${group ? 'create the group' : 'start the chat'}. Check your connection and try again.`;
+  }
+  return `Couldn't ${group ? 'create the group' : 'start the chat'} — try again.`;
+}
+
 // What the thread says in place of the composer, and the New chat button's
 // title, when sending isn't allowed here. 'left' is a group you left, opened
 // from a permalink or a toast.
