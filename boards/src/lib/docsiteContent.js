@@ -23907,6 +23907,29 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Because a text comment is part of the document, it follows edit access. A viewer sees the dots and can open and read every thread, marked "
+    },
+    {
+     "t": "strong",
+     "v": "View only",
+     "children": [
+      {
+       "t": "text",
+       "v": "View only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; adding, replying to, resolving or deleting a comment needs edit access."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Tags on a range",
@@ -26185,7 +26208,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " and "
+       "v": " on the canvas and "
       },
       {
        "t": "link",
@@ -26200,7 +26223,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — never change content"
+       "v": " — never change content, including a document's text comments"
       }
      ]
     ],
@@ -28572,7 +28595,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account."
+     "v": "On the canvas, anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A comment on a "
+    },
+    {
+     "t": "strong",
+     "v": "text range",
+     "children": [
+      {
+       "t": "text",
+       "v": "text range"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access."
     }
    ]
   },
@@ -32226,7 +32272,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (opens, reads, comments and votes, but does not change anything). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Someone invited who has no account yet is listed too, as an invite that gets access when they sign up, and the owner and co-owners can revoke it from there. Only the owner can hand the workspace to another member. Everyone else sees the list."
+     "v": " (opens, reads, comments on the canvas and votes, but does not change anything — including a document's text comments, which they can only read). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Someone invited who has no account yet is listed too, as an invite that gets access when they sign up, and the owner and co-owners can revoke it from there. Only the owner can hand the workspace to another member. Everyone else sees the list."
     }
    ]
   },
