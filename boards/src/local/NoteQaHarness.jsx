@@ -106,6 +106,7 @@ function ClientCard({ label, ydoc, cardYMap, awareness, withToolbar = false }) {
       body: cardYMap.has('body') ? cardYMap.get('body') : c.body,
       h: cardYMap.get('h') ?? c.h,
       fontSize: cardYMap.get('fontSize') ?? c.fontSize,
+      fontSizeV: cardYMap.get('fontSizeV') ?? c.fontSizeV,
       fontFamily: cardYMap.get('fontFamily') ?? c.fontFamily,
       textColor: cardYMap.get('textColor') ?? c.textColor,
     }));
@@ -126,6 +127,7 @@ function ClientCard({ label, ydoc, cardYMap, awareness, withToolbar = false }) {
           textColor={card.textColor}
           fontFamily={card.fontFamily}
           fontSize={card.fontSize}
+          fontSizeV={card.fontSizeV}
           manuallyResized={!!card.manuallyResized}
           onUpdate={onUpdate}
           onEditingChange={setEditing}

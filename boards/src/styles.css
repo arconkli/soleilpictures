@@ -5004,7 +5004,8 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   /* The card-level size arrives as --note-font-size on .note. An inline
      font-size on .note alone never reached this element (this rule beats
      inheritance), so a whole-note size pick or the workspace default changed
-     nothing on screen. */
+     nothing on screen. Only a size stamped since that fix sets the variable
+     (lib/noteFontSize.js): older stored sizes were fitted at 15px. */
   font-size: var(--note-font-size, 15px); line-height: 1.5; color: inherit;
   letter-spacing: -0.002em;
   white-space: pre-wrap;

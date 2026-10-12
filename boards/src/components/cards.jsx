@@ -53,6 +53,7 @@ import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/p
 import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { noteSourceHtml } from '../lib/noteBody.js';
+import { noteFontStyle } from '../lib/noteFontSize.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
@@ -921,17 +922,6 @@ function noteCollabOn() {
   } catch (_) { return true; }
 }
 
-// A note's card-level font as inline style on .note. The size also goes out as
-// --note-font-size, because .note-body sets its own default size and an
-// inherited one never reached the text: a whole-note size pick (or the
-// workspace default) changed nothing on screen.
-function noteFontStyle(fontFamily, fontSize) {
-  const s = {};
-  if (fontFamily) s.fontFamily = fontFamily;
-  if (fontSize) { s.fontSize = `${fontSize}px`; s['--note-font-size'] = `${fontSize}px`; }
-  return s;
-}
-
 // Flip the `index`-th .ck-box in a note's STORED html (never the rendered
 // display; see onBodyClick). Only for a note with no Y.Doc to toggle in.
 // Returns null when there is no such box.
@@ -954,7 +944,7 @@ function toggleChecklistInHtml(source, index) {
 // write-through cache feeding every read-only consumer.
 // Exported so the ?noteqa harness can mount it directly against an in-memory
 // Y.Doc (the canvas wires it via NoteCard's gate).
-export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fontSize,
+export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fontSize, fontSizeV = null,
                           vAlign = null,
                           onUpdate, onEditingChange, autoFocus = false,
                           manuallyResized = false, ydoc = null, cardYMap = null,
@@ -967,11 +957,11 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
 
   const ref = useRef(null);
-  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontFamily, editing, manuallyResized]);
+  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontSizeV, fontFamily, editing, manuallyResized]);
   const lastTapRef = useRef({});
   const theme = useThemeAttr();
 
-  const fontStyle = noteFontStyle(fontFamily, fontSize);
+  const fontStyle = noteFontStyle(fontFamily, fontSize, fontSizeV);
   const hasBg = !!bgColor && bgColor !== 'transparent';
   const isTransparent = bgColor === 'transparent';
   // Luminance-based surface tone (theme-independent for an explicitly painted
@@ -1132,7 +1122,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   );
 }
 
-function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
+function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSizeV = null,
                            vAlign = null,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
@@ -1142,12 +1132,12 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   // Workspace defaults can pin a fontFamily/fontSize at create time —
   // pass them through as inline styles so existing notes that didn't
   // capture them keep falling back to the page default.
-  const fontStyle = noteFontStyle(fontFamily, fontSize);
+  const fontStyle = noteFontStyle(fontFamily, fontSize, fontSizeV);
   // Read-only path still shows the clipped-text fade (no chip — viewers
   // can't resize). Hooks run unconditionally; the ref stays null on the
   // editable path so the hook is inert there.
   const roNoteRef = useRef(null);
-  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily, manuallyResized]);
+  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontSizeV, fontFamily, manuallyResized]);
   const roTheme = useThemeAttr();
   const roHasBg = !!bgColor && bgColor !== 'transparent';
   const roTone = surfaceTone(bgColor);
@@ -1172,7 +1162,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
       <NoteCardCollab
         html={html} body={body}
         bgColor={bgColor} textColor={textColor}
-        fontFamily={fontFamily} fontSize={fontSize}
+        fontFamily={fontFamily} fontSize={fontSize} fontSizeV={fontSizeV}
         vAlign={vAlign}
         onUpdate={onUpdate} onEditingChange={onEditingChange}
         autoFocus={autoFocus} manuallyResized={manuallyResized}
@@ -1186,7 +1176,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
     <RichNoteEditor
       html={html} body={body}
       bgColor={bgColor} textColor={textColor}
-      fontFamily={fontFamily} fontSize={fontSize}
+      fontFamily={fontFamily} fontSize={fontSize} fontSizeV={fontSizeV}
       vAlign={vAlign}
       onChangeHTML={(h) => onUpdate({ html: h, body: null })}
       onChangeBg={(c) => onUpdate({ bgColor: c })}

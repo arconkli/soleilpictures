@@ -31,6 +31,7 @@ import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
 import { getActiveNoteEditor, getActiveNoteActions, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
+import { noteFontSizePatch } from '../lib/noteFontSize.js';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
 // NoteTiptapSurface while a note is being edited). When present, the note
@@ -910,7 +911,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
   // under the caret re-renders without an editor transaction, so the hooks
   // re-sample on this instead.
   const noteBase = editingNoteCard
-    ? [editingNoteCard.fontSize, editingNoteCard.fontFamily, editingNoteCard.textColor, editingNoteCard.bgColor].join('|')
+    ? [editingNoteCard.fontSize, editingNoteCard.fontSizeV, editingNoteCard.fontFamily, editingNoteCard.textColor, editingNoteCard.bgColor].join('|')
     : '';
   const currentFore = useNoteForeColor(true, noteBase);
   const fmt = useNoteFormatState(true, noteBase);
@@ -983,7 +984,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
           <SizePicker value={display.fontSize}
                       onApply={(px) => cellStyleMode
                         ? onCellStyle?.({ fontSize: px })
-                        : applyStyleOrNoteDefault({ fontSize: px + 'px' }, () => onUpdateEditingNote && onUpdateEditingNote({ fontSize: px }))} />
+                        : applyStyleOrNoteDefault({ fontSize: px + 'px' }, () => onUpdateEditingNote && onUpdateEditingNote(noteFontSizePatch(px)))} />
         </>
       )}
       {showEmphasis && (
