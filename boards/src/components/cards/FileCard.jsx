@@ -10,6 +10,7 @@ import { EditableText } from '../EditableText.jsx';
 import { Icon } from '../Icon.jsx';
 import { resolveSrc } from '../../lib/r2.js';
 import { downloadCardAsset } from '../../lib/cardDownload.js';
+import { useOptionalFeedback } from '../AppFeedback.jsx';
 import {
   FileIcon, FileText, FilePdf, FileZip, FileDoc, Image as ImagePh,
   Headphones, Clapperboard, Database, CodeIcon, Download,
@@ -92,13 +93,27 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   // Shared with every other download in the app (lib/cardDownload.js), which
   // among other things routes through deliverFile — so this button now does
   // something inside the native app, where <a download> never saved anything.
+  //
+  // A big file can take a long while to arrive before the save dialog shows,
+  // so the button says it is working (a repeat click joins the download
+  // already running — cardDownload shares the promise). A failure that
+  // survives the helper's own fallback (opening the signed URL) is said in a
+  // toast; it used to be swallowed, and the button just did nothing.
+  // Optional feedback: the DEV harnesses mount cards outside the provider.
+  const feedback = useOptionalFeedback();
+  const [busy, setBusy] = useState(false);
   const download = async (ev) => {
     ev?.stopPropagation?.();
     if (!fileSrc) return;
+    setBusy(true);
     try {
       await downloadCardAsset({ fileSrc, fileName, mime, sizeBytes, ext: e, title }, 'file',
                               { surface: 'file_card' });
-    } catch (_) { /* helper already falls back to opening the signed URL */ }
+    } catch (err) {
+      feedback?.toast({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -118,10 +133,14 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
           </div>
         )}
         {!pending && fileSrc && (
-          <button type="button" className="ic-expand" title={`Download ${label}`}
+          <button type="button" className={`ic-expand${busy ? ' is-busy' : ''}`}
+                  title={busy ? 'Preparing download…' : `Download ${label}`}
+                  aria-busy={busy || undefined}
                   onPointerDown={(ev) => ev.stopPropagation()}
                   onClick={download}>
-            <Icon as={Download} size={12} />
+            {busy
+              ? <Spinner size={12} tone="on-dark" label="Preparing download…" />
+              : <Icon as={Download} size={12} />}
           </button>
         )}
         <div className="filec-info">

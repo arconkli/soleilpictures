@@ -45,3 +45,7 @@
 .filec-info-icon { flex: 0 0 auto; display: inline-flex; color: #cbd5e1; }
 .filec-info-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filec-info-size { flex: 0 0 auto; opacity: .8; font-variant-numeric: tabular-nums; }
+
+/* The download chip stays up while a download is being prepared, even after
+   the pointer has left the card, so its spinner is seen. */
+.filec .ic-expand.is-busy { opacity: 1; cursor: progress; }

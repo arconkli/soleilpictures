@@ -4474,11 +4474,33 @@ export function CanvasSurface({
   // item — goes through here so there is ONE filename rule, one delivery path
   // (which works inside the native app, where <a download> silently does
   // nothing), and one error message.
+  //
+  // A big file can take a long while to arrive before the save dialog shows,
+  // and the menu item or hover button that started it is gone or unchanged —
+  // so after a beat one "Preparing download…" toast says it is working, for
+  // however many downloads are running, and goes when the last one is done.
+  // (A repeat click on the same card joins the download already running:
+  // cardDownload shares the promise.)
+  const downloadBusyRef = useRef({ n: 0, timer: null, close: null });
   const runDownload = useCallback(async (card, kind) => {
+    const busy = downloadBusyRef.current;
+    if (busy.n++ === 0) {
+      busy.timer = setTimeout(() => {
+        busy.timer = null;
+        busy.close = feedback.toast({ type: 'info', message: 'Preparing download…', ttl: 120000 });
+      }, 400);
+    }
     try {
       await downloadCardAsset(card, kind, { surface: isPublic ? 'public_canvas' : 'canvas' });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+    } finally {
+      if (--busy.n === 0) {
+        clearTimeout(busy.timer);
+        busy.timer = null;
+        busy.close?.();
+        busy.close = null;
+      }
     }
   }, [feedback, isPublic]);
 
