@@ -17795,6 +17795,9 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   background: rgba(252,252,254,.92);
   border-color: rgba(0,0,0,.08);
 }
+/* The dialog is focusable only as a fallback target for the focus trap; it
+   draws no ring of its own (its controls keep theirs). */
+.settings-modal:focus { outline: none; }
 .settings-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px;

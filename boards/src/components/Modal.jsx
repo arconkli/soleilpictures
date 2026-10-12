@@ -15,16 +15,9 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
-import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
-
-const FOCUSABLE = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
+// The Tab trap and the focusable query live in lib/modalGuard, shared with
+// Settings, which keeps its own shell and so cannot wrap in this component.
+import { registerModalOpen, isTopModal, focusablesIn as focusables, trapTabKey } from '../lib/modalGuard.js';
 
 // Ref-counted body scroll lock so stacked modals don't unlock prematurely.
 let lockCount = 0;
@@ -42,11 +35,6 @@ export function lockScroll() {
 export function unlockScroll() {
   lockCount = Math.max(0, lockCount - 1);
   if (lockCount === 0) document.body.style.overflow = prevOverflow;
-}
-
-function focusables(panel) {
-  return Array.from(panel.querySelectorAll(FOCUSABLE))
-    .filter(n => n.getClientRects().length > 0);
 }
 
 export function Modal({
@@ -118,18 +106,7 @@ export function Modal({
         onClose?.();
         return;
       }
-      if (e.key === 'Tab') {
-        if (focusLost) { e.preventDefault(); (focusables(panel)[0] || panel).focus?.(); return; }
-        const nodes = focusables(panel);
-        if (nodes.length === 0) { e.preventDefault(); panel.focus?.(); return; }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault(); last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault(); first.focus();
-        }
-      }
+      if (e.key === 'Tab') trapTabKey(e, panel);
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
