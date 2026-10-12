@@ -2195,10 +2195,14 @@ async function dispatch(url, request, env, ctx) {
       trace.target = boardId;
 
       if (existing) {
-        await userPatch(env, token, 'boards', `id=eq.${boardId}`, {
+        const rows = await userPatch(env, token, 'boards', `id=eq.${boardId}`, {
           name: name.slice(0, 200),
           view: body.view === 'list' ? 'list' : 'canvas',
         });
+        // RLS answers an update it refuses with zero rows, not an error.
+        if (!Array.isArray(rows) || !rows.length) {
+          throw fail(403, 'forbidden', 'you cannot change that board');
+        }
       } else {
         await userInsert(env, token, 'boards', [{
           id: boardId,
@@ -2400,7 +2404,15 @@ async function dispatch(url, request, env, ctx) {
       if (typeof body.name === 'string' && body.name.trim()) patch.name = body.name.trim().slice(0, 200);
       if (body.view === 'list' || body.view === 'canvas') patch.view = body.view;
       if (Object.keys(patch).length) {
-        await userPatch(env, token, 'boards', `id=eq.${id}`, patch);
+        // A refused UPDATE is not an error to PostgREST: RLS filters the row
+        // out and the PATCH matches nothing. Reading the representation is the
+        // only way to tell, and without it a viewer's rename answered 200 with
+        // the old name, so a script or an agent reported a change that never
+        // happened.
+        const rows = await userPatch(env, token, 'boards', `id=eq.${id}`, patch);
+        if (!Array.isArray(rows) || !rows.length) {
+          throw fail(403, 'forbidden', 'you cannot rename this board');
+        }
       }
 
       // Schedule fields delegate to the RPC, the same way parent_board_id

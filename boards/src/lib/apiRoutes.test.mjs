@@ -394,3 +394,30 @@ test('deleted=true and deleted=1 both list the Trash', async () => {
     assert.equal(boardsQuery().get('deleted_at'), 'not.is.null', `deleted=${v}`);
   }
 });
+
+// ── API-15: a rename RLS refuses is a 403, not a 200 with the old name ───────
+
+test('PATCH /boards/:id answers 403 when the rename was refused', async () => {
+  putBoard(B1, [], { name: 'Old' });
+  boards.get(B1).readOnly = true;
+  const r = await api('PATCH', `/boards/${B1}`, { name: 'New' });
+  assert.equal(r.status, 403, JSON.stringify(r.body));
+  assert.equal(r.body.code, 'forbidden');
+});
+
+test('PATCH /boards/:id still renames a board you can edit', async () => {
+  putBoard(B1, [], { name: 'Old' });
+  const r = await api('PATCH', `/boards/${B1}`, { name: 'New' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.board.name, 'New');
+});
+
+test('the single-board upsert answers 403 when the matched board cannot be changed', async () => {
+  putBoard(B1, [], { name: 'Old', workspace_id: W1 });
+  boards.get(B1).readOnly = true;
+  idents = [boardIdent(B1, '1')];
+  const r = await api('POST', '/boards', {
+    name: 'New', workspace_id: W1, on_conflict: 'identifier', identifiers: [{ scope: 'sg', value: '1' }],
+  });
+  assert.equal(r.status, 403, JSON.stringify(r.body));
+});

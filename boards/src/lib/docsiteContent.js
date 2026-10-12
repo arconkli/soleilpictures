@@ -39713,6 +39713,31 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Renaming needs edit rights on the workspace. A board you can see but not edit — as a viewer, or through a share of that one board — answers "
+    },
+    {
+     "t": "code",
+     "v": "403 forbidden"
+    },
+    {
+     "t": "text",
+     "v": " rather than "
+    },
+    {
+     "t": "code",
+     "v": "200"
+    },
+    {
+     "t": "text",
+     "v": " with the name unchanged."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "DELETE /boards/:id",
