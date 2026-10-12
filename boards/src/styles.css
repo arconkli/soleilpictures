@@ -9121,6 +9121,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
    next one sideways; only its opacity changes. */
 .ct-th-caret { opacity: 0; font-size: 9px; line-height: 1; transition: opacity var(--dur-quick) var(--ease); }
 .ct-th.is-sorted .ct-th-caret { opacity: 1; }
+/* "· Tempo ↓" after Name, shown only at the widths below that fold the sorted
+   column away (ClusterTable's sortNote). */
+.ct-th-sortnote { display: none; color: var(--ink-1); white-space: nowrap; }
 .ct-body { display: flex; flex-direction: column; }
 .ct-row, .ct-tile { -webkit-user-select: none; user-select: none; }
 .ct-row { position: relative; border-bottom: 1px solid var(--line-1); cursor: default; }
@@ -9128,7 +9131,11 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 /* --bg-hov is DARKER than the table's --bg-3 in the dark theme, so the old
    hover dimmed the row instead of lifting it. A wash of --ink-0 moves the
    right way in both themes without a second token. */
-.ct-row:hover { background: color-mix(in srgb, var(--ink-0) 5.5%, transparent); }
+/* Pointer hover only: a touch browser keeps :hover on whatever was last
+   tapped, so a row picked from a menu above it stayed lit after the menu went. */
+@media (hover: hover) {
+  .ct-row:hover { background: color-mix(in srgb, var(--ink-0) 5.5%, transparent); }
+}
 .ct-table { --ct-sel-line: color-mix(in srgb, var(--soleil) 34%, transparent); }
 .ct-row.is-selected {
   background: var(--soleil-soft);
@@ -9244,7 +9251,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-thumb.is-bare .cbp-glyph { display: none; }
 .ct-thumb.is-bare .ct-play { opacity: 1; background: transparent; color: var(--ink-2); }
 .ct-thumb.is-bare .ct-play svg { width: 13px; height: 13px; }
-.ct-row:hover .ct-thumb.is-bare .ct-play { color: var(--ink-0); background: var(--bg-act); }
+@media (hover: hover) {
+  .ct-row:hover .ct-thumb.is-bare .ct-play { color: var(--ink-0); background: var(--bg-act); }
+}
 .ct-row.is-playing .ct-thumb.is-bare { border-color: transparent; box-shadow: none; }
 .ct-row.is-playing .ct-thumb.is-bare .ct-play { color: var(--soleil); background: transparent; }
 /* 34px is small for a thumb on the surface built for phone visitors. */
@@ -9650,10 +9659,12 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   }
   .ct-table[data-cols="audio"] .ct-c-fmt,
   .ct-table[data-cols="audio"] .ct-c-date { display: none; }
+  .ct-table[data-cols="audio"] .ct-th-sortnote:is([data-col="format"], [data-col="updated"], [data-col="created"]) { display: inline; }
 }
 @container cbmain (max-width: 620px) {
   .ct-head, .ct-row { grid-template-columns: minmax(0,1fr) 70px 56px 34px; }
   .ct-c-date, .ct-th.ct-c-date { display: none; }
+  .ct-th-sortnote:is([data-col="updated"], [data-col="created"]) { display: inline; }
   .ct-cell, .ct-th { padding-left: 10px; padding-right: 10px; }
   .ct-c-name { gap: 9px; }
 }
@@ -9672,6 +9683,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   /* …and every value that just lost its column comes back folded under the
      name, which is the one place there is still room for it. */
   .ct-sub-folded { display: block; }
+  .ct-th-sortnote { display: inline; }
 }
 
 /* ── Real grid mini-preview (actual cell content) ─────────────────────────── */
@@ -9727,6 +9739,8 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   .ct-table[data-cols="audio"] .ct-c-fmt { display: none; }
   /* …and the same values come back folded under the name instead. */
   .ct-sub-folded { display: block; }
+  .ct-th-sortnote:is([data-col="updated"], [data-col="created"]),
+  .ct-table[data-cols="audio"] .ct-th-sortnote { display: inline; }
   .ct-cell, .ct-th { padding-left: 10px; padding-right: 10px; }
   .ct-c-name { gap: 9px; }
 

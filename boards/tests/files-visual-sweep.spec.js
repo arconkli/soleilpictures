@@ -138,4 +138,28 @@ test.describe('on a phone', () => {
     // Inside the 34px last track, not ~90px short of the edge.
     expect(r.x + r.width - (dl.x + dl.width)).toBeLessThan(34);
   });
+
+  test('VS-FILES-05: sorted by Tempo, the phone list header says so', async ({ page }) => {
+    await audioPack(page, { width: 390, height: 844 });
+    await page.getByRole('button', { name: /^Files/ }).click();
+    await expect(full(page)).toBeVisible();
+    await full(page).getByRole('button', { name: 'List layout' }).click();
+    await expect(full(page).locator('.ct-play')).toHaveCount(3);
+    const note = full(page).locator('.ct-head .ct-th-sortnote');
+    await expect(note).toBeHidden();
+    await full(page).getByRole('button', { name: /^View/ }).click();
+    await page.locator('.cbt-menu .ctx-item', { hasText: /^Tempo/ }).click();
+    await page.keyboard.press('Escape');
+    await expect(note).toBeVisible();
+    await expect(note).toHaveText(/Tempo [↑↓]/);
+  });
+});
+
+test('VS-FILES-05: on a wide screen the sorted column carries the arrow, and the Name note stays hidden', async ({ page }) => {
+  await audioPack(page);
+  await openFullFiles(page);
+  await page.getByRole('button', { name: 'List layout' }).click();
+  await full(page).getByRole('button', { name: 'BPM', exact: true }).click();
+  await expect(full(page).locator('.ct-th.ct-c-bpm')).toHaveClass(/is-sorted/);
+  await expect(full(page).locator('.ct-head .ct-th-sortnote')).toBeHidden();
 });
