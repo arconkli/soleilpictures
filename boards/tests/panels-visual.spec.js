@@ -196,6 +196,23 @@ test('VS-PANELS-06: with no sheet open the phone toast stays under the topbar', 
   expect((await rect(toast)).t).toBeLessThan(120);
 });
 
+test('VS-PANELS-06: a sheet with a pinned footer keeps the toast off its buttons', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await probe(page, 'mountSettings', 'profile', 'owner');   // closed until clicked
+  // Workspace recovery pins Cancel / Rewind to the bottom on a phone. Its
+  // shell is enough to exercise the selector; the toast must stay up top.
+  await page.evaluate(() => {
+    const bg = document.createElement('div');
+    bg.className = 'modal-shell-bg';
+    bg.innerHTML = '<div class="modal-shell modal modal-workspace-recovery"></div>';
+    document.body.appendChild(bg);
+  });
+  await page.evaluate(() => window.__probeToast('Rewind failed.'));
+  const toast = page.locator('.toast-stack .toast').last();
+  await expect(toast).toBeVisible();
+  expect((await rect(toast)).t).toBeLessThan(120);
+});
+
 test('VS-PANELS-07: on a phone the Schedule panel is a full-width sheet that stops at the bottom nav', async ({ page }) => {
   await page.setViewportSize(PHONE);
   const nav = page.locator('.mb-nav');

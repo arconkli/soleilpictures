@@ -12193,8 +12193,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
      covering the topbar the offset above is tuned for, so a toast landed on
      the sheet's own header: over its close button, and over most of Share's
      Copy link. While one is open the stack sits at the bottom instead, over
-     the end of the sheet's scrolling content. */
-  body:has(.modal-shell-bg, .settings-bg) .toast-stack {
+     the end of the sheet's scrolling content. Named, not every Modal: other
+     sheets pin their buttons to the bottom (Workspace recovery's Rewind), and
+     a toast there would cover the very button you'd press to retry. */
+  body:has(.modal-shell-bg > .share-modal,
+           .modal-shell-bg > .modal:not(.modal-workspace-recovery),
+           .settings-bg) .toast-stack {
     top: auto;
     bottom: calc(12px + var(--safe-bottom, 0px));
   }
