@@ -42,6 +42,37 @@ test('TAGS-13: Escape while feedback is sending keeps the modal, and a failed se
   await expect(modal).toBeHidden();
 });
 
+test('MOBILE-14: the tag popover footer shows under keyboard focus and on touch', async ({ page }) => {
+  await probe(page, 'mountTagPopover');
+  const footer = page.locator('.tag-pop-footer');
+  await expect(footer).toHaveCount(2);           // Remove tag + View tag
+  const opacity = (i) => footer.nth(i).evaluate((el) => getComputedStyle(el).opacity);
+  // Not hovered, not focused: hidden at rest on a pointer device.
+  await page.mouse.move(1, 1);
+  await expect.poll(() => opacity(0)).toBe('0');
+  // Keyboard focus on either footer button reveals both.
+  await footer.nth(1).focus();
+  await expect.poll(() => opacity(0)).toBe('1');
+  await expect.poll(() => opacity(1)).toBe('1');
+  // Touch: the coarse-pointer block always shows it (the media query can't
+  // be emulated on desktop-chrome, so assert the rule the browser parsed).
+  const touchRule = await page.evaluate(() => {
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules;
+      try { rules = sheet.cssRules; } catch (_) { continue; }
+      for (const r of Array.from(rules || [])) {
+        if (r.type !== CSSRule.MEDIA_RULE) continue;
+        if (!/hover:\s*none/.test(r.conditionText) || !/pointer:\s*coarse/.test(r.conditionText)) continue;
+        for (const inner of Array.from(r.cssRules)) {
+          if (inner.selectorText === '.tag-pop-footer' && inner.style.opacity === '1') return true;
+        }
+      }
+    }
+    return false;
+  });
+  expect(touchRule).toBe(true);
+});
+
 test('TAGS-15: the sidebar tag menu opened near the bottom of the window stays on screen', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 700 });
   await probe(page, 'mountSidebarTags', 40);
