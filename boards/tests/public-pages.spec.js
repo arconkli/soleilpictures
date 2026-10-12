@@ -148,3 +148,16 @@ test('a template item page puts its CTA at the right edge of the topbar', async 
   // Within the topbar's own right padding of its right edge, not beside the logo.
   expect(bar.x + bar.width - (box.x + box.width)).toBeLessThan(40);
 });
+
+test('/pricing with a cached session marker that does not restore shows pricing, not the sign-in wall', async ({ page }) => {
+  await routeAnalytics(page, []);
+  // main.jsx routes on the PRESENCE of an sb-*-auth-token key; this one names
+  // no session supabase-js can restore, which is what a revoked refresh token
+  // leaves behind until the client clears it.
+  await page.addInitScript(() => {
+    try { localStorage.setItem('sb-local-auth-token', '1'); } catch (_) {}
+  });
+  await page.goto('/pricing');
+  await expect(page.locator('.pp-shell')).toBeVisible();
+  await expect(page.locator('.auth-screen input[type="email"]')).toHaveCount(0);
+});

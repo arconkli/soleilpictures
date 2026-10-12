@@ -488,7 +488,11 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
                 <OAuthConsentPage />
               </AuthGate>
             ) : (
-              <AuthGate>
+              // /pricing with a cached session lands here, but the cache is only
+              // a guess: a revoked refresh token fails to restore, and the
+              // visitor who clicked Pricing got the sign-in wall instead. Then
+              // the public page is the signed-out answer.
+              <AuthGate signedOut={pricingMatch ? <PublicPricingPage /> : null}>
                 <AppShell />
               </AuthGate>
             )}
