@@ -66,3 +66,16 @@ export function coalesce(fn) {
     return inFlight;
   };
 }
+
+// ── Profile filters ─────────────────────────────────────────────────────
+// The tag profile's type filter is one remembered preference across every
+// tag. Applied to a tag that has none of that kind it made the tag look
+// empty ("No images tagged.") — and when the tag had no synced cards at all
+// the pill row was hidden, leaving no way back. Show everything instead; the
+// preference itself is left alone so it still applies to the next tag that
+// does have that kind.
+export function effectiveTypeFilter(stored, typeCounts) {
+  if (!stored || stored === 'all') return 'all';
+  const n = typeCounts?.get ? typeCounts.get(stored) : 0;
+  return n > 0 ? stored : 'all';
+}
