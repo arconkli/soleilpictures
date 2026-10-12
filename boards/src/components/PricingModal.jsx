@@ -39,6 +39,7 @@ import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
+import { useBfcacheRestore } from '../auth/useBfcacheRestore.js';
 
 export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null, initialPlan = null }) {
   const { user } = useAuth();
@@ -130,6 +131,8 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
+  // Back from Stripe restores the page mid-redirect: busy CTA, abandon muted.
+  useBfcacheRestore(() => { setBusy(false); redirectingRef.current = false; });
   const modalRef = useRef(null);
 
   // up_* exposure telemetry — what the user DOES on this pitch before leaving
