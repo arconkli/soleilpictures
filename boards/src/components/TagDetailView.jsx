@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { coalesce, touchesAppliedTag, touchesTagMention, effectiveTypeFilter } from '../lib/tagSurface.js';
+import { coalesce, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, effectiveTypeFilter } from '../lib/tagSurface.js';
 import { setTagEntityType } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
@@ -197,6 +197,10 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
 
   // The live tag's row reload, for actions outside the effect below (Undo).
   const reloadRowsRef = useRef(null);
+  const reloadSuggestionsRef = useRef(null);
+  // Opening Manage re-reads the inbox, so it is current even where realtime
+  // didn't deliver (the badge and list used to freeze at mount-time values).
+  useEffect(() => { if (manageOpen) reloadSuggestionsRef.current?.(); }, [manageOpen]);
 
   useEffect(() => {
     if (!tag?.id) { setRows([]); setLoading(false); return; }
@@ -324,6 +328,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       }));
     };
     loadSuggestions();
+    const reloadSuggestions = coalesce(loadSuggestions);
+    reloadSuggestionsRef.current = reloadSuggestions;
 
     const sfx = Math.random().toString(36).slice(2, 9);
     const chan = supabase.channel(`tag-detail:${tag.id}:${sfx}`)
@@ -339,9 +345,10 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'tag_suggestions',
       }, (payload) => {
-        const n = payload?.new || {};
-        const o = payload?.old || {};
-        if (n.tag_id === tag.id || o.tag_id === tag.id) loadSuggestions();
+        // In the realtime publication since 0404. Accepting or dismissing
+        // (here or by a peer) DELETEs or tombstones rows, and a DELETE's
+        // `old` carries only the key — reload unless it names another tag.
+        if (touchesTagSuggestion(payload, tag.id)) reloadSuggestions();
       })
       .subscribe();
 
@@ -354,6 +361,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       cancelled = true;
       document.removeEventListener(TAG_LINKS_CHANGED, onLocalChange);
       if (reloadRowsRef.current === reloadRows) reloadRowsRef.current = null;
+      if (reloadSuggestionsRef.current === reloadSuggestions) reloadSuggestionsRef.current = null;
       try { supabase.removeChannel(chan); } catch (_) {}
     };
   }, [tag?.id]);
