@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { onCanvasSettle } from '../lib/canvasScale.js';
 
 // First-run guided tour overlay. Renders the active step as a Milanote-style
 // frosted pill with a pointer arrow, anchored to the live on-screen position of
@@ -113,8 +114,15 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
     };
   }, [tourShowing, lockActive, variantFlag]);
 
-  // Track the anchor's live screen position (it moves with canvas pan/zoom) via
-  // rAF, re-rendering only when it shifts, and keep a glow ring on the target.
+  // Track the anchor's live screen position (it moves with canvas pan/zoom),
+  // re-rendering only when it shifts, and keep a glow ring on the target.
+  //
+  // Per frame only while something is moving: after the pill or anchor shifted,
+  // while the canvas is mid-gesture, or just after input that can move things
+  // (wheel, pointerdown, keys, resize, scroll, a canvas settle). Otherwise a
+  // slow poll. The pick_intent / add_content steps can sit on screen for
+  // minutes while a new user reads, and a perpetual rAF did querySelector and
+  // five layout reads every frame of that, at display refresh rate.
   useEffect(() => {
     if (!step) return undefined;
     const setHighlight = (el) => {
@@ -123,8 +131,22 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
       el?.classList.add('tour-target');
       highlightRef.current = el;
     };
+    const IDLE_POLL_MS = 200;   // still catches layout shifts no event announces
+    const HOT_MS = 600;         // keep per-frame tracking this long after motion
     let raf = 0;
+    let timer = 0;
+    let hotUntil = performance.now() + HOT_MS;
+    const schedule = () => {
+      if (performance.now() < hotUntil) raf = requestAnimationFrame(tick);
+      else timer = setTimeout(tick, IDLE_POLL_MS);
+    };
+    const wake = () => {
+      hotUntil = performance.now() + HOT_MS;
+      if (timer) { clearTimeout(timer); timer = 0; raf = requestAnimationFrame(tick); }
+    };
     const tick = () => {
+      raf = 0;
+      timer = 0;
       const pill = pillRef.current;
       if (pill) {
         const pr = pill.getBoundingClientRect();
@@ -147,12 +169,28 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
             prev.placement !== next.placement || prev.anchored !== next.anchored) {
           posRef.current = next;
           setPos(next);
+          hotUntil = performance.now() + HOT_MS;
         }
+        // Mid-gesture the anchor moves every frame; follow it the moment the
+        // gesture ends rather than up to one idle poll later.
+        if (interacting) hotUntil = performance.now() + HOT_MS;
       }
-      raf = requestAnimationFrame(tick);
+      schedule();
     };
     raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); setHighlight(null); };
+    const opts = { capture: true, passive: true };
+    const WAKE_EVENTS = ['wheel', 'pointerdown', 'keydown', 'scroll', 'touchstart'];
+    for (const ev of WAKE_EVENTS) window.addEventListener(ev, wake, opts);
+    window.addEventListener('resize', wake);
+    const offSettle = onCanvasSettle(wake);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      for (const ev of WAKE_EVENTS) window.removeEventListener(ev, wake, opts);
+      window.removeEventListener('resize', wake);
+      offSettle();
+      setHighlight(null);
+    };
   }, [step]);
 
   // Reset position when the step changes so the new pill re-anchors.
