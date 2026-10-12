@@ -69,6 +69,27 @@ test('DOCS-08: Undo on deleting the only page brings it back with its text', asy
   await expect(modal.locator('.ProseMirror')).toContainText('Every word of the only page.');
 });
 
+// ── DOCS-15 ───────────────────────────────────────────────────────────────
+// A print whose afterprint never fires (the app's WebView has no print at all)
+// used to hold the export menu open and busy for the 60 s safety net.
+test('DOCS-15: Print / Save as PDF closes the menu at once and leaves the other exports usable', async ({ page }) => {
+  // Every frame, the print iframe included: print() does nothing, no afterprint.
+  await page.addInitScript(() => { window.print = () => {}; });
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>Printable words.</p>'));
+  const trigger = page.locator('.doc-card-modal button[aria-label="Export"]');
+  await trigger.click();
+  const menu = page.locator('.doc-export-menu');
+  await menu.getByRole('menuitem', { name: 'Print / Save as PDF' }).click();
+  await expect(menu).toHaveCount(0, { timeout: 3000 });
+  await trigger.click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 5000 }),
+    menu.getByRole('menuitem', { name: 'Export Markdown' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.md$/);
+});
+
 // ── DOCS-14 ───────────────────────────────────────────────────────────────
 // A collaborator's edit arrives while the comment composer is open. It lands
 // as a whole-document replace, so raw offsets captured at "Add comment" no
