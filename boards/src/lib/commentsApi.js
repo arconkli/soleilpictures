@@ -98,9 +98,22 @@ export async function updateComment(id, patch) {
   const row = {};
   for (const k of allowed) if (k in patch) row[k] = patch[k];
   if (Object.keys(row).length === 0) return;
-  const { error } = await supabase
-    .from('comments').update(row).eq('id', id);
+  // RLS (author, or anyone who can write the board) filters an UPDATE the
+  // caller may not make down to zero rows, and PostgREST reports that as
+  // success. Ask for the ids back so a refused Resolve/Hide says so instead
+  // of silently doing nothing.
+  const { data, error } = await supabase
+    .from('comments').update(row).eq('id', id).select('id');
   if (error) throw error;
+  if (!data || data.length === 0) throw notAllowed('change');
+}
+
+// What a refused write turns into: a zero-row UPDATE, or the RPCs' 42501,
+// whose own message names the comment's uuid. Same code either way.
+function notAllowed(verb) {
+  const e = new Error(`Only its author or an editor of this cluster can ${verb} this comment.`);
+  e.code = '42501';
+  return e;
 }
 
 // Soft-delete a comment. Recoverable for 30 days via restoreComment, or
@@ -110,13 +123,19 @@ export async function updateComment(id, patch) {
 export async function deleteComment(id) {
   const { error } = await supabase.rpc('soft_delete_comment', { p_comment_id: id });
   if (error) {
+    // The RPC is authoritative on permission. Falling back to an UPDATE after
+    // a refusal ran into the same RLS, matched zero rows, "succeeded", and the
+    // archive showed "Comment deleted" for a comment that never was.
+    if (error.code === '42501') throw notAllowed('delete');
     console.warn('[deleteComment] RPC failed, falling back to UPDATE', error);
     const upd = await supabase
       .from('comments')
       .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', id)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .select('id');
     if (upd.error) throw upd.error;
+    if (!upd.data || upd.data.length === 0) throw notAllowed('delete');
   }
 }
 
@@ -124,12 +143,15 @@ export async function deleteComment(id) {
 export async function restoreComment(id) {
   const { error } = await supabase.rpc('restore_comment', { p_comment_id: id });
   if (error) {
+    if (error.code === '42501') throw notAllowed('restore');   // as deleteComment
     console.warn('[restoreComment] RPC failed, falling back to UPDATE', error);
     const upd = await supabase
       .from('comments')
       .update({ deleted_at: null, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id');
     if (upd.error) throw upd.error;
+    if (!upd.data || upd.data.length === 0) throw notAllowed('restore');
   }
 }
 

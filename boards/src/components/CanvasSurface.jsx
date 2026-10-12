@@ -12200,6 +12200,7 @@ export function CanvasSurface({
           layerVisible={commentsVisible}
           viewsByRootId={commentViewsByRootId}
           onMarkViewed={markCommentViewed}
+          canEdit={canEdit}
         />
 
         {/* Vote cards — same canvas-transform layer + the SAME visibility
@@ -12758,6 +12759,7 @@ export function CanvasSurface({
           userId={userId}
           wsPeers={wsPeers}
           currentUser={currentUser}
+          canEdit={canEdit}
           onLocallyRemoved={removeCommentLocally}
           onClose={() => setCommentArchive(null)}
         />
