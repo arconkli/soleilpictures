@@ -361,7 +361,11 @@ export async function loadWorkspaceTagCentroids(workspaceId) {
   // > NO_MATCH_DIST from a paragraph never get evaluated. Tags
   // without a centroid yet (cold start) skip the filter.
   const [tagsRes, centroidsRes] = await Promise.all([
-    supabase.from('tags').select('id, name, color, description').eq('workspace_id', workspaceId),
+    // Live tags only (same filter as listWorkspaceTags): a deleted or
+    // merged-away tag keeps its row for 30 days, and tagging paragraphs
+    // with it wrote hidden links that came back on restore / undo-merge.
+    supabase.from('tags').select('id, name, color, description')
+      .eq('workspace_id', workspaceId).or('status.is.null,status.neq.deleted'),
     supabase.from('tag_centroids').select('tag_id, centroid').eq('workspace_id', workspaceId),
   ]);
   if (tagsRes.error) {
