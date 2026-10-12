@@ -25,6 +25,7 @@ import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
 import { showingConversation } from '../lib/threadAttention.js';
+import { readOnlyCopy } from '../lib/messageAccess.js';
 
 const STICK_THRESHOLD_PX = 80;
 // Start fetching the previous page this far before the reader hits the top.
@@ -34,7 +35,7 @@ const LOAD_OLDER_THRESHOLD_PX = 120;
 export function MessageThread({
   workspaceId, currentUser, conversation,
   onBack, onClose, onChanged, jumpToMessageId,
-  canSend = true,
+  canSend = true, readOnlyReason = null,
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
@@ -813,21 +814,21 @@ export function MessageThread({
           placeholder={replyParent ? 'Reply…' : 'Message…'}
         />
       ) : (
-        <ReadOnlyComposerNotice />
+        <ReadOnlyComposerNotice reason={readOnlyReason} />
       )}
     </div>
   );
 }
 
-// Inline upgrade note shown in place of the composer when the current
-// user can't send messages in this workspace (demo tier viewing someone
-// else's workspace). Server-side: messages.insert RLS requires
-// can_write_workspace; this is the matching UI affordance.
-function ReadOnlyComposerNotice() {
+// Shown in place of the composer when the current user can't send from this
+// workspace. Server-side: messages.insert RLS requires can_write_workspace on
+// the current workspace — a role rule, not a plan rule (lib/messageAccess.js),
+// so the note gives the real reason instead of blaming the plan (COMMS-08).
+function ReadOnlyComposerNotice({ reason }) {
   return (
     <div className="msg-composer-readonly" role="status">
       <span className="msg-composer-readonly-text">
-        You can read this conversation. Sending messages in shared workspaces requires a paid plan.
+        {readOnlyCopy(reason).notice}
       </span>
     </div>
   );

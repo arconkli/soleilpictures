@@ -5,6 +5,7 @@ import { useConversationList } from '../hooks/useConversationList.js';
 import { findOrCreateDm, leaveConversation } from '../lib/messages.js';
 import { NewConversationPicker } from './NewConversationPicker.jsx';
 import { MessageThread } from './MessageThread.jsx';
+import { readOnlyCopy } from '../lib/messageAccess.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
@@ -30,7 +31,8 @@ export function MessagesPanel({
   suggestedUserIds,
   refreshTick, onRefreshRequested, onPermalinkConsumed, onPeerConsumed,
   onClose,
-  canSendMessages = true, // false → demo user on someone else's workspace
+  canSendMessages = true, // false → a viewer here, or on the waitlist (lib/messageAccess.js)
+  readOnlyReason = null,  // why not: 'viewer' | 'waitlist'
 }) {
   const userId = currentUser?.id;
   const {
@@ -137,6 +139,7 @@ export function MessagesPanel({
         workspaceId={workspaceId}
         currentUser={currentUser}
         canSend={canSendMessages}
+        readOnlyReason={readOnlyReason}
         conversation={{
           id: openConversationId,
           title: conv?.title || null,
@@ -164,7 +167,7 @@ export function MessagesPanel({
         <button
           className="msg-panel-icon"
           onClick={(e) => setComposeAnchor(e.currentTarget.getBoundingClientRect())}
-          title={canSendMessages ? 'New chat' : 'Upgrade to start chats in shared workspaces'}
+          title={canSendMessages ? 'New chat' : readOnlyCopy(readOnlyReason).newChatTitle}
           aria-label="New chat"
           disabled={!canSendMessages}
         >
