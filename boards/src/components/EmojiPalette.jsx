@@ -17,7 +17,9 @@ export function EmojiPalette({ anchor, onPick, onClose }) {
 
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Claim Escape (preventDefault) so whatever the palette opened over (the
+    // Messages panel, a comment) doesn't close on the same press.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);

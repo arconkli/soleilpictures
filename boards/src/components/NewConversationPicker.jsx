@@ -64,7 +64,9 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
 
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
+    // doesn't close on the same press.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
