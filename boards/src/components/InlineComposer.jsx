@@ -35,6 +35,9 @@ export function InlineComposer({
   const [value, setValue] = useState(initialValue);
   // @-mention token at the caret → EntityPicker, same shape as MessageComposer.
   const [mention, setMention] = useState(null);   // { tokenStart, query, anchor }
+  // Read by the document Escape listener, which is registered once.
+  const mentionRef = useRef(null);
+  mentionRef.current = mention;
   const [mentions, setMentions] = useState([]);   // user ids picked so far
   const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: 240 });
   const popRef = useRef(null);
@@ -68,7 +71,13 @@ export function InlineComposer({
   }, []);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    // Escape with the people picker open belongs to the picker: it closes
+    // itself on the same keypress (useDismissOnOutside), and this used to
+    // close the whole composer too and throw the typed comment away.
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || mentionRef.current) return;
+      onCancel?.();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onCancel]);
