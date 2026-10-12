@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { coalesce, touchesAppliedTag, touchesTagMention } from '../lib/tagSurface.js';
+import { coalesce, touchesAppliedTag, touchesTagMention, effectiveTypeFilter } from '../lib/tagSurface.js';
 import { setTagEntityType } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
@@ -839,10 +839,12 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   // Apply both filters in sequence: source filter (handled by
   // filteredRows above for the hierarchy view) and type filter (here
   // for the flat-grid view).
+  // The remembered type filter, or 'all' when THIS tag has none of that kind.
+  const activeType = effectiveTypeFilter(typeFilter, typeCounts);
   const typedFlat = useMemo(() => {
-    if (typeFilter === 'all') return allCardsFlat;
-    return allCardsFlat.filter(c => c.kind === typeFilter);
-  }, [allCardsFlat, typeFilter]);
+    if (activeType === 'all') return allCardsFlat;
+    return allCardsFlat.filter(c => c.kind === activeType);
+  }, [allCardsFlat, activeType]);
 
   // Pretty labels for the pill row. Order is intentional — visual
   // kinds (image / palette) first, then text-y kinds. Hidden if the
@@ -993,7 +995,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       {/* Type filter — exploration ("show me all the images / palettes"). */}
       {allCardsFlat.length > 0 && (
         <div className="tag-detail-filter tag-detail-filter-type">
-          <button className={`tag-detail-filter-pill ${typeFilter === 'all' ? 'is-on' : ''}`}
+          <button className={`tag-detail-filter-pill ${activeType === 'all' ? 'is-on' : ''}`}
                   onClick={() => setTypeFilterPersist('all')}>
             All types <span className="tag-detail-filter-count">{allCardsFlat.length}</span>
           </button>
@@ -1002,7 +1004,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             const Icn = def?.icon;
             return (
               <button key={k}
-                      className={`tag-detail-filter-pill ${typeFilter === k ? 'is-on' : ''}`}
+                      className={`tag-detail-filter-pill ${activeType === k ? 'is-on' : ''}`}
                       onClick={() => setTypeFilterPersist(k)}>
                 {Icn && <Icon as={Icn} size={11} />}
                 {typeLabel(k)}
@@ -1023,16 +1025,33 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             </div>
           </div>
         )}
+        {/* The source filter is remembered across tags but its control lives
+            in the collapsed Manage panel, so name it (and offer the way out)
+            wherever it is hiding something. */}
+        {!loading && rows.length > 0 && sourceFilter !== 'all' && !manageOpen && filteredRows.length > 0 && (
+          <div className="tag-detail-filter">
+            <button className="tag-detail-filter-pill is-on"
+                    title="Show auto-applied and manual items"
+                    onClick={() => setFilter('all')}>
+              {sourceFilter === 'auto' ? 'Auto-applied only' : 'Manual only'} <span aria-hidden="true">×</span>
+            </button>
+          </div>
+        )}
         {!loading && rows.length > 0 && filteredRows.length === 0 && (
           <div className="tag-detail-empty">
             No {sourceFilter === 'auto' ? 'auto-applied' : 'manually applied'} items.
+            <div className="tag-detail-empty-hint">
+              <button className="tag-detail-filter-pill" onClick={() => setFilter('all')}>
+                Show all {rows.length}
+              </button>
+            </div>
           </div>
         )}
         {!loading && filteredRows.length > 0 && (
           <div className="tag-profile-section-head">Everything connected</div>
         )}
 
-        {typeFilter === 'all' ? (
+        {activeType === 'all' ? (
           <>
             {direct.boards.map(renderBoardBlock)}
             {orphanGroups.map(g => renderGroupBlock(g, { boardCrumb: true }))}
@@ -1062,9 +1081,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           typedFlat.length > 0 ? (
             <div className="tag-detail-typed-grid-wrap">
               <div className="tag-detail-block-head">
-                <Icon as={getKind(typeFilter)?.icon || StickyNote} size={12} />
+                <Icon as={getKind(activeType)?.icon || StickyNote} size={12} />
                 <span className="tag-detail-block-title">
-                  {typeLabel(typeFilter)}{typedFlat.length === 1 ? '' : 's'}
+                  {typeLabel(activeType)}{typedFlat.length === 1 ? '' : 's'}
                 </span>
                 <span className="tag-detail-block-attr is-count">{typedFlat.length}</span>
               </div>
@@ -1074,7 +1093,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             </div>
           ) : (
             <div className="tag-detail-empty">
-              No {typeLabel(typeFilter).toLowerCase()}s tagged.
+              No {typeLabel(activeType).toLowerCase()}s tagged.
             </div>
           )
         )}

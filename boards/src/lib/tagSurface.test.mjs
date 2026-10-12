@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isDeleteEvent, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, coalesce,
+  effectiveTypeFilter,
 } from './tagSurface.js';
 
 // What Supabase realtime actually delivers for entity_links under RLS +
@@ -81,4 +82,14 @@ test('a failing refresh does not wedge the runner or swallow the trailing run', 
   assert.equal(calls, 2);
   await run();
   assert.equal(calls, 3);
+});
+
+test('a remembered type filter only applies to a tag that has that kind', () => {
+  const counts = new Map([['note', 3], ['image', 0]]);
+  assert.equal(effectiveTypeFilter('note', counts), 'note');
+  assert.equal(effectiveTypeFilter('image', counts), 'all', 'zero of that kind → show everything');
+  assert.equal(effectiveTypeFilter('palette', counts), 'all', 'absent kind → show everything');
+  assert.equal(effectiveTypeFilter('all', counts), 'all');
+  assert.equal(effectiveTypeFilter(null, counts), 'all');
+  assert.equal(effectiveTypeFilter('note', new Map()), 'all', 'nothing synced yet → nothing to filter');
 });
