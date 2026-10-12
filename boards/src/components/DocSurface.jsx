@@ -764,6 +764,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // applies if it names the page we opened on, and a click-to-jump or a
   // bookmark jump arriving with the open always wins over it.
   const restoreRef = useRef(null);
+  const namingPageRef = useRef(null);
   if (restoreRef.current === null) {
     const saved = loadDocPos(board.id);
     // 'soleil-open-doc-card' doubles as the plain "open this doc" event
@@ -965,7 +966,15 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             boardId={board.id}
             pages={pages}
             activePageId={activePageId}
-            onSelectPage={(id) => { setActivePageId(id); setMobileRailOpen(false); }}
+            onSelectPage={(id, opts) => {
+              // A page just made with "+" opens with its name field focused
+              // in the tree: its editor must not take the caret (that blur
+              // committed "Untitled"), and on a phone the drawer stays open
+              // until the name is in.
+              namingPageRef.current = opts?.naming ? id : null;
+              setActivePageId(id);
+              if (!opts?.keepOpen) setMobileRailOpen(false);
+            }}
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit && !isPublic}
@@ -1078,7 +1087,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 workspaceId={workspaceId}
                 userId={userId}
                 currentUser={currentUser}
-                autofocus={!restoreRef.current}
+                autofocus={!restoreRef.current && namingPageRef.current !== sid}
                 takeRefocus={takeRefocus}
                 onEditorReady={onEditorReady}
                 onEditorDestroy={onEditorDestroy}
