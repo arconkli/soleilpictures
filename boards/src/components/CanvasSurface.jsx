@@ -100,7 +100,7 @@ import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { probeFile } from '../lib/mediaProbe.js';
-import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
+import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
@@ -3469,7 +3469,7 @@ export function CanvasSurface({
         // undo step, or Cmd+Z first "peels" the image back to pending
         // before a second Cmd+Z removes the card (the list-drop path has
         // always done this — the canvas path had drifted).
-        mutators.updateCardSilent?.(id, { src: up.src, pending: false });
+        (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, { src: up.src, pending: false });
       }
     } catch (err) {
       console.error('image upload failed', err);
@@ -3542,7 +3542,8 @@ export function CanvasSurface({
         .map((c) => ({ id: c.id, age: uploadAge((k) => c[k], at) }));
       const plan = planAbandonedSweep(swept, found);
       const m = sweepMutatorsRef.current;
-      for (const r of plan.recover) m?.updateCardSilent?.(r.id, { src: r.src, pending: false });
+      // Recovering someone's upload doesn't make whoever opened the cluster its modifier.
+      for (const r of plan.recover) (m?.updateCardMeta || m?.updateCardSilent)?.(r.id, { src: r.src, pending: false });
       // Say only what actually happened: a delete that did nothing (a guarded
       // mutator) is not "removed".
       const removed = plan.remove.length ? (Number(m?.deleteCardsSilent?.(plan.remove, { refund: false })) || 0) : 0;
@@ -3637,7 +3638,7 @@ export function CanvasSurface({
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
-        mutators.updateCardSilent?.(id, {
+        (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, {
           src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
           name: up.name, w: up.w, h: up.h, pending: false,
         });
@@ -3679,7 +3680,7 @@ export function CanvasSurface({
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
-        mutators.updateCardSilent?.(id, {
+        (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, {
           fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
         });
       }
@@ -3721,15 +3722,15 @@ export function CanvasSurface({
     try {
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
-      if (boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { src: up.src, pending: false });
+      if (boardIdRef.current === dropBoardId) (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, { src: up.src, pending: false });
       // Poster from the local File, not from a re-download. Without this the
       // card is posterless until useVideoPosterBackfill rescues it by fetching
       // the whole clip back — and this route exists precisely for the clips too
       // big to want that. After the src patch so playback is never gated on it.
       if (kind === 'video') {
-        probeFile(file).then((media) => { if (media && boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { media }); });
+        probeFile(file).then((media) => { if (media && boardIdRef.current === dropBoardId) (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, { media }); });
         const poster = await captureAndUploadPoster({ file, workspaceId, boardId: dropBoardId, userId });
-        if (poster && boardIdRef.current === dropBoardId) mutators.updateCardSilent?.(id, { poster });
+        if (poster && boardIdRef.current === dropBoardId) (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, { poster });
       } else if (kind === 'audio') {
         // Same reason as the poster above: the File is already in hand, and
         // this route exists for the files you'd least want to re-download.
@@ -3737,7 +3738,7 @@ export function CanvasSurface({
         // the flat strip, which is honest.
         const a = await analyzeAudioFile(file, { lowMemory: lowMemoryDevice() });
         if (boardIdRef.current === dropBoardId) {
-          mutators.updateCardSilent?.(id, a
+          (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, a
             ? { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 }
             : { analyzed: analyzable({ sizeBytes: file.size || 0, lowMemory: lowMemoryDevice() }) ? 1 : null });
         }
@@ -3830,7 +3831,7 @@ export function CanvasSurface({
       const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, userId, onProgress, originalName: meaningfulFileName(file) });
       if (boardIdRef.current === dropBoardId) {
-        mutators.updateCardSilent?.(id, {
+        (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, {
           src: up.src, duration: up.duration || null, pending: false,
           peaks: up.peaks || null, sampleRate: up.sampleRate || null,
           channels: up.channels || null, analyzed: up.analyzed || null,
@@ -5018,11 +5019,14 @@ export function CanvasSurface({
       }
       // Info on whatever is selected — the cluster itself when nothing is. A
       // note's own ⌘I (italic) never gets here: isEditorTarget returned above.
-      if (cmd && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+      // A shared canvas has no Info drawer: ⌘I stays the browser's there.
+      if (!isPublic && cmd && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault();
         openInfo({ boardId: board?.id, follow: infoFollow, toggle: true });
         return;
       }
+      // Keys typed in the Info drawer are its own (lib/infoBus.inInfoDrawer).
+      if (inInfoDrawer(e)) return;
       if (cmd && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
       if (cmd && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); doDuplicate(); return; }
       if (cmd && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); doCopy(); return; }
@@ -5120,7 +5124,7 @@ export function CanvasSurface({
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
       ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
-      hasSplit, paneId, board?.id]);
+      hasSplit, paneId, board?.id, isPublic]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
   // On each undoable action the UndoManager fires 'stack-item-added'; we stash
@@ -9900,7 +9904,8 @@ export function CanvasSurface({
               // image…", an undo and redo) keeps what it was re-pointed to.
               const live = (cardsRef.current || []).find((c) => c.id === id);
               if (!live || live.src !== url) return;
-              mutators.updateCardSilent?.(id, {
+              // Rehosting isn't an edit: unstamped, like every upload patch.
+              (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, {
                 src: res.src, sourceUrl: url, ...(res.fileName ? { fileName: res.fileName } : {}),
               });
             });

@@ -2686,7 +2686,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // Silent (origin 'upload'): the async src patch must not become its
           // own undo step, or Cmd+Z "peels" the PDF back to pending before
           // removing the card.
-          updateCardSilent(cardId, {
+          // And unstamped (updateCardMeta): an upload finishing isn't an edit,
+          // or Info would call every file "Modified" seconds after it arrived.
+          updateCardMeta(cardId, {
             src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
             name: up.name, w: up.w, h: up.h, pending: false,
           });
@@ -2904,24 +2906,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ...(offerBoard ? { action: { label: 'Open beside board', onClick: () => { if (fullFilesBoardRef.current === boardId) applyFilesEventRef.current?.('shrink', 'toast'); } } } : {}),
       });
 
-      // 6) Background uploads (bounded concurrency). Patch via updateCardSilent
+      // 6) Background uploads (bounded concurrency). Patch via updateCardMeta (unstamped: finishing an upload isn't an edit)
       //    so the async src writes stay OFF the undo stack; roll back on failure.
       await Promise.all(live.map(({ it, id }) => listUploadLimiter(async () => {
         try {
           if (it.route === 'image') {
             const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
-            updateCardSilent(id, { src: up.src, pending: false });
+            updateCardMeta(id, { src: up.src, pending: false });
           } else if (it.route === 'pdf') {
             const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
-            updateCardSilent(id, { src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount, name: up.name, w: up.w, h: up.h, pending: false });
+            updateCardMeta(id, { src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount, name: up.name, w: up.w, h: up.h, pending: false });
           } else if (it.route === 'video') {
             // canAttemptFiles mirrors CanvasSurface's allowLong semantics
             // (owner-pays: own board → own plan, shared board → owner's).
             const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file), ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
-            updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
+            updateCardMeta(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
             const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, originalName: meaningfulFileName(it.file) });
-            updateCardSilent(id, {
+            updateCardMeta(id, {
               src: up.src, duration: up.duration || null, pending: false,
               peaks: up.peaks || null, sampleRate: up.sampleRate || null,
               channels: up.channels || null, analyzed: up.analyzed || null,
@@ -2935,20 +2937,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // patched only { src, pending } and silently dropped it, so an
               // over-cap loop arrived with no runtime on the card or in the list.
               const meta = await readAudioMeta(it.file).catch(() => ({ duration: null }));
-              updateCardSilent(id, { src: up.src, duration: meta?.duration || null, pending: false });
+              updateCardMeta(id, { src: up.src, duration: meta?.duration || null, pending: false });
               // Waveform from the local File, after the bytes are safe — same
               // reason the canvas captures a video poster here rather than
               // re-downloading a file this route exists to avoid moving twice.
               const a = await analyzeAudioFile(it.file, { durationHint: meta?.duration, lowMemory: lowMemoryDevice() });
-              if (a) updateCardSilent(id, { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 });
-              else if (analyzable({ sizeBytes: it.file.size || 0, durationSec: meta?.duration, lowMemory: lowMemoryDevice() })) updateCardSilent(id, { analyzed: 1 });
+              if (a) updateCardMeta(id, { peaks: a.peaks, duration: a.duration, sampleRate: a.sampleRate, channels: a.channels, analyzed: 1 });
+              else if (analyzable({ sizeBytes: it.file.size || 0, durationSec: meta?.duration, lowMemory: lowMemoryDevice() })) updateCardMeta(id, { analyzed: 1 });
             }
             else if (it.kind === 'video') {
-              updateCardSilent(id, { src: up.src, pending: false });
+              updateCardMeta(id, { src: up.src, pending: false });
               // The clip's own facts — frame rate, codec, timecode (lib/mediaProbe.js).
-              probeFile(it.file).then((media) => { if (media) updateCardSilent(id, { media }); });
+              probeFile(it.file).then((media) => { if (media) updateCardMeta(id, { media }); });
             }
-            else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
+            else updateCardMeta(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
           }
         } catch (err) {
           console.error('list drop upload failed', err);

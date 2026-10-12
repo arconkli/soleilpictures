@@ -35,7 +35,7 @@ import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
 import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
-import { openInfo, closeInfo, reportSelection, clearSelection } from '../lib/infoBus.js';
+import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 
 // Quick look ships in its own chunk: most visits to Files never open it.
 // Files' scroll position per cluster (and size of Files), for this session.
@@ -927,6 +927,9 @@ export function ListSurface({
       if (document.querySelector('.ctx-menu, .cbt-menu')) return;
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+      // Keys typed in the Info drawer are its own (lib/infoBus.inInfoDrawer) —
+      // all but ⌘I, which closes it from anywhere.
+      if (inInfoDrawer(e) && !((e.metaKey || e.ctrlKey) && (e.key === 'i' || e.key === 'I'))) return;
       // A focused control owns Enter and Space. Without this the window
       // handler preventDefault()s them out from under every button in the
       // list — and `activeId` is set by clicking any row's own Play button,

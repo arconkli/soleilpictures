@@ -20,6 +20,7 @@ function spyMutators() {
       updateCard: fn('updateCard'),
       updateCards: fn('updateCards'),
       updateCardSilent: fn('updateCardSilent'),
+      updateCardMeta: fn('updateCardMeta'),
       // must be blocked
       addCard: fn('addCard'), addCards: fn('addCards'), addNote: fn('addNote'),
       duplicateCard: fn('duplicateCard'), ingestFilesArranged: fn('ingestFilesArranged'),

@@ -78,8 +78,8 @@ test('the canvas paints the hotlink first and moves the card only onto a copy, o
   assert.match(fn, /if \(!res\?\.ok \|\| boardIdRef\.current !== dropBoardId\) return;/);
   assert.match(fn, /const live = \(cardsRef\.current \|\| \[\]\)\.find\(\(c\) => c\.id === id\);\s*if \(!live \|\| live\.src !== url\) return;/,
     'a card re-pointed meanwhile ("Replace image…") keeps what it was re-pointed to');
-  assert.match(fn, /mutators\.updateCardSilent\?\.\(id, \{\s*src: res\.src, sourceUrl: url/,
-    'silent: the swap is not its own undo step, like every upload patch');
+  assert.match(fn, /\(mutators\.updateCardMeta \|\| mutators\.updateCardSilent\)\?\.\(id, \{\s*src: res\.src, sourceUrl: url/,
+    'silent and unstamped: the swap is not its own undo step, and not an edit (Info\'s "Modified")');
 });
 
 test('one dead link or a busy isolate does not stop the next save — a failing route does', async () => {
