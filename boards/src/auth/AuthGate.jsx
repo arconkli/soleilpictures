@@ -430,7 +430,7 @@ async function consumeAuthCallback() {
   return data.session;
 }
 
-export function AuthGate({ children }) {
+export function AuthGate({ children, signedOut = null }) {
   const localMode = isLocalQaMode();
   const devWithoutSupabase = !isSupabaseConfigured;
   const [session, setSession] = useState(null);
@@ -538,7 +538,9 @@ export function AuthGate({ children }) {
   }
 
   if (loading) return <SplashLoading />;
-  if (!session) return <SignIn />;
+  // `signedOut` lets a public route (main.jsx: /pricing) stand in for the wall
+  // when a cached session turns out not to restore.
+  if (!session) return signedOut || <SignIn />;
 
   const signOut = async () => { await supabase.auth.signOut(); };
 
