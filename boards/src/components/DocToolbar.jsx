@@ -46,6 +46,8 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
                                titlePageEnabled = false, onToggleTitlePage,
                                sceneNumbersShow = false, onSetSceneNumbersShow,
                                pageless = true, onTogglePageless,
+                               // Paged doc, but a phone shows it continuous (DocSurface).
+                               pagesShownContinuous = false,
                                zoom = 1, fitMode = false, onZoomIn, onZoomOut, onZoomReset,
                                // false → view-only member. Their Y.Doc writes never leave the
                                // tab (the board room drops them), so the bar keeps only what
@@ -232,7 +234,9 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
       {!isScreenplay && onTogglePageless && (
         <button type="button"
                 className={`doc-tb-pill doc-tb-pages-toggle${!pageless ? ' is-active' : ''}`}
-                title={pageless ? 'Pageless — one continuous sheet. Click to switch to pages.' : 'Pages — real 8.5×11 pages. Click for a continuous (pageless) layout.'}
+                title={pageless ? 'Pageless — one continuous sheet. Click to switch to pages.'
+                  : pagesShownContinuous ? 'Pages — real 8.5×11 pages in exports and on wider screens; a phone shows the text continuous. Click for pageless.'
+                  : 'Pages — real 8.5×11 pages. Click for a continuous (pageless) layout.'}
                 aria-pressed={!pageless}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onTogglePageless()}>

@@ -23055,6 +23055,15 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone the text stays full size. A document set to real pages shows as one continuous sheet there (its exports and wider screens keep the pages), and a screenplay fits its text column to the screen, with the margins a swipe away."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Writing and formatting",

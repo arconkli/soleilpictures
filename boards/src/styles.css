@@ -13399,15 +13399,17 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   .doc-paper:not(.is-fit-width) .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 }
 
-/* ── Fit-to-width (DocSurface sets --doc-zoom = availableWidth / 816) ───────
+/* ── Fit-to-width (DocSurface sets --doc-zoom = availableWidth / 576, the
+   screenplay text column; see the column-fit note below) ──────────────────
    Give the scaled sheet as much of the viewport as possible: the paper's own
    horizontal padding is dead space at this size. DocSurface measures the
    COMPUTED padding when it derives the zoom, so these two stay in sync
    automatically — no magic number shared across the JS/CSS boundary. */
 .doc-paper.is-fit-width { padding-left: 8px; padding-right: 8px; }
-/* Screenplay scene numbers live OUTSIDE the sheet box (left/right: -0.5in), so
-   reserve room for them or they're clipped by the paper's overflow. */
-.doc-paper.is-fit-width.show-scene-numbers { padding-left: 30px; padding-right: 30px; }
+/* (Scene numbers hang 0.5in outside the text column, in the sheet's margins.
+   With the column fitted to the width those margins are a pan away on either
+   side, numbers included — reserving paper padding for them, as the old
+   whole-sheet fit did, would only shrink the column's text further.) */
 /* Pin the sheet to a TRUE 8.5in box so `zoom` has the real geometry to scale.
    The base wrap is width:100%/max-width:816px — fluid — so on a phone it would
    otherwise already be ~376px and zoom would shrink it AGAIN, wrecking the very
@@ -13418,6 +13420,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   max-width: 816px;
   flex-shrink: 0;
 }
+/* Fit mode sizes the TEXT COLUMN to the width (DocSurface), so the sheet is
+   wider than the paper. Centred, its left overflow would be unreachable —
+   start-align it so the margin is a pan away, and DocSurface scrolls to the
+   column's left edge. */
+.doc-paper.is-fit-width { align-items: flex-start; }
 /* The margin gutters (comment dots, tag dots) hang OUTSIDE the sheet box —
    right:-28px / left:-34px — which is fine on a desktop where the paper has
    room either side, but at fit width the sheet fills the viewport and they were

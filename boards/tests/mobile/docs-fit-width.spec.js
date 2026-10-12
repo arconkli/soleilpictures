@@ -7,9 +7,14 @@ import { expect, test } from '@playwright/test';
 // contract is that the on-screen wrap column, the paginator and the exported
 // PDF all agree, which only holds while the sheet keeps its true geometry.
 //
-// The fix scales the WHOLE sheet to the available width instead of reflowing,
+// The fix scaled the WHOLE sheet to the available width instead of reflowing,
 // so proportions, the 60ch column, the ch indents and the page breaks are all
-// preserved exactly.
+// preserved exactly. That rendered 12pt text at ~6px on a 390px phone
+// (VS-DOCS-05), so now:
+//   - screenplay fits its 6.0in TEXT COLUMN to the width (the margins are a
+//     pan away) — the sheet's geometry is still untouched;
+//   - paged prose, which has no geometry contract (pagination is decoration
+//     over one content fragment), shows continuous on a phone.
 
 const PAGE_W = 816;
 
@@ -39,35 +44,28 @@ async function readFit(page) {
   });
 }
 
-test('phone: a fixed-sheet doc auto-fits the viewport width', async ({ page }, testInfo) => {
+test('phone: a paged prose doc shows continuous, at full size', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile-chrome' && testInfo.project.name !== 'mobile-safari', 'phone-width only (≤640px)');
   await openDoc(page);
 
-  // Paged prose is one of the two fixed-816px layouts (screenplay is the
-  // other). Pageless prose is deliberately excluded — see the next test.
   await page.evaluate(() => {
     const T = window.__soleilDocTest;
     T.setPageless(T.ydoc, T.getScope(), false);
   });
-  await expect(page.locator('.doc-paper.is-fit-width')).toBeVisible();
+  await expect(page.locator('.doc-paper.is-pageless')).toBeVisible();
 
   const r = await readFit(page);
   expect(r).not.toBeNull();
-  expect(r.fitMode).toBe(true);
-
-  // The zoom is derived from the space actually available inside the paper, and
-  // FLOORED to 2dp — never rounded up, or 816 x zoom would be wider than the
-  // space and the paper would scroll sideways. So it sits within one floor step
-  // BELOW the raw ratio, never above it.
-  const expected = (r.paperClientWidth - r.padX) / PAGE_W;
-  expect(r.zoom).toBeLessThanOrEqual(expected);
-  expect(r.zoom).toBeGreaterThan(expected - 0.011);
-  // …and it really did shrink (a phone is well under 816px + padding).
-  expect(r.zoom).toBeLessThan(1);
-
-  // The rendered sheet fits, so the page never scrolls sideways.
+  // Not scaled: the text renders at its real size and the wrap is fluid.
+  expect(r.fitMode).toBe(false);
+  expect(r.zoom).toBeCloseTo(1, 2);
   expect(r.wrapRenderedWidth).toBeLessThanOrEqual(r.paperClientWidth + 1);
-  expect(r.paperScrollWidth).toBeLessThanOrEqual(r.paperClientWidth + 1);
+  // The doc's own setting is untouched — exports and wider screens keep pages.
+  const stillPaged = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    return T.getPageless(T.ydoc, T.getScope()) === false;
+  });
+  expect(stillPaged).toBe(true);
 });
 
 test('phone: pageless prose is left fluid, not scaled', async ({ page }, testInfo) => {
@@ -103,8 +101,9 @@ test('phone: screenplay keeps its true 8.5in geometry while fitted', async ({ pa
       wrapOffsetWidth: wrap.offsetWidth,
       padLeft: parseFloat(cs.paddingLeft),
       padRight: parseFloat(cs.paddingRight),
-      // The rendered box, however, must fit the phone.
-      renderedWidth: wrap.getBoundingClientRect().width,
+      // The rendered TEXT COLUMN, however, must fit the phone.
+      zoom: parseFloat(getComputedStyle(paper).getPropertyValue('--doc-zoom')) || 1,
+      padX: (parseFloat(getComputedStyle(paper).paddingLeft) || 0) + (parseFloat(getComputedStyle(paper).paddingRight) || 0),
       paperClientWidth: paper.clientWidth,
     };
   });
@@ -117,8 +116,9 @@ test('phone: screenplay keeps its true 8.5in geometry while fitted', async ({ pa
   // offsetWidth is an integer and the box is inside a CSS `zoom`, so WebKit can
   // report 815 for the same 816px box Chromium reports exactly.
   expect(Math.abs(r.wrapOffsetWidth - PAGE_W)).toBeLessThanOrEqual(1);
-  // Scaled down to fit.
-  expect(r.renderedWidth).toBeLessThanOrEqual(r.paperClientWidth + 1);
+  // Scaled so the 6.0in (576px) column fits — floored, so never wider.
+  expect(r.zoom).toBeLessThan(1);
+  expect(576 * r.zoom).toBeLessThanOrEqual(r.paperClientWidth - r.padX + 1);
 });
 
 test('desktop: fit mode is off and the sheet renders at 100%', async ({ page }, testInfo) => {
