@@ -140,6 +140,17 @@ export function stripNoteChromeForSeed(html) {
   const root = document.createElement('div');
   root.innerHTML = html;
   root.querySelectorAll('.note-link-preview, .note-preview-hidden').forEach((el) => el.remove());
+  // An auto-link (an anchor whose text IS its URL) is linkify's own output,
+  // not something the author made: keep it as the plain URL text the editor
+  // stores, so linkify re-links it (and its preview) on write-through. Only a
+  // NAMED link becomes a link mark in the fragment.
+  root.querySelectorAll('a[href]').forEach((a) => {
+    const text = (a.textContent || '').trim();
+    const asUrl = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    const href = a.getAttribute('href') || '';
+    if (!text || asUrl.replace(/\/$/, '') !== href.replace(/\/$/, '')) return;
+    a.replaceWith(...a.childNodes);
+  });
   // The note schema stops at h3. Without this an h4–h6 (from a doc, a paste,
   // or an older note) parsed as a plain paragraph, so a note visibly lost its
   // sub-headings the first time it was opened for editing.

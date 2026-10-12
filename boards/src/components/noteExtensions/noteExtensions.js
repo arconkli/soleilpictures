@@ -19,6 +19,7 @@ import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import FontFamily from '@tiptap/extension-font-family';
 import TextAlign from '@tiptap/extension-text-align';
+import Link from '@tiptap/extension-link';
 import { FontSize } from '../docExtensions/FontSize.js';
 import { CommentMark } from '../docExtensions/CommentMark.js';
 import { NoteMention } from './NoteMention.js';
@@ -61,6 +62,14 @@ export const noteExtensions = [
   // here would be silently stripped from card.html on the next keystroke —
   // i.e. every comment anchor in the note would evaporate.
   CommentMark,
+  // Named links ("Read the brief" → https://…). Without the mark a pasted
+  // hyperlink kept only its words, and opening a note whose html had one
+  // rewrote it without the URL (NOTES-09). Bare URLs are NOT stored as links:
+  // they stay plain text (stripNoteChromeForSeed unwraps old auto-links) and
+  // noteLinkify links them, with their preview, on every write-through.
+  // Clicks don't navigate while editing; the read-only note is where a link
+  // opens. Link's own URI check drops javascript: and friends on parse.
+  Link.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
   ClearFormatting,
   // Custom nodes — must keep their exact html contract (see each file).
   NoteMention,
