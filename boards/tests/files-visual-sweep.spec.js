@@ -158,6 +158,28 @@ test.describe('on a phone', () => {
     expect(r.x + r.width - (dl.x + dl.width)).toBeLessThan(34);
   });
 
+  test('VS-FILES-11: Quick look on a phone has finger-sized buttons and visible previous/next', async ({ page }) => {
+    await go(page, { width: 390, height: 844 });
+    await page.getByRole('button', { name: /^Files/ }).click();
+    await expect(full(page)).toBeVisible();
+    await full(page).locator('.ct-jg [data-item-id]').nth(3).dblclick();
+    const ql = page.getByRole('dialog', { name: /^Quick look/ });
+    await expect(ql).toBeVisible();
+    for (const b of await ql.locator('.ql-bar .ql-btn').all()) {
+      const r = await b.boundingBox();
+      expect(r.width).toBeGreaterThanOrEqual(44);
+      expect(r.height).toBeGreaterThanOrEqual(44);
+    }
+    const next = ql.getByRole('button', { name: 'Next file' });
+    await expect(next).toBeVisible();
+    const r = await next.boundingBox();
+    expect(r.width).toBeGreaterThanOrEqual(44);
+    expect(r.x + r.width).toBeLessThanOrEqual(390);
+    const before = await ql.getAttribute('aria-label');
+    await next.click();
+    await expect(ql).not.toHaveAttribute('aria-label', before);
+  });
+
   test('VS-FILES-05: sorted by Tempo, the phone list header says so', async ({ page }) => {
     await audioPack(page, { width: 390, height: 844 });
     await page.getByRole('button', { name: /^Files/ }).click();
