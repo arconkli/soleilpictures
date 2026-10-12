@@ -280,9 +280,11 @@ const showPublicPricing = !!pricingMatch && !hasCachedSession();
 // <Suspense> fallback is pinned dark too: the plain splash follows the theme, so
 // a light-OS visitor got a light grey screen between the dark boot splash and
 // the dark page while the page chunk downloaded. /t/, /legal and /resume follow
-// the theme and keep the plain splash.
+// the theme and keep the plain splash. /pricing counts whether or not a cached
+// session sends it through AuthGate: both pricing pages are the dark
+// PricingPageView, and a cache that fails to restore lands on the public one.
 const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
-  || changelogMatch || showPublicPricing || exploreMatch || publicBoardMatch || shareMatch);
+  || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.

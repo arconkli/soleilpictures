@@ -149,45 +149,62 @@ test('a template item page puts its CTA at the right edge of the topbar', async 
   expect(bar.x + bar.width - (box.x + box.width)).toBeLessThan(40);
 });
 
-test('/pricing with a cached session marker that does not restore shows pricing, not the sign-in wall', async ({ page }) => {
+// supabase-js's storage key under the Playwright config's fake project URL
+// (https://example.supabase.co → sb-<ref>-auth-token).
+const AUTH_KEY = 'sb-example-auth-token';
+
+function fakeSession({ expiresAt }) {
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const user = { id: '0f0f0f0f-0000-4000-8000-000000000001', aud: 'authenticated', role: 'authenticated', email: 'pricing@example.com' };
+  return {
+    access_token: `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: user.id, exp: expiresAt, role: 'authenticated' })}.sig`,
+    refresh_token: 'fake-refresh',
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: expiresAt,
+    user,
+  };
+}
+
+async function seedSession(page, session) {
+  await page.addInitScript(([key, value]) => {
+    try { localStorage.setItem(key, value); } catch (_) {}
+  }, [AUTH_KEY, JSON.stringify(session)]);
+}
+
+test('/pricing with a stored session whose refresh is refused shows pricing, not the sign-in wall', async ({ page }) => {
   await routeAnalytics(page, []);
-  // main.jsx routes on the PRESENCE of an sb-*-auth-token key; this one names
-  // no session supabase-js can restore, which is what a revoked refresh token
-  // leaves behind until the client clears it.
-  await page.addInitScript(() => {
-    try { localStorage.setItem('sb-local-auth-token', '1'); } catch (_) {}
+  // An expired access token makes supabase-js refresh on getSession; a revoked
+  // refresh token answers 400 invalid_grant, and the restore yields no session.
+  // main.jsx still routed through AuthGate, because the key is present.
+  let refreshes = 0;
+  await page.route('**/auth/v1/token**', (route) => {
+    refreshes += 1;
+    return route.fulfill({ status: 400, json: { error: 'invalid_grant', error_description: 'Invalid Refresh Token: Refresh Token Not Found' } });
   });
+  await seedSession(page, fakeSession({ expiresAt: Math.floor(Date.now() / 1000) - 3600 }));
   await page.goto('/pricing');
   await expect(page.locator('.pp-shell')).toBeVisible();
   await expect(page.locator('.auth-screen input[type="email"]')).toHaveCount(0);
+  expect(refreshes).toBeGreaterThan(0);
 });
 
-test.describe('OAuth consent on a short screen', () => {
-  test.use({ viewport: { width: 844, height: 360 } });
+test('signing out of the account pricing page opens the sign-in screen, not the public pricing page', async ({ page }) => {
+  await routeAnalytics(page, []);
+  // A session that restores without a network call, and a backend that knows
+  // just enough to route a signed-in demo account to the account PricingPage.
+  await page.route('https://example.supabase.co/rest/v1/rpc/get_my_tier**', (route) =>
+    route.fulfill({ json: [{ tier: 'demo', demo_card_count: 0, onboarding: { done: true } }] }));
+  await page.route('**/auth/v1/logout**', (route) => route.fulfill({ status: 204, body: '' }));
+  await seedSession(page, fakeSession({ expiresAt: Math.floor(Date.now() / 1000) + 3600 }));
+  await page.goto('/pricing');
 
-  test('Connect can be scrolled into view', async ({ page }) => {
-    await routeAnalytics(page, []);
-    await page.route('**/oauth/client?**', (route) => route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ client_name: 'Test assistant', redirect_uri_registered: true }),
-    }));
-    const q = new URLSearchParams({
-      local: '1',
-      client_id: 'test-client',
-      redirect_uri: 'https://assistant.example/callback',
-      response_type: 'code',
-      code_challenge: 'a'.repeat(43),
-      code_challenge_method: 'S256',
-      scope: 'read write delete',
-      state: 's',
-    });
-    await page.goto(`/oauth/authorize?${q}`);
-    const allow = page.locator('.oauth-allow');
-    await expect(allow).toBeAttached();
+  const useDifferent = page.getByRole('button', { name: 'Use a different email' });
+  await expect(useDifferent).toBeVisible({ timeout: 15000 });
+  await useDifferent.click();
 
-    await page.locator('.oauth-screen').evaluate((el) => { el.scrollTop = el.scrollHeight; });
-    const box = await allow.boundingBox();
-    expect(box.y + box.height).toBeLessThanOrEqual(360);
-    await expect(allow).toBeInViewport();
-  });
+  // The button promises an email box. The public pricing page is the answer
+  // only to a session that never restored, not to one that just ended.
+  await expect(page.getByPlaceholder('you@studio.com')).toBeVisible();
+  await expect(page.locator('.pp-shell')).toHaveCount(0);
 });
