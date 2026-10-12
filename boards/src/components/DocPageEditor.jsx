@@ -1603,6 +1603,10 @@ function pointIsOnWord(x, y) {
   } catch (_) { return false; }
 }
 
+// The clipboard fallbacks below name the key to press, and they fire most on
+// Windows/Linux, where ⌘ is the wrong key.
+const CLIP_MOD = (typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '')) ? '⌘' : 'Ctrl+';
+
 function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTagHover, onRemoveTag, onNotice }) {
   const [pos, setPos] = useState(null);
   useEffect(() => {
@@ -1662,7 +1666,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     editor.view.focus();
     let ok = false;
     try { ok = document.execCommand(cmd); } catch (_) {}
-    if (!ok) onNotice?.(`Press ${cmd === 'cut' ? '⌘X' : '⌘C'} to ${cmd}.`);
+    if (!ok) onNotice?.(`Press ${CLIP_MOD}${cmd === 'cut' ? 'X' : 'C'} to ${cmd}.`);
     close();
   };
   const paste = async () => {
@@ -1674,7 +1678,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       if (text) editor.view.pasteText(text);
     } catch (_) {
       editor.commands.focus();
-      onNotice?.('Press ⌘V to paste.');
+      onNotice?.(`Press ${CLIP_MOD}V to paste.`);
     }
   };
 
