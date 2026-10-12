@@ -10,9 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import * as modalGuard from '../../lib/modalGuard.js';
-import { filmLayerOpen } from '../../lib/filmLayers.js';
-import { isPublicSurface } from '../../lib/cardDownload.js';
+import { registerModalOpen, isTopModal } from '../../lib/modalGuard.js';
 import { resolveSrc } from '../../lib/r2.js';
 import * as audioBus from '../../lib/audioBus.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
@@ -135,11 +133,13 @@ export default function QuickLook({
   const item = items[index] || null;
   const n = items.length;
 
-  // Kept: the film player in here takes its keys only while Quick look is the
-  // top layer (the review player opened from it sits above).
-  const modalRef = useRef(null);
-  useEffect(() => { const u = modalGuard.registerModalOpen(); modalRef.current = u; return u; }, []);
-  const playerRef = useRef(null);
+  // Kept so the key handler can ask whether Quick look is still the top layer.
+  const guardRef = useRef(null);
+  useEffect(() => {
+    const unregister = registerModalOpen();
+    guardRef.current = unregister;
+    return () => { guardRef.current = null; unregister(); };
+  }, []);
 
   // Focus moves in, and goes back where it was on close.
   useEffect(() => {
@@ -150,13 +150,14 @@ export default function QuickLook({
 
   const go = (d) => { if (n) onIndex((index + d + n) % n); };
 
-  // Capture phase: this is the top-most surface, so its keys come first.
+  // Capture phase: while Quick look is the top-most surface its keys come
+  // first. Capture also means it hears keys meant for a layer opened OVER it
+  // (the review player, a viewer), so it stands down unless it is the top
+  // registered layer — Escape used to close Quick look and leave that layer
+  // standing.
   useEffect(() => {
     const onKey = (e) => {
-      // Anything layered above — the player's menu, the review player, a
-      // confirm — owns the keyboard, wherever the focus happens to be.
-      if (modalGuard.isTopModal && !modalGuard.isTopModal(modalRef.current)) return;
-      if (filmLayerOpen()) return;
+      if (guardRef.current && !isTopModal(guardRef.current)) return;
       // A dialog opened on top (a delete confirm) owns the keyboard.
       const focusDialog = document.activeElement?.closest?.('[role="dialog"], [role="alertdialog"]');
       if (focusDialog && focusDialog !== rootRef.current) return;
