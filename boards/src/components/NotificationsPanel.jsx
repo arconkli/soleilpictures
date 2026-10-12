@@ -10,12 +10,13 @@
 // notification saying a day moved has nowhere useful to point — you would know
 // something changed and still not know what you are called for.
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { X, Calendar, Check } from '../lib/icons.js';
 import { parseISO, dayTitle, shortDate, todayISO, daysBetween } from '../lib/schedDates.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { escapeClosesPanel } from '../lib/panelEscape.js';
 import './notificationsPanel.css';
 
 // "in 3 days" / "today" / "tomorrow" — a crew member reads relative time faster
@@ -47,6 +48,18 @@ export function NotificationsPanel({
   onOpenBoard = null, onMarkRead = null, onClose = null,
 }) {
   const today = todayISO();
+  // Escape closes the panel, as its "Close (Esc)" says — nothing handled it
+  // (COMMS-22). The panel takes focus when it opens so the key reaches it;
+  // a press meant for something outside the panel is left alone.
+  const rootRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    try { rootRef.current?.focus({ preventScroll: true }); } catch (_) {}
+    const onKey = (e) => { if (escapeClosesPanel(e, '.ntf-panel')) onCloseRef.current?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   // Group the schedule by date so a day with two units reads as one heading
   // rather than two near-identical rows.
   const byDate = useMemo(() => {
@@ -60,7 +73,7 @@ export function NotificationsPanel({
   }, [schedule]);
 
   return (
-    <div className="ntf-panel">
+    <div className="ntf-panel" ref={rootRef} tabIndex={-1}>
       <div className="ntf-head">
         <div className="ntf-title">Schedule</div>
         {unread > 0 && (

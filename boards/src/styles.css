@@ -15737,6 +15737,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   overflow: hidden;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+/* The list view takes focus when it shows so Escape reaches it; the
+   container itself draws no ring (its controls keep theirs). */
+.msg-panel:focus { outline: none; }
 
 /* While a doc-card overlay is up, lift the messages panel above it.
    .doc-card-modal is z-index 2147483600 and portals to <body>, so fullscreen
