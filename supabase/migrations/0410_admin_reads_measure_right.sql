@@ -18,17 +18,21 @@
 -- recorded from 2026-08-17, and before that every row reads "no work", which is
 -- not the same as "didn't come back" (the 0399 floor, same reason).
 --
--- A new argument is a new signature, so the 3-argument function is DROPPED,
--- not replaced: left in place beside a 4-argument one whose last argument has a
--- default, a 3-argument call would be ambiguous to PostgREST. DROP discards the
--- ACL, so the grants are restated and the block at the end proves them. The
--- client asks with p_require_work and falls back to the 3-argument call (and a
--- presence caption) when the function does not know it, so it works on either
--- side of this migration.
+-- A new argument is a new signature, so the 3-argument function has to get out
+-- of the way, not be replaced: left in place beside a 4-argument one whose last
+-- argument has a default, a 3-argument call would be ambiguous to PostgREST. It
+-- is renamed (admin_retention_curve_0149) rather than dropped, and closed to
+-- every client role, so nothing destructive runs here. The new function's
+-- grants are restated and the block at the end proves them. The client asks
+-- with p_require_work and falls back to the 3-argument call (and a presence
+-- caption) when the function does not know it, so it works on either side of
+-- this migration; the shipped client's 3-named-argument call resolves to the
+-- new function's default.
 
 begin;
 
-drop function if exists public.admin_retention_curve(integer, boolean, boolean);
+alter function public.admin_retention_curve(integer, boolean, boolean) rename to admin_retention_curve_0149;
+revoke execute on function public.admin_retention_curve_0149(integer, boolean, boolean) from public, anon, authenticated;
 
 create or replace function public.admin_retention_curve(
   p_window_days integer default 30,
@@ -154,6 +158,10 @@ do $$
 begin
   if to_regprocedure('public.admin_retention_curve(integer,boolean,boolean)') is not null then
     raise exception '0410: the 3-argument admin_retention_curve is still there';
+  end if;
+  if has_function_privilege('authenticated', 'public.admin_retention_curve_0149(integer,boolean,boolean)', 'execute')
+     or has_function_privilege('anon', 'public.admin_retention_curve_0149(integer,boolean,boolean)', 'execute') then
+    raise exception '0410: the retired 3-argument curve is still callable';
   end if;
   if has_function_privilege('anon', 'public.admin_retention_curve(integer,boolean,boolean,boolean)', 'execute')
      or not has_function_privilege('authenticated', 'public.admin_retention_curve(integer,boolean,boolean,boolean)', 'execute')
