@@ -17799,6 +17799,10 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
 }
 .settings-modal {
   width: min(720px, calc(100vw - 32px));
+  /* A fixed height, not just a cap. Sized by its content, the dialog grew and
+     re-centred on every tab switch (Profile ~546px, Card defaults ~820px), so
+     the whole rail jumped up to 137px under the pointer. The pane scrolls. */
+  height: min(820px, calc(100vh - 80px));
   max-height: calc(100vh - 80px);
   background: rgba(16,16,20,.9);
   color: var(--ink-1);

@@ -144,3 +144,23 @@ test('VS-PANELS-03/04/11: Version history rows stay on one line, the selected ta
   expect(hr.h).toBeLessThan(70);
   await page.screenshot({ path: test.info().outputPath('versions-390-light.png') });
 });
+
+test('VS-PANELS-05: the Settings dialog keeps its size and place across tab switches', async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await probe(page, 'mountSettings', 'profile', 'owner');
+  await page.locator('.probe-settings-trigger').click();
+  const modal = page.locator('.settings-modal');
+  await expect(modal).toBeVisible();
+  const seen = new Set();
+  for (const label of ['Profile', 'Appearance', 'Notifications', 'Connections', 'Members', 'Card defaults', 'Documentation']) {
+    await page.locator('.settings-tab', { hasText: label }).click();
+    await expect(page.locator('.settings-tab.is-active')).toContainText(label);
+    await page.waitForTimeout(150);
+    const r = await rect(modal);
+    seen.add(`${Math.round(r.t)}/${Math.round(r.h)}`);
+  }
+  expect([...seen], 'one geometry for every tab').toHaveLength(1);
+  // The pane scrolls inside the fixed frame rather than the frame growing.
+  const pane = await page.locator('.settings-pane').evaluate((el) => getComputedStyle(el).overflowY);
+  expect(pane).toBe('auto');
+});
