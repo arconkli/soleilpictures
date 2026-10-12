@@ -10,7 +10,7 @@ import { EntityLink } from './EntityLink.jsx';
 import { coerceRef } from '../lib/entityRef.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
-import { attachmentUrl, attachmentMetaLabel } from '../lib/messageAttachmentLinks.js';
+import { attachmentUrl, attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLinks.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -197,7 +197,9 @@ export function MessageBubble({
               {att.kind === 'image' && att.storage_path && (
                 <a className="msg-attachment-image" href={publicUrl(att.storage_path)}
                    target="_blank" rel="noopener noreferrer" title={att.name ? `Open ${att.name}` : 'Open image'}>
-                  <img alt={att.name || ''} src={publicUrl(att.storage_path)} />
+                  <img alt={att.name || ''} src={publicUrl(att.storage_path)}
+                       width={att.width || undefined} height={att.height || undefined}
+                       style={imageBoxStyle(att) || undefined} />
                 </a>
               )}
               {att.kind === 'file' && (att.storage_path ? (

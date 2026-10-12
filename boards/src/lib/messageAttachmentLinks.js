@@ -23,6 +23,22 @@ export function formatAttachmentSize(bytes) {
   return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+// The box an image attachment takes BEFORE it loads, from the dimensions
+// recorded at upload: its aspect ratio, no taller than maxH. Without it the
+// image arrived at zero height and pushed the newest message off-screen when
+// it loaded, and a tall portrait ran unbounded down the panel (COMMS-16).
+// Null when the dimensions weren't recorded (older attachments).
+export const IMAGE_MAX_H = 320;
+export function imageBoxStyle(att, maxH = IMAGE_MAX_H) {
+  const w = Number(att?.width), h = Number(att?.height);
+  if (!(w > 0) || !(h > 0)) return null;
+  return {
+    aspectRatio: `${w} / ${h}`,
+    width: `min(100%, ${Math.round(Math.min(w, (maxH * w) / h))}px)`,
+    height: 'auto',
+  };
+}
+
 // "PDF · 2.4 MB" — the extension when the name has one, else the mime subtype.
 export function attachmentMetaLabel(att) {
   const name = String(att?.name || '');

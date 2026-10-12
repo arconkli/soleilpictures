@@ -137,7 +137,10 @@ export function MessageThread({
     prevLastIdRef.current = lastId;
     if (!lastId || lastId === prevId) return;
     if (wasAtBottomRef.current || !prevId) {
-      requestAnimationFrame(() => jumpToBottom(true));
+      // The first page of a conversation lands instantly: smooth-scrolling
+      // it animated through the whole history on every open (COMMS-16).
+      // Only a later arrival glides.
+      requestAnimationFrame(() => jumpToBottom(!!prevId));
     } else {
       const at = messages.findIndex(m => m.id === prevId);
       const added = at >= 0 ? messages.length - 1 - at : 1;
@@ -145,6 +148,20 @@ export function MessageThread({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastId]);
+
+  // An image that finishes loading above the newest message grows the thread
+  // under the reader; while they're at the bottom, keep them there. (load
+  // doesn't bubble — listen in the capture phase.)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onLoad = (e) => {
+      if (e.target?.tagName !== 'IMG' || !wasAtBottomRef.current) return;
+      el.scrollTop = el.scrollHeight;
+    };
+    el.addEventListener('load', onLoad, true);
+    return () => el.removeEventListener('load', onLoad, true);
+  }, []);
 
   // After an older page is prepended, push the scroll position down by the
   // height it added so the reader's place doesn't move.

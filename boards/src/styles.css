@@ -16502,7 +16502,15 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   cursor: grab;
 }
 .msg-attachment:active { cursor: grabbing; }
-.msg-attachment img { max-width: 100%; border-radius: var(--radius); display: block; }
+.msg-attachment img {
+  max-width: 100%;
+  /* Bounded: a tall portrait ran unbounded down the 360px panel. Images with
+     recorded dimensions also get an exact box inline (imageBoxStyle). */
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: var(--radius);
+  display: block;
+}
 .msg-attachment-image { display: block; }
 /* A file attachment is a download link: name, then type and size. Neutral
    ink — it's an action at rest, not a selection. */
