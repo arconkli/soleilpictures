@@ -110,6 +110,7 @@ import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
+import { probeFile } from './lib/mediaProbe.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -3090,11 +3091,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               else if (analyzable({ sizeBytes: it.file.size || 0, durationSec: meta?.duration, lowMemory: lowMemoryDevice() })) updateCardMeta(id, { analyzed: 1 });
             }
             else if (it.kind === 'video') {
-              updateCardMeta(id, { src: up.src, pending: false });
+              updateCardSilent(id, { src: up.src, pending: false });
               // The clip's own facts — frame rate, codec, timecode (lib/mediaProbe.js).
-              probeFile(it.file).then((media) => { if (media) updateCardMeta(id, { media }); });
+              probeFile(it.file).then((media) => { if (media) updateCardSilent(id, { media }); });
             }
-            else updateCardMeta(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
+            else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
           }
         } catch (err) {
           console.error('list drop upload failed', err);
@@ -9566,9 +9567,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           if (!id) return null;
           const pane = yb.ready && yb.boardId === id ? yb : (splitYb.ready && splitYb.boardId === id ? splitYb : null);
           if (!pane) return null;
+          const isMain = id === currentBoard.id;
           return {
             cards: pane.cards, groups: pane.groups || [], gridTemplates: pane.gridTemplates || {},
-            canEdit: id === currentBoard.id ? canEditCurrent : !!(splitBoard?.id === id && splitBoardPerm.canEdit),
+            canEdit: isMain ? canEditCurrent : !!(splitBoard?.id === id && splitBoardPerm.canEdit),
+            mutators: isMain ? mainMutatorsFull : splitMutatorsFull,
           };
         }}
         onOpenCluster={(id) => {

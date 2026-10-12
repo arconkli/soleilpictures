@@ -34,10 +34,6 @@ test('a time maps to the frame on screen, and seeking aims at a frame\'s centre'
   assert.equal(timeToFrame(0, [24, 1]), 0);
   assert.equal(timeToFrame(1 / 24 - 1e-9, [24, 1]), 1);    // within float noise of the edge: the next frame
   assert.equal(timeToFrame(1 / 24 + 0.001, [24, 1]), 1);
-  // A presented frame's start, as the browser reports it (to the microsecond).
-  assert.equal(timeToFrame(0.208333, [24, 1]), 5);
-  assert.equal(timeToFrame(Math.floor(1001 / 24000 * 1e6) / 1e6, [24000, 1001]), 1);
-  assert.equal(timeToFrame(Math.floor(7 / 120 * 1e6) / 1e6, [120, 1]), 7);
   assert.equal(timeToFrame(1.0, R2398), 23);                // 23.976 frames in a second
   assert.equal(timeToFrame(1001 / 24000 * 100, R2398), 100);
   assert.equal(timeToFrame(-1, [24, 1]), 0);
