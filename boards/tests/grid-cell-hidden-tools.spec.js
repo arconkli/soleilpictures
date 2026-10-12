@@ -32,7 +32,8 @@ test.describe('hidden grid cell tools', () => {
       await expect(cell.locator('.gc-img')).toHaveCount(1);
       expect(await pe(clear)).toBe('auto');
       expect(await pe(pill)).toBe('auto');
-      expect(await clear.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+      // The reveal fades in; poll so a read mid-transition isn't a failure.
+      await expect.poll(() => clear.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
     } finally {
       await ctx.close();
     }

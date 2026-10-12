@@ -21,6 +21,11 @@ async function addGrid(page) {
   await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
   await page.locator('.ctx-submenu').getByRole('button', { name: 'Grid', exact: true }).click();
   await expect(page.locator('.gridc-cell')).toHaveCount(3);
+  // Let the card's entrance pop (.card.is-new) finish. Playwright's
+  // scroll-into-view on a cell mid-animation can scroll the overflow:hidden
+  // .canvas-wrap, and every hit test after that lands on the wrong box.
+  await page.locator('.card-kind-grid').first().evaluate((el) =>
+    Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => {}))));
 }
 
 const grid = (page) => page.locator('.card-kind-grid').first();
@@ -33,7 +38,9 @@ const select = async (page) => {
 // Type into cell n (0 = top, 1 = bottom-left, 2 = bottom-right) via the chooser.
 async function typeInto(page, n, text) {
   const cell = cellAt(page, n);
-  await cell.hover();
+  // Hover a fixed corner: the centre can sit under a neighbour's divider
+  // disc, which then intercepts the pointer.
+  await cell.hover({ position: { x: 20, y: 20 } });
   await cell.getByRole('button', { name: 'Text', exact: true }).click();
   const editor = page.locator('.gridc-cell [contenteditable="true"]').first();
   await editor.waitFor({ state: 'visible' });
@@ -47,9 +54,11 @@ async function typeInto(page, n, text) {
 async function removeBottomLine(page) {
   await select(page);
   const line = grid(page).locator('.gridc-divider-x.is-grabbable').first();
-  // The line is a few px wide between two cells; hover its middle directly.
-  await line.hover({ force: true });
-  await line.locator('.gridc-divider-rm').click();
+  // The line is a few px wide between two cells and its 18px remove disc
+  // overlaps the cell bodies, so a real click on the disc is a coin flip
+  // against the cell above it. A double-click on the line runs the same
+  // remove path.
+  await line.dblclick({ force: true });
   await expect(grid(page).locator('.gridc-cell')).toHaveCount(2);
 }
 
@@ -93,7 +102,9 @@ test.describe('grid cell deletes', () => {
   test('a double-clicked cell left blank goes back to empty', async ({ page }) => {
     await select(page);
     await cellAt(page, 1).dblclick({ position: { x: 20, y: 20 } });
-    await expect(page.locator('.gridc-cell [contenteditable="true"]')).toBeVisible();
+    // Wait for focus, or the click away can land before the editor has it
+    // and there is no blur to commit.
+    await expect(page.locator('.gridc-cell [contenteditable="true"]')).toBeFocused();
     await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
     await expect(page.locator('.gridc-cell [contenteditable="true"]')).toHaveCount(0);
     await expect(cellAt(page, 1)).toHaveClass(/is-empty/);
