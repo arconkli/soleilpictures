@@ -4,6 +4,11 @@ import { expect, test } from '@playwright/test';
 // brief" → https://…) lost its URL the moment a note was opened for editing
 // or a hyperlink was pasted in. Bare URLs survived only because linkify
 // re-links them on every write-through.
+//
+// The fix ships in two phases (NOTE_LINK_MARKS in noteExtensions.js). Phase
+// 1, now: the schema knows the link mark, so a link written by a later build
+// is kept, but nothing parses into it yet, because a tab on a build without
+// the mark deletes the text of any paragraph holding one, for everybody.
 
 const A = '[data-client="A"] .note';
 const A_EDIT = '[data-client="A"] .note-body[contenteditable="true"]';
@@ -26,20 +31,49 @@ async function openAndClose(page) {
   await expect(page.locator(A_EDIT)).toHaveCount(0);
 }
 
-test('a legacy note keeps its named link when opened for editing', async ({ page }) => {
+test('a link mark another client wrote is kept, not deleted, when the note is edited', async ({ page }) => {
   await ready(page);
-  await setLegacyHtml(page, '<p>Before the call <a href="https://docs.example.com/brief" target="_blank" rel="noopener noreferrer">Read the brief</a> today</p>');
-  await openAndClose(page);
+  // What a phase-2 build puts in the shared fragment for a named link.
+  await page.evaluate(() => {
+    const t = window.__soleilNoteTest;
+    const frag = t.getNoteFragment(t.cardB);
+    t.docB.transact(() => {
+      frag.delete(0, frag.length);
+      const p = new t.Y.XmlElement('paragraph');
+      frag.insert(0, [p]);
+      const text = new t.Y.XmlText();
+      p.insert(0, [text]);
+      text.insert(0, 'Before the call ');
+      text.insert(16, 'Read the brief', { link: { href: 'https://docs.example.com/brief', target: '_blank', rel: 'noopener noreferrer nofollow', class: null } });
+      text.insert(30, ' today', { link: null });
+    }, 'local');
+  });
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type('!');
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
 
   const frag = await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA());
+  expect(frag).toContain('Before the call');
   expect(frag).toContain('href="https://docs.example.com/brief"');
   expect(frag).toContain('>Read the brief</a>');
-  // The cache every reader renders, and the other client's copy of the CRDT.
   const html = await page.evaluate(() => window.__soleilNoteTest.cardA.get('html'));
   expect(html).toContain('href="https://docs.example.com/brief"');
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlB()))
     .toContain('href="https://docs.example.com/brief"');
   await expect(page.locator(`${A} a[href="https://docs.example.com/brief"]`)).toHaveText('Read the brief');
+});
+
+test('phase 1: a legacy named link seeds as its words, with no link mark yet', async ({ page }) => {
+  await ready(page);
+  await setLegacyHtml(page, '<p>Before the call <a href="https://docs.example.com/brief" target="_blank" rel="noopener noreferrer">Read the brief</a> today</p>');
+  await openAndClose(page);
+  const frag = await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA());
+  expect(frag).not.toContain('<a');
+  expect(frag).toContain('Before the call Read the brief today');
 });
 
 test('a bare URL stays plain text in the note and keeps exactly one preview', async ({ page }) => {
@@ -57,23 +91,38 @@ test('a bare URL stays plain text in the note and keeps exactly one preview', as
   expect(html).toContain('href="https://example.com/deck"');
 });
 
-test('a pasted hyperlink keeps its URL', async ({ page }) => {
+async function paste(page, html, text) {
+  await page.evaluate(([h, t]) => {
+    const dt = new DataTransfer();
+    if (h) dt.setData('text/html', h);
+    dt.setData('text/plain', t);
+    document.querySelector('[data-client="A"] .note-body[contenteditable="true"]')
+      .dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, [html, text]);
+}
+
+test('phase 1: a pasted hyperlink keeps its words and adds no link mark', async ({ page }) => {
   await ready(page);
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
   await page.locator(A_EDIT).click();
   await page.keyboard.type('See ');
-  await page.evaluate(() => {
-    const dt = new DataTransfer();
-    dt.setData('text/html', '<meta charset="utf-8"><a href="https://example.org/spec" style="color:#1155cc;font-family:Arial">the spec</a>');
-    dt.setData('text/plain', 'the spec');
-    document.querySelector('[data-client="A"] .note-body[contenteditable="true"]')
-      .dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-  });
+  await paste(page, '<meta charset="utf-8"><a href="https://example.org/spec" style="color:#1155cc;font-family:Arial">the spec</a>', 'the spec');
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA()))
-    .toContain('href="https://example.org/spec"');
-  const frag = await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA());
-  expect(frag).toContain('>the spec</a>');
+    .toContain('See the spec');
+  expect(await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).not.toContain('<a');
+});
+
+test('a pasted bare URL stays plain text (no link mark from the paste rule)', async ({ page }) => {
+  await ready(page);
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.type('Deck ');
+  await paste(page, null, 'https://example.com/deck');
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA()))
+    .toContain('Deck https://example.com/deck');
+  expect(await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).not.toContain('<a');
 });
 
 // NOTES-07: the auto-size measured the live editor, which never contains the
