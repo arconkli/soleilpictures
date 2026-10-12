@@ -22232,6 +22232,33 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Right-click",
+     "children": [
+      {
+       "t": "text",
+       "v": "Right-click"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a selection for cut, copy, paste, formatting, links and comments. Right-click a word with nothing selected — or "
+    },
+    {
+     "t": "code",
+     "v": "⇧"
+    },
+    {
+     "t": "text",
+     "v": "-right-click anywhere — for your browser's own menu, with its spelling suggestions."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "text",
      "v": "Text pasted from Google Docs, Word or a web page keeps its structure and emphasis — headings, lists, links, bold, italic, real colours — but drops the source's font, size, background and default black ink, so it takes on the document's own typography instead of arriving as a patch of 11pt Arial. Text copied from another Clusters note or document keeps everything. "
     },

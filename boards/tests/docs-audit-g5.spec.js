@@ -161,8 +161,7 @@ test('DOCS-17: the resize handle and align bar sit on the image, and a drag trac
 test('DOCS-18: find & replace fits a phone-width screen with Replace open', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openDoc(page);
-  await page.evaluate(() => window.__soleilDocTest.editor.commands.focus());
-  await page.keyboard.press('ControlOrMeta+f');
+  await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
   const bar = page.locator('.doc-find');
   await expect(bar).toBeVisible();
   await bar.locator('button[aria-label="Toggle replace"]').click();
@@ -255,6 +254,58 @@ test('DOCS-21: on a phone, "+" keeps the page drawer open to name the new page',
     return T.readPages(T.ydoc, T.getScope()).map(p => p.name);
   });
   expect(names).toContain('Act Two');
+});
+
+// ── DOCS-22 ───────────────────────────────────────────────────────────────
+async function recordContextMenus(page) {
+  await page.evaluate(() => {
+    window.__ctx = [];
+    document.addEventListener('contextmenu', (e) => window.__ctx.push(e.defaultPrevented));
+  });
+}
+
+test('DOCS-22: right-clicking a word, or Shift+right-click, gets the browser menu (spelling)', async ({ page }) => {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>Thsi word is misspelt.</p>'));
+  await recordContextMenus(page);
+  const word = page.locator('.doc-card-modal .tt-editor p').first();
+  const box = await word.boundingBox();
+  // On a word, nothing selected → native (not prevented), no custom menu.
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setTextSelection(1));
+  await page.mouse.click(box.x + 10, box.y + box.height / 2, { button: 'right' });
+  await expect(page.locator('.doc-ctx')).toHaveCount(0);
+  // With a selection, Shift+right-click is still native.
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setTextSelection({ from: 1, to: 5 }));
+  await page.keyboard.down('Shift');
+  await page.mouse.click(box.x + 10, box.y + box.height / 2, { button: 'right' });
+  await page.keyboard.up('Shift');
+  await expect(page.locator('.doc-ctx')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__ctx)).toEqual([false, false]);
+});
+
+test('DOCS-22: the custom menu on a selection offers Cut, Copy and Paste that work', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>alpha beta</p>'));
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setTextSelection({ from: 1, to: 6 }).run());
+  const word = page.locator('.doc-card-modal .tt-editor p').first();
+  const box = await word.boundingBox();
+  await page.mouse.click(box.x + 10, box.y + box.height / 2, { button: 'right' });
+  const menu = page.locator('.doc-ctx');
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('button', { name: /Cut/ })).toBeVisible();
+  await menu.getByRole('button', { name: /Copy/ }).click();
+  await expect(menu).toHaveCount(0);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('alpha');
+  // Paste at the end through the menu.
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.chain().focus().setTextSelection(ed.state.doc.content.size - 1).run();
+  });
+  await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2, { button: 'right' });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('button', { name: /Paste/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__soleilDocTest.editor.state.doc.textContent)).toBe('alpha betaalpha');
 });
 
 // ── DOCS-14 ───────────────────────────────────────────────────────────────

@@ -2418,6 +2418,8 @@ The toolbar carries the usual: headings, bold, italic, underline, highlight, lis
 
 ⌘F opens find and replace.
 
+Right-click a selection for cut, copy, paste, formatting, links and comments. Right-click a word with nothing selected — or ⇧-right-click anywhere — for your browser's own menu, with its spelling suggestions.
+
 Text pasted from Google Docs, Word or a web page keeps its structure and emphasis — headings, lists, links, bold, italic, real colours — but drops the source's font, size, background and default black ink, so it takes on the document's own typography instead of arriving as a patch of 11pt Arial. Text copied from another Clusters note or document keeps everything. Clear formatting (⌘\, or the Tx button) strips the selection back to plain; links and comments stay.
 
 The footer shows a live word and character count, and an honest save status — it reports what has actually been persisted rather than an optimistic tick.
