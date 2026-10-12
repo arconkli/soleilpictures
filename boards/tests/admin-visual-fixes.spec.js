@@ -150,3 +150,14 @@ test.describe('light-theme pills (VS-ADMIN-05)', () => {
     for (const p of await pillColours(pills)) expect(contrast(p.fg, p.bg), p.cls).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+test('the Waitlist gate switch draws a track when off in the light theme (VS-ADMIN-06)', async ({ page }) => {
+  await openAdmin(page, { tab: 'waitlist', theme: 'light' });
+  const sw = page.getByRole('switch').first();
+  await expect(sw).toHaveAttribute('aria-checked', 'false', { timeout: 15000 });
+  const [track] = await pillColours(sw);
+  // The knob is white, so the track has to stand off the page on its own.
+  expect(contrast(track.bg, await page.evaluate(() => getComputedStyle(document.body).backgroundColor)))
+    .toBeGreaterThanOrEqual(1.6);
+  expect(contrast(track.bg, 'rgb(255,255,255)')).toBeGreaterThanOrEqual(1.6);
+});

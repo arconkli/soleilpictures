@@ -17,8 +17,11 @@ export function ToggleSwitch({ checked, onClick, disabled, label }) {
         position: 'relative',
         width: 56, height: 32, flex: '0 0 auto',
         borderRadius: 999,
-        border: '1px solid rgba(255,255,255,0.14)',
-        background: checked ? 'var(--soleil, #ffb000)' : 'rgba(255,255,255,0.12)',
+        // Theme tokens, not white-alpha: on the light page a white wash drew
+        // no track at all, leaving a lone white knob that did not read as a
+        // switch. --line-3 is a visible mid-grey in both themes.
+        border: '1px solid var(--line-3)',
+        background: checked ? 'var(--soleil, #ffb000)' : 'var(--line-3)',
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.6 : 1,
         transition: 'background .18s ease',
