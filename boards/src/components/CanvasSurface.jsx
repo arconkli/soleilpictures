@@ -341,6 +341,20 @@ const CANVAS_PROMOTE_ON_ABOVE = 0.42;
 // frameCards runs on every card creation and has no mobile coverage, so moving
 // them is its own change with its own test rather than a rider on this one.
 const SELECTION_FIT_MARGIN = 120;
+// The tool rail floats OVER the canvas's left edge. On a desktop the 80px fit
+// margin already clears it, but on a phone the margin is ~20px and the rail
+// reaches ~62px in, so a board fitted on open put its left column under the
+// rail ('nd underline'). Returns how much MORE than `margin` the fit must hold
+// back on the left: 0 when the margin already clears the rail, or when there is
+// no rail on screen (public viewer, clean/capture modes hide it).
+const RAIL_FIT_GUTTER = 8;
+function railFitInset(wrapEl, wrapRect, margin) {
+  const rail = wrapEl?.querySelector?.('.cnv-tools');
+  if (!rail) return 0;
+  const rr = rail.getBoundingClientRect();
+  if (rr.width < 1 || rr.height < 1) return 0;
+  return Math.max(0, Math.round(rr.right - wrapRect.left + RAIL_FIT_GUTTER - margin));
+}
 // Below this canvas width a fit-everything open is a phone, not a desktop.
 const NARROW_FIT_MAX_W = 640;
 // How many cards a public board should span on a phone when fitting everything
@@ -2156,11 +2170,15 @@ export function CanvasSurface({
     let contentW = Math.max(1, maxX - minX);
     let contentH = Math.max(1, maxY - minY);
     const margin = fitMargin(r);
+    // Fit into the part of the canvas the rail doesn't cover (see railFitInset):
+    // vw is that width, and railDx shifts the result right past the rail.
+    const railDx = railFitInset(wrapRef.current, r, margin);
+    const vw = r.width - railDx;
     // Capped at 1:1 (OPEN_FIT_MAX_ZOOM), not ZOOM_MAX: a cluster of one note or
     // two thumbnails used to open at 300-400%, huge soft text and pixelated
     // images. Explicit Fit (Shift+1, double-click the %) still goes to ZOOM_MAX.
     let z = Math.max(ZOOM_MIN, Math.min(OPEN_FIT_MAX_ZOOM, Math.min(
-      (r.width - margin * 2) / contentW,
+      (vw - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,
     )));
     // Phone rescue: fit-everything is the wrong opening view on a narrow
@@ -2193,7 +2211,7 @@ export function CanvasSurface({
       if (medianW > 0 && medianW * z < NARROW_MIN_CARD_PX) {
         const target = Math.min(
           NARROW_MAX_ZOOM,
-          (r.width - margin * 2) / (medianW * NARROW_CARDS_ACROSS),
+          (vw - margin * 2) / (medianW * NARROW_CARDS_ACROSS),
         );
         if (target > z) {
           z = target;
@@ -2201,14 +2219,14 @@ export function CanvasSurface({
           // content's top-left: the centering math below then places the
           // board's first corner at the margin instead of centring a
           // shrunken whole.
-          contentW = (r.width  - margin * 2) / z;
+          contentW = (vw - margin * 2) / z;
           contentH = (r.height - margin * 2) / z;
         }
       }
     }
     setZoom(z);
     setPan({
-      x: (r.width  - contentW * z) / 2 - minX * z,
+      x: railDx + (vw - contentW * z) / 2 - minX * z,
       y: (r.height - contentH * z) / 2 - minY * z,
     });
   }, [cards, board.id, ydoc, isPublic, initialFrame]);
@@ -2455,8 +2473,12 @@ export function CanvasSurface({
     if (r.width < 50 || r.height < 50) return;
     const b = boundsOfCards(cards);
     if (!b) return;
-    applyCamera(solveFit(b, { w: r.width, h: r.height },
-      { margin: fitMargin(r), zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX }));
+    // Same rail hold-back as the open fit (railFitInset).
+    const margin = fitMargin(r);
+    const railDx = railFitInset(wrapRef.current, r, margin);
+    const cam = solveFit(b, { w: r.width - railDx, h: r.height },
+      { margin, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX });
+    applyCamera({ ...cam, pan: { x: cam.pan.x + railDx, y: cam.pan.y } });
   }, [cards, applyCamera]);
 
   // Keyboard zoom that keeps the viewport CENTER fixed (mirrors the wheel

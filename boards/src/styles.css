@@ -7765,6 +7765,17 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   background: rgba(250, 250, 252, 0.78);
   border-color: rgba(0, 0, 0, 0.05);
 }
+/* Phone: the tool rail floats over the canvas's left edge (8px inset + a 54px
+   strip, see the phone .cnv-tools rule), and a 320px panel centred on a 390px
+   screen ran 27px under it. Span the space RIGHT of the rail instead. */
+@media (max-width: 640px) {
+  .cnv-empty-tiles {
+    left: calc(max(8px, env(safe-area-inset-left, 0px)) + 54px + 8px);
+    right: 8px;
+    min-width: 0;
+    transform: translateY(-50%);
+  }
+}
 .cnv-empty-tiles.is-escalated { box-shadow: var(--shadow-2), var(--shadow-glow); }
 /* onboarding_v2 arm B: the seeded-root first-card prompt should be present from
    the first seconds (the 44s-bounce window), so skip the 500ms board-switch
