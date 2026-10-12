@@ -2114,7 +2114,8 @@ export function LocalBoardsApp({ user, signOut }) {
       <InfoHost
         boards={boards}
         selfId={user?.id ?? 'local-user'}
-        resolveBoard={(id) => (boardState[id] ? {
+        // Like App's: only the cluster open on screen is "live".
+        resolveBoard={(id) => (id === currentId && boardState[id] ? {
           cards: boardState[id].cards || [], groups: boardState[id].groups || [],
           gridTemplates: gridTplState[id] || {}, canEdit: !readOnlyQa,
           mutators: id === currentId ? surfaceMutators : null,

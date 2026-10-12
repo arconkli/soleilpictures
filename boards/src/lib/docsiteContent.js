@@ -7465,7 +7465,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Info shows dates but never names."
+     "v": ", Info is in Files, and it shows dates but never names; a shared board itself has no right-click menu."
     }
    ]
   },

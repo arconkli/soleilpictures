@@ -3065,10 +3065,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // lost, the abandoned sweep recovers the card from it instead of
             // removing a clip that landed as "didn't finish uploading".
             const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
-            updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
+            updateCardMeta(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
             const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
-            updateCardSilent(id, {
+            updateCardMeta(id, {
               src: up.src, duration: up.duration || null, pending: false,
               peaks: up.peaks || null, sampleRate: up.sampleRate || null,
               channels: up.channels || null, analyzed: up.analyzed || null,
@@ -3091,11 +3091,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               else if (analyzable({ sizeBytes: it.file.size || 0, durationSec: meta?.duration, lowMemory: lowMemoryDevice() })) updateCardMeta(id, { analyzed: 1 });
             }
             else if (it.kind === 'video') {
-              updateCardSilent(id, { src: up.src, pending: false });
+              updateCardMeta(id, { src: up.src, pending: false });
               // The clip's own facts — frame rate, codec, timecode (lib/mediaProbe.js).
-              probeFile(it.file).then((media) => { if (media) updateCardSilent(id, { media }); });
+              probeFile(it.file).then((media) => { if (media) updateCardMeta(id, { media }); });
             }
-            else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
+            else updateCardMeta(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
           }
         } catch (err) {
           console.error('list drop upload failed', err);
