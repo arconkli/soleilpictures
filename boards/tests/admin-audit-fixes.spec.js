@@ -335,6 +335,24 @@ test.describe('admin Errors tab (ADMIN-15)', () => {
   });
 });
 
+test.describe('admin System onboarding failures (ADMIN-16)', () => {
+  test('the "N more" rollup carries no single reason', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel' });
+    await expect(page.locator('.admin-hero-funnel').first()).toBeVisible({ timeout: 15000 });
+    const rows = Array.from({ length: 10 }, (_, i) => ({
+      event: `qa_fail_${i}`, sessions: 20 - i, users: 20 - i, total: 20 - i, top_reason: `reason ${i}`, ord: i,
+    }));
+    await patchRpc(page, { admin_onboarding_error_coverage: { data: rows, error: null } });
+    await page.getByRole('tab', { name: /^system$/i }).click();
+
+    const well = page.locator('section').filter({ has: page.locator('.adm-well-title', { hasText: /^Onboarding failures$/ }) });
+    const rollup = well.locator('.adm-bar-row', { hasText: '2 more' });
+    await expect(rollup).toBeVisible({ timeout: 15000 });
+    await expect(rollup).not.toContainText('reason 8');
+    await expect(well.locator('.adm-bar-row', { hasText: 'qa_fail_7' })).toContainText('reason 7');
+  });
+});
+
 test.describe('admin cohort matrix (ADMIN-11)', () => {
   test('the week still under way is outlined and kept out of the All row', async ({ page }) => {
     // This UTC Monday and the one before, from the clock, as the RPC would.

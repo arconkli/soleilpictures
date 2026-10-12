@@ -85,6 +85,7 @@ function OnboardingErrors({ rows, days }) {
     label: r.event,
     value: num(r.sessions),
     title: r.top_reason ? `${r.event} — most common reason: ${r.top_reason}` : r.event,
+    reason: r.top_reason || null,
   }));
 
   return (
@@ -99,9 +100,12 @@ function OnboardingErrors({ rows, days }) {
         ramp
         limit={8}
         formatValue={(v) => formatCount(v)}
-        secondary={(r, i) => (
-          <span className="admin-muted">{(rows[i]?.top_reason) || '—'}</span>
-        )}
+        // The reason rides on the row itself. Indexing back into `rows` gave
+        // the "N more" rollup (rendered at i = limit) the reason of the first
+        // row it had rolled up; a rollup has no single reason.
+        secondary={(r) => (r.muted ? null : (
+          <span className="admin-muted">{r.reason || '—'}</span>
+        ))}
         emptyLabel="No onboarding errors recorded in this window."
       />
     </Well>
