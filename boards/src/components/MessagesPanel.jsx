@@ -7,6 +7,7 @@ import { findOrCreateDm, leaveConversation, rejoinConversation } from '../lib/me
 import { hiddenFromInbox, isDmConversation } from '../lib/conversationState.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
+import { escapeClosesPanel } from '../lib/panelEscape.js';
 import { NewConversationPicker } from './NewConversationPicker.jsx';
 import { MessageThread } from './MessageThread.jsx';
 import { readOnlyCopy } from '../lib/messageAccess.js';
@@ -184,6 +185,21 @@ export function MessagesPanel({
     });
   }, [openConversationId, userId, myOpenState?.left_at, openIsDm]);
 
+  // Escape closes the list view, as its "Close (Esc)" says — only the thread
+  // view did (COMMS-22). The list takes focus when it shows, so the key
+  // reaches it straight after opening; a press claimed by a picker or menu
+  // on top, or meant for something outside the panel, is left alone.
+  const listRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (openConversationId) return;
+    try { listRef.current?.focus({ preventScroll: true }); } catch (_) {}
+    const onKey = (e) => { if (escapeClosesPanel(e, '.msg-panel')) onCloseRef.current?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openConversationId]);
+
   if (openConversationId) {
     const conv = conversations.find(c => c.conversation_id === openConversationId);
     const parts = participantsByConv.get(openConversationId) || [];
@@ -214,7 +230,7 @@ export function MessagesPanel({
   }
 
   return (
-    <div className="msg-panel">
+    <div className="msg-panel" ref={listRef} tabIndex={-1}>
       <div className="msg-panel-head">
         <div className="msg-panel-title">
           <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
