@@ -19,11 +19,13 @@ export function PathBar({
   // Spring-loading (lib/springLoad.js): hold a dragged file over Back or a step
   // and the panel goes there, mid-drag.
   onSpringBack = null, onSpringTo = null,
-  // Full Files: just the way back — Back and the ancestors, no current step
-  // (the page title says where you are).
+  // Full Files: just the way back up — the parent, as "‹ Studio" — and Back
+  // after a spring. Not the ancestors: the topbar's breadcrumb already spells
+  // the whole path out, and a second one under it (in '/' where the topbar
+  // uses '›') read as the same trail twice, with no plain way up.
   trail = false,
 }) {
-  const steps = collapsePath(trail ? path.slice(0, -1) : path, 3);
+  const steps = trail ? path.slice(-2, -1) : collapsePath(path, 3);
   const last = path[path.length - 1];
   const spring = useSpring();
   const springProps = (key, fire) => (fire ? {
@@ -88,8 +90,12 @@ export function PathBar({
           return (
             <li key={id} className={`pb-step${here ? ' is-here' : ''}`}>
               {!here ? (
-                <button type="button" className={`pb-name pb-link${spring.armed === `step:${id}` ? ' is-springing' : ''}`} onClick={() => onNavigate?.(id)} title={name}
-                        {...springProps(`step:${id}`, onSpringTo ? () => onSpringTo(id) : null)}><span className="pb-text">{name}</span></button>
+                <button type="button" className={`pb-name pb-link${spring.armed === `step:${id}` ? ' is-springing' : ''}`} onClick={() => onNavigate?.(id)}
+                        title={trail ? `Up to ${name}` : name}
+                        {...springProps(`step:${id}`, onSpringTo ? () => onSpringTo(id) : null)}>
+                  {trail && !canBack && <Icon as={ChevronLeft} size={13} weight="light" className="pb-up" />}
+                  <span className="pb-text">{name}</span>
+                </button>
               ) : inside.length || onGoTo ? (
                 <button type="button" className="pb-name pb-here" data-menu-trigger="path" ref={triggerRef}
                         aria-current="location" aria-haspopup="menu" aria-expanded={open}

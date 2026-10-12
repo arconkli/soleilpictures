@@ -18993,7 +18993,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files, and the clusters above it sit over the title — click one to go up."
+     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files, and the cluster above it sits over the title as "
+    },
+    {
+     "t": "strong",
+     "v": "‹ its name",
+     "children": [
+      {
+       "t": "text",
+       "v": "‹ its name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — click it to go up. The full path is in the breadcrumb at the top of the screen."
     }
    ]
   },

@@ -22968,7 +22968,8 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 .cb-pagehead.has-trail > .list-section-act, .cb-pagehead.has-trail > .cbt-shrink { grid-row: 2 / 4; }
 .cb-pagehead-trail .pb { margin: 0; }
 .cb-pagehead-trail .pb-name { height: 22px; font-size: 12px; }
-.pb--trail .pb-step:last-child::after { content: '/'; margin: 0 2px; color: var(--ink-3); font: 400 12px/1 var(--font-sans); }
+.pb--trail .pb-name { gap: 2px; }
+.pb--trail .pb-up { flex: none; color: var(--ink-3); }
 .ft-cover {
   position: relative; flex: none;
   width: 6px; height: 6px;
