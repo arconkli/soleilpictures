@@ -6994,11 +6994,18 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
    One card, centred, no app chrome. Whoever lands here arrived from another
    application and may never have seen this product; the page has to say who is
    asking, what they get, and offer two obvious answers. */
+/* Its own scroller, like .pricing-screen: html/body/#root are position:fixed +
+   overflow:hidden app-wide, so a min-height screen taller than a landscape
+   phone or a short popup was clipped with Connect below the fold and no way to
+   scroll to it. The card centres with auto margins, not align-items, because
+   auto margins collapse to 0 when the card overflows instead of pushing its
+   top out of reach. */
 .oauth-screen {
-  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  position: fixed; inset: 0; overflow-y: auto; display: flex;
   padding: 24px; background: var(--bg-0);
 }
 .oauth-card {
+  margin: auto;
   width: 100%; max-width: 440px;
   background: var(--bg-1); border: 1px solid var(--line-1);
   border-radius: var(--radius-lg, 14px); padding: 28px 26px 22px;

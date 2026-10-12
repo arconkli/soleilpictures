@@ -161,3 +161,33 @@ test('/pricing with a cached session marker that does not restore shows pricing,
   await expect(page.locator('.pp-shell')).toBeVisible();
   await expect(page.locator('.auth-screen input[type="email"]')).toHaveCount(0);
 });
+
+test.describe('OAuth consent on a short screen', () => {
+  test.use({ viewport: { width: 844, height: 360 } });
+
+  test('Connect can be scrolled into view', async ({ page }) => {
+    await routeAnalytics(page, []);
+    await page.route('**/oauth/client?**', (route) => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ client_name: 'Test assistant', redirect_uri_registered: true }),
+    }));
+    const q = new URLSearchParams({
+      local: '1',
+      client_id: 'test-client',
+      redirect_uri: 'https://assistant.example/callback',
+      response_type: 'code',
+      code_challenge: 'a'.repeat(43),
+      code_challenge_method: 'S256',
+      scope: 'read write delete',
+      state: 's',
+    });
+    await page.goto(`/oauth/authorize?${q}`);
+    const allow = page.locator('.oauth-allow');
+    await expect(allow).toBeAttached();
+
+    await page.locator('.oauth-screen').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    const box = await allow.boundingBox();
+    expect(box.y + box.height).toBeLessThanOrEqual(360);
+    await expect(allow).toBeInViewport();
+  });
+});
