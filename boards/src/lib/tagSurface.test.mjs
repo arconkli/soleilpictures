@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isDeleteEvent, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, coalesce,
-  effectiveTypeFilter, clampMenuPosition,
+  effectiveTypeFilter, clampMenuPosition, isDuplicateTagName, findTagByName,
 } from './tagSurface.js';
 
 // What Supabase realtime actually delivers for entity_links under RLS +
@@ -107,4 +107,18 @@ test('a context menu stays on screen: it opens at the pointer, or flips', () => 
   const tall = clampMenuPosition({ vw: 400, vh: 300, width: 180, height: 280, x: 10, y: 150 });
   assert.equal(tall.top, 8);
   assert.ok(tall.left >= 8 && tall.left + 180 <= 400 - 8);
+});
+
+test('a rename that collides finds the live tag it collided with, or none (a deleted one)', () => {
+  assert.equal(isDuplicateTagName({ code: '23505', message: 'duplicate key value violates unique constraint' }), true);
+  assert.equal(isDuplicateTagName({ code: '42501' }), false);
+  assert.equal(isDuplicateTagName(null), false);
+  const tags = [
+    { id: 'a', name: 'Pricing', slug: 'pricing' },
+    { id: 'b', name: 'Plans', slug: 'plans' },
+  ];
+  assert.equal(findTagByName(tags, '  PLANS ', 'a')?.id, 'b', 'case-insensitive, trimmed');
+  assert.equal(findTagByName(tags, 'pricing', 'a'), null, 'never the tag being renamed');
+  assert.equal(findTagByName(tags, 'Archive', 'a'), null, 'not live → held by a deleted tag');
+  assert.equal(findTagByName(tags, '', 'a'), null);
 });
