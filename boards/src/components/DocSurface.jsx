@@ -590,7 +590,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => {
     if (!bookmarkJump || !ready) return;
     const target = bookmarks.find(b => b.id === bookmarkJump.bookmarkId);
-    if (!target) return;
+    if (!target) {
+      // A clicked bookmark was checked when clicked, so missing now means a
+      // peer deleted it meanwhile: drop the request, or it would shadow any
+      // later pendingBookmark. A host's pending request is left alone — the
+      // bookmarks may simply not have loaded yet.
+      if (localBookmarkJump) setLocalBookmarkJump(null);
+      return;
+    }
     setActivePageId(target.pageId);
     let tries = 0;
     const tick = () => {
