@@ -127,3 +127,23 @@ test.describe('admin Today people (ADMIN-6)', () => {
     await expect(panel.getByText('old@example.com')).toHaveCount(0);
   });
 });
+
+test.describe('admin Funnel money detail (ADMIN-7)', () => {
+  test('comped paid-tier accounts are not called paying', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel' });
+    await expect(page.locator('.admin-hero-funnel').first()).toBeVisible({ timeout: 15000 });
+    await patchRpc(page, {
+      admin_stats: { error: null, data: {
+        tier_counts: { admin: 1, paid: 3, demo: 40 }, sub_counts: {}, comped_paid: 3, subscribed_paid: 0, mrr_cents: 0,
+      } },
+    });
+    await page.getByRole('button', { name: 'Refresh' }).first().click();
+    await expect.poll(() => page.evaluate(() => window.__patchedRpc.some(([n]) => n === 'admin_stats'))).toBe(true);
+
+    await page.getByRole('button', { name: /Checkout, upsell/ }).click();
+    const line = page.locator('.adm-detail-body .admin-section-sub').first();
+    await expect(line).toContainText('No subscription has ever existed');
+    await expect(line).toContainText('3 comped accounts are on the paid tier without paying.');
+    await expect(line).not.toContainText('paying account');
+  });
+});
