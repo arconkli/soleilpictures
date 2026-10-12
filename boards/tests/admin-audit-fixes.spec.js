@@ -242,6 +242,49 @@ test.describe('admin Retention return curve (ADMIN-10)', () => {
   });
 });
 
+test.describe('admin live console (ADMIN-13)', () => {
+  test('pushed rows are named, and internal ones stay out under Internal: excluded', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel' });
+    await expect(page.locator('.admin-hero-funnel').first()).toBeVisible({ timeout: 15000 });
+    // Capture the console's realtime handler before Today mounts it: the
+    // harness stub never pushes, so the test does.
+    await page.evaluate(async () => {
+      const { supabase } = await import('/src/lib/supabase.js');
+      const orig = supabase.channel;
+      supabase.channel = (topic, ...rest) => {
+        const ch = orig(topic, ...rest);
+        if (topic !== 'admin:activity') return ch;
+        const on = ch.on;
+        ch.on = (type, filter, cb) => { window.__pushActivity = (row) => cb({ new: row }); return on(type, filter, cb); };
+        return ch;
+      };
+    });
+    await patchRpc(page, { admin_events_by_id: { error: null, data: [
+      { id: '00000000-0000-4000-8000-0000000000e1', event: 'qa_external_evt', occurred_at: new Date().toISOString(),
+        user_id: '00000000-0000-4000-8000-0000000000a1', email: 'outside@example.com', path: '/' },
+    ] } });
+    await page.getByRole('tab', { name: /^today$/i }).click();
+    await expect.poll(() => page.evaluate(() => typeof window.__pushActivity)).toBe('function');
+
+    await page.evaluate(() => {
+      const at = new Date().toISOString();
+      window.__pushActivity({ id: '00000000-0000-4000-8000-0000000000e1', event: 'qa_external_evt', occurred_at: at,
+        user_id: '00000000-0000-4000-8000-0000000000a1', props: {} });
+      window.__pushActivity({ id: '00000000-0000-4000-8000-0000000000e2', event: 'qa_internal_evt', occurred_at: at,
+        user_id: '00000000-0000-4000-8000-0000000000a2', props: {} });
+    });
+
+    const ext = page.locator('.adm-console-row', { hasText: 'qa_external_evt' });
+    await expect(ext).toHaveCount(1);
+    await expect(ext.locator('.adm-console-who')).toHaveText('outside');
+    await expect(page.locator('.adm-console-row', { hasText: 'qa_internal_evt' })).toHaveCount(0);
+
+    const call = await page.evaluate(() => window.__patchedRpc.find(([n]) => n === 'admin_events_by_id')?.[1]);
+    expect(call.p_exclude_internal).toBe(true);
+    expect(call.p_ids).toHaveLength(2);
+  });
+});
+
 test.describe('admin cohort matrix (ADMIN-11)', () => {
   test('the week still under way is outlined and kept out of the All row', async ({ page }) => {
     // This UTC Monday and the one before, from the clock, as the RPC would.

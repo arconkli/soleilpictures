@@ -1,5 +1,10 @@
--- 0410 — The Retention view's return curve can measure work-days, as its
--- caption says (audit ADMIN-10).
+-- 0410 — Admin reads measure what they say they measure.
+--
+--   1. admin_retention_curve can count work-days, as its caption says (ADMIN-10).
+--   2. admin_events_by_id lets the live console judge pushed rows by the same
+--      Internal rule as its seed, and name them (ADMIN-13). See its section.
+--
+-- ── admin_retention_curve (audit ADMIN-10) ──────────────────────────────────
 --
 -- The "Return curve" panel is captioned "Work-days, not app-open days", but
 -- admin_retention_curve (last defined in 0149) has no work filter: it counts a
@@ -89,6 +94,62 @@ end $function$;
 revoke execute on function public.admin_retention_curve(integer, boolean, boolean, boolean) from public, anon;
 grant execute on function public.admin_retention_curve(integer, boolean, boolean, boolean) to authenticated, service_role;
 
+-- ── admin_events_by_id (audit ADMIN-13) ─────────────────────────────────────
+-- The Today view's live console seeds from admin_recent_events, which honours
+-- the Internal toggle and joins the email, and then appends rows pushed by
+-- realtime, which carry neither. So with "Internal: excluded" the owner's own
+-- events streamed in anyway, and every pushed row showed an 8-character id
+-- where the seeded rows showed a name. _internal_user_ids() is deliberately not
+-- callable by clients (the set must not be enumerable), so instead of handing
+-- the client the list, the client hands over the pushed event ids and gets
+-- back the same rows admin_recent_events would have returned for them: email
+-- joined, and internal rows left out when asked. Capped at 200 ids per call.
+
+create or replace function public.admin_events_by_id(
+  p_ids uuid[],
+  p_exclude_internal boolean default true
+)
+returns table (
+  id uuid,
+  event text,
+  occurred_at timestamptz,
+  user_id uuid,
+  email text,
+  path text
+)
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $$
+#variable_conflict use_column
+begin
+  perform public._require_admin();
+  if p_ids is null or cardinality(p_ids) = 0 then
+    return;
+  end if;
+  if cardinality(p_ids) > 200 then
+    raise exception 'at most 200 ids per call' using errcode = '22023';
+  end if;
+
+  -- The predicate is admin_recent_events' (0278), so a pushed row and a seeded
+  -- row are judged internal by exactly the same rule.
+  return query
+  select e.id, e.event, e.occurred_at, e.user_id, u.email::text, e.path
+    from public.analytics_events e
+    left join auth.users u on u.id = e.user_id
+   where e.id = any(p_ids)
+     and (not p_exclude_internal
+          or ((e.user_id is null
+               or e.user_id not in (select iu.user_id from public._internal_user_ids() iu))
+              and (e.session_id is null
+                   or e.session_id not in (select isid.session_id from public._internal_session_ids() isid))))
+   order by e.occurred_at desc;
+end $$;
+
+revoke execute on function public.admin_events_by_id(uuid[], boolean) from public, anon;
+grant execute on function public.admin_events_by_id(uuid[], boolean) to authenticated, service_role;
+
 do $$
 begin
   if to_regprocedure('public.admin_retention_curve(integer,boolean,boolean)') is not null then
@@ -98,6 +159,11 @@ begin
      or not has_function_privilege('authenticated', 'public.admin_retention_curve(integer,boolean,boolean,boolean)', 'execute')
      or not has_function_privilege('service_role', 'public.admin_retention_curve(integer,boolean,boolean,boolean)', 'execute') then
     raise exception '0410: grants are wrong on admin_retention_curve';
+  end if;
+  if has_function_privilege('anon', 'public.admin_events_by_id(uuid[],boolean)', 'execute')
+     or not has_function_privilege('authenticated', 'public.admin_events_by_id(uuid[],boolean)', 'execute')
+     or not has_function_privilege('service_role', 'public.admin_events_by_id(uuid[],boolean)', 'execute') then
+    raise exception '0410: grants are wrong on admin_events_by_id';
   end if;
 end $$;
 
