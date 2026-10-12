@@ -1,19 +1,27 @@
-// The review player: a video, full size, with everything FilmPlayer's full
-// mode has, the file's versions (pick one; flip A/B against another at the
-// same frame with \), and a rail beside it for what's said about it — frame
-// comments come in through `rail`.
+// The review player: the clip, full size, in a dark room —
 //
-// A modal: it registers with the modal guard, so the board's and Files' keys
-// stand down while it's open, and it takes the keyboard (capture phase).
+//   header  title · facts (version, label, fps, size, length); the versions
+//           as pills; Compare (pick a second version — \ flips between them
+//           on the same frame); shortcuts; close
+//   stage   FilmPlayer mode="full" with its dock
+//   rail    an optional column beside it for what's said about the clip
+//           (frame comments come in through `rail`)
+//
+// A modal layer: the board's and Files' keys stand down while it's open, the
+// player takes the keyboard while this is the top layer, and focus stays in
+// here until it closes. Switching versions keeps the frame, in/out and loop.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 // A namespace import: production's modal guard may predate registerBackLayer.
 import * as modalGuard from '../../lib/modalGuard.js';
 import { liveVersions, currentOf, versionLabel } from '../../lib/cardVersions.js';
+import { formatFps, formatLength } from '../../lib/cardInfo.js';
 import { FilmPlayer } from './FilmPlayer.jsx';
+import { FilmMenu } from './FilmMenu.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
+import { cardLinkUrl } from '../../lib/cardLink.js';
 import { Icon } from '../Icon.jsx';
-import { X, Info } from '../../lib/icons.js';
+import { X, Keyboard, SquareSplitHorizontal, ChevronDown } from '../../lib/icons.js';
 
 // The fields a version's player needs, from a version entry or the card.
 function sourceOf(card, v) {
@@ -21,97 +29,186 @@ function sourceOf(card, v) {
   return { src: v.src, poster: v.poster || null, media: v.media || (v.src === card?.src ? card?.media : null) || null };
 }
 
+// When the version picked to show is the one being compared against, they
+// trade places — showing v1 against v1 compares nothing.
+export function swapCompare(nextShown, compareId, prevShown) {
+  return nextShown === compareId ? prevShown : compareId;
+}
+
+const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
+// A mouse click on the header doesn't take the focus — Space stays the
+// player's, instead of clicking whatever was clicked last.
+const noFocus = (e) => { if (e.pointerType === 'mouse') e.preventDefault(); };
+
 export function FilmReview({
-  card, title = '', onClose, initialVersionId = null, initialFrame = null,
-  rail = null, onInfo = null, playerRef: externalRef = null, onFrameChange, markers = [], ghostMarkers = [], overlay = null, onAction,
+  card, title = '', onClose, initialVersionId = null, initialFrame = null, initialTime = null, autoPlay = true,
+  rail = null, playerRef: externalRef = null, onFrameChange, markers = [], ghostMarkers = [], overlay = null, overlayLive = false,
+  onAction, onDownload = null, boardId = null, cardId = null,
 }) {
   const versions = useMemo(() => liveVersions(card), [card]);
   const current = useMemo(() => currentOf(card), [card]);
   const [versionId, setVersionId] = useState(initialVersionId || current?.id || null);
   const [compareId, setCompareId] = useState(null);
+  const [menu, setMenu] = useState(null);
   const ownRef = useRef(null);
   const playerRef = externalRef || ownRef;
+  const rootRef = useRef(null);
   const v = versions.find((x) => x.id === versionId) || current;
   const cmp = compareId ? versions.find((x) => x.id === compareId) : null;
   const a = sourceOf(card, v);
   const b = cmp ? sourceOf(card, cmp) : null;
+  const many = versions.length > 1;
 
-  useEffect(() => modalGuard.registerModalOpen({ onEscape: () => { onClose?.(); return true; } }), [onClose]);
-  useEffect(() => modalGuard.registerBackLayer?.(() => onClose?.()), [onClose]);
-
-  // Land on the asked-for frame once the player can seek.
-  const landed = useRef(false);
+  // Close through a ref: an App render that hands us a new onClose must not
+  // re-register the layer (that pushed a history entry each time — and a
+  // board edit could navigate the browser out of the app).
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const modalRef = useRef(null);
   useEffect(() => {
-    if (initialFrame == null || landed.current) return undefined;
-    let tries = 0;
-    const t = setInterval(() => {
-      const p = playerRef.current;
-      const el = p?.element?.();
-      if (p && el && el.readyState >= 1 && p.getFps()) {
-        p.seekFrame(initialFrame);
-        landed.current = true;
-        clearInterval(t);
-      } else if (++tries > 100) clearInterval(t);
-    }, 50);
-    return () => clearInterval(t);
-  }, [initialFrame, playerRef]);
+    const u = modalGuard.registerModalOpen({ onEscape: () => { closeRef.current?.(); return true; } });
+    modalRef.current = u;
+    return u;
+  }, []);
+  useEffect(() => modalGuard.registerBackLayer?.(() => closeRef.current?.()), []);
+
+  // Focus comes in, stays in, and goes back where it was.
+  useEffect(() => {
+    const prev = document.activeElement;
+    rootRef.current?.focus({ preventScroll: true });
+    const onKey = (e) => {
+      if (e.key !== 'Tab' || !modalGuard.isTopModal?.(modalRef.current)) return;
+      const els = [...(rootRef.current?.querySelectorAll(FOCUSABLE) || [])];
+      if (!els.length) { e.preventDefault(); return; }
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === rootRef.current)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      if (prev?.isConnected) { try { prev.focus({ preventScroll: true }); } catch (_) {} }
+    };
+  }, []);
+
+  // Where you were, so a version switch lands on the same frame.
+  const session = useRef({ time: initialTime, frame: initialFrame, range: null, looping: false, versionId: v?.id });
+  const [mountSession, setMountSession] = useState({ time: initialTime, frame: initialFrame, range: null, looping: false, autoPlay });
+  const showVersion = (id) => {
+    if (id === v?.id) return;
+    const s = session.current;
+    setMountSession({ time: s.time, frame: null, range: s.range, looping: s.looping, autoPlay: false });
+    setCompareId((c) => swapCompare(id, c, v?.id));
+    setVersionId(id);
+  };
 
   const handleAction = (action, payload) => {
-    if (action === 'escape') { onClose?.(); return; }
+    if (action === 'escape') { closeRef.current?.(); return; }
+    if (action === 'copyLink' && boardId && cardId) {
+      const p = playerRef.current;
+      const t = payload?.time;
+      let link = cardLinkUrl(window.location.href, boardId, cardId);
+      if (Number.isFinite(t)) link += `&t=${t.toFixed(3)}`;
+      if (many && v?.id) link += `&v=${encodeURIComponent(v.id)}`;
+      const tc = p?.format?.(payload?.frame ?? p?.getFrame?.()) || '';
+      navigator.clipboard?.writeText(link).then(() => p?.hud?.(`Link to ${tc} copied`), () => {});
+      return;
+    }
     onAction?.(action, payload);
   };
 
-  const versionPicker = versions.length > 1 && (
-    <div className="frv-versions">
-      <label className="frv-pick">
-        <span className="frv-pick-k">Version</span>
-        <select value={v?.id || ''} onChange={(e) => setVersionId(e.target.value)} aria-label="Version to play">
-          {[...versions].reverse().map((x) => (
-            <option key={x.id} value={x.id}>{versionLabel(x)}{x.label ? ` — ${x.label}` : ''}{x.id === current?.id ? ' (current)' : ''}</option>
-          ))}
-        </select>
-      </label>
-      <label className="frv-pick">
-        <span className="frv-pick-k">Compare</span>
-        <select value={compareId || ''} onChange={(e) => setCompareId(e.target.value || null)} aria-label="Version to compare with" title="Flip between them with \\">
-          <option value="">None</option>
-          {[...versions].reverse().filter((x) => x.id !== v?.id).map((x) => (
-            <option key={x.id} value={x.id}>{versionLabel(x)}{x.label ? ` — ${x.label}` : ''}</option>
-          ))}
-        </select>
-      </label>
-    </div>
-  );
+  const media = a.media;
+  const facts = [
+    many && v ? `${versionLabel(v)}${v.label ? ` · ${v.label}` : ''}` : null,
+    media?.fps ? formatFps(media.fps) : null,
+    media?.w && media?.h ? `${media.w}×${media.h}` : null,
+    media?.dur ? formatLength(media.dur) : null,
+  ].filter(Boolean).join(' · ');
+
+  const openMenu = (id, el, items, align = 'start') => {
+    if (menu?.id === id) { setMenu(null); return; }
+    setMenu({ id, anchor: el.getBoundingClientRect(), items, align });
+  };
+  const versionItems = () => [...versions].reverse().map((x) => ({
+    id: x.id, label: `${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}`, checked: x.id === v?.id,
+    sub: [x.fileName || x.name, x.id === current?.id ? 'Current' : null].filter(Boolean).join(' · '),
+    run: () => showVersion(x.id),
+  }));
+  const compareItems = () => [
+    { header: `Compare ${versionLabel(v)} with` },
+    ...[...versions].reverse().filter((x) => x.id !== v?.id).map((x) => ({
+      id: x.id, label: `${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}`, checked: x.id === compareId,
+      sub: x.id === current?.id ? 'Current' : undefined, run: () => setCompareId(x.id),
+    })),
+    ...(compareId ? [{ divider: true }, { id: 'stop', label: 'Stop comparing', run: () => setCompareId(null) }] : []),
+  ];
 
   return createPortal(
-    <div className="frv" role="dialog" aria-modal="true" aria-label={`Review: ${title}`}>
+    <div className="frv" ref={rootRef} role="dialog" aria-modal="true" aria-label={`Review: ${title}`} tabIndex={-1}>
       <div className="frv-head">
         <div className="frv-titles">
           <span className="frv-title" title={title}>{title}</span>
-          {v && versions.length > 1 && <span className="frv-sub">{versionLabel(v)}{v.label ? ` — ${v.label}` : ''}</span>}
+          {facts && <span className="frv-sub">{facts}</span>}
         </div>
-        {versionPicker}
-        {onInfo && (
-          <button type="button" className="frv-iconbtn" onClick={onInfo} aria-label="Info" title="Info">
-            <Icon as={Info} size={16} />
-          </button>
+        {many && (
+          versions.length <= 4 ? (
+            <div className="frv-pills" role="radiogroup" aria-label="Version">
+              {versions.map((x) => (
+                <button key={x.id} type="button" onPointerDown={noFocus} role="radio" aria-checked={x.id === v?.id}
+                        className={`frv-pill${x.id === v?.id ? ' is-shown' : ''}${x.id === current?.id ? ' is-current' : ''}`}
+                        title={`${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}${x.id === current?.id ? ' (current)' : ''}`}
+                        onClick={() => showVersion(x.id)}>
+                  {versionLabel(x)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" onPointerDown={noFocus} className="frv-pill frv-pill--menu is-shown" aria-haspopup="menu"
+                    onClick={(e) => openMenu('versions', e.currentTarget, versionItems(), 'center')}>
+              {versionLabel(v)} <Icon as={ChevronDown} size={10} weight="bold" />
+            </button>
+          )
         )}
-        <button type="button" className="frv-iconbtn" onClick={onClose} aria-label="Close" title="Close (Esc)">
-          <Icon as={X} size={16} />
-        </button>
+        <div className="frv-actions">
+          {many && (
+            <button type="button" onPointerDown={noFocus} className={`frv-iconbtn frv-compare${compareId ? ' is-on' : ''}`} aria-haspopup="menu"
+                    aria-label={compareId ? `Comparing with ${versionLabel(cmp)}` : 'Compare with another version'}
+                    title={compareId ? `Comparing with ${versionLabel(cmp)} — \\ flips between them` : 'Compare with another version'}
+                    onClick={(e) => openMenu('compare', e.currentTarget, compareItems(), 'end')}>
+              <Icon as={SquareSplitHorizontal} size={18} weight="regular" />
+              <span>{compareId ? `vs ${versionLabel(cmp)}` : 'Compare'}</span>
+            </button>
+          )}
+          <button type="button" onPointerDown={noFocus} className="frv-iconbtn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"
+                  onClick={() => playerRef.current?.toggleHelp?.()}>
+            <Icon as={Keyboard} size={18} weight="regular" />
+          </button>
+          <button type="button" onPointerDown={noFocus} className="frv-iconbtn" onClick={() => closeRef.current?.()} aria-label="Close" title="Close (Esc)">
+            <Icon as={X} size={18} weight="regular" />
+          </button>
+        </div>
       </div>
       <div className={`frv-body${rail ? ' has-rail' : ''}`}>
         <div className="frv-main">
-          <FilmPlayer key={`${v?.id}`} ref={playerRef} mode="full" keyboard autoPlay={initialFrame == null}
+          <FilmPlayer key={`${v?.id}`} ref={playerRef} mode="full" keyboard modalHandle={modalRef}
+                      autoPlay={mountSession.autoPlay}
+                      initialFrame={mountSession.frame} initialTime={mountSession.time}
+                      initialRange={mountSession.range} initialLooping={mountSession.looping}
                       src={a.src} poster={a.poster} media={a.media} title={title}
-                      label={versions.length > 1 ? versionLabel(v) : ''}
-                      compareSrc={b?.src || null} compareLabel={cmp ? versionLabel(cmp) : ''}
-                      markers={markers} ghostMarkers={ghostMarkers} overlay={overlay}
-                      onAction={handleAction} onFrameChange={onFrameChange}
+                      label={many ? versionLabel(v) : ''}
+                      compareSrc={b?.src || null} compareMedia={b?.media || null} compareLabel={cmp ? versionLabel(cmp) : ''}
+                      markers={markers} ghostMarkers={ghostMarkers} overlay={overlay} overlayLive={overlayLive}
+                      onAction={handleAction} onFrameChange={onFrameChange} onDownload={onDownload}
+                      canCopyLink={!!(boardId && cardId)}
+                      onSessionChange={(s) => { session.current = { ...session.current, ...s }; }}
                       probe={() => probeCardVideo({ kind: 'video', src: a.src })} />
         </div>
         {rail && <aside className="frv-rail">{typeof rail === 'function' ? rail({ versionId: v?.id, player: playerRef }) : rail}</aside>}
       </div>
+      {menu && (
+        <FilmMenu anchor={menu.anchor} container={rootRef.current} items={menu.items} label={menu.id}
+                  placement="below" align={menu.align} onClose={() => setMenu(null)} className="film-menu--head" />
+      )}
     </div>,
     document.body,
   );

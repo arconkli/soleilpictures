@@ -130,23 +130,54 @@ they fall through to whatever else is listening.
 ## Player
 
 While the [review player](/docs/files/video-and-audio#the-review-player) is
-open, it has the keyboard — nothing reaches the board behind it.
+open, it has the keyboard — nothing reaches the board behind it. Press `?` in
+the player for this list.
+
+**Transport**
 
 | Key | Action |
 |---|---|
 | `Space` | Play · pause |
 | `J` / `K` / `L` | Play backward · stop · forward — again to go faster |
-| `K+J` / `K+L` | One frame back · forward |
+| `K+J` / `K+L` | Tap: one frame back · forward. Hold: play slowly |
 | `←` / `→` | One frame back · forward |
+| `,` / `.` | One frame back · forward |
 | `⇧←` / `⇧→` | One second back · forward |
 | `Home` / `End` | First · last frame |
+| `⇧<` / `⇧>` | Slower · faster |
+| `0–9` | Type a timecode, frame or seconds to jump to |
+
+**Marking**
+
+| Key | Action |
+|---|---|
 | `I` / `O` | Set in · out |
-| `⌥L` | Loop between in and out |
+| `⇧I` / `⇧O` | Go to in · out |
+| `⇧Space` | Play from in to out |
+| `⌥L` | Loop (between in and out, or the whole clip) |
 | `⌥X` | Clear in and out |
-| `M` | Mute |
+
+**View**
+
+| Key | Action |
+|---|---|
+| `⌥=` / `⌥−` | Zoom the timeline in · out |
+| `⌥0` | Fit the whole clip in the timeline |
+| `⇧Z` | Zoom the timeline to in and out |
+| `Z` | Zoom the picture: fit · 100% · 200% — drag to look around |
+| `G` | Framing guides — again for the next one |
 | `F` | Full screen |
-| `G` | Framing guides |
+| `M` | Mute |
+| `⇧↑` / `⇧↓` | Volume up · down |
+
+**Review**
+
+| Key | Action |
+|---|---|
 | `\` | Flip to the version you compare with |
+| `⌘C` | Copy the timecode |
+| `⇧⌘C` | Copy a link to this frame |
+| `?` | Show these shortcuts |
 | `Esc` | Close the player |
 
 ## Notes

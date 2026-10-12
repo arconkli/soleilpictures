@@ -785,7 +785,8 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
-                     pending = false, uploadProgress = null, mediaJson = null, onExpand = null }) {
+                     pending = false, uploadProgress = null, mediaJson = null, onExpand = null,
+                     cardId = null, selected = false, tapToPlay = false }) {
   // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
   const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
   // Same fix as ImageCard: don't auto-open the title row on paste; it
@@ -857,26 +858,16 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   const playerRef = useRef(null);
   const [live, setLive] = useState(!poster);
   const [playOnMount, setPlayOnMount] = useState(false);
-  // Where the review player left this clip: the card mounts on it (or seeks
-  // there) and keeps it, as if you had moved it there yourself.
-  const [syncTime, setSyncTime] = useState(null);
-  useEffect(() => { setSyncTime(null); }, [src]);
   const hoverRef = useRef(false);
-  const selectedRef = useRef(selected);
-  selectedRef.current = selected;
   const timers = useRef({ on: null, off: null });
   useEffect(() => { if (!poster) setLive(true); }, [poster]);
-  useEffect(() => {
-    if (!selected) return;
-    clearTimeout(timers.current.off);
-    setLive(true);
-  }, [selected]);
+  useEffect(() => { if (selected) setLive(true); }, [selected]);
   const scheduleOff = () => {
     clearTimeout(timers.current.off);
     if (!poster) return;
     timers.current.off = setTimeout(() => {
       const st = playerRef.current?.getState?.();
-      if (hoverRef.current || selectedRef.current || st?.playing || st?.touched) return;
+      if (hoverRef.current || selected || st?.playing || st?.touched) return;
       setLive(false);
       setPlayOnMount(false);
     }, 5000);
@@ -899,26 +890,17 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   const wasSelected = useRef(false);
   const onDownCapture = (e) => { wasSelected.current = selected; hoverRef.current = true; if (!live) setLive(true); void e; };
   const clickGate = (e) => !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && (wasSelected.current || tapToPlay);
-  // The review player closed on another frame: this card follows it there,
-  // mounting its player if it was resting on the poster.
+  // The review player closed on another frame: this card follows it there.
   useEffect(() => {
     if (!cardId) return undefined;
     const on = (e) => {
       const d = e.detail || {};
       if (d.cardId !== cardId || !Number.isFinite(d.time)) return;
-      setSyncTime(d.time);
-      setPlayOnMount(false);
-      setLive(true);
-      playerRef.current?.seekTime?.(d.time, { touch: true });
+      playerRef.current?.seekTime?.(d.time);
     };
     document.addEventListener('soleil-player-closed', on);
     return () => document.removeEventListener('soleil-player-closed', on);
   }, [cardId]);
-  // Its right-click "Open in player" starts the review where this player is.
-  useEffect(() => registerCardPlayer(cardId, {
-    getState: () => playerRef.current?.getState?.() || null,
-    pause: () => playerRef.current?.pause?.(),
-  }), [cardId]);
 
   const durText = Number.isFinite(media?.dur) && media.dur > 0 ? formatClipLength(media.dur) : '';
   const showTitle = !!title || editingTitle;
@@ -936,14 +918,15 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
           <Icon as={Download} size={14} />
         </button>
       )}
-      <div className="vc-vidwrap" onDoubleClick={onDbl}>
+      <div className="vc-vidwrap" onPointerEnter={onEnter} onPointerLeave={onLeave} onPointerDownCapture={onDownCapture}>
         {/* A clip that plays itself is a moving still — it keeps the plain
             element. Every other clip gets the film player: frame steps, a
             frame-accurate scrubber, timecode, and ⤢ into the review player. */}
-        {resolvedUrl && !autoplay
-          ? <FilmPlayer mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
+        {resolvedUrl && !autoplay && live
+          ? <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
+                        clickGate={clickGate} autoPlay={playOnMount}
                         probe={() => probeCardVideo({ kind: 'video', src })} />
-          : resolvedUrl
+          : resolvedUrl && autoplay
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
                    {...(posterUrl ? { poster: posterUrl } : {})}
                    {...(loop ? { loop: true } : {})}
@@ -962,6 +945,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
                 </div>
               )
               : <ImagePlaceholder label="VIDEO" tone="neutral" />)}
+        {durText && !autoplay && <span className="vc-dur" aria-hidden="true">{durText}</span>}
         {/* A dropped clip is placed at once and uploads in the background —
             same overlay as a photo's, so it never looks finished early. */}
         {pending && !src && (

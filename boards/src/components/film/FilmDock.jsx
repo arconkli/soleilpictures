@@ -64,7 +64,7 @@ function TcReadout({ ctl }) {
                onKeyDown={(e) => {
                  e.stopPropagation();
                  if (e.key === 'Enter') { e.preventDefault(); ctl.commitTc(e.currentTarget.value); }
-                 if (e.key === 'Escape') { e.preventDefault(); ctl.closeTc(); }
+                 if (e.key === 'Escape') { e.preventDefault(); ctl.setTcEdit(null); }
                }}
                onBlur={() => ctl.setTcEdit(null)} />
       ) : (
@@ -119,14 +119,7 @@ function VolumeControl({ ctl }) {
       {ctl.hasAudio && (
         <input type="range" className="film-vol-slider" min={0} max={1} step={0.01} value={v}
                aria-label="Volume" style={{ '--v': `${v * 100}%` }}
-               onPointerDown={(e) => {
-                 e.stopPropagation();
-                 // Dragged with a mouse, it gives the focus back when let go —
-                 // a focused slider would keep every player key for itself.
-                 if (e.pointerType !== 'mouse') return;
-                 const el = e.currentTarget;
-                 window.addEventListener('pointerup', () => el.blur(), { once: true, capture: true });
-               }}
+               onPointerDown={(e) => e.stopPropagation()}
                onChange={(e) => ctl.setVolume(Number(e.target.value))}
                onWheel={(e) => ctl.setVolume(v + (e.deltaY < 0 ? 0.05 : -0.05))} />
       )}
@@ -139,12 +132,9 @@ export function FilmDock({ ctl, timeline }) {
   const fwd = useHoldRepeat((shift) => ctl.step(shift ? Math.round(ctl.fps?.[0] / (ctl.fps?.[1] || 1) || 24) : 1), ctl.fps ? ctl.fps[0] / ctl.fps[1] : 24);
   const rateText = ctl.shuttleLabel || `${ctl.userRate}×`;
   const rateOn = !!ctl.shuttleLabel || Math.abs(ctl.userRate - 1) > 1e-6;
-  // The buttons don't take focus, so they'd never blur a jump being typed:
-  // any press outside the field closes it.
-  const closeTcOutside = (e) => { if (ctl.tcEdit && !e.target.closest?.('.film-tc-input')) ctl.setTcEdit(null); };
   return (
     <div className={`film-dock${ctl.disabled ? ' is-disabled' : ''}`} onPointerEnter={ctl.onDockEnter} onPointerLeave={ctl.onDockLeave}
-         onContextMenu={(e) => e.preventDefault()} onPointerDownCapture={closeTcOutside}>
+         onContextMenu={(e) => e.preventDefault()}>
       <div className="film-dock-timeline">{timeline}</div>
       <div className="film-dock-row">
         <div className="film-dock-left">
@@ -177,7 +167,7 @@ export function FilmDock({ ctl, timeline }) {
                   aria-label={`Speed ${rateText}`} data-tip="Speed" data-key="⇧< ⇧>">
             {rateText}
           </button>
-          <button type="button" className={`film-btn film-guides-btn${ctl.guide !== 'off' ? ' is-on' : ''}`} onPointerDown={noFocus}
+          <button type="button" className={`film-btn${ctl.guide !== 'off' ? ' is-on' : ''}`} onPointerDown={noFocus}
                   onClick={(e) => ctl.openGuides(e.currentTarget)} aria-haspopup="menu" aria-expanded={ctl.menuId === 'guides'}
                   aria-label="Framing guides" data-tip={ctl.guideDef && ctl.guide !== 'off' ? `Guides: ${ctl.guideDef.label}` : 'Framing guides'} data-key="G">
             <GuidesGlyph />

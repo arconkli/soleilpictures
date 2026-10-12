@@ -5,12 +5,10 @@
 //
 // While open it's the top layer of the modal guard: the player's keys stand
 // down (it checks it is on top), arrows move through the rows, and Esc closes
-// only the menu. A press on the button that opened it closes it (`ignore`),
-// rather than closing it and opening it again in the same click.
+// only the menu.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as modalGuard from '../../lib/modalGuard.js';
-import { pushFilmLayer } from '../../lib/filmLayers.js';
 import { Icon } from '../Icon.jsx';
 import { Check } from '../../lib/icons.js';
 
@@ -19,8 +17,7 @@ const selectable = (it) => it && !it.divider && !it.header && !it.disabled;
 //   anchor     a DOMRect-like { left, top, width, height } (viewport) to open from
 //   container  the element to portal into (the player root, or the review)
 //   items      [{ id, label, hint?, checked?, disabled?, divider?, header?, thumb?, sub?, run }]
-//   ignore     the element that opened it: a press there is its own toggle
-export function FilmMenu({ anchor, container, items, onClose, label = 'Menu', placement = 'above', align = 'start', className = '', ignore = null }) {
+export function FilmMenu({ anchor, container, items, onClose, label = 'Menu', placement = 'above', align = 'start', className = '' }) {
   const ref = useRef(null);
   const [pos, setPos] = useState(null);
   const [active, setActive] = useState(() => {
@@ -32,7 +29,6 @@ export function FilmMenu({ anchor, container, items, onClose, label = 'Menu', pl
   const host = container || (typeof document !== 'undefined' ? document.body : null);
 
   useEffect(() => modalGuard.registerModalOpen({ onEscape: () => { closeRef.current?.(); return true; } }), []);
-  useEffect(() => pushFilmLayer(), []);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -49,25 +45,16 @@ export function FilmMenu({ anchor, container, items, onClose, label = 'Menu', pl
     setPos({ left, top });
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Focus the menu so its keys arrive here — once it's placed: until then it
-  // is visibility:hidden, and a hidden element can't take focus. Give it back
-  // on close.
+  // Focus the menu so its keys arrive here; give it back on close.
   useEffect(() => {
     const prev = document.activeElement;
+    ref.current?.focus({ preventScroll: true });
     return () => { if (prev?.isConnected) { try { prev.focus({ preventScroll: true }); } catch (_) {} } };
   }, []);
-  const placed = !!pos;
-  useEffect(() => { if (placed) ref.current?.focus({ preventScroll: true }); }, [placed]);
 
   // A press anywhere else closes it (the press still lands where it was aimed).
-  const ignoreRef = useRef(ignore);
-  ignoreRef.current = ignore;
   useEffect(() => {
-    const onDown = (e) => {
-      if (ref.current?.contains(e.target)) return;
-      if (ignoreRef.current?.contains?.(e.target)) return;
-      closeRef.current?.();
-    };
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) closeRef.current?.(); };
     document.addEventListener('pointerdown', onDown, true);
     return () => document.removeEventListener('pointerdown', onDown, true);
   }, []);
@@ -92,7 +79,7 @@ export function FilmMenu({ anchor, container, items, onClose, label = 'Menu', pl
     else if (k === 'Home') { e.preventDefault(); setActive(items.findIndex(selectable)); }
     else if (k === 'End') { e.preventDefault(); const i = [...items].reverse().findIndex(selectable); setActive(items.length - 1 - i); }
     else if (k === 'Enter' || k === ' ') { e.preventDefault(); choose(items[active]); }
-    else if (k === 'Tab' || k === 'Escape') { e.preventDefault(); onClose?.(); }
+    else if (k === 'Tab') { e.preventDefault(); onClose?.(); }
     else if (k.length === 1 && /\S/.test(k) && !e.metaKey && !e.ctrlKey) {
       const n = items.length;
       for (let j = 1; j <= n; j++) {
