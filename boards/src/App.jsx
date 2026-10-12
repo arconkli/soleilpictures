@@ -112,6 +112,7 @@ import { Icon } from './components/Icon.jsx';
 import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { probeFile } from './lib/mediaProbe.js';
+import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -4869,6 +4870,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
   myTierRef.current = myTier;
+  // New versions uploaded from Files or Info (lib/versionUpload.js) need to
+  // know where and on what plan; the board passes its own.
+  useEffect(() => {
+    const paid = myTier?.tier === 'paid' || myTier?.tier === 'admin';
+    setUploadContext({ workspaceId: workspace?.id || null, userId: user?.id || null, allowLong: paid });
+  }, [workspace?.id, user?.id, myTier?.tier]);
 
   // ── Capture Mode (admin) ─────────────────────────────────────────────────
   // Staging for marketing screenshots and screen recordings. Ships to

@@ -679,6 +679,8 @@ Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in F
 
 HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all.
 
+To swap in a new take of an image, drop the new file onto it, or choose Edit → Upload new version…. The old one is kept as an earlier version, so you can go back to it from Info.
+
 Images from the web
 
 Drag an image out of another tab and it shows up on the canvas straight away, loaded from the page it came from. A moment later Clusters keeps its own copy in your workspace and the card switches to it. A link to someone else's server breaks when that page moves, expires its link or goes behind a login, and the copy does not. It keeps the file's name when the address has one, like ext_dusk_04.jpg.
@@ -1501,7 +1503,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-07
+Updated: 2026-10-12
 
 Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.
 
@@ -1558,6 +1560,24 @@ Files go directly from your browser into private object storage, and are served 
 
 Files referenced by a board are protected from cleanup for as long as the board references them. Removing the last card that uses a file makes it eligible for deletion later, not immediately.
 
+Versions
+
+A file can have versions. Drop a new file onto a file of the same kind — on the board or in Files — and it becomes that file's next version: the card shows the new one, and the old one is kept. The card lights up and says Drop to add as v2 before you let go. A toast confirms it with Undo, and with Keep as separate file for when you meant it as a file of its own. Hold ⌥ while you drop to skip all of that and add it as a separate file straight away.
+
+Upload new version… in the right-click menu does the same with a file picker — for images it's under Edit. Images, videos, audio, PDFs and other files all take versions; the new one has to be the same kind as the old.
+
+Once a file has more than one, a small v2 chip on the card (and beside its name in Files) says which version is on show; it opens Info, whose Versions section lists every version, newest first, with who uploaded it, when, and its size. From each version's menu:
+
+Action | What it does
+Make current | Shows that version on the card again, everywhere the card appears
+Download | That version's original file
+Add a label… | A name for it — "Picture lock", "Director's cut"
+Delete version | Removes it, with undo
+
+A deleted version waits under Recently deleted for 30 days, where Restore brings it back; after that it's gone. A file keeps up to 50 versions, and the one on show can't be deleted while it's the only one left — deleting the card is how you delete the file. Every change is one step of ⌘Z.
+
+Every version is a stored file, so every version counts toward your storage. Copying or moving a card brings its versions with it.
+
 Downloading
 
 Every file card has a download. Images additionally offer a version with adjustments applied. PDFs can be downloaded from the viewer.
@@ -1581,6 +1601,9 @@ A: A .fountain or .fdx file becomes a new script document, formatted and ready t
 
 Q: What happens if the page closes while photos are still uploading?
 A: Photos upload from your device while the page is open. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas.
+
+Q: How do I upload a new version of a file?
+A: Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version…. Info lists every version, and any of them can be made current again.
 
 
 ========================================================================
@@ -2024,9 +2047,13 @@ Show on board is the important one: it connects the two views, so finding someth
 
 For an audio clip the panel also reports its length, tempo, key and format, which is most of the reason to open it at all.
 
+A file with more than one version lists them under Versions, where you can make an older one current again, download it, label it, or delete it — see Versions. Its right-click menu here offers Upload new version… too.
+
 Adding files here
 
 Drag files into Files, or use Add files in the toolbar. They join the cluster without going on its board: they wait in Files, marked Not on board, until you drag them onto the board or choose Put on board. That holds beside the board and in full-screen Files alike — dropping on the canvas is how you put files straight on the board. An empty cluster offers Add files, New cluster and Link a cluster right where its contents would be.
+
+Drop a single file onto a file of the same kind instead, and it becomes that file's next version — the file lights up and says so first. Hold ⌥ to add it as a separate file.
 
 Presence
 
@@ -2255,6 +2282,8 @@ A cluster in the trash does not count against your card limit. Deleting one free
 That cuts both ways, and deliberately: a restore has to fit. If you used the space in the meantime, putting the cluster back would take you over your limit, so it is refused and says by how much. Delete some cards, or upgrade, and it will go back. Nothing in the trash is lost while you decide — the 30-day clock is the only thing running.
 
 Version history
+
+This is about a whole board. For versions of a single file — a new cut of a video, a revised PDF — see Versions.
 
 Boards keep snapshots over time. You can list them, look through them, and roll back to one. Open it from the clock icon in the toolbar, or ⌘K → "Version history".
 

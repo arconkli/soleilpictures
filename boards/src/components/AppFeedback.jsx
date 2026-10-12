@@ -94,7 +94,7 @@ export function FeedbackProvider({ children }) {
     }
     dismissToast(id);
   }, [dismissToast]);
-  const toast = useCallback(({ type = 'info', message, action = null, ttl = 4200, onDismiss = null }) => {
+  const toast = useCallback(({ type = 'info', message, action = null, actions = null, ttl = 4200, onDismiss = null }) => {
     if (!message) return;
     // Capture Mode (admin-only) mutes toasts so a stray "Copied" or an undo
     // strip can't land in the middle of a take. Read from the module rather
@@ -104,7 +104,8 @@ export function FeedbackProvider({ children }) {
     // — they block a flow, and silently resolving one would strand the caller.
     if (isSilenced()) return;
     const id = nextId.current++;
-    setToasts(current => [...current, { id, type, message, action, onDismiss, exiting: false }]);
+    const list = Array.isArray(actions) && actions.length ? actions.filter(Boolean) : null;
+    setToasts(current => [...current, { id, type, message, action, actions: list, onDismiss, exiting: false }]);
     window.setTimeout(() => dismissToast(id), Math.max(1000, ttl));
   }, [dismissToast]);
 

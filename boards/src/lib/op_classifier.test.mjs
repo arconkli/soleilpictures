@@ -202,5 +202,21 @@ function captureUpdate(beforeDoc, mutate) {
   assertEq(r.card_ids, ['sa-1'], 'standalone classify → card_ids');
 }
 
+// ─── Test 10: a file written onto an existing card (a new version) ────────
+{
+  const doc = new Y.Doc();
+  const c = new Y.Map(); c.set('kind', 'video'); c.set('src', 'r2:ws/old.mp4');
+  doc.getMap('cards').set('vid-1', c);
+  const { beforeState, updateBytes } = captureUpdate(doc, (d) => {
+    const cm = d.getMap('cards').get('vid-1');
+    cm.set('src', 'r2:ws/new.mp4');
+    cm.set('versions', [{ src: 'r2:ws/old.mp4', id: 'v1', n: 1 }, { src: 'r2:ws/new.mp4', poster: 'r2:ws/new-poster.webp', id: 'vb', n: 2 }]);
+  });
+  const r = classifyUpdate(beforeState, updateBytes);
+  assertContains(r.r2_keys, 'ws/new.mp4', 'version → the new file key is recorded');
+  assertContains(r.r2_keys, 'ws/new-poster.webp', 'version → its poster key too (inside the versions array)');
+  assertEq(r.card_ids, ['vid-1'], 'version → card_ids=[vid-1]');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

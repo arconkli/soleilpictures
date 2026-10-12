@@ -22,6 +22,11 @@ import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/card
 import * as userProfiles from '../../lib/userProfiles.js';
 import { describeCard, describeCluster, describeSelection, describeGroup, fileKeyOf, formatSize, formatWhen } from '../../lib/cardInfo.js';
 import { useMediaFacts } from '../../hooks/useMediaFacts.js';
+import { VersionsSection } from '../info/VersionsSection.jsx';
+import { canVersion } from '../../lib/cardVersions.js';
+import { pickVersionFile, makeCurrent, deleteVersion, restoreVersion, labelVersion } from '../../lib/versionActions.js';
+
+const FILE_KINDS = new Set(['image', 'video', 'audio', 'pdf', 'file']);
 
 function MetaRow({ label, value, title }) {
   if (!value) return null;
@@ -106,6 +111,8 @@ export function DetailPanel({
   target, boards = {}, canEdit = true, onClose, onReveal, onDelete, inline = false, onPutOnBoard = null,
   variant = 'split', selfId = null, onOpenCluster = null, gridTemplates = {}, getMeta = getMetaDefault,
   writeMeta = null,
+  // { mutators, feedback, userId, getCard, ctx } — lib/versionActions.js. Null: Versions is read-only.
+  versionEnv = null,
 }) {
   const feedback = useFeedback();
   const rawCard = target?.type === 'card' ? (target.item?.card || {}) : null;
@@ -223,6 +230,20 @@ export function DetailPanel({
           <MetaRow label="Location" value={location ? (item.unplaced ? `${location} · not on the board` : location) : null} />
         </Section>
         <People people={info.people} selfId={selfId} />
+        {FILE_KINDS.has(item.kind) && (card.src || card.fileSrc || card.pdfSrc) && (
+          <VersionsSection
+            card={card}
+            canEdit={canEdit && !!versionEnv && canVersion(card)}
+            getMeta={getMeta}
+            personName={(id) => (isPublicSurface() ? null : personName(id, selfId))}
+            onUpload={versionEnv ? () => pickVersionFile(versionEnv, card.id) : null}
+            onMakeCurrent={versionEnv ? (v) => makeCurrent(versionEnv, card.id, v.id) : null}
+            onDelete={versionEnv ? (v) => deleteVersion(versionEnv, card.id, v.id) : null}
+            onRestore={versionEnv ? (v) => restoreVersion(versionEnv, card.id, v.id) : null}
+            onLabel={versionEnv ? (v) => labelVersion(versionEnv, card.id, v.id) : null}
+            onDownload={(v) => downloadCardAsset({ ...card, src: v.src ?? card.src, fileSrc: v.fileSrc ?? card.fileSrc, pdfSrc: v.pdfSrc ?? card.pdfSrc, fileName: v.fileName || card.fileName, name: v.name || card.name }, item.kind, { surface: 'cluster_browser' }).catch(() => {})}
+          />
+        )}
       </div>
       <div className="cbd-actions">
         {/* Both of these used to render unconditionally, and both are dead on a

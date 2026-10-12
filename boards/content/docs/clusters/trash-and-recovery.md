@@ -61,6 +61,9 @@ is the only thing running.
 
 ## Version history
 
+This is about a whole board. For versions of a single file — a new cut of a
+video, a revised PDF — see [Versions](/docs/files#versions).
+
 Boards keep snapshots over time. You can list them, look through them, and roll
 back to one. Open it from the clock icon in the toolbar, or `⌘K` → "Version
 history".

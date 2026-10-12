@@ -16,6 +16,7 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { planPutOnBoard } from '../../lib/placement.js';
 import { getViewCenter } from '../../lib/viewCenter.js';
 import { undoToast } from '../../lib/undoToast.js';
+import { uploadContext } from '../../lib/uploadContext.js';
 
 function sameRequest(a, b) {
   if (!a || !b) return false;
@@ -178,6 +179,12 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
     const deleted = await muts.deleteCards?.(ids);
     undoToast(feedback, { message: 'Card deleted', undoManager: muts.undoManager, stackItem: deleted?.stackItem || null, onUndo: () => muts.undo?.() });
   } : null;
+  // Versions are editable where the cluster is open and you can edit it.
+  const versionEnv = target.type === 'card' && live?.canEdit && live?.mutators ? {
+    mutators: live.mutators, feedback, userId: selfId,
+    getCard: (id) => (resolveBoard?.(req.boardId)?.cards || []).find((c) => c.id === id) || null,
+    ctx: uploadContext({ boardId: req.boardId }),
+  } : null;
   return (
     <div className="info-host" ref={hostRef} onContextMenu={swallowContextMenu}>
       <DetailPanel
@@ -186,6 +193,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
         boards={boards}
         canEdit={!!live?.canEdit}
         writeMeta={live?.mutators?.updateCardMeta || null}
+        versionEnv={versionEnv}
         selfId={selfId}
         gridTemplates={live?.gridTemplates || {}}
         onClose={close}

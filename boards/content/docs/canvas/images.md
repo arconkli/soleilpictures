@@ -47,6 +47,10 @@ every one `image.png`), so it is not given one.
 HEIC and HEIF from an iPhone are handled, including the awkward case where the
 browser reports no MIME type at all.
 
+To swap in a new take of an image, drop the new file onto it, or choose
+**Edit → Upload new version…**. The old one is kept as an earlier
+[version](/docs/files#versions), so you can go back to it from Info.
+
 ## Images from the web
 
 Drag an image out of another tab and it shows up on the canvas straight away,

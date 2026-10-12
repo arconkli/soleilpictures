@@ -2,7 +2,7 @@
 
 > Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.
 
-_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-12_
 
 Drag a file onto the canvas. The type is detected and the right kind of card is
 created — you never pick "upload as image" from a menu.
@@ -75,6 +75,42 @@ is reachable by guessing a path.
 Files referenced by a board are protected from cleanup for as long as the board
 references them. Removing the last card that uses a file makes it eligible for
 deletion later, not immediately.
+
+## Versions
+
+A file can have versions. Drop a new file onto a file of the same kind — on
+the board or in [Files](/docs/clusters/list-view) — and it becomes that file's
+next version: the card shows the new one, and the old one is kept. The card
+lights up and says **Drop to add as v2** before you let go. A toast confirms it
+with **Undo**, and with **Keep as separate file** for when you meant it as a
+file of its own. Hold `⌥` while you drop to skip all of that and add it as a
+separate file straight away.
+
+**Upload new version…** in the right-click menu does the same with a file
+picker — for images it's under **Edit**. Images, videos, audio, PDFs and other
+files all take versions; the new one has to be the same kind as the old.
+
+Once a file has more than one, a small **v2** chip on the card (and beside its
+name in Files) says which version is on show; it opens
+[Info](/docs/canvas/cards#info), whose **Versions** section lists every
+version, newest first, with who uploaded it, when, and its size. From each
+version's menu:
+
+| Action | What it does |
+|---|---|
+| **Make current** | Shows that version on the card again, everywhere the card appears |
+| **Download** | That version's original file |
+| **Add a label…** | A name for it — "Picture lock", "Director's cut" |
+| **Delete version** | Removes it, with undo |
+
+A deleted version waits under **Recently deleted** for
+30 days, where **Restore** brings it back; after that
+it's gone. A file keeps up to 50 versions, and the one on
+show can't be deleted while it's the only one left — deleting the card is how
+you delete the file. Every change is one step of `⌘Z`.
+
+Every version is a stored file, so every version counts toward your
+[storage](#storage). Copying or moving a card brings its versions with it.
 
 ## Downloading
 

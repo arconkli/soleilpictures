@@ -68,6 +68,7 @@ import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
+import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -244,6 +245,9 @@ export const FACTS = {
   folderMaxFiles: String(FOLDER_LIMITS.maxFiles),
   folderMaxDepth: String(FOLDER_LIMITS.maxDepth),
   folderMaxClusters: String(FOLDER_LIMITS.maxClusters),
+  // File versions (lib/cardVersions.js): how many a file keeps, and how long a deleted one waits.
+  versionLimit: String(VERSION_LIMIT),
+  versionDeletedDays: String(VERSION_DELETED_KEEP_DAYS),
   // The largest web image the canvas keeps a copy of (lib/webImageSave
   // WEB_IMAGE, enforced by worker-media.js). Past it the card stays linked.
   webImageMaxSize: `${WEB_IMAGE.maxBytes / MB} MB`,

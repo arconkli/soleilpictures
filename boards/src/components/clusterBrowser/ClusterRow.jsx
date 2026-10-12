@@ -108,7 +108,7 @@ export const ClusterRow = memo(function ClusterRow({
         <div className="ct-name-wrap">
           {rename
             ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-row-rename" />
-            : <div className="ct-name" title={item.name}>{item.name}</div>}
+            : <div className="ct-name" title={item.name}>{item.name}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
           {/* In loop-browser mode these same values have their own columns, so
               the folded line is hidden on a wide screen — and it is the only
               way to show them on a phone, where four mono columns truncate

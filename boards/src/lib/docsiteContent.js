@@ -7198,6 +7198,44 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To swap in a new take of an image, drop the new file onto it, or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Edit → Upload new version…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Edit → Upload new version…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The old one is kept as an earlier "
+    },
+    {
+     "t": "link",
+     "v": "version",
+     "href": "/docs/files#versions",
+     "children": [
+      {
+       "t": "text",
+       "v": "version"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so you can go back to it from Info."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Images from the web",
@@ -13815,6 +13853,345 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Versions",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Versions"
+    }
+   ],
+   "id": "versions"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file can have versions. Drop a new file onto a file of the same kind — on the board or in "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — and it becomes that file's next version: the card shows the new one, and the old one is kept. The card lights up and says "
+    },
+    {
+     "t": "strong",
+     "v": "Drop to add as v2",
+     "children": [
+      {
+       "t": "text",
+       "v": "Drop to add as v2"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " before you let go. A toast confirms it with "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and with "
+    },
+    {
+     "t": "strong",
+     "v": "Keep as separate file",
+     "children": [
+      {
+       "t": "text",
+       "v": "Keep as separate file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for when you meant it as a file of its own. Hold "
+    },
+    {
+     "t": "code",
+     "v": "⌥"
+    },
+    {
+     "t": "text",
+     "v": " while you drop to skip all of that and add it as a separate file straight away."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Upload new version…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload new version…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the right-click menu does the same with a file picker — for images it's under "
+    },
+    {
+     "t": "strong",
+     "v": "Edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Images, videos, audio, PDFs and other files all take versions; the new one has to be the same kind as the old."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Once a file has more than one, a small "
+    },
+    {
+     "t": "strong",
+     "v": "v2",
+     "children": [
+      {
+       "t": "text",
+       "v": "v2"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " chip on the card (and beside its name in Files) says which version is on show; it opens "
+    },
+    {
+     "t": "link",
+     "v": "Info",
+     "href": "/docs/canvas/cards#info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", whose "
+    },
+    {
+     "t": "strong",
+     "v": "Versions",
+     "children": [
+      {
+       "t": "text",
+       "v": "Versions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " section lists every version, newest first, with who uploaded it, when, and its size. From each version's menu:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Make current",
+       "children": [
+        {
+         "t": "text",
+         "v": "Make current"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Shows that version on the card again, everywhere the card appears"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Download",
+       "children": [
+        {
+         "t": "text",
+         "v": "Download"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "That version's original file"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Add a label…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Add a label…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A name for it — \"Picture lock\", \"Director's cut\""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Delete version",
+       "children": [
+        {
+         "t": "text",
+         "v": "Delete version"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Removes it, with undo"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A deleted version waits under "
+    },
+    {
+     "t": "strong",
+     "v": "Recently deleted",
+     "children": [
+      {
+       "t": "text",
+       "v": "Recently deleted"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for 30 days, where "
+    },
+    {
+     "t": "strong",
+     "v": "Restore",
+     "children": [
+      {
+       "t": "text",
+       "v": "Restore"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " brings it back; after that it's gone. A file keeps up to 50 versions, and the one on show can't be deleted while it's the only one left — deleting the card is how you delete the file. Every change is one step of "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every version is a stored file, so every version counts toward your "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Copying or moving a card brings its versions with it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Downloading",
    "inline": [
     {
@@ -18552,6 +18929,58 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file with more than one version lists them under "
+    },
+    {
+     "t": "strong",
+     "v": "Versions",
+     "children": [
+      {
+       "t": "text",
+       "v": "Versions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", where you can make an older one current again, download it, label it, or delete it — see "
+    },
+    {
+     "t": "link",
+     "v": "Versions",
+     "href": "/docs/files#versions",
+     "children": [
+      {
+       "t": "text",
+       "v": "Versions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Its right-click menu here offers "
+    },
+    {
+     "t": "strong",
+     "v": "Upload new version…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload new version…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " too."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Adding files here",
@@ -18660,6 +19089,38 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " right where its contents would be."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drop a single file onto a file of the same kind instead, and it becomes that file's "
+    },
+    {
+     "t": "link",
+     "v": "next version",
+     "href": "/docs/files#versions",
+     "children": [
+      {
+       "t": "text",
+       "v": "next version"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the file lights up and says so first. Hold "
+    },
+    {
+     "t": "code",
+     "v": "⌥"
+    },
+    {
+     "t": "text",
+     "v": " to add it as a separate file."
     }
    ]
   },
@@ -20337,6 +20798,30 @@ export const DOCS_CONTENT = {
     }
    ],
    "id": "version-history"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This is about a whole board. For versions of a single file — a new cut of a video, a revised PDF — see "
+    },
+    {
+     "t": "link",
+     "v": "Versions",
+     "href": "/docs/files#versions",
+     "children": [
+      {
+       "t": "text",
+       "v": "Versions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
   },
   {
    "type": "para",

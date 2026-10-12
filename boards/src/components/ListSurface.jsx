@@ -54,6 +54,10 @@ function writeInfoPref(on) {
 }
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
+import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
+import { canVersion, liveVersions } from '../lib/cardVersions.js';
+import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
+import { uploadContext } from '../lib/uploadContext.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
@@ -1108,7 +1112,40 @@ export function ListSurface({
     setDragOver(false);
     setDragNote(null);
     setDropTileId(null);
+    markVersionTile(null);
   }), []);
+  // ── New versions (lib/versionActions.js) ─────────────────────────────────
+  // Only for this cluster's own files, where you can edit them.
+  const cardsLiveRef = useRef(cards);
+  cardsLiveRef.current = cards;
+  const canVersionHere = canEdit && !browsingFrom;
+  const versionEnv = () => ({
+    mutators, feedback, userId: selfId || null,
+    getCard: (id) => (cardsLiveRef.current || []).find((c) => c.id === id) || null,
+    ctx: uploadContext({ workspaceId, boardId: board?.id }),
+  });
+  // One file held over a file of its kind becomes its next version. The tile
+  // is marked straight on the DOM — re-rendering a 3,000-file gallery on every
+  // dragover would be the slow part of the drag.
+  const versionTileRef = useRef(null);
+  const markVersionTile = (el, label = '') => {
+    const prev = versionTileRef.current;
+    if (prev === el) return;
+    if (prev) { prev.classList.remove('is-version-drop'); prev.removeAttribute('data-version-drop'); }
+    versionTileRef.current = el || null;
+    if (el) { el.classList.add('is-version-drop'); el.setAttribute('data-version-drop', label); }
+  };
+  // The tile a single dragged file could be the next version of. While
+  // dragging only the item's type is known; the drop checks the file itself.
+  const versionTileAt = (e) => {
+    if (!canVersionHere || e.altKey) return null;
+    const items = e.dataTransfer?.items;
+    if (!items || items.length !== 1 || items[0].kind !== 'file') return null;
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('[data-item-id]');
+    const c = el ? (cardsLiveRef.current || []).find((x) => x.id === el.getAttribute('data-item-id')) : null;
+    if (!c || !canVersion(c) || kindFromMime(items[0].type) !== c.kind) return null;
+    return { el, card: c, label: `Drop to add as v${liveVersions(c).length + 1}` };
+  };
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
     if (homeFilesHere(types) || foldersHere(types)) {
@@ -1130,17 +1167,22 @@ export function ListSurface({
     }
     e.dataTransfer.dropEffect = 'copy';
     if (!dragOver) setDragOver(true);
-    const note = files ? 'files' : null;
+    const vt = files ? versionTileAt(e) : null;
+    markVersionTile(vt?.el || null, vt?.label);
+    const note = vt ? 'version' : files ? 'files' : null;
     if (note !== dragNote) setDragNote(note);
   };
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     setDragOver(false);
     setDragNote(null);
+    markVersionTile(null);
   };
   const handleDrop = (e) => {
     setDragOver(false);
     setDragNote(null);
+    const versionEl = versionTileRef.current;
+    markVersionTile(null);
     const t = e.dataTransfer.types;
     if (homeFilesHere(t)) {
       e.preventDefault();
@@ -1193,6 +1235,16 @@ export function ListSurface({
     // OS files (or a picked FileList) → the cluster's file-ingest mutator. They
     // join the cluster but not its board: they wait here, marked Not on board,
     // until dragged onto the canvas or Put on board (App.ingestFilesArranged).
+    // One file onto a file of its kind: its next version (⌥ keeps it separate).
+    const dropped = e.dataTransfer.files;
+    if (canVersionHere && dropped?.length === 1 && !e.altKey) {
+      const el = versionEl || document.elementFromPoint(e.clientX, e.clientY)?.closest?.('[data-item-id]');
+      const over = el ? (cards || []).find((c) => c.id === el.getAttribute('data-item-id')) : null;
+      if (over && canVersion(over) && canBeVersionOf(over, dropped[0], uploadContext())) {
+        addVersionFromFile(versionEnv(), over.id, dropped[0]);
+        return;
+      }
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length) {
       try { logEvent(EV.LIST_ADD_FILES, { board_id: board.id, n: e.dataTransfer.files.length, via: 'drop' }); } catch (_) {}
       onDropFilesToCluster?.(e.dataTransfer.files, { boardId: board.id });
@@ -1564,6 +1616,8 @@ export function ListSurface({
       readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
       dropBanner={dragNote === 'move'
         ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
+        : dragNote === 'version'
+        ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
         : dragNote === 'files'
         ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
         : dragNote === 'blocked'
@@ -1634,6 +1688,7 @@ export function ListSurface({
         ] },
         { items: [
           renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
+          canVersionHere && canVersion(card) && { id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), card.id) },
           DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: 'Download', run: () => downloadOne(item) },
           // An app action: a signed-out visitor's link wouldn't resolve.
           onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
@@ -1835,6 +1890,7 @@ export function ListSurface({
                   target={detailTarget} boards={boards} canEdit={canEdit}
                   selfId={selfId} gridTemplates={gridTemplates}
                   writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
+                  versionEnv={canVersionHere ? versionEnv() : null}
                   onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
                   onClose={toggleInfo}
                   onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
