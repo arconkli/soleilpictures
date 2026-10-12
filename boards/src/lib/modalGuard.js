@@ -74,6 +74,50 @@ export function isTopModal(unregister) {
   return !!unregister?.isTop?.();
 }
 
+// ── Focus stays inside the top layer ──────────────────────────────────
+//
+// One Tab trap for every dialog that keeps focus in (Modal.jsx, and Settings,
+// which has its own shell and CSS). Settings used to have none: focus stayed
+// on <body> when it opened and Tab walked the app behind the backdrop.
+
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+// Rendered, enabled, tabbable controls inside `panel`, in DOM order.
+export function focusablesIn(panel) {
+  if (!panel?.querySelectorAll) return [];
+  return Array.from(panel.querySelectorAll(FOCUSABLE))
+    .filter(n => n.getClientRects().length > 0);
+}
+
+// Keep a Tab keypress inside `panel`: wrap at either end, and pull focus back
+// in when it fell to <body>. The caller decides WHEN it applies (its layer is
+// the top one, focus is inside it or lost) — a popover portaled outside the
+// panel, or a dialog stacked on top, keeps the keyboard.
+export function trapTabKey(e, panel) {
+  if (!e || e.key !== 'Tab' || !panel) return;
+  const active = document.activeElement;
+  const nodes = focusablesIn(panel);
+  if (!active || active === document.body || nodes.length === 0) {
+    e.preventDefault();
+    (nodes[0] || panel).focus?.();
+    return;
+  }
+  const first = nodes[0];
+  const last = nodes[nodes.length - 1];
+  if (e.shiftKey && active === first) {
+    e.preventDefault(); last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault(); first.focus();
+  }
+}
+
 // ── Back closes the top layer ─────────────────────────────────────────
 
 const backLayers = [];

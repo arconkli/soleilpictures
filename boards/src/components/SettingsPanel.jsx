@@ -22,7 +22,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
-import { registerModalOpen, registerBackLayer } from '../lib/modalGuard.js';
+import { registerModalOpen, registerBackLayer, isTopModal, focusablesIn, trapTabKey } from '../lib/modalGuard.js';
 import { X, ChevronLeft, ChevronRight } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -176,6 +176,7 @@ export function SettingsPanel({
   // first. Back on a phone closes it too, or returns from a tab to the list.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const modalRef = useRef(null);
   useEffect(() => {
     if (!open) return undefined;
     const unregister = registerModalOpen({
@@ -186,7 +187,39 @@ export function SettingsPanel({
       },
     });
     const unBack = registerBackLayer(() => onCloseRef.current?.());
-    return () => { unregister(); unBack(); };
+
+    // Focus, the same contract Modal.jsx keeps: move in on open, keep Tab
+    // inside while this is the top layer, hand it back on close. Without it
+    // focus stayed on <body> and Tab walked the rail and sidebar behind the
+    // backdrop. A confirm stacked on top (Sign out) or a colour picker
+    // portaled outside the panel keeps the keyboard while it is open.
+    const trigger = document.activeElement;
+    const raf = requestAnimationFrame(() => {
+      const panel = modalRef.current;
+      if (!panel) return;
+      const tab = panel.querySelector('.settings-tab[aria-selected="true"]');
+      // On a phone's detail screen the rail is hidden: fall back to the first
+      // control (the back chevron).
+      const target = (tab && tab.getClientRects().length > 0 ? tab : focusablesIn(panel)[0]) || panel;
+      try { target.focus({ preventScroll: true }); } catch (_) { /* noop */ }
+    });
+    const onKey = (e) => {
+      if (e.key !== 'Tab') return;
+      const panel = modalRef.current;
+      if (!panel || !isTopModal(unregister)) return;
+      const active = document.activeElement;
+      if (active && active !== document.body && !panel.contains(active)) return;
+      trapTabKey(e, panel);
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      unregister(); unBack();
+      cancelAnimationFrame(raf);
+      document.removeEventListener('keydown', onKey, true);
+      if (trigger && trigger !== document.body && trigger.isConnected && typeof trigger.focus === 'function') {
+        try { trigger.focus({ preventScroll: true }); } catch (_) { /* noop */ }
+      }
+    };
   }, [open]);
   useEffect(() => {
     if (!open || !stacked || !detail) return undefined;
@@ -230,7 +263,9 @@ export function SettingsPanel({
 
   return createPortal(
     <div className="settings-bg" onMouseDown={onClose}>
-      <div className="settings-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="settings-modal" ref={modalRef}
+           role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1}
+           onMouseDown={(e) => e.stopPropagation()}>
         <div className="settings-head">
           {showBack && (
             <button type="button" className="settings-back"

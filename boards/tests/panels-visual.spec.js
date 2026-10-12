@@ -62,3 +62,27 @@ test('VS-PANELS-01: the tag page header keeps the name, Manage and close on scre
   await setTheme(page, 'dark');
   await page.screenshot({ path: test.info().outputPath('tag-390-dark.png') });
 });
+
+test('VS-PANELS-02: Settings takes focus, keeps Tab inside, and gives focus back on close', async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await probe(page, 'mountSettings', 'profile', 'owner');
+  const trigger = page.locator('.probe-settings-trigger');
+  await trigger.focus();
+  await trigger.press('Enter');
+  const modal = page.locator('.settings-modal');
+  await expect(modal).toBeVisible();
+  await expect(modal).toHaveAttribute('role', 'dialog');
+  await expect(modal).toHaveAttribute('aria-modal', 'true');
+  // Focus lands on the active rail tab.
+  await expect(page.locator('.settings-tab.is-active')).toBeFocused();
+  let outside = 0;
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press(i % 7 === 6 ? 'Shift+Tab' : 'Tab');
+    if (!(await modal.evaluate((el) => el.contains(document.activeElement)))) outside++;
+  }
+  expect(outside, 'no Tab stop may land behind the backdrop').toBe(0);
+  await page.screenshot({ path: test.info().outputPath('settings-focus-1440-dark.png') });
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeHidden();
+  await expect(trigger).toBeFocused();
+});

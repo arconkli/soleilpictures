@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import {
   registerModalOpen, anyModalOpen, isTopModal, handleEscapeKey,
   registerBackLayer, __resetModalGuardForTests,
+  focusablesIn, trapTabKey,
 } from './modalGuard.js';
 
 const esc = (extra = {}) => ({
@@ -146,4 +147,59 @@ test('a layer opened and closed in the same tick leaves no history behind', asyn
   await tick();
   assert.equal(b.entries.length, 2);
   delete globalThis.window;
+});
+
+// ── Tab trap ───────────────────────────────────────────────────────────
+// Shared by Modal.jsx and Settings (VS-PANELS-02: Settings had none, so Tab
+// walked the app behind its backdrop).
+
+function fakePanel(n) {
+  const body = { id: 'body' };
+  const doc = { body, activeElement: body };
+  const mk = (id) => ({ id, getClientRects: () => [1], focus() { doc.activeElement = this; } });
+  const nodes = Array.from({ length: n }, (_, i) => mk(`b${i}`));
+  const panel = { querySelectorAll: () => nodes, focus() { doc.activeElement = panel; } };
+  globalThis.document = doc;
+  return { doc, nodes, panel };
+}
+const tab = (shiftKey = false) => ({
+  key: 'Tab', shiftKey, prevented: false, preventDefault() { this.prevented = true; },
+});
+
+test('Tab wraps from the last control to the first, Shift+Tab the other way', () => {
+  const { doc, nodes, panel } = fakePanel(3);
+  nodes[2].focus();
+  const e = tab();
+  trapTabKey(e, panel);
+  assert.equal(e.prevented, true);
+  assert.equal(doc.activeElement, nodes[0]);
+  trapTabKey(tab(true), panel);
+  assert.equal(doc.activeElement, nodes[2]);
+  // In the middle the browser moves focus itself.
+  nodes[1].focus();
+  const mid = tab();
+  trapTabKey(mid, panel);
+  assert.equal(mid.prevented, false);
+  delete globalThis.document;
+});
+
+test('Tab with focus lost to <body> pulls it back into the panel', () => {
+  const { doc, nodes, panel } = fakePanel(2);
+  const e = tab();
+  trapTabKey(e, panel);
+  assert.equal(e.prevented, true);
+  assert.equal(doc.activeElement, nodes[0]);
+  // Nothing focusable inside: the panel itself takes it.
+  const empty = fakePanel(0);
+  trapTabKey(tab(), empty.panel);
+  assert.equal(empty.doc.activeElement, empty.panel);
+  delete globalThis.document;
+});
+
+test('focusablesIn skips controls that are not rendered', () => {
+  const { nodes, panel } = fakePanel(2);
+  nodes[1].getClientRects = () => [];
+  assert.deepEqual(focusablesIn(panel), [nodes[0]]);
+  assert.deepEqual(focusablesIn(null), []);
+  delete globalThis.document;
 });
