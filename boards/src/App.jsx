@@ -205,6 +205,7 @@ import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
+import { unopenableClusterNotice } from './lib/clusterOpen.js';
 import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
@@ -644,12 +645,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const openBoardAnywhere = useCallback(async (id, { linkRef = null } = {}) => {
     if (!id) return false;
     if (openBoardAt(id)) return 'opened';
+    // Read the row WITH deleted_at, so a trashed cluster can be told apart
+    // from one that is gone or not yours (lib/clusterOpen.js, SHELL-02).
     let wsId = null;
+    let row = null;
     try {
       const { data, error } = await supabase
-        .from('boards').select('workspace_id').eq('id', id).is('deleted_at', null).maybeSingle();
-      if (!error) wsId = data?.workspace_id || null;
+        .from('boards').select('workspace_id, deleted_at').eq('id', id).maybeSingle();
+      if (!error) row = data || null;
     } catch (_) {}
+    if (row && !row.deleted_at) wsId = row.workspace_id || null;
     if (wsId && wsId !== workspace.id && (workspaces || []).some((w) => w.id === wsId)) {
       try {
         const u = new URL(window.location.href);
@@ -669,9 +674,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setPendingSharedOpen(id);
       return 'opened';
     }
-    feedback.toast({ type: 'error', message: "That cluster isn't available to you any more." });
+    const notice = unopenableClusterNotice(row, workspace.id);
+    feedback.toast({
+      type: row?.deleted_at ? 'info' : 'error',
+      message: notice.message,
+      // Through a ref: the Trash dialog's state is declared further down.
+      ...(notice.openTrash ? { action: { label: 'Open Trash', onClick: () => openTrashRef.current?.() } } : {}),
+    });
     return false;
   }, [openBoardAt, workspace.id, workspaces, onSwitchWorkspace, feedback, refreshSharedBoards]);
+  const openTrashRef = useRef(null);
   // refresh() set the shared list before the pending id was set, so the first
   // render that sees the id already has the refetched map: decide at once.
   useEffect(() => {
@@ -1367,6 +1379,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [boards, boardListsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [trashOpen, setTrashOpen] = useState(false);
+  openTrashRef.current = () => setTrashOpen(true);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [workspaceRecoveryOpen, setWorkspaceRecoveryOpen] = useState(false);
 
@@ -6908,7 +6921,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             try { logEvent(EV.RESUME_GREET_ACTION, { action: 'jump' }); } catch (_) {}
             // Navigate the way ⌘K does: the board's own path (never a push onto
             // whatever stack is open now), on its canvas, then centre the card.
-            try { setStack(ancestorPath(boardsRef.current || {}, boardId)); } catch (_) {}
+            // Not when the cluster has gone since (trashed on another device).
+            if (!openBoardAt(boardId)) return;
             setViewOverride((o) => ({ ...o, [boardId]: 'canvas' }));
             setCurrentSurface('board');
             setTimeout(() => {
@@ -9384,17 +9398,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                   pageId: item.page_id || null, boardId: item.board_id || undefined,
                 }).catch((err) => console.warn('[tags] open page failed', err));
               } else if (item.kind === 'board') {
-                setStack([item.id]);
+                // Through navHandlers, like every other link: the cluster opens
+                // with its breadcrumb, or a toast says it is in the Trash.
+                navHandlers.board({ kind: 'board', id: item.id });
               } else if (item.board_id) {
-                setStack([item.board_id]);
-                // Select + center the clicked card once its board mounts.
-                if (item.card_id) {
-                  setTimeout(() => {
-                    document.dispatchEvent(new CustomEvent('soleil-flash-card', {
-                      detail: { boardId: item.board_id, cardId: item.card_id },
-                    }));
-                  }, 200);
-                }
+                // Selects + centres the clicked card once its board mounts.
+                navHandlers.card({ kind: 'card', boardId: item.board_id, cardId: item.card_id || null });
               }
             }}
           />
@@ -9512,6 +9521,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onBrowseList: () => { setCurrentSurface('board'); setView('list', 'search_empty'); },
         } : null}
         onOpenBoard={(id) => {
+          // A hit from a cache the boards map has moved past (trashed since,
+          // or in another workspace): the lookup path, which switches or says
+          // why it won't open, never a stack onto an id the map lacks.
+          if (!boards[id]) {
+            navHandlers.board({ kind: 'board', id }).then((r) => { if (r === 'opened') setCurrentSurface('board'); });
+            return;
+          }
           setStack(ancestorPath(boards, id));
           recents.push(id);
           setCurrentSurface('board');
