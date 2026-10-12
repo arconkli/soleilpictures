@@ -688,8 +688,11 @@ export const TOOLS = [
     name: 'delete_card',
     title: 'Delete a card',
     description: "DELETES a card from a board. This removes the user's content — confirm with "
-      + 'them before calling it. The deleted card is returned in full, and passing it back to '
-      + 'add_cards restores its content.',
+      + 'them before calling it. The deleted card is returned, and for notes, images, links, '
+      + 'files, video, audio and PDFs, passing it back to add_cards restores its content (under '
+      + 'a new id). Grids, palettes, schedules and docs written in the app cannot be restored '
+      + 'that way: the response lists them in not_restorable, and they come back only from the '
+      + "board's Version history in the app — tell the user so before deleting one.",
     annotations: DESTROYS,
     inputSchema: schema({
       board_id: uuid('The board'),
@@ -702,8 +705,10 @@ export const TOOLS = [
     name: 'delete_cards',
     title: 'Delete several cards',
     description: "DELETES many cards from one board. This removes the user's content — confirm "
-      + 'with them before calling it. Every removed card is returned in full, so the response is '
-      + 'the undo.',
+      + 'with them before calling it. Every removed card is returned, and passing them back to '
+      + 'add_cards restores them — except grids, palettes, schedules and docs written in the '
+      + 'app, which the response lists in not_restorable and which come back only from the '
+      + "board's Version history in the app.",
     annotations: DESTROYS,
     inputSchema: schema({
       board_id: uuid('The board'),

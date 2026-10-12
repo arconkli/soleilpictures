@@ -508,3 +508,25 @@ test('a test the receiver refuses is reported as not sent', async () => {
   assert.equal(r.body.sent, false);
   assert.match(r.body.delivery.error, /401/);
 });
+
+// ── API-09: a delete says which cards its response cannot bring back ─────────
+
+test('deleting a note returns a card that POSTs back, with nothing flagged', async () => {
+  putBoard(B1, [{ id: 'n1', kind: 'note', body: 'hello' }]);
+  const r = await api('DELETE', `/boards/${B1}/cards/n1`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.card.body, 'hello');
+  assert.equal('not_restorable' in r.body, false);
+});
+
+test('deleting a grid or an app-written doc names them as not restorable by POST', async () => {
+  putBoard(B1, [
+    { id: 'g1', kind: 'grid', cells: [] },
+    { id: 'd1', kind: 'doc', title: 'Treatment', docPages: [{ id: 'p1' }] },
+    { id: 'n1', kind: 'note', body: 'fine' },
+  ]);
+  const r = await api('DELETE', `/boards/${B1}/cards`, { card_ids: ['g1', 'd1', 'n1'] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.not_restorable.sort(), ['d1', 'g1']);
+  assert.match(r.body.recover, /Version history/);
+});

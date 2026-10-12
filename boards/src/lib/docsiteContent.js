@@ -45269,7 +45269,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Every removed card comes back in full, so the response is the undo."
+     "v": "Every removed card comes back, so the response is the undo — with the same exceptions as the single delete below."
     }
    ]
   },
@@ -45465,7 +45465,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " There is no undo toast on an HTTP call, so the full card comes back — "
+     "v": " There is no undo toast on an HTTP call, so the card comes back — "
     },
     {
      "t": "code",
@@ -45473,7 +45473,40 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " it to the cards endpoint to restore it."
+     "v": " it to the cards endpoint to restore it. It returns with a new id, and its identifiers and properties are not restored with it, so send those again in the same "
+    },
+    {
+     "t": "code",
+     "v": "POST"
+    },
+    {
+     "t": "text",
+     "v": " if you use them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Some cards cannot come back this way: grids, palettes and schedules (kinds this API reads but does not create), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in "
+    },
+    {
+     "t": "code",
+     "v": "not_restorable"
+    },
+    {
+     "t": "text",
+     "v": ", with a "
+    },
+    {
+     "t": "code",
+     "v": "recover"
+    },
+    {
+     "t": "text",
+     "v": " sentence. They are not lost: every delete saves the board to its Version history first, and they can be restored from there in the app."
     }
    ]
   },
@@ -52508,7 +52541,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " responds with the full card it removed. That object is the undo — pass it back to "
+     "v": " responds with the card it removed. That object is the undo — pass it back to "
     },
     {
      "t": "code",
@@ -52516,7 +52549,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to restore it. Worth keeping in context before destructive work."
+     "v": " to restore it. Worth keeping in context before destructive work. Grids, palettes, schedules and docs written in the app are the exception: the response lists them in "
+    },
+    {
+     "t": "code",
+     "v": "not_restorable"
+    },
+    {
+     "t": "text",
+     "v": ", and they come back from the board's Version history in the app instead."
     }
    ]
   },

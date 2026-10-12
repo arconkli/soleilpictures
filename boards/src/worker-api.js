@@ -256,6 +256,27 @@ export function publicCard(c) {
   return out;
 }
 
+// Whether POSTing a deleted card's wire form back re-creates it.
+//
+// The delete responses promise "the response body is the undo", and for most
+// cards it is. Not for a grid, palette or schedule — those kinds are readable
+// but not creatable here, so the POST is a 400 — and not for a multi-page doc,
+// whose pages live in docPages, which the wire form does not carry. Those are
+// named in the response instead of being returned as if they could come back
+// (2026-10-11 audit, API-09). They can: the delete checkpoints the board into
+// Version history first (deleteCardsFromBoard).
+const restorableByPost = (c) => CARD_KINDS.includes(c.kind || 'note')
+  && !(c.kind === 'doc' && c.docPages != null);
+
+function notRestorable(removed) {
+  const stuck = removed.filter((c) => !restorableByPost(c)).map((c) => String(c.id));
+  return stuck.length ? {
+    not_restorable: stuck,
+    recover: 'These cards cannot be re-created through the API. The board was saved to its '
+      + 'Version history just before this delete; restore them from there in the app.',
+  } : {};
+}
+
 // A group on the wire. The app stores a few render-only fields (a cached
 // width, per-group options) that mean nothing to an integrator.
 function publicGroup(g) {
@@ -3268,6 +3289,7 @@ async function dispatch(url, request, env, ctx) {
       cards: removed.map(publicCard),
       not_found: cardIds.filter((c) => !removed.some((r) => String(r.id) === c)),
       restore_with: `POST /api/v1/boards/${id}/cards`,
+      ...notRestorable(removed),
     });
   }
 
@@ -3383,6 +3405,7 @@ async function dispatch(url, request, env, ctx) {
       deleted: true,
       card: publicCard(removed[0]),
       restore_with: `POST /api/v1/boards/${id}/cards`,
+      ...notRestorable(removed),
     });
   }
 
