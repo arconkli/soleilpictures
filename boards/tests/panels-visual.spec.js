@@ -323,6 +323,11 @@ test('VS-PANELS-12: Members role menus line up in one column and use the panel c
   await page.locator('.probe-settings-trigger').click();
   const selects = page.locator('.settings-member-row select.settings-input');
   await expect(selects).toHaveCount(2);
+  // The dialog opens with modalRise (translate + scale 0.985). Rects read one
+  // after another mid-animation come from different frames and differ by
+  // ~1.6px for reasons that have nothing to do with layout, so let it land.
+  await page.locator('.settings-modal').evaluate((el) =>
+    Promise.all(el.getAnimations().map((an) => an.finished)));
   const a = await rect(selects.nth(0));
   const b = await rect(selects.nth(1));
   expect(Math.abs(a.r - b.r), 'Editor and Viewer menus end at the same x').toBeLessThan(1);
@@ -330,12 +335,25 @@ test('VS-PANELS-12: Members role menus line up in one column and use the panel c
   // The owner's plain-text role sits in the same column too.
   const ownerRole = await rect(page.locator('.settings-member-row .settings-member-role').first());
   expect(Math.abs(ownerRole.r - a.r)).toBeLessThan(1);
-  // Hidden slots are not reachable.
-  await expect(page.locator('.settings-member-row button', { hasText: 'Make owner' })).toHaveCount(1);
+  // Hidden slots are not reachable: the one real 'Make owner' is the only
+  // enabled one, and every placeholder is disabled and out of the tab order.
+  await expect(page.locator('.settings-member-row button:enabled', { hasText: 'Make owner' })).toHaveCount(1);
+  const placeholders = page.locator('.settings-member-row .is-placeholder');
+  expect(await placeholders.count()).toBeGreaterThan(0);
+  for (const p of await placeholders.all()) {
+    await expect(p).toBeDisabled();
+    expect(await p.getAttribute('tabindex')).toBe('-1');
+  }
   expect(await selects.nth(0).evaluate((el) => getComputedStyle(el).appearance)).toBe('none');
   await page.screenshot({ path: test.info().outputPath('members-1440-dark.png') });
   await setTheme(page, 'light');
   await page.screenshot({ path: test.info().outputPath('members-1440-light.png') });
+  // Phone: no column to align, so the placeholders give their room back to
+  // the names.
+  await page.setViewportSize(PHONE);
+  for (const p of await placeholders.all()) {
+    expect(await p.evaluate((el) => getComputedStyle(el).display)).toBe('none');
+  }
 });
 
 test('VS-PANELS-13: the Share invite field shows its whole placeholder', async ({ page }) => {

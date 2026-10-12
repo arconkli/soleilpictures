@@ -22273,6 +22273,11 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 /* Holds a slot that does not apply to this row, so every row's role menu
    ends at the same x (MembersTab renders it). */
 .settings-link-btn.is-placeholder { visibility: hidden; pointer-events: none; }
+/* Phone: a stacked list has no column to line up, and the hidden slots cost
+   every name ~130px of the 390px row. Give the room back to the names. */
+@media (max-width: 640px) {
+  .settings-link-btn.is-placeholder { display: none; }
+}
 .settings-link-btn.is-danger { color: #ef4444; }
 .settings-invite-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .settings-invite-row input.settings-input { flex: 1; min-width: 180px; }
