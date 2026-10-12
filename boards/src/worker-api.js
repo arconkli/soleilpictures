@@ -1891,7 +1891,10 @@ async function dispatch(url, request, env, ctx) {
       const include = parseInclude(url, ['props', 'identifiers']);
       const ws = url.searchParams.get('workspace');
       const parent = url.searchParams.get('parent');
-      const deleted = url.searchParams.get('deleted') === '1';
+      // `1` or `true` lists ONLY soft-deleted boards (the Trash). The docs once
+      // called this "include deleted" and showed `deleted=`, which silently
+      // returned live boards only.
+      const deleted = ['1', 'true'].includes((url.searchParams.get('deleted') || '').toLowerCase());
       const since = url.searchParams.get('since');
       const cursor = url.searchParams.get('cursor');
 
@@ -1905,8 +1908,11 @@ async function dispatch(url, request, env, ctx) {
       // skips and repeats rows.
       const delta = !!(since || cursor);
       const selectCols = 'id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at,scheduled_date,scheduled_end,day_label,sched_status,sched_version,sched_published_at';
-      let q = (deleted ? 'deleted_at=not.is.null' : 'deleted_at=is.null')
-            + `&select=${selectCols}&limit=${limit + 1}`;
+      // A change feed has to report deletions, or a synchroniser keeps every
+      // board that was ever trashed: soft_delete_board bumps updated_at, so in
+      // delta mode a trashed board arrives as a row with `deleted: true`.
+      let q = (deleted ? 'deleted_at=not.is.null&' : delta ? '' : 'deleted_at=is.null&')
+            + `select=${selectCols}&limit=${limit + 1}`;
 
       if (delta) {
         q += '&order=updated_at.asc,id.asc';
