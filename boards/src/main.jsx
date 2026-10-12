@@ -274,6 +274,14 @@ function hasCachedSession() {
 }
 const showPublicPricing = !!pricingMatch && !hasCachedSession();
 
+// Routes whose page is committed to the dark brand world (.public-dark). Their
+// <Suspense> fallback is pinned dark too: the plain splash follows the theme, so
+// a light-OS visitor got a light grey screen between the dark boot splash and
+// the dark page while the page chunk downloaded. /t/, /legal and /resume follow
+// the theme and keep the plain splash.
+const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
+  || changelogMatch || showPublicPricing || exploreMatch || publicBoardMatch || shareMatch);
+
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
 startHeartbeat();
@@ -448,7 +456,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     <StrictMode>
       <AppErrorBoundary>
         <FeedbackProvider>
-          <Suspense fallback={<SplashLoading />}>
+          <Suspense fallback={<SplashLoading dark={darkPublicRoute} />}>
             {legalMatch ? (
               <LegalPage doc={legalMatch[1].toLowerCase()} />
             ) : resumeMatch ? (
