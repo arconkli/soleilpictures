@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { resolveSrc } from '../lib/r2.js';
 import { analyzeArrayBuffer, analyzable } from '../lib/audioAnalysis.js';
 import { getMeta } from '../lib/imageMeta.js';
@@ -48,6 +48,10 @@ export function useAudioPeaksBackfill({
   updateRef.current = updateCardSilent;
   const scopeRef = useRef(0);
   const runningRef = useRef(false);
+  // Bumped when a job from a scope we already left finishes draining. The
+  // new scope's effect returned early while that job held runningRef, and
+  // nothing else re-runs it until `cards` changes again, so this does.
+  const [drained, setDrained] = useState(0);
   useEffect(() => {
     scopeRef.current += 1;
     return () => { scopeRef.current += 1; };
@@ -113,7 +117,10 @@ export function useAudioPeaksBackfill({
           if (!done && cancelled()) attempted.current.delete(c.id);
         }
       }
-    })().finally(() => { runningRef.current = false; });
+    })().finally(() => {
+      runningRef.current = false;
+      if (cancelled()) setDrained(n => n + 1);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, canEdit, enabled, workspaceId, boardId, userId]);
+  }, [cards, canEdit, enabled, workspaceId, boardId, userId, drained]);
 }
