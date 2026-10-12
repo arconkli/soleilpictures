@@ -11482,7 +11482,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " it. Double-clicking a tile opens that day's cluster; double-clicking a cell in Grid density opens the "
+     "v": " it. Double-clicking a tile opens that day's cluster (on a touch screen, tap the selected tile again); double-clicking a cell in Grid density opens the "
     },
     {
      "t": "strong",
