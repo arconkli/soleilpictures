@@ -107,3 +107,33 @@ test.describe('docs on a phone', () => {
     }
   });
 });
+
+test('an idle /scout does not run a frame loop forever', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await page.route('**/rest/v1/rpc/list_public_boards**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.addInitScript(() => {
+    window.__rafCalls = 0;
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (cb) => { window.__rafCalls += 1; return raf(cb); };
+  });
+  await page.goto('/scout');
+  await expect(page.locator('.scout-scene.is-runway')).toBeVisible();
+  // Let fonts, the first measure and any entrance settle.
+  await page.waitForTimeout(1500);
+
+  const before = await page.evaluate(() => window.__rafCalls);
+  await page.waitForTimeout(1000);
+  const idle = (await page.evaluate(() => window.__rafCalls)) - before;
+  expect(idle, 'rAF callbacks requested in one idle second').toBeLessThan(10);
+
+  // …and scrolling still drives the thread: the bubbles on screen change.
+  const visibleKeys = () => page.evaluate(() => [...document.querySelectorAll('.scout-msg[data-live]')]
+    .map((n) => n.dataset.msg).join(','));
+  const atTop = await visibleKeys();
+  await page.evaluate(() => {
+    const sc = document.querySelector('.scout-scroll');
+    sc.scrollTop = (sc.scrollHeight - sc.clientHeight) * 0.5;
+  });
+  await expect.poll(visibleKeys).not.toBe(atTop);
+});
