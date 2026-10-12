@@ -38,14 +38,20 @@ test.describe('Command Center at tablet width (VS-ADMIN-01)', () => {
   test('rail panels keep a chart-sized height and nothing spills out of them', async ({ page }) => {
     await openAdmin(page, { tab: 'command' });
     const panels = page.locator('.cc-rail .cc-panel');
-    await expect(panels).toHaveCount(8, { timeout: 20000 });
-    const boxes = await panels.evaluateAll((els) => els.map((e) => ({
-      h: e.getBoundingClientRect().height, sh: e.scrollHeight, ch: e.clientHeight,
-    })));
-    for (const b of boxes) {
-      expect(b.h).toBeGreaterThan(120);
-      expect(b.sh).toBeLessThanOrEqual(b.ch + 1);
-    }
+    // This is the file's first test, so on a cold dev server Vite's
+    // dependency re-optimise can reload the page mid-measure ("Execution
+    // context was destroyed"). toPass re-measures after that reload instead
+    // of failing on it.
+    await expect(async () => {
+      await expect(panels).toHaveCount(8);
+      const boxes = await panels.evaluateAll((els) => els.map((e) => ({
+        h: e.getBoundingClientRect().height, sh: e.scrollHeight, ch: e.clientHeight,
+      })));
+      for (const b of boxes) {
+        expect(b.h).toBeGreaterThan(120);
+        expect(b.sh).toBeLessThanOrEqual(b.ch + 1);
+      }
+    }).toPass({ timeout: 20000 });
   });
 });
 
