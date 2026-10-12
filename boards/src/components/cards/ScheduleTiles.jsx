@@ -37,6 +37,11 @@ function Tile({
   day, board, loose, types, boards, onOpenBoard, selected, dragging, draggable,
   onSelect, onPointerDown, onAdd, editable,
 }) {
+  // The pointer behind the last press. A touch screen gets no reliable
+  // dblclick from a double-tap (iPad Safari, and the canvas's touch-action:none),
+  // so there a tap on the tile that is ALREADY selected opens it. A mouse keeps
+  // click-selects / double-click-opens, which would otherwise open twice.
+  const lastPointer = useRef('mouse');
   if (day.outside) return <span className="schedt-pad" aria-hidden="true" />;
 
   const status = board?.sched_status || null;
@@ -63,8 +68,15 @@ function Tile({
       aria-label={board
         ? `${label}, ${WEEKDAYS[day.dow]} ${parseISO(day.date)?.d}${board.day_start ? `, ${clockLabel(board.day_start)}` : ''}`
         : `${WEEKDAYS[day.dow]} ${parseISO(day.date)?.d}, nothing set up`}
-      onPointerDown={draggable && board ? onPointerDown : stop}
-      onClick={(e) => { e.stopPropagation(); onSelect?.(); }}
+      onPointerDown={(e) => {
+        lastPointer.current = e.pointerType || 'mouse';
+        (draggable && board ? onPointerDown : stop)(e);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (board && selected && lastPointer.current !== 'mouse') { onOpenBoard?.(board.id); return; }
+        onSelect?.();
+      }}
       onDoubleClick={(e) => {
         e.stopPropagation();
         if (board) onOpenBoard?.(board.id);
