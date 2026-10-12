@@ -195,3 +195,25 @@ test('VS-PANELS-06: with no sheet open the phone toast stays under the topbar', 
   await expect(toast).toBeVisible();
   expect((await rect(toast)).t).toBeLessThan(120);
 });
+
+test('VS-PANELS-07: on a phone the Schedule panel is a full-width sheet that stops at the bottom nav', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  const nav = page.locator('.mb-nav');
+  await expect(nav).toBeVisible();
+  await probe(page, 'mountNotifications');
+  const panel = page.locator('.ntf-panel');
+  await expect(panel).toBeVisible();
+  await page.waitForTimeout(400);   // the entrance animation scales the box
+  const p = await rect(panel);
+  const n = await rect(nav);
+  expect(p.l).toBe(0);
+  expect(p.r).toBe(PHONE.width);
+  // The nav's 1px top border sits inside its 56px row, as for Messages.
+  expect(p.b, 'the panel must not run over the nav').toBeLessThanOrEqual(n.t + 1.5);
+  await page.screenshot({ path: test.info().outputPath('ntf-390-dark.png') });
+  await setTheme(page, 'light');
+  await page.screenshot({ path: test.info().outputPath('ntf-390-light.png') });
+  // Desktop keeps the floating card.
+  await page.setViewportSize(DESKTOP);
+  expect((await rect(panel)).w).toBe(360);
+});
