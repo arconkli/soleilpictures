@@ -8802,10 +8802,15 @@ export function CanvasSurface({
   const autotagInFlightRef = useRef(false);
   const autotagTimerRef = useRef(0);
   const autotagStateRef = useRef({});
+  // Only live tags may be auto-applied: a deleted or merged-away tag
+  // otherwise kept collecting hidden applications that came back on
+  // restore/undo. wsTags already excludes status='deleted'.
+  const liveTagIds = useMemo(() => new Set((wsTags || []).map(t => t.id)), [wsTags]);
   // Mirror the latest props/state into a ref that the timer reads.
   autotagStateRef.current = {
     workspaceId, board, cards, groups, autotagSuggest, autotagReady,
     tagsByCard, tagsByBoard, groupById, wsTagsFingerprint,
+    liveTagIds,
   };
 
   const runAutotagScoring = useCallback(async () => {
@@ -8838,7 +8843,7 @@ export function CanvasSurface({
           const suggestions = await s.autotagSuggest(boardName, { kind: 'board', id: s.board.id });
           for (const sg of suggestions) {
             if (sg.score < HIGH) continue;
-            if (knownBoardIds.has(sg.tagId)) continue;
+            if (knownBoardIds.has(sg.tagId) || !s.liveTagIds.has(sg.tagId)) continue;
             await tagBoard({
               workspaceId: s.workspaceId, boardId: s.board.id,
               tagId: sg.tagId, source: 'auto',
@@ -8863,7 +8868,7 @@ export function CanvasSurface({
       try {
         const suggestions = await s.autotagSuggest(text, { kind: 'group', id: g.id });
         for (const sg of suggestions) {
-          if (sg.score < HIGH) continue;
+          if (sg.score < HIGH || !s.liveTagIds.has(sg.tagId)) continue;
           await tagGroup({
             workspaceId: s.workspaceId, boardId: s.board.id, groupId: g.id,
             tagId: sg.tagId, source: 'auto',
@@ -8898,7 +8903,7 @@ export function CanvasSurface({
         const suggestions = await s.autotagSuggest(text, { kind: 'card', id: c.id });
         for (const sg of suggestions) {
           if (sg.score < HIGH) continue;
-          if (knownIds.has(sg.tagId)) continue;
+          if (knownIds.has(sg.tagId) || !s.liveTagIds.has(sg.tagId)) continue;
           await tagCard({
             workspaceId: s.workspaceId, boardId: s.board.id, cardId: c.id,
             tagId: sg.tagId, source: 'auto',
