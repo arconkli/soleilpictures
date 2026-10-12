@@ -5,7 +5,7 @@ h1: Collaborating
 navLabel: Overview
 section: collaborate
 order: 0
-updated: 2026-10-10
+updated: 2026-10-12
 answer: Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 faq:
   - q: Do collaborators need to pay?
@@ -13,7 +13,7 @@ faq:
   - q: Whose card allowance do collaborator uploads use?
     a: The owner's. If you add cards to someone else's cluster, they count against their limit, not yours.
   - q: Can a viewer comment?
-    a: Yes. Viewers can read, comment and vote; they cannot add, move or change cards.
+    a: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move or change cards. Text comments inside a document need edit access — a viewer can read those threads but not add to them.
 related:
   - /docs/collaborate/sharing
   - /docs/collaborate/presence
@@ -31,7 +31,7 @@ it is for.
 | **Owner** | Everything, including deleting the cluster and managing members and shares |
 | **Co-owner** | Runs a workspace alongside its owner — invites and removes members, changes roles, manages every share and link, renames it — but cannot delete it, hand it over, or remove the owner |
 | **Editor** | Add, change and remove content; comment; invite if permitted |
-| **Viewer** | Open, read, [comment](/docs/collaborate/comments) and [vote](/docs/canvas/vote-cards) — never change content |
+| **Viewer** | Open, read, [comment](/docs/collaborate/comments) on the canvas and [vote](/docs/canvas/vote-cards) — never change content, including a document's text comments |
 | **Workspace member** | The same two levels, editor or viewer, granted for every cluster in the workspace at once |
 
 Editors are **free on every plan**. A free-tier account can be an editor on any

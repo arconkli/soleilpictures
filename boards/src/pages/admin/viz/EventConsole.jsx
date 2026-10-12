@@ -16,12 +16,22 @@
 // blank for its first few minutes — which reads as broken rather than as quiet.
 // admin_recent_events backfills it once; everything after that is pushed.
 //
+// Pushed rows arrive bare: realtime hands over the analytics_events row, with
+// no email and no idea whether its author is internal. Shown as they came, the
+// owner's own clicks streamed in under "Internal: excluded" and every live row
+// read as an 8-character id beside seeded rows that read as names. So a pushed
+// row is held back for a moment and sent through admin_events_by_id (0410),
+// which applies admin_recent_events' own Internal rule and joins the email:
+// rows it does not return are internal and stay out. Against a database
+// without 0410 the console falls back to the old behaviour, with names filled
+// from the seed where it knows them.
+//
 // Accessibility, deliberately: the stream is NOT an aria-live region. A console
 // that announces two thousand events a day is unusable with a screen reader.
 // The list is aria-hidden and a single visually-hidden summary carries the
 // state instead — which is the part a non-visual reader actually wants.
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabase.js';
 import { useAdminData } from '../useAdminData.js';
 import { useActivityPulse } from '../useActivityPulse.js';
@@ -29,6 +39,8 @@ import { formatCount } from '../../../lib/adminFormat.js';
 import { VAR } from './palette.js';
 
 const CAP = 26;
+// How long a pushed row waits so a burst resolves in one call.
+const RESOLVE_MS = 800;
 
 /**
  * Event families.
@@ -76,19 +88,80 @@ export function EventConsole({ activeNow, minutes = 60, excludeInternal = true }
     return data || [];
   }, [excludeInternal]);
 
+  // id -> the resolved row (email joined), or null for one the server left out
+  // (internal, under "excluded"). Keyed to the toggle: flipping it starts over.
+  const [resolved, setResolved] = useState(() => new Map());
+  const [fallback, setFallback] = useState(false);
+  const pending = useRef(new Set());
+  const gen = useRef(0);
+  useEffect(() => {
+    gen.current += 1;
+    pending.current = new Set();
+    setResolved(new Map());
+  }, [excludeInternal]);
+
+  useEffect(() => {
+    if (fallback) return undefined;
+    const seeded = new Set((seed.data || []).map((r) => r.id));
+    const todo = (pulse.recent || [])
+      .map((r) => r?.id)
+      .filter((id) => id && !seeded.has(id) && !resolved.has(id) && !pending.current.has(id));
+    if (!todo.length) return undefined;
+    const myGen = gen.current;
+    const t = setTimeout(async () => {
+      todo.forEach((id) => pending.current.add(id));
+      let data = null;
+      let error = null;
+      try {
+        ({ data, error } = await supabase.rpc('admin_events_by_id', {
+          p_ids: todo, p_exclude_internal: excludeInternal,
+        }));
+      } catch (e) { error = e; }
+      if (myGen !== gen.current) return;
+      todo.forEach((id) => pending.current.delete(id));
+      if (error) {
+        // No 0410 yet (PGRST202), or a failed call: show rows as they came
+        // rather than hold the stream back forever.
+        setFallback(true);
+        return;
+      }
+      const back = new Map((data || []).map((r) => [r.id, r]));
+      setResolved((prev) => {
+        const next = new Map(prev);
+        for (const id of todo) next.set(id, back.get(id) || null);
+        return next;
+      });
+    }, RESOLVE_MS);
+    return () => clearTimeout(t);
+  }, [pulse.recent, seed.data, resolved, fallback, excludeInternal]);
+
   // Live rows first, then the backfill for anything the stream has not covered.
   // Dedupe on analytics_events.id, which is the primary key, so it is exact.
   const rows = useMemo(() => {
+    const seedById = new Map((seed.data || []).map((r) => [r.id, r]));
+    // For the fallback only: names the seed already knows, by user.
+    const emailOf = new Map((seed.data || []).filter((r) => r.user_id && r.email).map((r) => [r.user_id, r.email]));
     const out = [];
     const seen = new Set();
-    for (const r of [...(pulse.recent || []), ...(seed.data || [])]) {
-      if (!r?.id || seen.has(r.id)) continue;
-      seen.add(r.id);
+    for (const raw of [...(pulse.recent || []), ...(seed.data || [])]) {
+      if (!raw?.id || seen.has(raw.id)) continue;
+      let r = seedById.get(raw.id) || raw;
+      if (r === raw && !seedById.has(raw.id)) {
+        if (fallback) {
+          r = { ...raw, email: emailOf.get(raw.user_id) || null };
+        } else {
+          if (!resolved.has(raw.id)) continue;      // still resolving
+          const v = resolved.get(raw.id);
+          if (!v) { seen.add(raw.id); continue; }    // internal: left out
+          r = { ...raw, email: v.email };
+        }
+      }
+      seen.add(raw.id);
       out.push(r);
       if (out.length >= CAP) break;
     }
     return out;
-  }, [pulse.recent, seed.data]);
+  }, [pulse.recent, seed.data, resolved, fallback]);
 
   const buckets = pulse.buckets || [];
   const peak = Math.max(1, ...buckets.map((b) => b.events || 0));
@@ -101,8 +174,12 @@ export function EventConsole({ activeNow, minutes = 60, excludeInternal = true }
         <span className="adm-console-stat">
           <b>{formatCount(activeNow ?? 0)}</b> here now
         </span>
-        <span className="adm-console-stat">
-          <b>{formatCount(pulse.total)}</b> events / {minutes}m
+        {/* The per-minute count comes from admin_activity_pulse and the raw
+            push, neither of which knows who is internal, so it is all traffic
+            and says so when the stream below is filtered. */}
+        <span className="adm-console-stat"
+              title={excludeInternal ? 'All traffic, internal included: the per-minute count is not filtered.' : undefined}>
+          <b>{formatCount(pulse.total)}</b> events / {minutes}m{excludeInternal ? ' · all' : ''}
         </span>
         <span className="adm-console-status">
           {live ? 'live' : pulse.status === 'error' ? 'reconnecting' : 'connecting'}

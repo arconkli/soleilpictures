@@ -7,7 +7,8 @@
 // Everything here is pure, so no Supabase and no rendered dialog.
 
 import {
-  ACCESS_MODES, activeLinks, deriveAccessMode, linkForMode, linkKind, otherModeLinks,
+  ACCESS_MODES, activeLinks, deriveAccessMode, inheritedAccessRows, linkForMode, linkKind, otherModeLinks,
+  revocableLinks,
 } from './shareAccess.js';
 
 let failed = 0;
@@ -95,6 +96,44 @@ assert(activeLinks([null, undefined, view()], NOW).length === 1, 'holes in the a
 assert(ACCESS_MODES.length === 3, 'the picker offers exactly three states');
 assert(ACCESS_MODES[0] === 'view', 'view leads — 29 of the first 32 links ever made were view links');
 assert(ACCESS_MODES.includes('edit') && ACCESS_MODES.includes('off'), 'edit and off are the other two');
+
+// --- revocableLinks (SHARE-7) ---------------------------------------------
+// revoke_public_link refuses a non-manager on a link they did not create, so
+// "Only invited people" must only try the ones this person may revoke, and
+// name the rest instead of failing on them every time.
+{
+  const owners = view({ token: 'own', created_by: THEM });
+  const mine = invite({ token: 'mine', created_by: ME });
+  const editor = revocableLinks([owners, mine], { isManager: false, selfUserId: ME, now: NOW });
+  assert(editor.mine.length === 1 && editor.mine[0].token === 'mine', 'an editor revokes only their own link');
+  assert(editor.others.length === 1 && editor.others[0].token === 'own', "and the owner's link is named, not attempted");
+  const mgr = revocableLinks([owners, mine], { isManager: true, selfUserId: ME, now: NOW });
+  assert(mgr.mine.length === 2 && mgr.others.length === 0, 'a manager revokes every link');
+  const dead = revocableLinks([view({ revoked_at: inDays(-1) })], { isManager: true, selfUserId: ME, now: NOW });
+  assert(dead.mine.length === 0 && dead.others.length === 0, 'dead links are not revoked again');
+  const junk = revocableLinks(null, null);
+  assert(junk.mine.length === 0 && junk.others.length === 0, 'junk rows revoke nothing');
+}
+
+// --- inheritedAccessRows (SHARE-14) ----------------------------------------
+// Access cascades from a parent's share, so a sub-cluster's "People with
+// access" has to list those people too, once each, and never twice.
+const inh = (over) => ({ user_id: 'carol', email: 'carol@x.test', role: 'editor',
+  via_board_id: 'parent', via_board_name: 'Parent', ...over });
+assert(inheritedAccessRows([inh()], {}).length === 1, 'a parent share shows up on the sub-cluster');
+assert(inheritedAccessRows([inh()], { shares: [{ user_id: 'carol' }] }).length === 0,
+  'someone with a share of their own on this cluster is listed once, by that share');
+assert(inheritedAccessRows([inh()], { workspaceMembers: [{ user_id: 'carol' }] }).length === 0,
+  'a workspace member is already listed as a member');
+assert(inheritedAccessRows([inh(), inh({ via_board_id: 'grand', via_board_name: 'Grand' })], {}).length === 1,
+  'two ancestors sharing with one person is still one row (the nearest wins)');
+assert(inheritedAccessRows([inh(), inh({ via_board_id: 'grand' })], {})[0].via_board_id === 'parent',
+  'the nearest ancestor (the RPC lists it first) is the one named');
+for (const bad of [null, undefined, 'rows', 42, {}]) {
+  assert(inheritedAccessRows(bad, null).length === 0, `junk inherited rows are empty: ${JSON.stringify(bad)}`);
+}
+assert(inheritedAccessRows([null, inh({ user_id: null }), inh()], {}).length === 1,
+  'holes and user-less rows are skipped');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

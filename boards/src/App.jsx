@@ -10,6 +10,7 @@ import * as perf from './lib/perf.js';
 import { isEditableTarget, isEditablePointerTarget } from './lib/isEditableTarget.js';
 import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
 import { setActivePane, getActivePane, subscribeActivePane } from './lib/activePane.js';
+import { noteFontSizePatch } from './lib/noteFontSize.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useScrollEdges } from './hooks/useScrollEdges.js';
@@ -75,6 +76,8 @@ import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
+import { messagingAccess } from './lib/messageAccess.js';
+import { isWatchingConversation } from './lib/threadAttention.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
 import { OpenDmContext, MessagesUiContext } from './hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
@@ -204,6 +207,7 @@ import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
+import { unopenableClusterNotice, waitUntil } from './lib/clusterOpen.js';
 import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
@@ -643,12 +647,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const openBoardAnywhere = useCallback(async (id, { linkRef = null } = {}) => {
     if (!id) return false;
     if (openBoardAt(id)) return 'opened';
+    // Read the row WITH deleted_at, so a trashed cluster can be told apart
+    // from one that is gone or not yours (lib/clusterOpen.js, SHELL-02).
     let wsId = null;
+    let row = null;
     try {
       const { data, error } = await supabase
-        .from('boards').select('workspace_id').eq('id', id).is('deleted_at', null).maybeSingle();
-      if (!error) wsId = data?.workspace_id || null;
+        .from('boards').select('workspace_id, deleted_at').eq('id', id).maybeSingle();
+      if (!error) row = data || null;
     } catch (_) {}
+    if (row && !row.deleted_at) wsId = row.workspace_id || null;
     if (wsId && wsId !== workspace.id && (workspaces || []).some((w) => w.id === wsId)) {
       try {
         const u = new URL(window.location.href);
@@ -668,9 +676,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setPendingSharedOpen(id);
       return 'opened';
     }
-    feedback.toast({ type: 'error', message: "That cluster isn't available to you any more." });
+    const notice = unopenableClusterNotice(row, workspace.id);
+    feedback.toast({
+      type: row?.deleted_at ? 'info' : 'error',
+      message: notice.message,
+      // Through a ref: the Trash dialog's state is declared further down.
+      ...(notice.openTrash ? { action: { label: 'Open Trash', onClick: () => openTrashRef.current?.() } } : {}),
+    });
     return false;
   }, [openBoardAt, workspace.id, workspaces, onSwitchWorkspace, feedback, refreshSharedBoards]);
+  const openTrashRef = useRef(null);
   // refresh() set the shared list before the pending id was set, so the first
   // render that sees the id already has the refetched map: decide at once.
   useEffect(() => {
@@ -977,7 +992,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Resolved defaults — workspace > user > hardcoded fallback. Drives every
   // addX mutator's initial values + the SettingsPanel UI. Stash in a ref
   // so mutators read the latest at call time without re-memo cascades.
-  const { defaults, role: workspaceRole, refresh: refreshSettings,
+  const { defaults, role: workspaceRole, refresh: refreshSettings, refreshRole: refreshWorkspaceRole,
           workspaceSettings, mySettings, mySettingsLoaded } = useResolvedDefaults({
     workspaceId: workspace?.id,
     userId: user?.id,
@@ -1372,6 +1387,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [boards, boardListsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [trashOpen, setTrashOpen] = useState(false);
+  openTrashRef.current = () => setTrashOpen(true);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [workspaceRecoveryOpen, setWorkspaceRecoveryOpen] = useState(false);
 
@@ -2757,7 +2773,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ...(d.bgColor ? { bgColor: d.bgColor } : null),
         ...(d.textColor ? { textColor: d.textColor } : null),
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
-        ...(d.fontSize ? { fontSize: d.fontSize } : null),
+        ...(d.fontSize ? noteFontSizePatch(d.fontSize) : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
       setAutoFocusId(id);
@@ -4877,6 +4893,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, setTweak]);
 
+  // The main pane's cluster once it is loaded, on screen, AND its canvas has
+  // subscribed to the flash / open-doc events: set in an effect, and a
+  // parent's effects run after its children's, so by the time this names a
+  // cluster the CanvasSurface listening for it is in place. navHandlers waits
+  // on it.
+  const mountedBoardRef = useRef(null);
+  useEffect(() => {
+    mountedBoardRef.current = (yb.ready && currentSurface === 'board') ? yb.boardId : null;
+  }, [yb.ready, yb.boardId, currentSurface]);
+
   // Navigate handlers exposed to every linking surface via
   // EntityNavigateProvider, and run by the ?to= resolver below, so a copied
   // link and a click take one path. A cluster opens with its breadcrumb, and
@@ -4893,6 +4919,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return data?.board_id || null;
       } catch (_) { return null; }
     };
+    // The flash / open-doc events are heard only by the mounted cluster's
+    // canvas, so send them once it is there rather than after a fixed 200 ms,
+    // which a cold or large cluster outlasted and the event reached nobody.
+    // On timeout they go anyway — what the fixed delay did, just later.
+    const whenMounted = (boardId) => waitUntil(() => mountedBoardRef.current === boardId);
     const openDoc = async (ref, { atPos }) => {
       const boardId = ref.boardId || await boardOfCard(ref.docCardId);
       if (boardId) {
@@ -4903,13 +4934,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (atPos && ref.pageId) {
         try { localStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
       }
-      setTimeout(() => {
-        document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
-          detail: atPos
-            ? { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 }
-            : { cardId: ref.docCardId, pageId: null, scrollTop: 0 },
-        }));
-      }, 200);
+      // No cluster resolved: the doc can only be on the one already open.
+      if (boardId) await whenMounted(boardId);
+      document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
+        detail: atPos
+          ? { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 }
+          : { cardId: ref.docCardId, pageId: null, scrollTop: 0 },
+      }));
       return 'opened';
     };
     return {
@@ -4928,11 +4959,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         recents.push(boardId);
         if (ref.cardId) {
           // Tell the canvas to flash this card once the new board mounts.
-          setTimeout(() => {
+          whenMounted(boardId).then(() => {
             document.dispatchEvent(new CustomEvent('soleil-flash-card', {
               detail: { boardId, cardId: ref.cardId },
             }));
-          }, 200);
+          });
         }
         return r;
       },
@@ -4959,11 +4990,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (r !== 'opened') return r;
         recents.push(boardId);
         // Flash every member card once the board mounts.
-        setTimeout(() => {
+        whenMounted(boardId).then(() => {
           document.dispatchEvent(new CustomEvent('soleil-flash-group', {
             detail: { boardId, groupId: ref.id },
           }));
-        }, 250);
+        });
         return r;
       },
       tag: (ref) => {
@@ -5022,12 +5053,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     for (const n of (mentionNotifs || [])) {
       if (surfacedMentionsRef.current.has(n.id)) continue;
       surfacedMentionsRef.current.add(n.id);
-      const where = n.board_id
-        ? (boards[n.board_id]?.name || 'a board')
-        : 'a direct message';
+      // A mention that arrives live already has its toast, with an Open
+      // button, from the inbox ping; a second one said "a direct message" for
+      // groups too and fired even with the thread open (COMMS-14). Only
+      // mentions from while you were away get one, and it opens the thread.
+      if (n.live || isWatchingConversation(n.conversation_id)) continue;
+      const who = userProfiles.get(n.mentioned_by)?.name || 'Someone';
       feedback.toast({
         type: 'info',
-        message: `You were mentioned in ${where}. Open Messages to see it.`,
+        message: `${who} mentioned you while you were away.`,
+        action: n.conversation_id
+          ? { label: 'Open', onClick: () => openConversationFromToast(n.conversation_id) }
+          : undefined,
       });
     }
     if (mentionNotifs && mentionNotifs.length > 0) {
@@ -5096,6 +5133,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
   myTierRef.current = myTier;
+  // Messaging follows SQL can_write_workspace: by role, not plan (COMMS-08).
+  const msgAccess = messagingAccess({
+    tier: myTier.tier, workspace, userId: user.id,
+    role: workspace?._myRole || workspaceRole || null,
+  });
   // New versions uploaded from Files or Info (lib/versionUpload.js) need to
   // know where and on what plan; the board passes its own.
   useEffect(() => {
@@ -5132,6 +5174,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (captureAllowed) openSettings('security');
     try { window.history.replaceState({}, '', '/'); } catch (_) {}
   }, [captureAllowed, myTier.loading, openSettings]);
+
+  // ?checkout=canceled is where Stripe sends someone who backs out of a
+  // checkout they started inside the app (create-checkout-session, audit
+  // ACCOUNT-10). Say plainly that nothing happened, and clean the URL so a
+  // reload doesn't say it again.
+  useEffect(() => {
+    let canceled = false;
+    try { canceled = new URLSearchParams(window.location.search).get('checkout') === 'canceled'; } catch (_) {}
+    if (!canceled) return;
+    feedback.toast({ type: 'info', message: 'Checkout canceled. Nothing was charged.' });
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.delete('checkout');
+      window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+    } catch (_) {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The ephemeral phone reframe. Solved against a width derived from the
   // board's own median card size and how many cards should read across the
@@ -6907,7 +6965,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             try { logEvent(EV.RESUME_GREET_ACTION, { action: 'jump' }); } catch (_) {}
             // Navigate the way ⌘K does: the board's own path (never a push onto
             // whatever stack is open now), on its canvas, then centre the card.
-            try { setStack(ancestorPath(boardsRef.current || {}, boardId)); } catch (_) {}
+            // Not when the cluster has gone since (trashed on another device).
+            if (!openBoardAt(boardId)) return;
             setViewOverride((o) => ({ ...o, [boardId]: 'canvas' }));
             setCurrentSurface('board');
             setTimeout(() => {
@@ -9023,6 +9082,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
           </div>
           )}
+          {/* The phone topbar has no room for these (SHELL-06), so the drawer
+              carries them. Search is above, Help is in the footer. */}
+          {mobileShell && currentSurface === 'board' && (
+            <div className="sb-row"
+                 {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
+              <Icon as={History} size={14} />
+              <span className="sb-row-label">Version history</span>
+            </div>
+          )}
+          {mobileShell && isTouch && currentSurface === 'board' && (
+            <div className="sb-row"
+                 {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
+              <Icon as={Maximize2} size={14} />
+              <span className="sb-row-label">Focus view</span>
+            </div>
+          )}
+          {mobileShell && myTier.tier === 'admin' && (
+            <div className="sb-row"
+                 {...rowButtonProps(() => window.location.assign('/admin'))}>
+              <Icon as={LayoutGrid} size={14} />
+              <span className="sb-row-label">Admin dashboard</span>
+            </div>
+          )}
           </div>{/* /.sb-top */}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
@@ -9116,7 +9198,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onSignOut={signOut}
         workspaceId={workspace?.id}
         workspaceName={workspace?.name}
-        onWorkspacesChanged={onWorkspacesChanged}
+        // A transfer or a role change moves workspaceRole too (ACCOUNT-05).
+        onWorkspacesChanged={() => { refreshWorkspaceRole(); return onWorkspacesChanged?.(); }}
         onSaved={() => onWorkspacesChanged?.()}
         role={workspaceRole}
         refresh={refreshSettings}
@@ -9166,20 +9249,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
             )}
-            <button className="tb-brand" title="Home" aria-label="Clusters home"
-                    onClick={() => setCurrentSurface('home')}>
-              <ClustersMark size={22} />
-              <span className="tb-brand-text">Clusters</span>
-            </button>
-            <span className="tb-brand-sep" aria-hidden="true" />
-            <button className="tb-icon" title="Back" aria-label="Back"
-                    disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
-              <Icon as={ChevronLeft} size={15} />
-            </button>
-            <button className="tb-icon" title="Forward" aria-label="Forward"
-                    disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
-              <Icon as={ChevronRight} size={15} />
-            </button>
+            {/* Not on a phone: the bar is 360-390px wide and these overflowed
+                Share off its right edge. Home is the bottom nav's first tab and
+                the drawer's first row; the crumbs below go up a level. */}
+            {!mobileShell && (
+              <>
+                <button className="tb-brand" title="Home" aria-label="Clusters home"
+                        onClick={() => setCurrentSurface('home')}>
+                  <ClustersMark size={22} />
+                  <span className="tb-brand-text">Clusters</span>
+                </button>
+                <span className="tb-brand-sep" aria-hidden="true" />
+                <button className="tb-icon" title="Back" aria-label="Back"
+                        disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
+                  <Icon as={ChevronLeft} size={15} />
+                </button>
+                <button className="tb-icon" title="Forward" aria-label="Forward"
+                        disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
+                  <Icon as={ChevronRight} size={15} />
+                </button>
+              </>
+            )}
             {/* The trail for whichever pane you last touched — see toolbarPane. */}
             <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
                  data-pane={toolbarPane}>
@@ -9205,40 +9295,59 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-right">
-            {myTier.tier === 'admin' && (
+            {/* A phone keeps Undo, Redo, presence and Share here. Admin,
+                Search, Version history, Focus view and Help (which holds Send
+                feedback) are in the drawer instead — the full set measured
+                ~540px in a 390px bar and pushed Share off-screen (SHELL-06). */}
+            {myTier.tier === 'admin' && !mobileShell && (
               <button className="tb-admin-btn"
                       title="Admin dashboard"
                       onClick={() => window.location.assign('/admin')}>
                 Admin
               </button>
             )}
-            <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
-                    onClick={() => setPaletteOpen(true)}>
-              <Icon as={Search} size={16} />
-            </button>
-            <button className="tb-icon" title="Undo (⌘Z)" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
-              <Icon as={Undo} size={16} />
-            </button>
-            <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
-              <Icon as={Redo} size={16} />
-            </button>
-            <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
-              <Icon as={History} size={16} />
-            </button>
-            <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
-              <Icon as={Trash2} size={16} />
-            </button>
-            <HelpButton as="tb" via="topbar" />
-            <FeedbackButton as="icon" />
+            {!mobileShell && (
+              <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
+                      onClick={() => setPaletteOpen(true)}>
+                <Icon as={Search} size={16} />
+              </button>
+            )}
+            {/* A viewer on a phone gets the VIEW ONLY pill in this room instead
+                of two buttons that can never be enabled. */}
+            {(!mobileShell || canEditCurrent) && (
+              <>
+                <button className="tb-icon" title="Undo (⌘Z)" aria-label="Undo" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
+                  <Icon as={Undo} size={16} />
+                </button>
+                <button className="tb-icon" title="Redo (⌘⇧Z)" aria-label="Redo" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
+                  <Icon as={Redo} size={16} />
+                </button>
+              </>
+            )}
+            {!mobileShell && (
+              <>
+                <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
+                  <Icon as={History} size={16} />
+                </button>
+                <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
+                  <Icon as={Trash2} size={16} />
+                </button>
+                <HelpButton as="tb" via="topbar" />
+                <FeedbackButton as="icon" />
+              </>
+            )}
             <span className="tb-divider" aria-hidden="true" />
+            {/* One face and a "+N" on a phone: four faces were ~100px of a
+                360px bar. */}
             <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
                                     workspaceId={workspace.id}
+                                    max={mobileShell ? 1 : 4}
                                     onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
             )}
-            {isTouch && (
+            {isTouch && !mobileShell && (
               <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
                       title="Focus view — hide everything but the cluster"
                       aria-label="Enter focus view">
@@ -9363,17 +9472,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                   pageId: item.page_id || null, boardId: item.board_id || undefined,
                 }).catch((err) => console.warn('[tags] open page failed', err));
               } else if (item.kind === 'board') {
-                setStack([item.id]);
+                // Through navHandlers, like every other link: the cluster opens
+                // with its breadcrumb, or a toast says it is in the Trash.
+                navHandlers.board({ kind: 'board', id: item.id });
               } else if (item.board_id) {
-                setStack([item.board_id]);
-                // Select + center the clicked card once its board mounts.
-                if (item.card_id) {
-                  setTimeout(() => {
-                    document.dispatchEvent(new CustomEvent('soleil-flash-card', {
-                      detail: { boardId: item.board_id, cardId: item.card_id },
-                    }));
-                  }, 200);
-                }
+                // Selects + centres the clicked card once its board mounts.
+                navHandlers.card({ kind: 'card', boardId: item.board_id, cardId: item.card_id || null });
               }
             }}
           />
@@ -9491,6 +9595,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onBrowseList: () => { setCurrentSurface('board'); setView('list', 'search_empty'); },
         } : null}
         onOpenBoard={(id) => {
+          // A hit from a cache the boards map has moved past (trashed since,
+          // or in another workspace): the lookup path, which switches or says
+          // why it won't open, never a stack onto an id the map lacks.
+          if (!boards[id]) {
+            navHandlers.board({ kind: 'board', id }).then((r) => { if (r === 'opened') setCurrentSurface('board'); });
+            return;
+          }
           setStack(ancestorPath(boards, id));
           recents.push(id);
           setCurrentSurface('board');
@@ -9557,16 +9668,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
-          canSendMessages={
-            // Mirrors SQL can_write_workspace: demo users can only send
-            // messages in their OWN workspace; admin/paid get the
-            // workspace-membership check; waitlist is blocked.
-            myTier.tier === 'waitlist'
-              ? false
-              : (myTier.tier === 'admin' || myTier.tier === 'paid')
-                ? workspaceMembers.some(m => m.user_id === user.id)
-                : workspace?.created_by === user.id
-          }
+          canSendMessages={msgAccess.canSend}
+          readOnlyReason={msgAccess.reason}
           refreshTick={msgRefreshTick}
           openConversationId={openConversationId}
           setOpenConversationId={setOpenConversationId}
@@ -9620,7 +9723,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             initialSection={shareInitialSection}
             onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }}
             onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
-            onWorkspacesChanged={() => { onWorkspacesChanged?.(); }}
+            onWorkspacesChanged={() => { refreshWorkspaceRole(); onWorkspacesChanged?.(); }}
             onSharesChanged={() => { refreshSharedBoards?.(); }}
             onLinkCreated={() => {
               try {

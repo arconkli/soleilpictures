@@ -21,10 +21,16 @@
 //     its RPC are untouched — pass branches={['waitlist','pricing']} if it ever
 //     comes back.
 //
+// The row arithmetic lives in funnelRows.js, shared with LeaksSummary so the ⚠
+// here and the "Biggest leak" beside it always name the same transition. It
+// also drops retired steps (the waitlist's Welcome page), so the branches fork
+// from the last step anyone can actually reach.
+//
 // Reads admin_signup_funnel rows { ord, step, label, branch, sessions, users }.
 
 import { useMemo } from 'react';
 import { formatCount, formatPct, MIN_RATE_FLAG } from '../../../lib/adminFormat.js';
+import { buildFunnelRows } from './funnelRows.js';
 import { PanelNote } from '../SmallN.jsx';
 import { Well } from './Well.jsx';
 import { VAR } from './palette.js';
@@ -36,51 +42,6 @@ const BRANCH_META = {
   demo:     { marker: '◆', color: VAR.cat[0], label: 'Free workspace' },
   buy:      { marker: '◇', color: VAR.cat[1], label: 'Creator purchase' },
 };
-
-function row(s, sessions, prev, top, branch, isForkStart) {
-  const drop = prev != null ? prev - sessions : 0;
-  return {
-    key: `${branch}-${s.step}`,
-    label: s.label,
-    sessions,
-    branch,
-    isForkStart,
-    fromTop: top > 0 ? sessions / top : 0,
-    step: prev && prev > 0 ? sessions / prev : null,
-    drop,
-    dropPct: prev && prev > 0 ? drop / prev : 0,
-  };
-}
-
-function buildRows(steps, branches) {
-  const core = steps.filter((s) => s.branch === 'core');
-  const top = Number(core[0]?.sessions) || 0;
-  const coreRows = core.map((s, i) =>
-    row(s, Number(s.sessions) || 0, i > 0 ? Number(core[i - 1].sessions) || 0 : null, top, 'core', false));
-
-  const forkSessions = Number(core[core.length - 1]?.sessions) || 0;  // welcome_view
-  const branchRows = branches.map((b) => {
-    const bsteps = steps.filter((s) => s.branch === b);
-    return {
-      branch: b,
-      rows: bsteps.map((s, i) =>
-        row(s, Number(s.sessions) || 0, i > 0 ? Number(bsteps[i - 1].sessions) || 0 : forkSessions, top, b, i === 0)),
-    };
-  }).filter((bg) => bg.rows.length > 0);
-
-  // Biggest single drop across every sequential transition → gets the ⚠.
-  // Skip each branch's FIRST row: its "drop" from the fork is the split between
-  // the branches (e.g. chose the demo instead of buying), not a sequential
-  // leak, so flagging it as the biggest leak would be misleading.
-  let biggest = null;
-  const scan = (rows) => rows.forEach((r) => {
-    if (r.drop > 0 && (!biggest || r.dropPct > biggest.dropPct)) biggest = r;
-  });
-  scan(coreRows.slice(1));
-  branchRows.forEach((bg) => scan(bg.rows.filter((r) => !r.isForkStart)));
-
-  return { top, coreRows, branchRows, biggestKey: biggest?.key || null };
-}
 
 function FunnelRow({ r, lowN, biggest }) {
   const meta = BRANCH_META[r.branch];
@@ -115,11 +76,11 @@ export function FunnelSteps({
   title = 'Signup funnel',
   sub = 'where sessions fall off, top → fork → outcome',
   branches = ['pricing'],
-  forkLabel = 'Forks at Welcome →',
+  forkLabel = 'Forks after the account →',
   /** Columns on the 12-wide deck. Omit to keep the old full-width page panel. */
   span,
 }) {
-  const { top, coreRows, branchRows, biggestKey } = useMemo(() => buildRows(steps, branches), [steps, branches]);
+  const { top, coreRows, branchRows, biggestKey } = useMemo(() => buildFunnelRows(steps, branches), [steps, branches]);
   const lowN = top > 0 && top < MIN_RATE_FLAG;
 
   // Every panel states its population and window — the Command Center rule.

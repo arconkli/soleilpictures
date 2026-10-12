@@ -25,7 +25,7 @@ import { useRecentColors } from '../hooks/useRecentColors.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { pushDocUndoTarget, removeDocUndoTarget } from '../lib/overlayRouting.js';
-import { registerModalOpen } from '../lib/modalGuard.js';
+import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
@@ -158,6 +158,11 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const [eraserWidth, setEraserWidth] = useState(DEFAULT_ERASER_WIDTH);
   const [padBg, setPadBg] = useState(DEFAULT_BG);
   const [pickerPos, setPickerPos] = useState(null);
+  // Live mirrors for the Escape handler, which is bound once per open.
+  const pickerOpenLive = useRef(false);
+  pickerOpenLive.current = !!pickerPos;
+  const layersOpenLive = useRef(false);
+  layersOpenLive.current = layersOpen;
   // Recent colors strip (per-user, persisted via lib/recentColors).
   const recentColors = useRecentColors();
   const swatchRow = (() => {
@@ -277,11 +282,30 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   // In-app discard confirm (replaces window.confirm so it layers/traps/styles
   // correctly). Returns true to proceed. Re-entrancy guard prevents a second
   // prompt while one is already open.
+  //
+  // Reopening an existing art canvas seeds the pad with its strokes, so the
+  // stroke count alone warned "Your drawing will be lost" on a no-op close —
+  // and the drawing is safe on the board anyway; only unsaved changes are at
+  // stake (NOTES-16). An edit session asks only when the layers or background
+  // differ from what it opened with (an undo back to the start counts as
+  // unchanged: it restores the same snapshot), and says what would go.
+  const openSnapRef = useRef(null);
+  const editingLive = useRef(editingCard);
+  editingLive.current = editingCard;
   const confirmDiscard = async () => {
-    if (!strokesRef.current) return true;
+    const editingExisting = !!editingLive.current;
+    if (editingExisting) {
+      const snap = openSnapRef.current;
+      if (snap && layersLive.current === snap.layers && padBgLive.current === snap.bg) return true;
+    } else if (!strokesRef.current) return true;
     if (discardingRef.current) return false;
     discardingRef.current = true;
-    const ok = await feedback.confirm({
+    const ok = await feedback.confirm(editingExisting ? {
+      title: 'Discard changes?',
+      message: 'Your changes to this drawing will be lost. The drawing on the board stays as it was.',
+      confirmLabel: 'Discard',
+      danger: true,
+    } : {
       title: 'Discard sketch?',
       message: 'Your drawing will be lost.',
       confirmLabel: 'Discard',
@@ -322,11 +346,13 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       setLayers(seeded);
       setActiveId(seeded[seeded.length - 1].id);
       setPadBg(editingCard.bg || DEFAULT_BG);
+      openSnapRef.current = { layers: seeded, bg: editingCard.bg || DEFAULT_BG };
     } else {
       const fresh = [newLayer(1)];
       setLayers(fresh);
       setActiveId(fresh[0].id);
       setPadBg(DEFAULT_BG);
+      openSnapRef.current = { layers: fresh, bg: DEFAULT_BG };
     }
     setActive(null);
     setTool('pen');
@@ -362,7 +388,15 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
         return;
       }
       if (e.key === 'Escape') {
+        // Escape closes the TOP layer only. A layer registered above the pad
+        // (a Sheet, the discard confirm) handles its own: let the key through
+        // to it. The pad's own popovers don't register, so they close here,
+        // one per press, before the pad itself does — Escape in the colour
+        // picker used to close the whole pad (SKETCH-ESC).
+        if (!isTopModal(unregisterModal)) return;
         e.stopPropagation();
+        if (pickerOpenLive.current) { setPickerPos(null); return; }
+        if (layersOpenLive.current) { setLayersOpen(false); return; }
         (async () => { if (await confirmDiscard()) onClose?.(); })();
         return;
       }

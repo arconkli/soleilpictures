@@ -54,6 +54,7 @@ import { Deck, Well, Plate } from '../../viz/Well.jsx';
 import { VAR } from '../../viz/palette.js';
 import { WeeklyMultiples } from '../widgets/WeeklyMultiples.jsx';
 import { MarkersPanel } from '../widgets/MarkersPanel.jsx';
+import { stalledSignups } from '../stalledSignups.js';
 
 // The browser's zone, so the heatmap buckets by the hours the owner keeps
 // rather than by UTC — which would smear a US-hours product diagonally across
@@ -137,9 +138,11 @@ function WhoStalled({ rows }) {
           <span className="admin-people-what">
             {r.active_day_count > 1
               ? `came back ${formatCount(r.active_day_count)}×, never made a card`
-              : 'one visit, never made a card'}
+              : (r.active_day_count === 1 ? 'one visit, never made a card' : 'never opened the app')}
           </span>
-          <span className="admin-people-when">{formatCount(r.days_dormant)}d quiet</span>
+          <span className="admin-people-when">
+            {r.days_dormant != null ? `${formatCount(r.days_dormant)}d quiet` : `joined ${formatCount(r.signup_age)}d ago`}
+          </span>
         </div>
       ))}
     </div>
@@ -201,10 +204,8 @@ export function TodayView() {
       users: val(users) || [],
       lifetime: val(life) || null,
       heatmap: val(heat) || [],
-      stalled: (val(dorm) || [])
-        .filter((r) => !r.did_card && (num(r.days_dormant) ?? 999) <= 14)
-        .sort((a, b) => (num(b.active_day_count) || 0) - (num(a.active_day_count) || 0))
-        .slice(0, 6),
+      // By signup age, never-opened accounts included: see stalledSignups.js.
+      stalled: stalledSignups(val(dorm) || []),
     };
   }, [f.excludeInternal, f.verifiedOnly],
      { pollIntervalMs: POLL_MS.today, refetchOnFocus: true });
@@ -423,9 +424,9 @@ export function TodayView() {
   // sparkline uses, so the badge and the line can never disagree.
   const mrrCents = num(f.stats?.mrr_cents);
   // ACTIVE SUBSCRIPTIONS, not tier='paid'. The paid tier also holds comped
-  // accounts, so reading tier_counts here printed "4 paying accounts" beside
-  // $0 of revenue — four people who have never paid anything. Anything that
-  // claims to count payers has to count the thing that charges.
+  // accounts, so reading tier_counts here counted comps as paying accounts
+  // beside an MRR that did not include them. Anything that claims to count
+  // payers has to count the thing that charges.
   const payingUsers = num(f.stats?.sub_counts?.active) || 0;
   const compedUsers = num(f.stats?.comped_paid) || 0;
   // The free tier, from the same admin_stats the shell already fetched. A bare
@@ -455,6 +456,7 @@ export function TodayView() {
     <AdminAsync
       loading={q.loading}
       error={q.error}
+      hasData={q.hasData}
       onRetry={q.refresh}
       skeleton={<><AdminSkeleton variant="cards" rows={4} /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}
     >
@@ -653,8 +655,9 @@ export function TodayView() {
           <Plate span={6} title="Just arrived" meta={`newest ${d?.users?.length || 0}`}>
             <WhoArrived users={d?.users || []} />
           </Plate>
-          <Plate span={6} title="Arrived and stalled" meta="signed up ≤14d ago, no card ever">
-            <WhoStalled rows={d?.stalled || []} />
+          <Plate span={6} title="Arrived and stalled"
+                 meta={`signed up ≤14d ago, no card ever${d?.stalled?.total > (d?.stalled?.rows?.length || 0) ? ` · ${formatCount(d.stalled.rows.length)} of ${formatCount(d.stalled.total)}` : ''}`}>
+            <WhoStalled rows={d?.stalled?.rows || []} />
           </Plate>
         </Deck>
       </div>

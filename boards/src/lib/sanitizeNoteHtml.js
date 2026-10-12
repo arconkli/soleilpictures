@@ -20,7 +20,7 @@ import DOMPurify from 'dompurify';
 // comes from something that actually produces note html:
 //   • noteExtensions.js — StarterKit (codeBlock and horizontalRule explicitly
 //     OFF, heading levels 1-3), BulletList, OrderedList, Underline, TextStyle,
-//     Color, FontFamily, FontSize, TextAlign
+//     Color, FontFamily, FontSize, TextAlign, Link (a[href][target][rel])
 //   • NoteChecklist.js  — ul.note-checklist > li.ck > span.ck-box + div.ck-text
 //   • NoteMention.js    — span[data-entity-ref].tt-link.tt-link-manual
 //   • CommentMark.js    — span[data-comment-id].tt-comment
@@ -62,6 +62,10 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_ATTR = [
   'class', 'style', 'href', 'target', 'rel', 'type', 'aria-label',
+  // The checklist box's checkbox semantics (NoteChecklist.js): without them a
+  // screen reader met an unlabelled span, and the checked state lived only in
+  // a class name.
+  'role', 'aria-checked',
   // Images + legacy table geometry.
   'src', 'alt', 'title', 'width', 'height', 'colspan', 'rowspan',
   // Custom node/mark contracts — see the header.

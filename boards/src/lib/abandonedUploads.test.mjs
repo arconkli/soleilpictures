@@ -236,7 +236,8 @@ test('an upload never patches a card it cannot reach, and its result waits for t
   assert.match(video, /pending: true/);
   assert.match(video, /onProgress/);
   assert.match(video, /settleUpload\(dropBoardId, id, \{ src: up\.src/);
-  assert.match(video, /handleUploadReject\(e, id, dropBoardId\);/);
+  // The fourth argument is what the failure toast's Retry re-drops (MEDIA-10).
+  assert.match(video, /handleUploadReject\(e, id, dropBoardId(, \{ file, cx, cy \})?\);/);
   assert.match(canvas, /\/\/ behind a clip's upload\.\s*dropVideoFile\(file, cx, cy, canAttemptFiles, rect\);/, 'not awaited by the drop');
   // CANVAS-A-03: no upload path patches through a bare board check any more.
   const uploads = canvas.slice(canvas.indexOf('const optimisticDropImage = useCallback('), canvas.indexOf('const dispatchIngestOne = useCallback('));

@@ -22965,14 +22965,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "The three panes",
+   "text": "Layout",
    "inline": [
     {
      "t": "text",
-     "v": "The three panes"
+     "v": "Layout"
     }
    ],
-   "id": "the-three-panes"
+   "id": "layout"
   },
   {
    "type": "para",
@@ -22998,6 +22998,25 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "Bookmarks",
+     "children": [
+      {
+       "t": "text",
+       "v": "Bookmarks"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " under the page tree — durable anchors into specific places in the text, which survive editing around them. Add one with the bookmark button in the toolbar; click it in the list to jump there."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "The body",
      "children": [
       {
@@ -23009,25 +23028,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " in the middle, with the formatting toolbar above it."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Bookmarks",
-     "children": [
-      {
-       "t": "text",
-       "v": "Bookmarks"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " on the right — durable anchors into specific places in the text, which survive editing around them."
     }
    ]
   },
@@ -23100,6 +23100,33 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Right-click",
+     "children": [
+      {
+       "t": "text",
+       "v": "Right-click"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a selection for cut, copy, paste, formatting, links and comments. Right-click a word with nothing selected — or "
+    },
+    {
+     "t": "code",
+     "v": "⇧"
+    },
+    {
+     "t": "text",
+     "v": "-right-click anywhere — for your browser's own menu, with its spelling suggestions."
     }
    ]
   },
@@ -24755,6 +24782,29 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Because a text comment is part of the document, it follows edit access. A viewer sees the dots and can open and read every thread, marked "
+    },
+    {
+     "t": "strong",
+     "v": "View only",
+     "children": [
+      {
+       "t": "text",
+       "v": "View only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; adding, replying to, resolving or deleting a comment needs edit access."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Tags on a range",
@@ -24994,7 +25044,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Not annotation but adjacent: bookmarks are durable anchors into specific places in a document, listed in the right pane. They survive edits around them, so a bookmark on \"the end of act two\" stays there as the act changes length."
+     "v": "Not annotation but adjacent: bookmarks are durable anchors into specific places in a document, listed under the page tree. They survive edits around them, so a bookmark on \"the end of act two\" stays there as the act changes length."
     }
    ]
   }
@@ -27033,7 +27083,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " and "
+       "v": " on the canvas and "
       },
       {
        "t": "link",
@@ -27048,7 +27098,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — never change content"
+       "v": " — never change content, including a document's text comments"
       }
      ]
     ],
@@ -27811,7 +27861,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Revokes every link on the cluster"
+       "v": "Revokes every link on the cluster that you can revoke"
       }
      ],
      [
@@ -27871,6 +27921,29 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " revokes, and it asks first."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks "
+    },
+    {
+     "t": "strong",
+     "v": "Only invited people",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only invited people"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them."
     }
    ]
   },
@@ -28340,7 +28413,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
+     "v": "One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Someone who has access because a parent was shared with them is listed as "
+    },
+    {
+     "t": "strong",
+     "v": "via",
+     "children": [
+      {
+       "t": "text",
+       "v": "via"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here has no controls. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
     }
    ]
   },
@@ -29263,6 +29350,15 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Resolving, hiding and deleting a comment is for its author and for people who can edit the board. Someone with view-only access sees those buttons on their own comments only."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Mentions",
@@ -29374,7 +29470,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account."
+     "v": "On the canvas, anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A comment on a "
+    },
+    {
+     "t": "strong",
+     "v": "text range",
+     "children": [
+      {
+       "t": "text",
+       "v": "text range"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access."
     }
    ]
   },
@@ -33028,7 +33147,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (opens, reads, comments and votes, but does not change anything). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Only the owner can hand the workspace to another member. Everyone else sees the list."
+     "v": " (opens, reads, comments on the canvas and votes, but does not change anything — including a document's text comments, which they can only read). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Someone invited who has no account yet is listed too, as an invite that gets access when they sign up, and the owner and co-owners can revoke it from there. Only the owner can hand the workspace to another member. Everyone else sees the list."
     }
    ]
   },
@@ -35587,6 +35706,25 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "The top bar",
+     "children": [
+      {
+       "t": "text",
+       "v": "The top bar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps what you reach for on the board: the cluster's name, the Board/Files switch, Undo, Redo, who else is here, and Share."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "A drawer",
      "children": [
       {
@@ -35597,7 +35735,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " holds navigation that does not fit, including the cluster tree. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
+     "v": " holds navigation that does not fit, including the cluster tree, Search, Version history, Focus view and Help. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
     }
    ]
   },
@@ -35662,7 +35800,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way."
+     "v": " — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way. Open it from the drawer, or from the top bar on a tablet held in landscape."
     }
    ]
   },

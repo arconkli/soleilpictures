@@ -10,16 +10,23 @@
 //   - "+" button on a row → insert new child
 //   - "+ New page" at the bottom → root-level page
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   buildPageTree, addPage, deletePage, renamePage, movePage, setPageExpanded,
-  getDocUndoManager,
+  getDocUndoManager, readPages, DOC_ORIGIN,
 } from '../lib/docState.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
 
-export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage, peers = [], onJumpToPeer }) {
+export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage, peers = [], onJumpToPeer,
+                              // false → a view-only member or the public viewer. Their Y.Doc
+                              // writes never leave the tab (the board room drops them), so
+                              // add / rename / delete / reorder are not offered at all.
+                              canEdit = true,
+                              // Name for the page that replaces a deleted last page: the
+                              // same card-title name DocSurface's empty-doc seed uses.
+                              defaultName = 'Untitled' }) {
   const tree = buildPageTree(pages);
   const [renaming, setRenaming] = useState(null);  // page id
   const [draftName, setDraftName] = useState('');
@@ -28,21 +35,41 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   const [ctx, setCtx] = useState({ open: false, x: 0, y: 0, pageId: null });
   const feedback = useFeedback();
 
-  const startRename = (p) => { setRenaming(p.id); setDraftName(p.name || ''); };
+  const startRename = (p) => { if (!canEdit) return; setRenaming(p.id); setDraftName(p.name || ''); };
+  // A page just made with "+" is selected with { keepOpen, naming }: the phone
+  // drawer stays up while it is named (selecting normally closes it, which
+  // hid the auto-focused name field and left the page "Untitled"), and its
+  // editor doesn't take the caret from the name field. Finishing the name —
+  // or cancelling it — selects it again the normal way.
+  const justAddedRef = useRef(null);
+  const finishAdded = (id) => {
+    if (justAddedRef.current !== id) return;
+    justAddedRef.current = null;
+    onSelectPage(id);
+  };
   const commitRename = () => {
-    if (renaming) renamePage(ydoc, renaming, draftName.trim() || 'Untitled', scope);
+    const id = renaming;
+    if (id) renamePage(ydoc, id, draftName.trim() || 'Untitled', scope);
     setRenaming(null);
+    if (id) finishAdded(id);
+  };
+  const cancelRename = () => {
+    const id = renaming;
+    setRenaming(null);
+    if (id) finishAdded(id);
   };
 
   const onAddRoot = () => {
     const id = addPage(ydoc, { scope });
-    onSelectPage(id);
+    justAddedRef.current = id;
+    onSelectPage(id, { keepOpen: true, naming: true });
     setTimeout(() => { setRenaming(id); setDraftName(''); }, 0);
   };
   const onAddChild = (parentId) => {
     const id = addPage(ydoc, { parent_id: parentId, scope });
     setPageExpanded(ydoc, parentId, true, scope);
-    onSelectPage(id);
+    justAddedRef.current = id;
+    onSelectPage(id, { keepOpen: true, naming: true });
     setTimeout(() => { setRenaming(id); setDraftName(''); }, 0);
   };
 
@@ -72,12 +99,21 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
         }
         const um = getDocUndoManager(ydoc, scope);
         um?.stopCapturing();
-        deletePage(ydoc, pageId, scope);
+        // Deleting the last page: its replacement is created in the SAME
+        // DOC_ORIGIN transaction. Left to DocSurface's empty-doc seed, the
+        // new page became its own undo step on top of the delete, so the
+        // toast's Undo only said "the board changed since" and the doc looked
+        // gone. One step now: Undo brings the page back and drops the blank.
+        let replacement = null;
+        ydoc.transact(() => {
+          deletePage(ydoc, pageId, scope);
+          if (!readPages(ydoc, scope).length) replacement = addPage(ydoc, { name: defaultName || 'Untitled', scope });
+        }, DOC_ORIGIN);
         const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
         um?.stopCapturing();
-        if (activePageId === pageId) {
-          const next = pages.find(x => x.id !== pageId);
-          onSelectPage(next ? next.id : null);
+        if (activePageId === pageId || replacement) {
+          const next = replacement || pages.find(x => x.id !== pageId)?.id || null;
+          onSelectPage(next);
         }
         undoToast(feedback, {
           message: hasChildren ? 'Page and its sub-pages deleted' : 'Page deleted',
@@ -165,7 +201,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     return (
       <div key={p.id} className="doc-tree-node">
         <div className={`doc-tree-row ${isActive ? 'is-active' : ''} ${drop ? `drop-${drop}` : ''}`}
-             draggable={renaming !== p.id}
+             draggable={canEdit && renaming !== p.id}
              style={{ paddingLeft: 6 + depth * 14 }}
              onDragStart={(e) => onDragStart(e, p)}
              onDragOver={(e) => onDragOver(e, p)}
@@ -175,6 +211,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
              onDoubleClick={() => startRename(p)}
              onContextMenu={(e) => {
                e.preventDefault();
+               if (!canEdit) return;
                setCtx({ open: true, x: e.clientX, y: e.clientY, pageId: p.id });
              }}>
           <button className="doc-tree-chev"
@@ -194,7 +231,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                    onBlur={commitRename}
                    onKeyDown={(e) => {
                      if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
-                     if (e.key === 'Escape') { e.preventDefault(); setRenaming(null); }
+                     if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
                    }}
                    onClick={(e) => e.stopPropagation()} />
           ) : (
@@ -218,10 +255,12 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
               )}
             </span>
           )}
+          {canEdit && (
           <button className="doc-tree-add"
                   title="Add sub-page"
                   aria-label="Add sub-page"
                   onClick={(e) => { e.stopPropagation(); onAddChild(p.id); }}>+</button>
+          )}
         </div>
         {isOpen && p.children?.length > 0 && (
           <div className="doc-tree-children">
@@ -236,16 +275,20 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     <div className="doc-tree">
       <div className="doc-tree-head">
         <span className="doc-tree-kicker">Pages</span>
-        <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}>+</button>
+        {canEdit && <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}>+</button>}
       </div>
       <div className="doc-tree-body">
-        {tree.length === 0 ? (
+        {tree.length === 0 ? (canEdit ? (
           <button className="doc-tree-empty" onClick={onAddRoot}>
             <span className="doc-tree-empty-plus" aria-hidden="true">+</span>
             <span className="doc-tree-empty-title">Add your first page</span>
             <span className="doc-tree-empty-sub">Start writing — pages live here.</span>
           </button>
-        ) : tree.map(p => renderRow(p, 0))}
+        ) : (
+          <div className="doc-tree-empty is-readonly">
+            <span className="doc-tree-empty-title">No pages yet</span>
+          </div>
+        )) : tree.map(p => renderRow(p, 0))}
       </div>
 
       <CardContextMenu

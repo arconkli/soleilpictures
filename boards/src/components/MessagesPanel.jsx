@@ -1,10 +1,16 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Plus, X } from '../lib/icons.js';
+import { Plus, X, EyeOff, LogOut } from '../lib/icons.js';
 import { useConversationList } from '../hooks/useConversationList.js';
-import { findOrCreateDm, leaveConversation } from '../lib/messages.js';
+import { findOrCreateDm, leaveConversation, rejoinConversation } from '../lib/messages.js';
+import { hiddenFromInbox, isDmConversation } from '../lib/conversationState.js';
+import { useFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
+import { escapeClosesPanel } from '../lib/panelEscape.js';
 import { NewConversationPicker } from './NewConversationPicker.jsx';
 import { MessageThread } from './MessageThread.jsx';
+import { readOnlyCopy } from '../lib/messageAccess.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
@@ -30,21 +36,27 @@ export function MessagesPanel({
   suggestedUserIds,
   refreshTick, onRefreshRequested, onPermalinkConsumed, onPeerConsumed,
   onClose,
-  canSendMessages = true, // false → demo user on someone else's workspace
+  canSendMessages = true, // false → a viewer here, or on the waitlist (lib/messageAccess.js)
+  readOnlyReason = null,  // why not: 'viewer' | 'waitlist'
 }) {
   const userId = currentUser?.id;
   const {
-    conversations, participantsByConv, myStateByConv, unreadByConv, loaded,
+    conversations, participantsByConv, myStateByConv, unreadByConv, loaded, failed, retry,
   } = useConversationList({ workspaceId, userId, refreshTick });
 
-  const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
+  // A permalinked message to flash once, tied to ITS conversation: it used to
+  // outlive the jump and follow you into other threads, closing their search
+  // on every arrival (COMMS-09). Cleared once the thread has flashed it.
+  const [pendingJump, setPendingJump] = useState(() => (
+    jumpToMessageId ? { convId: initialOpenConversationId || null, messageId: jumpToMessageId } : null
+  ));
   const [composeAnchor, setComposeAnchor] = useState(null);
 
   // First-mount permalink: open whatever the parent says is open.
   useEffect(() => {
     if (initialOpenConversationId) {
       setOpenConversationId(initialOpenConversationId);
-      setPendingJumpMessageId(jumpToMessageId || null);
+      setPendingJump(jumpToMessageId ? { convId: initialOpenConversationId, messageId: jumpToMessageId } : null);
     }
   }, [initialOpenConversationId, jumpToMessageId, setOpenConversationId]);
 
@@ -107,27 +119,86 @@ export function MessagesPanel({
   const [, force] = useState(0);
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
-  // Filter out conversations the current user has left.
+  // Filter out conversations the current user has left or hidden (a hidden
+  // DM comes back when the other person writes — see conversationState.js).
   const visibleConversations = useMemo(() => {
-    return (conversations || []).filter(c => {
-      const me = myStateByConv.get(c.conversation_id);
-      // If we're not a participant (shouldn't happen via RLS, but safety) — hide.
-      if (!me) return false;
-      if (me.left_at) return false;
-      return true;
-    });
-  }, [conversations, myStateByConv]);
+    return (conversations || []).filter(c => !hiddenFromInbox({
+      conv: c,
+      me: myStateByConv.get(c.conversation_id),
+      participants: participantsByConv.get(c.conversation_id),
+    }));
+  }, [conversations, myStateByConv, participantsByConv]);
 
   const handleConversationCreated = useCallback((convId) => {
     setOpenConversationId(convId);
     onRefreshRequested?.();
   }, [onRefreshRequested]);
 
+  // Hide a DM, or leave a group, from the row's menu. It used to fire on a
+  // bare right-click (or an Android long-press) with no confirmation and no
+  // undo — a full Leave for a group (COMMS-11). Now: a menu, a confirm for a
+  // group, and the house Undo toast either way.
+  const feedback = useFeedback();
+  const [rowMenu, setRowMenu] = useState(null); // { convId, x, y }
   const handleHideRow = useCallback(async (convId) => {
     if (!userId || !convId) return;
-    await leaveConversation({ conversationId: convId, userId });
+    const isGroup = !isDmConversation(participantsByConv.get(convId));
+    if (isGroup) {
+      const ok = await feedback.confirm({
+        title: 'Leave conversation',
+        message: "Leave this group? You'll stop receiving its messages.",
+        confirmLabel: 'Leave',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    const done = await leaveConversation({ conversationId: convId, userId });
+    if (!done) {
+      feedback.toast({ type: 'error', message: isGroup ? "Couldn't leave the conversation — try again." : "Couldn't hide the conversation — try again." });
+      return;
+    }
     onRefreshRequested?.();
-  }, [userId, onRefreshRequested]);
+    undoToast(feedback, {
+      message: isGroup ? 'You left the conversation' : 'Conversation hidden',
+      onUndo: async () => {
+        const back = await rejoinConversation({ conversationId: convId, userId });
+        if (!back) { feedback.toast({ type: 'error', message: "Couldn't bring the conversation back — try again." }); return; }
+        onRefreshRequested?.();
+      },
+    });
+  }, [userId, participantsByConv, onRefreshRequested, feedback]);
+
+  // Opening a DM you hid — through a toast, a permalink, or because the
+  // other person wrote again — takes you back in. Until then the server
+  // refuses your replies: you're not an active participant.
+  const myOpenState = openConversationId ? myStateByConv.get(openConversationId) : null;
+  const openIsDm = isDmConversation(openConversationId ? participantsByConv.get(openConversationId) : null);
+  const rejoinedRef = useRef(null);
+  useEffect(() => {
+    if (!openConversationId || !userId || !myOpenState?.left_at || !openIsDm) return;
+    // Once per hide: a failed attempt isn't retried on every render.
+    const key = `${openConversationId}:${myOpenState.left_at}`;
+    if (rejoinedRef.current === key) return;
+    rejoinedRef.current = key;
+    rejoinConversation({ conversationId: openConversationId, userId }).then((ok) => {
+      if (ok) onRefreshRequestedRef.current?.();
+    });
+  }, [openConversationId, userId, myOpenState?.left_at, openIsDm]);
+
+  // Escape closes the list view, as its "Close (Esc)" says — only the thread
+  // view did (COMMS-22). The list takes focus when it shows, so the key
+  // reaches it straight after opening; a press claimed by a picker or menu
+  // on top, or meant for something outside the panel, is left alone.
+  const listRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (openConversationId) return;
+    try { listRef.current?.focus({ preventScroll: true }); } catch (_) {}
+    const onKey = (e) => { if (escapeClosesPanel(e, '.msg-panel')) onCloseRef.current?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openConversationId]);
 
   if (openConversationId) {
     const conv = conversations.find(c => c.conversation_id === openConversationId);
@@ -136,17 +207,21 @@ export function MessagesPanel({
       <MessageThread
         workspaceId={workspaceId}
         currentUser={currentUser}
-        canSend={canSendMessages}
+        // A group you left is readable (a permalink, a toast) but not yours
+        // to post in; a hidden DM is rejoined above.
+        canSend={canSendMessages && !(myOpenState?.left_at && !openIsDm)}
+        readOnlyReason={canSendMessages ? 'left' : readOnlyReason}
         conversation={{
           id: openConversationId,
           title: conv?.title || null,
           participants: parts,
         }}
-        jumpToMessageId={pendingJumpMessageId}
+        jumpToMessageId={pendingJump?.convId === openConversationId ? pendingJump.messageId : null}
+        onJumpConsumed={() => setPendingJump(null)}
         onChanged={onRefreshRequested}
         onBack={() => {
           setOpenConversationId(null);
-          setPendingJumpMessageId(null);
+          setPendingJump(null);
           onPermalinkConsumed?.();
         }}
         onClose={() => { onPermalinkConsumed?.(); onClose?.(); }}
@@ -155,7 +230,7 @@ export function MessagesPanel({
   }
 
   return (
-    <div className="msg-panel">
+    <div className="msg-panel" ref={listRef} tabIndex={-1}>
       <div className="msg-panel-head">
         <div className="msg-panel-title">
           <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
@@ -164,7 +239,7 @@ export function MessagesPanel({
         <button
           className="msg-panel-icon"
           onClick={(e) => setComposeAnchor(e.currentTarget.getBoundingClientRect())}
-          title={canSendMessages ? 'New chat' : 'Upgrade to start chats in shared workspaces'}
+          title={canSendMessages ? 'New chat' : readOnlyCopy(readOnlyReason).newChatTitle}
           aria-label="New chat"
           disabled={!canSendMessages}
         >
@@ -190,7 +265,15 @@ export function MessagesPanel({
             ))}
           </div>
         )}
-        {loaded && visibleConversations.length === 0 && (
+        {loaded && failed && (
+          // A failed read is not an empty inbox (COMMS-15). Anything listed
+          // below is the last good read.
+          <div className="msg-load-failed t-meta" role="alert">
+            <span>Couldn't load your conversations.</span>
+            <button type="button" className="msg-retry-btn" onClick={() => { retry().then(null, () => {}); }}>Retry</button>
+          </div>
+        )}
+        {loaded && !failed && visibleConversations.length === 0 && (
           <div className="msg-empty t-meta">
             No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.
           </div>
@@ -203,10 +286,22 @@ export function MessagesPanel({
             unreadCount={unreadByConv.get(conv.conversation_id) || 0}
             currentUserId={userId}
             onOpen={() => setOpenConversationId(conv.conversation_id)}
-            onHide={() => handleHideRow(conv.conversation_id)}
+            onMenu={(x, y) => setRowMenu({ convId: conv.conversation_id, x, y })}
           />
         ))}
       </div>
+
+      {rowMenu && (() => {
+        const isGroup = !isDmConversation(participantsByConv.get(rowMenu.convId));
+        return (
+          <ConversationRowMenu
+            x={rowMenu.x} y={rowMenu.y}
+            isGroup={isGroup}
+            onPick={() => { const id = rowMenu.convId; setRowMenu(null); handleHideRow(id); }}
+            onClose={() => setRowMenu(null)}
+          />
+        );
+      })()}
 
       {composeAnchor && (
         <NewConversationPicker
@@ -222,10 +317,10 @@ export function MessagesPanel({
   );
 }
 
-function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onHide }) {
+function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
   const isUnread = unreadCount > 0;
   const peers = participants.filter(p => p.user_id !== currentUserId && !p.left_at);
-  const isDm = participants.filter(p => !p.left_at).length === 2;
+  const isDm = isDmConversation(participants); // rows, not active members (COMMS-17)
 
   // Title: explicit title > participant names > fallback.
   const peerProfiles = peers.map(p => ({
@@ -258,7 +353,14 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
     <button
       className={`msg-row ${isUnread ? 'is-unread' : ''}`}
       onClick={onOpen}
-      onContextMenu={(e) => { e.preventDefault(); onHide(); }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        // Keyboard context-menu key: no pointer position, so anchor on the row.
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX || r.left + 24;
+        const y = e.clientY || r.bottom;
+        onMenu(x, y);
+      }}
       title={title}
     >
       {isUnread && <span className="msg-row-dot" />}
@@ -284,6 +386,45 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
         : <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>}
     </button>
   );
+}
+
+// The row's right-click / long-press menu: Hide (a DM) or Leave (a group).
+function ConversationRowMenu({ x, y, isGroup, onPick, onClose }) {
+  const popRef = useRef(null);
+  const [pos, setPos] = useState({ top: y, left: x });
+  useLayoutEffect(() => {
+    const el = popRef.current;
+    const w = el?.offsetWidth || 180, h = el?.offsetHeight || 40;
+    setPos({
+      top: Math.max(8, Math.min(y, window.innerHeight - h - 8)),
+      left: Math.max(8, Math.min(x, window.innerWidth - w - 8)),
+    });
+  }, [x, y]);
+  useEffect(() => {
+    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
+    // Claim Escape so the panel underneath stays open.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+  useEffect(() => { popRef.current?.querySelector('button:not(:disabled)')?.focus(); }, []);
+  return createPortal((
+    <div ref={popRef} className="msg-group-menu" role="menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
+      {isGroup ? (
+        <button type="button" role="menuitem" className="msg-group-menu-item is-danger" onClick={onPick}>
+          <Icon as={LogOut} size={12} /> Leave…
+        </button>
+      ) : (
+        <button type="button" role="menuitem" className="msg-group-menu-item" onClick={onPick}>
+          <Icon as={EyeOff} size={12} /> Hide conversation
+        </button>
+      )}
+    </div>
+  ), document.body);
 }
 
 function relTime(iso) {

@@ -42,11 +42,15 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBoardEmbed, onOpenFind, docName, onOpenLink, onAddComment,
-                               ydoc = null, scope = null, docMode = 'doc', authorName = '', onToggleScreenplay,
+                               ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
                                titlePageEnabled = false, onToggleTitlePage,
                                sceneNumbersShow = false, onSetSceneNumbersShow,
                                pageless = true, onTogglePageless,
-                               zoom = 1, fitMode = false, onZoomIn, onZoomOut, onZoomReset }) {
+                               zoom = 1, fitMode = false, onZoomIn, onZoomOut, onZoomReset,
+                               // false → view-only member. Their Y.Doc writes never leave the
+                               // tab (the board room drops them), so the bar keeps only what
+                               // reads: Find, Export and zoom.
+                               canEdit = true }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
   useEffect(() => {
@@ -149,6 +153,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
   return (
     <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
+      {canEdit && (<>
       {/* Click-to-open insert menu — only the things with no other toolbar home
           (image, table, divider, code, embed). Doc mode only: in screenplay mode
           the element <select> covers everything, so no "+". Portaled so the
@@ -302,9 +307,10 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
       <Btn title={(!disabled && editor && !editor.state.selection.empty) ? 'Add comment (⌘⌥M)' : 'Select text to comment on'}
            disabled={disabled || !editor || editor.state.selection.empty}
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
+      </>)}
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
-      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} authorName={authorName} />
+      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} canEdit={canEdit} />
 
       <span className="doc-tb-spacer" />
 
@@ -322,10 +328,12 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
         </span>
       )}
 
+      {canEdit && (<>
       <Btn title="Undo (⌘Z)" disabled={disabled}
            onClick={() => editor.chain().focus().undo().run()}><Glyph as={Undo} size={14} /></Btn>
       <Btn title="Redo (⌘⇧Z)" disabled={disabled}
            onClick={() => editor.chain().focus().redo().run()}><Glyph as={Redo} size={14} /></Btn>
+      </>)}
 
       <CustomFontsModal open={fontsModalOpen} onClose={() => setFontsModalOpen(false)} />
     </div>

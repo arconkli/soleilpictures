@@ -5,7 +5,7 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-10-10
+updated: 2026-10-12
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
@@ -119,12 +119,15 @@ the rewind itself is reversible. See
 
 Everyone in the workspace, with their level: **Owner**, **Co-owner** (runs the
 workspace alongside the owner), **Editor** (adds and changes content) or
-**Viewer** (opens, reads, comments and votes, but does not change anything).
+**Viewer** (opens, reads, comments on the canvas and votes, but does not change
+anything — including a document's text comments, which they can only read).
 The owner and co-owners can move anyone else between co-owner, editor and
 viewer, remove a member — which also removes any cluster shared to them
 directly in this workspace — and invite someone by email as an editor or a
-viewer. Only the owner can hand the workspace to another member. Everyone else
-sees the list.
+viewer. Someone invited who has no account yet is listed too, as an invite
+that gets access when they sign up, and the owner and co-owners can revoke it
+from there. Only the owner can hand the workspace to another member. Everyone
+else sees the list.
 
 ### Card defaults
 

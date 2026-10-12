@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { listConversations, listMyConversationParticipants, getUnreadCounts } from '../lib/messages.js';
 import { supabase } from '../lib/supabase.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
+import { watchForResync } from '../lib/messageResync.js';
+import { hiddenFromInbox } from '../lib/conversationState.js';
 
 // Returns the unified Messages-panel list:
 //   {
@@ -16,6 +18,9 @@ import { subscribeInbox } from '../lib/inboxBus.js';
 //   - postgres_changes on conversations + conversation_participants
 //     (debounced 350ms to coalesce trigger bursts)
 //   - inboxBus ping for the current user (optimistic +1 unread)
+//   - the realtime channel REjoining, the tab coming back to the front and
+//     the network returning — changes made while the socket was down never
+//     arrive as events, so the counts would stay stale (COMMS-04)
 export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   const [conversations, setConversations] = useState([]);
   const [participants, setParticipants] = useState([]);
@@ -23,6 +28,10 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   // True once the first fetch settles — lets the panel show a skeleton
   // instead of flashing "No conversations yet" while the list loads.
   const [loaded, setLoaded] = useState(false);
+  // The last read of the list failed. What's on screen is the previous read
+  // (or nothing yet), and the panel says so instead of "No conversations
+  // yet" (COMMS-15).
+  const [failed, setFailed] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!workspaceId || !userId) return;
@@ -31,9 +40,12 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
       listMyConversationParticipants({ workspaceId }),
       getUnreadCounts(),
     ]);
-    setConversations(convs);
-    setParticipants(parts);
-    setCounts(c || {});
+    // A failed read (null) keeps the previous one: an empty answer blanked
+    // the list and dropped the badge and title count to zero.
+    if (convs) setConversations(convs);
+    if (parts) setParticipants(parts);
+    if (c) setCounts(c);
+    setFailed(!convs || !parts);
   }, [workspaceId, userId]);
 
   useEffect(() => {
@@ -61,12 +73,21 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
         refresh().catch(() => {});
       }, 350);
     };
+    const resync = watchForResync(schedule);
+    // The first join follows the mount fetch; only a REjoin can have missed
+    // something.
+    let joined = false;
     const ch = supabase.channel(`conv-list:${userId}:${Math.random().toString(36).slice(2, 9)}`)
       .on('postgres_changes', { event: '*',      schema: 'public', table: 'conversations' }, schedule)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` }, schedule)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` }, schedule)
-      .subscribe();
+      .subscribe((status) => {
+        if (status !== 'SUBSCRIBED') return;
+        if (joined) resync.kick();
+        joined = true;
+      });
     return () => {
+      resync.stop();
       if (debounceRef.current) clearTimeout(debounceRef.current);
       try { supabase.removeChannel(ch); } catch (_) {}
     };
@@ -101,10 +122,15 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
     const unread = new Map();
     for (const conv of conversations) {
       const v = counts[conv.conversation_id];
-      unread.set(conv.conversation_id, typeof v === 'number' ? v : 0);
+      // A conversation the inbox doesn't show counts for nothing: the badge
+      // and title stayed lit for a hidden row nobody could click (COMMS-11).
+      const hidden = hiddenFromInbox({
+        conv, me: mine.get(conv.conversation_id), participants: byConv.get(conv.conversation_id),
+      });
+      unread.set(conv.conversation_id, !hidden && typeof v === 'number' ? v : 0);
     }
     return { participantsByConv: byConv, myStateByConv: mine, unreadByConv: unread };
   }, [conversations, participants, counts, userId]);
 
-  return { conversations, participantsByConv, myStateByConv, unreadByConv, loaded };
+  return { conversations, participantsByConv, myStateByConv, unreadByConv, loaded, failed, retry: refresh };
 }

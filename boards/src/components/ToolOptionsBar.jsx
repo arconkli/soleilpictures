@@ -31,6 +31,7 @@ import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
 import { getActiveNoteEditor, getActiveNoteActions, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
+import { noteFontSizePatch } from '../lib/noteFontSize.js';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
 // NoteTiptapSurface while a note is being edited). When present, the note
@@ -175,7 +176,21 @@ function applyStyleOrNoteDefault(style, applyNoteDefault) {
     // Selection → style the selection (inline mark); collapsed caret → set the
     // whole-note base via the card-level prop. Same contract as the legacy path.
     if (!editor.state.selection.empty) applyEditorStyle(editor, style);
-    else applyNoteDefault?.();
+    else {
+      applyNoteDefault?.();
+      // The card write never touches the editor, so focus stayed wherever the
+      // control left it (the size box blurs to <body> on Enter) and the note,
+      // which only leaves edit mode on its own blur, sat "editing" with
+      // nothing focused (NOTES-13). Hand the caret back — unless the user is
+      // still typing into a control (the custom colour pad's hex field
+      // applies live, keystroke by keystroke).
+      requestAnimationFrame(() => {
+        if (getActiveNoteEditor() !== editor || editor.isDestroyed || editor.isFocused) return;
+        const a = document.activeElement;
+        if (a && a !== document.body && a.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+        editor.commands.focus();
+      });
+    }
     notifyFormatChanged();
     return;
   }
@@ -220,16 +235,34 @@ function styleNodeAtRangeStart(range) {
   return node;
 }
 
-function useNoteForeColor(active) {
+// The computed style of the text at a Tiptap editor's caret (selection start).
+// The textStyle mark only knows inline picks; a caret in unmarked text renders
+// with the note's own base (card fontSize / fontFamily / textColor, or the
+// theme), which only the computed style can tell us.
+function editorCaretStyle(editor) {
+  try {
+    const { node, offset } = editor.view.domAtPos(editor.state.selection.from);
+    const el = styleNodeAtRangeStart({ startContainer: node, startOffset: offset });
+    if (!el || el.nodeType !== Node.ELEMENT_NODE || !editor.view.dom.contains(el)) return null;
+    return window.getComputedStyle(el);
+  } catch (_) { return null; }
+}
+
+// `noteBase` changes when the note's card-level look does (a caret-only pick
+// sets it), which moves the computed style without any editor transaction —
+// so it is an effect dependency, to re-sample.
+function useNoteForeColor(active, noteBase = '') {
   const [color, setColor] = useState('#f5f5f6');
   const editor = useActiveNoteEditor();
   useEffect(() => {
     if (!active) return undefined;
-    // Collaborative editor: read the inline color mark at the caret.
+    // Collaborative editor: the inline colour mark at the caret, else the
+    // colour the text there actually renders in. Reading only the mark kept
+    // showing the last coloured span after the caret left it (NOTES-15).
     if (editor) {
       const update = () => {
         const c = editor.getAttributes('textStyle')?.color;
-        const hex = c ? (rgbToHex(c) || c) : null;
+        const hex = c ? (rgbToHex(c) || c) : rgbToHex(editorCaretStyle(editor)?.color);
         if (hex) setColor(prev => (prev === hex ? prev : hex));
       };
       update();
@@ -261,7 +294,7 @@ function useNoteForeColor(active) {
       document.removeEventListener(FMT_EVT, update);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [active, editor]);
+  }, [active, editor, noteBase]);
   return color;
 }
 
@@ -271,7 +304,7 @@ function useNoteForeColor(active) {
 // the note is being edited, rAF-debounced. Uses queryCommandState because the
 // note editor formats via execCommand.
 const EMPTY_FMT = { bold: false, italic: false, underline: false, strike: false, listType: null, fontSize: null, fontFamily: null, align: null };
-function useNoteFormatState(active) {
+function useNoteFormatState(active, noteBase = '') {
   const [state, setState] = useState(EMPTY_FMT);
   const editor = useActiveNoteEditor();
   useEffect(() => {
@@ -285,9 +318,26 @@ function useNoteFormatState(active) {
         if (editor.isActive('noteChecklist')) listType = 'task';
         else if (editor.isActive('bulletList')) listType = 'ul';
         else if (editor.isActive('orderedList')) listType = 'ol';
-        const fontSize = ts.fontSize ? Math.round(parseFloat(ts.fontSize)) || null : null;
-        const fontFamily = ts.fontFamily
-          ? ts.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '') : null;
+        // Size and font from the inline mark when there is one, else from the
+        // text as it renders (the note's own base). Mark-only left the size
+        // box blank in unformatted text, so −/+ stepped from a hard-coded 15:
+        // + stuck at 16 and shrank a 24px note (NOTES-05).
+        const cs = (ts.fontSize && ts.fontFamily) ? null : editorCaretStyle(editor);
+        // With nothing selected, − / + set the whole note's base size, so
+        // show that, not a heading's scaled size: in an h1 on a 15px note the
+        // box read 20 and + set the whole note to 21.
+        let sizeSrc = ts.fontSize;
+        if (!sizeSrc) {
+          try {
+            sizeSrc = editor.state.selection.empty
+              ? window.getComputedStyle(editor.view.dom).fontSize
+              : cs?.fontSize;
+          } catch (_) { sizeSrc = cs?.fontSize; }
+        }
+        const familySrc = ts.fontFamily || cs?.fontFamily;
+        const fontSize = sizeSrc ? Math.round(parseFloat(sizeSrc)) || null : null;
+        const fontFamily = familySrc
+          ? familySrc.split(',')[0].trim().replace(/^["']|["']$/g, '') || null : null;
         const next = {
           bold: editor.isActive('bold'),
           italic: editor.isActive('italic'),
@@ -361,7 +411,7 @@ function useNoteFormatState(active) {
       document.removeEventListener(FMT_EVT, update);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [active, editor]);
+  }, [active, editor, noteBase]);
   return state;
 }
 
@@ -867,8 +917,14 @@ export function ToolOptionsBar({
 // main ToolOptionsBar function would mean the hook runs in every render of
 // every tool's bar.
 function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellEditing = false, cellKind = null, cellPinned = false, onCellStyle, onCellScope, editingCellStyle = null }) {
-  const currentFore = useNoteForeColor(true);
-  const fmt = useNoteFormatState(true);
+  // The note's card-level look: when a caret-only pick changes it, the text
+  // under the caret re-renders without an editor transaction, so the hooks
+  // re-sample on this instead.
+  const noteBase = editingNoteCard
+    ? [editingNoteCard.fontSize, editingNoteCard.fontSizeV, editingNoteCard.fontFamily, editingNoteCard.textColor, editingNoteCard.bgColor].join('|')
+    : '';
+  const currentFore = useNoteForeColor(true, noteBase);
+  const fmt = useNoteFormatState(true, noteBase);
   const barRef = useRef(null);
   // A box that's SELECTED but not being text-edited has no live editor, so the
   // execCommand controls (bold/italic/lists) are hidden and Font/Size/Align show
@@ -923,7 +979,12 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
   return (
     <div {...tobProps}
          ref={barRef}
-         onPointerDown={(e) => e.stopPropagation()}>
+         onPointerDown={(e) => e.stopPropagation()}
+         // A press on the bar's padding, a separator or a label would move
+         // focus to <body>, which the note reads as leaving it: editing ended
+         // and the bar vanished under the cursor (NOTES-14). Fields still
+         // take focus normally.
+         onMouseDown={(e) => { if (!e.target.closest?.('input, select, textarea')) e.preventDefault(); }}>
       {showTypography && (
         <>
           <FontPicker currentLabel={display.fontFamily || 'Font'}
@@ -933,7 +994,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
           <SizePicker value={display.fontSize}
                       onApply={(px) => cellStyleMode
                         ? onCellStyle?.({ fontSize: px })
-                        : applyStyleOrNoteDefault({ fontSize: px + 'px' }, () => onUpdateEditingNote && onUpdateEditingNote({ fontSize: px }))} />
+                        : applyStyleOrNoteDefault({ fontSize: px + 'px' }, () => onUpdateEditingNote && onUpdateEditingNote(noteFontSizePatch(px)))} />
         </>
       )}
       {showEmphasis && (
@@ -1096,8 +1157,12 @@ function LineAngleInput({ angle, onCommit }) {
   useEffect(() => {
     if (!editing) setDraft(formatAngleForDisplay(angle));
   }, [angle, editing]);
+  // Escape → blur → this commit, still holding the typed draft: without the
+  // flag Escape applied the angle it meant to revert (NOTES-11).
+  const cancelRef = useRef(false);
   const commit = () => {
     setEditing(false);
+    if (cancelRef.current) { cancelRef.current = false; setDraft(formatAngleForDisplay(angle)); return; }
     const n = parseFloat(draft);
     if (Number.isFinite(n)) {
       onCommit(n);
@@ -1117,7 +1182,7 @@ function LineAngleInput({ angle, onCommit }) {
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
-        if (e.key === 'Escape') { e.stopPropagation(); setDraft(formatAngleForDisplay(angle)); setEditing(false); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
       title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
@@ -1134,8 +1199,10 @@ function LinePxInput({ value, onCommit }) {
   useEffect(() => {
     if (!editing) setDraft(formatAngleForDisplay(value));
   }, [value, editing]);
+  const cancelRef = useRef(false); // see LineAngleInput
   const commit = () => {
     setEditing(false);
+    if (cancelRef.current) { cancelRef.current = false; setDraft(formatAngleForDisplay(value)); return; }
     const n = parseFloat(draft);
     if (Number.isFinite(n) && n >= 0) {
       const clamped = Math.min(200, n);
@@ -1156,7 +1223,7 @@ function LinePxInput({ value, onCommit }) {
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
-        if (e.key === 'Escape') { e.stopPropagation(); setDraft(formatAngleForDisplay(value)); setEditing(false); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
       title="Line width in pixels (0 = none)"

@@ -27,7 +27,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal.jsx';
 import {
-  shareBoard, unshareBoard, restoreBoardShare, listBoardShares,
+  shareBoard, unshareBoard, restoreBoardShare, listBoardShares, listInheritedBoardShares,
   removeWorkspaceMember, transferWorkspaceOwnership, setWorkspaceMemberRole,
   createCollabLink, revokePublicLink, listPublicLinks, ensurePublicLink,
   setPublicLinkSubboards, setPublicLinkIndexing,
@@ -35,7 +35,10 @@ import {
   listPendingInvitesForBoard, listPendingInvitesForWorkspace,
   revokePendingInvite,
 } from '../lib/boardsApi.js';
-import { activeLinks, deriveAccessMode, linkForMode, linkKind, otherModeLinks } from '../lib/shareAccess.js';
+import {
+  activeLinks, deriveAccessMode, inheritedAccessRows, linkForMode, linkKind, otherModeLinks,
+  revocableLinks,
+} from '../lib/shareAccess.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { maskName, maskEmail } from '../lib/captureIdentity.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -96,6 +99,9 @@ export function ShareModal({
   const canInvite = isManager || canManage;
   const workspaceScope = scope === 'workspace';
   const [shares, setShares] = useState([]);          // per-board shares
+  // Shares on an ANCESTOR cluster: access cascades down the tree, so these
+  // people can open this one too. Listed read-only, "via <parent>" (0405).
+  const [inheritedShares, setInheritedShares] = useState([]);
   const [loadingShares, setLoadingShares] = useState(false);
   // Pending invites = rows in pending_invites (email-only, no account yet).
   // Board-scoped pending list renders alongside `shares`; the workspace-scoped
@@ -167,7 +173,7 @@ export function ShareModal({
   // below quietly yields [] for editors.)
   useEffect(() => {
     if (!canInvite || !board?.id) {
-      setShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]);
+      setShares([]); setInheritedShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]);
       return;
     }
     let cancelled = false;
@@ -176,17 +182,21 @@ export function ShareModal({
       listBoardShares(board.id),
       listPendingInvitesForBoard(board.id).catch(() => []),
       workspace?.id ? listPendingInvitesForWorkspace(workspace.id).catch(() => []) : Promise.resolve([]),
+      // A failure here only hides the inherited rows; the direct list still renders.
+      listInheritedBoardShares(board.id).catch((e) => { console.warn('[share] inherited list failed', e); return []; }),
     ])
-      .then(([shareRows, pendingBoard, pendingWs]) => {
+      .then(([shareRows, pendingBoard, pendingWs, inheritedRows]) => {
         if (cancelled) return;
         setShares(shareRows);
+        setInheritedShares(inheritedRows);
         setPendingBoardInvites(pendingBoard);
         setPendingWorkspaceInvites(pendingWs);
         shareRows.forEach(r => userProfiles.resolve(r.user_id));
+        inheritedRows.forEach(r => userProfiles.resolve(r.user_id));
       })
       .catch(e => {
         console.warn('[share] list failed', e);
-        if (!cancelled) { setShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]); }
+        if (!cancelled) { setShares([]); setInheritedShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]); }
       })
       .finally(() => { if (!cancelled) setLoadingShares(false); });
     return () => { cancelled = true; };
@@ -324,23 +334,36 @@ export function ShareModal({
     if (next === from || busyLink) return;
 
     if (next === 'off') {
-      if (live.length > 0) {
+      // Only the links this person may revoke: the server refuses an editor
+      // on anyone else's, and trying them all made the switch fail forever.
+      // The rest are named, and the status line keeps counting them as live.
+      const { mine, others } = revocableLinks(publicLinks, { isManager, selfUserId });
+      const othersNote = others.length === 0 ? ''
+        : others.length === 1
+          ? ' 1 link someone else created stays live — only they, the owner or a co-owner can revoke it.'
+          : ` ${others.length} links other people created stay live — only they, the owner or a co-owner can revoke them.`;
+      if (mine.length > 0) {
         const ok = await feedback.confirm({
-          title: live.length === 1 ? 'Revoke this link?' : `Revoke all ${live.length} links?`,
-          message: 'Anyone using them will lose access immediately. People invited by email keep their access.',
+          title: others.length > 0
+            ? (mine.length === 1 ? 'Revoke your link?' : `Revoke your ${mine.length} links?`)
+            : (mine.length === 1 ? 'Revoke this link?' : `Revoke all ${mine.length} links?`),
+          message: 'Anyone using them will lose access immediately. People invited by email keep their access.' + othersNote,
           confirmLabel: 'Revoke',
           danger: true,
         });
         if (!ok) return;   // the picker does not move on a cancelled confirm
         setBusyLink(true);
-        const results = await Promise.allSettled(live.map(l => revokePublicLink(l.token)));
+        const results = await Promise.allSettled(mine.map(l => revokePublicLink(l.token)));
         setBusyLink(false);
         const failed = results.filter(r => r.status === 'rejected').length;
         await refreshLinks();
         feedback.toast(failed
-          ? { type: 'error', message: `Could not revoke ${failed} of ${live.length} — try again.` }
-          : { type: 'success', message: live.length === 1 ? 'Link revoked.' : 'Links revoked.' });
+          ? { type: 'error', message: `Could not revoke ${failed} of ${mine.length} — try again.` }
+          : { type: 'success', message: (mine.length === 1 ? 'Link revoked.' : 'Links revoked.') + othersNote,
+              ...(othersNote ? { ttl: 8000 } : {}) });
         if (failed) return;
+      } else if (others.length > 0) {
+        feedback.toast({ type: 'info', message: othersNote.trim(), ttl: 8000 });
       }
       setAccessMode('off');
     } else {
@@ -664,6 +687,9 @@ export function ShareModal({
       await unshareBoard({ boardId: board.id, userId: share.user_id });
       setShares(s => s.filter(x => x.user_id !== share.user_id));
       onSharesChanged?.();
+      // Removing their own share here can leave them with access through a
+      // parent's share, and the list should then say so rather than drop them.
+      listInheritedBoardShares(board.id).then(setInheritedShares, () => {});
       // Not share_board: on a removed row that takes the new-share path,
       // emailing them "shared with you" and spending an invite (0405).
       undoToast(feedback, {
@@ -742,7 +768,9 @@ export function ShareModal({
   // What the general-access block says about itself. Built from rows, never
   // from the picker, so it can never claim a link that does not exist.
   const accessHint = accessMode === 'off'
-    ? 'Only the people listed below can open this cluster.'
+    ? (live.length > 0
+        ? 'Only the people listed below can open this cluster, plus anyone holding a link that is still live. Links other people created can only be revoked by them, the owner or a co-owner.'
+        : 'Only the people listed below can open this cluster.')
     : accessMode === 'edit'
       ? 'Anyone with the link can preview this cluster and join as an editor with one click. They sign in to accept; sub-clusters are included.'
       : `Anyone with the link can open this cluster${linkIncludeSubboards ? ' and its sub-clusters' : ''} — view only, no account needed.`;
@@ -758,10 +786,14 @@ export function ShareModal({
       + (currentLink.expires_at ? ` · expires ${new Date(currentLink.expires_at).toLocaleDateString()}` : ' · never expires');
   };
 
+  // Inherited rows minus anyone the list already names (a share of their own
+  // here, or workspace membership), so nobody is counted twice.
+  const inherited = inheritedAccessRows(inheritedShares, { shares, workspaceMembers });
+
   // One count over everything the list actually renders. The pending/share
   // arrays stay empty for viewers, who never fetch them.
   const accessCount = workspaceMembers.length + pendingWorkspaceInvites.length
-    + shares.length + pendingBoardInvites.length;
+    + shares.length + inherited.length + pendingBoardInvites.length;
 
   const linkRow = (l) => (
     <div key={l.token} className="share-row">
@@ -1068,6 +1100,30 @@ export function ShareModal({
                       </button>
                     </div>
                   )}
+                </div>
+              );
+            })}
+
+            {/* Read-only: this access is granted (and removed) on the parent,
+                so the row names where, and offers no Remove that would fail
+                or, worse, appear to work while the parent's share stands. */}
+            {inherited.map(s => {
+              const profile = userProfiles.get(s.user_id);
+              const displayName = profile?.name || s.email;
+              const via = s.via_board_name || 'a parent cluster';
+              return (
+                <div key={`via-${s.user_id}`} className="share-row share-row-inherited"
+                     title={`Shared on "${via}". Change it from that cluster's Share panel.`}>
+                  <span className="share-avatar"
+                        style={{ background: pickPresenceColor(s.user_id) }}>
+                    {(displayName || '?').charAt(0).toUpperCase()}
+                  </span>
+                  <div className="share-row-text">
+                    <div className="share-row-name">{displayName}</div>
+                    <div className="share-row-sub">
+                      {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role] || s.role} — via {via}
+                    </div>
+                  </div>
                 </div>
               );
             })}

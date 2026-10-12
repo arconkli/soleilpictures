@@ -64,16 +64,17 @@ spot — even after you close the tab. That position is remembered per browser,
 not synced between devices. Following a collaborator's avatar into a document
 still takes you to where *they* are.
 
-## The three panes
+## Layout
 
 **Pages** on the left — a hierarchical tree. Documents are genuinely
 multi-page, and pages nest. A new page is created automatically when the current
 one fills up, so long-form writing does not stop to manage pagination.
 
-**The body** in the middle, with the formatting toolbar above it.
+**Bookmarks** under the page tree — durable anchors into specific places in the
+text, which survive editing around them. Add one with the bookmark button in the
+toolbar; click it in the list to jump there.
 
-**Bookmarks** on the right — durable anchors into specific places in the text,
-which survive editing around them.
+**The body** in the middle, with the formatting toolbar above it.
 
 Zoom runs from 25% to 200%.
 
@@ -84,6 +85,10 @@ lists, task lists, alignment, colour, font and size. Every one has a
 [keyboard shortcut](/docs/keyboard-shortcuts#document).
 
 `⌘F` opens **find and replace**.
+
+**Right-click** a selection for cut, copy, paste, formatting, links and
+comments. Right-click a word with nothing selected — or `⇧`-right-click
+anywhere — for your browser's own menu, with its spelling suggestions.
 
 Text pasted from Google Docs, Word or a web page keeps its structure and
 emphasis — headings, lists, links, bold, italic, real colours — but drops the

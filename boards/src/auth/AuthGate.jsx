@@ -430,11 +430,15 @@ async function consumeAuthCallback() {
   return data.session;
 }
 
-export function AuthGate({ children }) {
+export function AuthGate({ children, signedOut = null }) {
   const localMode = isLocalQaMode();
   const devWithoutSupabase = !isSupabaseConfigured;
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(isSupabaseConfigured && !localMode);
+  // Whether this mount has ever held a session. `signedOut` answers only a
+  // restore that never produced one; a sign-out from a live session (Use a
+  // different email on the account pricing page) still wants the email box.
+  const hadSession = useRef(false);
 
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
@@ -465,6 +469,7 @@ export function AuthGate({ children }) {
           await consumeScoutClaim(data.session.user.id);
           if (consumeShareReturn()) return;
         }
+        if (data.session) hadSession.current = true;
         if (!cancelled) setSession(data.session);
       } catch (error) {
         console.warn('Auth session could not be restored', error);
@@ -502,6 +507,7 @@ export function AuthGate({ children }) {
           await consumeScoutClaim(sess.user.id);
           if (consumeShareReturn()) return;
         }
+        if (sess) hadSession.current = true;
         if (!cancelled) setSession(sess);
       })();
     });
@@ -537,8 +543,12 @@ export function AuthGate({ children }) {
     );
   }
 
-  if (loading) return <SplashLoading />;
-  if (!session) return <SignIn />;
+  // A route that supplies `signedOut` (only /pricing) is dark whichever way the
+  // restore goes, so its splash is too.
+  if (loading) return <SplashLoading dark={!!signedOut} />;
+  // `signedOut` lets a public route (main.jsx: /pricing) stand in for the wall
+  // when a cached session turns out not to restore.
+  if (!session) return (!hadSession.current && signedOut) || <SignIn />;
 
   const signOut = async () => { await supabase.auth.signOut(); };
 
@@ -563,6 +573,8 @@ function PresenceTicker({ user }) {
 }
 
 // ── Sign-in screen with OTP code ────────────────────────────────────────────
+
+const EXPLORE_HREF = 'https://clusters.soleilpictures.com/share/bba68b4d-7562-4ca2-96fb-817455b85fdd';
 
 function SignIn() {
   // The code step survives a reload (lib/pendingCode.js). A phone goes to its
@@ -613,11 +625,26 @@ function SignIn() {
   const autoSubmitRef   = useRef(null);   // 6th-digit auto-submit debounce
 
   // Tick down the resend cooldown (Supabase rate-limits OTP requests at ~60s).
+  // Read off the wall clock, never decremented per tick: a phone suspends the
+  // tab's timers while its owner is in the mail app looking for the code, and
+  // a counter resumed where it froze — "Resend in 55s" two minutes after the
+  // limit had passed, for exactly the person whose code hadn't come. Coming
+  // back to the tab recomputes at once rather than on the next tick.
+  const sentAtRef = useRef(restored ? restored.sentAt : 0);
+  const cooling = resendCooldown > 0;
   useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(t);
-  }, [resendCooldown]);
+    if (!cooling) return undefined;
+    const recompute = () => setResendCooldown(resendWait(sentAtRef.current, Date.now()));
+    const onVisible = () => { if (document.visibilityState === 'visible') recompute(); };
+    const t = setInterval(recompute, 1000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', recompute);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', recompute);
+    };
+  }, [cooling]);
 
   // Funnel: landing_view fires once when the SignIn screen mounts
   // (logEventOnce dedups StrictMode's dev double-invoke).
@@ -749,8 +776,10 @@ function SignIn() {
       // the landing scorecard's CTR column means the same thing on every page.
       if (!resending) lpCtaClick('/', 'home', 'form');
       if (!resending) setStage('code');
-      setResendCooldown(60);
-      savePendingCode(window.localStorage, email.trim().toLowerCase(), Date.now());
+      const sentAt = Date.now();
+      sentAtRef.current = sentAt;
+      setResendCooldown(resendWait(sentAt, sentAt));
+      savePendingCode(window.localStorage, email.trim().toLowerCase(), sentAt);
     } catch (e) {
       logEvent(EV.EMAIL_SUBMIT_ERROR, { reason: classifyAuthError(e), resend: !!resending });
       setError(humanError(e));
@@ -790,7 +819,12 @@ function SignIn() {
     } catch (e) {
       logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e) });
       setError(humanError(e));
+      // Ready for the next try: the field was disabled while verifying (which
+      // drops a phone's keyboard) and left holding six digits that maxLength
+      // wouldn't let anyone type over. Empty it and give focus back.
+      setCode('');
       setBusy(false);
+      setTimeout(() => codeRef.current?.focus(), 0);
     }
   };
 
@@ -815,7 +849,10 @@ function SignIn() {
   ) : null);
 
   return (
-    <SignInBackdrop exploreHref="https://clusters.soleilpictures.com/share/bba68b4d-7562-4ca2-96fb-817455b85fdd">
+    // The explore link only while there is no code on its way: under the code
+    // form it was the most prominent exit from the step phones abandon most,
+    // and the people who took it never came back to type the code.
+    <SignInBackdrop exploreHref={stage === 'email' ? EXPLORE_HREF : undefined}>
       <header className="sr-only">
         <h1>Soleil Clusters</h1>
         <p>Soleil Clusters is a creative workspace and moodboard tool for production teams. Organize references, projects, and ideas across film, photo, design, and brand work, and collaborate with your team in real time.</p>
@@ -906,12 +943,14 @@ function SignIn() {
               pattern="[0-9]*"
               maxLength={6}
               required
-              placeholder="• • • • • •"
+              placeholder="••••••"
               value={code}
               onChange={(e) => {
                 if (!codeEngagedRef.current) { codeEngagedRef.current = true; logEvent(EV.LANDING_FIELD_ENGAGE, { field: 'code' }); }
                 const next = e.target.value.replace(/\D/g, '').slice(0, 6);
                 setCode(next);
+                // A wrong-code message describes the digits that were cleared.
+                if (error) setError(null);
                 // Auto-submit on the 6th digit — a complete code sitting in
                 // the field with an unexplained "now press the button" step
                 // is pure friction. Brief delay so paste-then-fix still works.
@@ -987,9 +1026,14 @@ function humanError(e) {
 // Exported so main.jsx can reuse it as the <Suspense> fallback for the lazy
 // AppShell / share / legal chunks — identical to AuthGate's own loading state,
 // so there's no visual discontinuity when those chunks fetch.
-export function SplashLoading() {
+//
+// `dark` pins the splash to the brand's dark tokens (.public-dark) for routes
+// whose page is committed to the dark world. Without it a light-theme visitor
+// saw the dark boot splash, then this one in light grey while the page chunk
+// loaded, then the dark page: a dark-white-dark flicker on every landing page.
+export function SplashLoading({ dark = false }) {
   return (
-    <div className="auth-screen">
+    <div className={dark ? 'auth-screen public-dark' : 'auth-screen'}>
       <div className="auth-glow" aria-hidden="true" />
       <div className="auth-loading">
         <SoleilMark size={32} color="var(--soleil)" glow />

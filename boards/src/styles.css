@@ -5001,7 +5001,12 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
      word inside the zoom-transformed canvas. */
   /* Inherit the note's resolved ink (see .note) so painted-note + theme
      contrast is handled in one place; per-span colors still override inline. */
-  font-size: 15px; line-height: 1.5; color: inherit;
+  /* The card-level size arrives as --note-font-size on .note. An inline
+     font-size on .note alone never reached this element (this rule beats
+     inheritance), so a whole-note size pick or the workspace default changed
+     nothing on screen. Only a size stamped since that fix sets the variable
+     (lib/noteFontSize.js): older stored sizes were fitted at 15px. */
+  font-size: var(--note-font-size, 15px); line-height: 1.5; color: inherit;
   letter-spacing: -0.002em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -5675,6 +5680,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   font: 600 22px/1.4 var(--font-mono, ui-monospace, "JetBrains Mono", monospace);
   letter-spacing: .42em;
 }
+/* Six dots, no spaces between them: the letter-spacing already spaces them as
+   wide as six typed digits. "• • • • • •" was eleven glyphs at this spacing,
+   wider than the field on a 375-390px phone, and clipped. */
 .auth-code-input::placeholder { letter-spacing: .42em; opacity: .35; }
 .auth-hint-sep { color: var(--ink-3); margin: 0 4px; }
 /* Code step: the inbox shortcut is a quiet secondary action under the hint
@@ -6996,11 +7004,18 @@ button.public-cta:disabled { opacity: var(--disabled-opacity); cursor: not-allow
    One card, centred, no app chrome. Whoever lands here arrived from another
    application and may never have seen this product; the page has to say who is
    asking, what they get, and offer two obvious answers. */
+/* Its own scroller, like .pricing-screen: html/body/#root are position:fixed +
+   overflow:hidden app-wide, so a min-height screen taller than a landscape
+   phone or a short popup was clipped with Connect below the fold and no way to
+   scroll to it. The card centres with auto margins, not align-items, because
+   auto margins collapse to 0 when the card overflows instead of pushing its
+   top out of reach. */
 .oauth-screen {
-  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  position: fixed; inset: 0; overflow-y: auto; display: flex;
   padding: 24px; background: var(--bg-0);
 }
 .oauth-card {
+  margin: auto;
   width: 100%; max-width: 440px;
   background: var(--bg-1); border: 1px solid var(--line-1);
   border-radius: var(--radius-lg, 14px); padding: 28px 26px 22px;
@@ -12909,6 +12924,28 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-tree-add:focus-visible { opacity: 1; }
 .doc-tree-children {}
 
+/* ── Bookmarks list (under the page tree) ─────────────────────────────── */
+.doc-bookmarks { padding: 8px 4px; border-top: 1px solid var(--line-1); overflow-y: auto; max-height: 40%; flex-shrink: 0; }
+.doc-bookmarks-head { padding: 2px 8px 6px; color: var(--ink-3); }
+.doc-bookmarks-row { display: flex; align-items: center; gap: 2px; border-radius: 6px; }
+.doc-bookmarks-row:hover { background: var(--bg-hov); }
+.doc-bookmarks-item {
+  flex: 1 1 auto; min-width: 0; text-align: left; appearance: none; border: 0;
+  background: transparent; color: var(--ink-1); padding: 5px 8px;
+  cursor: pointer; font: 500 12.5px/1.3 var(--font-sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-bookmarks-row:hover .doc-bookmarks-item { color: var(--ink-0); }
+.doc-bookmarks-x {
+  appearance: none; border: 0; background: transparent; color: var(--ink-3);
+  width: 24px; height: 24px; border-radius: var(--radius); cursor: pointer;
+  display: grid; place-items: center; font-size: 14px; line-height: 1;
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.doc-bookmarks-row:hover .doc-bookmarks-x, .doc-bookmarks-x:focus-visible { opacity: 1; }
+.doc-bookmarks-x:hover { color: var(--ink-0); }
+@media (hover: none) { .doc-bookmarks-x { opacity: 1; } }
+
 /* ── Page-tree peer presence dots (live cursors at the tree level) ────── */
 /* Stack of small colored dots inline on the right of each page row, one
    per peer currently viewing/editing that page. Click → jumpToPeer.    */
@@ -14041,6 +14078,18 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .doc-find-x:hover { background: var(--bg-hov); color: var(--ink-0); }
 .doc-find-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
+/* Word buttons (One / All) — the 26px icon square squeezed their labels. */
+.doc-find-btn--text { width: auto; padding: 0 8px; }
+/* A phone or the docked pane: the bar spans the width and wraps, instead of
+   a ~620px row anchored right that pushed Find and ↑/↓ off the left edge. */
+@media (max-width: 640px) {
+  .doc-find { left: 8px; right: 8px; flex-wrap: wrap; row-gap: 6px; }
+  .doc-find-input { flex: 1 1 120px; width: auto; min-width: 0; font-size: 16px; }
+  .doc-find-sep { display: none; }
+}
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find { left: 8px; right: 8px; flex-wrap: wrap; row-gap: 6px; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-input { flex: 1 1 120px; width: auto; min-width: 0; }
+:is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-sep { display: none; }
 .doc-find-hit {
   background: var(--soleil-soft);
   border-bottom: 1px solid var(--soleil);
@@ -14187,8 +14236,20 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .tt-img-wrap.tt-img-align-right  { text-align: right; }
 .tt-img-wrap.tt-img-align-full   { text-align: center; }
 .tt-img-wrap.tt-img-align-full .tt-img { width: 100%; }
-.tt-img-wrap .tt-img {
+/* The frame shrink-wraps the image so the resize handle and the align bar
+   sit on the image itself, not at the column's edge. */
+.tt-img-frame {
+  position: relative;
   display: inline-block;
+  max-width: 100%;
+  margin: 1em 0;
+  vertical-align: top;
+  line-height: 0;
+}
+.tt-img-wrap.tt-img-align-full .tt-img-frame { display: block; width: 100%; }
+.tt-img-wrap .tt-img {
+  display: block;
+  margin: 0;
   max-width: 100%;
   height: auto;
   border-radius: 6px;
@@ -14205,8 +14266,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--select);
   border: 2px solid var(--bg-0);
   cursor: nwse-resize;
+  /* Without this a touch drag on the handle scrolled the page instead. */
+  touch-action: none;
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease);
+}
+@media (pointer: coarse) {
+  .tt-img-resize { width: 22px; height: 22px; }
 }
 .tt-img-wrap.is-selected .tt-img-resize { opacity: 1; }
 .tt-img-tb {
@@ -15307,6 +15373,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .comment-inline-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.comment-inline-viewonly { font: 500 11px/1 var(--font-sans); color: var(--ink-2); padding: 4px; }
 .comment-inline-body { font: 400 13px/1.5 var(--font-sans); color: var(--ink-1); }
 .comment-inline-reply {
   background: var(--bg-3);
@@ -15739,6 +15806,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   overflow: hidden;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+/* The list view takes focus when it shows so Escape reaches it; the
+   container itself draws no ring (its controls keep theirs). */
+.msg-panel:focus { outline: none; }
 
 /* While a doc-card overlay is up, lift the messages panel above it.
    .doc-card-modal is z-index 2147483600 and portals to <body>, so fullscreen
@@ -15970,6 +16040,30 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 }
 .msg-load-older:hover:not(:disabled) { color: var(--ink-0); border-color: var(--line-3); }
 .msg-load-older:disabled { cursor: default; opacity: .7; }
+
+/* "Couldn't load" — a failed read, which must never look like an empty
+   thread or inbox. Neutral ink with a plain Retry. */
+.msg-load-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  color: var(--ink-2);
+  font: 500 12px/1.4 var(--font-sans);
+}
+.msg-retry-btn {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink-1);
+  font: inherit;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.msg-retry-btn:hover { color: var(--ink-0); border-color: var(--line-3); }
 
 /* Day divider — pill-style label on a hairline. */
 .msg-day-divider {
@@ -16493,7 +16587,28 @@ button.msg-panel-name:hover { color: var(--ink-0); }
   cursor: grab;
 }
 .msg-attachment:active { cursor: grabbing; }
-.msg-attachment img { max-width: 100%; border-radius: var(--radius); display: block; }
+.msg-attachment img {
+  max-width: 100%;
+  /* Bounded: a tall portrait ran unbounded down the 360px panel. Images with
+     recorded dimensions also get an exact box inline (imageBoxStyle). */
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: var(--radius);
+  display: block;
+}
+.msg-attachment-image { display: block; }
+/* A file attachment is a download link: name, then type and size. Neutral
+   ink — it's an action at rest, not a selection. */
+.msg-attachment-file {
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0;
+  color: var(--ink-1);
+  text-decoration: none;
+  font: 500 12px/1.3 var(--font-sans);
+}
+a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); text-decoration: underline; }
+.msg-attachment-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-attachment-file-meta { flex: none; color: var(--ink-3); font-weight: 400; }
 .msg-bubble-reactions { display: flex; gap: 4px; flex-wrap: wrap; }
 .msg-reaction {
   display: inline-flex; align-items: center; gap: 4px;
@@ -20511,15 +20626,18 @@ button, [role="button"], a {
   }
 
   /* ── Topbar slim ──────────────────────────────────────────────────
-     The full desktop topbar (~14 elements) won't fit a phone, so hide
-     non-essential controls. What remains: hamburger, brand icon,
-     breadcrumbs (truncated), the view pill (icon-only compact — it is
-     the ONLY route to List view on a phone; the bottom nav has no list
-     tab), undo, redo, feedback icon, presence stack, share icon. The
-     other hidden controls all live elsewhere — theme + split + trash +
-     link/backlinks live in settings/secondary surfaces. The
-     identifier classes (tb-icon-trash etc.) are set in App.jsx so
-     we can hide just these icons without nuking every .tb-icon. */
+     The full desktop topbar (~14 elements) won't fit a phone. What
+     remains: hamburger, breadcrumbs (Parent › Here, truncated), the view
+     pill (icon-only compact — it is the ONLY route to List view on a
+     phone; the bottom nav has no list tab), undo, redo, presence, share.
+     That is a 360px bar's whole budget: tests/phone-topbar-fit.spec.js
+     measures it. Brand, Back/Forward, Search, Version history, Help,
+     Feedback, Focus and Admin are not rendered when App.jsx's mobileShell
+     is true (they are drawer rows, the bottom nav or the Help hub). The
+     rest below — theme + split + trash + link/backlinks — live in
+     settings/secondary surfaces; the identifier classes (tb-icon-trash
+     etc.) are set in App.jsx so we can hide just these icons without
+     nuking every .tb-icon. */
   .topbar .tb-brand-text,
   .topbar .tb-btn-label,
   .topbar .tb-brand-sep,
@@ -20532,24 +20650,52 @@ button, [role="button"], a {
   }
   /* Icon-only compact view pill on phone: swap the text labels for the
      canvas/list glyphs (base rule hides .vp-ico / shows .vp-lbl). */
-  .topbar .view-pill-btn { padding: 6px 10px; }
+  .topbar .view-pill-btn { padding: 6px 8px; }
   .topbar .view-pill-btn .vp-lbl { display: none; }
   .topbar .view-pill-btn .vp-ico { display: inline-flex; }
-  .topbar .view-pill--primary .view-pill-btn { padding: 6px 10px; }
+  .topbar .view-pill--primary .view-pill-btn { padding: 6px 8px; }
   .topbar .vp-count { display: none; }
+  /* No gaps between the 40px icon buttons: each already has 12px of air
+     around its glyph, and the gaps were 16px the crumbs could not spare. */
+  .topbar { gap: 4px; }
   .topbar .tb-left,
-  .topbar .tb-right { gap: 4px; }
+  .topbar .tb-right { gap: 0; }
   /* On phone the UpgradeChip is repositioned below the topbar, so the desktop
      right-edge gutter reservation is not wanted here — reclaim the full width. */
   .topbar .tb-right { padding-right: 0; }
-  .topbar .crumbs { max-width: 40vw; }
+  /* The right group never gives way: it holds Share. The crumbs take
+     whatever is left (the pill sits beside the right group rather than
+     centred, so none of that room goes to centring). They show
+     "Parent › Here" when it fits and only the current name when it does
+     not — the parent is a tap target to go up, the name is what you read. */
+  .topbar .tb-right { flex-shrink: 0; }
+  .topbar .tb-left { flex: 1 1 0; }
+  .topbar .tb-center { flex: 0 0 auto; }
+  .topbar .crumbs { flex: 1 1 0; gap: 0; container: tb-crumbs / inline-size; }
+  .topbar .crumbs > :nth-last-child(n+4) { display: none; }
+  .topbar .crumb { padding: 6px 4px; }
+  .topbar .crumb.clk { flex-shrink: 4; min-width: 2em; }
+  .topbar .crumb-sep { padding: 0 1px; }
+  @container tb-crumbs (max-width: 150px) {
+    .crumb.clk, .crumb-sep { display: none; }
+  }
   .topbar {
     padding-left: max(8px, env(safe-area-inset-left));
     padding-right: max(8px, env(safe-area-inset-right));
   }
   /* Share button drops its visible label on phone; the Send icon
-     alone communicates it, matching the surrounding icon buttons. */
-  .topbar .tb-btn { padding-left: 8px; padding-right: 8px; gap: 0; }
+     alone communicates it, matching the surrounding icon buttons. Same
+     40px floor as the .tb-icon buttons beside it. */
+  .topbar .tb-btn {
+    padding-left: 8px; padding-right: 8px; gap: 0;
+    min-width: 40px; min-height: 40px; justify-content: center;
+  }
+  /* Presence: one face and a "+N" (App.jsx passes max=1), overlapped. */
+  .topbar .ws-presence { gap: 0; padding: 0 2px; }
+  .topbar .ws-presence-status { margin-right: 4px; }
+  .topbar .tb-viewonly { margin: 0 2px; padding: 3px 5px; letter-spacing: 0.06em; }
+  .topbar .ws-presence-avatar { margin-left: -6px; }
+  .topbar .ws-presence-avatar:first-of-type { margin-left: 0; }
 
   /* The "Demo · N days left → Upgrade" floating chip on desktop sits
      top-right with z-index near INT_MAX, which on phone overlapped
@@ -21121,10 +21267,13 @@ button, [role="button"], a {
 /* Glow ring on whatever the active step points at — the clearest "this is the
    thing" signal, and it makes anchoring forgiving when the pill is clamped away
    on small screens. Applied by OnboardingTour.jsx to the [data-tour] target.
-   box-shadow follows the target's own border-radius automatically. */
+   box-shadow follows the target's own border-radius automatically.
+   The pulse draws the eye three times and then rests on the steady ring: a
+   box-shadow animation repaints a 30px blur every frame, and an infinite one
+   ran for as long as a step sat on screen, beside a backdrop-blurred pill. */
 .tour-target {
   box-shadow: 0 0 0 3px var(--soleil), var(--soleil-glow) !important;
-  animation: tour-target-pulse 1.6s var(--ease) infinite;
+  animation: tour-target-pulse 1.6s var(--ease) 3;
   border-radius: inherit;
 }
 @keyframes tour-target-pulse {

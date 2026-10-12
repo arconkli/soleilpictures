@@ -94,7 +94,7 @@ export function AdminApiTab() {
   const [days, setDays] = useState(30);
   const [onlyErrors, setOnlyErrors] = useState(false);
 
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
     const [ov, series, tools, routes, callers, recent] = await Promise.all([
       supabase.rpc('admin_api_overview', { p_days: days }),
       supabase.rpc('admin_api_series', { p_days: days }),
@@ -139,7 +139,7 @@ export function AdminApiTab() {
         <AdminTimeRange value={days} onChange={setDays} />
       </AdminToolbar>
 
-      <AdminAsync loading={loading} error={error} onRetry={refresh} skeleton={<AdminSkeleton variant="table" rows={8} />}>
+      <AdminAsync loading={loading} error={error} hasData={hasData} onRetry={refresh} skeleton={<AdminSkeleton variant="table" rows={8} />}>
         <div className={refreshing ? 'is-refreshing' : ''}>
           <div className="admin-stat-grid is-api">
             <AdminStatCard

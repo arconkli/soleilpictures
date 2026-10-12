@@ -31,6 +31,34 @@ test.describe('workspace roles wiring', () => {
     expect(read('src/lib/boardsApi.js')).toContain("rpc('set_workspace_member_role'");
   });
 
+  test("handing the workspace over re-reads the caller's role (ACCOUNT-05)", () => {
+    // The Members tab's owner controls come from useResolvedDefaults' role,
+    // which only refetched on a workspace id change, so the ex-owner kept them.
+    const hook = read('src/hooks/useResolvedDefaults.js');
+    expect(hook).toMatch(/\}, \[workspaceId, tick, roleTick\]\);/);
+    expect(hook).toContain('refreshRole, workspaceSettings');
+    const app = read('src/App.jsx');
+    expect(app).toContain('refreshRole: refreshWorkspaceRole');
+    const settings = app.slice(app.indexOf('<SettingsPanel'), app.indexOf('/>', app.indexOf('<SettingsPanel')));
+    expect(settings).toMatch(/onWorkspacesChanged=\{\(\) => \{ refreshWorkspaceRole\(\); return onWorkspacesChanged\?\.\(\); \}\}/);
+    const share = app.slice(app.indexOf('<ShareModal'), app.indexOf('/>', app.indexOf('<ShareModal')));
+    expect(share).toContain('refreshWorkspaceRole();');
+    // The transfer itself still reports through that callback.
+    expect(read('src/components/settings/MembersTab.jsx'))
+      .toMatch(/await transferWorkspaceOwnership\([\s\S]{0,200}await onWorkspacesChanged\?\.\(\);/);
+  });
+
+  test('an invite to someone without an account shows up in Members, revocable (SHARE-15)', () => {
+    const s = read('src/components/settings/MembersTab.jsx');
+    expect(s).toMatch(/canManage \? listPendingInvitesForWorkspace\(workspaceId\)\.catch\(\(\) => \[\]\)/);
+    expect(s).toContain('{pending.map(row => (');
+    expect(s).toContain('invite sent, gets access when they sign up');
+    expect(s).toMatch(/await revokePendingInvite\(row\.id\);/);
+    // Revoking asks first, as the Share panel does.
+    expect(s).toMatch(/const revokePending = async[\s\S]{0,200}feedback\.confirm\(/);
+    expect(read('content/docs/account/settings.md')).toContain('gets access when they sign up');
+  });
+
   test('the permission mirror returns viewer for a viewer member', () => {
     const s = read('src/hooks/useBoardPermission.js');
     expect(s).toContain("membership.role !== 'viewer'");
@@ -44,7 +72,9 @@ test.describe('workspace roles wiring', () => {
   });
 
   test('the upload party reports the object size it measured', () => {
-    expect(read('party/upload.ts')).toContain('{ key, bytes: result.bytes ?? null }');
+    // Since 0387 an object is finalized only once R2 has measured it, so the
+    // success response always carries that measurement.
+    expect(read('party/upload.ts')).toContain('return Response.json({ key, bytes: result.bytes }');
     expect(read('src/lib/uploads.js')).toContain('sizeBytes: serverBytes');
   });
 });

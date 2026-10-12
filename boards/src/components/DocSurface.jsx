@@ -26,6 +26,7 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { DocPageTree } from './DocPageTree.jsx';
+import { DocBookmarkList } from './DocBookmarkList.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
@@ -495,6 +496,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const seededRef = useRef(false);
   useEffect(() => {
     if (!ready || seededRef.current) return;
+    // A reader's seed would exist only in their tab (the board room drops a
+    // viewer's writes) — they get the "Nothing open yet" state instead.
+    if (!canEdit) return;
     if (pages.length === 0) {
       seededRef.current = true;
       const id = addPage(ydoc, { name: titleOverride || board.name || 'Untitled', scope });
@@ -569,13 +573,31 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // an empty sheet" effect — which never moved content and stranded the caret —
   // is gone. Screenplay still uses its own line-accurate ScreenplayPagination.
 
-  // Honor a "jump to this bookmark on open" request that came in via a
-  // soleil:// link from another doc. Switch to its page first; the editor
-  // mounts and we scroll once it's ready.
+  // Honor a "jump to this bookmark" request: from the Bookmarks list under
+  // the page tree, a soleil://bookmark link inside this doc, or a host's
+  // pendingBookmark prop. Switch to its page first; the editor mounts and we
+  // scroll once it's ready.
+  const [localBookmarkJump, setLocalBookmarkJump] = useState(null);
+  const bookmarkJump = localBookmarkJump || pendingBookmark || null;
   useEffect(() => {
-    if (!pendingBookmark || !ready) return;
-    const target = bookmarks.find(b => b.id === pendingBookmark.bookmarkId);
-    if (!target) return;
+    const onOpen = (e) => {
+      const id = e.detail?.bookmarkId;
+      if (id && bookmarks.some(b => b.id === id)) setLocalBookmarkJump({ bookmarkId: id });
+    };
+    document.addEventListener('soleil-open-bookmark', onOpen);
+    return () => document.removeEventListener('soleil-open-bookmark', onOpen);
+  }, [bookmarks]);
+  useEffect(() => {
+    if (!bookmarkJump || !ready) return;
+    const target = bookmarks.find(b => b.id === bookmarkJump.bookmarkId);
+    if (!target) {
+      // A clicked bookmark was checked when clicked, so missing now means a
+      // peer deleted it meanwhile: drop the request, or it would shadow any
+      // later pendingBookmark. A host's pending request is left alone — the
+      // bookmarks may simply not have loaded yet.
+      if (localBookmarkJump) setLocalBookmarkJump(null);
+      return;
+    }
     setActivePageId(target.pageId);
     let tries = 0;
     const tick = () => {
@@ -599,11 +621,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         const el = dom?.nodeType === 3 ? dom.parentElement : dom;
         el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       } catch (_) {}
-      onPendingBookmarkConsumed?.();
+      if (localBookmarkJump) setLocalBookmarkJump(null);
+      else onPendingBookmarkConsumed?.();
     };
     tick();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingBookmark, ready, bookmarks]);
+  }, [bookmarkJump, ready, bookmarks]);
 
   const handleNavigateTarget = (target) => {
     switch (target?.kind) {
@@ -748,13 +771,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // applies if it names the page we opened on, and a click-to-jump or a
   // bookmark jump arriving with the open always wins over it.
   const restoreRef = useRef(null);
+  const namingPageRef = useRef(null);
   if (restoreRef.current === null) {
     const saved = loadDocPos(board.id);
     // 'soleil-open-doc-card' doubles as the plain "open this doc" event
     // ({ pageId: null, scrollTop: 0 }), so only a pendingScroll that names a
     // page or a spot is a real jump.
     const jumping = !!pendingScroll && (!!pendingScroll.pageId || (pendingScroll.scrollTop || 0) > 0);
-    restoreRef.current = (saved && saved.pageId === activePageId && !jumping && !pendingBookmark)
+    restoreRef.current = (saved && saved.pageId === activePageId && !jumping && !bookmarkJump)
       ? saved : false;
   }
 
@@ -949,9 +973,29 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             boardId={board.id}
             pages={pages}
             activePageId={activePageId}
-            onSelectPage={(id) => { setActivePageId(id); setMobileRailOpen(false); }}
+            onSelectPage={(id, opts) => {
+              // A page just made with "+" opens with its name field focused
+              // in the tree: its editor must not take the caret (that blur
+              // committed "Untitled"), and on a phone the drawer stays open
+              // until the name is in.
+              namingPageRef.current = opts?.naming ? id : null;
+              setActivePageId(id);
+              if (!opts?.keepOpen) setMobileRailOpen(false);
+            }}
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
+            canEdit={canEdit && !isPublic}
+            defaultName={titleOverride || board.name || 'Untitled'}
+          />
+        )}
+        {rails.left && (
+          <DocBookmarkList
+            ydoc={ydoc}
+            scope={scope}
+            bookmarks={bookmarks}
+            pages={pages}
+            canEdit={canEdit && !isPublic}
+            onJump={(id) => { setLocalBookmarkJump({ bookmarkId: id }); setMobileRailOpen(false); }}
           />
         )}
         {rails.left && docMode === 'screenplay' && (
@@ -987,7 +1031,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     ydoc={ydoc}
                     scope={scope}
                     docMode={docMode}
-                    authorName={currentUser?.name || ''}
                     onToggleScreenplay={toggleScreenplay}
                     titlePageEnabled={titlePage.enabled}
                     onToggleTitlePage={toggleTitlePage}
@@ -1005,11 +1048,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     fitMode={fitMode}
                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
                     onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
-                    onZoomReset={resetZoom} />
+                    onZoomReset={resetZoom}
+                    canEdit={canEdit} />
         )}
         <DocFindReplace editor={editorRef.current}
                         editors={activePageId ? sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean) : []}
                         open={findOpen}
+                        canEdit={canEdit && !isPublic}
                         onClose={() => setFindOpen(false)} />
         <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && pageless ? ' is-pageless' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': effectiveZoom }}>
@@ -1019,6 +1064,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           {activePageId && awareness && (
             <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
                          paperRef={paperRef} editor={editorRef.current}
+                         getEditors={() => sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean)}
+                         zoom={effectiveZoom}
                          currentUser={currentUser} />
           )}
           {/* Screenplay title page — a real first page, before the script body. */}
@@ -1048,7 +1095,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 workspaceId={workspaceId}
                 userId={userId}
                 currentUser={currentUser}
-                autofocus={!restoreRef.current}
+                autofocus={!restoreRef.current && namingPageRef.current !== sid}
                 takeRefocus={takeRefocus}
                 onEditorReady={onEditorReady}
                 onEditorDestroy={onEditorDestroy}

@@ -100,7 +100,7 @@ const labelStyle = { display: 'block', fontSize: '.8rem', fontWeight: 600, margi
 
 export function AdminDiscoverTab() {
   const feedback = useFeedback();
-  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(adminListPublicBoards, []);
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(adminListPublicBoards, []);
   const boards = data || [];
 
   const [selected, setSelected] = useState(null);  // board_id | NEW | null
@@ -194,6 +194,17 @@ export function AdminDiscoverTab() {
       });
       if (!ok) return;
     }
+    // Saving a LIVE board as a draft takes it offline exactly as Unpublish does
+    // (the RPC nulls published_at), so it gets the same confirm. It used to go
+    // straight through, and the only sign was a "Saved as draft" toast.
+    if (!willPublish && current && current.is_published) {
+      const ok = await feedback.confirm({
+        title: 'Save and unpublish?',
+        message: `Saving as a draft takes /c/${origSlug || current.slug} offline: it stops resolving, drops out of the sitemap, and is de-indexed over time. To keep it live, use Save & keep live.`,
+        confirmLabel: 'Save & unpublish',
+      });
+      if (!ok) return;
+    }
     if (willPublish && !(current && current.is_published)) {
       const ok = await feedback.confirm({
         title: 'Publish this board?',
@@ -215,7 +226,7 @@ export function AdminDiscoverTab() {
         priority: Number(form.priority) || 0,
         published: willPublish,
       });
-      feedback.toast({ type: 'success', message: willPublish ? 'Saved — live' : 'Saved as draft' });
+      feedback.toast({ type: 'success', message: willPublish ? 'Saved — live' : (current?.is_published ? 'Saved and unpublished' : 'Saved as draft') });
       if (willPublish) pingIndexNow(res?.slug || form.slug);  // best-effort Bing/Yandex ping
       await refresh();
       setSelected(res?.board_id || null);
@@ -332,7 +343,7 @@ export function AdminDiscoverTab() {
           </label>
         </AdminToolbar>
 
-        <AdminAsync loading={loading} error={error} onRetry={refresh}
+        <AdminAsync loading={loading} error={error} hasData={hasData} onRetry={refresh}
                     skeleton={<AdminSkeleton variant="table" rows={4} />} isEmpty={false}>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 320px) 1fr', gap: 20, alignItems: 'start' }}>
             {/* Left: list */}
@@ -359,8 +370,8 @@ export function AdminDiscoverTab() {
                         </span>
                         <span style={{
                           fontSize: '.68rem', fontWeight: 700, letterSpacing: '.03em', padding: '2px 7px', borderRadius: 999,
-                          background: b.is_published ? 'rgba(80,200,120,.16)' : 'rgba(255,255,255,.08)',
-                          color: b.is_published ? '#74e39b' : 'var(--ink-2)',
+                          background: b.is_published ? 'color-mix(in srgb, var(--ok) 16%, transparent)' : 'var(--bg-2)',
+                          color: b.is_published ? 'var(--ok)' : 'var(--ink-2)',
                         }}>{b.is_published ? 'LIVE' : 'DRAFT'}</span>
                       </div>
                       <div className="t-meta admin-muted" style={{ marginTop: 2 }}>
@@ -370,14 +381,14 @@ export function AdminDiscoverTab() {
                         const st = statsBySlug[b.slug];
                         if (st && st.impressions > 0) {
                           return (
-                            <div className="t-meta" style={{ marginTop: 3, color: '#74e39b' }}>
+                            <div className="t-meta" style={{ marginTop: 3, color: 'var(--ok)' }}>
                               {st.impressions} impr · {st.clicks} clicks · pos {st.position ?? '—'}
                             </div>
                           );
                         }
                         if (b.is_published) {
                           return (
-                            <div className="t-meta" style={{ marginTop: 3, color: '#e0a366' }}>
+                            <div className="t-meta" style={{ marginTop: 3, color: 'var(--warn)' }}>
                               no search impressions yet
                             </div>
                           );
@@ -412,11 +423,11 @@ export function AdminDiscoverTab() {
                   )}
 
                   <label style={labelStyle}>Slug</label>
-                  <input style={{ ...inputStyle, borderColor: slugErr ? '#e06666' : inputStyle.border }}
+                  <input style={{ ...inputStyle, borderColor: slugErr ? 'var(--danger)' : 'var(--line-2)' }}
                          value={form.slug} onChange={onField('slug')}
                          onBlur={() => setForm((f) => ({ ...f, slug: slugify(f.slug) }))}
                          placeholder="backrooms-fanart" />
-                  <div className="t-meta" style={{ marginTop: 4, color: slugErr ? '#e06666' : 'var(--ink-2)' }}>
+                  <div className="t-meta" style={{ marginTop: 4, color: slugErr ? 'var(--danger)' : 'var(--ink-2)' }}>
                     {slugErr || `${SITE_ORIGIN}/c/${form.slug || '…'}`}
                   </div>
 
@@ -465,15 +476,15 @@ export function AdminDiscoverTab() {
                       <span style={{ fontWeight: 600 }}>SEO readiness</span>
                       <span style={{
                         fontSize: '.78rem', fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                        background: publishable ? 'rgba(80,200,120,.16)' : 'rgba(224,166,102,.16)',
-                        color: publishable ? '#74e39b' : '#e0a366',
+                        background: publishable ? 'color-mix(in srgb, var(--ok) 16%, transparent)' : 'color-mix(in srgb, var(--warn) 16%, transparent)',
+                        color: publishable ? 'var(--ok)' : 'var(--warn)',
                       }}>{score}% {publishable ? '· ready' : '· needs work'}</span>
                       {isNew && <span className="t-meta admin-muted">save as draft to run image/uniqueness checks</span>}
                     </div>
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 3 }}>
                       {checks.map((c, i) => (
                         <li key={i} className="t-meta" style={{
-                          color: c.pending ? 'var(--ink-2)' : (c.ok ? '#74e39b' : (c.required ? '#e06666' : '#e0a366')),
+                          color: c.pending ? 'var(--ink-2)' : (c.ok ? 'var(--ok)' : (c.required ? 'var(--danger)' : 'var(--warn)')),
                         }}>
                           {c.pending ? '○' : (c.ok ? '✓' : (c.required ? '✗' : '!'))} {c.label}{!c.required ? ' (recommended)' : ''}
                         </li>
@@ -487,7 +498,7 @@ export function AdminDiscoverTab() {
                     return (
                       <div className="t-meta" style={{ marginTop: 12, color: 'var(--ink-2)' }}>
                         {st && st.impressions > 0
-                          ? <>Search (last snapshot): <b style={{ color: '#74e39b' }}>{st.impressions}</b> impressions · {st.clicks} clicks · avg position {st.position ?? '—'}{st.top_query ? <> · top query “{st.top_query}”</> : null}</>
+                          ? <>Search (last snapshot): <b style={{ color: 'var(--ok)' }}>{st.impressions}</b> impressions · {st.clicks} clicks · avg position {st.position ?? '—'}{st.top_query ? <> · top query “{st.top_query}”</> : null}</>
                           : (current.is_published
                               ? <>No search impressions yet — give it time, then check it’s indexed in GSC. Import a GSC CSV to track it here.</>
                               : <>Publish + import a GSC CSV to track search performance here.</>)}
@@ -510,7 +521,7 @@ export function AdminDiscoverTab() {
                       </button>
                     )}
                     <button className="btn-secondary" disabled={busy || !!slugErr} onClick={() => save(false)}>
-                      Save as draft
+                      {isLive ? 'Save & unpublish' : 'Save as draft'}
                     </button>
                     {isLive && (
                       <>
@@ -523,7 +534,7 @@ export function AdminDiscoverTab() {
                   </div>
 
                   {current?.deleted && (
-                    <p className="t-meta" style={{ color: '#e0a366', marginTop: 12 }}>
+                    <p className="t-meta" style={{ color: 'var(--warn)', marginTop: 12 }}>
                       ⚠ The underlying board was deleted — its /c page already returns nothing. Unpublish to tidy up.
                     </p>
                   )}

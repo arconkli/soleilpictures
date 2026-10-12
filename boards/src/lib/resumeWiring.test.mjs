@@ -50,7 +50,9 @@ test('every way back is watched, and the hide is stamped where a later page can 
 
 test('the jump navigates like ⌘K — the board\'s own path, on its canvas — then flashes the card', () => {
   const b = block();
-  assert.match(b, /setStack\(ancestorPath\(boardsRef\.current \|\| \{\}, boardId\)\)/, 'never a push onto the open stack');
+  // openBoardAt is setStack(ancestorPath(boardsRef.current, id)), and false —
+  // nothing to do — for a cluster trashed since the greeting (SHELL-02).
+  assert.match(b, /if \(!openBoardAt\(boardId\)\) return;/, 'never a push onto the open stack');
   assert.match(b, /setViewOverride\(\(o\) => \(\{ \.\.\.o, \[boardId\]: 'canvas' \}\)\)/, 'the flash path is canvas-only');
   assert.doesNotMatch(b, /openBoardRef\.current\?\.\(boardId\)/);
   assert.match(b, /new CustomEvent\('soleil-flash-card'/);

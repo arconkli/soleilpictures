@@ -2453,13 +2453,13 @@ A docked document is held by the workspace, not by the canvas underneath it. You
 
 A document reopens where you left it — the same page, scrolled to the same spot — even after you close the tab. That position is remembered per browser, not synced between devices. Following a collaborator's avatar into a document still takes you to where they are.
 
-The three panes
+Layout
 
 Pages on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A new page is created automatically when the current one fills up, so long-form writing does not stop to manage pagination.
 
-The body in the middle, with the formatting toolbar above it.
+Bookmarks under the page tree — durable anchors into specific places in the text, which survive editing around them. Add one with the bookmark button in the toolbar; click it in the list to jump there.
 
-Bookmarks on the right — durable anchors into specific places in the text, which survive editing around them.
+The body in the middle, with the formatting toolbar above it.
 
 Zoom runs from 25% to 200%.
 
@@ -2468,6 +2468,8 @@ Writing and formatting
 The toolbar carries the usual: headings, bold, italic, underline, highlight, lists, task lists, alignment, colour, font and size. Every one has a keyboard shortcut.
 
 ⌘F opens find and replace.
+
+Right-click a selection for cut, copy, paste, formatting, links and comments. Right-click a word with nothing selected — or ⇧-right-click anywhere — for your browser's own menu, with its spelling suggestions.
 
 Text pasted from Google Docs, Word or a web page keeps its structure and emphasis — headings, lists, links, bold, italic, real colours — but drops the source's font, size, background and default black ink, so it takes on the document's own typography instead of arriving as a patch of 11pt Arial. Text copied from another Clusters note or document keeps everything. Clear formatting (⌘\, or the Tx button) strips the selection back to plain; links and comments stay.
 
@@ -2668,7 +2670,7 @@ A: Fountain is plain text — it opens anywhere, diffs cleanly in version contro
 ========================================================================
 # Comments, tags and backlinks in documents
 URL: https://clusters.soleilpictures.com/docs/documents/comments-and-tags
-Updated: 2026-08-08
+Updated: 2026-10-12
 
 Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
@@ -2681,6 +2683,8 @@ Select text and add a comment. It anchors to that range, not to a character posi
 Commented text is marked inline, with a gold dot in the right margin. Click a dot to open the thread.
 
 Comments thread, resolve, and support @ mentions that notify the person you name. See Comments for the full model, which is shared with the canvas.
+
+Because a text comment is part of the document, it follows edit access. A viewer sees the dots and can open and read every thread, marked View only; adding, replying to, resolving or deleting a comment needs edit access.
 
 Tags on a range
 
@@ -2714,7 +2718,7 @@ Backlinks are the reason mentioning things is worth the keystroke: a location's 
 
 Bookmarks
 
-Not annotation but adjacent: bookmarks are durable anchors into specific places in a document, listed in the right pane. They survive edits around them, so a bookmark on "the end of act two" stays there as the act changes length.
+Not annotation but adjacent: bookmarks are durable anchors into specific places in a document, listed under the page tree. They survive edits around them, so a bookmark on "the end of act two" stays there as the act changes length.
 
 ## Frequently asked questions
 
@@ -2952,7 +2956,7 @@ A: Forward slash opens it too, when you are not typing into something.
 ========================================================================
 # Collaborating
 URL: https://clusters.soleilpictures.com/docs/collaborate
-Updated: 2026-10-10
+Updated: 2026-10-12
 
 Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
@@ -2964,7 +2968,7 @@ Role | Can
 Owner | Everything, including deleting the cluster and managing members and shares
 Co-owner | Runs a workspace alongside its owner — invites and removes members, changes roles, manages every share and link, renames it — but cannot delete it, hand it over, or remove the owner
 Editor | Add, change and remove content; comment; invite if permitted
-Viewer | Open, read, comment and vote — never change content
+Viewer | Open, read, comment on the canvas and vote — never change content, including a document's text comments
 Workspace member | The same two levels, editor or viewer, granted for every cluster in the workspace at once
 
 Editors are free on every plan. A free-tier account can be an editor on any cluster it is invited to, with no restriction on what it can do there.
@@ -3016,13 +3020,13 @@ Q: Whose card allowance do collaborator uploads use?
 A: The owner's. If you add cards to someone else's cluster, they count against their limit, not yours.
 
 Q: Can a viewer comment?
-A: Yes. Viewers can read, comment and vote; they cannot add, move or change cards.
+A: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move or change cards. Text comments inside a document need edit access — a viewer can read those threads but not add to them.
 
 
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-10-10
+Updated: 2026-10-12
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
@@ -3037,9 +3041,11 @@ One picker, three answers:
 Setting | What the link does | Account needed
 Anyone with the link · can view | Opens the cluster read-only | No
 Anyone with the link · can edit | Recipient confirms, signs in, and joins as an editor | Yes
-Only invited people | Revokes every link on the cluster | —
+Only invited people | Revokes every link on the cluster that you can revoke | —
 
 Choosing one hands you the link straight away; the button beside the picker copies it again any time. Switching between can view and can edit never revokes anything — a link you have already sent someone keeps working, and the panel tells you it is still live. Only Only invited people revokes, and it asks first.
+
+Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks Only invited people their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them.
 
 An edit link is not an editable public link. It grants nothing on its own: the person who opens it sees a preview and an explicit Join step, and access is created when they sign in and take it.
 
@@ -3086,7 +3092,7 @@ Editors are free on every plan. See Collaborating.
 
 People with access
 
-One list, covering everyone: workspace members, people added to this cluster alone, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
+One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here has no controls. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
 
 Getting a link fast
 
@@ -3185,7 +3191,7 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 ========================================================================
 # Comments
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
-Updated: 2026-09-10
+Updated: 2026-10-12
 
 A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 
@@ -3206,6 +3212,8 @@ Threads
 
 Comments thread with replies. Resolve when the thing is dealt with — resolved comments are archived rather than deleted, so the record of why something changed survives.
 
+Resolving, hiding and deleting a comment is for its author and for people who can edit the board. Someone with view-only access sees those buttons on their own comments only.
+
 Mentions
 
 Type @ in a comment to mention someone. They are notified. See Notifications.
@@ -3222,7 +3230,9 @@ Comment bubbles lay themselves out to avoid covering the content they refer to a
 
 Who can comment
 
-Anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
+On the canvas, anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
+
+A comment on a text range is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access.
 
 Comments versus votes
 
@@ -3590,7 +3600,7 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-10-10
+Updated: 2026-10-12
 
 Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
@@ -3648,7 +3658,7 @@ Owners also get Recovery here — a rewind of every cluster in the workspace at 
 
 Members
 
-Everyone in the workspace, with their level: Owner, Co-owner (runs the workspace alongside the owner), Editor (adds and changes content) or Viewer (opens, reads, comments and votes, but does not change anything). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Only the owner can hand the workspace to another member. Everyone else sees the list.
+Everyone in the workspace, with their level: Owner, Co-owner (runs the workspace alongside the owner), Editor (adds and changes content) or Viewer (opens, reads, comments on the canvas and votes, but does not change anything — including a document's text comments, which they can only read). The owner and co-owners can move anyone else between co-owner, editor and viewer, remove a member — which also removes any cluster shared to them directly in this workspace — and invite someone by email as an editor or a viewer. Someone invited who has no account yet is listed too, as an invite that gets access when they sign up, and the owner and co-owners can revoke it from there. Only the owner can hand the workspace to another member. Everyone else sees the list.
 
 Card defaults
 
@@ -3955,7 +3965,7 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-10-11
+Updated: 2026-10-12
 
 Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
@@ -3976,13 +3986,15 @@ Layout differences
 
 Bottom navigation replaces the sidebar — Home, the current board, Messages, and more.
 
-A drawer holds navigation that does not fit, including the cluster tree. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list.
+The top bar keeps what you reach for on the board: the cluster's name, the Board/Files switch, Undo, Redo, who else is here, and Share.
+
+A drawer holds navigation that does not fit, including the cluster tree, Search, Version history, Focus view and Help. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list.
 
 Back — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app.
 
 The add sheet replaces the tool rail's + menu with a full-width sheet, sized for thumbs.
 
-Focus view — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way.
+Focus view — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way. Open it from the drawer, or from the top bar on a tablet held in landscape.
 
 Tablets
 

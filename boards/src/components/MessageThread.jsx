@@ -9,10 +9,10 @@ import {
   searchMessagesInConversation,
   fetchReplies, replyCountsFor, togglePin,
   listPinnedForConversation,
-  addParticipants, leaveConversation, renameConversation,
+  addParticipants, leaveConversation, rejoinConversation, renameConversation,
 } from '../lib/messages.js';
 import {
-  broadcastConversationMessage, broadcastConversationTyping,
+  broadcastConversationMessage, broadcastConversationTyping, broadcastConversationChange,
 } from '../lib/messageRealtime.js';
 import { MessageBubble } from './MessageBubble.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
@@ -25,6 +25,9 @@ import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
 import { showingConversation } from '../lib/threadAttention.js';
+import { readOnlyCopy } from '../lib/messageAccess.js';
+import { escapeClosesPanel } from '../lib/panelEscape.js';
+import { isDmConversation } from '../lib/conversationState.js';
 
 const STICK_THRESHOLD_PX = 80;
 // Start fetching the previous page this far before the reader hits the top.
@@ -33,14 +36,14 @@ const LOAD_OLDER_THRESHOLD_PX = 120;
 // conversation = { id, title, participants: [{ user_id, left_at, ... }] }
 export function MessageThread({
   workspaceId, currentUser, conversation,
-  onBack, onClose, onChanged, jumpToMessageId,
-  canSend = true,
+  onBack, onClose, onChanged, jumpToMessageId, onJumpConsumed,
+  canSend = true, readOnlyReason = null,
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
   const feedback = useFeedback();
 
-  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder } = useMessageThread({
+  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
   });
@@ -60,7 +63,10 @@ export function MessageThread({
     () => activeParticipants.filter(p => p.user_id !== userId),
     [activeParticipants, userId],
   );
-  const isDm = activeParticipants.length === 2;
+  // A DM is two participant ROWS, left or not. Counting only active ones
+  // turned a group that dropped to two members into a "DIRECT MESSAGE" with
+  // no way to rename it, add people or leave (COMMS-17).
+  const isDm = isDmConversation(conversation?.participants);
 
   // Resolve display names.
   useEffect(() => {
@@ -135,7 +141,10 @@ export function MessageThread({
     prevLastIdRef.current = lastId;
     if (!lastId || lastId === prevId) return;
     if (wasAtBottomRef.current || !prevId) {
-      requestAnimationFrame(() => jumpToBottom(true));
+      // The first page of a conversation lands instantly: smooth-scrolling
+      // it animated through the whole history on every open (COMMS-16).
+      // Only a later arrival glides.
+      requestAnimationFrame(() => jumpToBottom(!!prevId));
     } else {
       const at = messages.findIndex(m => m.id === prevId);
       const added = at >= 0 ? messages.length - 1 - at : 1;
@@ -143,6 +152,20 @@ export function MessageThread({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastId]);
+
+  // An image that finishes loading above the newest message grows the thread
+  // under the reader; while they're at the bottom, keep them there. (load
+  // doesn't bubble — listen in the capture phase.)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onLoad = (e) => {
+      if (e.target?.tagName !== 'IMG' || !wasAtBottomRef.current) return;
+      el.scrollTop = el.scrollHeight;
+    };
+    el.addEventListener('load', onLoad, true);
+    return () => el.removeEventListener('load', onLoad, true);
+  }, []);
 
   // After an older page is prepended, push the scroll position down by the
   // height it added so the reader's place doesn't move.
@@ -213,20 +236,35 @@ export function MessageThread({
   // ── Pinned strip ─────────────────────────────────────────────────────
   const [pinned, setPinned] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
+  // Also re-read when a loaded message is pinned or unpinned: a peer's pin
+  // arrives as a refetch that leaves the count where it was.
+  const pinnedSig = messages.filter(m => m.is_pinned).map(m => m.id).join(',');
   useEffect(() => {
     if (!conversationId) return;
     let cancelled = false;
     listPinnedForConversation({ conversationId }).then(rows => { if (!cancelled) setPinned(rows); });
     return () => { cancelled = true; };
-  }, [conversationId, messages.length]);
+  }, [conversationId, messages.length, pinnedSig]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
+  // Once, when the target's page is on screen. It re-ran on every new
+  // message, so each arrival — your own sends too — yanked the view back up
+  // to the permalinked message and closed an open search (COMMS-09). Keyed
+  // on whether the target is loaded, not on the message count.
+  const jumpTargetLoaded = !!jumpToMessageId && messages.some(m => m.id === jumpToMessageId);
+  const jumpDoneRef = useRef(null);
   useEffect(() => {
-    if (!jumpToMessageId) return;
-    const t = setTimeout(() => flashMessage(jumpToMessageId), 150);
+    if (!jumpToMessageId || !jumpTargetLoaded) return;
+    const key = `${conversationId}:${jumpToMessageId}`;
+    if (jumpDoneRef.current === key) return;
+    const t = setTimeout(() => {
+      jumpDoneRef.current = key;
+      flashMessage(jumpToMessageId);
+      onJumpConsumed?.();
+    }, 150);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jumpToMessageId, messages.length]);
+  }, [jumpToMessageId, jumpTargetLoaded, conversationId]);
 
   // A target older than the loaded pages is paged back to, a few pages at
   // most, so a permalink, pinned or search jump into old history still lands.
@@ -269,9 +307,14 @@ export function MessageThread({
         return;
       }
       if (e.key === 'Escape') {
-        if (searchOpen) closeSearch();
-        else if (replyParent) setReplyParent(null);
-        else onClose?.();
+        // The nearest layer only. A control inside the panel that handled it
+        // (the edit box, rename, the link field, the ⋯ menu, the emoji
+        // palette) has claimed it with preventDefault; closing the whole
+        // panel on the same press threw away what you were in (COMMS-10).
+        if (e.defaultPrevented || e.isComposing) return;
+        if (searchOpen) { closeSearch(); return; }
+        if (replyParent) { setReplyParent(null); return; }
+        if (escapeClosesPanel(e, '.msg-panel')) onClose?.();
         return;
       }
       if (inField) return;
@@ -431,10 +474,17 @@ export function MessageThread({
     try {
       await deleteMessage({ id: msg.id });
       refetch();
+      // Peers only learn of a change already in the thread from a nudge:
+      // messages aren't in the realtime publication (COMMS-04).
+      broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
       undoToast(feedback, {
         message: 'Message deleted',
         onUndo: async () => {
-          try { await restoreMessage({ id: msg.id }); refetch(); }
+          try {
+            await restoreMessage({ id: msg.id });
+            refetch();
+            broadcastConversationChange({ conversationId, changed: 'restore', id: msg.id });
+          }
           catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' }); }
         },
       });
@@ -442,27 +492,29 @@ export function MessageThread({
       console.warn('delete failed', e);
       feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });
     }
-  }, [refetch, feedback]);
+  }, [conversationId, refetch, feedback]);
 
   const handleEdit = useCallback(async (msg, newBody) => {
     try {
       await editMessage({ id: msg.id, body: newBody });
       refetch();
+      broadcastConversationChange({ conversationId, changed: 'edit', id: msg.id });
     } catch (e) {
       console.warn('edit failed', e);
       feedback.toast({ type: 'error', message: 'Could not save your edit — try again.' });
     }
-  }, [refetch, feedback]);
+  }, [conversationId, refetch, feedback]);
 
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
     try {
       await toggleReaction({ messageId: msg.id, emoji, userId });
       refetch();
+      broadcastConversationChange({ conversationId, changed: 'react', id: msg.id });
     } catch (e) {
       feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
     }
-  }, [userId, refetch, feedback]);
+  }, [conversationId, userId, refetch, feedback]);
 
   const handleReply = useCallback((msg) => {
     setReplyParent(msg);
@@ -473,15 +525,22 @@ export function MessageThread({
     try {
       await togglePin(msg.id);
       refetch();
+      broadcastConversationChange({ conversationId, changed: 'pin', id: msg.id });
       const rows = await listPinnedForConversation({ conversationId });
       setPinned(rows);
     } catch (e) { console.warn('pin failed', e); }
   }, [conversationId, refetch]);
 
+  // Say whether it worked: a silent copy left you guessing (COMMS-24).
   const handleCopyLink = useCallback(async (msg) => {
     const url = `${window.location.origin}${window.location.pathname}?m=${msg.id}`;
-    try { await navigator.clipboard.writeText(url); } catch (_) {}
-  }, []);
+    try {
+      await navigator.clipboard.writeText(url);
+      feedback.toast({ type: 'success', message: 'Link copied' });
+    } catch (_) {
+      feedback.toast({ type: 'error', message: "Couldn't copy the link — your browser blocked the clipboard." });
+    }
+  }, [feedback]);
 
   const handleTyping = useCallback(() => {
     if (!conversationId) return;
@@ -529,14 +588,24 @@ export function MessageThread({
       danger: true,
     });
     if (!ok) return;
-    try {
-      await leaveConversation({ conversationId, userId });
-      onChanged?.();
-      onBack?.();
-    } catch (e) {
-      console.warn('leave failed', e);
+    // leaveConversation resolves false on a failed write (it never threw, so
+    // a failure used to pass as a leave).
+    const convId = conversationId;
+    const left = await leaveConversation({ conversationId: convId, userId });
+    if (!left) {
       feedback.toast({ type: 'error', message: 'Could not leave the conversation — try again.' });
+      return;
     }
+    onChanged?.();
+    onBack?.();
+    undoToast(feedback, {
+      message: 'You left the conversation',
+      onUndo: async () => {
+        const back = await rejoinConversation({ conversationId: convId, userId });
+        if (!back) { feedback.toast({ type: 'error', message: "Couldn't bring the conversation back — try again." }); return; }
+        onChanged?.();
+      },
+    });
   };
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -574,7 +643,8 @@ export function MessageThread({
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
-                if (e.key === 'Escape') { setRenaming(false); }
+                // Claim the key: cancelling the rename must not close the panel.
+                if (e.key === 'Escape') { e.preventDefault(); setRenaming(false); }
               }}
               onBlur={commitRename}
               maxLength={80}
@@ -621,7 +691,9 @@ export function MessageThread({
           onRename={beginRename}
           onAdd={() => { setAddPickerAnchor(menuAnchor); setMenuAnchor(null); }}
           onLeave={openLeaveConfirm}
-          canLeave={activeParticipants.length > 2}
+          // Any group can be left. The old 3+ rule only existed because a
+          // group at two members was mistaken for a DM (COMMS-17).
+          canLeave
           onClose={() => setMenuAnchor(null)}
         />
       )}
@@ -633,7 +705,10 @@ export function MessageThread({
           existingIds={new Set(activeParticipants.map(p => p.user_id))}
           anchor={addPickerAnchor}
           onClose={() => setAddPickerAnchor(null)}
-          onAdded={() => { setAddPickerAnchor(null); onChanged?.(); refetch(); }}
+          onAdded={() => {
+            setAddPickerAnchor(null); onChanged?.(); refetch();
+            broadcastConversationChange({ conversationId, changed: 'participants' });
+          }}
           actorId={userId}
           currentUser={currentUser}
         />
@@ -711,6 +786,15 @@ export function MessageThread({
               </button>
             ))}
           </>
+        ) : isEmpty && loadFailed ? (
+          // A failed read is not an empty conversation (COMMS-15).
+          <div className="msg-empty msg-load-failed" role="alert">
+            <span>Couldn't load messages.</span>
+            <button type="button" className="msg-retry-btn" onClick={() => refetch()}>Retry</button>
+          </div>
+        ) : isEmpty && loading ? (
+          // Still reading this conversation: not "No messages yet".
+          null
         ) : isEmpty ? (
           <div className="msg-empty msg-empty-hero">
             <SoleilMark size={32} color="var(--soleil)" glow />
@@ -791,21 +875,21 @@ export function MessageThread({
           placeholder={replyParent ? 'Reply…' : 'Message…'}
         />
       ) : (
-        <ReadOnlyComposerNotice />
+        <ReadOnlyComposerNotice reason={readOnlyReason} />
       )}
     </div>
   );
 }
 
-// Inline upgrade note shown in place of the composer when the current
-// user can't send messages in this workspace (demo tier viewing someone
-// else's workspace). Server-side: messages.insert RLS requires
-// can_write_workspace; this is the matching UI affordance.
-function ReadOnlyComposerNotice() {
+// Shown in place of the composer when the current user can't send from this
+// workspace. Server-side: messages.insert RLS requires can_write_workspace on
+// the current workspace — a role rule, not a plan rule (lib/messageAccess.js),
+// so the note gives the real reason instead of blaming the plan (COMMS-08).
+function ReadOnlyComposerNotice({ reason }) {
   return (
     <div className="msg-composer-readonly" role="status">
       <span className="msg-composer-readonly-text">
-        You can read this conversation. Sending messages in shared workspaces requires a paid plan.
+        {readOnlyCopy(reason).notice}
       </span>
     </div>
   );
@@ -826,7 +910,9 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
 
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
+    // doesn't close on the same press.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -884,7 +970,9 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
 
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
+    // doesn't close on the same press.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);

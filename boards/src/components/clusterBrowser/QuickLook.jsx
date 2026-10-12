@@ -145,9 +145,14 @@ export default function QuickLook({
   const n = items.length;
 
   // Kept: the film player in here takes its keys only while Quick look is the
-  // top layer (the review player opened from it sits above).
+  // top layer (the review player opened from it sits above), and so does
+  // Quick look's own key handler.
   const modalRef = useRef(null);
-  useEffect(() => { const u = modalGuard.registerModalOpen(); modalRef.current = u; return u; }, []);
+  useEffect(() => {
+    const unregister = modalGuard.registerModalOpen();
+    modalRef.current = unregister;
+    return () => { modalRef.current = null; unregister(); };
+  }, []);
   const playerRef = useRef(null);
 
   // Focus moves in, and goes back where it was on close.
@@ -159,7 +164,11 @@ export default function QuickLook({
 
   const go = (d) => { if (n) onIndex((index + d + n) % n); };
 
-  // Capture phase: this is the top-most surface, so its keys come first.
+  // Capture phase: while Quick look is the top-most surface its keys come
+  // first. Capture also means it hears keys meant for a layer opened OVER it
+  // (the review player, a viewer), so it stands down unless it is the top
+  // registered layer — Escape used to close Quick look and leave that layer
+  // standing.
   useEffect(() => {
     const onKey = (e) => {
       // Anything layered above — the player's menu, the review player, a

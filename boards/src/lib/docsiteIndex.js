@@ -1692,8 +1692,8 @@ export const DOCS_PAGES = [
         "text": "Opening"
       },
       {
-        "id": "the-three-panes",
-        "text": "The three panes"
+        "id": "layout",
+        "text": "Layout"
       },
       {
         "id": "writing-and-formatting",
@@ -1872,7 +1872,7 @@ export const DOCS_PAGES = [
     "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
     "section": "documents",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-10-12",
     "navLabel": "Comments and tags",
     "headings": [
       {
@@ -2096,7 +2096,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-10-10",
+    "updated": "2026-10-12",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2140,7 +2140,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can a viewer comment?",
-        "a": "Yes. Viewers can read, comment and vote; they cannot add, move or change cards."
+        "a": "Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move or change cards. Text comments inside a document need edit access — a viewer can read those threads but not add to them."
       }
     ]
   },
@@ -2152,7 +2152,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-10-10",
+    "updated": "2026-10-12",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2272,7 +2272,7 @@ export const DOCS_PAGES = [
     "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
-    "updated": "2026-09-10",
+    "updated": "2026-10-12",
     "navLabel": "Comments",
     "headings": [
       {
@@ -2592,7 +2592,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-10-10",
+    "updated": "2026-10-12",
     "navLabel": "Settings",
     "headings": [
       {
@@ -2848,7 +2848,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-10-11",
+    "updated": "2026-10-12",
     "navLabel": "Mobile and tablet",
     "headings": [
       {

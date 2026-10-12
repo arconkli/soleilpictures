@@ -35,11 +35,25 @@ test.describe('share return wiring', () => {
 
   test('a signed-in viewer gets Save a copy, no Sign in link, and no sign-up prompt', () => {
     const s = view();
-    expect(s).toMatch(/signedIn/);
     expect(s).toMatch(/auth\?\.getSession\(\)/);
-    expect(s).toMatch(/signedIn \? 'Save a copy' : remixLabel/);
-    expect(s).toMatch(/\{!signedIn && \(\s*<a className="public-signin-quiet"/);
     expect(s).toMatch(/signedIn \? null : \(\s*<SharePrompt/);
+    // The topbar markup moved into PublicTopbar; the view hands it signedIn.
+    expect(s).toMatch(/<PublicTopbar\b[\s\S]{0,300}?signedIn=\{signedIn\}/);
+    const bar = read('src/components/PublicTopbar.jsx');
+    expect(bar).toMatch(/signedIn \? 'Save a copy' : remixLabel/);
+    expect(bar).toMatch(/\{!signedIn && \(\s*<a className="public-signin-quiet"/);
+  });
+
+  test('the dead-link and empty-board states offer a signed-in viewer Open Clusters, not sign-up (SHARE-16)', () => {
+    const s = view();
+    for (const surface of ['invalid_page', 'empty_board']) {
+      const at = s.indexOf(`ctaHref(ctx, '${surface}')`);
+      expect(at, `${surface} CTA is gone`).toBeGreaterThan(-1);
+      const block = s.slice(s.lastIndexOf('<div className="public-empty-actions">', at), at);
+      expect(block).toMatch(/\{signedIn \? \(\s*<a className="public-cta" href="\/">Open Clusters<\/a>\s*\) : \(/);
+    }
+    // Every Sign in link on the page is behind the signed-out branch.
+    expect(s).not.toMatch(/public-empty-actions">\s*<a className="public-signin-quiet"/);
   });
 
   test('the catalog names the landing event', () => {

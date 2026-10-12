@@ -3501,8 +3501,17 @@ export function CanvasSurface({
   const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
   // The over-length clips of one drop, gathered so they are said once (below).
   const tooLongRef = useRef(null);
+  // Failed uploads since the "Upload failed" toast appeared: { at, items:
+  // [{ file, cx, cy, boardId }] }. The toast is grouped, so a network drop
+  // that refuses every upload in flight is ONE toast ("12 uploads failed"),
+  // and its Retry sends all of them back through the drop. ingestFiles is
+  // defined further down, hence the ref.
+  const failedUploadsRef = useRef({ at: 0, items: [] });
+  const ingestFilesRef = useRef(null);
 
-  const handleUploadReject = useCallback((err, id, dropBoardId) => {
+  // `retry` — { file, cx, cy } — what Retry on the failure toast needs to put
+  // the file back through the same drop route; null where there is none.
+  const handleUploadReject = useCallback((err, id, dropBoardId, retry = null) => {
     // Silent (off-stack) rollback: the failed upload is not a user action,
     // so Cmd+Z must not resurrect the dead card. A card that isn't in front of
     // us (another cluster is open, or it was deleted and Undo may bring it
@@ -3577,7 +3586,28 @@ export function CanvasSurface({
         });
       }, 1000);
     } else if (String(err?.message) !== 'aborted') {
-      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+      const TTL = 8000;
+      const now = Date.now();
+      const failed = failedUploadsRef.current;
+      // The toast this would join has expired: start a fresh list with it.
+      if (now - failed.at > TTL) failed.items = [];
+      failed.at = now;
+      if (retry?.file) failed.items.push({ ...retry, boardId: dropBoardId });
+      const retryAll = () => {
+        // Only onto the cluster they were dropped on, and only if it is still
+        // the one open: the files are re-laid out around the first drop point.
+        const items = failed.items.splice(0).filter((r) => r.boardId === boardIdRef.current);
+        if (items.length) ingestFilesRef.current?.(items.map((r) => r.file), items[0].cx, items[0].cy, 'retry');
+      };
+      feedback.toast({
+        type: 'error',
+        ttl: TTL,
+        message: 'Upload failed: ' + (err?.message || err),
+        group: 'upload-failed',
+        groupMessage: (n) => `${n} uploads failed`,
+        ...(failed.items.length ? { action: { label: 'Retry', onClick: retryAll } } : {}),
+        onDismiss: () => { failed.items = []; },
+      });
     }
   }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, cardIsLive]);
 
@@ -3685,7 +3715,7 @@ export function CanvasSurface({
       // error toast, so an over-quota image drop — the one upload failure that
       // is actually a sales moment — showed a red "failed" message with no
       // upgrade path and no telemetry.
-      handleUploadReject(err, id, dropBoardId);
+      handleUploadReject(err, id, dropBoardId, { file, cx, cy });
     } finally {
       clearUploadProgress(id);
       setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
@@ -3896,7 +3926,7 @@ export function CanvasSurface({
       // Same shared handler as the image path — PDFs presign through the same
       // route, so they hit the same over-quota rejection and need the same
       // upgrade prompt rather than a dead-end error toast.
-      handleUploadReject(err, id, dropBoardId);
+      handleUploadReject(err, id, dropBoardId, { file, cx, cy });
     } finally {
       inflightUploadsRef.current.delete(id);
       clearUploadProgress(id);
@@ -3909,7 +3939,7 @@ export function CanvasSurface({
   // — the bytes were only going to count against storage for a card that's
   // gone — and leaves a retry behind, so if Undo brings the card back the
   // upload starts again into it instead of spinning "Uploading" for ever.
-  const runCancellableUpload = useCallback((id, dropBoardId, upload, done, label) => {
+  const runCancellableUpload = useCallback((id, dropBoardId, upload, done, label, retry = null) => {
     const run = async () => {
       const ctrl = new AbortController();
       let settled = false, cancelled = false;
@@ -3925,7 +3955,7 @@ export function CanvasSurface({
         unwatch();
         if (cancelled) { stashLateUpload(dropBoardId, id, { retry: run }); return; }
         console.error(`${label} upload failed`, err);
-        handleUploadReject(err, id, dropBoardId);
+        handleUploadReject(err, id, dropBoardId, retry);
         return;
       } finally {
         settled = true;
@@ -3968,7 +3998,7 @@ export function CanvasSurface({
       (up) => settleUpload(dropBoardId, id, {
         fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
       }),
-      'file');
+      'file', { file, cx, cy });
   }, [useLocalImages, workspaceId, board?.id, userId, mutators, placeDropRect, runCancellableUpload, settleUpload]);
 
   // Over-cap video/audio (paid only) → still an inline media card, but uploaded
@@ -4022,7 +4052,7 @@ export function CanvasSurface({
             : { analyzed: analyzable({ sizeBytes: file.size || 0, lowMemory: lowMemoryDevice() }) ? 1 : null });
         }
       },
-      'large media');
+      'large media', { file, cx, cy });
   }, [workspaceId, board?.id, userId, mutators, placeDropRect, runCancellableUpload, settleUpload]);
 
   // Upload a video file and place a video card centered on (cx, cy).
@@ -4076,7 +4106,7 @@ export function CanvasSurface({
       } else {
         console.error('video upload failed', e);
       }
-      handleUploadReject(e, id, dropBoardId);
+      handleUploadReject(e, id, dropBoardId, { file, cx, cy });
     } finally {
       inflightUploadsRef.current.delete(id);
       clearUploadProgress(id);
@@ -4127,7 +4157,7 @@ export function CanvasSurface({
       });
     } catch (err) {
       console.error('audio upload failed', err);
-      handleUploadReject(err, id, dropBoardId);
+      handleUploadReject(err, id, dropBoardId, { file, cx, cy });
     } finally {
       inflightUploadsRef.current.delete(id);
       clearUploadProgress(id);
@@ -4327,6 +4357,7 @@ export function CanvasSurface({
     reportSkippedFiles(skipped, { surface: 'canvas', toast: feedback.toast });
   }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators, markViewSettled]);
+  ingestFilesRef.current = ingestFiles;
 
   // Unified "Add → File" picker: opens a native file chooser with NO accept
   // filter (any type) and routes the chosen file(s) through ingestFiles — the
@@ -4443,11 +4474,33 @@ export function CanvasSurface({
   // item — goes through here so there is ONE filename rule, one delivery path
   // (which works inside the native app, where <a download> silently does
   // nothing), and one error message.
+  //
+  // A big file can take a long while to arrive before the save dialog shows,
+  // and the menu item or hover button that started it is gone or unchanged —
+  // so after a beat one "Preparing download…" toast says it is working, for
+  // however many downloads are running, and goes when the last one is done.
+  // (A repeat click on the same card joins the download already running:
+  // cardDownload shares the promise.)
+  const downloadBusyRef = useRef({ n: 0, timer: null, close: null });
   const runDownload = useCallback(async (card, kind) => {
+    const busy = downloadBusyRef.current;
+    if (busy.n++ === 0) {
+      busy.timer = setTimeout(() => {
+        busy.timer = null;
+        busy.close = feedback.toast({ type: 'info', message: 'Preparing download…', ttl: 120000 });
+      }, 400);
+    }
     try {
       await downloadCardAsset(card, kind, { surface: isPublic ? 'public_canvas' : 'canvas' });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+    } finally {
+      if (--busy.n === 0) {
+        clearTimeout(busy.timer);
+        busy.timer = null;
+        busy.close?.();
+        busy.close = null;
+      }
     }
   }, [feedback, isPublic]);
 
@@ -8937,6 +8990,7 @@ export function CanvasSurface({
   // empty-canvas points; a right-click menu item shows an inline draft
   // input (no popup) at the click position.
   const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds,
+          upsertLocally: upsertCommentLocally,
           viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id, { enabled: !isPublic });
   // Live vote cards — a separate annotation type sharing the comment
   // anchoring/drag/hide machinery. They hide with the comments eye toggle
@@ -9058,15 +9112,17 @@ export function CanvasSurface({
       }
     } catch (_) { /* fall through with zero offset */ }
     try {
-      await addComment({
+      const row = await addComment({
         workspaceId, boardId: board.id, author: userId,
         body: trimmed, anchor: commentDraft.anchor,
         offsetX: offset.offsetX, offsetY: offset.offsetY,
       });
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) });
-    } finally {
+      upsertCommentLocally(row);   // shown now, not after the realtime refetch
       setCommentDraft(null);
+    } catch (err) {
+      // The draft stays open with its text so a retry is one press; clearing
+      // it here (in a finally) threw away what was typed (SHARE-11).
+      feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) + ' — your text is still there.' });
     }
   };
   // Helper: compute a comment's canvas-space rect for collision-avoidance.
@@ -9655,7 +9711,7 @@ export function CanvasSurface({
                                                      onEdit={onUpdate && c.src ? (rect) => setImageEdit({ cardId: c.id, anchorRect: rect }) : null}
                                                      onDownload={c.src ? () => runDownload(c, 'image') : null}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
-    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} fontSizeV={c.fontSizeV} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
                                                 awareness={getAwareness?.() || null}
                                                 cardId={c.id} boardId={board.id}
@@ -11370,7 +11426,7 @@ export function CanvasSurface({
       {/* Who's-here facepile + hover roster. The authoritative presence list at
           scale (canvas cursors are culled/capped); floats top-right. */}
       <div className="canvas-presence-roster">
-        <PresenceStack getAwareness={presenceAwareness} />
+        <PresenceStack getAwareness={presenceAwareness} selfId={currentUser?.id} />
       </div>
       <div ref={canvasRef}
            className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
@@ -12201,6 +12257,7 @@ export function CanvasSurface({
           layerVisible={commentsVisible}
           viewsByRootId={commentViewsByRootId}
           onMarkViewed={markCommentViewed}
+          canEdit={canEdit}
         />
 
         {/* Vote cards — same canvas-transform layer + the SAME visibility
@@ -12759,6 +12816,7 @@ export function CanvasSurface({
           userId={userId}
           wsPeers={wsPeers}
           currentUser={currentUser}
+          canEdit={canEdit}
           onLocallyRemoved={removeCommentLocally}
           onClose={() => setCommentArchive(null)}
         />

@@ -42,12 +42,48 @@ import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
+import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
+import { anyModalOpen } from '../lib/modalGuard.js';
 import { startTouchScrollGesture } from '../lib/touchScroll.js';
 import './noteTiptap.css';
 
 const NOTE_AUTOSIZE_MAX = 480;
+
+// UI that belongs to this editing session, wherever it is portaled: focus or a
+// click landing in any of these is still "in the note", not leaving it. The
+// custom-font dialog (.cfont) is one: it takes focus for its name field, and
+// reading that as an exit unmounted the bar that owns it, so the dialog
+// vanished within a frame (NOTES-04). Modal hands focus back to the note when
+// it closes. The toolbar's own popovers (swatches, fonts, size presets) are
+// portaled out of .tob, so they are named too.
+const EDIT_SESSION_UI = '.tob, .tob-pop, .font-pop, .size-combo-pop, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
+const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
+
+// Card height the READ-ONLY note needs when its html carries link previews.
+// The live editor never contains the .note-link-preview blocks linkify
+// appends to the cached html, so sizing from the editor alone left every note
+// with a URL clipped after editing, behind a "Show all" chip (NOTES-07).
+// Lays the html out once in a hidden .note-body inside the same note (same
+// width, fonts and preview styles) and measures its natural height. That
+// height doesn't depend on the card's, so taking the max with the editor's
+// measure settles instead of growing on every flush. 0 when nothing to add.
+function displayHeightWithPreviews(editorDom, html) {
+  if (!html || html.indexOf('note-link-preview') < 0) return 0;
+  const note = editorDom?.closest?.('.note');
+  if (!note) return 0;
+  const probe = document.createElement('div');
+  probe.className = 'note-body';
+  probe.setAttribute('aria-hidden', 'true');
+  Object.assign(probe.style, {
+    position: 'absolute', left: '0', top: '0', visibility: 'hidden', pointerEvents: 'none',
+    width: `${editorDom.clientWidth}px`, height: 'auto', flex: 'none', overflow: 'visible',
+  });
+  probe.innerHTML = sanitizeNoteHtml(html);
+  note.appendChild(probe);
+  try { return cardHeightForBody(probe); } finally { probe.remove(); }
+}
 
 export function NoteTiptapSurface({
   ydoc,
@@ -178,9 +214,18 @@ export function NoteTiptapSurface({
   const sawContentRef = useRef(false);
   const writeTextCache = () => {
     if (!fragment) return;
-    if (!noteFragmentIsBlank(fragment)) sawContentRef.current = true;
+    const blank = noteFragmentIsBlank(fragment);
+    if (!blank) sawContentRef.current = true;
     else if (!sawContentRef.current && bodyHasText(cardYMap?.get?.('body'))) return;
-    writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null });
+    const serialized = noteFragmentToHtml(fragment);
+    // noteFragmentToHtml answers '' when it can't serialize (a node or mark
+    // this build's schema doesn't know, say from a newer peer). From a
+    // fragment that holds text that is a failure, not an edit: keep the cache.
+    if (!serialized && !blank) return;
+    // Previews the user removed stay removed (the card's hiddenPreviews).
+    const html = linkifyNoteHtml(serialized, cardYMap?.get?.('hiddenPreviews'));
+    writeCache({ html, body: null });
+    return html;
   };
 
   // @-mention picker state, driven by the suggestion plugin.
@@ -319,10 +364,14 @@ export function NoteTiptapSurface({
     const flush = () => {
       writeRaf.current = 0;
       if (!fragment) return;
-      try { writeTextCache(); } catch (_) { /* noop */ }
+      let html = null;
+      try { html = writeTextCache(); } catch (_) { /* noop */ }
       if (!manualRef.current && editor?.view?.dom) {
         try {
-          const h = Math.min(NOTE_AUTOSIZE_MAX, cardHeightForBody(editor.view.dom));
+          const h = Math.min(NOTE_AUTOSIZE_MAX, Math.max(
+            cardHeightForBody(editor.view.dom),
+            displayHeightWithPreviews(editor.view.dom, html),
+          ));
           writeCache({ h: Math.round(h) });
         } catch (_) { /* noop */ }
       }
@@ -360,17 +409,36 @@ export function NoteTiptapSurface({
   useEffect(() => {
     if (!editor) return undefined;
     const onBlur = ({ event }) => {
-      const next = event?.relatedTarget;
-      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker') || next.closest?.('.cand-pop')
-          || next.closest?.('.inline-composer') || next.closest?.('.comment-inline-pop'))) {
-        return;
-      }
+      if (inEditSessionUi(event?.relatedTarget)) return;
       if (mentionOpenRef.current || commentUiOpenRef.current) return;
       exitEdit();
     };
     editor.on('blur', onBlur);
     return () => editor.off('blur', onBlur);
   }, [editor, fragment]);
+
+  // The blur above is the only exit, so once focus has moved into a toolbar
+  // field (the size box, the colour pad's hex) and then gone nowhere, the note
+  // stayed in edit mode with nothing focused: a click on the canvas no longer
+  // closed it, and opening another note left two "editing" (NOTES-13). A press
+  // outside the note and its session UI, while the editor is not focused, is
+  // that missing exit. A field still holding a typed value is blurred first,
+  // so the value it commits on blur lands before the bar unmounts.
+  useEffect(() => {
+    if (!editor) return undefined;
+    const onDown = (e) => {
+      if (editor.isDestroyed || editor.isFocused) return;
+      if (mentionOpenRef.current || commentUiOpenRef.current || anyModalOpen()) return;
+      const t = e.target;
+      if (editor.view.dom.contains(t) || inEditSessionUi(t)) return;
+      const a = document.activeElement;
+      if (a && a !== document.body && inEditSessionUi(a)) { try { a.blur(); } catch (_) {} }
+      exitEdit();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
 
   // When the comment UI closes the editor no longer has focus, so the blur
   // that normally ends editing will never come. A click somewhere else on the

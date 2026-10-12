@@ -92,3 +92,43 @@ export function otherModeLinks(rows, mode, opts) {
   const mine = linkForMode(rows, mode, opts);
   return live.filter((l) => l !== mine);
 }
+
+// Split the live links into the ones this person may revoke and the rest.
+// revoke_public_link lets the workspace's owner or a co-owner revoke any link
+// and everyone else only the links they created. "Only invited people" used to
+// try them all, so an editor on a board with the owner's link got "Could not
+// revoke 1 of 1" on every attempt and the picker snapped back for good.
+export function revocableLinks(rows, opts) {
+  const { isManager = false, selfUserId = null, now = Date.now() } = opts || {};
+  const mine = []; const others = [];
+  for (const l of activeLinks(rows, now)) {
+    (isManager || (selfUserId && l.created_by === selfUserId) ? mine : others).push(l);
+  }
+  return { mine, others };
+}
+
+// People who can open this cluster because an ANCESTOR was shared with them
+// (list_inherited_board_shares, 0405), reduced to the rows the panel adds to
+// "People with access". Access cascades down the tree, so a sub-cluster's list
+// that showed only its own shares answered "who can get in?" wrongly: an owner
+// auditing a sub-cluster never saw the parent's guests.
+//
+// Somebody already listed, by a share of their own here or as a workspace
+// member, is not listed again, and each person appears once, named by their
+// first row (the RPC orders the nearest ancestor first).
+export function inheritedAccessRows(rows, opts) {
+  if (!Array.isArray(rows)) return [];
+  const { shares, workspaceMembers } = opts || {};
+  const listed = new Set();
+  for (const list of [shares, workspaceMembers]) {
+    if (!Array.isArray(list)) continue;
+    for (const r of list) if (r && r.user_id) listed.add(r.user_id);
+  }
+  const out = [];
+  for (const r of rows) {
+    if (!r || !r.user_id || listed.has(r.user_id)) continue;
+    listed.add(r.user_id);
+    out.push(r);
+  }
+  return out;
+}

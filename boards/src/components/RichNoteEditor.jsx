@@ -6,6 +6,7 @@
 // Click outside (blur) saves; Escape cancels.
 
 import { useEffect, useRef, useState } from 'react';
+import { noteFontStyle } from '../lib/noteFontSize.js';
 import { captureSelection, clearSelection } from '../lib/editorSelection.js';
 import { EntityPicker } from './EntityPicker.jsx';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
@@ -73,7 +74,7 @@ const sanitizeCopiedHtml = (html) => scrubNoteHtml(html, { dropChrome: true });
 const NOTE_AUTOSIZE_MAX = 480;
 
 export function RichNoteEditor({
-  html, body, bgColor, textColor, fontFamily, fontSize,
+  html, body, bgColor, textColor, fontFamily, fontSize, fontSizeV = null,
   onChangeHTML, onChangeBg, onChangeColor,
   onEditingChange,
   onAutoSize, // (height) => void  — fires while editing if not manually resized
@@ -119,7 +120,7 @@ export function RichNoteEditor({
   // can replace it on commit without re-finding the position.
   const [mention, setMention] = useState(null);
   // Clipped-text cue: fades the bottom edge + shows the "Show all" chip.
-  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontFamily, editing, peerLiveHtml, manuallyResized]);
+  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontSizeV, fontFamily, editing, peerLiveHtml, manuallyResized]);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -209,7 +210,7 @@ export function RichNoteEditor({
   useEffect(() => {
     if (!editing) fitOutsideEditRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fontSize, fontFamily]);
+  }, [fontSize, fontSizeV, fontFamily]);
   useEffect(() => {
     let live = true;
     try {
@@ -300,8 +301,10 @@ export function RichNoteEditor({
     // If focus is moving INTO the bottom toolbar (font/size selects, color
     // pickers, format buttons), don't exit edit mode — otherwise the
     // toolbar unmounts and the user's click on the dropdown never lands.
+    // The custom-font dialog (.cfont) is the toolbar's too: it takes focus for
+    // its name field and hands it back to the note when it closes.
     const next = e?.relatedTarget;
-    if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu'))) {
+    if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.cfont'))) {
       return;
     }
     if (liveTimerRef.current) { clearTimeout(liveTimerRef.current); liveTimerRef.current = null; }
@@ -627,8 +630,9 @@ export function RichNoteEditor({
   };
 
   const noteStyle = { background: bg, color: textColor ? readableOn(textColor, effBg) : undefined };
-  if (fontFamily) noteStyle.fontFamily = fontFamily;
-  if (fontSize) noteStyle.fontSize = `${fontSize}px`;
+  // Only a size stamped by a build that renders it reaches the text (see
+  // lib/noteFontSize.js).
+  Object.assign(noteStyle, noteFontStyle(fontFamily, fontSize, fontSizeV));
   // Expose the bg color to CSS so .has-bg rules can keep their material
   // polish even when the inline `background` is locally overridden by
   // editing-state tints.

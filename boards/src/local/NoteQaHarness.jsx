@@ -16,6 +16,7 @@ import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from 'y-protoc
 import * as noteDocState from '../lib/noteDocState.js';
 import { getActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { NoteCardCollab, NoteCard } from '../components/cards.jsx';
+import { ToolOptionsBar } from '../components/ToolOptionsBar.jsx';
 import { EntityTrieContext } from '../hooks/useEntityNameTrie.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
 
@@ -77,13 +78,22 @@ function createTwoClientStore(initialHtml) {
   return { docA, cardA, docB, cardB, sync, awA, awB };
 }
 
-function ClientCard({ label, ydoc, cardYMap, awareness }) {
+function ClientCard({ label, ydoc, cardYMap, awareness, withToolbar = false }) {
   const [card, setCard] = useState(() => ({
     html: noteDocState.noteFragmentToHtml(noteDocState.getNoteFragment(cardYMap)) || '',
     h: 120,
     manuallyResized: false,
   }));
-  const onUpdate = (patch) => setCard((c) => ({ ...c, ...patch }));
+  const [editing, setEditing] = useState(false);
+  // Mirror the real app: a card-prop write (onUpdate, or the toolbar's
+  // whole-note font, size and colour) lands on the card map as a board edit,
+  // and every reader picks it up from there.
+  const onUpdate = (patch) => {
+    setCard((c) => ({ ...c, ...patch }));
+    ydoc.transact(() => {
+      for (const [k, v] of Object.entries(patch)) cardYMap.set(k, v);
+    }, 'local');
+  };
   // Mirror the real app: the write-through sets html/h on the card map under
   // NOTE_ORIGIN; pick them up via a Y.Map observer (this is what readCards does
   // on the canvas).
@@ -95,6 +105,10 @@ function ClientCard({ label, ydoc, cardYMap, awareness }) {
       // seed from it when there is no html. null is a real value here.
       body: cardYMap.has('body') ? cardYMap.get('body') : c.body,
       h: cardYMap.get('h') ?? c.h,
+      fontSize: cardYMap.get('fontSize') ?? c.fontSize,
+      fontSizeV: cardYMap.get('fontSizeV') ?? c.fontSizeV,
+      fontFamily: cardYMap.get('fontFamily') ?? c.fontFamily,
+      textColor: cardYMap.get('textColor') ?? c.textColor,
     }));
     cardYMap.observe(update);
     return () => cardYMap.unobserve(update);
@@ -110,12 +124,13 @@ function ClientCard({ label, ydoc, cardYMap, awareness }) {
           html={card.html}
           body={card.body}
           bgColor={null}
-          textColor={null}
+          textColor={card.textColor}
           fontFamily={card.fontFamily}
           fontSize={card.fontSize}
+          fontSizeV={card.fontSizeV}
           manuallyResized={!!card.manuallyResized}
           onUpdate={onUpdate}
-          onEditingChange={() => {}}
+          onEditingChange={setEditing}
           ydoc={ydoc}
           cardYMap={cardYMap}
           cardId="noteqa-card"
@@ -123,6 +138,15 @@ function ClientCard({ label, ydoc, cardYMap, awareness }) {
           awareness={awareness}
         />
       </div>
+      {/* &toolbar=1: the real note formatting bar, driving this client's
+          editor the way the canvas wires it (editingNoteCard plus a card-prop
+          writer for caret-only picks). */}
+      {withToolbar && (
+        <ToolOptionsBar
+          editingNoteCard={editing ? card : null}
+          onUpdateEditingNote={editing ? onUpdate : null}
+        />
+      )}
     </div>
   );
 }
@@ -185,12 +209,13 @@ export function NoteQaHarness() {
     new URLSearchParams(window.location.search).get('trie') === '1'
       ? { trie: createNameIndex(), workspaceId: null } : null
   ));
+  const [withToolbar] = useState(() => new URLSearchParams(window.location.search).get('toolbar') === '1');
   const page = (
     <div style={{ padding: 24, color: '#eee', background: '#0a0a0c', minHeight: '100vh' }}>
       <h3 style={{ font: '13px monospace' }}>noteqa — two-client co-typing harness</h3>
       <div id="noteqa-ready" style={{ font: '11px monospace', opacity: 0.5 }} />
       <div style={{ display: 'flex', gap: 32, marginTop: 16 }}>
-        <ClientCard label="A" ydoc={docA} cardYMap={cardA} awareness={awA} />
+        <ClientCard label="A" ydoc={docA} cardYMap={cardA} awareness={awA} withToolbar={withToolbar} />
         <ClientCard label="B" ydoc={docB} cardYMap={cardB} awareness={awB} />
       </div>
       <div style={{ marginTop: 24 }}>

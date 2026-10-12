@@ -393,6 +393,17 @@ export async function listBoardShares(boardId) {
   return data || [];
 }
 
+// People with access through an ANCESTOR's share and none of their own here
+// (0405). Same permission gate as listBoardShares. Rows:
+//   { user_id, email, role, via_board_id, via_board_name }, nearest first.
+export async function listInheritedBoardShares(boardId) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .rpc('list_inherited_board_shares', { p_board_id: boardId });
+  if (error) throw error;
+  return data || [];
+}
+
 // Boards the caller has access to via a per-board share where they are
 // NOT also a workspace member. Used by the sidebar's "Shared with me"
 // section.  Returns rows shaped like:
@@ -550,8 +561,12 @@ export async function adminPublicBoardStats(days = 90) {
   return Array.isArray(data) ? data : [];
 }
 // rows: [{ page|slug, clicks, impressions, ctr, position }]; asOf: 'YYYY-MM-DD'.
+// p_as_of is OMITTED when not given, never sent as null: an explicit null
+// overrides the SQL `default current_date` and lands in seo_board_stats.day, a
+// NOT NULL key column, so every import without a date failed.
 export async function adminImportGscCsv(rows, asOf = null) {
-  const { data, error } = await supabase.rpc('admin_import_gsc_csv', { p_rows: rows, p_as_of: asOf });
+  const { data, error } = await supabase.rpc('admin_import_gsc_csv',
+    asOf ? { p_rows: rows, p_as_of: asOf } : { p_rows: rows });
   if (error) throw error;
   return data; // count imported
 }

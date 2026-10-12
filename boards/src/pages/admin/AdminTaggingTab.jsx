@@ -31,6 +31,11 @@ import { AdminStatCard } from './AdminStatCard.jsx';
 import { NFlag, ChartGate } from './SmallN.jsx';
 import { Tag } from '../../lib/icons.js';
 
+// card_index titles are fetched by id in chunks this size: well under
+// PostgREST's 1000-row cap per response, and a short enough `in.(...)` list to
+// keep the request URL small.
+const CARD_ID_CHUNK = 150;
+
 export function AdminTaggingTab() {
   const [selectedTagId, setSelectedTagId] = useState(null);
   // What-if AUTO_DIST. Default to the production constant; user can
@@ -42,7 +47,7 @@ export function AdminTaggingTab() {
 
   // ── Load everything in parallel. ───────────────────────────────────
   const q = useAdminData(async () => {
-    const [t, w, c, e, l, ci, el] = await Promise.all([
+    const [t, w, c, e, l, el] = await Promise.all([
       supabase.from('tags').select('id, name, slug, color, description, workspace_id'),
       supabase.from('workspaces').select('id, name'),
       supabase.from('tag_centroids').select('tag_id, centroid'),
@@ -50,7 +55,6 @@ export function AdminTaggingTab() {
       supabase.from('entity_links')
         .select('target_id, source_kind, source_id')
         .eq('target_kind', 'tag').eq('link_kind', 'applied'),
-      supabase.from('card_index').select('card_id, board_id, kind, title, body'),
       supabase.from('tag_eval_labels').select('tag_id, source_kind, source_id, label, workspace_id, created_at'),
     ]);
     if (t.error)  throw t.error;
@@ -58,8 +62,21 @@ export function AdminTaggingTab() {
     if (c.error)  throw c.error;
     if (e.error)  throw e.error;
     if (l.error)  throw l.error;
-    if (ci.error) throw ci.error;
     if (el.error) throw el.error;
+
+    // Titles for the embedded cards only, by id, in chunks. The whole of
+    // card_index in one select was silently cut at PostgREST's 1000-row cap, so
+    // a share of the suspects fell back to "card 1a2b3c4d" and the labelling
+    // workflow was guesswork. Each chunk is far under the cap, and only the
+    // cards the suspect tables can show are fetched.
+    const cardIds = [...new Set((e.data || []).map((r) => r.card_id).filter(Boolean))];
+    const chunks = [];
+    for (let i = 0; i < cardIds.length; i += CARD_ID_CHUNK) chunks.push(cardIds.slice(i, i + CARD_ID_CHUNK));
+    const ciParts = await Promise.all(chunks.map((ids) => supabase
+      .from('card_index').select('card_id, board_id, kind, title, body').in('card_id', ids)));
+    const ciErr = ciParts.find((r) => r.error);
+    if (ciErr) throw ciErr.error;
+    const ci = { data: ciParts.flatMap((r) => r.data || []) };
 
     const tags = t.data || [];
 
@@ -228,6 +245,7 @@ export function AdminTaggingTab() {
       <AdminAsync
         loading={q.loading}
         error={q.error}
+        hasData={q.hasData}
         onRetry={q.refresh}
         skeleton={<><AdminSkeleton variant="cards" rows={3} /><div style={{ height: 16 }} /><AdminSkeleton variant="table" rows={6} cols={8} /></>}
         isEmpty={tagStats.length === 0}

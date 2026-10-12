@@ -14,6 +14,7 @@
 
 import { useEffect, useState } from 'react';
 import * as Y from 'yjs';
+import * as awarenessProtocol from 'y-protocols/awareness';
 import { MessagesUiContext } from '../hooks/useOpenDm.js';
 import * as docState from '../lib/docState.js';
 import * as docExport from '../lib/docFullExport.js';
@@ -43,12 +44,22 @@ function createDocStore() {
   }, 'local');
   docState.initCardDocStore(ydoc, cardYMap);
   const scope = { ...docState.cardScope(cardYMap), cardId: CARD_ID, docCardId: CARD_ID };
+  // A reader never seeds the first page (it would exist only in their tab),
+  // so the viewer harness arrives with one already there, as a real doc does.
+  if (new URLSearchParams(window.location.search).get('viewer') === '1') {
+    docState.addPage(ydoc, { name: 'Page one', scope });
+  }
   return { ydoc, cardYMap, scope };
 }
 
 export function DocQaHarness() {
   // Create the store exactly once for this instance.
   const [{ ydoc, cardYMap, scope }] = useState(createDocStore);
+  // ?docqa=1&presence=1 gives the card a real Awareness so DocPresence mounts;
+  // specs add simulated peers through the bridge's setPeer().
+  const [awareness] = useState(() => (
+    new URLSearchParams(window.location.search).get('presence') === '1'
+      ? new awarenessProtocol.Awareness(ydoc) : null));
   // Card title lives in React state so onUpdate flows (exercises the
   // card-title → primary-page-title sync) and the preview re-renders.
   const [title, setTitle] = useState('');
@@ -57,6 +68,10 @@ export function DocQaHarness() {
   // button) are correctly suppressed there.
   const isPublicView = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('public') === '1';
+  // ?docqa=1&viewer=1 mounts it as a signed-in VIEW-ONLY member: not public,
+  // but canEdit false — the case whose writes the board room drops.
+  const isViewer = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('viewer') === '1';
   // Stub messages state for the doc-header button (see MessagesUiContext below).
   // A non-zero unread count so the badge dot renders and can be asserted.
   const [messagesOpen, setMessagesOpen] = useState(false);
@@ -78,6 +93,21 @@ export function DocQaHarness() {
       ydoc,
       cardYMap,
       getScope: () => scope,
+      awareness,
+      // Publish a simulated peer's awareness state (null removes it). Each
+      // name gets its own Y.Doc, so its own clientID, like another tab.
+      setPeer: (name, state) => {
+        if (!awareness) return;
+        const peers = window.__soleilDocPeers || (window.__soleilDocPeers = new Map());
+        let peer = peers.get(name);
+        if (!peer) {
+          peer = new awarenessProtocol.Awareness(new Y.Doc());
+          peers.set(name, peer);
+        }
+        peer.setLocalState(state);
+        awarenessProtocol.applyAwarenessUpdate(
+          awareness, awarenessProtocol.encodeAwarenessUpdate(peer, [peer.clientID]), 'docqa');
+      },
       // Open the live card via the real event path RichDocCard listens for.
       openCard: (pageId = null) =>
         document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
@@ -85,7 +115,7 @@ export function DocQaHarness() {
         })),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ydoc, cardYMap, scope]);
+  }, [ydoc, cardYMap, scope, awareness]);
 
   // The doc header's Messages button reads MessagesUiContext, which normally
   // comes from App. Provide a stub so the button (and its unread badge) is
@@ -117,11 +147,11 @@ export function DocQaHarness() {
           workspaceId={null}
           userId={STUB_USER.id}
           currentUser={STUB_USER}
-          getAwareness={() => null}
+          getAwareness={() => awareness}
           boards={{}}
           wsPeers={[]}
           onJumpToPeer={() => {}}
-          canEdit={!isPublicView}
+          canEdit={!isPublicView && !isViewer}
           isPublic={isPublicView}
           autoFocus={false}
           onUpdate={(patch) => { if (patch && 'title' in patch) setTitle(patch.title || ''); }}

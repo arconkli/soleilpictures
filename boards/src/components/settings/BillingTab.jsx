@@ -15,11 +15,12 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { useMyTier } from '../../hooks/useMyTier.js';
 import { useStorageUsage } from '../../hooks/useStorageUsage.js';
 import { PricingModal } from '../PricingModal.jsx';
+import { useBfcacheRestore } from '../../auth/useBfcacheRestore.js';
 
 export function BillingTab({ user }) {
   const feedback = useFeedback();
   const { tier, demoCardCount, serverCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
-          grantActive, grantExpiresAt, effectiveCardLimit, creatorTrialStartedAt, loading } =
+          grantActive, grantExpiresAt, effectiveCardLimit, creatorTrialStartedAt, loading, error, refetch } =
     useMyTier({ userId: user?.id });
   // Settings was the one upgrade entry that never named the trial to someone
   // owed it. Decided on the server's count, like every other trial surface.
@@ -29,6 +30,8 @@ export function BillingTab({ user }) {
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
+  // Back from the Stripe portal restores the page with Manage billing busy.
+  useBfcacheRestore(() => setBusy(false));
 
   useEffect(() => {
     if (!user?.id) return;
@@ -54,6 +57,24 @@ export function BillingTab({ user }) {
 
   if (loading) {
     return <div className="settings-section"><div className="settings-empty">Loading…</div></div>;
+  }
+
+  // The first get_my_tier failed (offline at open, a transient 5xx): there is
+  // no plan to describe. Rendering on regardless told a paying customer they
+  // were on the waitlist and hid Manage billing. A later failed refetch keeps
+  // the last good tier, so this only shows when there is nothing to show.
+  if (!tier && error) {
+    return (
+      <div className="settings-section">
+        <h3 className="settings-section-title">Plan &amp; billing</h3>
+        <div className="settings-empty" role="alert">
+          Couldn’t load your plan.{' '}
+          <button type="button" className="settings-link-btn" onClick={() => refetch?.()}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -2,7 +2,7 @@
 
 > A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-10_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-12_
 
 The **Share** panel answers one question — who can open this cluster? — and
 everything in it hangs off that answer. It opens on one button and one picker;
@@ -21,13 +21,19 @@ One picker, three answers:
 |---|---|---|
 | **Anyone with the link · can view** | Opens the cluster read-only | No |
 | **Anyone with the link · can edit** | Recipient confirms, signs in, and joins as an editor | Yes |
-| **Only invited people** | Revokes every link on the cluster | — |
+| **Only invited people** | Revokes every link on the cluster that you can revoke | — |
 
 Choosing one hands you the link straight away; the button beside the picker
 copies it again any time. Switching between **can view** and **can edit** never
 revokes anything — a link you have already sent someone keeps working, and the
 panel tells you it is still live. Only **Only invited people** revokes, and it
 asks first.
+
+Owners and co-owners can revoke any link on the cluster. An editor can revoke
+the links they made themselves, so when an editor picks **Only invited people**
+their own links are revoked and the panel says how many links other people made
+are still live. Those stay until the person who made them, the owner or a
+co-owner revokes them.
 
 An edit link is not an editable public link. It grants nothing on its own: the
 person who opens it sees a preview and an explicit **Join** step, and access is
@@ -118,8 +124,11 @@ Editors are **free on every plan**. See [Collaborating](/docs/collaborate).
 ## People with access
 
 One list, covering everyone: workspace members, people added to this cluster
-alone, and invitations still waiting on a signup. Each row says what that person
-can do and how far it reaches. Owners and co-owners can change a role or
+alone, people who reach it through a parent cluster's share, and invitations
+still waiting on a signup. Each row says what that person can do and how far it
+reaches. Someone who has access because a parent was shared with them is listed
+as **via** that parent; their access is changed or removed from the parent's
+Share panel, so their row here has no controls. Owners and co-owners can change a role or
 remove access from here; only the owner can transfer the workspace. A transfer
 hands over the plan too: the workspace's cards, files and storage count against
 the new owner's plan from then on, and they get a notice with their own numbers.

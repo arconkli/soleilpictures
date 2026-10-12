@@ -126,6 +126,14 @@ export function ensureFontsFromHtml(html) {
   });
 }
 
+// Same, for a bare CSS font-family value — a note's or cell's card-level
+// font, which lives in a prop rather than in its html, so the html scan above
+// never sees it.
+export function ensureFontForCss(cssValue) {
+  const name = primaryFamilyName(cssValue);
+  if (name && GOOGLE_FONT_NAMES.has(name.toLowerCase())) ensureGoogleFontLoaded(name);
+}
+
 // Pre-load every Google catalog font the user has used recently. Called once
 // at app start so the corresponding stylesheets are in <head> before any
 // note/doc renders. Complements ensureFontsFromHtml — recent-fonts covers

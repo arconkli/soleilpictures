@@ -20,15 +20,30 @@ function normalizeUrl(url) {
   return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
 }
 
-export function linkifyNoteHtml(html) {
+// URLs whose preview the user removed, as recorded by the legacy editor:
+// hidden marker spans in the note html. The collaborative note keeps them in
+// the card's `hiddenPreviews` field instead (the fragment can't hold markers);
+// seeding moves them across.
+export function hiddenPreviewMarkers(html) {
+  if (typeof document === 'undefined' || !html || html.indexOf('note-preview-hidden') < 0) return [];
+  const root = document.createElement('div');
+  root.innerHTML = html;
+  return Array.from(root.querySelectorAll('.note-preview-hidden'))
+    .map(node => node.dataset.url).filter(Boolean);
+}
+
+// `hiddenUrls`: the card's `hiddenPreviews` field — URLs that keep their link
+// but get no preview block.
+export function linkifyNoteHtml(html, hiddenUrls = null) {
   if (typeof document === 'undefined') return html || '';
   const root = document.createElement('div');
   root.innerHTML = html || '';
   // Drop any previews already present so we never duplicate them.
   root.querySelectorAll('.note-link-preview').forEach(node => node.remove());
-  const hidden = new Set(
-    Array.from(root.querySelectorAll('.note-preview-hidden')).map(node => node.dataset.url)
-  );
+  const hidden = new Set([
+    ...Array.from(root.querySelectorAll('.note-preview-hidden')).map(node => node.dataset.url),
+    ...(Array.isArray(hiddenUrls) ? hiddenUrls : []),
+  ]);
   const urls = new Map();
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -78,5 +93,17 @@ export function linkifyNoteHtml(html) {
     root.appendChild(preview);
   });
 
+  return root.innerHTML;
+}
+
+// The note html with one URL's preview block taken out, everything else
+// byte-for-byte as stored.
+export function removeLinkPreview(html, url) {
+  if (typeof document === 'undefined' || !html) return html || '';
+  const root = document.createElement('div');
+  root.innerHTML = html;
+  root.querySelectorAll('.note-link-preview').forEach((node) => {
+    if (node.dataset.url === url) node.remove();
+  });
   return root.innerHTML;
 }

@@ -13,13 +13,17 @@ import { useEffect, useRef, useState } from 'react';
 
 const MAX_AVATARS = 4;
 
-function readPeers(awareness) {
+// selfId — the signed-in user. Skipping only this tab's clientID listed YOU
+// as "another person here" when the cluster was open in a second tab or on
+// another device (COMMS-20); CanvasPresence already filters by user id.
+function readPeers(awareness, selfId) {
   if (!awareness) return [];
   const byUser = new Map(); // dedupe by user.id so multi-tab = one avatar
   awareness.getStates().forEach((state, clientId) => {
     if (clientId === awareness.clientID) return; // skip self
     const u = state?.user;
     if (!u || !u.id) return;
+    if (selfId && u.id === selfId) return; // you, in another tab or device
     if (!byUser.has(u.id)) {
       byUser.set(u.id, { id: u.id, name: u.name || 'Someone', color: u.color || '#4f8df8' });
     }
@@ -31,7 +35,7 @@ function fingerprint(peers) {
   return peers.map(p => `${p.id}|${p.name}|${p.color}`).sort().join('||');
 }
 
-export function PresenceStack({ getAwareness }) {
+export function PresenceStack({ getAwareness, selfId = null }) {
   const [peers, setPeers] = useState([]);
   const [tick, setTick] = useState(0);
   const [open, setOpen] = useState(false);
@@ -43,7 +47,7 @@ export function PresenceStack({ getAwareness }) {
   useEffect(() => {
     if (!awareness) { setPeers([]); fpRef.current = ''; return; }
     const refresh = () => {
-      const next = readPeers(awareness);
+      const next = readPeers(awareness, selfId);
       const fp = fingerprint(next);
       if (fp === fpRef.current) return; // identity unchanged → no re-render
       fpRef.current = fp;
@@ -52,7 +56,7 @@ export function PresenceStack({ getAwareness }) {
     refresh();
     awareness.on('change', refresh);
     return () => awareness.off('change', refresh);
-  }, [awareness, tick]);
+  }, [awareness, tick, selfId]);
 
   // If awareness wasn't ready on mount, poll briefly until it is.
   useEffect(() => {

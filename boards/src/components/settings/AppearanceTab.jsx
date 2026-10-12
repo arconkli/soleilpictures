@@ -5,6 +5,7 @@
 // This was two tabs, Theme and Display, sitting behind a button labelled
 // "Workspace settings" — which was wrong twice over. They are one tab now,
 // in the personal half of the panel, split into three sections instead.
+import { useEffect, useRef, useState } from 'react';
 import { updateOwnSettings } from '../../lib/boardsApi.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
@@ -12,6 +13,7 @@ import { applyThemeNow, osPrefersLight } from '../../lib/theme.js';
 import { WHEEL_MODES, getWheelMode, applyWheelModeNow } from '../../lib/wheelMode.js';
 import { Field, Toggle, SettingsCategory, AccentPicker, FontField } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
+import { overlayPending, settlePending } from './pendingPatch.js';
 
 // Cmd on a Mac, Ctrl everywhere else — the copy has to name the key the reader
 // actually has. Same derivation as ShortcutsOverlay.
@@ -27,11 +29,30 @@ const THEME_MODES = [
 
 export function AppearanceTab({ mySettings, refresh }) {
   const save = useSettingsSave();
-  const ui = mySettings.ui || {};
-  const setUi = (patch) => save(async () => {
-    await updateOwnSettings({ ui: { ...ui, ...patch } });
-    refresh?.();
-  });
+  // `ui` is the fetched copy with our unconfirmed writes on top. The RPC
+  // replaces the whole `ui` key, so building a write from the fetched copy
+  // alone let a second quick change revert the first (pendingPatch.js).
+  // The ref carries the latest overlay into a write fired before a re-render.
+  const serverUi = mySettings.ui || {};
+  const [pending, setPending] = useState({});
+  const pendingRef = useRef(pending);
+  const serverUiRef = useRef(serverUi);
+  serverUiRef.current = serverUi;
+  useEffect(() => {
+    const next = settlePending(serverUi, pendingRef.current);
+    if (next !== pendingRef.current) { pendingRef.current = next; setPending(next); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mySettings]);
+  const ui = overlayPending(serverUi, pending);
+  const setUi = (patch) => {
+    const next = { ...pendingRef.current, ...patch };
+    pendingRef.current = next;
+    setPending(next);
+    return save(async () => {
+      await updateOwnSettings({ ui: overlayPending(serverUiRef.current, next) });
+      refresh?.();
+    });
+  };
 
   // Apply theme live on change so the user sees it instantly. applyThemeNow
   // sets data-theme AND mirrors it into the soleil.ui cache synchronously —

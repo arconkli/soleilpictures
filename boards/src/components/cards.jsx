@@ -20,6 +20,15 @@ import './noteChecklist.css';
 // shared one-shot reload instead of stranding the note on the SurfaceErrorBoundary.
 const NoteTiptapSurface = lazyWithReload(() =>
   import('./NoteTiptapSurface.jsx').then(m => ({ default: m.NoteTiptapSurface })));
+// Start fetching that chunk when a pointer comes onto an editable note, so a
+// double-click usually finds it loaded. Once per session; a failure here is
+// left for the real import (and its reload recovery) to meet.
+let noteEditorPrefetched = false;
+function prefetchNoteEditor() {
+  if (noteEditorPrefetched) return;
+  noteEditorPrefetched = true;
+  import('./NoteTiptapSurface.jsx').catch(() => { noteEditorPrefetched = false; });
+}
 // Reading a comment thread on a NON-editing note must not drag in Tiptap — the
 // popover only needs the Yjs thread store, so it's its own lazy chunk. Wrapper
 // component because the popover takes a docState `scope`, which for a note is
@@ -44,6 +53,7 @@ import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/p
 import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { noteSourceHtml } from '../lib/noteBody.js';
+import { noteFontStyle } from '../lib/noteFontSize.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
@@ -63,7 +73,7 @@ import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
-import { ensureFontsFromHtml } from '../lib/googleFonts.js';
+import { ensureFontsFromHtml, ensureFontForCss } from '../lib/googleFonts.js';
 import { FilmPlayer } from './film/FilmPlayer.jsx';
 import { registerCardPlayer } from '../lib/playerBus.js';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
@@ -1026,7 +1036,7 @@ function toggleChecklistInHtml(source, index) {
 // write-through cache feeding every read-only consumer.
 // Exported so the ?noteqa harness can mount it directly against an in-memory
 // Y.Doc (the canvas wires it via NoteCard's gate).
-export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fontSize,
+export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fontSize, fontSizeV = null,
                           vAlign = null,
                           onUpdate, onEditingChange, autoFocus = false,
                           manuallyResized = false, ydoc = null, cardYMap = null,
@@ -1039,13 +1049,11 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
 
   const ref = useRef(null);
-  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontFamily, editing, manuallyResized]);
+  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontSizeV, fontFamily, editing, manuallyResized]);
   const lastTapRef = useRef({});
   const theme = useThemeAttr();
 
-  const fontStyle = {};
-  if (fontFamily) fontStyle.fontFamily = fontFamily;
-  if (fontSize) fontStyle.fontSize = `${fontSize}px`;
+  const fontStyle = noteFontStyle(fontFamily, fontSize, fontSizeV);
   const hasBg = !!bgColor && bgColor !== 'transparent';
   const isTransparent = bgColor === 'transparent';
   // Luminance-based surface tone (theme-independent for an explicitly painted
@@ -1070,11 +1078,17 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // on a fresh load its text sat in the fallback face until someone clicked
   // in — the chosen font appeared to "revert". Load whatever it names.
   useEffect(() => { try { ensureFontsFromHtml(display); } catch (_) {} }, [display]);
+  // The whole-note font is a card prop, not inline html, so the scan above
+  // never saw it: only its author (whose recent fonts preload) got the face.
+  useEffect(() => { try { ensureFontForCss(fontFamily); } catch (_) {} }, [fontFamily]);
 
   if (editing) {
     return (
       <div ref={ref} className={cls} style={noteStyle}>
-        <Suspense fallback={<div className="note-body" />}>
+        {/* The editor is its own chunk, fetched on the session's first edit.
+            Until it lands, keep showing the note as it reads — the empty
+            fallback blanked its text for the whole load (NOTES-17). */}
+        <Suspense fallback={<NoteAutoLinkBody html={safeDisplay} />}>
           <NoteTiptapSurface
             ydoc={ydoc} cardYMap={cardYMap} html={html} body={body}
             cardId={cardId} boardId={boardId} awareness={awareness}
@@ -1098,6 +1112,27 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
       e.preventDefault();
       e.stopPropagation();
       setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
+      return;
+    }
+    // A link preview's remove (x). The fragment can't hold the old editor's
+    // hidden-marker spans, so the dismissal is a card field (hiddenPreviews)
+    // that every write-through honours; the cached html drops the block now.
+    // One card update, so one canvas Cmd+Z brings the preview back (NOTES-08).
+    const removeBtn = e.target.closest?.('.note-preview-remove');
+    if (removeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const url = removeBtn.closest('.note-link-preview')?.dataset?.url;
+      if (!url || isPublic) return;
+      const prev = cardYMap?.get?.('hiddenPreviews');
+      const hidden = Array.isArray(prev) ? prev : [];
+      import('../lib/noteLinkify.js').then((l) => {
+        onUpdate({
+          hiddenPreviews: hidden.includes(url) ? hidden : [...hidden, url],
+          html: l.removeLinkPreview(noteSourceHtml(html, body), url),
+          body: null,
+        });
+      }).catch(() => {});
       return;
     }
     const box = e.target.closest?.('.ck-box');
@@ -1130,7 +1165,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
           const next = m.noteFragmentToHtml(m.getNoteFragment(cardYMap));
           // noteFragmentToHtml answers '' when it can't serialize; never let
           // that blank the cache the canvas renders.
-          if (next) m.setNoteCacheFields(ydoc, cardYMap, { html: l.linkifyNoteHtml(next), body: null });
+          if (next) m.setNoteCacheFields(ydoc, cardYMap, { html: l.linkifyNoteHtml(next, cardYMap.get('hiddenPreviews')), body: null });
         }, 'local');
       }).catch(() => {});
     } else {
@@ -1148,6 +1183,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   };
   return (
     <div ref={ref} className={cls} style={noteStyle}
+         onPointerEnter={prefetchNoteEditor}
          onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
       <NoteAutoLinkBody html={safeDisplay} />
       {openThread && ydoc && cardYMap && (
@@ -1178,7 +1214,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   );
 }
 
-function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
+function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSizeV = null,
                            vAlign = null,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
@@ -1188,14 +1224,12 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   // Workspace defaults can pin a fontFamily/fontSize at create time —
   // pass them through as inline styles so existing notes that didn't
   // capture them keep falling back to the page default.
-  const fontStyle = {};
-  if (fontFamily) fontStyle.fontFamily = fontFamily;
-  if (fontSize) fontStyle.fontSize = `${fontSize}px`;
+  const fontStyle = noteFontStyle(fontFamily, fontSize, fontSizeV);
   // Read-only path still shows the clipped-text fade (no chip — viewers
   // can't resize). Hooks run unconditionally; the ref stays null on the
   // editable path so the hook is inert there.
   const roNoteRef = useRef(null);
-  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily, manuallyResized]);
+  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontSizeV, fontFamily, manuallyResized]);
   const roTheme = useThemeAttr();
   const roHasBg = !!bgColor && bgColor !== 'transparent';
   const roTone = surfaceTone(bgColor);
@@ -1203,6 +1237,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   const roDisplay = peerLiveHtml ?? noteSourceHtml(html, body);
   const roSafeDisplay = useMemo(() => remapHtmlColors(roDisplay, roEffBg), [roDisplay, roEffBg]);
   useEffect(() => { try { ensureFontsFromHtml(roDisplay); } catch (_) {} }, [roDisplay]);
+  useEffect(() => { try { ensureFontForCss(fontFamily); } catch (_) {} }, [fontFamily]);
   if (!onUpdate) {
     // Same surface-tone + readable-color treatment as the editable paths, so
     // the read-only render (share, list, off-screen) matches what editing shows.
@@ -1219,7 +1254,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
       <NoteCardCollab
         html={html} body={body}
         bgColor={bgColor} textColor={textColor}
-        fontFamily={fontFamily} fontSize={fontSize}
+        fontFamily={fontFamily} fontSize={fontSize} fontSizeV={fontSizeV}
         vAlign={vAlign}
         onUpdate={onUpdate} onEditingChange={onEditingChange}
         autoFocus={autoFocus} manuallyResized={manuallyResized}
@@ -1233,7 +1268,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
     <RichNoteEditor
       html={html} body={body}
       bgColor={bgColor} textColor={textColor}
-      fontFamily={fontFamily} fontSize={fontSize}
+      fontFamily={fontFamily} fontSize={fontSize} fontSizeV={fontSizeV}
       vAlign={vAlign}
       onChangeHTML={(h) => onUpdate({ html: h, body: null })}
       onChangeBg={(c) => onUpdate({ bgColor: c })}

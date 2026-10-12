@@ -28,6 +28,14 @@ interface PeerRecord {
 }
 
 const STALE_MS = 60_000;     // peers go stale after 60s with no heartbeat (backstop only)
+// How often a room with peers checks for stale ones. Pruning used to run only
+// when some socket connected or closed; a laptop that slept or dropped off the
+// network without a clean close (no FIN) stayed in everyone's topbar for as
+// long as nobody else came or went (COMMS-21). An alarm, the same pattern as
+// BoardParty's ban check, sweeps every PRUNE_MS while anyone is listed and
+// lapses once the room is empty. Clients need nothing new: a stale tab leaves
+// as the `leave` delta they already handle.
+const PRUNE_MS = 20_000;
 
 // True when nothing a consumer renders has changed between two records — used to
 // suppress steady-state heartbeat fanout. Mirrors useWorkspacePresence.peerKey:
@@ -86,6 +94,29 @@ export default class WorkspaceParty implements Party.Server {
     conn.send(JSON.stringify({ type: "roster", peers: roster }));
   }
 
+  // In memory, so a steady heartbeat costs no storage call; a fresh instance
+  // (after eviction) starts false and the next `here` checks storage again.
+  private pruneArmed = false;
+
+  async armPrune() {
+    if (this.pruneArmed || this.peers.size === 0) return;
+    this.pruneArmed = true;
+    try {
+      if ((await this.room.storage.getAlarm()) == null) {
+        await this.room.storage.setAlarm(Date.now() + PRUNE_MS);
+      }
+    } catch (e) {
+      this.pruneArmed = false;
+      console.warn(`[workspace ${this.room.id}] could not arm the stale sweep`, e);
+    }
+  }
+
+  async onAlarm() {
+    this.pruneArmed = false;
+    this.pruneStale();
+    await this.armPrune();   // an empty room lets the alarm lapse
+  }
+
   onMessage(message: string, sender: Party.Connection) {
     let msg: any;
     try { msg = JSON.parse(message); } catch { return; }
@@ -113,6 +144,7 @@ export default class WorkspaceParty implements Party.Server {
         ownerEpoch: info.epoch,
       };
       this.peers.set(tabId, rec);
+      void this.armPrune();
       // Only fan out when something a consumer renders actually changed: a new
       // peer, an identity change, or a navigation. A steady-state heartbeat
       // with an unchanged location is suppressed — idle fanout drops to ~zero,

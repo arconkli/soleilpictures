@@ -6,6 +6,8 @@ import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { findOrCreateDm, createGroupConversation } from '../lib/messages.js';
+import { startChatErrorMessage } from '../lib/messageAccess.js';
+import { useFeedback } from './AppFeedback.jsx';
 
 // 2-stage popover: pick people, then optionally name the group.
 //   workspaceId
@@ -33,6 +35,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
   const [title, setTitle] = useState('');
   const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: 480 });
   const [busy, setBusy] = useState(false);
+  const feedback = useFeedback();
   const popRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -64,7 +67,9 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
 
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
+    // doesn't close on the same press.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -117,6 +122,8 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
       }
     } catch (e) {
       console.warn('[NewConversationPicker] start DM failed', e);
+      // Say why; the button just re-enabled before (COMMS-25).
+      feedback.toast({ type: 'error', message: startChatErrorMessage(e) });
       setBusy(false);
     }
   };
@@ -134,6 +141,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
       onClose?.();
     } catch (e) {
       console.warn('[NewConversationPicker] create group failed', e);
+      feedback.toast({ type: 'error', message: startChatErrorMessage(e, { group: true }) });
       setBusy(false);
     }
   };

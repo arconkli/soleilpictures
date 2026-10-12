@@ -8,7 +8,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
-import { untagDocPage, tagDocPage } from '../lib/tagsApi.js';
+import { untagDocPage, tagDocPage, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
+import { isDeleteEvent } from '../lib/tagSurface.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
@@ -39,12 +40,18 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     };
     load();
 
+    // Workspace-scoped (see tagSurface.js): unfiltered, this received every
+    // entity_links DELETE on the platform. A bare DELETE (only the row id)
+    // can't be attributed, so it is ignored; this tab's removals arrive
+    // through TAG_LINKS_CHANGED, a peer's on the next load.
     const sfx = Math.random().toString(36).slice(2, 9);
-    const chan = supabase.channel(`doc-page-tags:${docCardId}:${pageId}:${sfx}`)
+    const chan = workspaceId ? supabase.channel(`doc-page-tags:${docCardId}:${pageId}:${sfx}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'entity_links',
+        filter: `source_workspace=eq.${workspaceId}`,
       }, (payload) => {
-        const r = payload?.new || payload?.old || {};
+        if (isDeleteEvent(payload)) return;
+        const r = payload?.new || {};
         const matches = r.source_kind === 'doc'
           && r.source_id === docCardId
           && r.source_page_id === pageId
@@ -52,12 +59,14 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
           && r.link_kind === 'applied';
         if (matches) load();
       })
-      .subscribe();
+      .subscribe() : null;
+    document.addEventListener(TAG_LINKS_CHANGED, load);
     return () => {
       cancelled = true;
-      try { supabase.removeChannel(chan); } catch (_) {}
+      document.removeEventListener(TAG_LINKS_CHANGED, load);
+      if (chan) { try { supabase.removeChannel(chan); } catch (_) {} }
     };
-  }, [docCardId, pageId]);
+  }, [workspaceId, docCardId, pageId]);
 
   // Hydrate tag rows for color + name.
   useEffect(() => {

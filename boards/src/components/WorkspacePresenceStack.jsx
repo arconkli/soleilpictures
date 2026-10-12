@@ -19,7 +19,7 @@ const STATUS_LABEL = {
   disconnected: 'Offline',
 };
 
-export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, workspaceId }) {
+export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, workspaceId, max = 4 }) {
   const [hovered, setHovered] = useState(null);
   const [auditPeer, setAuditPeer] = useState(null);   // { peer, anchorRect }
   // Dedupe by user.id — a single user with two tabs collapses to one avatar.
@@ -41,7 +41,7 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
     if ((p.lastSeen || 0) > (existing.lastSeen || 0)) byUser.set(p.user.id, p);
   }
   const list = [...byUser.values()];
-  const visible = list.slice(0, 4);
+  const visible = list.slice(0, max);
   const overflow = list.length - visible.length;
 
   const dotClass = status === 'connected' ? 'on'

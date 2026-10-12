@@ -21,6 +21,7 @@ import {
 import { noteExtensions } from '../components/noteExtensions/noteExtensions.js';
 import { pageFragmentToText } from './docState.js';
 import { noteSourceHtml, htmlHasText, bodyHasText } from './noteBody.js';
+import { hiddenPreviewMarkers } from './noteLinkify.js';
 
 // Origin for note STRUCTURAL ops (fragment create/seed) and the derived-html
 // write-through. Deliberately NOT 'local' so the board-level Y.UndoManager
@@ -140,6 +141,18 @@ export function stripNoteChromeForSeed(html) {
   const root = document.createElement('div');
   root.innerHTML = html;
   root.querySelectorAll('.note-link-preview, .note-preview-hidden').forEach((el) => el.remove());
+  // An auto-link (an anchor whose text IS its URL) is linkify's own output,
+  // not something the author made: keep it as the plain URL text the editor
+  // stores, so linkify re-links it (and its preview) on write-through. Only a
+  // NAMED link becomes a link mark in the fragment (once NOTE_LINK_MARKS in
+  // noteExtensions.js is on; until then it seeds as its words alone).
+  root.querySelectorAll('a[href]').forEach((a) => {
+    const text = (a.textContent || '').trim();
+    const asUrl = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    const href = a.getAttribute('href') || '';
+    if (!text || asUrl.replace(/\/$/, '') !== href.replace(/\/$/, '')) return;
+    a.replaceWith(...a.childNodes);
+  });
   // The note schema stops at h3. Without this an h4–h6 (from a doc, a paste,
   // or an older note) parsed as a plain paragraph, so a note visibly lost its
   // sub-headings the first time it was opened for editing.
@@ -230,9 +243,23 @@ export function seedNoteFragmentFromHtml(ydoc, cardYMap, html, body = cardYMap?.
       return;
     }
     seedFragmentFrom(frag, source);
+    carryHiddenPreviews(cardYMap, source);
     cardYMap.set(NOTE_SEEDED_KEY, true);
   }, NOTE_ORIGIN);
   return frag;
+}
+
+// The legacy editor recorded a removed link preview as a hidden marker span
+// in the html. The seed strips those (the schema can't hold them), so without
+// this every dismissed preview came back the first time the note was edited
+// (NOTES-08). Additive: merged into whatever the field already lists.
+function carryHiddenPreviews(cardYMap, source) {
+  const urls = hiddenPreviewMarkers(source);
+  if (!urls.length) return;
+  const prev = cardYMap.get('hiddenPreviews');
+  const list = Array.isArray(prev) ? prev : [];
+  const next = [...new Set([...list, ...urls])];
+  if (next.length !== list.length) cardYMap.set('hiddenPreviews', next);
 }
 
 // One-time repair for a note the html-only seed marked seeded while leaving its

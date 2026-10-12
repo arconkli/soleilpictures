@@ -85,6 +85,7 @@ function OnboardingErrors({ rows, days }) {
     label: r.event,
     value: num(r.sessions),
     title: r.top_reason ? `${r.event} — most common reason: ${r.top_reason}` : r.event,
+    reason: r.top_reason || null,
   }));
 
   return (
@@ -99,9 +100,12 @@ function OnboardingErrors({ rows, days }) {
         ramp
         limit={8}
         formatValue={(v) => formatCount(v)}
-        secondary={(r, i) => (
-          <span className="admin-muted">{(rows[i]?.top_reason) || '—'}</span>
-        )}
+        // The reason rides on the row itself. Indexing back into `rows` gave
+        // the "N more" rollup (rendered at i = limit) the reason of the first
+        // row it had rolled up; a rollup has no single reason.
+        secondary={(r) => (r.muted ? null : (
+          <span className="admin-muted">{r.reason || '—'}</span>
+        ))}
         emptyLabel="No onboarding errors recorded in this window."
       />
     </Well>
@@ -189,7 +193,7 @@ export function SystemView() {
   const experiments = getActiveExperiments();
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <div className="adm-view">
         <h2 className="admin-section-title">Honesty</h2>
         <Deck>
@@ -244,7 +248,7 @@ function LazyExperiments({ days, f, keys }) {
   }, [days, f.excludeInternal, keys.join(',')]);
 
   return (
-    <AdminAsync loading={q.loading} error={q.error} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
+    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       {(q.data?.arms || []).map((e) => (
         <ActivationByExperiment key={e.key} expKey={e.key} rows={e.rows} state={e.state} />
       ))}

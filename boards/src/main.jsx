@@ -125,8 +125,10 @@ installSpaPageViews();
 // Diagnostic: confirm the panel grain is actually rendering on each
 // dark surface. Logs once after first paint with each surface's
 // computed background-image + blend mode. Toggle off via
-// window.__SOLEIL_GRAIN_DEBUG__ = false.
-if (typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
+// window.__SOLEIL_GRAIN_DEBUG__ = false. Dev builds only (the house rule for
+// QA harnesses): in production it logged ~30 lines, fetched /grain.gif and
+// forced style recalcs 1.5s into every page load, often mid hero animation.
+if (import.meta.env.DEV && typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
   setTimeout(() => {
     const surfaces = ['.topbar', '.sidebar', '.sb-mid', '.rail', '.share-modal', '.modal', '.twk-panel',
       '.bc', '.cnv-tools', '.tob', '.tob-pop', '.doc-tb', '.sketchpad-toolbar', '.sketchpad-frame',
@@ -273,6 +275,16 @@ function hasCachedSession() {
   return false;
 }
 const showPublicPricing = !!pricingMatch && !hasCachedSession();
+
+// Routes whose page is committed to the dark brand world (.public-dark). Their
+// <Suspense> fallback is pinned dark too: the plain splash follows the theme, so
+// a light-OS visitor got a light grey screen between the dark boot splash and
+// the dark page while the page chunk downloaded. /t/, /legal and /resume follow
+// the theme and keep the plain splash. /pricing counts whether or not a cached
+// session sends it through AuthGate: both pricing pages are the dark
+// PricingPageView, and a cache that fails to restore lands on the public one.
+const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
+  || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
@@ -448,7 +460,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     <StrictMode>
       <AppErrorBoundary>
         <FeedbackProvider>
-          <Suspense fallback={<SplashLoading />}>
+          <Suspense fallback={<SplashLoading dark={darkPublicRoute} />}>
             {legalMatch ? (
               <LegalPage doc={legalMatch[1].toLowerCase()} />
             ) : resumeMatch ? (
@@ -478,7 +490,11 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
                 <OAuthConsentPage />
               </AuthGate>
             ) : (
-              <AuthGate>
+              // /pricing with a cached session lands here, but the cache is only
+              // a guess: a revoked refresh token fails to restore, and the
+              // visitor who clicked Pricing got the sign-in wall instead. Then
+              // the public page is the signed-out answer.
+              <AuthGate signedOut={pricingMatch ? <PublicPricingPage /> : null}>
                 <AppShell />
               </AuthGate>
             )}

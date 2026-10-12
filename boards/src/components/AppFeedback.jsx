@@ -1,6 +1,7 @@
 import { createContext, Suspense, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { isSilenced } from '../lib/captureState.js';
+import { placeGroupedToast, releaseToastGroup } from '../lib/toastGroup.js';
 
 // The visual layer (confirm/prompt dialogs + toast stack) is the only part of
 // this always-mounted provider that pulls in @phosphor-icons + react-dom's
@@ -77,7 +78,15 @@ export function FeedbackProvider({ children }) {
     });
   }), []);
 
+  // Grouped toasts (lib/toastGroup.js): which live toast each group key is
+  // showing in, and each toast's expiry timer, so a merge can restart it.
+  const groupsRef = useRef(new Map());
+  const timersRef = useRef(new Map());
+
   const dismissToast = useCallback((id) => {
+    releaseToastGroup(groupsRef.current, id);
+    window.clearTimeout(timersRef.current.get(id));
+    timersRef.current.delete(id);
     // Flag for the exit animation, then remove after it plays.
     setToasts(current => current.map(item => item.id === id ? { ...item, exiting: true } : item));
     window.setTimeout(() => {
@@ -100,22 +109,38 @@ export function FeedbackProvider({ children }) {
     }
     dismissToast(id);
   }, [dismissToast]);
-  const toast = useCallback(({ type = 'info', message, action = null, actions = null, ttl = 4200, onDismiss = null }) => {
-    if (!message) return;
+  // `group` + `groupMessage(n)`: a toast for a group already on screen joins
+  // that toast instead of stacking another ("3 uploads failed"), taking the
+  // newest action and restarting its timer.
+  //
+  // Returns a function that takes the toast down early — for a "working on
+  // it" toast whose work has finished. Callers that ignore it lose nothing.
+  const toast = useCallback(({ type = 'info', message, action = null, actions = null, ttl = 4200, onDismiss = null, group = null, groupMessage = null }) => {
+    if (!message) return () => {};
     // Capture Mode (admin-only) mutes toasts so a stray "Copied" or an undo
     // strip can't land in the middle of a take. Read from the module rather
     // than React state on purpose: `toast` sits in the useMemo'd context value
     // below, so making it depend on a flag would re-render the entire app tree
     // every time the flag flipped. confirm/prompt are deliberately NEVER muted
     // — they block a flow, and silently resolving one would strand the caller.
-    if (isSilenced()) return;
-    const id = nextId.current++;
+    if (isSilenced()) return () => {};
+    const fresh = nextId.current++;
+    const placed = placeGroupedToast(groupsRef.current, { group, message, groupMessage }, fresh);
+    const id = placed.id;
+    const text = placed.message;
     const list = Array.isArray(actions) && actions.length ? actions.filter(Boolean) : null;
-    setToasts(current => [...current, { id, type, message, action, actions: list, onDismiss, exiting: false }]);
+    const item = { id, type, message: text, action, actions: list, onDismiss, group, exiting: false };
+    setToasts(current => (placed.merged && current.some(t => t.id === id)
+      ? current.map(t => (t.id === id ? item : t))
+      : [...current, item]));
     const first = list?.[0] || action;
-    const spoken = `${message}${first ? ` — ${(list || [first]).map((a) => a.label || 'Undo').join(', ')} available` : ''}${id % 2 ? '\u00a0' : ''}`;
+    // Parity from `fresh`, not `id`: a merged toast keeps its id, and the
+    // announcement still has to change to be spoken again.
+    const spoken = `${text}${first ? ` — ${(list || [first]).map((a) => a.label || 'Undo').join(', ')} available` : ''}${fresh % 2 ? '\u00a0' : ''}`;
     setAnnounce(type === 'error' ? { polite: '', alert: spoken } : { polite: spoken, alert: '' });
-    window.setTimeout(() => dismissToast(id), Math.max(1000, ttl));
+    window.clearTimeout(timersRef.current.get(id));
+    timersRef.current.set(id, window.setTimeout(() => dismissToast(id), Math.max(1000, ttl)));
+    return () => dismissToast(id);
   }, [dismissToast]);
 
   const value = useMemo(() => ({ confirm, prompt, toast }), [confirm, prompt, toast]);

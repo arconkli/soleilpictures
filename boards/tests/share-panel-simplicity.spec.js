@@ -129,6 +129,22 @@ test.describe('one list, one scroll region', () => {
     expect(s).toMatch(/const isManager = isOwner \|\| myRole === 'coowner';/);
   });
 
+  test('people who reach a sub-cluster through a parent are listed, read-only', () => {
+    // SHARE-14: access cascades down the tree, so a list of this cluster's own
+    // shares told an owner auditing a sub-cluster the wrong answer.
+    const s = modal();
+    expect(s).toContain('listInheritedBoardShares(board.id)');
+    expect(s).toMatch(/inheritedAccessRows\(inheritedShares, \{ shares, workspaceMembers \}\)/);
+    expect(s).toMatch(/shares\.length \+ inherited\.length/);
+    const start = s.indexOf('{inherited.map(');
+    expect(start).toBeGreaterThan(-1);
+    const row = s.slice(start, s.indexOf('{pendingBoardInvites.map(', start));
+    expect(row).toContain('— via {via}');
+    // Granted on the parent, removed on the parent: no Remove, no role select.
+    expect(row).not.toContain('onRemoveShare');
+    expect(row).not.toContain('<select');
+  });
+
   test('the panel scrolls as one body', () => {
     // Three sections each with their own overflow-y meant three independently
     // scrolling regions inside one dialog on a phone, where .share-modal is a
@@ -175,6 +191,16 @@ test.describe('the simplification did not weaken the permissions', () => {
     // claims an access level the server never applied.
     expect(body).toMatch(/if \(!ok\) return;/);
     expect(body.indexOf('if (!ok) return;')).toBeLessThan(body.indexOf("setAccessMode('off')"));
+  });
+
+  test("turning access off revokes only the links this person may revoke", () => {
+    // SHARE-7: revoke_public_link refuses an editor on someone else's link, so
+    // revoking every live link made "Only invited people" fail on every try.
+    const s = modal();
+    const body = s.slice(s.indexOf('const onPickAccess'), s.indexOf('const onCopyPublicLink'));
+    expect(body).toMatch(/const \{ mine, others \} = revocableLinks\(publicLinks, \{ isManager, selfUserId \}\);/);
+    expect(body).toContain('mine.map(l => revokePublicLink(l.token))');
+    expect(body).not.toContain('live.map(l => revokePublicLink');
   });
 
   test('the panel and the topbar converge on one link', () => {

@@ -40,10 +40,18 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
     return () => cm.unobserveDeep(refresh);
   }, [ydoc, scope, pageId]);
 
-  // Recompute pixel positions when threads or editor doc changes.
+  // Recompute pixel positions when threads change, the doc changes, or the
+  // sheet reflows. One rAF-batched pass per frame, and nothing at all on a
+  // page with no open threads: it used to walk the whole doc and read layout
+  // straight after ProseMirror's DOM write on every keystroke and caret move.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) return undefined;
+    if (!threads.length) { setPositions(p => (Object.keys(p).length ? {} : p)); return undefined; }
+    const ids = new Set(threads.map(t => t.id));
+    let raf = 0;
     const recompute = () => {
+      raf = 0;
+      if (editor.isDestroyed) return;
       const wrap = editor.view.dom.closest('.doc-editor-wrap');
       const wrapRect = wrap?.getBoundingClientRect();
       if (!wrapRect) return;
@@ -57,23 +65,35 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
         if (!node.isText) return;
         for (const m of node.marks) {
           if (m.type.name !== 'comment') continue;
-          const t = threads.find(x => x.id === m.attrs.id);
-          if (!t || next[t.id]) continue; // first occurrence per thread
+          const id = m.attrs.id;
+          if (!ids.has(id) || next[id]) continue; // first occurrence per thread
           try {
             const coords = editor.view.coordsAtPos(pos);
-            next[t.id] = { top: (coords.top - wrapRect.top) / (z || 1) + 6 };
+            next[id] = { top: (coords.top - wrapRect.top) / (z || 1) + 6 };
           } catch {}
         }
         return true;
       });
-      setPositions(next);
+      setPositions(prev => {
+        const keys = Object.keys(next);
+        if (keys.length === Object.keys(prev).length
+            && keys.every(k => prev[k] && Math.abs(prev[k].top - next[k].top) < 0.5)) return prev;
+        return next;
+      });
     };
-    recompute();
-    editor.on('transaction', recompute);
-    window.addEventListener('resize', recompute);
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(recompute); };
+    const onTr = ({ transaction } = {}) => { if (!transaction || transaction.docChanged) schedule(); };
+    schedule();
+    editor.on('transaction', onTr);
+    // Reflow (a window or pane resize, zoom, fonts loading) moves the lines.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    ro?.observe(editor.view.dom);
+    window.addEventListener('resize', schedule);
     return () => {
-      editor.off('transaction', recompute);
-      window.removeEventListener('resize', recompute);
+      if (raf) cancelAnimationFrame(raf);
+      editor.off('transaction', onTr);
+      ro?.disconnect();
+      window.removeEventListener('resize', schedule);
     };
   }, [editor, threads]);
 

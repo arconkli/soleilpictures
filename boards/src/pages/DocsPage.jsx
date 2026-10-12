@@ -134,8 +134,19 @@ export function DocsPage({ path }) {
   }, [page]);
 
   // A new page means a new document: start at the top of the scroller rather
-  // than wherever the previous page happened to leave it.
-  useEffect(() => { scrollRef.current?.scrollTo?.(0, 0); }, [page?.path]);
+  // than wherever the previous page happened to leave it — unless the URL names
+  // a section. A /docs/x#heading link cannot be honoured by the browser: at
+  // document load the anchor lives in the Worker's crawlable <main>, which React
+  // replaces on mount, so the jump is re-run here once the article exists (same
+  // as ChangelogPage). The frame lets the hydrated layout settle first.
+  useEffect(() => {
+    let id = '';
+    try { id = decodeURIComponent((window.location.hash || '').slice(1)); } catch (_) { /* malformed %-escape */ }
+    const target = id ? document.getElementById(id) : null;
+    if (!target) { scrollRef.current?.scrollTo?.(0, 0); return undefined; }
+    const raf = requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+    return () => cancelAnimationFrame(raf);
+  }, [page?.path]);
 
   // Prev/next within the flat reading order the generator already sorted.
   const { prev, next } = useMemo(() => {
@@ -166,7 +177,13 @@ export function DocsPage({ path }) {
           type="search"
           placeholder="Search the docs"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            // The results render in the nav, which is collapsed behind Menu at
+            // phone and tablet widths — a search that only filtered it changed
+            // nothing on screen. No-op on desktop, where the nav is always shown.
+            if (e.target.value.trim()) setNavOpen(true);
+          }}
           aria-label="Search the documentation"
         />
         {/* The docs describe the product as it is; they never say when any of it

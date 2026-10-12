@@ -5,7 +5,7 @@
 // each widget takes a value and an onChange and lets the tab own persistence.
 //
 // Lifted verbatim out of SettingsPanel.jsx when that file passed 1900 lines.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ColorPicker } from '../ColorPicker.jsx';
 import { R2Image } from '../R2Image.jsx';
 
@@ -144,11 +144,33 @@ export const ACCENT_PRESETS = [
   '#5b574e', // ink
 ];
 
+// While the full ColorPicker is open, the colour being dragged lives here and
+// reaches the tab's onChange ONCE, when the picker closes. ColorPicker emits on
+// every pointermove, and every onChange here is a settings RPC plus a refetch
+// of the whole settings tree, so a one-second drag across the pad was dozens
+// of writes that could land out of order and leave an intermediate colour
+// stored. Same rule ProfileTab's presence colour has always followed.
+function useDraftColor(value, onChange) {
+  const [draft, setDraftState] = useState(null);
+  // A ref as well as state: the picker's close can fire in the same tick as
+  // its last onChange, before a render has carried the new draft into a fresh
+  // onClose closure.
+  const draftRef = useRef(null);
+  const setDraft = (v) => { draftRef.current = v; setDraftState(v); };
+  const commit = () => {
+    const d = draftRef.current;
+    setDraft(null);
+    if (d != null && d !== value) onChange(d);
+  };
+  return { shown: draft ?? value, setDraft, commit };
+}
+
 // Accent picker — preset dots + a "Custom" chip that opens the full
 // ColorPicker modal so the user isn't capped at 8 swatches.
-export function AccentPicker({ value, onChange }) {
+export function AccentPicker({ value: saved, onChange }) {
   const [pickerPos, setPickerPos] = useState(null);
   const customRef = useRef(null);
+  const { shown: value, setDraft, commit } = useDraftColor(saved, onChange);
   const isCustom = value && !ACCENT_PRESETS.includes(value);
   return (
     <div className="settings-accent-row">
@@ -177,8 +199,8 @@ export function AccentPicker({ value, onChange }) {
               onClick={() => onChange(null)}>×</button>
       {pickerPos && (
         <ColorPicker value={value || '#ffa500'}
-                     onChange={onChange}
-                     onClose={() => setPickerPos(null)}
+                     onChange={setDraft}
+                     onClose={() => { setPickerPos(null); commit(); }}
                      position={pickerPos}
                      allowTransparent={false} />
       )}
@@ -208,9 +230,10 @@ export function SwatchChip({ color, label, dimmed, disabled, onClick, refProp })
   );
 }
 
-export function SwatchInput({ value, fallback, onChange, disabled, allowTransparent = false }) {
+export function SwatchInput({ value: saved, fallback, onChange, disabled, allowTransparent = false }) {
   const [pickerPos, setPickerPos] = useState(null);
   const ref = useRef(null);
+  const { shown: value, setDraft, commit } = useDraftColor(saved, onChange);
   const effective = value ?? fallback;
   const isEmpty = effective == null || effective === 'transparent';
   let label;
@@ -237,8 +260,8 @@ export function SwatchInput({ value, fallback, onChange, disabled, allowTranspar
       {pickerPos && (
         <ColorPicker
           value={isEmpty ? '#888888' : effective}
-          onChange={onChange}
-          onClose={() => setPickerPos(null)}
+          onChange={setDraft}
+          onClose={() => { setPickerPos(null); commit(); }}
           position={pickerPos}
           allowTransparent={allowTransparent} />
       )}
@@ -314,21 +337,26 @@ export function Field({ label, children }) {
   );
 }
 
+// The whole row is the click target, words included — it is drawn as one
+// (cursor:pointer), and a <label> wrapping only spans has no control to
+// forward a click to, so clicking "Comment replies" used to do nothing. The
+// switch keeps the focus and the keyboard, and takes its name from the label.
 export function Toggle({ label, desc, value, onChange }) {
+  const labelId = useId();
   return (
-    <label className="settings-toggle">
+    <div className="settings-toggle" onClick={() => onChange(!value)}>
       <span className="settings-toggle-text">
-        <span className="settings-toggle-label">{label}</span>
+        <span className="settings-toggle-label" id={labelId}>{label}</span>
         {desc && <span className="settings-toggle-desc">{desc}</span>}
       </span>
       <span className={`settings-toggle-switch ${value ? 'is-on' : ''}`}
-            onClick={() => onChange(!value)}
             onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onChange(!value); } }}
             role="switch"
             tabIndex={0}
+            aria-labelledby={labelId}
             aria-checked={value}>
         <span className="settings-toggle-thumb" />
       </span>
-    </label>
+    </div>
   );
 }

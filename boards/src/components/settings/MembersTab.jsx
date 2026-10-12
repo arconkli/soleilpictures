@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   listWorkspaceMembers, listWorkspaceDirectory, setWorkspaceMemberRole,
   removeWorkspaceMember, transferWorkspaceOwnership, inviteWorkspaceMember,
+  listPendingInvitesForWorkspace, revokePendingInvite,
 } from '../../lib/boardsApi.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { SettingsCategory } from './fields.jsx';
@@ -25,24 +26,35 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
   const canManage = canManageWorkspace(role);
   const [members, setMembers] = useState([]);
   const [directory, setDirectory] = useState([]);
+  // Invites to addresses with no account yet (pending_invites). An invite
+  // from here used to leave no trace in the tab that sent it: no row, so
+  // nothing to confirm, revoke or check on. ShareModal lists the same rows.
+  const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
 
   const load = async () => {
-    if (!workspaceId) { setMembers([]); setDirectory([]); return; }
+    if (!workspaceId) { setMembers([]); setDirectory([]); setPending([]); return; }
     setLoading(true);
     try {
-      const [m, d] = await Promise.all([listWorkspaceMembers(workspaceId), listWorkspaceDirectory(workspaceId)]);
-      setMembers(m); setDirectory(d);
+      const [m, d, p] = await Promise.all([
+        listWorkspaceMembers(workspaceId),
+        listWorkspaceDirectory(workspaceId),
+        // Managers only (the server refuses everyone else); a failure here
+        // must not hide the members list, so it degrades to no pending rows.
+        canManage ? listPendingInvitesForWorkspace(workspaceId).catch(() => []) : Promise.resolve([]),
+      ]);
+      setMembers(m); setDirectory(d); setPending(p);
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not load members: ' + (e.message || e) });
     } finally {
       setLoading(false);
     }
   };
+  // canManage too: the role can land (or change) after the first load.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [workspaceId]);
+  useEffect(() => { load(); }, [workspaceId, canManage]);
 
   const byId = useMemo(() => new Map(directory.map(d => [d.user_id, d])), [directory]);
   const label = (m) => byId.get(m.user_id)?.title || byId.get(m.user_id)?.email || m.user_id.slice(0, 8);
@@ -96,6 +108,24 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
     }
   };
 
+  // Same confirm as ShareModal.onRevokePending: nothing was granted yet, so
+  // there is nothing to undo, only a sign-up that will no longer get access.
+  const revokePending = async (row) => {
+    const ok = await feedback.confirm({
+      title: `Revoke invite to ${row.email}?`,
+      message: `They'll no longer get access if they sign up.`,
+      confirmLabel: 'Revoke',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await revokePendingInvite(row.id);
+      setPending(arr => arr.filter(x => x.id !== row.id));
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
+    }
+  };
+
   const invite = async () => {
     const email = inviteEmail.trim();
     if (!email || !canManage) return;
@@ -118,7 +148,7 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
     <div className="settings-tab-body">
       <SettingsCategory title="People in this workspace"
                         desc={canManage
-                          ? 'Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment, and vote.'
+                          ? 'Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment on the canvas, and vote; in a document they can read comments but not add them.'
                           : 'Only the owner or a co-owner can change roles or remove members.'}>
         {loading && members.length === 0 && <div className="settings-empty">Loading…</div>}
         <ul className="settings-member-list">
@@ -148,6 +178,20 @@ export function MembersTab({ workspaceId, workspaceName, user, role, onWorkspace
               </li>
             );
           })}
+          {pending.map(row => (
+            <li key={row.id} className="settings-member-row settings-member-pending">
+              <span className="settings-member-name" title={row.email}>{row.email}</span>
+              <span className="settings-member-role">
+                {ROLE_LABEL[row.role] || row.role} · invite sent, gets access when they sign up
+              </span>
+              {canManage && (
+                <span className="settings-member-actions">
+                  <button type="button" className="settings-link-btn is-danger"
+                          onClick={() => revokePending(row)}>Revoke</button>
+                </span>
+              )}
+            </li>
+          ))}
         </ul>
       </SettingsCategory>
       {canManage && (
