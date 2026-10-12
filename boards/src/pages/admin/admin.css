@@ -5931,7 +5931,10 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .adm-markers-form {
   container-type: inline-size;
   display: grid;
-  grid-template-columns: minmax(0, 128px) auto minmax(0, 96px) minmax(0, 1fr) auto;
+  /* The date column is the field's own width, not a fixed 128px: that was
+     sized for the 13px desktop font, and with the 16px touch font a tablet
+     clipped the year's last digit under the calendar icon. */
+  grid-template-columns: minmax(0, max-content) auto minmax(0, 96px) minmax(0, 1fr) auto;
   gap: 6px; align-items: center; margin-top: 10px;
   color-scheme: dark;
 }

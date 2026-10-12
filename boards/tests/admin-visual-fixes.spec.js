@@ -209,3 +209,24 @@ test('the Feedback question picker is wide enough for the question it shows (VS-
   const [client, scroll] = await select.evaluate((e) => [e.clientWidth, e.scrollWidth]);
   expect(scroll).toBeLessThanOrEqual(client);
 });
+
+test.describe('the What changed date field on a touch tablet (VS-ADMIN-11)', () => {
+  test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true, isMobile: true });
+
+  test('is at least as wide as the date it holds at the 16px touch size', async ({ page }) => {
+    await openAdmin(page);
+    const date = page.locator('.adm-markers-date');
+    await expect(date).toBeVisible({ timeout: 15000 });
+    const [w, intrinsic, size] = await date.evaluate((el) => {
+      // The field's natural width at its own font, measured on a detached copy.
+      const probe = el.cloneNode();
+      probe.style.cssText = 'position:absolute;visibility:hidden;width:auto;min-width:0';
+      el.parentElement.appendChild(probe);
+      const natural = probe.getBoundingClientRect().width;
+      probe.remove();
+      return [el.getBoundingClientRect().width, natural, getComputedStyle(el).fontSize];
+    });
+    expect(size).toBe('16px');
+    expect(w).toBeGreaterThanOrEqual(intrinsic - 0.5);
+  });
+});
