@@ -5165,6 +5165,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try { window.history.replaceState({}, '', '/'); } catch (_) {}
   }, [captureAllowed, myTier.loading, openSettings]);
 
+  // ?checkout=canceled is where Stripe sends someone who backs out of a
+  // checkout they started inside the app (create-checkout-session, audit
+  // ACCOUNT-10). Say plainly that nothing happened, and clean the URL so a
+  // reload doesn't say it again.
+  useEffect(() => {
+    let canceled = false;
+    try { canceled = new URLSearchParams(window.location.search).get('checkout') === 'canceled'; } catch (_) {}
+    if (!canceled) return;
+    feedback.toast({ type: 'info', message: 'Checkout canceled. Nothing was charged.' });
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.delete('checkout');
+      window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+    } catch (_) {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // The ephemeral phone reframe. Solved against a width derived from the
   // board's own median card size and how many cards should read across the
   // chosen frame — the same reasoning as CanvasSurface's phone-rescue block,
