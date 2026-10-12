@@ -207,6 +207,34 @@ test('SHARE-13: a comment dot follows its text when a paragraph is added above',
   await expect.poll(aligned).toBe('aligned');
 });
 
+// ── DOCS-20 ───────────────────────────────────────────────────────────────
+test('DOCS-20: renaming a cue updates the on-screen "(CONT\'D)" page-break marker', async ({ page }) => {
+  await openDoc(page);
+  await page.locator('.doc-tb-screenplay-toggle').click();
+  await page.waitForFunction(() =>
+    window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
+  null, { timeout: 10000 });
+  // Enough action to fill most of page 1, then a long speech that splits.
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [{ element: 'scene', text: 'INT. HALL - DAY' }];
+    for (let i = 0; i < 40; i++) blocks.push({ element: 'action', text: `Beat ${i + 1}.` });
+    blocks.push({ element: 'character', text: 'JON' });
+    blocks.push({ element: 'dialogue', text: 'I have a great deal to say about this. '.repeat(40) });
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON(blocks));
+  });
+  const contd = page.locator('.doc-card-modal .sp-page-break-contd');
+  await expect(contd.first()).toHaveText("JON (CONT'D)", { timeout: 5000 });
+  // Rename the cue in place.
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    let at = null;
+    ed.state.doc.descendants((n, p) => { if (at == null && n.attrs?.element === 'character' && n.textContent === 'JON') at = p + 1; });
+    ed.chain().insertContentAt({ from: at, to: at + 3 }, 'JOHN').run();
+  });
+  await expect(contd.first()).toHaveText("JOHN (CONT'D)", { timeout: 5000 });
+});
+
 // ── DOCS-14 ───────────────────────────────────────────────────────────────
 // A collaborator's edit arrives while the comment composer is open. It lands
 // as a whole-document replace, so raw offsets captured at "Add comment" no
