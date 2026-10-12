@@ -2848,7 +2848,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-10-11",
+    "updated": "2026-10-12",
     "navLabel": "Mobile and tablet",
     "headings": [
       {

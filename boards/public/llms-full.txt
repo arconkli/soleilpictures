@@ -3916,7 +3916,7 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-10-11
+Updated: 2026-10-12
 
 Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
@@ -3937,13 +3937,15 @@ Layout differences
 
 Bottom navigation replaces the sidebar — Home, the current board, Messages, and more.
 
-A drawer holds navigation that does not fit, including the cluster tree. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list.
+The top bar keeps what you reach for on the board: the cluster's name, the Board/Files switch, Undo, Redo, who else is here, and Share.
+
+A drawer holds navigation that does not fit, including the cluster tree, Search, Version history, Focus view and Help. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list.
 
 Back — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app.
 
 The add sheet replaces the tool rail's + menu with a full-width sheet, sized for thumbs.
 
-Focus view — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way.
+Focus view — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way. Open it from the drawer, or from the top bar on a tablet held in landscape.
 
 Tablets
 

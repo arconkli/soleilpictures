@@ -34897,6 +34897,25 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "The top bar",
+     "children": [
+      {
+       "t": "text",
+       "v": "The top bar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps what you reach for on the board: the cluster's name, the Board/Files switch, Undo, Redo, who else is here, and Share."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "A drawer",
      "children": [
       {
@@ -34907,7 +34926,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " holds navigation that does not fit, including the cluster tree. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
+     "v": " holds navigation that does not fit, including the cluster tree, Search, Version history, Focus view and Help. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
     }
    ]
   },
@@ -34972,7 +34991,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way."
+     "v": " — touch only — strips everything back to the board itself, for reviewing on a phone without chrome in the way. Open it from the drawer, or from the top bar on a tablet held in landscape."
     }
    ]
   },

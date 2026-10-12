@@ -20611,15 +20611,18 @@ button, [role="button"], a {
   }
 
   /* ── Topbar slim ──────────────────────────────────────────────────
-     The full desktop topbar (~14 elements) won't fit a phone, so hide
-     non-essential controls. What remains: hamburger, brand icon,
-     breadcrumbs (truncated), the view pill (icon-only compact — it is
-     the ONLY route to List view on a phone; the bottom nav has no list
-     tab), undo, redo, feedback icon, presence stack, share icon. The
-     other hidden controls all live elsewhere — theme + split + trash +
-     link/backlinks live in settings/secondary surfaces. The
-     identifier classes (tb-icon-trash etc.) are set in App.jsx so
-     we can hide just these icons without nuking every .tb-icon. */
+     The full desktop topbar (~14 elements) won't fit a phone. What
+     remains: hamburger, breadcrumbs (Parent › Here, truncated), the view
+     pill (icon-only compact — it is the ONLY route to List view on a
+     phone; the bottom nav has no list tab), undo, redo, presence, share.
+     That is a 360px bar's whole budget: tests/phone-topbar-fit.spec.js
+     measures it. Brand, Back/Forward, Search, Version history, Help,
+     Feedback, Focus and Admin are not rendered when App.jsx's mobileShell
+     is true (they are drawer rows, the bottom nav or the Help hub). The
+     rest below — theme + split + trash + link/backlinks — live in
+     settings/secondary surfaces; the identifier classes (tb-icon-trash
+     etc.) are set in App.jsx so we can hide just these icons without
+     nuking every .tb-icon. */
   .topbar .tb-brand-text,
   .topbar .tb-btn-label,
   .topbar .tb-brand-sep,
@@ -20632,24 +20635,52 @@ button, [role="button"], a {
   }
   /* Icon-only compact view pill on phone: swap the text labels for the
      canvas/list glyphs (base rule hides .vp-ico / shows .vp-lbl). */
-  .topbar .view-pill-btn { padding: 6px 10px; }
+  .topbar .view-pill-btn { padding: 6px 8px; }
   .topbar .view-pill-btn .vp-lbl { display: none; }
   .topbar .view-pill-btn .vp-ico { display: inline-flex; }
-  .topbar .view-pill--primary .view-pill-btn { padding: 6px 10px; }
+  .topbar .view-pill--primary .view-pill-btn { padding: 6px 8px; }
   .topbar .vp-count { display: none; }
+  /* No gaps between the 40px icon buttons: each already has 12px of air
+     around its glyph, and the gaps were 16px the crumbs could not spare. */
+  .topbar { gap: 4px; }
   .topbar .tb-left,
-  .topbar .tb-right { gap: 4px; }
+  .topbar .tb-right { gap: 0; }
   /* On phone the UpgradeChip is repositioned below the topbar, so the desktop
      right-edge gutter reservation is not wanted here — reclaim the full width. */
   .topbar .tb-right { padding-right: 0; }
-  .topbar .crumbs { max-width: 40vw; }
+  /* The right group never gives way: it holds Share. The crumbs take
+     whatever is left (the pill sits beside the right group rather than
+     centred, so none of that room goes to centring). They show
+     "Parent › Here" when it fits and only the current name when it does
+     not — the parent is a tap target to go up, the name is what you read. */
+  .topbar .tb-right { flex-shrink: 0; }
+  .topbar .tb-left { flex: 1 1 0; }
+  .topbar .tb-center { flex: 0 0 auto; }
+  .topbar .crumbs { flex: 1 1 0; gap: 0; container: tb-crumbs / inline-size; }
+  .topbar .crumbs > :nth-last-child(n+4) { display: none; }
+  .topbar .crumb { padding: 6px 4px; }
+  .topbar .crumb.clk { flex-shrink: 4; min-width: 2em; }
+  .topbar .crumb-sep { padding: 0 1px; }
+  @container tb-crumbs (max-width: 150px) {
+    .crumb.clk, .crumb-sep { display: none; }
+  }
   .topbar {
     padding-left: max(8px, env(safe-area-inset-left));
     padding-right: max(8px, env(safe-area-inset-right));
   }
   /* Share button drops its visible label on phone; the Send icon
-     alone communicates it, matching the surrounding icon buttons. */
-  .topbar .tb-btn { padding-left: 8px; padding-right: 8px; gap: 0; }
+     alone communicates it, matching the surrounding icon buttons. Same
+     40px floor as the .tb-icon buttons beside it. */
+  .topbar .tb-btn {
+    padding-left: 8px; padding-right: 8px; gap: 0;
+    min-width: 40px; min-height: 40px; justify-content: center;
+  }
+  /* Presence: one face and a "+N" (App.jsx passes max=1), overlapped. */
+  .topbar .ws-presence { gap: 0; padding: 0 2px; }
+  .topbar .ws-presence-status { margin-right: 4px; }
+  .topbar .tb-viewonly { margin: 0 2px; padding: 3px 5px; letter-spacing: 0.06em; }
+  .topbar .ws-presence-avatar { margin-left: -6px; }
+  .topbar .ws-presence-avatar:first-of-type { margin-left: 0; }
 
   /* The "Demo · N days left → Upgrade" floating chip on desktop sits
      top-right with z-index near INT_MAX, which on phone overlapped
