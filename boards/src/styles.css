@@ -12581,6 +12581,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transform: scale(1.06);
 }
 .lightbox-download:disabled { opacity: .5; cursor: progress; }
+@media (pointer: coarse) {
+  .lightbox-x, .lightbox-download { width: 40px; height: 40px; }
+  .lightbox-download { right: 66px; }
+}
 
 /* Hover-revealed expand button on canvas image cards. Mirrors .ic-link
    placement (top-right) so multiple affordances stack predictably.       */
@@ -12838,6 +12842,15 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .iem-download:disabled { opacity: .5; cursor: default; }
 @keyframes iemRailIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes iemImgIn { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
+/* Touch: the photo controls were 28-38px (Done and Full screen 28px) — below
+   the 40px floor, beside a destructive Reset. */
+@media (pointer: coarse) {
+  .iap-iconbtn { width: 40px; height: 40px; }
+  .iap-toggle { height: 40px; }
+  .iap-btn { height: 40px; }
+  .iap-btn-icon { width: 40px; }
+  .iem-x, .iem-download { width: 40px; height: 40px; }
+}
 @media (max-width: 720px) {
   .iem { flex-direction: column; }
   .iem-stage { padding: 16px; }
@@ -21675,6 +21688,21 @@ button, [role="button"], a {
 @media (max-width: 640px) {
   .pdfv-title { max-width: 30vw; }
   .pdfv-pageind, .pdfv-zoomind { min-width: 44px; }
+}
+/* Touch: 40px targets (the phone floor the canvas rail already meets). */
+@media (pointer: coarse) {
+  .pdfv-btn { min-width: 40px; height: 40px; }
+}
+/* Phone: six 40px buttons and two readouts don't fit one 390px row beside a
+   filename (it was 'sa…'). Two rows: the filename with Download and Close,
+   then page nav and zoom. The spacer becomes the line break. */
+@media (max-width: 640px) {
+  .pdfv-bar { flex-wrap: wrap; row-gap: 0; }
+  .pdfv-title { order: 0; flex: 1 1 0; min-width: 0; max-width: none; }
+  .pdfv-bar > .pdfv-btn { order: 1; }
+  .pdfv-spacer { order: 2; flex-basis: 100%; height: 0; }
+  .pdfv-nav, .pdfv-zoom { order: 3; margin-top: 8px; }
+  .pdfv-nav { margin-right: auto; }
 }
 
 /* Self-hosted Courier Prime (OFL) — the screenplay typeface. Bundled so every

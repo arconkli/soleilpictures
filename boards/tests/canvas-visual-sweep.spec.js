@@ -209,3 +209,70 @@ test.describe('VS-CANVAS-06 the phone tool rail does not cover the board', () =>
     await ctx.close();
   });
 });
+
+const MEDIA = [
+  { id: 'img1', kind: 'image', src: '/clusters-logo-light.png', x: 0, y: 0, w: 240, h: 180, name: 'logo.png' },
+  { id: 'pdf1', kind: 'pdf', pdfSrc: '/sample.pdf', src: null, name: 'sample.pdf', x: 0, y: 260, w: 240, h: 300 },
+];
+// Every visible button inside `sel`, with its label and size.
+const buttonSizes = (page, sel) => page.locator(sel).first().evaluate((root) =>
+  [...root.querySelectorAll('button')].filter((b) => b.offsetParent).map((b) => {
+    const r = b.getBoundingClientRect();
+    return { label: b.getAttribute('aria-label') || b.title || b.textContent.trim(), w: r.width, h: r.height };
+  }));
+const expectTappable = (sizes, which) => {
+  for (const s of sizes.filter((b) => which.includes(b.label))) {
+    expect(s.w, `${s.label} width`).toBeGreaterThanOrEqual(40);
+    expect(s.h, `${s.label} height`).toBeGreaterThanOrEqual(40);
+  }
+  expect(sizes.filter((b) => which.includes(b.label)).length).toBe(which.length);
+};
+// Tap a card to select it, then press one of its revealed action buttons.
+async function cardAction(page, id, sel) {
+  const card = page.locator(`[data-card-id="${id}"]`);
+  await card.tap();
+  await card.locator(sel).first().dispatchEvent('click');
+}
+
+test.describe('VS-CANVAS-07 overlay controls are at least 40px on a phone', () => {
+  test('PDF viewer: every bar button is 40px and the filename keeps room', async ({ browser }) => {
+    const ctx = await browser.newContext(PHONE);
+    const page = await ctx.newPage();
+    await plant(page, MEDIA);
+    await cardAction(page, 'pdf1', '.ic-expand');
+    const viewer = page.locator('.pdfv[role="dialog"]');
+    await expect(viewer.locator('.pdfv-page canvas').first()).toBeVisible({ timeout: 15000 });
+    expectTappable(await buttonSizes(page, '.pdfv-bar'), ['Previous page', 'Next page', 'Zoom out', 'Zoom in', 'Download', 'Close']);
+    const t = await viewer.locator('.pdfv-title').evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth }));
+    expect(t.sw).toBeLessThanOrEqual(t.cw);
+    // Nothing in the bar runs off the screen.
+    const barR = await viewer.locator('.pdfv-bar').evaluate((el) => Math.max(...[...el.querySelectorAll('button')].map((b) => b.getBoundingClientRect().right)));
+    expect(barR).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: test.info().outputPath('phone-pdf.png') });
+    await ctx.close();
+  });
+
+  test('lightbox, photo popover and full-screen editor buttons are 40px', async ({ browser }) => {
+    const ctx = await browser.newContext(PHONE);
+    const page = await ctx.newPage();
+    await plant(page, MEDIA);
+    await expect(page.locator('[data-card-id="img1"] .ic-img')).toBeVisible();
+
+    await cardAction(page, 'img1', '.ic-expand');
+    await expect(page.locator('.lightbox')).toBeVisible();
+    expectTappable(await buttonSizes(page, '.lightbox'), ['Close', 'Download']);
+    await page.locator('.lightbox-x').dispatchEvent('click');
+    await expect(page.locator('.lightbox')).toHaveCount(0);
+
+    await cardAction(page, 'img1', '.ic-edit');
+    await expect(page.locator('.iep-pop')).toBeVisible();
+    expectTappable(await buttonSizes(page, '.iep-pop'), ['Full screen', 'Flip horizontal', 'Flip vertical', 'Black & white', 'Reset']);
+    await page.screenshot({ path: test.info().outputPath('phone-popover.png') });
+
+    await page.locator('.iep-pop').getByTitle('Full screen').dispatchEvent('click');
+    await expect(page.locator('.iem')).toBeVisible();
+    expectTappable(await buttonSizes(page, '.iem'), ['Close', 'Download', 'Done']);
+    await page.screenshot({ path: test.info().outputPath('phone-editor.png') });
+    await ctx.close();
+  });
+});
