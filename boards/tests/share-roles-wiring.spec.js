@@ -31,6 +31,23 @@ test.describe('workspace roles wiring', () => {
     expect(read('src/lib/boardsApi.js')).toContain("rpc('set_workspace_member_role'");
   });
 
+  test("handing the workspace over re-reads the caller's role (ACCOUNT-05)", () => {
+    // The Members tab's owner controls come from useResolvedDefaults' role,
+    // which only refetched on a workspace id change, so the ex-owner kept them.
+    const hook = read('src/hooks/useResolvedDefaults.js');
+    expect(hook).toMatch(/\}, \[workspaceId, tick, roleTick\]\);/);
+    expect(hook).toContain('refreshRole, workspaceSettings');
+    const app = read('src/App.jsx');
+    expect(app).toContain('refreshRole: refreshWorkspaceRole');
+    const settings = app.slice(app.indexOf('<SettingsPanel'), app.indexOf('/>', app.indexOf('<SettingsPanel')));
+    expect(settings).toMatch(/onWorkspacesChanged=\{\(\) => \{ refreshWorkspaceRole\(\); return onWorkspacesChanged\?\.\(\); \}\}/);
+    const share = app.slice(app.indexOf('<ShareModal'), app.indexOf('/>', app.indexOf('<ShareModal')));
+    expect(share).toContain('refreshWorkspaceRole();');
+    // The transfer itself still reports through that callback.
+    expect(read('src/components/settings/MembersTab.jsx'))
+      .toMatch(/await transferWorkspaceOwnership\([\s\S]{0,200}await onWorkspacesChanged\?\.\(\);/);
+  });
+
   test('the permission mirror returns viewer for a viewer member', () => {
     const s = read('src/hooks/useBoardPermission.js');
     expect(s).toContain("membership.role !== 'viewer'");
