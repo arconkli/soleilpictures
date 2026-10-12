@@ -27,6 +27,10 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   // True once the first fetch settles — lets the panel show a skeleton
   // instead of flashing "No conversations yet" while the list loads.
   const [loaded, setLoaded] = useState(false);
+  // The last read of the list failed. What's on screen is the previous read
+  // (or nothing yet), and the panel says so instead of "No conversations
+  // yet" (COMMS-15).
+  const [failed, setFailed] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!workspaceId || !userId) return;
@@ -35,9 +39,12 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
       listMyConversationParticipants({ workspaceId }),
       getUnreadCounts(),
     ]);
-    setConversations(convs);
-    setParticipants(parts);
-    setCounts(c || {});
+    // A failed read (null) keeps the previous one: an empty answer blanked
+    // the list and dropped the badge and title count to zero.
+    if (convs) setConversations(convs);
+    if (parts) setParticipants(parts);
+    if (c) setCounts(c);
+    setFailed(!convs || !parts);
   }, [workspaceId, userId]);
 
   useEffect(() => {
@@ -119,5 +126,5 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
     return { participantsByConv: byConv, myStateByConv: mine, unreadByConv: unread };
   }, [conversations, participants, counts, userId]);
 
-  return { conversations, participantsByConv, myStateByConv, unreadByConv, loaded };
+  return { conversations, participantsByConv, myStateByConv, unreadByConv, loaded, failed, retry: refresh };
 }

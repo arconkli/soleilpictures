@@ -34,7 +34,7 @@ export function MessagesPanel({
 }) {
   const userId = currentUser?.id;
   const {
-    conversations, participantsByConv, myStateByConv, unreadByConv, loaded,
+    conversations, participantsByConv, myStateByConv, unreadByConv, loaded, failed, retry,
   } = useConversationList({ workspaceId, userId, refreshTick });
 
   const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
@@ -190,7 +190,15 @@ export function MessagesPanel({
             ))}
           </div>
         )}
-        {loaded && visibleConversations.length === 0 && (
+        {loaded && failed && (
+          // A failed read is not an empty inbox (COMMS-15). Anything listed
+          // below is the last good read.
+          <div className="msg-load-failed t-meta" role="alert">
+            <span>Couldn't load your conversations.</span>
+            <button type="button" className="msg-retry-btn" onClick={() => { retry().then(null, () => {}); }}>Retry</button>
+          </div>
+        )}
+        {loaded && !failed && visibleConversations.length === 0 && (
           <div className="msg-empty t-meta">
             No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.
           </div>

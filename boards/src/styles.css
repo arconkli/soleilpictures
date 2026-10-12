@@ -15969,6 +15969,30 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 .msg-load-older:hover:not(:disabled) { color: var(--ink-0); border-color: var(--line-3); }
 .msg-load-older:disabled { cursor: default; opacity: .7; }
 
+/* "Couldn't load" — a failed read, which must never look like an empty
+   thread or inbox. Neutral ink with a plain Retry. */
+.msg-load-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  color: var(--ink-2);
+  font: 500 12px/1.4 var(--font-sans);
+}
+.msg-retry-btn {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink-1);
+  font: inherit;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.msg-retry-btn:hover { color: var(--ink-0); border-color: var(--line-3); }
+
 /* Day divider — pill-style label on a hairline. */
 .msg-day-divider {
   display: flex; align-items: center;

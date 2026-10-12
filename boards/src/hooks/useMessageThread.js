@@ -6,7 +6,7 @@ import { tabIsAttended } from '../lib/threadAttention.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
 import { watchForResync } from '../lib/messageResync.js';
 
-// Returns { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder }
+// Returns { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed }
 // for a single conversation. `messages` is the newest page plus whatever
 // older history the reader has paged back to with loadOlder().
 //   conversationId — the conversation to load
@@ -20,6 +20,9 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   const [typingUsers, setTypingUsers] = useState(new Map()); // userId → ts
   const [hasOlder, setHasOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  // The last newest-page read failed. The thread keeps what it shows; an
+  // empty one says "Couldn't load" rather than "No messages yet" (COMMS-15).
+  const [failed, setFailed] = useState(false);
   const onMarkedReadRef = useRef(onMarkedRead);
   onMarkedReadRef.current = onMarkedRead;
   // A fetch that resolves after a conversation switch must not paint the
@@ -41,12 +44,14 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     reachedStartRef.current = false;
     historyFromRef.current = null;
     setHasOlder(false);
+    setFailed(false);
   }, [conversationId]);
 
   const refetch = useCallback(async () => {
-    if (!conversationId) { setMessages([]); setHasOlder(false); return; }
+    if (!conversationId) { setMessages([]); setHasOlder(false); setFailed(false); return; }
     const rows = await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
     if (convRef.current !== conversationId) return;
+    setFailed(rows == null);
     if (rows == null) {
       // A failed read keeps this thread on screen, but never the previous
       // one: the thread isn't remounted on a switch, so a failed first read
@@ -150,5 +155,5 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     return () => { resync.stop(); unsubInbox(); unsub(); };
   }, [conversationId, userId, refetch]);
 
-  return { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder };
+  return { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed };
 }

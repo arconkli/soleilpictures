@@ -21,13 +21,17 @@ import { requestPermissionDeferred } from './browserNotifications.js';
 // anchored to whichever workspace they were started from, so the Messages panel
 // is a single unified inbox across all your workspaces. The workspaceId arg is
 // kept only as a readiness gate.
+//
+// The three list reads here resolve null on a failed read, never an empty
+// result: an empty list painted "No conversations yet" and zeroed every
+// badge on a network blip (COMMS-15). The caller keeps what it has.
 export async function listConversations({ workspaceId } = {}) {
   if (!workspaceId) return [];
   const { data, error } = await supabase
     .from('conversation_summary')
     .select('*')
     .order('last_message_at', { ascending: false, nullsFirst: false });
-  if (error) { console.warn('listConversations', error); return []; }
+  if (error) { console.warn('listConversations', error); return null; }
   return data || [];
 }
 
@@ -39,7 +43,7 @@ export async function listMyConversationParticipants({ workspaceId } = {}) {
   const { data, error } = await supabase
     .from('conversation_participants')
     .select('conversation_id, user_id, joined_at, left_at, last_read_at');
-  if (error) { console.warn('listMyConversationParticipants', error); return []; }
+  if (error) { console.warn('listMyConversationParticipants', error); return null; }
   return data || [];
 }
 
@@ -277,9 +281,10 @@ async function toggleOwnReactionLegacy({ messageId, emoji, userId }) {
 
 // ── Unread counts ───────────────────────────────────────────────────
 
+// Null on a failed read (see listConversations).
 export async function getUnreadCounts() {
   const { data, error } = await supabase.rpc('get_unread_counts');
-  if (error) { console.warn('getUnreadCounts', error); return {}; }
+  if (error) { console.warn('getUnreadCounts', error); return null; }
   return data || {};
 }
 
