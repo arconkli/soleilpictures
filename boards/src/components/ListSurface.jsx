@@ -335,6 +335,8 @@ export function ListSurface({
 
   // Grid or List: this session's pick for the cluster, else what this device
   // remembers for it, else Grid (List for a mostly-audio pack).
+  // The default is decided once per cluster, the first time it has contents,
+  // so a card added or deleted later never swaps the layout under you.
   const savedLayout = useMemo(() => readFilesLayout(board?.id), [board?.id, layoutChoice]);
   const openedLayoutRef = useRef({});
   if (board?.id && items.length && !loading && !openedLayoutRef.current[board.id]) {
@@ -1494,7 +1496,7 @@ export function ListSurface({
   // Info describes whatever is selected — a file, a folder, several things —
   // and the cluster itself when nothing is, the way an inspector does.
   const detailTarget = useMemo(() => {
-    if (isPanel) return null;
+    if (isPanel || !infoOpen) return null;
     if (selectedGroupId) {
       const g = displayItems.find(d => d.isGroup && d.id === selectedGroupId);
       if (g) return { type: 'group', group: g };
@@ -1654,12 +1656,14 @@ export function ListSurface({
     },
   });
   const folderProps = (b) => ({
+    'data-folder-id': b.id,
     onClick: (e) => onTileClick(e, 'board', b.id),
     onDoubleClick: (e) => onTileDoubleClick(e, 'board', b.id),
     ...folderKeys('board', b.id),
     onDragStart: (e) => {
       const ids = (selectedBoards.size > 1 && selectedBoards.has(b.id)) ? [...selectedBoards] : [b.id];
       try { window.__soleilBoardDrag = { boardIds: ids }; } catch (_) {}
+      beginDragSession(e.currentTarget, { kind: 'folders' });
       try {
         e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
         if (ids.length > 1) e.dataTransfer.setData(BOARD_REF_LIST_MIME, JSON.stringify(ids));
@@ -1667,8 +1671,24 @@ export function ListSurface({
       } catch (_) {}
     },
     onDragEnd: () => { try { window.__soleilBoardDrag = null; } catch (_) {} setDropTileId(null); },
+    onDragEnter: () => armFolder(b.id),
     onDragOver: (e) => {
       const t = e.dataTransfer.types;
+      // Hold here and Files opens this folder, mid-drag (lib/springLoad.js).
+      armFolder(b.id);
+      // This cluster's files dropped on one of its folders move into it — and
+      // so do the home cluster's, after a drag has sprung in here.
+      if (t.includes(FILES_DRAG_MIME)) {
+        const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
+        const own = canEdit && from === board.id;
+        const fromHome = !!homeSrc?.canEdit && from === homeSrc.boardId && b.id !== homeSrc.boardId;
+        if (!own && !fromHome) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+        if (dropTileId !== b.id) setDropTileId(b.id);
+        return;
+      }
       if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
       const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
       const invalid = ids.length > 0 && (ids.includes(b.id) || ids.some(id => wouldCreateCycle(boards, id, b.id)));
@@ -1678,16 +1698,33 @@ export function ListSurface({
       try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
       if (dropTileId !== b.id) setDropTileId(b.id);
     },
-    onDragLeave: (e) => { if (e.currentTarget.contains?.(e.relatedTarget)) return; setDropTileId(prev => (prev === b.id ? null : prev)); },
+    onDragLeave: (e) => {
+      if (e.currentTarget.contains?.(e.relatedTarget)) return;
+      springTimer.leave(`folder:${b.id}`);
+      setDropTileId(prev => (prev === b.id ? null : prev));
+    },
     onDrop: (e) => {
       setDropTileId(null);
+      springTimer.cancel();
+      if (e.dataTransfer.types.includes(FILES_DRAG_MIME)) {
+        const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
+        if (!payload) return;
+        const own = canEdit && payload.sourceBoardId === board.id;
+        const fromHome = !!homeSrc?.canEdit && payload.sourceBoardId === homeSrc.boardId && b.id !== homeSrc.boardId;
+        if (!own && !fromHome) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const ids = payload.cards.map((c) => c.id);
+        const moved = own ? moveCardsTo(ids, b.id) : moveCardsTo(ids, b.id, homeSrc);
+        spring?.drop?.(moved);
+        return;
+      }
       const childIds = readBoardRefIds(e.dataTransfer);
       if (!childIds.length) return;
       e.preventDefault();
       e.stopPropagation();
-      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
-        detail: { childIds, targetId: b.id, sourceSurface: 'list' },
-      }));
+      const nested = reparentInto(childIds, b.id);
+      spring?.drop?.(nested);
     },
   });
 
@@ -1852,7 +1889,7 @@ export function ListSurface({
     : null;
 
   return (
-    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`}
+    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`} ref={listWrapRef}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}
@@ -1869,7 +1906,8 @@ export function ListSurface({
         {/* Full Files opens on the cluster's name and what's in it — then the
             toolbar, sticky, above everything it searches and sorts. */}
         {!isPanel && (
-          <header className="cb-pagehead">
+          <header className={`cb-pagehead${hasTrail ? ' has-trail' : ''}`}>
+            {hasTrail && <div className="cb-pagehead-trail"><PathBar {...fullPathBar} /></div>}
             <h1 className="cb-pagehead-title">{board?.name || 'Untitled cluster'}</h1>
             <span className="cb-pagehead-meta">{pageMeta}</span>
             {canDownloadAll && (
@@ -1907,39 +1945,8 @@ export function ListSurface({
         )}
         {isPanel && hasFolders && (
           <>
-            <div className="list-section">Clusters</div>
-            {isPanel ? (
-              <div className="ft-grid">
-                {subBoards.map(b => (
-                  <FolderTile key={b.id} board={b}
-                              selected={selectedBoards.has(b.id)}
-                              dropTarget={dropTileId === b.id}
-                              draggable={canEdit}
-                              {...folderProps(b)} />
-                ))}
-              </div>
-            ) : (
-            <div className="list-grid">
-              {subBoards.map(b => (
-                <div key={b.id}
-                     className={`list-tile ${selectedBoards.has(b.id) ? 'is-selected' : ''} ${dropTileId === b.id ? 'is-drop-target' : ''}`}
-                     draggable={canEdit}
-                     {...folderProps(b)}>
-                  <BoardCard board={b} boards={boards} teammates={TEAMMATES}
-                             peersHere={peersHereByBoard?.get?.(b.id) || []}
-                             peersBelow={peersBelowByBoard?.get?.(b.id) || []}
-                             peersHereByBoard={peersHereByBoard}
-                             peersBelowByBoard={peersBelowByBoard}
-                             onJumpToPeer={onJumpToPeer}
-                             onRename={canEdit
-                               // Passing this unconditionally is what made
-                               // BoardCard render an EditableText for a
-                               // signed-out visitor on a published page —
-                               // it only checks that the prop is truthy.
-                               ? ((name) => mutators.renameBoardById?.(b.id, name))
-                               : undefined} />
-                </div>
-              ))}
+            <div className="list-section">
+              <span>Clusters</span><span className="list-section-count">{folderCount}</span>
             </div>
             <div className="ft-grid is-panel" ref={ftGridRef}>
               {subBoards.slice(0, folderShown).map(renderSubFolder)}
@@ -1961,23 +1968,23 @@ export function ListSurface({
             <div className="ft-grid is-full">{subBoards.map(renderSubFolder)}</div>
           </>
         )}
-        {(otherCards.length > 0 || isPanel) && (
-          <div className="cluster-browser">
-            {!isPanel && (
-            <div className="list-section list-section-files">
-              <span>Files</span>
-              {packSummary && <span className="list-section-meta">{packSummary}</span>}
-              {canDownloadAll && (
-                <button type="button" className="list-section-act" onClick={downloadAll} disabled={zipping}>
-                  <Icon as={Download} size={12} />
-                  <span>{zipping ? 'Preparing…'
-                       : narrowed ? `Download ${downloadableVisible.length}`
-                       : 'Download all'}</span>
-                </button>
-              )}
+        {!isPanel && linkedCards.length > 0 && (
+          <>
+            <div className="list-section">
+              <span>Linked</span><span className="list-section-count">{linkedCards.length}</span>
             </div>
+            <div className="ft-grid is-full">{linkedCards.map(renderLinkedFolder)}</div>
+          </>
+        )}
+        {filesBlockShown && (
+          <div className="cluster-browser">
+            {(hasFolders || (!isPanel && packSummary)) && (
+              <div className="list-section list-section-files">
+                <span>Files</span>
+                <span className="list-section-count">{loading ? '…' : narrowed ? `${visibleItems.length} of ${otherCards.length}` : otherCards.length}</span>
+                {!isPanel && packSummary && <span className="list-section-meta">{packSummary}</span>}
+              </div>
             )}
-            {!isPanel && toolbarJsx}
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
               <div className="cb-main"
                    onDragStart={filesDraggable ? onFilesDragStart : undefined}

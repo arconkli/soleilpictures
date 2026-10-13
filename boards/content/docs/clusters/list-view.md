@@ -5,15 +5,17 @@ h1: Files view
 navLabel: Files view
 section: clusters
 order: 1
-updated: 2026-10-08
+updated: 2026-10-11
 answer: Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
   - q: Does opening Files change my board?
     a: No. It is a different view of the same contents. Positions on the canvas are untouched, and opening Files beside the board never changes how anyone else sees the cluster.
   - q: Can I see my files and my board at the same time?
     a: Yes. Files opens as a panel beside the board. Drag its edge to make it wider, or press the expand button to fill the screen with it.
+  - q: Can I drag files from Files onto the board?
+    a: Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again. A note, doc or grid from another cluster is copied too, and the toast that follows can move it instead.
   - q: Can I upload from Files?
-    a: Yes. Drag files into it, or use Add files in the toolbar. They land on the cluster exactly as if you had dropped them on the canvas.
+    a: Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
   - q: Can I make Files the default?
     a: Yes, in Settings under Defaults. A cluster also remembers the view it was last left in, and a dropped folder opens in Files.
   - q: Can I use Clusters like Google Drive?
@@ -75,10 +77,13 @@ alone, and deleting either one leaves the other. While you browse another
 cluster in the panel, its files that already have a copy on this board are
 marked **On board**, and clicking one finds that copy.
 
-Notes, docs and grids can't be copied this way — their content lives in their
-cluster — so dropping one from another cluster offers **Move here** instead.
-Moving takes it out of the other cluster, and the toast that follows can undo
-it.
+Notes, docs and grids from another cluster are copied the same way — the copy
+takes their words, cells and pages from the cluster they live in, and the
+original stays where it was. A grid linked to its cluster's shared layout
+arrives as a standalone grid with that layout. The toast that follows offers
+**Move instead**, which takes the copy back off and moves the original here;
+`⌘Z` undoes the copy. Copies count toward your plan's card limit like any
+other card.
 
 ## Not on board
 
@@ -131,9 +136,12 @@ land in that cluster once the move is saved. Let go anywhere else, or press
 
 ## Grid and list
 
-**Grid** — a tile per item with a real preview. The default, because most of
-what you are looking for you would recognise by sight; for audio the preview is
-the waveform, so no two loops look the same.
+**Grid** — a tile per item with a real preview, laid out in rows that fill the
+width. Pictures keep their own shape — a portrait stays tall, a panorama stays
+wide — instead of being cropped to a box. The default, because most of what
+you are looking for you would recognise by sight; for audio the preview is the
+waveform, so no two loops look the same. **S**, **M** and **L** set the tile
+size, remembered on your device.
 
 **List** — a row per item, with type, size and dates. Dense, scannable,
 sortable. A cluster that is mostly audio opens in the list, for the columns
@@ -170,11 +178,7 @@ filename. The name is the last thing to give up room.
 
 ## Sorting and filtering
 
-Files opens in **board order**: the canvas read like a page, top row first and
-each row left to right, so what you see is the board you just left, lined up.
-Sort by **name**, **type**, **size**, **date modified** or **date added**
-instead — plus **length**, **tempo**, **key** and **format** when the cluster is
-mostly audio.
+Both live in the **View** menu, beside the search field.
 
 Files opens in **board order**: the canvas read like a page, top row first and
 each row left to right, so what you see is the board you just left, lined up.
@@ -311,7 +315,7 @@ own. From there:
 | **Copy link** | A deep link that opens the board with the card selected |
 | **Delete** | Removes it, with undo |
 
-**Open on canvas** is the important one: it connects the two views, so finding
+**Show on board** is the important one: it connects the two views, so finding
 something in Files puts you in front of it in context. It and **Copy link**
 are app actions, so they are not offered to a signed-out visitor on a shared
 link — there is no canvas for them to open, and the deep link would not resolve.
@@ -326,8 +330,13 @@ version…** too.
 
 ## Adding files here
 
-Drag files into Files, or use **Add files** in the toolbar. They land on the
-cluster exactly as if dropped on the canvas, auto-placed in free space.
+Drag files into Files, or use **Add files** in the toolbar. They join the
+cluster without going on its board: they wait in Files, marked
+[**Not on board**](#not-on-board), until you drag them onto the board or choose
+**Put on board**. That holds beside the board and in full-screen Files alike —
+dropping on the canvas is how you put files straight on the board. An empty
+cluster offers **Add files**, **New cluster** and **Link a cluster** right
+where its contents would be.
 
 Drop a single file onto a file of the same kind instead, and it becomes that
 file's [next version](/docs/files#versions) — the file lights up and says so

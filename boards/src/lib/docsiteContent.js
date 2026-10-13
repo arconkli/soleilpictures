@@ -3032,29 +3032,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Audition the highlighted row (Files)"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "↑"
-      },
-      {
-       "t": "text",
-       "v": " / "
-      },
-      {
-       "t": "code",
-       "v": "↓"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Move through rows (Files)"
+       "v": "Audition the highlighted row (Files, list layout)"
       }
      ]
     ]
@@ -18556,16 +18534,6 @@ export const DOCS_CONTENT = {
      ],
      [
       {
-       "t": "strong",
-       "v": "Beside board",
-       "children": [
-        {
-         "t": "text",
-         "v": "Beside board"
-        }
-       ]
-      },
-      {
        "t": "text",
        "v": "The shrink button at the top right, beside "
       },
@@ -18591,7 +18559,21 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Double-click it in the panel — the board flies to it"
+       "v": "Click it in the panel — the board brings it into view and selects it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Put a file somewhere on the board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Drag it from the panel onto the board"
       }
      ]
     ]
@@ -18640,7 +18622,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A cluster remembers which view it was left in. Folders you "
+     "v": "A cluster remembers which view it was left in. Clusters made from a folder you "
     },
     {
      "t": "link",
@@ -18799,21 +18781,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Notes, docs and grids can't be copied this way — their content lives in their cluster — so dropping one from another cluster offers "
+     "v": "Notes, docs and grids from another cluster are copied the same way — the copy takes their words, cells and pages from the cluster they live in, and the original stays where it was. A grid linked to its cluster's shared layout arrives as a standalone grid with that layout. The toast that follows offers "
     },
     {
      "t": "strong",
-     "v": "Move here",
+     "v": "Move instead",
      "children": [
       {
        "t": "text",
-       "v": "Move here"
+       "v": "Move instead"
       }
      ]
     },
     {
      "t": "text",
-     "v": " instead. Moving takes it out of the other cluster, and the toast that follows can undo it."
+     "v": ", which takes the copy back off and moves the original here; "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " undoes the copy. Copies count toward your plan's card limit like any other card."
     }
    ]
   },
@@ -19114,7 +19104,49 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a tile per item with a real preview. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same."
+     "v": " — a tile per item with a real preview, laid out in rows that fill the width. Pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same. "
+    },
+    {
+     "t": "strong",
+     "v": "S",
+     "children": [
+      {
+       "t": "text",
+       "v": "S"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "M",
+     "children": [
+      {
+       "t": "text",
+       "v": "M"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "L",
+     "children": [
+      {
+       "t": "text",
+       "v": "L"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " set the tile size, remembered on your device."
     }
    ]
   },
@@ -19354,6 +19386,29 @@ export const DOCS_CONTENT = {
     }
    ],
    "id": "sorting-and-filtering"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Both live in the "
+    },
+    {
+     "t": "strong",
+     "v": "View",
+     "children": [
+      {
+       "t": "text",
+       "v": "View"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu, beside the search field."
+    }
+   ]
   },
   {
    "type": "para",

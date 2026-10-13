@@ -116,7 +116,7 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
           {raw && <div className="ql-link-url" title={raw}>{raw}</div>}
           {href && (
             <a className="cbt-btn ql-open" href={href} target="_blank" rel="noopener noreferrer">
-              <Icon as={ArrowSquareOut} size={14} weight="light" />Open link
+              <Icon as={ArrowSquareOut} size={16} weight="light" />Open link
             </a>
           )}
         </div>
@@ -145,9 +145,14 @@ export default function QuickLook({
   const n = items.length;
 
   // Kept: the film player in here takes its keys only while Quick look is the
-  // top layer (the review player opened from it sits above).
+  // top layer (the review player opened from it sits above), and so does
+  // Quick look's own key handler.
   const modalRef = useRef(null);
-  useEffect(() => { const u = modalGuard.registerModalOpen(); modalRef.current = u; return u; }, []);
+  useEffect(() => {
+    const unregister = modalGuard.registerModalOpen();
+    modalRef.current = unregister;
+    return () => { modalRef.current = null; unregister(); };
+  }, []);
   const playerRef = useRef(null);
 
   // Focus moves in, and goes back where it was on close.

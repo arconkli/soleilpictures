@@ -3955,6 +3955,7 @@ body {
   --files-lift: none;
   --files-overlay-edge: color-mix(in srgb, var(--ink-0) 10%, transparent);
   --files-label: color-mix(in srgb, var(--ink-2) 85%, var(--ink-3));
+  --files-tile-edge: color-mix(in srgb, var(--ink-0) 11%, transparent);
   --files-tile-hover-edge: color-mix(in srgb, var(--ink-0) 20%, transparent);
   --files-tile-hover-lift: none;
   --files-primary: var(--ink-1);
@@ -3970,6 +3971,7 @@ body {
   --files-lift: 0 1px 2px rgba(10, 10, 12, 0.05);
   --files-overlay-edge: rgba(10, 10, 12, 0.10);
   --files-label: var(--ink-2);
+  --files-tile-edge: rgba(10, 10, 12, 0.10);
   --files-tile-hover-edge: rgba(10, 10, 12, 0.18);
   --files-tile-hover-lift: 0 1px 2px rgba(10, 10, 12, 0.05), 0 8px 20px -8px rgba(10, 10, 12, 0.16);
   --files-primary: var(--ink-0);
@@ -4745,8 +4747,8 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
    first screenful — the same trap the grain was in. An `outline` with a
    negative offset is painted on the border box and never scrolls. */
 .list-wrap.is-drop-target {
-  /* A drop target is an active state: gold, with a faint wash that paints
-     above the grain and doesn't scroll. */
+  /* A drop target is an active state: gold. (Inside Files the frame and its
+     wash are drawn on .fdl-files instead — see above.) */
   outline: 1.5px dashed color-mix(in srgb, var(--soleil) 65%, transparent);
   outline-offset: -6px;
 }
@@ -9479,8 +9481,8 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   width: 24px; height: 24px; padding: 0; box-sizing: border-box;
   display: grid; place-items: center; border-radius: 50%;
   border: 1.5px solid #fff;
-  background: rgba(10, 10, 12, 0.24);
-  box-shadow: 0 0 0 .5px rgba(10, 10, 12, 0.35), 0 1px 3px rgba(0, 0, 0, 0.28);
+  background: rgba(10, 10, 12, 0.32);
+  box-shadow: 0 0 0 .5px rgba(10, 10, 12, 0.45), 0 1px 4px rgba(0, 0, 0, 0.35);
   color: transparent; cursor: pointer;
   opacity: 0; transition: opacity var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);
 }
@@ -9538,7 +9540,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
     place-items: end start;
     padding: 9px;
   }
-  .ct-tile-dl { width: 22px; height: 22px; top: 6px; right: 6px; background: rgba(10, 10, 12, 0.32); box-shadow: none; }
+  .ct-tile-dl { width: 22px; height: 22px; top: 6px; right: 6px; background: rgba(10, 10, 12, 0.55); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 1px 3px rgba(0, 0, 0, 0.28); }
   .ct-tile-dl svg { width: 12px; height: 12px; }
 }
 /* With a pointer: a disc to press, not a wash over the artwork. */
@@ -22817,7 +22819,8 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .fdl-files { container: files / inline-size; }
 .fdl-divider {
   flex: 0 0 auto;
-  width: 7px; margin: 0 -3px; z-index: 6;
+  /* 10px to grab; a 1px line shows where it is on hover, gold on focus. */
+  width: 10px; margin: 0 -5px; z-index: 6;
   position: relative;
   cursor: col-resize;
   display: grid; place-items: center;
@@ -22831,6 +22834,22 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 }
 .fdl-divider:hover .fdl-grip, .fdl-divider.is-dragging .fdl-grip { opacity: 1; background: var(--ink-3); }
 .fdl-divider:focus-visible .fdl-grip { opacity: 1; background: var(--soleil); }
+.fdl-divider::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; margin-left: -0.5px;
+  background: transparent; transition: background var(--dur-base) var(--ease);
+}
+.fdl-divider:hover::before, .fdl-divider.is-dragging::before { background: var(--line-3); }
+.fdl-divider:focus-visible::before { background: var(--soleil); }
+/* Opening beside the board: a short slide in. Letting go here would close
+   it: the panel fades, so the preview reads before the release. */
+.fdl-files { transition: opacity var(--dur-base) var(--ease); }
+.fdl-files.is-entering { animation: fdl-in 180ms var(--ease); }
+@keyframes fdl-in { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+.fdl.is-closing .fdl-files { opacity: 0.4; }
+@media (prefers-reduced-motion: reduce) { .fdl-files.is-entering { animation: none; } .fdl-files { transition: none; } }
+/* A big grid holds its layout while the divider moves (JustifiedGallery);
+   don't let that show as a sideways scrollbar for a moment. */
+body.fdl-resizing .list-wrap { overflow-x: hidden; }
 body.fdl-resizing { cursor: col-resize; user-select: none; }
 body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none; }
 .fdl-preview {
@@ -22883,8 +22902,8 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   .cbt--compact .cbt-btn-label, .cbt--compact .cbt-btn-chev { display: none; }
   .cbt--compact .cbt-btn { padding-inline: 7px; }
 }
-.cbt--compact { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 0; padding: 0; }
 .cbt-titlerow, .cbt-row { display: flex; align-items: center; gap: 6px; min-width: 0; justify-content: flex-start; }
+.cbt-titlerow { min-height: var(--ctl-h); gap: 2px; }
 .cbt-titlerow .cbt-title { margin-right: auto; }
 .cbt-title {
   font: 600 13px/1.2 var(--font-sans); color: var(--ink-0);
@@ -22892,9 +22911,9 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 }
 .cbt--compact .cbt-search { flex: 1 1 auto; min-width: 0; max-width: none; width: auto; }
 .cbt-iconbtn {
-  width: 28px; height: 28px; flex: 0 0 auto;
+  width: var(--ctl-h); height: var(--ctl-h); flex: 0 0 auto; box-sizing: border-box;
   display: grid; place-items: center;
-  border-radius: 7px; border: 1px solid transparent;
+  border-radius: var(--radius-md); border: 1px solid transparent;
   background: transparent; color: var(--ink-2);
   cursor: pointer;
   transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
@@ -23145,9 +23164,20 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   transition: outline-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .ct-jg .ct-tile { content-visibility: visible; contain-intrinsic-size: none; }
+/* The hairline is drawn OVER the picture, not under it: a palette band, a
+   note or a letterboxed still the colour of the floor kept painting over an
+   outline and lost its edge. Above the content, below the check (z 2). */
+.ct-jg .ct-tile-preview { outline-color: transparent; isolation: isolate; }
+.ct-jg .ct-tile-preview::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--files-tile-edge, var(--line-2));
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
 /* Hover brightens the edge; it never touches a stateful ring. */
-.ct-jg .ct-tile:not(.is-selected):not(.is-active):not(.is-peer):hover .ct-tile-preview {
-  outline-color: var(--files-tile-hover-edge, var(--line-3)); box-shadow: var(--files-tile-hover-lift, none);
+.ct-jg .ct-tile:not(.is-selected):not(.is-active):not(.is-peer):hover .ct-tile-preview { box-shadow: var(--files-tile-hover-lift, none); }
+.ct-jg .ct-tile:not(.is-selected):not(.is-active):not(.is-peer):hover .ct-tile-preview::before {
+  box-shadow: inset 0 0 0 1px var(--files-tile-hover-edge, var(--line-3));
 }
 .ct-jg .ct-tile.is-selected { box-shadow: none; }
 .ct-jg .ct-tile.is-selected .ct-tile-preview { outline: 2px solid var(--select); outline-offset: 2px; box-shadow: var(--files-lift, none); }
@@ -23287,14 +23317,15 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 }
 
 /* List beside the board: rows on the panel floor, not a table in a card. */
-.list-wrap.is-panel .ct-table { border: 0; border-radius: 0; background: none; margin: 0 -4px; }
+.list-wrap.is-panel .ct-table { border: 0; border-radius: 0; background: none; margin: 0 -8px; }
 .list-wrap.is-panel .ct-head { display: none; }
 .list-wrap.is-panel .ct-cell { padding: 5px 8px; }
 .list-wrap.is-panel .ct-thumb { width: 28px; height: 28px; border-radius: 5px; }
 .list-wrap.is-panel .ct-row { border-bottom-color: transparent; border-radius: var(--radius-md); }
 .list-wrap:not(.is-panel) .ct-sub-meta { display: none; }
 /* Full Files' List: rows on the floor too, under a header painted like it. */
-.list-wrap:not(.is-panel) .ct-table { background: none; border: 0; border-radius: 0; }
+.list-wrap:not(.is-panel) .ct-table { background: none; border: 0; border-radius: 0; margin-inline: -12px; }
+@media (max-width: 640px) { .list-wrap:not(.is-panel) .ct-table { margin-inline: -10px; } }
 .list-wrap:not(.is-panel) .ct-head {
   background-color: var(--files-floor); background-image: var(--files-floor-paint);
   background-size: auto, 320px 240px; border-bottom: 1px solid var(--line-1);
@@ -23337,7 +23368,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .cbt .view-pill-btn.on, .cbt-menu .view-pill-btn.on { background: var(--bg-4); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); color: var(--ink-0); }
 .cbt-sizes { padding: 2px 10px 8px 30px; }
 /* "Not on board" lines up with the other rows: its ring after the word. */
-.cbt-menu .ctx-item > .cbt-flag { order: 1; margin: 0 0 0 6px; }
+.cbt-menu .ctx-item > .cbt-flag { order: 1; margin: 0 0 0 -6px; }
 .cbt-menu .ctx-item > .cbt-count, .cbt-menu .ctx-item > .cbt-caret { order: 2; }
 
 /* ── Quick look (clusterBrowser/QuickLook.jsx) ──────────────────────────── */
@@ -23402,7 +23433,8 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .ql-link-chip .cbp-link { width: auto; height: auto; }
 .ql-link-title { font: 600 20px/1.3 var(--font-sans); color: var(--ink-0); max-width: 100%; overflow-wrap: anywhere; }
 .ql-link-url { font: 400 13px/1.3 var(--font-sans); color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ql-link .ql-open { margin-top: 8px; gap: 6px; }
+.ql-link .ql-open { margin-top: 8px; gap: 6px; text-decoration: none; background: var(--bg-4); border-color: var(--line-3); color: var(--ink-0); }
+.ql-link .ql-open:hover { background: color-mix(in srgb, var(--ink-0) 8%, var(--bg-4)); border-color: var(--line-3); }
 .ql-wait { width: 48px; height: 48px; border-radius: 999px; border: 2px solid rgba(255,255,255,.2); border-top-color: #fff; animation: spin 0.9s linear infinite; }
 .ql .cb-detail.is-inline { position: static; flex: none; width: 300px; max-height: 100%; overflow: auto; }
 .lightbox-stage.lightbox-mode-actual { cursor: grab; }

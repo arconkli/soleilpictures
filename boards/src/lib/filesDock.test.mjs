@@ -3,6 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   DOCK, canDock, filesModeOf, planFilesEvent, switchSegments,
   clampWidth, dragPreview, releaseDock, readDockPrefs, writeDockPrefs,
@@ -72,8 +73,8 @@ test('dragging the divider far enough expands; narrow enough closes', () => {
   const pane = 1000;
   assert.equal(dragPreview(700, pane), 'full');        // 70% of a 1000px pane
   assert.equal(dragPreview(650, pane), null);
-  assert.equal(dragPreview(1040, 1400), 'full');       // wide pane: pane − CANVAS_MIN wins over 70%
-  assert.equal(dragPreview(1000, 1400), null);
+  assert.equal(dragPreview(1088, 1400), 'full');       // wide pane: past the widest panel wins over 70%
+  assert.equal(dragPreview(1087, 1400), null);
   assert.equal(dragPreview(DOCK.CLOSE_BELOW - 1, pane), 'close');
   assert.equal(dragPreview(400, 0), null);
   assert.deepEqual(releaseDock(800, pane), { action: 'expand' });

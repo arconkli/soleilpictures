@@ -28,15 +28,34 @@ function countLabel(n) {
 
 export const FolderTile = memo(function FolderTile({
   board, name, selected = false, dropTarget = false, linked = false, missing = false,
+  // Teammates inside this cluster right now ({ user } entries), shown as a
+  // small stack — the presence the old board cards carried.
+  peers = null,
+  rename = null,   // inline rename: { onCommit, onCancel }
+  compact = false, // the panel's one-line rows: a smaller cover and glyph
+  springing = false, // a drag is held over it: it's about to open (lib/springLoad.js)
   className = '', ...divProps
 }) {
-  const tint = COVER_TINTS[board?.cover || 'neutral'] || COVER_TINTS.neutral;
+  const people = [];
+  const seen = new Set();
+  for (const p of peers || []) {
+    const u = p?.user || p;
+    if (!u?.id || seen.has(u.id)) continue;
+    seen.add(u.id);
+    people.push(u);
+  }
+  // "sun" IS the brand gold: in Files a resting folder in it read as the
+  // selected one, so it shows as sand here (the canvas keeps the person's
+  // choice). Mapped in JS — the inline custom property beats any stylesheet.
+  const cover = board?.cover === 'sun' ? 'sand' : (board?.cover || 'neutral');
+  const tint = COVER_TINTS[cover] || COVER_TINTS.neutral;
   const label = name || board?.name || (linked ? 'Linked cluster' : 'Untitled cluster');
   return (
     <div {...divProps}
-         className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
+         draggable={rename ? undefined : divProps.draggable}
+         className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${springing ? ' is-springing' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
          title={label}>
-      <div className="ft-cover" style={{ '--ft-tint': tint }}>
+      <div className="ft-cover" data-cover={cover} style={{ '--ft-tint': tint }}>
         {board?.thumb_key ? (
           <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
                    bust={board.thumb_updated_at} className="ft-thumb" alt="" draggable={false} />
@@ -59,6 +78,11 @@ export const FolderTile = memo(function FolderTile({
           <div className="ft-meta">{missing ? 'Not available' : countLabel(board.card_count)}</div>
         )}
       </div>
+      {people.length > 0 && (
+        <div className="ft-peers" title={`${people.length} here`}>
+          {people.slice(0, 3).map((u) => <Avatar key={u.id} name={u.name} color={u.color} size={16} ring />)}
+        </div>
+      )}
     </div>
   );
 });

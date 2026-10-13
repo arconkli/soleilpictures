@@ -92,8 +92,7 @@ const SECTIONS = [
     rows: [
       [['Enter'], 'Play · pause the selected clip'],
       [['L'], 'Loop the selected clip'],
-      [['Space'], 'Audition the highlighted row (Files)'],
-      [['↑', '↓'], 'Move through rows (Files)'],
+      [['Space'], 'Audition the highlighted row (Files, list layout)'],
     ],
   },
   {

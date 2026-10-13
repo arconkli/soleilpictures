@@ -36,15 +36,18 @@ export function FilesDockLayout({
   const [drag, setDrag] = useState(null);   // { w, preview } while dragging
   const roomRef = useRef(null);
 
-  useEffect(() => {
+  // Layout effect: the first measurement lands before the first paint, so the
+  // panel opens at its stored width instead of flashing at the minimum.
+  useLayoutEffect(() => {
     const el = rootRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    if (!el) return undefined;
     const report = (w) => {
       setPaneW(w);
       const room = canDock(w, { mobileShell });
       if (room !== roomRef.current) { roomRef.current = room; onRoomChange?.(room); }
     };
     report(el.getBoundingClientRect().width);
+    if (typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect?.width;
       if (Number.isFinite(w)) report(w);
@@ -56,63 +59,124 @@ export function FilesDockLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mobileShell]);
 
-  // Files claims the keyboard while the pointer is over it (ListSurface sets
-  // the 'files' pane). Hand it back when the panel goes away, or the board
-  // would ignore its own keys until the pointer crossed it again.
+  // Files claims the keyboard while the pointer is over it: as its own 'files'
+  // pane beside the board, as the pane itself when full. Keep the claim with
+  // Files as it changes size, and hand it back when the panel goes away — or
+  // the board would ignore its own keys until the pointer crossed it again.
+  const prevModeRef = useRef(mode);
   useEffect(() => {
-    if (mode !== 'off') return undefined;
-    if (getActivePane() === 'files') setActivePane('main');
-    return undefined;
+    const prev = prevModeRef.current;
+    prevModeRef.current = mode;
+    if (mode !== 'panel' && getActivePane() === 'files') setActivePane('main');
+    else if (mode === 'panel' && prev === 'full' && getActivePane() === 'main') setActivePane('files');
   }, [mode]);
+
+  // A divider drag in progress, so anything that ends it early — the panel
+  // closing under it (F), capture lost, unmount — can tear it down.
+  const dragEndRef = useRef(null);
+  useEffect(() => {
+    if (mode !== 'panel') dragEndRef.current?.();
+  }, [mode]);
+  useEffect(() => () => dragEndRef.current?.(), []);
 
   const panelW = drag ? drag.w : clampWidth(width, paneW);
 
-  const widthFromPointer = (clientX) => {
-    const rect = rootRef.current?.getBoundingClientRect();
-    if (!rect) return panelW;
-    return Math.max(0, rect.right - clientX);
-  };
+  // Which side has the keyboard, for the styles: the other side's selection
+  // shows in ink rather than gold (styles.css, "Two panes, one keyboard").
+  const [activePane, setActivePaneState] = useState(() => getActivePane());
+  useEffect(() => subscribeActivePane(setActivePaneState), []);
+
+  // Toasts stack top-right. While the panel is docked against the window's
+  // right edge they'd sit on its ⤢ and ×, so publish its width for
+  // .toast-stack to move over by (styles.css). Cleared whenever it isn't.
+  const filesRef = useRef(null);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const r = mode === 'panel' ? filesRef.current?.getBoundingClientRect?.() : null;
+    if (r && window.innerWidth - r.right < 24) root.style.setProperty('--files-dock-w', `${Math.round(r.width)}px`);
+    else root.style.removeProperty('--files-dock-w');
+  }, [mode, panelW, paneW]);
+  useEffect(() => () => document.documentElement.style.removeProperty('--files-dock-w'), []);
 
   const onDividerDown = (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
     const el = e.currentTarget;
+    const startX = e.clientX;
+    const startW = panelW;
+    let moved = false;
     try { el.setPointerCapture(e.pointerId); } catch (_) {}
     document.body.classList.add('fdl-resizing');
+    // Width follows the pointer from where it grabbed, so grabbing either side
+    // of the 7px divider doesn't jump the panel.
+    const widthAt = (clientX) => Math.min(Math.max(startW + (startX - clientX), 0), paneW);
     const move = (ev) => {
-      const w = widthFromPointer(ev.clientX);
-      setDrag({ w: Math.min(Math.max(w, 0), paneW), preview: dragPreview(w, paneW) });
+      if (!moved && Math.abs(ev.clientX - startX) < DOCK.CLICK_SLOP) return;
+      moved = true;
+      const w = widthAt(ev.clientX);
+      setDrag({ w, preview: dragPreview(w, paneW) });
     };
-    const up = (ev) => {
+    const end = () => {
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
-      el.removeEventListener('pointercancel', up);
+      el.removeEventListener('pointercancel', end);
+      el.removeEventListener('lostpointercapture', end);
       document.body.classList.remove('fdl-resizing');
-      const w = widthFromPointer(ev.clientX);
+      // Anything that waited out the drag (a big grid) lays out once, now.
+      try { window.dispatchEvent(new Event('fdl-resize-end')); } catch (_) {}
+      dragEndRef.current = null;
       setDrag(null);
+    };
+    // Only a real drag commits; a click (or the first click of the reset
+    // double-click) leaves the panel as it was.
+    const up = (ev) => {
+      const w = widthAt(ev.clientX);
+      const wasDrag = moved;
+      end();
+      if (!wasDrag) return;
       const res = releaseDock(w, paneW);
       if (res.action === 'expand') onExpand?.();
       else if (res.action === 'close') onClose?.();
       else onResize?.(res.width);
     };
+    dragEndRef.current = end;
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', up);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('lostpointercapture', end);
   };
 
+  const widest = clampWidth(Number.MAX_SAFE_INTEGER, paneW);
   const onDividerKey = (e) => {
     if (e.key === 'ArrowLeft') { e.preventDefault(); onResize?.(clampWidth(panelW + DOCK.KEY_STEP, paneW)); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); onResize?.(clampWidth(panelW - DOCK.KEY_STEP, paneW)); }
+    else if (e.key === 'Home') { e.preventDefault(); onResize?.(DOCK.MIN); }
+    else if (e.key === 'End') { e.preventDefault(); onResize?.(widest); }
     else if (e.key === 'Enter') { e.preventDefault(); onExpand?.(); }
   };
 
+  // Opening beside the board slides the panel in (from off only — not when
+  // full Files shrinks to it); the styles skip it under reduced motion.
+  const [entering, setEntering] = useState(false);
+  const lastModeRef = useRef(mode);
+  useLayoutEffect(() => {
+    const prev = lastModeRef.current;
+    lastModeRef.current = mode;
+    if (mode !== 'panel' || prev !== 'off') return undefined;
+    setEntering(true);
+    const t = setTimeout(() => setEntering(false), 240);
+    // Expanding inside the slide must not carry the class into full Files.
+    return () => { clearTimeout(t); setEntering(false); };
+  }, [mode]);
+
   return (
-    <div className={`fdl fdl-${mode}`} ref={rootRef}>
+    <div className={`fdl fdl-${mode}${drag?.preview === 'close' ? ' is-closing' : ''}`} ref={rootRef}
+         data-active-pane={mode === 'panel' ? activePane : undefined}>
       <div className="fdl-canvas">{canvas}</div>
       {mode === 'panel' ? (
         <div className={`fdl-divider${drag ? ' is-dragging' : ''}`}
              role="separator" aria-orientation="vertical" aria-label="Resize Files"
-             aria-valuenow={Math.round(panelW)} tabIndex={0}
+             aria-valuenow={Math.round(panelW)} aria-valuemin={DOCK.MIN} aria-valuemax={widest} tabIndex={0}
              title="Drag to resize · drag all the way to fill the screen · double-click to reset"
              onPointerDown={onDividerDown}
              onDoubleClick={() => onResize?.(DOCK.DEFAULT)}
@@ -120,7 +184,7 @@ export function FilesDockLayout({
           <span className="fdl-grip" aria-hidden="true" />
         </div>
       ) : null}
-      <div className="fdl-files" style={mode === 'panel' ? { width: panelW } : undefined}>{files}</div>
+      <div className={`fdl-files${entering ? ' is-entering' : ''}`} ref={filesRef} style={mode === 'panel' ? { width: panelW } : undefined}>{files}</div>
       {drag?.preview ? (
         <div className={`fdl-preview is-${drag.preview}`} aria-hidden="true">
           {drag.preview === 'full' ? 'Release for full-screen Files' : 'Release to close Files'}

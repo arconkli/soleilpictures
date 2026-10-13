@@ -17,6 +17,8 @@ export const DOCK = Object.freeze({
   EXPAND_FRACTION: 0.7,  // dragging the divider past 70% of the pane expands
   CLOSE_BELOW: 180,      // releasing narrower than this closes the panel
   KEY_STEP: 32,          // ←/→ on the focused divider
+  EXPAND_PAST: 48,       // the expand point sits this far past the widest panel
+  CLICK_SLOP: 3,         // a divider press that moves less than this is a click
 });
 
 // Room to dock: a desktop pane wide enough for both a usable board and a
@@ -42,6 +44,7 @@ export function filesModeOf({ view, dockOpen, canDock: room }) {
 //   expand    —                       full             —         ⤢, divider
 //   shrink    —                       —                panel     ⤡ (room only)
 //   close     —                       off              —         ×, divider
+//   reveal    panel (full if no room) —                —         a file that isn't on the board
 export function planFilesEvent(mode, event, { canDock: room = true } = {}) {
   const open = room ? 'panel' : 'full';
   switch (event) {
@@ -53,6 +56,8 @@ export function planFilesEvent(mode, event, { canDock: room = true } = {}) {
     case 'expand': return { next: mode === 'panel' ? 'full' : mode };
     case 'shrink': return { next: mode === 'full' && room ? 'panel' : mode };
     case 'close':  return { next: mode === 'panel' ? 'off' : mode };
+    // Showing a file that's only in Files: open Files if it isn't already.
+    case 'reveal': return { next: mode === 'off' ? open : mode };
     default:       return { next: mode };
   }
 }
@@ -69,10 +74,13 @@ export function clampWidth(width, paneWidth) {
   return Math.round(Math.min(max, Math.max(DOCK.MIN, w)));
 }
 
-// While dragging the divider: what letting go here would do.
+// While dragging the divider: what letting go here would do. The expand point
+// is always past the widest panel clampWidth allows, so a panel resting at its
+// maximum can't expand from a press that barely moved.
 export function dragPreview(width, paneWidth) {
   if (!Number.isFinite(width) || !Number.isFinite(paneWidth) || paneWidth <= 0) return null;
-  const expandAt = Math.max(DOCK.EXPAND_FRACTION * paneWidth, paneWidth - DOCK.CANVAS_MIN);
+  const widest = Math.max(DOCK.MIN, paneWidth - DOCK.CANVAS_MIN);
+  const expandAt = Math.max(DOCK.EXPAND_FRACTION * paneWidth, widest + DOCK.EXPAND_PAST);
   if (width >= expandAt) return 'full';
   if (width < DOCK.CLOSE_BELOW) return 'close';
   return null;

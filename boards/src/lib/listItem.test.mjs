@@ -141,3 +141,57 @@ test('cards with no position go last in board order, in z order', () => {
   ];
   assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['p', 'u1', 'u2']);
 });
+
+test('a tall hero beside a 2x2 of thumbnails reads the thumbnails row by row', () => {
+  const items = [
+    placed('A', 0, 0, 600),
+    placed('B', 200, 0), placed('C', 400, 0),
+    placed('D', 200, 300), placed('E', 400, 300),
+  ];
+  assert.deepEqual(sortItems(items, 'board', 'asc').map(i => i.id), ['A', 'B', 'C', 'D', 'E']);
+});
+
+test('files not on the board read after the board, and "Not on board" narrows the filters', async () => {
+  const { boardOrder, filterItems, toListItem } = await import('./listItem.js');
+  const mk = (id, extra) => toListItem({ id, kind: 'image', src: 'r2:' + id, x: 0, y: 0, w: 100, h: 100, ...extra }, {});
+  const a = mk('a', { x: 0, y: 0 });
+  const u = mk('u', { x: 0, y: -500, unplaced: true });     // its waiting spot is above, but it's not on the board
+  const b = mk('b', { x: 200, y: 0 });
+  assert.equal(u.unplaced, true);
+  assert.equal(a.unplaced, false);
+  assert.deepEqual(boardOrder([u, b, a]).map((it) => it.id), ['a', 'b', 'u']);
+  assert.deepEqual(filterItems([a, u, b], new Set(), { unplacedOnly: true }).map((it) => it.id), ['u']);
+  assert.deepEqual(filterItems([a, u, b], new Set(['image']), { unplacedOnly: true }).map((it) => it.id), ['u']);
+  assert.deepEqual(filterItems([a, u, b], new Set(['pdf']), { unplacedOnly: true }).map((it) => it.id), []);
+});
+
+test('a note reads as title over body, and search still finds its body', async () => {
+  const { noteParts, matchItems } = await import('./listItem.js');
+  assert.deepEqual(noteParts('<h2>Studio inbox</h2><p>Drop projects here.</p>'), { title: 'Studio inbox', body: 'Drop projects here.' });
+  assert.deepEqual(noteParts('<p>hi</p>'), { title: 'hi', body: '' });
+  assert.equal(noteParts('', 'plain').title, 'plain');
+  const n = toListItem({ id: 'n', kind: 'note', html: '<p>Shot list</p><p>Day two exteriors</p>' });
+  assert.equal(n.name, 'Shot list');
+  assert.equal(n.preview.title, 'Shot list');
+  assert.equal(n.preview.text, 'Day two exteriors');
+  assert.deepEqual(matchItems([n], 'exteriors').map((x) => x.id), ['n']);
+});
+
+test('tile captions drop the file\'s own extension, and only that', async () => {
+  const { captionOf } = await import('./listItem.js');
+  assert.equal(captionOf('wardrobe-ref.webp', 'webp'), 'wardrobe-ref');
+  assert.equal(captionOf('Treatment.PDF', 'pdf'), 'Treatment');
+  assert.equal(captionOf('v1.2', 'webp'), 'v1.2');
+  assert.equal(captionOf('.webp', 'webp'), '.webp');
+  assert.equal(captionOf('notes', ''), 'notes');
+  const img = toListItem({ id: 'i', kind: 'image', fileName: 'grade-ref.webp', src: 'r2:x' });
+  assert.equal(img.ext, 'webp');
+  assert.equal(captionOf(img.name, img.ext), 'grade-ref');
+  const typed = toListItem({ id: 'j', kind: 'image', title: 'Final v1.2', fileName: 'a.jpg', src: 'r2:x' });
+  assert.equal(captionOf(typed.name, typed.ext), 'Final v1.2');
+});
+
+test('a plain-text note: the first line is its title', async () => {
+  const { noteParts } = await import('./listItem.js');
+  assert.deepEqual(noteParts('', 'Studio inbox\n\nDrop projects here.'), { title: 'Studio inbox', body: 'Drop projects here.' });
+});

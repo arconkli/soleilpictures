@@ -10,7 +10,7 @@ import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { ViewSwitch } from '../components/ViewSwitch.jsx';
-import { FilesDockLayout } from '../components/FilesDock.jsx';
+import { FilesDockLayout, FilesPane } from '../components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } from '../lib/filesDock.js';
 import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
@@ -1571,7 +1571,7 @@ export function LocalBoardsApp({ user, signOut }) {
   useEffect(() => {
     const onKey = (e) => {
       if (!isViewSwitchKey(e)) return;
-      if (isEditableTarget(e) || anyModalOpen()) return;
+      if (isEditableTarget(e) || anyModalOpen() || overlayOpen()) return;
       if (currentSurface !== 'board' || paletteOpen) return;
       e.preventDefault();
       applyFilesEventRef.current('toggle');
@@ -2005,7 +2005,11 @@ export function LocalBoardsApp({ user, signOut }) {
                 onDismissJustAdded={() => setQaTemplate(null)}
                 board={currentBoard}
                 boards={boards}
-                cards={framedState.cards}
+                cards={placedOf(framedState.cards)}
+                allCards={framedState.cards}
+                onRevealUnplaced={(ids) => revealInFilesLocal(ids)}
+                focusRequest={focusRequest?.boardId === currentBoard?.id ? focusRequest : null}
+                clearFocusRequest={() => setFocusRequest(null)}
                 arrows={currentState.arrows}
                 strokes={currentState.strokes}
                 gridTemplates={currentTemplates}
@@ -2046,27 +2050,51 @@ export function LocalBoardsApp({ user, signOut }) {
               />
             ) : null}
             files={filesMode !== 'off' ? (
-              <ListSurface
-                board={currentBoard}
-                boards={boards}
-                cards={framedState.cards}
-                childBoards={childBoards}
-                onOpenBoard={openBoard}
-                onOpenPicker={() => openBoardLinkPicker()}
-                onDropInboxItem={dropInboxItem}
-                gridTemplates={currentTemplates}
-                getGridModel={(card) => readGridModel(card, null, currentTemplates)}
-                onRevealOnCanvas={() => { if (filesMode === 'full') applyFilesEvent(canDockHere ? 'shrink' : 'board'); }}
+              <FilesPane
                 mode={filesMode === 'panel' ? 'panel' : 'full'}
-                paneId={filesMode === 'panel' ? 'files' : 'main'}
-                hasSplit={filesMode === 'panel'}
-                dockControls={{
-                  canShrink: canDockHere,
-                  onExpand: () => applyFilesEvent('expand'),
-                  onShrink: () => applyFilesEvent('shrink'),
-                  onClose: () => applyFilesEvent('close'),
+                home={currentBoard}
+                boards={boards}
+                dockControls={localDockControls}
+                cardsFor={(id) => boardState[id]?.cards || []}
+                onOpenInFiles={(id) => {
+                  if (!boards[id]) return;
+                  setViewOverride(prev => ({ ...prev, [id]: 'list' }));
+                  setStack(ancestorPath(boards, id));
+                  recents.push(id);
                 }}
-                mutators={surfaceMutators}
+                homeCards={placedOf(framedState.cards)}
+                revealRequest={filesReveal?.boardId === currentBoard?.id ? filesReveal : null}
+                onLocate={(id) => setFocusRequest({ boardId: currentBoard?.id, ids: [id], token: Date.now(), mode: 'center' })}
+                onShowInCluster={(id) => {
+                  if (!boards[id]) return;
+                  setViewOverride(prev => ({ ...prev, [id]: 'canvas' }));
+                  setStack(ancestorPath(boards, id));
+                  recents.push(id);
+                }}
+                render={(o) => (
+                  <ListSurface
+                    board={currentBoard}
+                    boards={boards}
+                    cards={framedState.cards}
+                    childBoards={childBoards}
+                    onOpenBoard={openBoard}
+                    onOpenPicker={() => openBoardLinkPicker()}
+                    onDropInboxItem={dropInboxItem}
+                    onDropFilesToCluster={(files) => ingestFilesLocal(files)}
+                    onRevealDone={(token) => setFilesReveal((r) => (r?.token === token ? null : r))}
+                    recentlyAddedIds={localRecentlyAdded?.boardId === currentBoard?.id ? localRecentlyAdded.ids : null}
+                    gridTemplates={currentTemplates}
+                    getGridModel={(card) => readGridModel(card, null, currentTemplates)}
+                    onRevealOnCanvas={() => { if (filesMode === 'full') applyFilesEvent(canDockHere ? 'shrink' : 'board'); }}
+                    mode={filesMode === 'panel' ? 'panel' : 'full'}
+                    paneId={filesMode === 'panel' ? 'files' : 'main'}
+                    hasSplit={filesMode === 'panel'}
+                    dockControls={localDockControls}
+                    mutators={surfaceMutators}
+                    homeSrc={currentBoard ? { boardId: currentBoard.id, cards: framedState.cards, mutators: surfaceMutators, canEdit: true } : null}
+                    {...o}
+                  />
+                )}
               />
             ) : null}
           />

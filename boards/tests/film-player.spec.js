@@ -203,7 +203,10 @@ test('the speed menu: arrows move the menu not the frame, Esc closes only the me
   await review.getByRole('button', { name: /^Speed/ }).click();
   const menu = page.locator('.film-menu[role="menu"]');
   await expect(menu).toBeVisible();
+  await expect(menu).toBeFocused();
+  await expect(menu.locator('.film-menu-item.is-active')).toHaveText(/Normal/);
   await page.keyboard.press('ArrowDown');
+  await expect(menu.locator('.film-menu-item.is-active')).toHaveText(/1\.25×/);
   await expect(review.locator('.film-tc')).toHaveText('00:00:00:04');
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
@@ -254,6 +257,9 @@ test('a range loop never runs past its out frame', async ({ page }) => {
     const t0 = performance.now();
     while (performance.now() - t0 < 2500) {
       await new Promise((r) => requestAnimationFrame(r));
+      // Mid-seek there may be no decoded frame to draw (readyState 1): the
+      // screen keeps the last picture, but drawImage reads nothing.
+      if (v.seeking || v.readyState < 2) continue;
       ctx.drawImage(v, 0, 0, 8, 8);
       const [r, g, b] = ctx.getImageData(4, 4, 1, 1).data;
       out.push(Math.round(((16 + (65.481 * r + 128.553 * g + 24.966 * b) / 255) - 16) / 3));

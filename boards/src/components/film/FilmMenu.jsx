@@ -49,12 +49,15 @@ export function FilmMenu({ anchor, container, items, onClose, label = 'Menu', pl
     setPos({ left, top });
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Focus the menu so its keys arrive here; give it back on close.
+  // Focus the menu so its keys arrive here — once it's placed: until then it
+  // is visibility:hidden, and a hidden element can't take focus. Give it back
+  // on close.
   useEffect(() => {
     const prev = document.activeElement;
-    ref.current?.focus({ preventScroll: true });
     return () => { if (prev?.isConnected) { try { prev.focus({ preventScroll: true }); } catch (_) {} } };
   }, []);
+  const placed = !!pos;
+  useEffect(() => { if (placed) ref.current?.focus({ preventScroll: true }); }, [placed]);
 
   // A press anywhere else closes it (the press still lands where it was aimed).
   const ignoreRef = useRef(ignore);
