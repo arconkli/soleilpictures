@@ -956,3 +956,43 @@ test('an outside check hears from the database every ten minutes, and hears why 
   assert.match(tab, /' · not seen'/);
   assert.match(tab, /Check your inbox and Spam within two minutes, then click Seen here\./);
 });
+
+// ── 0393: a workspace is made only by the functions that make it whole ──────
+
+test('no client makes a workspace, or rewrites a member\'s role, by writing the table', () => {
+  const f = migrationFiles().find((n) => n.startsWith('0393_'));
+  assert.ok(f, '0393 is in the repo');
+  const sql = readFileSync(`${MIGRATIONS_DIR}${f}`, 'utf8');
+  assert.match(sql, /revoke insert, delete on public\.workspaces from public, anon, authenticated;/,
+    'a direct insert skipped create_workspace_with_root: its suspension check, its new-account cap, the root cluster');
+  assert.match(sql, /drop policy if exists "ws insert if creator matches" on public\.workspaces;/,
+    'no INSERT policy, so a later blanket grant still finds no way in');
+  assert.match(sql, /revoke update on public\.workspace_members from public, anon, authenticated;/,
+    'role = coowner runs the workspace; set_workspace_member_role is the only way to it');
+
+  // Nothing after 0393 hands either back.
+  for (const n of migrationFiles().filter((m) => Number(m.slice(0, 4)) > 393)) {
+    const s = readFileSync(`${MIGRATIONS_DIR}${n}`, 'utf8');
+    assert.doesNotMatch(s, /grant\s[^;]*\b(?:insert|all)\b[^;]*\bon\s+(?:table\s+)?public\.workspaces\b[^;]*\bto\b[^;]*\b(?:anon|authenticated|public)\b/i,
+      `${n} gives clients INSERT on workspaces`);
+    assert.doesNotMatch(s, /create\s+policy\s+"[^"]*"\s+on\s+public\.workspaces\s+(?:as\s+\w+\s+)?for\s+(?:insert|all)\b/i,
+      `${n} adds an INSERT policy on workspaces`);
+    assert.doesNotMatch(s, /grant\s[^;]*\b(?:update|all)\b[^;]*\bon\s+(?:table\s+)?public\.workspace_members\b[^;]*\bto\b[^;]*\b(?:anon|authenticated|public)\b/i,
+      `${n} gives clients UPDATE on workspace_members`);
+    assert.doesNotMatch(s, /create\s+policy\s+"[^"]*"\s+on\s+public\.workspace_members\s+(?:as\s+\w+\s+)?for\s+(?:update|all)\b/i,
+      `${n} adds an UPDATE policy on workspace_members`);
+  }
+
+  // And nothing that runs as a signed-in user writes them directly: the app,
+  // the Worker and the MCP server only read, and would fail if they tried.
+  const roots = ['../', '../../../mcp/src/'];
+  for (const root of roots) {
+    const dir = new URL(root, import.meta.url);
+    for (const rel of readdirSync(dir, { recursive: true })) {
+      if (!/\.(?:m?js|jsx|ts)$/.test(rel) || /\.test\.mjs$/.test(rel) || rel.includes('node_modules')) continue;
+      const src = readFileSync(new URL(rel, dir), 'utf8');
+      assert.doesNotMatch(src, /from\(\s*['"]workspaces['"]\s*\)\s*\.(?:insert|upsert|delete)\(/, `${root}${rel} writes workspaces directly`);
+      assert.doesNotMatch(src, /from\(\s*['"]workspace_members['"]\s*\)\s*\.(?:insert|upsert|update)\(/, `${root}${rel} writes workspace_members directly`);
+    }
+  }
+});
