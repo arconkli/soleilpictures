@@ -150,7 +150,7 @@ doesn't already pin it; an omitted effort inherits `max`.
 | Planning, architecture, root-causing a bug, migration / RLS / grant reasoning, deciding whether a finding is real or a fix is right, synthesis | Main (Opus or Fable) | `Plan` / `general-purpose`, no `model`, `effort: "medium"` |
 | A step whose plan already names the files, the change and the check | Sonnet | `implementer` |
 | Running `npm test`, `docs:check`, a build or a Playwright spec; a grep; a read-only query; confirming a claim at a file:line | Sonnet | `verifier` |
-| Broad read-only search, or Sonnet work that fits neither role | Sonnet | `Explore` / `general-purpose` with `model: "sonnet"`, `effort: "medium"` |
+| Read-only research — mapping code, pulling data, web search — and other Sonnet work that fits neither role | Sonnet | `Explore` / `general-purpose` with `model: "sonnet"`, `effort: "medium"` |
 
 - `implementer` and `verifier` live in `~/.claude/agents/` and pin
   `model: sonnet` and `effort: medium`, so choosing the role sets both.
@@ -159,10 +159,11 @@ doesn't already pin it; an omitted effort inherits `max`.
   and ignores both, so fork only when the work needs this conversation's
   context. Sonnet work goes to a fresh `implementer` / `verifier` with a
   self-contained prompt.
-- **Workflows:** every `agent()` passes `effort: 'medium'`. Implement and verify
-  stages also pass `model: 'sonnet'`, plus `agentType: 'implementer'` /
-  `'verifier'` for the role prompt; finders, refuters, judges and synthesis keep
-  the default model.
+- **Workflows:** every `agent()` passes `effort: 'medium'`. Research, implement
+  and verify stages also pass `model: 'sonnet'`, plus `agentType: 'implementer'`
+  / `'verifier'` where one fits: a research agent gathers what the code, the data
+  or the web says, and the main session does the deciding. Bug-finders,
+  refuters, judges and synthesis keep the default model.
 - A Sonnet agent that hits a failure or an open question reports it and stops.
   The diagnosis and the decision come back to the main session; no Sonnet retry
   loops.
