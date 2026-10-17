@@ -134,37 +134,46 @@ so the contract is checked at test time only and never feeds the prober.
 
 ## Subagents: Opus and Fable decide, Sonnet executes
 
-A subagent spawned without a `model` runs on the main session's model at the
-main session's effort, so an agent that only runs `npm test` from a Fable
-session at `/effort max` spends Fable-at-max tokens doing it. Sonnet is half
-Opus's list price per token and a fifth of Fable's. Route by one test: **if the
-prompt fully determines the result, it's Sonnet work; if the agent has to
-decide something, it stays on the main model.**
+A subagent spawned without a `model` or `effort` runs on the main session's
+model at the main session's effort, so an agent that only runs `npm test` from
+a Fable session at `/effort max` spends Fable-at-max tokens doing it. Sonnet is
+half Opus's list price per token and a fifth of Fable's. Route by one test:
+**if the prompt fully determines the result, it's Sonnet work; if the agent has
+to decide something, it stays on the main model.**
+
+**Effort: the main session runs at `max`, every subagent at `medium`** —
+planning agents on Opus included. Pass `effort: "medium"` on every spawn that
+doesn't already pin it; an omitted effort inherits `max`.
 
 | Work | Model | Spawn |
 |---|---|---|
-| Planning, architecture, root-causing a bug, migration / RLS / grant reasoning, deciding whether a finding is real or a fix is right, synthesis | Main (Opus or Fable) | `Plan`, `general-purpose` or a fork, no `model` |
+| Planning, architecture, root-causing a bug, migration / RLS / grant reasoning, deciding whether a finding is real or a fix is right, synthesis | Main (Opus or Fable) | `Plan` / `general-purpose`, no `model`, `effort: "medium"` |
 | A step whose plan already names the files, the change and the check | Sonnet | `implementer` |
 | Running `npm test`, `docs:check`, a build or a Playwright spec; a grep; a read-only query; confirming a claim at a file:line | Sonnet | `verifier` |
 | Broad read-only search, or Sonnet work that fits neither role | Sonnet | `Explore` / `general-purpose` with `model: "sonnet"`, `effort: "medium"` |
 
 - `implementer` and `verifier` live in `~/.claude/agents/` and pin
-  `model: sonnet` and `effort: medium`, so choosing the role chooses the model.
+  `model: sonnet` and `effort: medium`, so choosing the role sets both.
   `verifier` can't edit files.
-- **A fork can't be downgraded.** It always runs on the main model and ignores
-  `model`, so Sonnet work goes to a fresh `implementer` / `verifier` with a
+- **A fork can't be downgraded.** It runs on the main model at the main effort
+  and ignores both, so fork only when the work needs this conversation's
+  context. Sonnet work goes to a fresh `implementer` / `verifier` with a
   self-contained prompt.
-- **Workflows:** implement and verify stages pass
-  `{ model: 'sonnet', effort: 'medium' }`, plus `agentType: 'implementer'` /
-  `'verifier'` for the role prompt. Finders, refuters, judges and synthesis keep
-  the default.
+- **Workflows:** every `agent()` passes `effort: 'medium'`. Implement and verify
+  stages also pass `model: 'sonnet'`, plus `agentType: 'implementer'` /
+  `'verifier'` for the role prompt; finders, refuters, judges and synthesis keep
+  the default model.
 - A Sonnet agent that hits a failure or an open question reports it and stops.
   The diagnosis and the decision come back to the main session; no Sonnet retry
   loops.
 - `Explore` and `Plan` don't load this file. A plan delegated to `Plan` has
   never heard of the docs gate or the 0311 grant habit, so name the rules it has
   to honour in its prompt.
-- Don't reach for `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` instead: it moves every
+- **Never set `CLAUDE_CODE_EFFORT_LEVEL`.** It outranks the agents'
+  `effort: medium` frontmatter, so they'd run at `max`. Settings can't hold
+  `max`, so the main session gets it from `alias claude='claude --effort max'`
+  in `~/.zshrc`, or `/effort max`.
+- Don't reach for `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` either: it moves every
   `general-purpose` agent onto Sonnet, judgment work included, without anyone
   choosing it.
 
