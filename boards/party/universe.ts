@@ -1,4 +1,5 @@
-// Universe PartyKit server — powers the admin "Universe" home page.
+// Universe room (PartyServer; PartyKit until October 2026) — powers the admin
+// "Universe" home page.
 //
 // Singleton room (room id = 'main'). Every admin connection runs its
 // own poll loop against Supabase using the admin's own access token,
@@ -14,8 +15,9 @@
 // access token is passed as a query param because EventSource can't
 // send custom headers.
 
-import type * as Party from "partykit/server";
+import { Server } from "partyserver";
 import { authAdmin } from "./auth";
+import type { Env } from "./env";
 import { encodeCursor, decodeCursor } from "../src/lib/universePaging.js";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
@@ -32,7 +34,7 @@ const HEARTBEAT_MS   = 25000;
 const MAX_PAGE_NODES = 50000;
 const MAX_PAGE_EDGES = 100000;
 
-function corsHeaders(req: Party.Request): Record<string, string> {
+function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") || "*";
   return {
     "access-control-allow-origin": origin,
@@ -43,7 +45,7 @@ function corsHeaders(req: Party.Request): Record<string, string> {
   };
 }
 
-function sseHeaders(req: Party.Request): Record<string, string> {
+function sseHeaders(req: Request): Record<string, string> {
   return {
     ...corsHeaders(req),
     "content-type": "text/event-stream",
@@ -91,7 +93,7 @@ type SnapshotV2 = { nodes: Node[]; next_ts: string | null; next_id: string | nul
 type EdgesV2 = { edges: Edge[]; next_ts: string | null; next_key: string | null; done: boolean };
 
 function makeSseStream(
-  req: Party.Request,
+  req: Request,
   onStart: (write: (event: string, data: unknown) => void, close: (reason?: string) => void) => () => void,
 ): Response {
   const encoder = new TextEncoder();
@@ -133,10 +135,9 @@ function makeSseStream(
   return new Response(stream, { status: 200, headers: sseHeaders(req) });
 }
 
-export default class UniverseParty implements Party.Server {
-  constructor(readonly room: Party.Room) {}
+export class UniverseParty extends Server<Env> {
 
-  async onRequest(req: Party.Request): Promise<Response> {
+  async onRequest(req: Request): Promise<Response> {
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(req) });
     }
@@ -167,7 +168,7 @@ export default class UniverseParty implements Party.Server {
 
   // GET /stats — SSE of platform_counters snapshots @ 1Hz.
   // Only emits when the payload changes (cheap diff via JSON string).
-  private handleStats(req: Party.Request, token: string): Response {
+  private handleStats(req: Request, token: string): Response {
     return makeSseStream(req, (write, close) => {
       let last = "";
       let stopped = false;
@@ -210,7 +211,7 @@ export default class UniverseParty implements Party.Server {
   // the SQL-computed flag from both axes, so "fewer rows than the
   // limit" (which PostgREST truncation used to fake) can no longer
   // end a walk early.
-  private async handleSnapshot(req: Party.Request, token: string, url: URL): Promise<Response> {
+  private async handleSnapshot(req: Request, token: string, url: URL): Promise<Response> {
     const sharedCursor = url.searchParams.get("cursor");
     const rawNodesCursor = url.searchParams.get("nodes_cursor") || sharedCursor;
     const rawEdgesCursor = url.searchParams.get("edges_cursor") || sharedCursor;
@@ -275,7 +276,7 @@ export default class UniverseParty implements Party.Server {
   // SSE of new nodes + edges as they appear. Adaptive: under a
   // rolling-minute threshold, frames are per-event ('node', 'edge');
   // above it, frames are batches ('batch') flushed each poll tick.
-  private handleDeltas(req: Party.Request, token: string, url: URL): Response {
+  private handleDeltas(req: Request, token: string, url: URL): Response {
     const initialSince = url.searchParams.get("since") || new Date().toISOString();
 
     return makeSseStream(req, (write, close) => {
@@ -347,7 +348,7 @@ export default class UniverseParty implements Party.Server {
   }
 }
 
-function extractBearer(req: Party.Request): string | null {
+function extractBearer(req: Request): string | null {
   const h = req.headers.get("authorization") || "";
   if (!h.toLowerCase().startsWith("bearer ")) return null;
   return h.slice("bearer ".length).trim() || null;

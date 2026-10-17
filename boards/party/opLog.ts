@@ -3,14 +3,12 @@
 // Phase 4: capture every Y.Update emitted in a board's PartyKit room and
 // append it to the board_ops log via the append_board_op RPC.
 //
-// Runs INSIDE the PartyKit Durable Object alongside y-partykit. y-partykit
-// owns the authoritative Y.Doc; we attach an 'update' listener once per DO
-// boot and, for each update, classify + persist asynchronously.
+// Runs INSIDE the board room's Durable Object (board.ts). The room owns the
+// authoritative Y.Doc; we attach an 'update' listener once per object and, for
+// each update, classify + persist asynchronously.
 //
-// This is dual-write: y-partykit continues to persist its snapshot to DO
-// storage, and the client-side debounced board_state writer is unchanged.
-// The new board_ops rows are an *additional* log; nothing reads from them
-// yet (Phase 5 will wire them into the new restore UI).
+// This is an additional log: the room keeps its own copy (roomLog.ts) and
+// writes board_state (lib/boardRoomState.js) regardless of what happens here.
 //
 // Origins we skip:
 //   - 'classifier:*'         our own classifier-tmp-doc updates (never seen here, defensive)
@@ -18,7 +16,7 @@
 //                            inserts the op directly into board_ops; we'd double-write)
 //   - 'soleil:cold-load'     initial cold-load syncs that aren't user edits
 //
-// If SUPABASE_SERVICE_ROLE_KEY is not set in the PartyKit room env, op
+// If SUPABASE_SERVICE_ROLE_KEY is not set in the party Worker's env, op
 // capture silently no-ops — the system still works, the new log just stays
 // empty. This makes the deploy safe even before the secret is configured.
 
@@ -96,7 +94,18 @@ export function installOpLogCapture(opts: InstallOptions): void {
   const REENCODE_EVERY = 256;
 
   yDoc.on("update", async (update: Uint8Array, origin: unknown) => {
-    if (shouldSkip(origin)) return;
+    if (shouldSkip(origin)) {
+      // Not logged (it is someone else's content, logged where it was made),
+      // but it is part of the board now: the classifier's "before" state has to
+      // include it, or the next edit to a merged-in card reads as a create.
+      if (++updatesSinceEncode >= REENCODE_EVERY) {
+        beforeState = Y.encodeStateAsUpdate(yDoc);
+        updatesSinceEncode = 0;
+      } else {
+        beforeState = Y.mergeUpdates([beforeState, update]);
+      }
+      return;
+    }
     // Capture is async + fire-and-forget. We do NOT block the Y wire
     // protocol. If persistence fails, the system loses one row of history
     // (which board_state still has) and logs a warning.

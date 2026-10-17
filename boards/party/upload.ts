@@ -1,5 +1,13 @@
 // Upload party — generates short-lived presigned R2 PUT/GET URLs.
 //
+// Since the move off PartyKit (October 2026) this is NOT a Durable Object: it
+// holds no state, so the party Worker (index.ts) runs it in-line for every
+// /parties/upload/<room>/... request, at the edge nearest the caller. On
+// PartyKit every room was a Durable Object, which sent every sign-reads call
+// from every user through ONE object named "default" and every share bundle
+// through one named "share". URLs, bodies, responses and status codes are
+// unchanged.
+//
 // Multipart routes (the "upload any file type" feature, ~1GB+ files):
 //   POST /parties/upload/<workspaceId>/mpu/create
 //     Body: { boardId, fileExt, contentType, totalBytes }
@@ -34,18 +42,18 @@
 //     Returns: { urls: { [key]: signedReadUrl }, ttl }, plus
 //              downloads: { [key]: attachmentUrl } when `download` was sent
 //
-// The room name is the workspaceId — we don't use room state, but
-// PartyKit requires a room id in the URL.
+// The room name is the workspaceId — there is no room state; the URL segment
+// names whose prefix an upload goes under.
 //
-// Required env vars (set via `npx partykit env add`):
+// Required secrets (`wrangler secret put … -c party/wrangler.jsonc`):
 //   R2_ACCOUNT_ID         CF account id (for the R2 endpoint URL)
 //   R2_BUCKET             bucket name
 //   R2_ACCESS_KEY_ID      R2 API token access key
 //   R2_SECRET_ACCESS_KEY  R2 API token secret
 
-import type * as Party from "partykit/server";
 import { AwsClient } from "aws4fetch";
 import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
+import { bundleRefusalStatus } from "../src/lib/bundleRefusal.js";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
@@ -214,10 +222,12 @@ async function signReadUrl(r2: AwsClient, env: R2Env, key: string, disposition: 
 
 // ── Party ────────────────────────────────────────────────────────────
 
-export default class UploadParty implements Party.Server {
-  constructor(readonly room: Party.Room) {}
+// `room` is what PartyKit handed a party: the URL's room segment and the env.
+// index.ts builds one per request.
+export class UploadParty {
+  constructor(readonly room: { id: string; env: Record<string, unknown> }) {}
 
-  async onRequest(req: Party.Request) {
+  async onRequest(req: Request) {
     const origin = req.headers.get("Origin");
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -270,7 +280,7 @@ export default class UploadParty implements Party.Server {
   // keys before returning the combined bundle. Anonymous viewers
   // never need any other roundtrip.
   async handleShareBundle(
-    req: Party.Request, env: R2Env, origin: string | null,
+    req: Request, env: R2Env, origin: string | null,
   ): Promise<Response> {
     let body: ShareBundleBody = {};
     try { body = (await req.json()) as ShareBundleBody; } catch (_) {}
@@ -299,11 +309,12 @@ export default class UploadParty implements Party.Server {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
-      // A Supabase 5xx / gateway timeout says nothing about the link: pass it
-      // through so the viewer offers a Retry instead of "expired or revoked"
-      // (MEDIA-03). Clients that predate this treat any non-ok the same way,
-      // so it is backward compatible.
-      const status = rpcRes.status >= 500 ? rpcRes.status : 404;
+      // A Supabase outage says nothing about the link: pass it through so the
+      // viewer offers a Retry instead of "expired or revoked" (MEDIA-03). But
+      // the RPC's own refusal ALSO arrives as a 500 (P0002), so the body
+      // decides — see lib/bundleRefusal.js. Clients that predate this treat
+      // any non-ok the same way, so it is backward compatible.
+      const status = bundleRefusalStatus(rpcRes.status, msg);
       return new Response(`${status === 404 ? "Invalid or expired share link" : "Share link temporarily unavailable"}${msg ? `: ${msg}` : ""}`, {
         status, headers: corsHeaders(origin),
       });
@@ -323,7 +334,7 @@ export default class UploadParty implements Party.Server {
   // slug (published + not-deleted) and re-checks any boardId stays in the
   // published subtree. LOCKSTEP with handleShareBundle / get_share_bundle.
   async handlePublicBundle(
-    req: Party.Request, env: R2Env, origin: string | null,
+    req: Request, env: R2Env, origin: string | null,
   ): Promise<Response> {
     let body: PublicBundleBody = {};
     try { body = (await req.json()) as PublicBundleBody; } catch (_) {}
@@ -347,8 +358,9 @@ export default class UploadParty implements Party.Server {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
-      // Same as /share-bundle: a 5xx is not "no such board" (MEDIA-03).
-      const status = rpcRes.status >= 500 ? rpcRes.status : 404;
+      // Same as /share-bundle: an outage is not "no such board" (MEDIA-03),
+      // and the RPC's own refusal is (lib/bundleRefusal.js).
+      const status = bundleRefusalStatus(rpcRes.status, msg);
       return new Response(`${status === 404 ? "No such public board" : "Public board temporarily unavailable"}${msg ? `: ${msg}` : ""}`, {
         status, headers: corsHeaders(origin),
       });
@@ -406,7 +418,7 @@ export default class UploadParty implements Party.Server {
 
   // POST / — presign R2 PUT URL for a fresh UUID-keyed object.
   async handlePresignPut(
-    req: Party.Request, accessToken: string, userId: string,
+    req: Request, accessToken: string, userId: string,
     env: R2Env, origin: string | null,
   ): Promise<Response> {
     const workspaceId = this.room.id;
@@ -577,7 +589,7 @@ export default class UploadParty implements Party.Server {
 
   // POST /sign-reads — batch presign read URLs. RLS does the filter.
   async handleSignReads(
-    req: Party.Request, accessToken: string,
+    req: Request, accessToken: string,
     env: R2Env, origin: string | null,
   ): Promise<Response> {
     let body: SignReadsBody = {};
@@ -699,7 +711,7 @@ export default class UploadParty implements Party.Server {
   // S3 multipart session. Body: { boardId, fileExt, contentType, totalBytes }.
   // 402 over quota, 403 not-paid-owner / not-writer.
   async handleMpuCreate(
-    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+    req: Request, accessToken: string, env: R2Env, origin: string | null,
   ): Promise<Response> {
     const workspaceId = this.room.id;
     let body: any = {};
@@ -748,7 +760,7 @@ export default class UploadParty implements Party.Server {
   // POST /mpu/sign-parts — re-gate writer + key shape, then presign a batch of
   // part PUT URLs. Body: { boardId, key, uploadId, partNumbers:number[] }.
   async handleMpuSignParts(
-    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+    req: Request, accessToken: string, env: R2Env, origin: string | null,
   ): Promise<Response> {
     const workspaceId = this.room.id;
     let body: any = {};
@@ -775,7 +787,7 @@ export default class UploadParty implements Party.Server {
   // POST /mpu/complete — finalize the object. Body: { boardId, key, uploadId,
   // parts:[{partNumber,etag}] }. The client inserts the images row after this.
   async handleMpuComplete(
-    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+    req: Request, accessToken: string, env: R2Env, origin: string | null,
   ): Promise<Response> {
     const workspaceId = this.room.id;
     let body: any = {};
@@ -815,7 +827,7 @@ export default class UploadParty implements Party.Server {
 
   // POST /mpu/abort — discard an in-flight session (user cancel / error).
   async handleMpuAbort(
-    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+    req: Request, accessToken: string, env: R2Env, origin: string | null,
   ): Promise<Response> {
     const workspaceId = this.room.id;
     let body: any = {};

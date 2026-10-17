@@ -29,7 +29,6 @@
 // pausing writes mid-CRDT-stream needs careful y-partykit cooperation
 // and that's a follow-up.
 
-import type * as Party from "partykit/server";
 
 interface DetectorOpts {
   boardId: string;
