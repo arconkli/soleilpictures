@@ -14650,6 +14650,149 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "What counts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What counts"
+    }
+   ],
+   "id": "what-counts"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A file counts while a cluster uses it.",
+      "children": [
+       {
+        "t": "text",
+        "v": "A file counts while a cluster uses it."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Delete its card and the file stops counting within a few minutes — unless another cluster still uses the same file, as a "
+     },
+     {
+      "t": "link",
+      "v": "linked copy",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "linked copy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " does."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Clusters in the trash still count",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clusters in the trash still count"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " until the trash is emptied. Emptying it frees their space at once."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A deleted [version](#versions) counts",
+      "children": [
+       {
+        "t": "text",
+        "v": "A deleted "
+       },
+       {
+        "t": "link",
+        "v": "version",
+        "href": "#versions",
+        "children": [
+         {
+          "t": "text",
+          "v": "version"
+         }
+        ]
+       },
+       {
+        "t": "text",
+        "v": " counts"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " until it leaves Recently deleted."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A file that is uploaded but not placed yet counts",
+      "children": [
+       {
+        "t": "text",
+        "v": "A file that is uploaded but not placed yet counts"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", however long ago it was uploaded — a file sent through the "
+     },
+     {
+      "t": "link",
+      "v": "API",
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " that no card uses yet, for example."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Previews and thumbnails never count.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Previews and thumbnails never count."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " They are copies Clusters makes for itself, not your files."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "How files are stored",
    "inline": [
@@ -14674,7 +14817,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Files referenced by a board are protected from cleanup for as long as the board references them. Removing the last card that uses a file makes it eligible for deletion later, not immediately."
+     "v": "Files referenced by a board are protected from cleanup for as long as the board references them. Removing the last card that uses a file stops it counting toward your storage within a few minutes; the file itself becomes eligible for deletion later, not immediately, so undo and version history can still bring it back."
     }
    ]
   },
