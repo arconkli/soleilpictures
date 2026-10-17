@@ -153,6 +153,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
+import { holdReload } from './lib/buildWatch.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap } from './lib/boardsApi.js';
 import { undoToast } from './lib/undoToast.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
@@ -5647,6 +5648,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the browser asks before it lets that happen.
     const guard = (ev) => { ev.preventDefault(); ev.returnValue = ''; return ''; };
     window.addEventListener('beforeunload', guard);
+    // Nor may the build watcher reload the page under it (lib/buildWatch.js).
+    const releaseReloadHold = holdReload();
 
     const writeCluster = async (id, cards) => {
       // Through the cluster's LIVE room, never around it. The top cluster's card
@@ -5716,6 +5719,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({ type: 'error', message: 'The folder could not be imported: ' + (err?.message || err), ttl: 8000 });
     } finally {
       window.removeEventListener('beforeunload', guard);
+      releaseReloadHold();
       setFolderImport(null);
     }
     try { await refreshBoards(); } catch (_) {}
