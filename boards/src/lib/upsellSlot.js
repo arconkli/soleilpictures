@@ -63,8 +63,8 @@ const ALWAYS_WINS = 'cap-hit';
 // 'upgrade-reason' is "What's holding you back?", asked as a person CLOSES an
 // offer. It is the tail of the moment that offer already owns rather than a new
 // one, so it may follow an offer still holding the slot (FOLLOWS). Behind
-// anything else it waits like every other ambient kind — and its asker treats a
-// refusal as "not this time", never as an answer.
+// anything that is not an offer it waits for the window like everything else —
+// and its asker treats a refusal as "not this time", never as an answer.
 // 'pricing-intent' is the Creator offer reopened for someone who pressed "Get
 // Creator" on the public pricing page before they had an account. It is a
 // request they made, not an ask, so it is not AMBIENT and spends no visit; it
@@ -100,9 +100,15 @@ const FOLLOWS = Object.freeze({
 //
 // A money surface — the wall, the first-value banner, the near-cap toast, a
 // refused file — is neither refused by this nor spends it: each is a
-// consequence or an offer, and its pacing lives beside it. "What's holding you
-// back?" IS ambient: FOLLOWS lets it follow an offer inside the window, but it
-// is still one more question, so it waits behind an ask this visit already had.
+// consequence or an offer, and its pacing lives beside it.
+//
+// "What's holding you back?" is NOT in the budget either, by the owner's call
+// (2026-10-07). It only ever follows an offer the person just closed (FOLLOWS),
+// so it is the end of that offer's moment rather than a new ask — and while it
+// waited behind an ask the visit had already had, it was never asked at all:
+// the offers it follows land mid-visit, after the visit's ambient ask. It
+// neither waits on the budget nor spends it; the window still keeps it off
+// anything that is not the offer it follows.
 //
 // The return question ("What brought you back?") is NOT in the budget, by the
 // owner's call (2026-10-01): it is asked once per account, ever, and its answers
@@ -110,7 +116,7 @@ const FOLLOWS = Object.freeze({
 // lose exactly the visits it exists for — the second, the uncertain one — and
 // its answers would drift toward the stickiest people. It neither waits on the
 // budget nor spends it; the window above still keeps it off any other surface.
-const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'power-reveal', 'upgrade-reason']);
+const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'power-reveal']);
 
 let visitAsk = { visit: null, kind: null };
 
