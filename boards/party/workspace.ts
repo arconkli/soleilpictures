@@ -1,4 +1,4 @@
-// Workspace presence PartyKit server.
+// Workspace presence room (PartyServer; PartyKit until October 2026).
 //
 // One Durable Object per workspace (room id = workspace id). Tracks
 // who is currently online and where they are (board id + surface),
@@ -14,8 +14,8 @@
 //
 // Auth: ?access_token=<supabase JWT>; verified against workspace membership.
 
-import type * as Party from "partykit/server";
-import { authWorkspace } from "./auth";
+import { Server, type Connection, type ConnectionContext } from "partyserver";
+import type { Env } from "./env";
 
 interface PeerRecord {
   tabId: string;
@@ -52,36 +52,27 @@ function sameUserLoc(a: PeerRecord, b: PeerRecord): boolean {
       && al.isActive === bl.isActive;
 }
 
-export default class WorkspaceParty implements Party.Server {
+export class WorkspaceParty extends Server<Env> {
+  // In memory, as on PartyKit: a fresh instance re-learns the roster as peers
+  // send their next heartbeat.
+  static options = { hibernate: false };
+
   // tabId → record. Lives in DO memory; on restart the room re-populates
   // as peers reconnect and re-broadcast their location.
   private peers: Map<string, PeerRecord> = new Map();
-  // Per-connection state, keyed by the Party.Connection OBJECT (a WeakMap, so it
+  // Per-connection state, keyed by the Connection OBJECT (a WeakMap, so it
   // GCs with the socket). A reconnect REUSES connection.id but is a distinct
   // connection object with a fresh, higher epoch — that epoch is how onClose
   // tells a dead old socket from the live new one (connection.id can't: it's
   // stable across reconnects). tabId lets onClose fire a precise INSTANT leave
   // instead of waiting out STALE_MS.
-  private connInfo: WeakMap<Party.Connection, { tabId?: string; epoch: number; userId?: string }> = new WeakMap();
+  private connInfo: WeakMap<Connection, { tabId?: string; epoch: number; userId?: string }> = new WeakMap();
   private epoch = 0;
 
-  constructor(readonly room: Party.Room) {}
-
-  static async onBeforeConnect(req: Party.Request) {
-    const url = new URL(req.url);
-    const token = url.searchParams.get("access_token");
-    if (!token) return new Response("Missing access_token", { status: 401 });
-    const workspaceId = url.pathname.split("/").filter(Boolean).pop() ?? "";
-    const auth = await authWorkspace(token, workspaceId);
-    if (!auth.ok) return new Response(auth.reason ?? "Unauthorized", { status: 401 });
-    // The roster trusts what a client says its identity is; stamp the JWT's
-    // subject here so onMessage can refuse a `here` that claims to be someone
-    // else. Headers set on the upgrade request are visible in onConnect.
-    req.headers.set("x-user-id", auth.userId ?? "");
-    return req;
-  }
-
-  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+  // Auth is index.ts beforeConnect: the token must belong to a member of this
+  // workspace, and x-user-id carries the JWT subject so a `here` claiming to be
+  // someone else is refused.
+  onConnect(conn: Connection, ctx: ConnectionContext) {
     // Stamp a fresh epoch for this connection object up front, so even a
     // reconnect that reuses connection.id is distinguishable from its dead
     // predecessor. Also remember whose JWT opened it.
@@ -102,12 +93,12 @@ export default class WorkspaceParty implements Party.Server {
     if (this.pruneArmed || this.peers.size === 0) return;
     this.pruneArmed = true;
     try {
-      if ((await this.room.storage.getAlarm()) == null) {
-        await this.room.storage.setAlarm(Date.now() + PRUNE_MS);
+      if ((await this.ctx.storage.getAlarm()) == null) {
+        await this.ctx.storage.setAlarm(Date.now() + PRUNE_MS);
       }
     } catch (e) {
       this.pruneArmed = false;
-      console.warn(`[workspace ${this.room.id}] could not arm the stale sweep`, e);
+      console.warn(`[workspace ${this.name}] could not arm the stale sweep`, e);
     }
   }
 
@@ -117,7 +108,8 @@ export default class WorkspaceParty implements Party.Server {
     await this.armPrune();   // an empty room lets the alarm lapse
   }
 
-  onMessage(message: string, sender: Party.Connection) {
+  onMessage(sender: Connection, message: string | ArrayBuffer | ArrayBufferView) {
+    if (typeof message !== "string") return;
     let msg: any;
     try { msg = JSON.parse(message); } catch { return; }
     if (msg?.type === "here" && msg?.tabId && msg?.user?.id) {
@@ -125,7 +117,7 @@ export default class WorkspaceParty implements Party.Server {
       if (owner && String(msg.user.id) !== owner) {
         // A member claiming to be another member. Drop it; the socket stays
         // open because the rest of the protocol is fine.
-        console.warn(`[workspace ${this.room.id}] presence identity mismatch`);
+        console.warn(`[workspace ${this.name}] presence identity mismatch`);
         return;
       }
       const tabId = String(msg.tabId);
@@ -151,7 +143,7 @@ export default class WorkspaceParty implements Party.Server {
       // which is the difference between O(N) and O(N^2) chatter as a workspace
       // fills up.
       if (!prev || !sameUserLoc(prev, rec)) {
-        this.room.broadcast(JSON.stringify({
+        this.broadcast(JSON.stringify({
           type: "here",
           from: tabId,
           user: rec.user,
@@ -163,11 +155,11 @@ export default class WorkspaceParty implements Party.Server {
       this.peers.delete(tabId);
       const info = this.connInfo.get(sender);
       if (info) info.tabId = undefined;  // an explicit leave clears ownership
-      this.room.broadcast(JSON.stringify({ type: "leave", from: tabId }), [sender.id]);
+      this.broadcast(JSON.stringify({ type: "leave", from: tabId }), [sender.id]);
     }
   }
 
-  onClose(conn: Party.Connection) {
+  onClose(conn: Connection) {
     // Precise instant departure — but ONLY if this closing connection is still
     // the tab's live owner. A reconnect reuses connection.id and is a distinct
     // connection object with a higher epoch; once it re-sends `here`, the peer's
@@ -181,7 +173,7 @@ export default class WorkspaceParty implements Party.Server {
       const rec = this.peers.get(tabId);
       if (rec && rec.ownerEpoch === info!.epoch) {
         this.peers.delete(tabId);
-        this.room.broadcast(JSON.stringify({ type: "leave", from: tabId }));
+        this.broadcast(JSON.stringify({ type: "leave", from: tabId }));
       }
     }
     this.pruneStale();
@@ -197,7 +189,7 @@ export default class WorkspaceParty implements Party.Server {
     // roster to everyone (the old O(N) cost on every prune). Clients already
     // handle `leave` by dropping that tab.
     for (const tabId of removed) {
-      this.room.broadcast(JSON.stringify({ type: "leave", from: tabId }));
+      this.broadcast(JSON.stringify({ type: "leave", from: tabId }));
     }
   }
 }

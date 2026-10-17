@@ -1,149 +1,265 @@
-// Board PartyKit server.
+// Board room: one Durable Object per board (room name = board id), on our own
+// Cloudflare account through PartyServer. PartyKit's hosted platform, where this
+// ran until October 2026, stopped taking deploys on the 16th and deletes its
+// projects on the 23rd.
 //
-// One Durable Object per board (room id = board id). y-partykit handles
-// the Y.Doc + Awareness wire protocol natively — clients connect via the
-// `y-partykit/provider` and edits/cursors flow without any Phoenix
-// channel quirks. Edge-located so latency is single-digit ms.
+// y-partyserver's YServer speaks the Yjs sync + awareness protocol the client's
+// YProvider expects (lib/yPartyKit.js), and the headless peer /api/v1 uses
+// (lib/scoutBoard.js) speaks the same frames.
 //
-// Auth: every connection must include ?access_token=<supabase JWT>.
-// We verify membership against Supabase RLS before allowing the join.
-// Unauthorized connections are closed with code 4401.
+// Auth happens before a socket reaches this object: the Worker's
+// onBeforeConnect (index.ts) checks the token against Supabase RLS, refuses
+// suspended accounts, and stamps x-user-id / x-can-write onto the upgrade
+// request. Viewer connections are read-only here (isReadOnly), so their Yjs
+// updates are dropped rather than broadcast; awareness still flows so their
+// cursors show.
 //
-// A banned account is refused at connect, and every minute while anyone is
-// connected the room closes the sockets of users banned since (4403). Without
-// the minute check an account banned mid-session kept editing — the room
-// persists its updates with the service role — until it chose to disconnect.
+// PERSISTENCE, three layers:
+//   1. RoomLog: every update in this object's SQLite as it lands.
+//   2. board_state in Postgres, written by lib/boardRoomState.js as a
+//      compare-and-set: never over a write this room has not seen.
+//   3. The op log (opLog.ts), unchanged.
+// A cold start loads (1) and merges (2), always: the room never assumes its own
+// copy is newer than the database.
+//
+// gc stays OFF. y-partyserver builds its document with gc on; a GC'd board_state
+// would drop deleted cards' file keys while undo, the trash and version history
+// can still bring those cards back, and the R2 sweep would then delete the
+// files. Storage counting decodes its own gc:true copy (storage-liveness).
+//
+// One alarm per object (a Durable Object has one): every minute while anyone
+// is connected it closes sockets of accounts suspended since they connected
+// (4403), retries a failed flush, and probes board_state for writes made some
+// other way; for 15 minutes after the room empties it keeps probing, so a
+// write from a tab still on the old host is merged even with nobody here.
 
-import type * as Party from "partykit/server";
-import { onConnect, unstable_getYDoc } from "y-partykit";
+import { YServer } from "y-partyserver";
+import type { Connection, ConnectionContext } from "partyserver";
+import * as Y from "yjs";
 import { authBoard, bannedAmong, canWriteBoard } from "./auth";
 import { installOpLogCapture } from "./opLog";
-import { boardStateSync } from "../src/lib/boardStateSync.js";
+import { RoomLog, MAX_PENDING_UPDATES } from "./roomLog";
+import { DEFAULT_SUPABASE_URL, type Env } from "./env";
+import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boardStateSync.js";
+import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
 
-const BAN_CHECK_MS = 60_000;
+const ALARM_MS = 60_000;
+const IDLE_WATCH_MS = 15 * 60_000;
+// After a reset, writes from elsewhere are stale echoes of the board before it
+// (see boardRoomState.js): overwrite them instead of merging, for this long.
+const RESET_FENCE_MS = 30_000;
+const FENCE_KEY = "resetFenceUntil";
+const ACTIVE_KEY = "lastActiveAt";
+// Close code the client treats as "this room was reset; reload from board_state".
+const RESET_CLOSE = 4030;
 
-export default class BoardParty implements Party.Server {
-  constructor(readonly room: Party.Room) {}
+type ConnState = { userId?: string; canWrite?: boolean } | null;
+const stateOf = (c: Connection) => (c.state as ConnState) || {};
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  // Auth check before the WebSocket is upgraded. Returning a Response
-  // from onBeforeConnect rejects the connection with that response.
-  // We also stamp x-can-write so onConnect can mark viewer connections
-  // readOnly, which makes y-partykit drop incoming sync-step-2 + update
-  // messages from them (the actual write enforcement at the protocol
-  // level — without this, viewers could broadcast Y.js updates that
-  // ephemerally render in other connected tabs).
-  static async onBeforeConnect(req: Party.Request, lobby: Party.Lobby) {
-    const url = new URL(req.url);
-    const token = url.searchParams.get("access_token");
-    if (!token) return new Response("Missing access_token", { status: 401 });
-    const boardId = url.pathname.split("/").filter(Boolean).pop() ?? "";
-    // Independent checks — run both round-trips concurrently so the WS
-    // upgrade waits on one Supabase RTT, not two.
-    const [auth, canWrite] = await Promise.all([
-      authBoard(token, boardId),
-      canWriteBoard(token, boardId),
-    ]);
-    if (!auth.ok) return new Response(auth.reason ?? "Unauthorized", { status: 401 });
-    const banned = await bannedAmong((lobby.env as any)?.SUPABASE_SERVICE_ROLE_KEY, [auth.userId ?? ""]);
-    if (auth.userId && banned.has(auth.userId)) return new Response("Account suspended", { status: 403 });
-    req.headers.set("x-user-id", auth.userId ?? "");
-    req.headers.set("x-user-email", auth.email ?? "");
-    req.headers.set("x-workspace-id", auth.workspaceId ?? "");
-    req.headers.set("x-can-write", canWrite ? "1" : "0");
-    return req;
+export class BoardParty extends YServer<Env> {
+  static options = { hibernate: false };
+  static callbackOptions = {
+    debounceWait: FLUSH_DEBOUNCE_MS,
+    debounceMaxWait: FLUSH_MAX_WAIT_MS,
+    timeout: 5_000,
+  };
+
+  private local!: RoomLog;
+  private remote!: BoardRoomState;
+  private resetting = false;
+  private opLogWired = false;
+  private localHeldContent = false;
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    // Before anything is applied to it — see the header.
+    this.document.gc = false;
   }
 
-  async onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
-    const canWrite = ctx.request.headers.get("x-can-write") === "1";
-    const roomEnv = this.room.env as any;
-    // Who this socket is, for the minute ban check (onAlarm).
-    conn.setState({ userId: ctx.request.headers.get("x-user-id") || "" });
-    await this.armBanCheck();
+  private get supabaseUrl() { return this.env.SUPABASE_URL || DEFAULT_SUPABASE_URL; }
 
-    // load + callback make this room the writer of board_state (stateFlush.ts).
-    // They have to be in the object handed to onConnect, because y-partykit
-    // reads them while constructing the doc and ignores options supplied later
-    // — and the SAME object has to go to unstable_getYDoc below or it warns
-    // that the document was initialised differently.
-    const yPartyOpts = {
-      persist: { mode: "snapshot" as const },
-      readOnly: !canWrite,
-      ...boardStateSync({
-        boardId: this.room.id,
-        supabaseUrl: roomEnv?.SUPABASE_URL || "https://ehlhlmbpwwalmeisvmdp.supabase.co",
-        serviceRoleKey: roomEnv?.SUPABASE_SERVICE_ROLE_KEY,
-        // So the Postgres read can be skipped when this room already has its
-        // own persisted state — see loadBoardState.
-        storage: this.room.storage,
-      }),
-    };
+  async onStart() {
+    this.local = new RoomLog(this.ctx.storage as any);
+    const fenceUntil = Number(await this.ctx.storage.get(FENCE_KEY)) || 0;
+    this.remote = new BoardRoomState({
+      boardId: this.name,
+      supabaseUrl: this.supabaseUrl,
+      serviceRoleKey: this.env.SUPABASE_SERVICE_ROLE_KEY,
+      getDoc: () => this.document,
+      fenceUntil,
+      onRestore: () => { void this.resetRoom("restore marker"); },
+    });
 
-    // y-partykit handles the Y wire protocol over this socket. The
-    // server holds an authoritative Y.Doc for this room; clients sync
-    // against it. Awareness is built in. readOnly drops doc-update
-    // messages from viewer-share connections; awareness still flows so
-    // viewers' cursors/presence are visible to peers.
-    await onConnect(conn, this.room, yPartyOpts);
+    // onLoad runs inside this; YServer then wires the broadcast and the
+    // debounced onSave to the document.
+    await super.onStart();
 
-    // Phase 4: dual-write op capture + Phase 6 anomaly detection.
-    // Install once per DO boot — installOpLogCapture is idempotent
-    // (uses WeakSet) so repeated onConnect calls don't double-wire.
-    // No-ops if SUPABASE_SERVICE_ROLE_KEY env var is unset.
+    this.document.on("update", (update: Uint8Array) => {
+      if (this.resetting) return;
+      try {
+        if (!this.local.append(update) || this.local.pending > MAX_PENDING_UPDATES) this.compactLocal();
+      } catch (e) {
+        console.error(`[board ${this.name}] local log append failed`, e);
+      }
+    });
+    this.compactLocal();
+    // The local copy held something: make sure the database gets it now
+    // rather than at the next edit. The write is a compare-and-set, so this can
+    // only add to what is stored.
+    if (this.localHeldContent) void this.remote.flush({ force: true });
+  }
+
+  async onLoad() {
+    const doc = new Y.Doc({ gc: false });
+    let applied = 0;
+    for (const update of this.local.load()) {
+      try {
+        Y.applyUpdate(doc, update, MERGE_ORIGIN);
+        applied++;
+      } catch (e) {
+        console.error(`[board ${this.name}] a locally stored update did not apply`, e);
+      }
+    }
+    this.localHeldContent = applied > 0;
+    const loaded = await this.remote.loadInto(doc);
+    // Nothing local: the doc IS the row, so the first flush has nothing to say
+    // until someone edits.
+    if (loaded && !this.localHeldContent) this.remote.noteStored(bytesToB64(Y.encodeStateAsUpdate(doc)));
+    return doc;
+  }
+
+  async onSave() {
+    if (this.resetting) return;
+    await this.remote.flush();
+    if (this.local.pending > 0) this.compactLocal();
+  }
+
+  private compactLocal() {
+    if (this.resetting) return;
     try {
-      const yDoc = await unstable_getYDoc(this.room, yPartyOpts);
-      const workspaceId = ctx.request.headers.get("x-workspace-id") || undefined;
-      installOpLogCapture({
-        boardId: this.room.id,
-        workspaceId,
-        yDoc,
-        supabaseUrl: roomEnv?.SUPABASE_URL || "https://ehlhlmbpwwalmeisvmdp.supabase.co",
-        serviceRoleKey: roomEnv?.SUPABASE_SERVICE_ROLE_KEY,
-      });
+      this.local.compact(Y.encodeStateAsUpdate(this.document));
     } catch (e) {
-      console.warn(`[board ${this.room.id}] opLog install failed`, e);
+      console.error(`[board ${this.name}] local compaction failed`, e);
     }
   }
 
-  // One alarm per room, re-armed only while someone is connected.
-  async armBanCheck() {
+  isReadOnly(connection: Connection) {
+    return stateOf(connection).canWrite !== true;
+  }
+
+  async onConnect(conn: Connection, ctx: ConnectionContext) {
+    if (this.resetting) {
+      try { conn.close(RESET_CLOSE, "room reset"); } catch (_) { /* already gone */ }
+      return;
+    }
+    const h = ctx.request.headers;
+    conn.setState((prev: unknown) => ({
+      ...((prev as object) || {}),
+      userId: h.get("x-user-id") || "",
+      canWrite: h.get("x-can-write") === "1",
+    }));
+    super.onConnect(conn, ctx);
+
+    // The op log (and the mass-delete detector it feeds) is wired once per
+    // object, on the first connection, which is where the workspace id comes
+    // from.
+    if (!this.opLogWired) {
+      this.opLogWired = true;
+      try {
+        installOpLogCapture({
+          boardId: this.name,
+          workspaceId: h.get("x-workspace-id") || undefined,
+          yDoc: this.document,
+          supabaseUrl: this.supabaseUrl,
+          serviceRoleKey: this.env.SUPABASE_SERVICE_ROLE_KEY,
+        });
+      } catch (e) {
+        console.warn(`[board ${this.name}] opLog install failed`, e);
+      }
+    }
+    await this.armAlarm();
+  }
+
+  private async armAlarm() {
     try {
-      if ((await this.room.storage.getAlarm()) == null) {
-        await this.room.storage.setAlarm(Date.now() + BAN_CHECK_MS);
+      await this.ctx.storage.put(ACTIVE_KEY, Date.now());
+      if ((await this.ctx.storage.getAlarm()) == null) {
+        await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
       }
     } catch (e) {
-      console.warn(`[board ${this.room.id}] could not arm the ban check`, e);
+      console.warn(`[board ${this.name}] could not arm the alarm`, e);
     }
   }
 
   async onAlarm() {
-    const conns = [...this.room.getConnections()];
-    if (conns.length === 0) return;   // an empty room lets the alarm lapse
-    const ids = conns.map((c) => ((c.state as { userId?: string } | null)?.userId) || "");
-    const banned = await bannedAmong((this.room.env as any)?.SUPABASE_SERVICE_ROLE_KEY, ids);
-    for (const c of conns) {
-      const uid = (c.state as { userId?: string } | null)?.userId;
-      if (uid && banned.has(uid)) {
-        try { c.close(4403, "account suspended"); } catch (_) { /* already gone */ }
+    if (this.resetting) return;
+    const conns = [...this.getConnections()];
+    let keepGoing = conns.length > 0;
+    if (conns.length) {
+      try { await this.ctx.storage.put(ACTIVE_KEY, Date.now()); } catch (_) { /* best effort */ }
+      // Audit AC-2: an account banned mid-session stops editing within a minute.
+      const ids = conns.map((c) => stateOf(c).userId || "");
+      const banned = await bannedAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, ids);
+      for (const c of conns) {
+        const uid = stateOf(c).userId;
+        if (uid && banned.has(uid)) {
+          try { c.close(4403, "account suspended"); } catch (_) { /* already gone */ }
+        }
       }
+    } else {
+      const lastActive = Number(await this.ctx.storage.get(ACTIVE_KEY)) || 0;
+      keepGoing = Date.now() - lastActive < IDLE_WATCH_MS;
     }
-    try { await this.room.storage.setAlarm(Date.now() + BAN_CHECK_MS); } catch (_) { /* next connect re-arms */ }
+    await this.remote.retryIfDirty();
+    await this.remote.checkForeign();
+    if (this.local.pending > 0) this.compactLocal();
+    if (keepGoing && !this.resetting) {
+      try { await this.ctx.storage.setAlarm(Date.now() + ALARM_MS); } catch (_) { /* next connect re-arms */ }
+    }
   }
 
-  // Admin POST that nukes the room's Durable Object storage and kicks
-  // every connected client. Used by the bulletproof-restore flow: the
-  // client first writes the restored bytes to board_state (Supabase),
-  // then POSTs here to wipe the stale y-partykit snapshot that would
-  // otherwise merge the deleted state back in. After this returns the
-  // client triggers a Y.Doc remount; cold-load reads the restored
-  // bytes from board_state and re-establishes the room from scratch.
+  // Throw this board's room away and make every client reload it from
+  // board_state. Used by POST /reset (a restore, a cross-board move into a board
+  // that was not open, a workspace rewind) and by the restore marker.
   //
-  // Auth: same Bearer token as the WebSocket. Requires can_write_board.
-  // POST body is optional — we don't read it; the bytes are written
-  // to board_state separately by the client.
-  async onRequest(req: Party.Request) {
-    // CORS preflight. The browser sends OPTIONS before the actual POST
-    // because the request carries an Authorization header (custom). Reply
-    // with the headers permitting the actual request.
+  // The order matters, and is PartyKit's: the reset frame first, so clients
+  // remount from board_state BEFORE their socket drops (closing first would have
+  // them reconnect and push their stale doc straight back into the room); then
+  // wipe; then close. The frame stays a RAW JSON text frame: the client's
+  // listener (lib/yPartyKit.js) parses exactly that, and YServer's
+  // custom-message helpers would prefix it with __YPS:, which it ignores.
+  private async resetRoom(reason: string): Promise<number> {
+    if (this.resetting) return 0;
+    this.resetting = true;
+    this.remote?.stop();
+    try {
+      this.broadcast(JSON.stringify({ type: "soleil-board-reset", boardId: this.name, ts: Date.now() }));
+    } catch (e) {
+      console.error(`[board ${this.name}] reset broadcast failed`, e);
+    }
+    await sleep(150);
+    try { this.local.wipe(); } catch (_) { /* deleteAll below */ }
+    try { await this.ctx.storage.deleteAll(); } catch (e) { console.error(`[board ${this.name}] deleteAll failed`, e); }
+    try { await this.ctx.storage.deleteAlarm(); } catch (_) { /* none set */ }
+    try { await this.ctx.storage.put(FENCE_KEY, Date.now() + RESET_FENCE_MS); } catch (_) { /* fence is best effort */ }
+    let kicked = 0;
+    for (const conn of this.getConnections()) {
+      try { conn.close(RESET_CLOSE, "room reset"); kicked++; } catch (_) { /* already gone */ }
+    }
+    try { await this.ctx.storage.sync(); } catch (_) { /* nothing pending */ }
+    // This object's document still holds the board as it was. Drop the whole
+    // instance, so the next connection starts from board_state alone.
+    console.log(`[board ${this.name}] reset (${reason}); kicked ${kicked}`);
+    setTimeout(() => this.ctx.abort(`board reset: ${reason}`), 100);
+    return kicked;
+  }
+
+  // POST /parties/main/<boardId>/reset — Bearer token, can_write_board.
+  // The client writes the restored bytes to board_state first and then calls
+  // this (through the same-origin Worker proxy, src/worker.js); see
+  // bulletproofRestore in lib/boardsApi.js.
+  async onRequest(req: Request): Promise<Response> {
     const origin = req.headers.get("origin") || "*";
     const corsHeaders: Record<string, string> = {
       "access-control-allow-origin": origin,
@@ -152,66 +268,19 @@ export default class BoardParty implements Party.Server {
       "access-control-max-age": "86400",
       "vary": "Origin",
     };
-
-    if (req.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-    if (req.method !== "POST") {
-      return new Response("Method not allowed", { status: 405, headers: corsHeaders });
-    }
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+    if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     const url = new URL(req.url);
-    if (!url.pathname.endsWith("/reset")) {
-      return new Response("Not found", { status: 404, headers: corsHeaders });
-    }
+    if (!url.pathname.endsWith("/reset")) return new Response("Not found", { status: 404, headers: corsHeaders });
+
     const auth = req.headers.get("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
     if (!token) return new Response("Missing token", { status: 401, headers: corsHeaders });
-    const boardId = this.room.id;
-    const [a, canWrite] = await Promise.all([
-      authBoard(token, boardId),
-      canWriteBoard(token, boardId),
-    ]);
+    const [a, canWrite] = await Promise.all([authBoard(token, this.name), canWriteBoard(token, this.name)]);
     if (!a.ok) return new Response(a.reason || "Unauthorized", { status: 401, headers: corsHeaders });
     if (!canWrite) return new Response("Read-only", { status: 403, headers: corsHeaders });
 
-    // ── Collab-safe reset sequence ───────────────────────────────────────
-    // The order matters. If we close the WS connections first, peers'
-    // partysocket auto-reconnects fire instantly — they hit the now-empty
-    // DO with their stale local Y.Doc state in memory and push the bad
-    // ops back up. To eliminate that race, BROADCAST a remount signal as
-    // a text frame to every connection BEFORE wiping/closing. The client
-    // intercepts the text frame and triggers a useYBoard remount, which
-    // destroys the local Y.Doc and re-cold-loads from board_state (which
-    // the restoring client has already written with the restored bytes).
-    //
-    // We give the broadcast ~150ms to propagate before tearing the
-    // connections down — long enough for the WS frame to deliver, short
-    // enough that the restore feels instant.
-    const signal = JSON.stringify({
-      type: "soleil-board-reset",
-      boardId,
-      ts: Date.now(),
-    });
-    try { this.room.broadcast(signal); }
-    catch (e) { console.error("[board/reset] broadcast failed", e); }
-
-    // Give the text frame time to flush.
-    await new Promise((r) => setTimeout(r, 150));
-
-    // Wipe the entire DO storage — this clears every key y-partykit
-    // wrote (snapshot, updates, awareness, etc). Next connection cold-
-    // loads from scratch.
-    try { await this.room.storage.deleteAll(); }
-    catch (e) { console.error("[board/reset] deleteAll failed", e); }
-
-    // Close every active connection so they don't immediately
-    // re-broadcast their stale local state into the now-empty room.
-    // Code 4030 = our convention for "room reset; please reload".
-    let kicked = 0;
-    for (const conn of this.room.getConnections()) {
-      try { conn.close(4030, "room reset"); kicked++; } catch (_) {}
-    }
-
+    const kicked = await this.resetRoom("reset requested");
     return new Response(JSON.stringify({ ok: true, kicked, signaled: true }), {
       status: 200,
       headers: { ...corsHeaders, "content-type": "application/json" },
