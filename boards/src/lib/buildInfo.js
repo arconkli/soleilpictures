@@ -5,3 +5,5 @@
 // "is production actually running the code we shipped?"
 export const BUILD_DATE = '2026-07-07';
 export const BUILD_SHA = 'c298460';
+// The party host this build's bundle uses (lib/buildWatch.js). '' = unstamped.
+export const PARTY_HOST = '';

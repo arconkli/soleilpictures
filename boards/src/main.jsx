@@ -5,6 +5,7 @@ import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
+import { startBuildWatch } from './lib/buildWatch.js';
 import { initCapacitor } from './lib/capacitorInit.js';
 import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
@@ -293,6 +294,10 @@ const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
 startHeartbeat();
+
+// Reload this tab, at a moment that loses nothing, if the server has moved the
+// party host (or set a build floor) since it loaded. lib/buildWatch.js.
+startBuildWatch();
 
 // Capacitor native bootstrap (status bar, keyboard, splash, deep
 // links, Android back button). No-ops in the web build — every
