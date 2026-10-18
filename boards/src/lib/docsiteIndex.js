@@ -2156,8 +2156,8 @@ export const DOCS_PAGES = [
     "navLabel": "Sharing",
     "headings": [
       {
-        "id": "link-access-the-link-and-what-it-grants",
-        "text": "Link access — the link, and what it grants"
+        "id": "the-link-what-it-grants",
+        "text": "The link — what it grants"
       },
       {
         "id": "link-settings",
@@ -2168,8 +2168,8 @@ export const DOCS_PAGES = [
         "text": "Inviting people"
       },
       {
-        "id": "people-with-access",
-        "text": "People with access"
+        "id": "who-has-access",
+        "text": "Who has access"
       },
       {
         "id": "getting-a-link-fast",
@@ -2841,7 +2841,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do I see how it is going?",
-        "a": "Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel shows how many joined through you, what you have earned and what is on its way."
+        "a": "Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel's Details shows how many joined through you, what you have earned and what is on its way."
       }
     ]
   },

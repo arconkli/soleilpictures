@@ -120,16 +120,15 @@ test.describe('collab invite-link wiring', () => {
     // The copy moved to a footer that never scrolls away and is still the
     // first thing focused, so the link path lost nothing.
     const s = share();
-    const order = ['Invite people</h3>', 'People with access · ', 'Link access</h3>',
-      'ExplorePublishSection board=', 'className="share-foot"'];
+    // The link is the last row of "Who has access", and its settings follow it.
+    const order = ['<div className="share-section share-invite">', 'Who has access · ', "key: '__link'",
+      '<details className="share-link-options"', 'ExplorePublishSection board=', 'className="share-foot"'];
     const at = order.map(k => s.indexOf(k));
     at.forEach((i, n) => expect(i, `${order[n]} missing`).toBeGreaterThan(-1));
     expect(at).toEqual([...at].sort((a, b) => a - b));
     // The reward is said where the inviting happens.
-    expect(s.indexOf('<InviteRewardNote')).toBeGreaterThan(s.indexOf('Invite people</h3>'));
-    expect(s.indexOf('<InviteRewardNote')).toBeLessThan(s.indexOf('People with access · '));
-    // A link's options still qualify the link, inside its own section.
-    expect(s.indexOf('share-link-options')).toBeGreaterThan(s.indexOf('Link access</h3>'));
+    expect(s.indexOf('<InviteRewardNote')).toBeGreaterThan(s.indexOf('<div className="share-section share-invite">'));
+    expect(s.indexOf('<InviteRewardNote')).toBeLessThan(s.indexOf('Who has access · '));
   });
 
   test('every copy of a link is recorded', () => {

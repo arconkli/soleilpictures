@@ -42,8 +42,8 @@ mechanisms:
 Inviting someone who is new to Clusters also pays you both: they get bonus
 cards and 0.5GB of storage when they join, and you get
 bonus cards and 0.5GB once they get started. The panel
-says so under the invite box, and [Referrals](/docs/account/referrals) has the
-rules.
+says what it's worth under the invite box, **Details** there has the rest, and
+[Referrals](/docs/account/referrals) has the rules.
 
 Also in the panel: current workspace members, existing per-board shares, and
 [public links](/docs/collaborate/sharing) — which are a different thing, and

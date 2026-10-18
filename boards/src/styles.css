@@ -2281,8 +2281,8 @@ body {
 .share-title-verb { flex: 0 0 auto; }
 .share-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-/* Each block's name, in words rather than a caps eyebrow: "Invite people",
-   "People with access", "Link access". */
+/* Each block's name, in words rather than a caps eyebrow: "Who has access",
+   "Publish to Explore". */
 .share-section-title {
   font: 600 13px/1.3 var(--font-sans);
   color: var(--ink-0);
@@ -2316,22 +2316,39 @@ body {
 }
 .share-section:last-child { border-bottom: 0; }
 
-/* General access: the one action and the one decision, side by side, wrapping
-   to two rows when there isn't room. */
-.share-access-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.share-access-select { flex: 1 1 200px; font-size: 12.5px; padding-top: 9px; padding-bottom: 9px; }
-
-/* The truthful line under the picker. Built from link rows, never from the
-   picker's value, so it can't announce a link that was never minted. */
-.share-status {
-  font: 600 11px/1.4 var(--font-sans);
-  color: var(--ink-2);
+/* What an invitation grants, as a sentence under the address: "Can edit ▾
+   in [This cluster | Whole workspace]". The reach is its own one-click
+   choice, so a bare "Can edit" can't be mistaken for the whole workspace. */
+.share-invite-access {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
   margin-top: 8px;
+}
+.share-invite-in { font: 500 12px/1 var(--font-sans); color: var(--ink-2); }
+.share-invite-scope { font: 600 12px/1 var(--font-sans); color: var(--ink-1); }
+.share-scope {
+  display: inline-flex; gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+.share-scope-btn {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
+  padding: 6px 10px;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.share-scope-btn:hover { color: var(--ink-0); }
+/* The chosen reach: raised and full-strength, not gold — gold is the one
+   action the panel is about to take (Copy link or Invite). */
+.share-scope-btn.is-on {
+  background: var(--bg-3);
+  color: var(--ink-0);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line-2);
 }
 
 /* An inline text button inside a hint (…"manage"), styled as prose rather
@@ -2436,7 +2453,7 @@ body {
 
 /* The action the panel is about to take, and only that one: Copy link at rest
    (it holds focus, so Share → Enter copies), Invite while there are addresses
-   in the box, nothing under "Only people with access". ShareModal's goldIf()
+   in the box, nothing under "No link". ShareModal's goldIf()
    is the only thing that adds this class. */
 .share-btn-gold {
   background: var(--soleil);
@@ -2460,57 +2477,79 @@ body {
 .share-link-options > summary::marker { color: var(--ink-3); }
 .share-link-options[open] > summary { margin-bottom: 8px; }
 
-/* What the role picked for an invitation lets that person do. */
-.share-role-hint { color: var(--ink-2); margin-top: 2px; }
+/* What the chosen level and reach let that person do, by name. */
+.share-role-hint { color: var(--ink-2); margin-top: 8px; font-size: 11.5px; }
 
-/* The invitation reward, under the invite row. Neutral on purpose: it is
-   information about the action above it, not a second call to action. */
+/* The invitation reward: one line at rest, the rest behind Details. A strip,
+   not a box, so it never pushes "Who has access" off the first screen.
+   Neutral on purpose: it is about the action above it, not a second one. */
 .share-reward {
-  display: flex; align-items: flex-start; gap: 10px;
-  margin-top: 12px;
-  padding: 10px 12px;
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
   border-radius: var(--radius);
   background: var(--bg-2);
-  border: 1px solid var(--line-1);
 }
 .share-reward-icon { flex: 0 0 auto; color: var(--ink-1); margin-top: 1px; }
-.share-reward-text { flex: 1 1 auto; min-width: 0; }
-.share-reward-lead { font: 600 12.5px/1.4 var(--font-sans); color: var(--ink-0); }
-.share-reward-detail { font: 500 11.5px/1.45 var(--font-sans); color: var(--ink-2); margin-top: 2px; }
+.share-reward-text { flex: 1 1 auto; min-width: 0; font: 500 12.5px/1.45 var(--font-sans); }
+.share-reward-lead { font-weight: 600; color: var(--ink-0); }
+.share-reward-toggle { font: 500 12px/1.45 var(--font-sans); color: var(--ink-2); }
+.share-reward-more { margin-top: 6px; }
+.share-reward-detail { margin: 0; font: 500 11.5px/1.45 var(--font-sans); color: var(--ink-2); }
 .share-reward-progress {
-  font: 600 11px/1.4 var(--font-sans);
+  margin: 6px 0 0;
+  font: 600 11.5px/1.4 var(--font-sans);
   color: var(--ink-1);
-  margin-top: 6px;
   font-variant-numeric: tabular-nums;
 }
-.share-reward-how { margin-top: 6px; }
-.share-reward-how > summary {
-  cursor: pointer;
-  user-select: none;
-  width: fit-content;
-  font: 500 11px/1.4 var(--font-sans);
-  color: var(--ink-2);
-}
-.share-reward-how > summary:hover { color: var(--ink-0); }
-.share-reward-how > summary::marker { color: var(--ink-3); }
-.share-reward-how ul {
+.share-reward-more ul {
   margin: 6px 0 8px;
   padding-left: 16px;
   font: 500 11px/1.5 var(--font-sans);
   color: var(--ink-2);
 }
-.share-reward-how li + li { margin-top: 3px; }
-.share-reward-how .share-linkish { font: 600 11px/1.4 var(--font-sans); }
+.share-reward-more li + li { margin-top: 3px; }
+.share-reward-more .share-linkish { font: 600 11.5px/1.4 var(--font-sans); }
 
-/* Globe while a link opens this, lock while only people on the list can. */
-.share-access-icon {
-  flex: 0 0 auto;
-  display: grid; place-items: center;
-  width: 34px; height: 34px;
+/* A row of "Who has access": avatar, who, and one control on the right. It
+   never wraps — the name truncates instead — so a phone shows one line per
+   person rather than a second line of buttons under each. */
+.share-row.share-person { flex-wrap: nowrap; min-height: 40px; }
+.share-person > .share-row-text { flex: 1 1 auto; }
+.share-row-access { flex: 0 0 auto; margin-left: auto; display: flex; align-items: center; }
+/* The row's control: reads as text with a caret until you point at it. */
+.share-access-pick {
+  appearance: none;
+  max-width: 190px;
+  background: transparent url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none'><path d='M2 4 L5 7 L8 4' stroke='%2399a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 7px center;
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  background: var(--bg-3);
   color: var(--ink-1);
+  font: 500 12px/1.4 var(--font-sans);
+  padding: 5px 24px 5px 8px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  /* A select is as wide as its longest option, so left-aligned values sat at
+     different distances from their carets; right-aligned, every row's value
+     ends at the same column. */
+  text-align: right;
+  text-align-last: right;
+  transition: border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
 }
+.share-access-pick:hover { border-color: var(--line-2); background-color: var(--bg-hov); }
+.share-access-label {
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  /* The caret's gutter, so a label ends where the dropdown values end. */
+  padding: 5px 24px 5px 8px;
+  white-space: nowrap;
+}
+/* The link row's avatar: globe while a link opens this, lock while only the
+   people listed can. */
+.share-avatar.share-avatar-link { background: var(--bg-4); color: var(--ink-1); }
+/* The link row's second line wraps instead of truncating: it carries the
+   "N other links live" notice, and a live link must never be hidden. */
+.share-row-link .share-row-sub { white-space: normal; }
 
 /* Outside .share-body, so it never scrolls away: the link is one press from
    anywhere in the panel, and Done sits where a thumb is on a phone. */
@@ -21098,6 +21137,8 @@ button, [role="button"], a {
     height: calc(100dvh - var(--safe-top));
   }
   .share-foot { padding-bottom: calc(12px + var(--safe-bottom, 0px)); }
+  .share-access-pick { max-width: 150px; min-height: 36px; }
+  .share-scope-btn { padding: 9px 11px; }
   .share-foot-btn { min-height: 44px; padding-left: 16px; padding-right: 16px; }
   /* Presence: one face and a "+N" (App.jsx passes max=1), overlapped. */
   .topbar .ws-presence { gap: 0; padding: 0 2px; }

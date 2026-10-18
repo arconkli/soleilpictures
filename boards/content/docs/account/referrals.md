@@ -17,7 +17,7 @@ faq:
   - q: Does inviting someone who already has an account count?
     a: No. It shares the cluster with them as usual, but only people new to Clusters earn a reward.
   - q: Where do I see how it is going?
-    a: Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel shows how many joined through you, what you have earned and what is on its way.
+    a: Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel's Details shows how many joined through you, what you have earned and what is on its way.
 related:
   - /docs/account/plans
   - /docs/collaborate/sharing
@@ -98,5 +98,5 @@ Two different things:
 They overlap in one place: someone who signs up because you invited them to a
 cluster by email counts as your referral, and so does someone who joins through
 one of your edit links within {{fact:referralLinkJoinDays}} days of signing up.
-The same rules apply, and each person counts once. The Share panel says so
-under its invite box.
+The same rules apply, and each person counts once. The Share panel's
+**Details**, under its invite box, says so too.

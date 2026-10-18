@@ -1,11 +1,13 @@
 // Share panel — everything about who can open one cluster, laid out the way
 // people already know from shared documents, in the order they decide it:
 //
-//   1. Invite people — email + role, a line saying what that role can do, and
-//      what inviting someone NEW earns (InviteRewardNote)
-//   2. People with access — one truthful list
-//   3. Link access — one picker: who can open this with a link?
-//   4. Publish to Explore — collapsed
+//   1. Invite — email, then "Can edit ▾ in This cluster | Whole workspace", a
+//      line saying by name what that grants, and what inviting someone NEW
+//      earns (InviteRewardNote)
+//   2. Who has access — one list, every row the same shape (who on the left,
+//      what they can do on the right), ending with the link: "Anyone with
+//      the link"
+//   3. Publish to Explore — collapsed
 //   …and a footer that stays put: Copy link, Done.
 //
 // The panel used to open on the link picker, with invitations second and
@@ -41,6 +43,7 @@ import {
   revocableLinks,
 } from '../lib/shareAccess.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { ASSIGNABLE_ROLES } from '../lib/workspaceRoles.js';
 import { maskName, maskEmail } from '../lib/captureIdentity.js';
 import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
@@ -124,18 +127,28 @@ export function ShareModal({
   const [pendingBoardInvites, setPendingBoardInvites]     = useState([]);
   const [pendingWorkspaceInvites, setPendingWorkspaceInvites] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState(() => (workspaceScope && isManager ? 'workspace' : 'editor'));
+  // What an invitation grants is two choices, made side by side: a level (can
+  // edit / can view) and how far it reaches (this cluster / the whole
+  // workspace). They used to share one select, where nothing in "Can edit"
+  // said it meant this cluster and not everything, and the workspace options
+  // sat at the bottom of the list. Only the owner or a co-owner can hand out
+  // the whole workspace, so only they get the second choice.
+  const [inviteAccess, setInviteAccess] = useState('editor');
+  const [inviteScope, setInviteScope] = useState(() => (workspaceScope && isManager ? 'workspace' : 'cluster'));
   // The manager check can resolve a beat after mount (members still loading
-  // after a switch). Until the person picks a role themselves, a workspace-
+  // after a switch). Until the person picks a reach themselves, a workspace-
   // scoped panel lands on "Whole workspace" as soon as it is allowed to.
-  const inviteRoleTouched = useRef(false);
+  const inviteScopeTouched = useRef(false);
   useEffect(() => {
-    if (workspaceScope && isManager && !inviteRoleTouched.current) setInviteRole('workspace');
+    if (workspaceScope && isManager && !inviteScopeTouched.current) setInviteScope('workspace');
   }, [workspaceScope, isManager]);
-  // Two select values map to a workspace invite: 'workspace' (can edit) and
-  // 'workspaceviewer' (read-only). Everything that used to test
-  // inviteRole === 'workspace' tests isWorkspaceInvite now; the role that is
-  // actually sent is workspaceRole.
+  const pickInviteScope = (next) => { inviteScopeTouched.current = true; setInviteScope(next); };
+  // The role the invite path sends, in the vocabulary it has always used:
+  // 'editor' / 'viewer' for this cluster, 'workspace' / 'workspaceviewer' for
+  // the whole workspace. The role a workspace invite carries is workspaceRole.
+  const inviteRole = isManager && inviteScope === 'workspace'
+    ? (inviteAccess === 'viewer' ? 'workspaceviewer' : 'workspace')
+    : inviteAccess;
   const isWorkspaceInvite = inviteRole === 'workspace' || inviteRole === 'workspaceviewer';
   const workspaceRole = inviteRole === 'workspaceviewer' ? 'viewer' : 'editor';
   const [inviting, setInviting] = useState(false);
@@ -796,48 +809,134 @@ export function ShareModal({
     }
   };
 
-  const ROLE_LABEL = { viewer: 'Viewer', editor: 'Editor', workspace: 'Workspace member', workspaceviewer: 'Workspace viewer' };
+  // One dropdown per row does everything that row can have done to it. A
+  // workspace member: their level, co-owner, owner (the owner only), removal.
+  const onMemberAccess = async (member, value) => {
+    if (value === '__owner') { onMakeOwner(member); return; }
+    if (value === '__remove') { onRemoveMember(member); return; }
+    if (value === member.role) return;
+    const meta = userMeta(member.user_id);
+    const label = meta.email || meta.name;
+    try {
+      await setWorkspaceMemberRole({ workspaceId: workspace.id, userId: member.user_id, role: value });
+      feedback.toast({
+        type: 'success',
+        message: value === 'coowner'
+          ? `${label} is now a co-owner of "${workspace.name}".`
+          : `${label} can now ${value === 'viewer' ? 'view' : 'edit'} every cluster in "${workspace.name}".`,
+      });
+      onMembersChanged?.();
+      onWorkspacesChanged?.();
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not change their access: ' + (e.message || e) });
+    }
+  };
 
-  // What the role picked for an invitation lets that person do, said under the
-  // invite row so the choice explains itself. Workspace roles name the
-  // workspace, because the scope is the whole point of choosing them.
+  // Someone on this cluster alone: their level, the whole workspace instead
+  // (owner and co-owners), or removal.
+  const onShareAccess = (share, value) => {
+    if (value === '__remove') { onRemoveShare(share); return; }
+    if (value === 'workspace' || value === 'workspaceviewer') {
+      onShareToWorkspace(share, value === 'workspaceviewer' ? 'viewer' : 'editor');
+      return;
+    }
+    if (value !== share.role) onChangeShareRole(share, value);
+  };
+
+  // Widen one person from this cluster to the whole workspace. Their share on
+  // this cluster is covered by the membership from then on, and left in place
+  // it would list them twice, so it goes — but only when the membership was
+  // granted just now: invite_workspace_member answers 'already_member' without
+  // changing an existing member's role, and removing the share then would take
+  // away what this cluster gave them and widen nothing. (The row doesn't offer
+  // it to members at all; this is the server's answer, said back.)
+  const widening = useRef(new Set());
+  const onShareToWorkspace = async (share, role) => {
+    if (widening.current.has(share.user_id)) return;
+    const ok = await feedback.confirm({
+      title: `Give ${share.email} the whole workspace?`,
+      message: `They'll be able to ${role === 'viewer' ? 'open' : 'edit'} every cluster in "${workspace.name}", not just this one, and they'll get an email saying so.`,
+      confirmLabel: 'Add to workspace',
+    });
+    if (!ok) return;
+    widening.current.add(share.user_id);
+    try {
+      const status = await inviteWorkspaceMember({ workspaceId: workspace.id, email: share.email, role });
+      if (status !== 'granted') {
+        feedback.toast({ type: 'info', message: `${share.email} is already in "${workspace.name}" — change their access on their workspace row.` });
+        return;
+      }
+      try {
+        logEventNow(EV.ACCESS_GRANTED, {
+          how: 'workspace', role: `workspace:${role}`, board_id: board.id, surface: 'share_modal_row',
+        });
+      } catch (_) {}
+      let unshared = true;
+      try { await unshareBoard({ boardId: board.id, userId: share.user_id }); } catch (_) { unshared = false; }
+      // Re-read rather than assume: the list shows what the server holds.
+      try { setShares(await listBoardShares(board.id)); } catch (_) {}
+      onMembersChanged?.();
+      onSharesChanged?.();
+      feedback.toast(unshared
+        ? { type: 'success', message: `Added ${share.email} to "${workspace.name}".` }
+        : { type: 'warning', message: `Added ${share.email} to "${workspace.name}", but their separate access to this cluster is still listed — remove it from their row.`, ttl: 8000 });
+    } catch (e) {
+      const msg = e?.message || String(e);
+      feedback.toast(/invite limit reached/i.test(msg)
+        ? { type: 'warning', message: msg.replace(/^invite limit reached:\s*/i, '') }
+        : { type: 'error', message: 'Could not add them to the workspace: ' + msg });
+    } finally {
+      widening.current.delete(share.user_id);
+    }
+  };
+
+  const ROLE_LABEL = { viewer: 'Viewer', editor: 'Editor', workspace: 'Workspace member', workspaceviewer: 'Workspace viewer' };
+  // What one person can do, as the right-hand column says it. Workspace-wide
+  // access says so first, so a bare "Can edit" always means this cluster.
+  const MEMBER_ACCESS = {
+    owner: 'Owner', coowner: 'Co-owner', editor: 'Workspace · can edit', viewer: 'Workspace · can view',
+    admin: 'Workspace · admin', service: 'Service account',
+  };
+  const SHARE_ACCESS = { editor: 'Can edit', viewer: 'Can view' };
+
+  // What an invitation will let that person do, said under the invite row by
+  // name — this cluster's or the workspace's — so the reach is never a guess.
   const wsName = workspace?.name || 'this workspace';
+  const boardName = board?.name || 'this cluster';
   const roleHint = inviteRole === 'viewer'
-    ? 'Can open everything here, but can’t change anything.'
+    ? `They can open “${boardName}” and its sub-clusters, comment and vote, but can’t change anything.`
     : inviteRole === 'workspace'
-      ? `Can edit every cluster in “${wsName}”. Editors are free on every plan.`
+      ? `They can add, move and delete cards in every cluster in “${wsName}”. Editors are free on every plan.`
       : inviteRole === 'workspaceviewer'
-        ? `Can open every cluster in “${wsName}”, but can’t change anything.`
-        : 'Can add, move and delete cards here and in every sub-cluster. Editors are free on every plan.';
+        ? `They can open every cluster in “${wsName}”, comment and vote, but can’t change anything.`
+        : `They can add, move and delete cards in “${boardName}” and its sub-clusters. Editors are free on every plan.`;
 
   // Gold marks the action the panel is about to take, and only one control
   // carries it. At rest that is Copy link — it has focus, so Share → Enter
-  // copies. While there are addresses in the box it is Invite. Under "Only
-  // people with access" there is no link to copy, so nothing is gold.
+  // copies. While there are addresses in the box it is Invite. Under "No
+  // link" there is no link to copy, so nothing is gold.
   const goldControl = !canInvite ? null
     : inviteEmail.trim() ? 'invite'
       : accessMode === 'off' ? null : 'copy';
   const goldIf = (which) => (goldControl === which ? ' share-btn-gold' : '');
 
-  // What the general-access block says about itself. Built from rows, never
-  // from the picker, so it can never claim a link that does not exist.
-  const accessHint = accessMode === 'off'
-    ? (live.length > 0
-        ? 'Only the people above can open this cluster, plus anyone holding a link that is still live. Links other people created can only be revoked by them, the owner or a co-owner.'
-        : 'Only the people above can open this cluster.')
-    : accessMode === 'edit'
-      ? 'Anyone with the link can preview this cluster and join as an editor with one click. They sign in to accept; sub-clusters are included. New accounts that join through it count as your invitations.'
-      : `Anyone with the link can open this cluster${linkIncludeSubboards ? ' and its sub-clusters' : ''} — view only, no account needed.`;
-
+  // The link row's second line: what the link does, then what is true of it.
+  // Built from rows, never from the picker, so it can never claim a link that
+  // does not exist.
   const linkStatus = () => {
-    if (accessMode === 'off') return live.length > 0 ? `${live.length} link${live.length === 1 ? '' : 's'} still live` : 'No link';
-    if (!currentLink) return 'No link yet';
-    if (linkKind(currentLink) === 'invite') {
-      return `Live · ${currentLink.joined_count > 0 ? `${currentLink.joined_count} joined` : 'nobody joined yet'}`
-        + (currentLink.expires_at ? ` · expires ${new Date(currentLink.expires_at).toLocaleDateString()}` : ' · never expires');
+    if (accessMode === 'off') {
+      return live.length > 0
+        ? `Only the people above, plus ${live.length} link${live.length === 1 ? '' : 's'} still live`
+        : 'Only the people above can open it';
     }
-    return `Live · ${currentLink.include_subboards ? 'with sub-clusters' : 'this cluster only'}`
-      + (currentLink.expires_at ? ` · expires ${new Date(currentLink.expires_at).toLocaleDateString()}` : ' · never expires');
+    const what = accessMode === 'edit' ? 'They sign in, then join as editors' : 'No account needed';
+    if (!currentLink) return `${what} · no link yet`;
+    const expiry = currentLink.expires_at
+      ? `expires ${new Date(currentLink.expires_at).toLocaleDateString()}` : 'never expires';
+    if (linkKind(currentLink) === 'invite') {
+      return `${what} · ${currentLink.joined_count > 0 ? `${currentLink.joined_count} joined` : 'nobody joined yet'} · ${expiry}`;
+    }
+    return `${what} · ${currentLink.include_subboards ? 'includes sub-clusters' : 'this cluster only'} · ${expiry}`;
   };
 
   // Inherited rows minus anyone the list already names (a share of their own
@@ -899,6 +998,34 @@ export function ShareModal({
     </div>
   );
 
+  // One shape for every row of "Who has access": who on the left, what they
+  // can do on the right, and at most one control — a dropdown that also holds
+  // whatever else can be done to that row (remove, revoke, make owner). The
+  // rows used to say a role three ways (a sub-line, a select on some rows,
+  // nothing on others) with actions floating beside them, and on a phone the
+  // actions wrapped onto a second line under every person.
+  const personRow = ({ key, avatar, name, online = false, sub = null, control, className = '', title }) => (
+    <div key={key} className={`share-row share-person ${className}`.trim()} title={title}>
+      {avatar}
+      <div className="share-row-text">
+        <div className="share-row-name has-dot">
+          <span className="share-row-name-text">{name}</span>
+          {online && <span className="share-online" title="Online" />}
+        </div>
+        {sub && <div className="share-row-sub">{sub}</div>}
+      </div>
+      <div className="share-row-access">{control}</div>
+    </div>
+  );
+  const avatarFor = (seed, text, neutral = false) => (
+    <span className="share-avatar"
+          style={neutral ? { background: 'var(--bg-4)', color: 'var(--ink-1)' } : { background: pickPresenceColor(seed) }}>
+      {(text || '?').charAt(0).toUpperCase()}
+    </span>
+  );
+  const accessLabel = (text) => <span className="share-access-label">{text}</span>;
+  const sentOn = (row) => new Date(row.created_at).toLocaleDateString();
+
   return (
     <Modal open onClose={onClose} className="share-modal" backdropClassName="share-backdrop"
            labelledBy="share-title" initialFocusRef={canInvite ? copyLinkRef : doneRef}>
@@ -922,55 +1049,66 @@ export function ShareModal({
             regions stacked inside one dialog. The footer sits outside it. */}
         <div className="share-body">
 
-        {/* INVITE PEOPLE — first, because naming who you want in is where most
-            people start, and because it is the one place to say what an
-            invitation earns. The line under the row says what the chosen role
-            can do, so the picker explains itself. */}
+        {/* INVITE — the address first, then what they get and how far it
+            reaches, as a sentence: "Can edit ▾ in This cluster | Whole
+            workspace". The line under it says exactly what that means by name,
+            and the note under that says what inviting someone new earns. */}
         {canInvite && (
-          <div className="share-section">
-            <h3 className="share-section-title">Invite people</h3>
+          <div className="share-section share-invite">
             <div className="share-invite-row">
               <input className="share-input"
                      type="text"
                      aria-label="Email addresses to invite"
-                     // Short enough for the ~200px the field gets beside the
-                     // role menu; the longer wording was cut off mid-word.
-                     placeholder="Emails, separated by commas"
+                     placeholder="Add people by email"
                      value={inviteEmail}
                      onChange={(e) => setInviteEmail(e.target.value)}
                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
-              <select className="share-role-select" aria-label="Access level for invitees"
-                      value={inviteRole}
-                      onChange={(e) => { inviteRoleTouched.current = true; setInviteRole(e.target.value); }}>
-                <option value="editor">Can edit</option>
-                <option value="viewer">Can view</option>
-                {/* Workspace membership grants access to every board, so
-                    only the owner or a co-owner may hand it out. */}
-                {isManager && (
-                  <option value="workspace">Whole workspace · can edit</option>
-                )}
-                {isManager && (
-                  <option value="workspaceviewer">Whole workspace · can view</option>
-                )}
-              </select>
               <button className={'share-invite-btn' + goldIf('invite')}
                       onClick={submitInvite}
                       disabled={!inviteEmail.trim() || inviting}>
                 {inviting ? 'Inviting…' : 'Invite'}
               </button>
             </div>
+            <div className="share-invite-access">
+              <select className="share-role-select" aria-label="Access level for invitees"
+                      value={inviteAccess}
+                      onChange={(e) => setInviteAccess(e.target.value)}>
+                <option value="editor">Can edit</option>
+                <option value="viewer">Can view</option>
+              </select>
+              <span className="share-invite-in">in</span>
+              {/* Workspace membership grants access to every board, so only
+                  the owner or a co-owner may hand it out. */}
+              {isManager ? (
+                <div className="share-scope" role="group" aria-label="How much they get">
+                  <button type="button"
+                          className={'share-scope-btn' + (inviteScope === 'cluster' ? ' is-on' : '')}
+                          aria-pressed={inviteScope === 'cluster'}
+                          onClick={() => pickInviteScope('cluster')}>
+                    This cluster
+                  </button>
+                  <button type="button"
+                          className={'share-scope-btn' + (inviteScope === 'workspace' ? ' is-on' : '')}
+                          aria-pressed={inviteScope === 'workspace'}
+                          onClick={() => pickInviteScope('workspace')}>
+                    Whole workspace
+                  </button>
+                </div>
+              ) : (
+                <span className="share-invite-scope">this cluster</span>
+              )}
+            </div>
             <div className="share-hint share-role-hint">{roleHint}</div>
             <InviteRewardNote tier={rewardTier} stats={referralStats} onOpenInvites={onOpenInvites} />
           </div>
         )}
 
-        {/* People with access — one truthful list. It used to be two lists with
-            two headers, two counts and two empty states; the scope that
-            justified the split is already spelled out in every row's sub-line
-            ("can edit every cluster" vs. "Can edit"), so the split was buying
-            nothing and costing a screenful. */}
+        {/* WHO HAS ACCESS — everyone, in one list, and the link last: a link
+            is just another answer to "who can open this". Rows with access to
+            the whole workspace say so in their right-hand label, so a bare
+            "Can edit" always means this cluster. */}
         <div className="share-section">
-          <h3 className="share-section-title">People with access · {accessCount}</h3>
+          <h3 className="share-section-title">Who has access · {accessCount}</h3>
           <div className="share-list">
             {loadingShares && accessCount === 0 ? (
               <div className="share-empty">Loading…</div>
@@ -985,94 +1123,83 @@ export function ShareModal({
               const meta = userMeta(m.user_id);
               const isWsOwner = m.user_id === workspace?.created_by;
               const isSelf = m.user_id === selfUserId;
-              return (
-                <div key={m.user_id} className="share-row">
-                  <span className="share-avatar"
-                        style={{ background: pickPresenceColor(m.user_id) }}>
-                    {(meta.name || '?').charAt(0).toUpperCase()}
-                  </span>
-                  <div className="share-row-text">
-                    {/* The name truncates in its own span so the online dot
-                        after it is never the part the ellipsis cuts off. */}
-                    <div className="share-row-name has-dot">
-                      <span className="share-row-name-text">{meta.name}{isSelf && ' · You'}</span>
-                      {meta.online && <span className="share-online" title="Online" />}
-                    </div>
-                    <div className="share-row-sub">
-                      {isWsOwner ? 'Owner'
-                        : m.role === 'coowner' ? 'Co-owner — runs the workspace'
-                        : m.role === 'viewer' ? 'Member — view only'
-                        : m.role === 'service' ? 'Service account'
-                        : 'Member — can edit every cluster'}
-                      {meta.email && ` · ${meta.email}`}
-                    </div>
-                  </div>
-                  {isManager && !isSelf && !isWsOwner && m.role !== 'service' && (
-                    <div className="share-row-actions">
-                      {isOwner && m.role !== 'viewer' && (
-                        <button className="share-remove" onClick={() => onMakeOwner(m)}
-                                title="Transfer workspace ownership">
-                          Make owner
-                        </button>
-                      )}
-                      <button className="share-remove" onClick={() => onRemoveMember(m)}>
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
+              // The owner's role is ownership (transfer it instead), a service
+              // account's row has no actions (0397), and nobody changes their
+              // own here. Only the assignable roles have a level to pick; an
+              // admin member keeps theirs but can still be removed or made owner.
+              const changeable = isManager && !isSelf && !isWsOwner && m.role !== 'service';
+              const levelPickable = ASSIGNABLE_ROLES.includes(m.role);
+              return personRow({
+                key: m.user_id,
+                avatar: avatarFor(m.user_id, meta.name),
+                name: isSelf && meta.name !== 'You' ? `${meta.name} (you)` : meta.name,
+                online: meta.online,
+                sub: meta.email && meta.email !== meta.name ? meta.email : null,
+                control: changeable ? (
+                  <select className="share-access-pick" aria-label={`Access for ${meta.name}`}
+                          value={m.role}
+                          onChange={(e) => onMemberAccess(m, e.target.value)}>
+                    {levelPickable ? (
+                      <>
+                        <option value="editor">Workspace · can edit</option>
+                        <option value="viewer">Workspace · can view</option>
+                        <option value="coowner">Co-owner</option>
+                      </>
+                    ) : (
+                      <option value={m.role}>{MEMBER_ACCESS[m.role] || m.role}</option>
+                    )}
+                    <option disabled>──────────</option>
+                    {/* 0397: a viewer can't be made owner (the server refuses). */}
+                    {isOwner && m.role !== 'viewer' && <option value="__owner">Make owner…</option>}
+                    <option value="__remove">Remove from workspace…</option>
+                  </select>
+                ) : accessLabel(isWsOwner ? 'Owner' : (MEMBER_ACCESS[m.role] || m.role)),
+              });
             })}
 
-            {pendingWorkspaceInvites.map(row => (
-              <div key={row.id} className="share-row">
-                <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
-                  {(maskEmail(row.email, row.id) || '?').charAt(0).toUpperCase()}
-                </span>
-                <div className="share-row-text">
-                  <div className="share-row-name">{maskEmail(row.email, row.id)}</div>
-                  <div className="share-row-sub">
-                    Invited to the whole workspace · joins when they sign up · {new Date(row.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-                {isManager && (
-                  <button className="share-remove" onClick={() => onRevokePending(row)}>
-                    Revoke
-                  </button>
-                )}
-              </div>
-            ))}
+            {pendingWorkspaceInvites.map(row => {
+              const email = maskEmail(row.email, row.id);
+              return personRow({
+                key: row.id,
+                avatar: avatarFor(row.id, email, true),
+                name: email,
+                sub: `Invite sent ${sentOn(row)} · joins when they sign up`,
+                control: isManager ? (
+                  <select className="share-access-pick" aria-label={`Invitation for ${email}`}
+                          value="invited"
+                          onChange={(e) => { if (e.target.value === '__revoke') onRevokePending(row); }}>
+                    <option value="invited">{row.role === 'viewer' ? 'Invited · workspace, view' : 'Invited · workspace, edit'}</option>
+                    <option value="__revoke">Revoke invite…</option>
+                  </select>
+                ) : accessLabel('Invited · workspace'),
+              });
+            })}
 
             {shares.map(s => {
               const profile = userProfiles.get(s.user_id);
               const displayName = profile?.name || s.email;
-              return (
-                <div key={s.user_id} className="share-row">
-                  <span className="share-avatar"
-                        style={{ background: pickPresenceColor(s.user_id) }}>
-                    {(displayName || '?').charAt(0).toUpperCase()}
-                  </span>
-                  <div className="share-row-text">
-                    <div className="share-row-name">{displayName}</div>
-                    <div className="share-row-sub">
-                      {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role]} — this cluster
-                    </div>
-                  </div>
-                  {(isManager || s.invited_by === selfUserId) && (
-                    <div className="share-row-actions">
-                      <select className="share-role-select share-row-role"
-                              value={s.role}
-                              onChange={(e) => onChangeShareRole(s, e.target.value)}>
-                        <option value="editor">Can edit</option>
-                        <option value="viewer">Can view</option>
-                      </select>
-                      <button className="share-remove" onClick={() => onRemoveShare(s)}>
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
+              // The owner, a co-owner, or whoever sent this invite (0147).
+              const canChange = isManager || s.invited_by === selfUserId;
+              // Already a member: their workspace row is where their reach changes.
+              const canWiden = isManager && !workspaceMembers.some(m => m.user_id === s.user_id);
+              return personRow({
+                key: s.user_id,
+                avatar: avatarFor(s.user_id, displayName),
+                name: displayName,
+                sub: `${profile?.name && s.email ? `${s.email} · ` : ''}this cluster`,
+                control: canChange ? (
+                  <select className="share-access-pick" aria-label={`Access for ${displayName}`}
+                          value={s.role}
+                          onChange={(e) => onShareAccess(s, e.target.value)}>
+                    <option value="editor">Can edit</option>
+                    <option value="viewer">Can view</option>
+                    {canWiden && <option value="workspace">Whole workspace · can edit</option>}
+                    {canWiden && <option value="workspaceviewer">Whole workspace · can view</option>}
+                    <option disabled>──────────</option>
+                    <option value="__remove">Remove access…</option>
+                  </select>
+                ) : accessLabel(SHARE_ACCESS[s.role] || s.role),
+              });
             })}
 
             {/* Read-only: this access is granted (and removed) on the parent,
@@ -1082,82 +1209,73 @@ export function ShareModal({
               const profile = userProfiles.get(s.user_id);
               const displayName = profile?.name || s.email;
               const via = s.via_board_name || 'a parent cluster';
-              return (
-                <div key={`via-${s.user_id}`} className="share-row share-row-inherited"
-                     title={`Shared on "${via}". Change it from that cluster's Share panel.`}>
-                  <span className="share-avatar"
-                        style={{ background: pickPresenceColor(s.user_id) }}>
-                    {(displayName || '?').charAt(0).toUpperCase()}
-                  </span>
-                  <div className="share-row-text">
-                    <div className="share-row-name">{displayName}</div>
-                    <div className="share-row-sub">
-                      {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role] || s.role} — via {via}
-                    </div>
-                  </div>
-                </div>
-              );
+              return personRow({
+                key: `via-${s.user_id}`,
+                className: 'share-row-inherited',
+                title: `Shared on "${via}". Change it from that cluster's Share panel.`,
+                avatar: avatarFor(s.user_id, displayName),
+                name: displayName,
+                sub: `${profile?.name && s.email ? `${s.email} · ` : ''}— via ${via}`,
+                control: accessLabel(SHARE_ACCESS[s.role] || ROLE_LABEL[s.role] || s.role),
+              });
             })}
 
-            {pendingBoardInvites.map(row => (
-              <div key={row.id} className="share-row">
-                <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
-                  {(row.email || '?').charAt(0).toUpperCase()}
+            {pendingBoardInvites.map(row => personRow({
+              key: row.id,
+              avatar: avatarFor(row.id, row.email, true),
+              name: row.email,
+              sub: `Invite sent ${sentOn(row)} · joins when they sign up`,
+              control: (isManager || row.invited_by === selfUserId) ? (
+                <select className="share-access-pick" aria-label={`Invitation for ${row.email}`}
+                        value="invited"
+                        onChange={(e) => { if (e.target.value === '__revoke') onRevokePending(row); }}>
+                  <option value="invited">{row.role === 'editor' ? 'Invited · can edit' : 'Invited · can view'}</option>
+                  <option value="__revoke">Revoke invite…</option>
+                </select>
+              ) : accessLabel(row.role === 'editor' ? 'Invited · can edit' : 'Invited · can view'),
+            }))}
+
+            {/* THE LINK — the last row, because it is one more answer to "who
+                can open this": anyone holding it. Its dropdown is the same
+                three answers it always had; anything more about a link lives
+                under Link settings below. */}
+            {canInvite && personRow({
+              key: '__link',
+              className: 'share-row-link',
+              avatar: (
+                <span className="share-avatar share-avatar-link" aria-hidden="true">
+                  <Glyph as={accessMode === 'off' ? LockIcon : GlobeIcon} size={14} weight="regular" />
                 </span>
-                <div className="share-row-text">
-                  <div className="share-row-name">{row.email}</div>
-                  <div className="share-row-sub">
-                    {ROLE_LABEL[row.role] || row.role} · invited, joins when they sign up · {new Date(row.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-                {(isManager || row.invited_by === selfUserId) && (
-                  <button className="share-remove" onClick={() => onRevokePending(row)}>
-                    Revoke
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* LINK ACCESS — who can open this with a link, as one question with
-            three answers. "Anonymous view-only link" and "sign-in-then-join-as-
-            editor link" are not two features to somebody deciding what to send
-            a person. Copying lives in the footer, where it is the first thing
-            focused; everything else about a link — expiry, scope, indexing,
-            the list of them — is behind Link settings, where its density is
-            correct. */}
-        {canInvite && (
-          <div className="share-section">
-            <h3 className="share-section-title">Link access</h3>
-
-            <div className="share-access-row">
-              <span className="share-access-icon" aria-hidden="true">
-                <Glyph as={accessMode === 'off' ? LockIcon : GlobeIcon} size={16} weight="regular" />
-              </span>
-              <select className="share-role-select share-access-select"
-                      aria-label="Who can open this cluster with a link"
-                      value={accessMode}
-                      onChange={(e) => onPickAccess(e.target.value)}>
-                <option value="view">Anyone with the link can view</option>
-                <option value="edit">Anyone with the link can edit</option>
-                <option value="off">Only people with access</option>
-              </select>
-            </div>
-
-            <div className="share-status">{linkStatus()}</div>
-            <div className="share-hint">
-              {accessHint}
-              {otherLinks.length > 0 && (
+              ),
+              name: accessMode === 'off' ? 'Link sharing is off' : 'Anyone with the link',
+              sub: (
                 <>
-                  {' '}Also live: {otherLinks.length} other link{otherLinks.length === 1 ? '' : 's'} —{' '}
-                  <button type="button" className="share-linkish"
-                          onClick={() => setLinkSettingsOpen(true)}>
-                    manage
-                  </button>.
+                  {linkStatus()}
+                  {otherLinks.length > 0 && (
+                    <>
+                      {' · '}
+                      <button type="button" className="share-linkish"
+                              onClick={() => setLinkSettingsOpen(true)}>
+                        {otherLinks.length} other link{otherLinks.length === 1 ? '' : 's'} live
+                      </button>
+                    </>
+                  )}
                 </>
-              )}
-            </div>
+              ),
+              control: (
+                <select className="share-access-pick share-link-pick"
+                        aria-label="Who can open this cluster with a link"
+                        value={accessMode}
+                        onChange={(e) => onPickAccess(e.target.value)}>
+                  <option value="view">Can view</option>
+                  <option value="edit">Can edit</option>
+                  <option value="off">No link</option>
+                </select>
+              ),
+            })}
+          </div>
+
+          {canInvite && (
             <details className="share-link-options"
                      open={linkSettingsOpen}
                      onToggle={(e) => setLinkSettingsOpen(e.currentTarget.open)}>
@@ -1197,8 +1315,8 @@ export function ShareModal({
                 </div>
               )}
             </details>
-          </div>
-        )}
+          )}
+        </div>
 
         <ExplorePublishSection board={board} canManage={canInvite} collapsible />
 
@@ -1222,7 +1340,7 @@ export function ShareModal({
                     onClick={takeLink}
                     disabled={busyLink || accessMode === 'off'}
                     title={accessMode === 'off'
-                      ? 'Nobody can open this by link — choose who can under Link access first'
+                      ? 'Nobody can open this by link — choose who can on the link row first'
                       : 'Copies the existing link when one is already live.'}>
               <Glyph as={LinkIcon} size={14} />{' '}
               {busyLink ? 'Working…' : currentLink ? 'Copy link' : 'Create link & copy'}

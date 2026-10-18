@@ -2984,7 +2984,7 @@ Share on any cluster opens the panel, with inviting at the top. Two mechanisms:
 By email — name a person and a role. They get an invitation.
 By link — a URL carrying a role, which grants that access to whoever opens it and confirms.
 
-Inviting someone who is new to Clusters also pays you both: they get bonus cards and 0.5GB of storage when they join, and you get bonus cards and 0.5GB once they get started. The panel says so under the invite box, and Referrals has the rules.
+Inviting someone who is new to Clusters also pays you both: they get bonus cards and 0.5GB of storage when they join, and you get bonus cards and 0.5GB once they get started. The panel says what it's worth under the invite box, Details there has the rest, and Referrals has the rules.
 
 Also in the panel: current workspace members, existing per-board shares, and public links — which are a different thing, and always view-only.
 
@@ -3030,22 +3030,22 @@ Updated: 2026-10-17
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-The Share panel answers one question — who can open this cluster? — in the order you decide it: Invite people by email first, then People with access, then Link access for anyone else. Copy link and Done sit at the bottom and stay put while the rest scrolls; anything more detailed about links is behind Link settings.
+The Share panel answers one question — who can open this cluster? — in the order you decide it: the invite box first, then Who has access, one list of everyone who can open it, ending with Anyone with the link. Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. Copy link and Done sit at the bottom and stay put while the rest scrolls; anything more detailed about links is behind Link settings.
 
 You open it from Share in the board header (a round button on a phone), from ⌘K → "Share this cluster", or by right-clicking any cluster in the sidebar and choosing Share… — the last of these shares the cluster you right-clicked, not the one currently on screen.
 
-Link access — the link, and what it grants
+The link — what it grants
 
-One picker, three answers:
+The last row of Who has access is the link. Its dropdown has three answers:
 
 Setting | What the link does | Account needed
-Anyone with the link can view | Opens the cluster read-only | No
-Anyone with the link can edit | Recipient confirms, signs in, and joins as an editor | Yes
-Only people with access | Revokes every link on the cluster that you can revoke | —
+Can view | Anyone with the link opens the cluster read-only | No
+Can edit | Recipient confirms, signs in, and joins as an editor | Yes
+No link | Revokes every link on the cluster that you can revoke | —
 
-Choosing a setting that already has a link copies it straight away. Copy link at the bottom of the panel copies it again any time, and makes the link the first time. Switching between can view and can edit never revokes anything — a link you have already sent someone keeps working, and the panel tells you it is still live. Only Only people with access revokes, and it asks first.
+Choosing a setting that already has a link copies it straight away. Copy link at the bottom of the panel copies it again any time, and makes the link the first time. Switching between Can view and Can edit never revokes anything — a link you have already sent someone keeps working, and the row tells you it is still live. Only No link revokes, and it asks first.
 
-Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks Only people with access their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them.
+Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks No link their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them.
 
 An edit link is not an editable public link. It grants nothing on its own: the person who opens it sees a preview and an explicit Join step, and access is created when they sign in and take it.
 
@@ -3076,11 +3076,11 @@ On a phone, a large board opens framed on its top-left corner at a size you can 
 
 Inviting people
 
-Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, pick Can edit or Can view, and press Invite. The line under the box says what the role you picked lets them do. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up.
+Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, choose what they get — Can edit or Can view — and how far it reaches — This cluster or Whole workspace — and press Invite. The line under the box says exactly what that means, by name: that they can edit this cluster and its sub-clusters, say, or every cluster in the workspace. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up.
 
 Inviting someone new
 
-The panel says, under the invite box, what an invitation is worth. Someone who joins Clusters through your invitation starts with 25 extra cards and 0.5GB of storage, and you get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card — whichever role you invited them as, to one cluster or to the whole workspace. A new account that joins through one of your edit links counts the same way. Inviting someone who already has an account shares the cluster just as well but earns no reward. Once anyone has joined through you, the panel also shows how many, and what you have earned. The limits are on Referrals.
+The panel says, under the invite box, what an invitation is worth; Details says the rest. Someone who joins Clusters through your invitation starts with 25 extra cards and 0.5GB of storage, and you get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card — whichever role you invited them as, to one cluster or to the whole workspace. A new account that joins through one of your edit links counts the same way. Inviting someone who already has an account shares the cluster just as well but earns no reward. Once anyone has joined through you, Details also shows how many, and what you have earned. The limits are on Referrals.
 
 Each account can send 20 invitations a day, or 5 on its first day. Sharing a cluster with someone who already has an account counts, because they get an email too. Inviting the same address to the same cluster again does not, and neither does changing someone's role: neither sends anything. Past the limit, nothing is sent and the share panel tells you when you can send more. For a bigger audience, a link reaches everyone at once.
 
@@ -3090,13 +3090,15 @@ One address receives at most 3 invitation emails a day, from every sender combin
 
 Invitation emails are also watched across all of Clusters, not only per account. If an unusual number go out at once, or an account looks like it is sending in bulk, the emails are held for review instead of sent. An account under review sees "sharing is paused on this account while we review unusual activity" in the share panel; everything else about it, including its own clusters, works as before. While the review runs, the invitations it already sent can't be accepted, and if the account is less than a week old its share links pause too. All of it works again, and held invitations are sent, if the review clears it.
 
-Workspace owners and co-owners also get Whole workspace · can edit and Whole workspace · can view — those grant every cluster in the workspace, not just this one, so only they can hand them out. Share workspace… in a workspace's right-click or ⋯ menu opens the panel with Whole workspace · can edit already picked.
+Only workspace owners and co-owners get the Whole workspace choice — it grants every cluster in the workspace, not just this one. Everyone else invites to this cluster, and the panel says so. Share workspace… in a workspace's right-click or ⋯ menu opens the panel with Whole workspace already picked.
 
 Editors are free on every plan. See Collaborating.
 
-People with access
+Who has access
 
-One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here has no controls. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
+One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, invitations still waiting on a signup, and the link. The right-hand side of each row says what that person can do: a bare Can edit or Can view means this cluster (and its sub-clusters), while workspace members read Workspace · can edit or Workspace · can view.
+
+That right-hand side is also the row's one control. For someone on this cluster alone it changes their level, moves them to the Whole workspace (owners and co-owners, for someone not already in it), or removes their access — with an undo. For a workspace member, owners and co-owners can change their level, make them a co-owner or remove them from the workspace; only the owner can make someone else the owner. An invitation still waiting on a signup can be revoked from its row. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
 
 Getting a link fast
 
@@ -3953,7 +3955,7 @@ Two different things:
 Inviting a collaborator to a cluster is free and needs no referral link. That is how you work with someone.
 A referral is inviting someone to have their own account and workspace.
 
-They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel says so under its invite box.
+They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's Details, under its invite box, says so too.
 
 ## Frequently asked questions
 
@@ -3970,7 +3972,7 @@ Q: Does inviting someone who already has an account count?
 A: No. It shares the cluster with them as usual, but only people new to Clusters earn a reward.
 
 Q: Where do I see how it is going?
-A: Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel shows how many joined through you, what you have earned and what is on its way.
+A: Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel's Details shows how many joined through you, what you have earned and what is on its way.
 
 
 ========================================================================

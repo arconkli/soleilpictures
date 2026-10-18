@@ -87,12 +87,17 @@ for (const who of ['owner', 'coowner']) {
     await expect(modal).toBeVisible();
     await expect(modal.locator('#share-title .share-title-verb')).toHaveText('Share workspace');
     await expect(modal.locator('#share-title .share-title-name')).toHaveText('“Team space”');
-    await expect(modal.locator('select[aria-label="Access level for invitees"]')).toHaveValue('workspace');
+    // The invitation's reach is its own choice, and a workspace panel starts on it.
+    await expect(modal.getByRole('button', { name: 'Whole workspace' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(modal.locator('select[aria-label="Access level for invitees"]')).toHaveValue('editor');
 
-    // The editor's row: both can remove them; only the owner can hand over.
-    const editorRow = modal.locator('.share-row', { hasText: 'Member — can edit every cluster' });
-    await expect(editorRow.getByRole('button', { name: 'Remove' })).toBeVisible();
-    await expect(editorRow.getByRole('button', { name: 'Make owner' })).toHaveCount(who === 'owner' ? 1 : 0);
+    // The editor's row: one dropdown. Both can remove them; only the owner
+    // can hand over.
+    const editorRow = modal.locator('.share-row', { has: page.locator('select', { has: page.locator('option[value="__remove"]') }) });
+    const access = editorRow.locator('select');
+    await expect(access).toHaveValue('editor');
+    await expect(access.locator('option[value="__remove"]')).toHaveText('Remove from workspace…');
+    await expect(access.locator('option[value="__owner"]')).toHaveCount(who === 'owner' ? 1 : 0);
   });
 }
 
@@ -112,6 +117,7 @@ test('a cluster-scoped Share panel still starts on this cluster', async ({ page 
   await expect(modal.locator('#share-title .share-title-verb')).toHaveText('Share');
   await expect(modal.locator('#share-title .share-title-name')).toHaveText('“Studio”');
   await expect(modal.locator('select[aria-label="Access level for invitees"]')).toHaveValue('editor');
+  await expect(modal.getByRole('button', { name: 'This cluster' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('handing a workspace over warns that limits follow the new owner, and offers co-owner instead', async ({ page }) => {
@@ -130,8 +136,8 @@ test('handing a workspace over warns that limits follow the new owner, and offer
       canManage: true,
     });
   }, { me: ME });
-  const editorRow = page.locator('.share-modal .share-row', { hasText: 'Member — can edit every cluster' });
-  await editorRow.getByRole('button', { name: 'Make owner' }).click();
+  const editorRow = page.locator('.share-modal .share-row', { has: page.locator('option[value="__owner"]') });
+  await editorRow.locator('select').selectOption('__owner');
   const dialog = page.locator('.feedback-actions').locator('..');
   await expect(dialog).toContainText("plan instead of yours");
   await expect(dialog).toContainText('make them a co-owner instead');

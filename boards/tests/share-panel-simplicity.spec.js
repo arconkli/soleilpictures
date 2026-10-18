@@ -15,9 +15,10 @@
 //   2. one gold control at a time, one access decision, one people list
 //   3. nothing that used to be reachable stopped being reachable
 //
-// Since 2026-10-17 the panel is invite-first (owner decision): Invite people,
-// People with access, Link access, Explore, and a footer with Copy link and
-// Done that never scrolls away.
+// Since 2026-10-17 the panel is invite-first (owner decision): the invite row,
+// then one "Who has access" list whose rows all have the same shape (who on
+// the left, one dropdown on the right) with the link as its last row, then
+// Explore, and a footer with Copy link and Done that never scrolls away.
 //
 // SOURCE-LEVEL, deliberately: App.jsx early-returns to LocalBoardsApp under
 // ?local=1, so the panel never mounts in the harness and LocalBoardsApp has no
@@ -83,7 +84,7 @@ test.describe('the resting panel is one decision and one action', () => {
 
   test('one picker with exactly three states, over both kinds of link', () => {
     const s = modal();
-    const start = s.indexOf('share-access-select');
+    const start = s.indexOf('share-link-pick');
     const end = s.indexOf('</select>', start);
     const opts = s.slice(start, end).match(/<option value="/g) || [];
     expect(opts.length, 'the access picker must offer exactly view / edit / off').toBe(3);
@@ -97,7 +98,7 @@ test.describe('the resting panel is one decision and one action', () => {
     const s = modal();
     expect(s).toMatch(/currentLink \? 'Copy link' : 'Create link & copy'/);
     // And the status line is built from rows, not from the picker's value.
-    expect(s).toMatch(/const linkStatus = \(\) => \{[\s\S]{0,200}if \(!currentLink\) return 'No link yet'/);
+    expect(s).toMatch(/const linkStatus = \(\) => \{[\s\S]{0,500}if \(!currentLink\) return `\$\{what\} · no link yet`;/);
   });
 });
 
@@ -136,26 +137,40 @@ test.describe('everything that was on the front page is one disclosure away', ()
 });
 
 test.describe('one list, one scroll region', () => {
-  test('the two people lists became one, and none of their controls were lost', () => {
+  test('one list, every row the same shape, and none of the controls were lost', () => {
     const s = modal();
-    expect(s.match(/People with access · /g)?.length).toBe(1);
+    expect(s.match(/Who has access · /g)?.length).toBe(1);
     // The sub-headers that split it are gone — scope is carried per row.
     expect(s).not.toContain('share-subhead');
-    expect(s).toContain('Member — can edit every cluster');
-    expect(s).toMatch(/ROLE_LABEL\[s\.role\]\} — this cluster/);
+    // Every row goes through personRow: who on the left, one control on the
+    // right. Nothing renders loose text buttons beside a row any more.
+    expect(s).toContain('const personRow = ({ key, avatar, name, online = false, sub = null, control, className = \'\', title }) => (');
+    expect(s).toContain('<div className="share-row-access">{control}</div>');
+    expect(s).not.toMatch(/<button className="share-remove" onClick=\{\(\) => on(?:RemoveShare|RemoveMember|MakeOwner|RevokePending)/);
+    // Whole-workspace access names itself, so a bare "Can edit" means this cluster.
+    expect(s).toContain("editor: 'Workspace · can edit', viewer: 'Workspace · can view'");
+    expect(s).toContain("const SHARE_ACCESS = { editor: 'Can edit', viewer: 'Can view' };");
     // One empty state, not two.
     expect(s.match(/className="share-empty"/g)?.length).toBe(2);   // loading + empty
     // Every per-row control kept its gate. 0391 widened "the owner" to "the
     // owner or a co-owner" (isManager); handing the workspace over stays the
     // owner's alone.
-    expect(s).toMatch(/isManager && !isSelf && !isWsOwner/);
     // 0397: a viewer or a service account can't be made owner (the server
-    // refuses both), and a service account's row has no actions at all.
-    expect(s).toMatch(/isManager && !isSelf && !isWsOwner && m\.role !== 'service'/);
-    expect(s).toMatch(/\{isOwner && m\.role !== 'viewer' && \(\s*<button className="share-remove" onClick=\{\(\) => onMakeOwner\(m\)\}/);
-    expect(s).toMatch(/\(isManager \|\| s\.invited_by === selfUserId\)/);
+    // refuses both), and a service account's row has no control at all.
+    expect(s).toMatch(/const changeable = isManager && !isSelf && !isWsOwner && m\.role !== 'service';/);
+    // Only the assignable roles get a level to pick; an admin keeps theirs
+    // but can still be removed or made owner.
+    expect(s).toMatch(/const levelPickable = ASSIGNABLE_ROLES\.includes\(m\.role\);/);
+    expect(s).toContain("{isOwner && m.role !== 'viewer' && <option value=\"__owner\">Make owner…</option>}");
+    expect(s).toContain('<option value="__remove">Remove from workspace…</option>');
+    expect(s).toContain('<option value="__remove">Remove access…</option>');
+    expect(s).toMatch(/const canChange = isManager \|\| s\.invited_by === selfUserId;/);
     expect(s).toMatch(/\(isManager \|\| row\.invited_by === selfUserId\)/);
     expect(s).toMatch(/const isManager = isOwner \|\| myRole === 'coowner';/);
+    // The dropdown's actions land on the same flows the buttons used.
+    expect(s).toMatch(/if \(value === '__owner'\) \{ onMakeOwner\(member\); return; \}/);
+    expect(s).toMatch(/if \(value === '__remove'\) \{ onRemoveMember\(member\); return; \}/);
+    expect(s).toMatch(/if \(value === '__remove'\) \{ onRemoveShare\(share\); return; \}/);
   });
 
   test('people who reach a sub-cluster through a parent are listed, read-only', () => {
@@ -168,7 +183,7 @@ test.describe('one list, one scroll region', () => {
     const start = s.indexOf('{inherited.map(');
     expect(start).toBeGreaterThan(-1);
     const row = s.slice(start, s.indexOf('{pendingBoardInvites.map(', start));
-    expect(row).toContain('— via {via}');
+    expect(row).toContain('— via ${via}');
     // Granted on the parent, removed on the parent: no Remove, no role select.
     expect(row).not.toContain('onRemoveShare');
     expect(row).not.toContain('<select');
@@ -196,22 +211,31 @@ test.describe('one list, one scroll region', () => {
 test.describe('the simplification did not weaken the permissions', () => {
   test('viewers get no link controls at all', () => {
     // canInvite gates the invite row (and the reward note in it), the link
-    // section and the footer's Copy link; a viewer cannot mint a link, and
-    // offering one produces an RLS error.
+    // row, its settings and the footer's Copy link; a viewer cannot mint a
+    // link, and offering one produces an RLS error.
     const s = modal();
-    // Anchor on the rendered headings, not on the prose — the section names
-    // appear in this file's header comment first.
-    for (const heading of ['Invite people</h3>', 'Link access</h3>', 'ref={copyLinkRef}']) {
-      const at = s.indexOf(heading);
-      expect(at, `${heading} missing`).toBeGreaterThan(-1);
+    for (const anchor of ['<div className="share-section share-invite">', '<details className="share-link-options"', 'ref={copyLinkRef}']) {
+      const at = s.indexOf(anchor);
+      expect(at, `${anchor} missing`).toBeGreaterThan(-1);
       expect(s.slice(Math.max(0, at - 300), at)).toContain('{canInvite && (');
     }
+    expect(s).toMatch(/\{canInvite && personRow\(\{\s*key: '__link'/);
   });
 
   test('workspace membership stays with the owner and co-owners', () => {
+    // The reach of an invitation is its own choice, beside the level; only a
+    // manager gets the choice, and only a manager can widen someone already
+    // on this cluster to the whole workspace.
     const s = modal();
-    expect(s).toMatch(/isManager && \(\s*\n\s*<option value="workspace"/);
-    expect(s).toMatch(/isManager && \(\s*\n\s*<option value="workspaceviewer"/);
+    expect(s).toMatch(/\{isManager \? \(\s*<div className="share-scope" role="group"/);
+    expect(s).toContain('<span className="share-invite-scope">this cluster</span>');
+    expect(s).toMatch(/const inviteRole = isManager && inviteScope === 'workspace'/);
+    // …and never for someone already in the workspace: invite_workspace_member
+    // leaves a member's role alone, so the move would only take this cluster away.
+    expect(s).toContain('const canWiden = isManager && !workspaceMembers.some(m => m.user_id === s.user_id);');
+    expect(s).toContain('{canWiden && <option value="workspace">Whole workspace · can edit</option>}');
+    expect(s).toContain('{canWiden && <option value="workspaceviewer">Whole workspace · can view</option>}');
+    expect(s).toMatch(/if \(status !== 'granted'\) \{[\s\S]{0,200}return;\s*\}[\s\S]{0,400}unshareBoard/);
   });
 
   test('turning access off is the only path that revokes, and it confirms first', () => {

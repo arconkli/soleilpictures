@@ -27429,7 +27429,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Inviting someone who is new to Clusters also pays you both: they get bonus cards and 0.5GB of storage when they join, and you get bonus cards and 0.5GB once they get started. The panel says so under the invite box, and "
+     "v": "Inviting someone who is new to Clusters also pays you both: they get bonus cards and 0.5GB of storage when they join, and you get bonus cards and 0.5GB once they get started. The panel says what it's worth under the invite box, "
+    },
+    {
+     "t": "strong",
+     "v": "Details",
+     "children": [
+      {
+       "t": "text",
+       "v": "Details"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " there has the rest, and "
     },
     {
      "t": "link",
@@ -27844,49 +27858,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " panel answers one question — who can open this cluster? — in the order you decide it: "
+     "v": " panel answers one question — who can open this cluster? — in the order you decide it: the invite box first, then "
     },
     {
      "t": "strong",
-     "v": "Invite people",
+     "v": "Who has access",
      "children": [
       {
        "t": "text",
-       "v": "Invite people"
+       "v": "Who has access"
       }
      ]
     },
     {
      "t": "text",
-     "v": " by email first, then "
+     "v": ", one list of everyone who can open it, ending with "
     },
     {
      "t": "strong",
-     "v": "People with access",
+     "v": "Anyone with the link",
      "children": [
       {
        "t": "text",
-       "v": "People with access"
+       "v": "Anyone with the link"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", then "
-    },
-    {
-     "t": "strong",
-     "v": "Link access",
-     "children": [
-      {
-       "t": "text",
-       "v": "Link access"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " for anyone else. "
+     "v": ". Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. "
     },
     {
      "t": "strong",
@@ -27980,21 +27980,35 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Link access — the link, and what it grants",
+   "text": "The link — what it grants",
    "inline": [
     {
      "t": "text",
-     "v": "Link access — the link, and what it grants"
+     "v": "The link — what it grants"
     }
    ],
-   "id": "link-access-the-link-and-what-it-grants"
+   "id": "the-link-what-it-grants"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "One picker, three answers:"
+     "v": "The last row of "
+    },
+    {
+     "t": "strong",
+     "v": "Who has access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Who has access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is the link. Its dropdown has three answers:"
     }
    ]
   },
@@ -28025,11 +28039,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Anyone with the link can view",
+       "v": "Can view",
        "children": [
         {
          "t": "text",
-         "v": "Anyone with the link can view"
+         "v": "Can view"
         }
        ]
       }
@@ -28037,7 +28051,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Opens the cluster read-only"
+       "v": "Anyone with the link opens the cluster read-only"
       }
      ],
      [
@@ -28051,11 +28065,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Anyone with the link can edit",
+       "v": "Can edit",
        "children": [
         {
          "t": "text",
-         "v": "Anyone with the link can edit"
+         "v": "Can edit"
         }
        ]
       }
@@ -28077,11 +28091,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Only people with access",
+       "v": "No link",
        "children": [
         {
          "t": "text",
-         "v": "Only people with access"
+         "v": "No link"
         }
        ]
       }
@@ -28124,11 +28138,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "can view",
+     "v": "Can view",
      "children": [
       {
        "t": "text",
-       "v": "can view"
+       "v": "Can view"
       }
      ]
     },
@@ -28138,25 +28152,25 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "can edit",
+     "v": "Can edit",
      "children": [
       {
        "t": "text",
-       "v": "can edit"
+       "v": "Can edit"
       }
      ]
     },
     {
      "t": "text",
-     "v": " never revokes anything — a link you have already sent someone keeps working, and the panel tells you it is still live. Only "
+     "v": " never revokes anything — a link you have already sent someone keeps working, and the row tells you it is still live. Only "
     },
     {
      "t": "strong",
-     "v": "Only people with access",
+     "v": "No link",
      "children": [
       {
        "t": "text",
-       "v": "Only people with access"
+       "v": "No link"
       }
      ]
     },
@@ -28175,11 +28189,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Only people with access",
+     "v": "No link",
      "children": [
       {
        "t": "text",
-       "v": "Only people with access"
+       "v": "No link"
       }
      ]
     },
@@ -28473,7 +28487,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, pick "
+     "v": "Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, choose what they get — "
     },
     {
      "t": "strong",
@@ -28501,7 +28515,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and press "
+     "v": " — and how far it reaches — "
+    },
+    {
+     "t": "strong",
+     "v": "This cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "This cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Whole workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Whole workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — and press "
     },
     {
      "t": "strong",
@@ -28515,7 +28557,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". The line under the box says what the role you picked lets them do. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up."
+     "v": ". The line under the box says exactly what that means, by name: that they can edit this cluster and its sub-clusters, say, or every cluster in the workspace. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up."
     }
    ]
   },
@@ -28536,7 +28578,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The panel says, under the invite box, what an invitation is worth. Someone who joins Clusters through your invitation starts with 25 extra cards and 0.5GB of storage, and you get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card — whichever role you invited them as, to one cluster or to the whole workspace. A new account that joins through one of your edit links counts the same way. Inviting someone who already has an account shares the cluster just as well but earns no reward. Once anyone has joined through you, the panel also shows how many, and what you have earned. The limits are on "
+     "v": "The panel says, under the invite box, what an invitation is worth; "
+    },
+    {
+     "t": "strong",
+     "v": "Details",
+     "children": [
+      {
+       "t": "text",
+       "v": "Details"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " says the rest. Someone who joins Clusters through your invitation starts with 25 extra cards and 0.5GB of storage, and you get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card — whichever role you invited them as, to one cluster or to the whole workspace. A new account that joins through one of your edit links counts the same way. Inviting someone who already has an account shares the cluster just as well but earns no reward. Once anyone has joined through you, "
+    },
+    {
+     "t": "strong",
+     "v": "Details",
+     "children": [
+      {
+       "t": "text",
+       "v": "Details"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " also shows how many, and what you have earned. The limits are on "
     },
     {
      "t": "link",
@@ -28604,35 +28674,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Workspace owners and co-owners also get "
+     "v": "Only workspace owners and co-owners get the "
     },
     {
      "t": "strong",
-     "v": "Whole workspace · can edit",
+     "v": "Whole workspace",
      "children": [
       {
        "t": "text",
-       "v": "Whole workspace · can edit"
+       "v": "Whole workspace"
       }
      ]
     },
     {
      "t": "text",
-     "v": " and "
+     "v": " choice — it grants every cluster in the workspace, not just this one. Everyone else invites to "
     },
     {
      "t": "strong",
-     "v": "Whole workspace · can view",
+     "v": "this cluster",
      "children": [
       {
        "t": "text",
-       "v": "Whole workspace · can view"
+       "v": "this cluster"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — those grant every cluster in the workspace, not just this one, so only they can hand them out. "
+     "v": ", and the panel says so. "
     },
     {
      "t": "strong",
@@ -28664,11 +28734,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Whole workspace · can edit",
+     "v": "Whole workspace",
      "children": [
       {
        "t": "text",
-       "v": "Whole workspace · can edit"
+       "v": "Whole workspace"
       }
      ]
     },
@@ -28719,21 +28789,100 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "People with access",
+   "text": "Who has access",
    "inline": [
     {
      "t": "text",
-     "v": "People with access"
+     "v": "Who has access"
     }
    ],
-   "id": "people-with-access"
+   "id": "who-has-access"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Someone who has access because a parent was shared with them is listed as "
+     "v": "One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, invitations still waiting on a signup, and the link. The right-hand side of each row says what that person can do: a bare "
+    },
+    {
+     "t": "strong",
+     "v": "Can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Can view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " means this cluster (and its sub-clusters), while workspace members read "
+    },
+    {
+     "t": "strong",
+     "v": "Workspace · can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Workspace · can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Workspace · can view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Workspace · can view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That right-hand side is also the row's one control. For someone on this cluster alone it changes their level, moves them to the "
+    },
+    {
+     "t": "strong",
+     "v": "Whole workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Whole workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (owners and co-owners, for someone not already in it), or removes their access — with an undo. For a workspace member, owners and co-owners can change their level, make them a co-owner or remove them from the workspace; only the owner can make someone else the owner. An invitation still waiting on a signup can be revoked from its row. Someone who has access because a parent was shared with them is listed as "
     },
     {
      "t": "strong",
@@ -28747,7 +28896,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here has no controls. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
+     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
     }
    ]
   },
@@ -36002,7 +36151,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel says so under its invite box."
+     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's "
+    },
+    {
+     "t": "strong",
+     "v": "Details",
+     "children": [
+      {
+       "t": "text",
+       "v": "Details"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", under its invite box, says so too."
     }
    ]
   }
