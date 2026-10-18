@@ -56,12 +56,15 @@ export async function recordEntityLinks({
   })).filter(r => r.target_kind);
 
   if (rows.length === 0) return;
-  const { error } = await supabase.from('entity_links').upsert(rows, {
-    onConflict: 'source_kind,source_id,source_page_id,source_link_id,link_kind,target_kind,target_id,target_board_id,target_card_id,target_doc_card_id,target_page_id,target_url',
-    ignoreDuplicates: true,
-  });
-  if (error && error.code !== '23505') {
-    await supabase.from('entity_links').insert(rows).then(() => {}).catch(() => {});
+  // entity_links_unique is an expression index (COALESCE over the nullable
+  // columns), and PostgREST's on_conflict only takes column names, so an
+  // upsert could never name it: every one failed with 42P10 and fell through
+  // to an insert anyway. Insert directly. A row that already exists refuses
+  // the whole batch (23505), so then go row by row and let only the
+  // duplicates fail, instead of losing the new links along with them.
+  const { error } = await supabase.from('entity_links').insert(rows);
+  if (error?.code === '23505' && rows.length > 1) {
+    await Promise.all(rows.map((row) => supabase.from('entity_links').insert(row)));
   }
 }
 

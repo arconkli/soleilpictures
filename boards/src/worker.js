@@ -244,8 +244,13 @@ function cspReportOnlyFor(nonce) {
   return [
     "default-src 'self'",
     `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
-    "style-src 'self' 'unsafe-inline' https://use.typekit.net",
-    "font-src 'self' data: https://use.typekit.net",
+    // Typekit's kit CSS @imports p.typekit.net/p.css (Adobe's page-view count
+    // for the font licence); styles.css @imports JetBrains Mono from Google
+    // Fonts, and googleFonts.js / customFonts.js / settings/fields.jsx load
+    // user-picked Google families. The report window (2026-10-08…18) was
+    // mostly these.
+    "style-src 'self' 'unsafe-inline' https://use.typekit.net https://p.typekit.net https://fonts.googleapis.com",
+    "font-src 'self' data: https://use.typekit.net https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://${PARTY_HOST} wss://${PARTY_HOST} https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.facebook.com`,
@@ -2769,6 +2774,8 @@ export function cspReportRows(body, userAgent = '', now = Date.now()) {
     let page = null;
     try { page = new URL(r['document-uri'] || r.documentURL).pathname.slice(0, 200); } catch (_) { /* no page */ }
     const file = r['source-file'] || r.sourceFile;
+    // Not our code: enforcing the policy would only block the extension.
+    if (/^(?:chrome|moz|safari|safari-web|ms-browser)-extension\b|^webkit-masked-url\b/i.test(String(file || ''))) continue;
     const key = `${directive}|${blocked}|${page}`;
     if ((cspSeen.get(key) || 0) > now - 10 * 60_000) continue;
     if (cspSeen.size > 2000) cspSeen.clear();

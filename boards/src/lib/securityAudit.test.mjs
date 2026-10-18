@@ -854,6 +854,10 @@ test('the Report-Only policy reports to an endpoint that keeps origins and paths
   assert.doesNotMatch(JSON.stringify(rows[0]), /secret|session=|v=1/);
   // The same violation on the same page is recorded once per ten minutes.
   assert.equal(cspReportRows({ 'csp-report': { 'effective-directive': 'script-src-elem', 'blocked-uri': 'https://evil.example/x.js', 'document-uri': 'https://clusters.soleilpictures.com/docs/api' } }, 'UA', 1_000_000 + 60_000).length, 0);
+  // A browser extension's own violation is not ours to report (Chrome sends
+  // just the scheme as the source file); a normal one still yields a row.
+  assert.equal(cspReportRows({ 'csp-report': { 'effective-directive': 'script-src-elem', 'blocked-uri': 'https://a.example/x.js', 'document-uri': 'https://clusters.soleilpictures.com/ext', 'source-file': 'chrome-extension' } }, 'UA', 3_000_000).length, 0);
+  assert.equal(cspReportRows({ 'csp-report': { 'effective-directive': 'script-src-elem', 'blocked-uri': 'https://a.example/x.js', 'document-uri': 'https://clusters.soleilpictures.com/ext', 'source-file': 'https://clusters.soleilpictures.com/assets/a.js' } }, 'UA', 3_000_000).length, 1);
   // Reporting API batches are read too.
   assert.equal(cspReportRows([{ type: 'csp-violation', body: { effectiveDirective: 'img-src', blockedURL: 'https://x.example/i.png', documentURL: 'https://clusters.soleilpictures.com/pricing' } }], '', 2_000_000).length, 1);
 });
