@@ -1,8 +1,9 @@
 // The files sidebar in the phone drawer, through the dev-only QA harness
 // (?sidebarqa=1, which opens its drawer on a phone the way the menu button
 // would). The same two parts as the desktop — clusters, then the files of the
-// one you're in — sized for a thumb and scrolling as one: 44px rows, tap for
-// Quick look, hold for a file's menu, no resize handle and no divider.
+// one you're in (or Recent, or Starred: tabs) — sized for a thumb and scrolling
+// as one: 44px rows and tabs, tap for Quick look, hold for a file's menu, no
+// resize handle and no divider.
 import { expect, test } from '@playwright/test';
 
 async function open(page) {
@@ -19,10 +20,14 @@ test.describe('sidebar files on a phone', () => {
     await expect(page.locator('.sbf-divider')).toBeHidden();
     const h = (sel) => page.locator(sel).first().evaluate((el) => Math.round(el.getBoundingClientRect().height));
     expect(await h('.sb-tree-row.is-files')).toBe(44);
-    expect(await h('.sbf-files .sbf-file')).toBe(48);
+    expect(await h('.sbf-files .sbf-file')).toBe(44);
+    expect(await h('.sbf-quickbtn')).toBe(44);
+    expect(await h('.sbf-tab')).toBe(44);
     // Photos are rows like every other file: no grid of tiles.
     const photo = page.locator('.sbf-files [data-sb-item^="film:film-img-"]').first();
-    expect(await photo.evaluate((el) => Math.round(el.getBoundingClientRect().height))).toBe(48);
+    expect(await photo.evaluate((el) => Math.round(el.getBoundingClientRect().height))).toBe(44);
+    // Nothing that only shows on hover: a shelf's ⤢ isn't drawn for a finger.
+    await expect(page.locator('.sbf-shelf-open').first()).toBeHidden();
     await expect(page.locator('.sbf-files .sbf-tile, .sbf-files .sbf-mosaic')).toHaveCount(0);
     // The files come after the clusters, in the same scroll.
     const navBottom = await page.locator('.sbf-nav').evaluate((el) => el.getBoundingClientRect().bottom);
@@ -33,6 +38,16 @@ test.describe('sidebar files on a phone', () => {
     const rowRights = await page.locator('.sbf-files .sbf-file')
       .evaluateAll((els) => els.slice(0, 8).map((el) => el.getBoundingClientRect().right));
     for (const r of rowRights) expect(r).toBeLessThanOrEqual(right);
+  });
+
+  test('the tabs switch what the files show', async ({ page }) => {
+    await open(page);
+    const files = page.locator('.sbf-files');
+    await files.getByRole('tab', { name: 'Starred', exact: true }).tap();
+    await expect(files.getByRole('tab', { selected: true })).toHaveText('Starred');
+    await expect(files.locator('.sbf-cluster-link', { hasText: 'Moodboards' })).toBeVisible();
+    await files.getByRole('tab', { name: 'Feature film', exact: true }).tap();
+    await expect(files.locator('[data-sb-item^="film:film-img-"]').first()).toBeVisible();
   });
 
   test('a tap opens Quick look', async ({ page }) => {

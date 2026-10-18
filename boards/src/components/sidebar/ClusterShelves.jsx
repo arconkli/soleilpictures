@@ -12,18 +12,21 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
 import { Icon } from '../Icon.jsx';
+import { ArrowsOutSimple } from '../../lib/icons.js';
 import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
 import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebarRows.js';
 
 const WINDOW_AFTER = 80;
-// Rows start a little in from the list's edge, so a hover fill has room.
-const ROW_PAD = 6;
-// Row heights for the list, in step with clusterSidebar.css.
+// Rows start a little in from the list's edge, so a hover fill has room: with
+// the list's own 8px, a row's thumbnail and label sit on the sidebar's 16px edge.
+const ROW_PAD = 8;
+// Row heights for the list, in step with clusterSidebar.css: one 32px rhythm
+// (44px to a finger), a shelf's label with a little air above it.
 const LIST_HEIGHTS = {
-  fine: { shelf: 34, file: 36, more: 30, loading: 32, empty: 44, fold: 30 },
-  coarse: { shelf: 40, file: 48, more: 44, loading: 44, empty: 52, fold: 44 },
+  fine: { shelf: 36, file: 32, more: 32, loading: 32, empty: 44, fold: 32 },
+  coarse: { shelf: 44, file: 44, more: 44, loading: 44, empty: 52, fold: 44 },
 };
 const EMPTY_NOTE = 'No files here yet. Drop some in, or press Upload.';
 
@@ -139,7 +142,7 @@ function Row({ row, depth, ctx }) {
           <button type="button" className="sbf-shelf-open" tabIndex={-1}
                   title="Open in Files" aria-label={`Open ${row.label || row.shelfId} in Files`}
                   onClick={(e) => { e.stopPropagation(); onOpenShelf(row.boardId, row.shelfId); }}>
-            ⤢
+            <Icon as={ArrowsOutSimple} size={12} />
           </button>
         )}
       </div>

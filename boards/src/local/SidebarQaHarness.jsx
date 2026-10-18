@@ -1,6 +1,6 @@
 // Sidebar-files QA (?sidebarqa=1). Mounts the real <ClusterSidebar> in the
-// real sidebar shell over fixture clusters, so its shelves, Quick look, finder,
-// chips, sort menu, paging and resize can be driven and screenshotted with no
+// real sidebar shell over fixture clusters, so its tabs, shelves, Quick look,
+// the All files menu, paging and resize can be driven and screenshotted with no
 // backend. The open cluster is live (its cards are in memory, as yb.cards would
 // be); every other cluster is served by a fake of 0419's RPCs that keeps the
 // same contract (shelf counts, a peek per shelf, offset paging, the four
@@ -17,7 +17,7 @@ import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { ChevronLeft, ChevronRight, PanelLeftOpen, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question } from '../lib/icons.js';
+import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question } from '../lib/icons.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -226,12 +226,25 @@ export function SidebarQaHarness() {
       <aside className={`sidebar${phone ? ' is-mobile-open' : ''}${!phone && isWideSidebar(width) ? ' is-wide' : ''}`}>
         {!phone && <SidebarResizer width={width} onChange={(w) => setWidth(clampSidebarWidth(w))} />}
         <div className="sb-mid">
-          {/* The real top rows' classes, so the parts below sit as they do in App. */}
+          {/* App's head, by its classes, so the parts below sit as they do there:
+              the workspace, search everywhere (an icon), and collapse. */}
           <div className="sb-top">
-            <div className="sb-mid-head"><span className="sb-ws-name">Sidebar QA</span></div>
-            <button type="button" className="sb-search" onClick={() => say('palette ""')}>
-              <Icon as={Search} size={13} /><span>Search…</span><span className="sb-search-kbd">⌘K</span>
-            </button>
+            <div className="sb-mid-head">
+              <button type="button" className="sb-ws-trigger" onClick={() => say('workspaces')}>
+                <span className="sb-ws-avatar" style={{ background: '#8b7cf6' }}>S</span>
+                <span className="sb-ws-name">Sidebar QA</span>
+                <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                  <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button type="button" className="sb-mid-search" onClick={() => say('palette ""')} title="Search (⌘K)" aria-label="Search">
+                <Icon as={Search} size={14} />
+              </button>
+              <button type="button" className="sb-mid-collapse" onClick={() => setCollapsed(true)}
+                      title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
+                <Icon as={PanelLeftClose} size={14} />
+              </button>
+            </div>
           </div>
           <ClusterSidebar
             workspaceId={WS}
@@ -247,7 +260,6 @@ export function SidebarQaHarness() {
             quickNav={{
               home: { active: false, onClick: () => say('home') },
               messages: { active: false, unread: 2, onClick: () => say('messages') },
-              schedule: { active: false, unread: 0, onClick: () => say('schedule') },
             }}
             listRef={listRef}
             source={source}

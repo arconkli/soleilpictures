@@ -9363,6 +9363,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
+            {/* The files sidebar keeps one search box, the files' own: search
+                everywhere is this icon (and ⌘K). */}
+            {filesSidebar && (
+              <button className="sb-mid-search" onClick={() => setPaletteOpen(true)}
+                      title="Search (⌘K)" aria-label="Search">
+                <Icon as={Search} size={14} />
+              </button>
+            )}
             {/* In the drawer this is the drawer's close. It used to write the
                 desktop collapse preference (to the account) and leave the
                 drawer open with every row hidden. */}
@@ -9433,14 +9441,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             );
           })()}
 
-          <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
-            <Icon as={Search} size={13} />
-            <span>Search…</span>
-            <span className="sb-search-kbd">⌘K</span>
-          </button>
+          {!filesSidebar && (
+            <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
+              <Icon as={Search} size={13} />
+              <span>Search…</span>
+              <span className="sb-search-kbd">⌘K</span>
+            </button>
+          )}
 
-          {/* With the files sidebar these are one row of the sidebar's own,
-              beside Recent and Starred (ClusterSidebar quickNav). */}
+          {/* With the files sidebar, Home and Messages are rows of its own
+              (ClusterSidebar quickNav); Recent and Starred are tabs on its files. */}
           {!filesSidebar && (<>
           <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
                {...rowButtonProps(() => setCurrentSurface('home'))}>
@@ -9527,17 +9537,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               quickNav={{
                 home: { active: currentSurface === 'home', onClick: () => setCurrentSurface('home') },
                 messages: { active: !!tweak.showMessages, unread: messagesUnread, onClick: () => setTweak('showMessages', !tweak.showMessages) },
-                // The bell only when it has something to show, as in the old rows.
-                schedule: ((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) ? {
-                  active: notifOpen,
-                  unread: notifications.unread || 0,
-                  onClick: () => {
-                    if (!notifOpen) {
-                      try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
-                    }
-                    setNotifOpen((v) => !v);
-                  },
-                } : null,
+                // No Schedule: the feature is retired (owner, 2026-10-18).
               }}
               listRef={sidebarScrollRef}
               boardsSectionProps={{

@@ -20,6 +20,8 @@ import { boardClipboardSize } from '../lib/boardClipboard.js';
 import { openInfo } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { INDENT } from '../lib/sidebarRows.js';
+import { Icon } from './Icon.jsx';
+import { ChevronRight } from '../lib/icons.js';
 
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -425,7 +427,7 @@ export function SidebarBoardTree({
     return (
       <div key={board.id} className="sb-tree-node">
         <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}${filesView ? ' is-files' : ''}`}
-             style={{ paddingLeft: 6 + depth * (filesView ? INDENT : 14) }}
+             style={{ paddingLeft: filesView ? 8 + depth * INDENT : 6 + depth * 14 }}
              data-board-id={board.id}
              draggable={!isRenaming}
              onDragStart={(e) => {
@@ -545,14 +547,16 @@ export function SidebarBoardTree({
                beginRename(board);
              }}
              title={isRenaming ? '' : 'Click to open · double-click to rename · drag onto another board to nest it'}>
-          <button className="sb-tree-chev"
+          <button className={`sb-tree-chev${filesView && isOpen ? ' is-open' : ''}`}
                   onClick={(e) => { e.stopPropagation(); if (hasKids) toggle(board.id); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}
                   /* The row itself takes focus and handles →/←, so the chevron
                      would only be a second tab stop per row. */
                   tabIndex={-1}
                   aria-hidden="true">
-            {isOpen ? '▾' : '▸'}
+            {/* The files sidebar's chevron is the icon its section heads use (it turns
+                when open); the old sidebar keeps its triangles. */}
+            {filesView ? <Icon as={ChevronRight} size={11} /> : (isOpen ? '▾' : '▸')}
           </button>
           {!filesView && <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />}
           {isRenaming ? (

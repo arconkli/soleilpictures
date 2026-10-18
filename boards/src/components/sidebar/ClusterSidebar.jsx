@@ -12,24 +12,27 @@
 // beside them, a column of their own. The layout itself is CSS
 // (clusterSidebar.css): this renders the parts.
 //
-// The files section reads like the Files page: a header naming the cluster,
-// a search scoped to it, chips for each kind of file it holds, its
-// sub-clusters as tiles, then photos as a grid and everything else as rows.
+// Above the clusters, Home and Messages, a row of words each. The files
+// section has three tabs for what it shows (the cluster, Recent, Starred), one
+// search line whose "All files ⌄" menu filters, sorts and groups, then the
+// files as rows, a small thumbnail beside each name (owner, 2026-10-18: the
+// board is the visual place, the sidebar a calm list of words).
 // Clicking a file opens Quick look; double-clicking goes to it on its board.
 // Files drag onto any cluster in the tree to move there (⌥ copies), and files
 // from the desktop drop on a cluster or onto the section itself.
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { Icon } from '../Icon.jsx';
-import { Search, X, Columns2, ArrowsOutSimple } from '../../lib/icons.js';
+import { Search, X, Columns2, ArrowsOutSimple, ChevronDown } from '../../lib/icons.js';
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
 import { ClusterShelves } from './ClusterShelves.jsx';
 import { SidebarMeter } from './SidebarMeter.jsx';
 import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { FILTER_CHIPS, SHELF_IDS } from '../../lib/sidebarShelves.js';
 import { SORTS, filterItems } from '../../lib/sidebarSort.js';
 import { isWideSidebar, toggledSidebarWidth } from '../../lib/sidebarWidth.js';
@@ -74,16 +77,34 @@ function ancestorsOf(boards, id) {
   return out;
 }
 
-// Where to go, in one row of words: Home, Messages and Schedule (App's), then
-// Recent and Starred, which show their files in the section below. Words only,
-// no icons (the owner's call), with an unread count after the word.
+// Where to go: Home and Messages (App's), a row each. Words only, no icons
+// (the owner's call), and an unread count as a plain number at the row's end.
 function QuickBtn({ label, active = false, unread = 0, onClick }) {
   return (
     <button type="button" className={`sbf-quickbtn${active ? ' is-on' : ''}`} aria-pressed={active} onClick={onClick}>
       <span className="sbf-quick-label">{label}</span>
-      {unread > 0 && <span className="sbf-quick-badge" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
+      {unread > 0 && <span className="sbf-quick-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
     </button>
   );
+}
+
+// Where the "All files" menu opens: under its button when it fits, else over
+// it; fitting neither, it slides up the window until it all shows (over its
+// button, as menus do), and scrolls only in a window shorter than itself. It
+// is portaled, so the files section's overflow (the divider can make it
+// short) can't cut it off.
+function placeMenu(btn, menu) {
+  if (!btn) return null;
+  const r = btn.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const want = menu ? menu.scrollHeight : 0;
+  const right = Math.max(8, window.innerWidth - r.right);
+  const below = vh - r.bottom - 12;
+  const above = r.top - 12;
+  if (want <= below) return { right, top: r.bottom + 4, maxHeight: below };
+  if (want <= above) return { right, bottom: vh - r.top + 4, maxHeight: above };
+  const room = vh - 16;
+  return { right, top: Math.max(8, vh - 8 - Math.min(want, room)), maxHeight: room };
 }
 
 export function ClusterSidebar({
@@ -98,7 +119,7 @@ export function ClusterSidebar({
   width = 320,
   coarse = false,
   onSetWidth = null,      // (px) => void — the expand button's jump between narrow and wide
-  quickNav = null,        // { home, messages, schedule }: { active, unread?, onClick } each, from App
+  quickNav = null,        // { home, messages }: { active, unread?, onClick } each, from App
   listRef,                // App's .sb-list ref (scroll edges)
   boardsSectionProps,     // everything SidebarBoardsSection already took from App
   sharedSection,          // <SidebarSharedBoards/>
@@ -133,7 +154,49 @@ export function ClusterSidebar({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const filterBtnRef = useRef(null);
-  useDismissOnOutside(menuRef, menuOpen, () => setMenuOpen(false));
+  const menuPopRef = useRef(null);
+  const [menuPos, setMenuPos] = useState(null);
+  // Opened from the keyboard (a click with no pointer), the item in force shows
+  // it has focus; opened with a pointer, focus goes there quietly.
+  const menuByKey = useRef(false);
+  // The menu itself is portaled out of menuRef: a click in it isn't outside.
+  useDismissOnOutside(menuRef, menuOpen, () => setMenuOpen(false), { ignore: '.sbf-menu' });
+  useLayoutEffect(() => {
+    if (!menuOpen) { setMenuPos(null); return undefined; }
+    const place = (e) => {
+      const t = e?.target;
+      if (t instanceof Node && menuPopRef.current?.contains(t)) return;   // scrolling the menu itself
+      setMenuPos(placeMenu(filterBtnRef.current, menuPopRef.current));
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [menuOpen]);
+  // Once it's placed (hidden until then, and hidden can't take focus), focus
+  // goes into the menu, on the item in force, so ↑/↓, Tab and Esc work there.
+  const menuPlaced = !!menuPos;
+  useEffect(() => {
+    if (!menuOpen || !menuPlaced) return;
+    const pop = menuPopRef.current;
+    (pop?.querySelector('[aria-checked="true"]') || pop?.querySelector('[role^="menuitem"]'))
+      ?.focus({ preventScroll: true, focusVisible: menuByKey.current });
+  }, [menuOpen, menuPlaced]);
+  // A choice closes the menu and hands focus back to its button, as Esc does.
+  const closeMenu = () => { setMenuOpen(false); filterBtnRef.current?.focus({ preventScroll: true }); };
+  const onMenuKeyDown = (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); closeMenu(); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    const items = [...(menuPopRef.current?.querySelectorAll('[role^="menuitem"]') || [])];
+    const i = items.indexOf(document.activeElement);
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1
+      : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    items[j]?.focus();
+  };
 
   const boardList = useMemo(
     () => Object.values(boards || {}).filter((b) => b && b.workspace_id === workspaceId && !b.deleted_at),
@@ -176,9 +239,28 @@ export function ClusterSidebar({
   const lastBoard = useRef(activeBoardId || null);
   if (activeBoardId) lastBoard.current = activeBoardId;
   useEffect(() => { setShown(null); setQuery(''); }, [activeBoardId]);
-  const shownId = shown ? null : (activeBoardId || lastBoard.current);
-  const view = shown || (shownId && allBoards?.[shownId] ? 'cluster' : 'recent');
+  // The first tab: that cluster, whichever tab is showing.
+  const clusterId = activeBoardId || lastBoard.current;
+  const clusterBoard = clusterId ? allBoards?.[clusterId] || null : null;
+  const shownId = shown ? null : clusterId;
+  const view = shown || (clusterBoard ? 'cluster' : 'recent');
   useEffect(() => { if (view === 'cluster' && shownId) files.ensure(shownId); }, [view, shownId, files.ensure]);
+  const tabs = [
+    ...(clusterBoard ? [{ id: 'cluster', label: clusterBoard.name || 'Untitled', select: () => setShown(null) }] : []),
+    { id: 'recent', label: 'Recent', select: () => setShown('recent') },
+    { id: 'starred', label: 'Starred', select: () => setShown('starred') },
+  ];
+  const tabsId = useId();
+  // ←/→ (and Home/End) move along the tabs and show what they move to.
+  const onTabsKeyDown = (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    const i = Math.max(0, tabs.findIndex((t) => t.id === view));
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1
+      : (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[j].select();
+    e.currentTarget.querySelectorAll('[role="tab"]')[j]?.focus();
+  };
 
   // ── Narrow or wide ────────────────────────────────────────────────────────
   const wide = !coarse && isWideSidebar(width);
@@ -552,6 +634,11 @@ export function ClusterSidebar({
   const chipLabel = chip === 'all' ? 'All files' : (FILTER_CHIPS.find((c) => c.id === chip)?.label || 'All files');
   const nothing = !contents.loading && !(contents.shelves || []).some((sh) => sh.total > 0 || sh.items?.length);
   const filesListRef = useRef(null);
+  // Fade the list's edges only where there's more to scroll to, as the
+  // clusters' list does.
+  useScrollEdges(filesListRef);
+  const sourceKey = view === 'cluster' ? `cluster:${shownId}` : view;
+  useEffect(() => { if (filesListRef.current) filesListRef.current.scrollTop = 0; }, [sourceKey]);
   // What scrolls the files, for a long list's windowing: their own list, or
   // in the phone drawer (which scrolls as one) the drawer.
   const filesScrollRef = useMemo(() => ({
@@ -584,11 +671,6 @@ export function ClusterSidebar({
       <nav className="sbf-quick" aria-label="Go to">
         {quickNav?.home && <QuickBtn label="Home" {...quickNav.home} />}
         {quickNav?.messages && <QuickBtn label="Messages" {...quickNav.messages} />}
-        {quickNav?.schedule && <QuickBtn label="Schedule" {...quickNav.schedule} />}
-        <QuickBtn label="Recent" active={view === 'recent'}
-                  onClick={() => setShown(view === 'recent' ? null : 'recent')} />
-        <QuickBtn label="Starred" active={view === 'starred'}
-                  onClick={() => setShown(view === 'starred' ? null : 'starred')} />
       </nav>
 
       <div className="sb-list sbf-nav" ref={listRef} onKeyDown={onListKeyDown}
@@ -616,15 +698,22 @@ export function ClusterSidebar({
 
       <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}>
         <header className="sbf-files-head">
-          <span className="sbf-files-name" title={title}>{title}</span>
-          {view !== 'cluster' && (
-            <button type="button" className="sbf-iconbtn" aria-label="Back to the cluster’s files" title="Back to the cluster’s files"
-                    onClick={() => setShown(null)}>
-              <Icon as={X} size={13} />
-            </button>
-          )}
+          <div className="sbf-tabs" role="tablist" aria-label="Show files from" onKeyDown={onTabsKeyDown}>
+            {tabs.map((t) => {
+              const on = view === t.id;
+              return (
+                <button type="button" key={t.id} role="tab" id={`${tabsId}-${t.id}`}
+                        aria-selected={on} aria-controls={`${tabsId}-panel`} tabIndex={on ? 0 : -1}
+                        className={`sbf-tab${t.id === 'cluster' ? ' is-cluster' : ''}${on ? ' is-on' : ''}`}
+                        title={t.id === 'cluster' ? t.label : undefined}
+                        onClick={() => { if (!on) t.select(); }}>
+                  <span className="sbf-tab-label">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
           {!coarse && onSetWidth && (
-            <button type="button" className={`sbf-iconbtn is-reveal${wide ? ' is-on' : ''}`}
+            <button type="button" className="sbf-iconbtn is-reveal"
                     aria-label={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
                     title={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
                     aria-pressed={wide}
@@ -632,14 +721,19 @@ export function ClusterSidebar({
               <Icon as={Columns2} size={14} />
             </button>
           )}
-          {view === 'cluster' && onOpenShelf && (
-            <button type="button" className="sbf-iconbtn" aria-label="Open in the full Files page" title="Open in the full Files page"
+          {onOpenShelf && (view === 'cluster' ? (
+            <button type="button" className="sbf-iconbtn is-expand" aria-label="Open in the full Files page" title="Open in the full Files page"
                     onClick={() => onOpenShelf(shownId, null)}>
               <Icon as={ArrowsOutSimple} size={14} />
             </button>
-          )}
+          ) : (
+            // Recent and Starred have no Files page of their own; the space
+            // stays, so the icon before it doesn't move between tabs.
+            <span className="sbf-iconbtn is-expand is-slot" aria-hidden="true" />
+          ))}
         </header>
 
+        <div className="sbf-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${view}`}>
         <div className="sbf-files-tools">
           <div className="sbf-search">
             <Icon as={Search} size={13} />
@@ -667,43 +761,50 @@ export function ClusterSidebar({
                       className={`sbf-filter-btn${chip !== 'all' ? ' is-on' : ''}${menuOpen ? ' is-open' : ''}`}
                       aria-haspopup="menu" aria-expanded={menuOpen}
                       title={`Showing ${chipLabel.toLowerCase()} · sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
-                      onClick={() => setMenuOpen((o) => !o)}>
-                {chipLabel}<span className="sbf-filter-caret" aria-hidden="true">▾</span>
+                      onClick={(e) => { menuByKey.current = e.detail === 0; setMenuOpen((o) => !o); }}>
+                {chipLabel}<span className="sbf-filter-caret" aria-hidden="true"><Icon as={ChevronDown} size={11} /></span>
               </button>
-              {menuOpen && (
-                <div className="sbf-menu" role="menu">
+              {menuOpen && createPortal(
+                <div className="sbf-menu" role="menu" aria-label="Show, sort and group" ref={menuPopRef}
+                     style={menuPos || { top: 0, right: 0, visibility: 'hidden' }}
+                     onKeyDown={onMenuKeyDown}>
                   <div className="sbf-menu-label">Show</div>
                   {chips.map((c) => (
                     <button type="button" key={c.id} role="menuitemradio" aria-checked={chip === c.id}
                             className={`sbf-menu-item${chip === c.id ? ' is-on' : ''}`}
-                            onClick={() => { setChip(c.id); setMenuOpen(false); }}>
+                            onClick={() => { setChip(c.id); closeMenu(); }}>
                       {c.id === 'all' ? 'All files' : c.label}
                       {(chipCounts[c.id] || 0) > 0 && <span className="sbf-menu-count">{chipCounts[c.id]}</span>}
                     </button>
                   ))}
+                  <div className="sbf-menu-sep" role="separator" />
                   <div className="sbf-menu-label">Sort</div>
                   {SORTS.map((so) => (
                     <button type="button" key={so} role="menuitemradio" aria-checked={prefs.sort === so}
                             className={`sbf-menu-item${prefs.sort === so ? ' is-on' : ''}`}
-                            onClick={() => { setPref('sort', so); setMenuOpen(false); }}>
+                            onClick={() => { setPref('sort', so); closeMenu(); }}>
                       {SORT_LABELS[so]}
                     </button>
                   ))}
+                  <div className="sbf-menu-sep" role="separator" />
                   <div className="sbf-menu-label">Group by</div>
                   {Object.keys(GROUP_LABELS).map((g) => (
                     <button type="button" key={g} role="menuitemradio" aria-checked={prefs.groupBy === g}
                             className={`sbf-menu-item${prefs.groupBy === g ? ' is-on' : ''}`}
-                            onClick={() => { setPref('groupBy', g); setMenuOpen(false); }}>
+                            onClick={() => { setPref('groupBy', g); closeMenu(); }}>
                       {GROUP_LABELS[g]}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body,
               )}
             </div>
           </div>
         </div>
 
         <div className="sbf-files-list" ref={filesListRef} onKeyDown={onListKeyDown}>
+          {/* Keyed on what it shows: a new source starts at the top, and fades in. */}
+          <div className="sbf-files-body" key={sourceKey}>
           {starredClusters.length > 0 && (
             <div className="sbf-block" role="group" aria-label="Starred clusters">
               <div className="sbf-shelf sbf-starred-head">
@@ -746,6 +847,8 @@ export function ClusterSidebar({
               scrollRef={filesScrollRef}
             />
           )}
+          </div>
+        </div>
         </div>
 
         {selected.size > 0 && (

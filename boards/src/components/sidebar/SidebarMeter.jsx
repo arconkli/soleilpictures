@@ -2,18 +2,26 @@
 //
 // One quiet line (owner, 2026-10-18: the sidebar had too much going on). The
 // free plan stops at a card limit OR a storage limit, whichever comes first,
-// so the line names both, "38 of 50 cards · 1.2 GB of 5.0 GB", over one thin
-// bar for whichever is closer to full; a paid plan has no card limit and
-// names storage alone. The numbers come from the same places the plan pill
-// reads (useMyTier's count and limit, passed in so this never calls useMyTier
-// itself, and useStorageUsage). The bar is neutral ink: gold is for active and
-// selected things, and a meter is neither. Red only near full, as in
-// Settings → Billing.
+// so the line names both, "38 of 50 cards · 1.2 of 5.0 GB"; a paid plan has
+// no card limit and names storage alone. The bar is the foot's own top edge,
+// filled as far as whichever limit is closer to full. The numbers come from
+// the same places the plan pill reads (useMyTier's count and limit, passed in
+// so this never calls useMyTier itself, and useStorageUsage). The bar is
+// neutral ink: gold is for active and selected things, and a meter is
+// neither. Red only near full, as in Settings → Billing.
 
 import { useRef } from 'react';
 import { fmtBytes } from '../../lib/storageLabel.js';
 
 const NEAR = 0.9;
+
+// "1.2 of 5.0 GB" when both are in one unit, so the line fits a narrow column.
+function storageText(used, quota) {
+  const u = fmtBytes(used);
+  const q = fmtBytes(quota);
+  const [n, unit] = u.split(' ');
+  return unit && unit === q.split(' ')[1] ? `${n} of ${q}` : `${u} of ${q}`;
+}
 
 export function SidebarMeter({
   isPaid = false, cardsUsed = 0, cardLimit = null, storage = null,
@@ -27,13 +35,16 @@ export function SidebarMeter({
   const cardFrac = showCards ? used / Number(cardLimit) : 0;
   const parts = [
     showCards ? `${used} of ${cardLimit} cards` : null,
-    known ? `${fmtBytes(storage.used)} of ${fmtBytes(storage.quota)}` : null,
+    known ? storageText(storage.used, storage.quota) : null,
   ].filter(Boolean);
   const frac = Math.max(cardFrac, storageFrac);
   const pct = Math.max(0, Math.min(100, frac * 100));
 
   return (
     <div className="sbf-meter">
+      <div className="sbf-meter-track" aria-hidden="true">
+        {parts.length > 0 && <div className={`sbf-meter-fill${frac >= NEAR ? ' is-near' : ''}`} style={{ width: `${pct}%` }} />}
+      </div>
       <div className="sbf-meter-line">
         {parts.length > 0 && (
           <button type="button" className="sbf-meter-text" onClick={onOpenPlan}
@@ -52,11 +63,6 @@ export function SidebarMeter({
           </>
         )}
       </div>
-      {parts.length > 0 && (
-        <div className="sbf-meter-track" aria-hidden="true">
-          <div className={`sbf-meter-fill${frac >= NEAR ? ' is-near' : ''}`} style={{ width: `${pct}%` }} />
-        </div>
-      )}
     </div>
   );
 }
