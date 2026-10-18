@@ -717,7 +717,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-07
+Updated: 2026-10-17
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -785,7 +785,7 @@ Limits
 
 Images are not size-capped on any plan. The caps that exist are on video, audio and PDF for free accounts.
 
-Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing.
+Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator, plus 0.5GB for each person you invite who gets started. The meter is in Settings → Plan & billing.
 
 Building a reference wall specifically? The mood board maker guide walks the whole workflow.
 
@@ -1561,7 +1561,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-12
+Updated: 2026-10-17
 
 Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.
 
@@ -1608,7 +1608,7 @@ Batches upload a few at a time so one huge file does not block eleven small ones
 
 Storage
 
-Uploads count against your account's storage quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched.
+Uploads count against your account's storage quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join (Referrals).
 
 Storage is counted against the owner of the cluster, not the person who uploaded. If you are an editor on someone else's board, your uploads use their quota — which is the same rule that governs the card cap.
 
@@ -2959,7 +2959,7 @@ A: Forward slash opens it too, when you are not typing into something.
 ========================================================================
 # Collaborating
 URL: https://clusters.soleilpictures.com/docs/collaborate
-Updated: 2026-10-12
+Updated: 2026-10-17
 
 Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
@@ -2984,12 +2984,14 @@ Cards added to someone else's cluster count against their card allowance; files 
 
 Inviting
 
-Share on any cluster opens the dialog. Two mechanisms:
+Share on any cluster opens the panel, with inviting at the top. Two mechanisms:
 
 By email — name a person and a role. They get an invitation.
 By link — a URL carrying a role, which grants that access to whoever opens it and confirms.
 
-Also in the dialog: current workspace members, existing per-board shares, and public links — which are a different thing, and always view-only.
+Inviting someone who is new to Clusters also pays you both: they get bonus cards and 0.5GB of storage when they join, and you get bonus cards and 0.5GB once they get started. The panel says what it's worth under the invite box, Details there has the rest, and Referrals has the rules.
+
+Also in the panel: current workspace members, existing per-board shares, and public links — which are a different thing, and always view-only.
 
 Workspaces
 
@@ -3029,26 +3031,26 @@ A: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-10-12
+Updated: 2026-10-17
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-The Share panel answers one question — who can open this cluster? — and everything in it hangs off that answer. It opens on one button and one picker; the rest is behind Link settings.
+The Share panel answers one question — who can open this cluster? — in the order you decide it: the invite box first, then Who has access, one list of everyone who can open it, ending with Anyone with the link. Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. Copy link and Done sit at the bottom and stay put while the rest scrolls; anything more detailed about links is behind Link settings.
 
-You open it from Share in the board header, from ⌘K → "Share this cluster", or by right-clicking any cluster in the sidebar and choosing Share… — the last of these shares the cluster you right-clicked, not the one currently on screen.
+You open it from Share in the board header (a round button on a phone), from ⌘K → "Share this cluster", or by right-clicking any cluster in the sidebar and choosing Share… — the last of these shares the cluster you right-clicked, not the one currently on screen.
 
-General access — the link, and what it grants
+The link — what it grants
 
-One picker, three answers:
+The last row of Who has access is the link. Its dropdown has three answers:
 
 Setting | What the link does | Account needed
-Anyone with the link · can view | Opens the cluster read-only | No
-Anyone with the link · can edit | Recipient confirms, signs in, and joins as an editor | Yes
-Only invited people | Revokes every link on the cluster that you can revoke | —
+Can view | Anyone with the link opens the cluster read-only | No
+Can edit | Recipient confirms, signs in, and joins as an editor | Yes
+No link | Revokes every link on the cluster that you can revoke | —
 
-Choosing one hands you the link straight away; the button beside the picker copies it again any time. Switching between can view and can edit never revokes anything — a link you have already sent someone keeps working, and the panel tells you it is still live. Only Only invited people revokes, and it asks first.
+Choosing a setting that already has a link copies it straight away. Copy link at the bottom of the panel copies it again any time, and makes the link the first time. Switching between Can view and Can edit never revokes anything — a link you have already sent someone keeps working, and the row tells you it is still live. Only No link revokes, and it asks first.
 
-Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks Only invited people their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them.
+Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks No link their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them.
 
 An edit link is not an editable public link. It grants nothing on its own: the person who opens it sees a preview and an explicit Join step, and access is created when they sign in and take it.
 
@@ -3077,9 +3079,13 @@ The board renders in a real canvas — viewers pan, zoom and open images at full
 
 On a phone, a large board opens framed on its top-left corner at a size you can actually read, rather than fitting the whole thing into an unreadable speck. Pinch out to see everything; nothing is hidden, only the starting view differs. Boards small enough to fit legibly still open showing all of themselves.
 
-Inviting specific people
+Inviting people
 
-Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, pick Can edit or Can view, and send. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up.
+Use this when you have addresses and want named people rather than whoever holds a URL. Enter one address or several separated by commas, choose what they get — Can edit or Can view — and how far it reaches — This cluster or Whole workspace — and press Invite. The line under the box says exactly what that means, by name: that they can edit this cluster and its sub-clusters, say, or every cluster in the workspace. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up.
+
+Inviting someone new
+
+The panel says, under the invite box, what an invitation is worth; Details says the rest. Someone who joins Clusters through your invitation starts with 25 extra cards and 0.5GB of storage, and you get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card — whichever role you invited them as, to one cluster or to the whole workspace. A new account that joins through one of your edit links counts the same way. Inviting someone who already has an account shares the cluster just as well but earns no reward. Once anyone has joined through you, Details also shows how many, and what you have earned. The limits are on Referrals.
 
 Each account can send 20 invitations a day, or 5 on its first day. Sharing a cluster with someone who already has an account counts, because they get an email too. Inviting the same address to the same cluster again does not, and neither does changing someone's role: neither sends anything. Past the limit, nothing is sent and the share panel tells you when you can send more. For a bigger audience, a link reaches everyone at once.
 
@@ -3089,17 +3095,19 @@ One address receives at most 3 invitation emails a day, from every sender combin
 
 Invitation emails are also watched across all of Clusters, not only per account. If an unusual number go out at once, or an account looks like it is sending in bulk, the emails are held for review instead of sent. An account under review sees "sharing is paused on this account while we review unusual activity" in the share panel; everything else about it, including its own clusters, works as before. While the review runs, the invitations it already sent can't be accepted, and if the account is less than a week old its share links pause too. All of it works again, and held invitations are sent, if the review clears it.
 
-Workspace owners and co-owners get a third choice, Whole workspace — that grants every cluster in the workspace, not just this one, so only they can hand it out. Share workspace… in a workspace's right-click or ⋯ menu opens the panel with that choice already picked.
+Only workspace owners and co-owners get the Whole workspace choice — it grants every cluster in the workspace, not just this one. Everyone else invites to this cluster, and the panel says so. Share workspace… in a workspace's right-click or ⋯ menu opens the panel with Whole workspace already picked.
 
 Editors are free on every plan. See Collaborating.
 
-People with access
+Who has access
 
-One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. Each row says what that person can do and how far it reaches. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here has no controls. Owners and co-owners can change a role or remove access from here; only the owner can transfer the workspace. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
+One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, invitations still waiting on a signup, and the link. The right-hand side of each row says what that person can do: a bare Can edit or Can view means this cluster (and its sub-clusters), while workspace members read Workspace · can edit or Workspace · can view.
+
+That right-hand side is also the row's one control. For someone on this cluster alone it changes their level, moves them to the Whole workspace (owners and co-owners, for someone not already in it), or removes their access — with an undo. For a workspace member, owners and co-owners can change their level, make them a co-owner or remove them from the workspace; only the owner can make someone else the owner. An invitation still waiting on a signup can be revoked from its row. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
 
 Getting a link fast
 
-Two presses, and the second one is already under your cursor: Share opens the panel focused on Create link & copy, so Share then Enter puts a view-only link on your clipboard. Creating it also refreshes the preview image the link will unfurl with.
+Two presses, and the second one is already under your cursor: Share opens the panel focused on Copy link (it reads Create link & copy until the cluster has a link), so Share then Enter puts a view-only link on your clipboard. Creating it also refreshes the preview image the link will unfurl with.
 
 Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick. You cannot mint a link on one, but you can still open Share to see who has access.
 
@@ -3603,7 +3611,7 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-10-12
+Updated: 2026-10-17
 
 Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
@@ -3647,7 +3655,7 @@ Current plan, the Stripe customer portal for payment details and cancellation, a
 
 Invite & earn
 
-Your referral link, share targets, and the stats: friends joined, how many got started, cards earned, free months.
+Your referral link, share targets, and the stats: friends joined, how many got started, cards and storage earned, free months.
 
 This workspace
 
@@ -3901,41 +3909,43 @@ A: No. Text colours are resolved against the actual background, so notes stay le
 ========================================================================
 # Referrals
 URL: https://clusters.soleilpictures.com/docs/account/referrals
-Updated: 2026-10-07
+Updated: 2026-10-17
 
-Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get 25 bonus cards once they have actually started using Clusters and their account is 72 hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.
+Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
 
-Settings → Invite and earn.
+Invite from Share on any cluster, or from Settings → Invite and earn.
 
 How it works
 
-Share your referral link. Someone who signs up through it gets bonus cards of their own straight away. You get 25 bonus cards once they actually get started — they have placed their first card — and their account is 72 hours old and has been opened in the app.
+Invite someone who does not have a Clusters account yet: by email from a cluster's Share panel, with one of your edit links, or with your referral link. When they sign up they get 25 extra cards and 0.5GB of storage straight away. You get 25 bonus cards and 0.5GB as soon as they actually get started — they have opened the app and placed their first card.
 
 The activation gate is the important detail. The reward is not for a signup, it is for someone who used the product — which means the number in your stats reflects people who are actually there.
 
 Limits
 
 4 rewards in any 30 days. Friends past that still count as got started; their rewards wait their turn, oldest first, and land as the 30-day window frees.
+Only people new to Clusters count. Inviting someone who already has an account shares the cluster with them, but earns no reward.
 Nothing is paid to, or for, a banned account.
-Rewards are checked every hour, so one lands within the hour of coming due.
+Anything held back is checked again every hour, so it lands within the hour of coming due.
 
-Bonus cards
+Bonus cards and storage
 
-Bonus cards raise your card limit above the free plan's 50. They stack across referrals and they do not expire.
+Bonus cards raise your card limit above the free plan's 50. Bonus storage adds to your drive on any plan: 0.5GB for joining through an invitation, and 0.5GB for each friend of yours who gets started. Both stack across referrals and neither expires.
 
-They apply on top of your allowance, so a free account with referrals genuinely has more room rather than a temporary boost. See Cards.
+They go to each person's own account, on top of their own allowance, so a free account with referrals genuinely has more room rather than a temporary boost. Work inside someone else's cluster still counts against that cluster's owner, as it always does. See Cards and Plans.
 
 Stats
 
-The tab tracks four things:
+The tab tracks:
 
 Stat | Meaning
-Friends joined | Signed up through your link
+Friends joined | Signed up through your link or your invitation
 Got started | Of those, how many actually used it
 Cards earned | Bonus cards credited to you
+Storage earned | Bonus storage credited to you
 Free months | Any subscription time earned
 
-The gap between the first two is the honest one. It is shown rather than hidden. Cards still on their way — for friends who got started recently, or past the 30-day limit — are listed under the stats until they land.
+The gap between the first two is the honest one. It is shown rather than hidden. Rewards still on their way — past the 30-day limit — are listed under the stats until they land.
 
 Sharing the link
 
@@ -3948,21 +3958,24 @@ Two different things:
 Inviting a collaborator to a cluster is free and needs no referral link. That is how you work with someone.
 A referral is inviting someone to have their own account and workspace.
 
-They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once.
+They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's Details, under its invite box, says so too.
 
 ## Frequently asked questions
 
 Q: When does the reward land?
-A: Your friend's bonus lands when they sign up. Yours lands once they have placed their first card, opened the app, and their account is 72 hours old. Rewards are checked every hour. A dormant signup earns you nothing.
+A: Your friend's bonus lands when they sign up. Yours lands as soon as they have opened the app and placed their first card. Anything held back is checked again every hour.
 
 Q: Is there a limit?
 A: You can earn at most 4 rewards in any 30 days. Friends past that still count; their rewards wait their turn and land as the window frees.
 
-Q: What do bonus cards do?
-A: They raise your card limit above the free plan's 50. They stack, and they do not expire.
+Q: What do the bonuses do?
+A: Bonus cards raise your card limit above the free plan's 50. Bonus storage adds to your drive on any plan. Both stack, and neither expires.
+
+Q: Does inviting someone who already has an account count?
+A: No. It shares the cluster with them as usual, but only people new to Clusters earn a reward.
 
 Q: Where do I see how it is going?
-A: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months, and any cards still on their way.
+A: Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel's Details shows how many joined through you, what you have earned and what is on its way.
 
 
 ========================================================================

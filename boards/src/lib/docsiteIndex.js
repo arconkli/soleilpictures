@@ -1128,7 +1128,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-12",
+    "updated": "2026-10-17",
     "navLabel": "Overview",
     "headings": [
       {

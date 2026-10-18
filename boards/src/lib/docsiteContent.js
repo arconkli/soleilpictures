@@ -8427,7 +8427,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator. The meter is in Settings → Plan & billing."
+     "v": "Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator, plus 0.5GB for each person you "
+    },
+    {
+     "t": "link",
+     "v": "invite",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "invite"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " who gets started. The meter is in Settings → Plan & billing."
     }
    ]
   },
@@ -14606,7 +14621,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched."
+     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join ("
+    },
+    {
+     "t": "link",
+     "v": "Referrals",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "Referrals"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ")."
     }
    ]
   },
@@ -33402,7 +33432,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " link, share targets, and the stats: friends joined, how many got started, cards earned, free months."
+     "v": " link, share targets, and the stats: friends joined, how many got started, cards and storage earned, free months."
     }
    ]
   },
@@ -35622,14 +35652,36 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "Invite from "
+    },
+    {
      "t": "strong",
-     "v": "Settings → Invite and earn.",
+     "v": "Share",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Invite and earn."
+       "v": "Share"
       }
      ]
+    },
+    {
+     "t": "text",
+     "v": " on any cluster, or from "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Invite and earn",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Invite and earn"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -35650,7 +35702,50 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Share your referral link. Someone who signs up through it gets bonus cards of their own straight away. You get "
+     "v": "Invite someone who does not have a Clusters account yet: by email from a cluster's "
+    },
+    {
+     "t": "link",
+     "v": "Share panel",
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share panel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with one of your edit links, or with your referral link. When they sign up they get "
+    },
+    {
+     "t": "strong",
+     "v": "25 extra cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "25 extra cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "0.5GB of storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "0.5GB of storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " straight away. You get "
     },
     {
      "t": "strong",
@@ -35664,7 +35759,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " once they "
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "0.5GB",
+     "children": [
+      {
+       "t": "text",
+       "v": "0.5GB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " as soon as they "
     },
     {
      "t": "strong",
@@ -35678,7 +35787,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — they have placed their first card — and their account is 72 hours old and has been opened in the app."
+     "v": " — they have opened the app and placed their first card."
     }
    ]
   },
@@ -35726,6 +35835,22 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Only people new to Clusters count.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Only people new to Clusters count."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Inviting someone who already has an account shares the cluster with them, but earns no reward."
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Nothing is paid to, or for, a banned account.",
       "children": [
        {
@@ -35738,7 +35863,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Rewards are checked every hour, so one lands within the hour of coming due."
+      "v": "Anything held back is checked again every hour, so it lands within the hour of coming due."
      }
     ]
    ]
@@ -35746,14 +35871,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Bonus cards",
+   "text": "Bonus cards and storage",
    "inline": [
     {
      "t": "text",
-     "v": "Bonus cards"
+     "v": "Bonus cards and storage"
     }
    ],
-   "id": "bonus-cards"
+   "id": "bonus-cards-and-storage"
   },
   {
    "type": "para",
@@ -35774,7 +35899,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". They stack across referrals and they do not expire."
+     "v": ". Bonus storage adds to your drive on any plan: 0.5GB for joining through an invitation, and 0.5GB for each friend of yours who gets started. Both stack across referrals and neither expires."
     }
    ]
   },
@@ -35783,7 +35908,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "They apply on top of your allowance, so a free account with referrals genuinely has more room rather than a temporary boost. See "
+     "v": "They go to each person's own account, on top of their own allowance, so a free account with referrals genuinely has more room rather than a temporary boost. Work inside someone else's cluster still counts against that cluster's owner, as it always does. See "
     },
     {
      "t": "link",
@@ -35793,6 +35918,21 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "link",
+     "v": "Plans",
+     "href": "/docs/account/plans",
+     "children": [
+      {
+       "t": "text",
+       "v": "Plans"
       }
      ]
     },
@@ -35819,7 +35959,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The tab tracks four things:"
+     "v": "The tab tracks:"
     }
    ]
   },
@@ -35850,7 +35990,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Signed up through your link"
+       "v": "Signed up through your link or your invitation"
       }
      ]
     ],
@@ -35886,6 +36026,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Storage earned"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Bonus storage credited to you"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Free months"
       }
      ],
@@ -35903,7 +36057,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The gap between the first two is the honest one. It is shown rather than hidden. Cards still on their way — for friends who got started recently, or past the 30-day limit — are listed under the stats until they land."
+     "v": "The gap between the first two is the honest one. It is shown rather than hidden. Rewards still on their way — past the 30-day limit — are listed under the stats until they land."
     }
    ]
   },

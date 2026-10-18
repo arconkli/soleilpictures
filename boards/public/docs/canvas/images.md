@@ -2,7 +2,7 @@
 
 > Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-10-17_
 
 Images are the reason most boards exist. Getting them in is meant to be
 thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its
@@ -109,7 +109,8 @@ Images are not size-capped on any plan. The caps that exist are on
 [video, audio and PDF](/docs/files) for free accounts.
 
 Storage is counted against your account quota: 5GB on the free
-plan, 100GB on Creator. The meter is in Settings → Plan & billing.
+plan, 100GB on Creator, plus 0.5GB for
+each person you [invite](/docs/account/referrals) who gets started. The meter is in Settings → Plan & billing.
 
 ---
 
