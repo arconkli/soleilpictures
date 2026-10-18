@@ -2,7 +2,7 @@
 
 > A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-17_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-18_
 
 The **Share** panel answers one question — who can open this cluster? — in the
 order you decide it: the invite box first, then **Who has access**, one list of
@@ -191,8 +191,102 @@ To make a board genuinely public and discoverable — listed in the directory an
 indexable — see [Explore](/docs/publish/explore). That is a separate, reviewed
 step, not something a share link does by accident.
 
-## Sharing a file instead of a link
+## Sharing a single file
 
-If the recipient needs a file rather than a live view, see
-[Exporting a board](/docs/canvas/export). A link is usually better: it does not
-go stale.
+A cluster link shares everything on the cluster. To send one video, one PDF or
+one mix and nothing else, share the file on its own: the person you send it to
+opens a page with just that file, and never sees the cluster it sits in.
+
+**Share file…** is wherever the file is:
+
+- right-click the file on the canvas
+- right-click its row in [Files](/docs/clusters/list-view), or open the row's menu
+- the file's menu in the sidebar
+- **Quick look** in Files
+- the **Share** button in any full-screen view — the video player, the image
+  viewer, the PDF viewer
+
+Images, video, audio, PDFs and other files can all be shared this way. You need
+to be able to edit the cluster the file is in.
+
+### The dialog
+
+| Part | What it does |
+|---|---|
+| **Add people by email** | Each person gets an email with the link, as **Can view** or **Can comment** — up to 20 people at a time |
+| **People with access** | Everyone you added; change their role or **Remove** them, with an undo |
+| **General access** | **Only people added**, or **Anyone with the link**, which then has its own role: **Can view** or **Can comment** |
+| **Allow downloading** | Whether people you share it with get a **Download** button for the original file |
+| **Copy link** | Copies the file's link |
+
+The link is the file's own page. Open it yourself and anyone who can edit the
+cluster sees **Manage sharing** at the top, which opens the same dialog.
+
+### What the other person sees
+
+Only the file: its name, who shared it, and the player or viewer for it — a
+video plays, a PDF pages, an image opens full size. Nothing else from the
+cluster or the workspace is on the page or reachable from it.
+
+Nobody needs an account to view a file shared with **Anyone with the link**, or
+to download it when downloading is allowed. A file shared with **Only people
+added** asks them to sign in as the address you added. To comment, they sign in
+with a code sent to their email, and land back on the same file.
+
+### Comments
+
+Anyone with **Can comment** can leave comments beside the file, up to
+2,000 characters each.
+
+- On **video and audio**, a comment is pinned to the moment the player was at,
+  and pressing its time jumps there. Unpin it for a comment about the whole file.
+- On a **PDF**, a comment is pinned to the page.
+- A comment takes **replies**, one level deep.
+- Anyone who can edit the cluster can **Resolve** or **Delete** any comment;
+  everyone can delete their own. Deleting has an undo.
+
+One person can post up to 20 comments every
+10 minutes on a file.
+
+The person who shared the file gets a row in the bell for every comment, and an
+email when they are not in the app — at most one email per file every
+30 minutes, and only while **Comment replies** is
+on in [Notifications](/docs/collaborate/notifications). Someone whose comment gets a
+reply gets a row in the bell too.
+
+### When the file changes
+
+- **A new version** shows on the same link. Comments made on an older version
+  stay, labelled **on an earlier version**.
+- **Moving the file** to another cluster in the same workspace keeps the link
+  working; it follows the file.
+- **Deleting the file**, or moving it to another workspace, ends the link.
+
+### Stopping sharing
+
+Remove a person, or switch **General access** back to **Only people added**,
+and new opens are refused at once. A page someone already has open notices
+within a few minutes and stops showing the file.
+
+### What it cannot do
+
+**Allow downloading** off hides the **Download** button and stops the page
+handing out the original file. It cannot stop someone saving what they can see
+— a screenshot, a screen recording, the video as it plays. If the file must not
+leave, do not share it.
+
+Program and script files — an `.exe`, a `.dmg`, a shell script, an `.html` page
+and the like — never play or preview on a shared page. They are download-only,
+behind a warning that a file like this can run programs on a computer. A link
+to **Anyone with the link** set by an account less than
+72 hours old does not open them at all.
+
+File links are never indexed by search engines, whatever the setting on the
+cluster.
+
+Sharing a file is free on every plan. The file stays where it is and counts
+toward its owner's [storage](/docs/files#storage) exactly as before; sharing it
+makes no copy.
+
+To send a copy instead of a live page, see
+[Exporting a board](/docs/canvas/export).

@@ -73,6 +73,9 @@ import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
   INVITE_BONUS_STORAGE_BYTES, INVITE_BONUS_STORAGE_LABEL, formatBonusBytes,
 } from '../src/lib/inviteReward.js';
+import {
+  FILE_COMMENT_MAX_CHARS, FILE_COMMENT_BURST, FILE_COMMENT_BURST_MINUTES, FILE_SHARE_PEOPLE_PER_CALL,
+} from '../src/lib/fileShares.js';
 import { latestDefinition } from '../src/lib/migrationText.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -218,6 +221,19 @@ if (!newAccountHours || !newAccountWorkspaces) {
   throw new Error('gen-docs: the new-account limits were not found — update the extractor');
 }
 
+// Sharing one file (/f/<token>, migrations 0421 and 0422): how often a comment
+// emails the person who shared the file (_tg_file_comment_notify — the bell row
+// is never throttled), and how old the account that opened a link to anyone
+// has to be before a program or script file opens through it
+// (_file_share_access).
+const fileCommentEmailMinutes = latestSqlDefining('_tg_file_comment_notify')
+  ?.match(/_tg_file_comment_notify\(\)[\s\S]*?kind = 'file\.commented'[\s\S]*?emailed_at > now\(\) - interval '(\d+) minutes'/);
+const fileShareRiskyNewAccountHours = latestSqlDefining('_file_share_access')
+  ?.match(/_file_share_access\([\s\S]*?link_set_by and u\.created_at > now\(\) - interval '(\d+) hours'/);
+if (!fileCommentEmailMinutes || !fileShareRiskyNewAccountHours) {
+  throw new Error('gen-docs: the file-share email throttle or new-account window was not found — update the extractor');
+}
+
 // A referral's reward (_pay_referral_rewards, migrations 0377 and 0416): the
 // cards it pays the inviter and how many rewards one person collects in 30
 // days. The friend's own cards on joining, granted in the two places a referral
@@ -352,6 +368,15 @@ export const FACTS = {
   // meanwhile (0375).
   newAccountHours: newAccountHours[1],
   newAccountWorkspaces: newAccountWorkspaces[1],
+  // Sharing one file (lib/fileShares.js, which fileShareMigration.test.mjs
+  // pins to 0421's SQL): a comment's length, the per-author burst, and how
+  // many people one Send adds. Then two read from the SQL itself.
+  fileCommentMaxChars: FILE_COMMENT_MAX_CHARS.toLocaleString('en-US'),
+  fileCommentBurst: String(FILE_COMMENT_BURST),
+  fileCommentBurstMinutes: String(FILE_COMMENT_BURST_MINUTES),
+  fileSharePeoplePerCall: String(FILE_SHARE_PEOPLE_PER_CALL),
+  fileCommentEmailMinutes: fileCommentEmailMinutes[1],
+  fileShareRiskyNewAccountHours: fileShareRiskyNewAccountHours[1],
   // What a referral pays the inviter and how often (0377, 0416), what the
   // friend gets on joining (0163, 0371), the storage each side gets (0416),
   // and the edit-link window for counting as a referral (claim_collab_link).

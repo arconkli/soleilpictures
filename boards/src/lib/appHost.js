@@ -88,11 +88,12 @@ export function sidebarFilesAllowed() {
 // The file-sharing hold
 //
 // Sharing one file on its own (/f/<token>): the share dialog's entry points
-// and the notification rows ask this first. Same allowlist shape as the holds
-// above: dev and the preview deploy see it, every other origin is closed until
-// the release flips it with the docs that describe it.
+// and the notification rows ask this first. It was held to DEV || preview
+// (the allowlist shape of the holds above) until the release, which shipped it
+// with the docs that describe it (docs/collaborate/sharing). It stays the one
+// switch: hold it again here, and every entry point closes together.
 export function fileSharesAllowed() {
-  return import.meta.env.DEV || onPreviewHost();
+  return true;
 }
 
 // ---------------------------------------------------------------------------

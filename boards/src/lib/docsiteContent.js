@@ -15177,6 +15177,44 @@ export const DOCS_CONTENT = {
      "v": " can be downloaded from the viewer."
     }
    ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To send someone one file on its own — a page with just that file, its player and its comments, and nothing else from the cluster — use "
+    },
+    {
+     "t": "strong",
+     "v": "Share file…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share file…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "link",
+     "v": "Sharing a single file",
+     "href": "/docs/collaborate/sharing#sharing-a-single-file",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sharing a single file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ")."
+    }
+   ]
   }
  ],
  "/docs/files/pdf": [
@@ -29106,21 +29144,885 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Sharing a file instead of a link",
+   "text": "Sharing a single file",
    "inline": [
     {
      "t": "text",
-     "v": "Sharing a file instead of a link"
+     "v": "Sharing a single file"
     }
    ],
-   "id": "sharing-a-file-instead-of-a-link"
+   "id": "sharing-a-single-file"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "If the recipient needs a file rather than a live view, see "
+     "v": "A cluster link shares everything on the cluster. To send one video, one PDF or one mix and nothing else, share the file on its own: the person you send it to opens a page with just that file, and never sees the cluster it sits in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Share file…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share file…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is wherever the file is:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "right-click the file on the canvas"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "right-click its row in "
+     },
+     {
+      "t": "link",
+      "v": "Files",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or open the row's menu"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the file's menu in the sidebar"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in Files"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button in any full-screen view — the video player, the image viewer, the PDF viewer"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Images, video, audio, PDFs and other files can all be shared this way. You need to be able to edit the cluster the file is in."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The dialog",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The dialog"
+    }
+   ],
+   "id": "the-dialog"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Part"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Add people by email",
+       "children": [
+        {
+         "t": "text",
+         "v": "Add people by email"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Each person gets an email with the link, as "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "strong",
+       "v": "Can comment",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can comment"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — up to 20 people at a time"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "People with access",
+       "children": [
+        {
+         "t": "text",
+         "v": "People with access"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everyone you added; change their role or "
+      },
+      {
+       "t": "strong",
+       "v": "Remove",
+       "children": [
+        {
+         "t": "text",
+         "v": "Remove"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " them, with an undo"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "General access",
+       "children": [
+        {
+         "t": "text",
+         "v": "General access"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "strong",
+       "v": "Only people added",
+       "children": [
+        {
+         "t": "text",
+         "v": "Only people added"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "strong",
+       "v": "Anyone with the link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Anyone with the link"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", which then has its own role: "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "strong",
+       "v": "Can comment",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can comment"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Allow downloading",
+       "children": [
+        {
+         "t": "text",
+         "v": "Allow downloading"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Whether people you share it with get a "
+      },
+      {
+       "t": "strong",
+       "v": "Download",
+       "children": [
+        {
+         "t": "text",
+         "v": "Download"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " button for the original file"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Copy link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Copy link"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copies the file's link"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The link is the file's own page. Open it yourself and anyone who can edit the cluster sees "
+    },
+    {
+     "t": "strong",
+     "v": "Manage sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage sharing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top, which opens the same dialog."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What the other person sees",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the other person sees"
+    }
+   ],
+   "id": "what-the-other-person-sees"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only the file: its name, who shared it, and the player or viewer for it — a video plays, a PDF pages, an image opens full size. Nothing else from the cluster or the workspace is on the page or reachable from it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Nobody needs an account to view a file shared with "
+    },
+    {
+     "t": "strong",
+     "v": "Anyone with the link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Anyone with the link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or to download it when downloading is allowed. A file shared with "
+    },
+    {
+     "t": "strong",
+     "v": "Only people added",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only people added"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " asks them to sign in as the address you added. To comment, they sign in with a code sent to their email, and land back on the same file."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Comments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments"
+    }
+   ],
+   "id": "comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Anyone with "
+    },
+    {
+     "t": "strong",
+     "v": "Can comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can comment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can leave comments beside the file, up to 2,000 characters each."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "On "
+     },
+     {
+      "t": "strong",
+      "v": "video and audio",
+      "children": [
+       {
+        "t": "text",
+        "v": "video and audio"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", a comment is pinned to the moment the player was at, and pressing its time jumps there. Unpin it for a comment about the whole file."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a "
+     },
+     {
+      "t": "strong",
+      "v": "PDF",
+      "children": [
+       {
+        "t": "text",
+        "v": "PDF"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", a comment is pinned to the page."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A comment takes "
+     },
+     {
+      "t": "strong",
+      "v": "replies",
+      "children": [
+       {
+        "t": "text",
+        "v": "replies"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", one level deep."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Anyone who can edit the cluster can "
+     },
+     {
+      "t": "strong",
+      "v": "Resolve",
+      "children": [
+       {
+        "t": "text",
+        "v": "Resolve"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " any comment; everyone can delete their own. Deleting has an undo."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One person can post up to 20 comments every 10 minutes on a file."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The person who shared the file gets a row in the bell for every comment, and an email when they are not in the app — at most one email per file every 30 minutes, and only while "
+    },
+    {
+     "t": "strong",
+     "v": "Comment replies",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comment replies"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is on in "
+    },
+    {
+     "t": "link",
+     "v": "Notifications",
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Someone whose comment gets a reply gets a row in the bell too."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "When the file changes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When the file changes"
+    }
+   ],
+   "id": "when-the-file-changes"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A new version",
+      "children": [
+       {
+        "t": "text",
+        "v": "A new version"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " shows on the same link. Comments made on an older version stay, labelled "
+     },
+     {
+      "t": "strong",
+      "v": "on an earlier version",
+      "children": [
+       {
+        "t": "text",
+        "v": "on an earlier version"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Moving the file",
+      "children": [
+       {
+        "t": "text",
+        "v": "Moving the file"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to another cluster in the same workspace keeps the link working; it follows the file."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Deleting the file",
+      "children": [
+       {
+        "t": "text",
+        "v": "Deleting the file"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or moving it to another workspace, ends the link."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Stopping sharing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Stopping sharing"
+    }
+   ],
+   "id": "stopping-sharing"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Remove a person, or switch "
+    },
+    {
+     "t": "strong",
+     "v": "General access",
+     "children": [
+      {
+       "t": "text",
+       "v": "General access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " back to "
+    },
+    {
+     "t": "strong",
+     "v": "Only people added",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only people added"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and new opens are refused at once. A page someone already has open notices within a few minutes and stops showing the file."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What it cannot do",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it cannot do"
+    }
+   ],
+   "id": "what-it-cannot-do"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Allow downloading",
+     "children": [
+      {
+       "t": "text",
+       "v": "Allow downloading"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " off hides the "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button and stops the page handing out the original file. It cannot stop someone saving what they can see — a screenshot, a screen recording, the video as it plays. If the file must not leave, do not share it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Program and script files — an "
+    },
+    {
+     "t": "code",
+     "v": ".exe"
+    },
+    {
+     "t": "text",
+     "v": ", a "
+    },
+    {
+     "t": "code",
+     "v": ".dmg"
+    },
+    {
+     "t": "text",
+     "v": ", a shell script, an "
+    },
+    {
+     "t": "code",
+     "v": ".html"
+    },
+    {
+     "t": "text",
+     "v": " page and the like — never play or preview on a shared page. They are download-only, behind a warning that a file like this can run programs on a computer. A link to "
+    },
+    {
+     "t": "strong",
+     "v": "Anyone with the link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Anyone with the link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " set by an account less than 72 hours old does not open them at all."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "File links are never indexed by search engines, whatever the setting on the cluster."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing a file is free on every plan. The file stays where it is and counts toward its owner's "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "/docs/files#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " exactly as before; sharing it makes no copy."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To send a copy instead of a live page, see "
     },
     {
      "t": "link",
@@ -29135,7 +30037,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". A link is usually better: it does not go stale."
+     "v": "."
     }
    ]
   }

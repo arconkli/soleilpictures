@@ -473,3 +473,52 @@ test.describe('sharing from a full-screen viewer', () => {
     await expect(page.getByRole('button', { name: 'Manage sharing' })).toHaveCount(0);
   });
 });
+
+// The real route: /f/<uuid> through main.jsx's ladder, outside AuthGate, with
+// only the party's /file-share answer (and the comment RPC) mocked. The shape
+// is the harness's ok() fixture; the video is the harness's local one.
+test.describe('the /f/ route', () => {
+  const ROUTE_TOKEN = '7c1e2d3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
+  const VIDEO = '/tests/fixtures/media/frames-vp9.mp4';
+  const viewOk = {
+    status: 'ok', access: 'view', signed_in: false, can_comment: false, allow_download: false,
+    file: { kind: 'video', name: 'Route cut v1', mime: 'video/mp4', size: 2304, duration: 2, page_count: null, ext: 'mp4', risky: false },
+    shared_by: { name: 'Jules Marlow', avatar_url: null },
+    comment_count: 0, urls: { src: VIDEO }, ttl: 21600,
+  };
+
+  async function openRoute(page, body) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const seen = [];
+    await page.route('**/parties/upload/share/file-share', async (r) => {
+      seen.push(r.request().postDataJSON());
+      await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+    await page.route('**/rest/v1/rpc/get_file_comments', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', access: 'view', comments: [] }) }));
+    await page.goto(`/f/${ROUTE_TOKEN}`);
+    return seen;
+  }
+
+  test('opens the shared file on its own page, with no app around it', async ({ page }) => {
+    const seen = await openRoute(page, viewOk);
+    await expect(page.locator('.fsp-name')).toHaveText('Route cut v1');
+    await expect(page.locator('.fsp-stage video')).toHaveCount(1);
+    expect(seen.some((b) => b?.token === ROUTE_TOKEN)).toBe(true);
+    // No app chrome and no sign-in wall: the route renders before AuthGate.
+    await expect(page.locator('.app')).toHaveCount(0);
+    await expect(page.locator('.sidebar')).toHaveCount(0);
+    await expect(page.locator('.topbar')).toHaveCount(0);
+    await expect(page.locator('.auth-screen')).toHaveCount(0);
+    await expect(page.locator('.auth-code-input')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Download' })).toHaveCount(0);
+  });
+
+  test('a link that has ended says so', async ({ page }) => {
+    await openRoute(page, { status: 'gone' });
+    await expect(page.getByRole('heading', { name: "This file isn't available anymore." })).toBeVisible();
+    await expect(page.locator('.fsp-stage')).toHaveCount(0);
+    await expect(page.locator('.app')).toHaveCount(0);
+    await expect(page.locator('.auth-screen')).toHaveCount(0);
+  });
+});

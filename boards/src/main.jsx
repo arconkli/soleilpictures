@@ -46,6 +46,7 @@ const ChangelogPage   = lazyWithReload(() => import('./pages/ChangelogPage.jsx')
 const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.jsx').then(m => ({ default: m.OAuthConsentPage })));
 const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').then(m => ({ default: m.ResumePage })));
 const TemplateSharePage = lazyWithReload(() => import('./pages/TemplateSharePage.jsx').then(m => ({ default: m.TemplateSharePage })));
+const FileSharePage = lazyWithReload(() => import('./components/fileShare/FileSharePage.jsx').then(m => ({ default: m.FileSharePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -177,6 +178,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined' &&
 // non-account-holders can preview a board without signing up. Any
 // other path falls through to the normal app + auth gate.
 const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i);
+const fileShareMatch = window.location.pathname.match(/^\/f\/([0-9a-f-]{36})\/?$/i);
 
 // /t/<uuid> = a shared GRID TEMPLATE (migration 0265). Same trust model as
 // /share — the token in the path is the whole authorization — but a far lighter
@@ -289,7 +291,7 @@ const showPublicPricing = !!pricingMatch && !hasCachedSession();
 // are in the entry chunk, so nothing suspends on the way to it.
 const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
   || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch
-  || resumeMatch);
+  || fileShareMatch || resumeMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
@@ -517,6 +519,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <PublicBoardView slug={publicBoardMatch[1]} />
             ) : shareMatch ? (
               <PublicBoardView token={shareMatch[1]} />
+            ) : fileShareMatch ? (
+              <FileSharePage token={fileShareMatch[1]} />
             ) : templateShareMatch ? (
               <TemplateSharePage token={templateShareMatch[1]} />
             ) : oauthConsentMatch ? (

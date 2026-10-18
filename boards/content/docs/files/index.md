@@ -5,7 +5,7 @@ h1: Files and uploads
 navLabel: Overview
 section: files
 order: 0
-updated: 2026-10-17
+updated: 2026-10-18
 answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a {{fact:freeStorage}} drive and Creator a {{fact:creatorStorage}} one, and the drive is the only limit.
 faq:
   - q: What file types can I upload on the free plan?
@@ -156,3 +156,7 @@ Every version is a stored file, so every version counts toward your
 Every file card has a download. [Images](/docs/canvas/images) additionally offer
 a version with adjustments applied. [PDFs](/docs/files/pdf) can be downloaded
 from the viewer.
+
+To send someone one file on its own — a page with just that file, its player
+and its comments, and nothing else from the cluster — use **Share file…**
+([Sharing a single file](/docs/collaborate/sharing#sharing-a-single-file)).

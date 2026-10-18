@@ -1128,7 +1128,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-17",
+    "updated": "2026-10-18",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2152,7 +2152,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-10-17",
+    "updated": "2026-10-18",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2184,8 +2184,8 @@ export const DOCS_PAGES = [
         "text": "Publishing instead"
       },
       {
-        "id": "sharing-a-file-instead-of-a-link",
-        "text": "Sharing a file instead of a link"
+        "id": "sharing-a-single-file",
+        "text": "Sharing a single file"
       }
     ],
     "related": [
@@ -2205,6 +2205,18 @@ export const DOCS_PAGES = [
       {
         "q": "Will a shared board show up in Google?",
         "a": "Only if you allow indexing, or publish it to Explore. By default shared boards carry a noindex instruction."
+      },
+      {
+        "q": "Can I share just one file?",
+        "a": "Yes. Right-click a file and choose Share file…, or press Share in its full-screen view. The person you send it to sees only that file, with its player or viewer, and nothing else from the cluster."
+      },
+      {
+        "q": "Does the person I share a file with need an account?",
+        "a": "Not to view it, or to download it when downloading is allowed, if the file is shared with anyone who has the link. They sign in with a code sent to their email to comment, or to open a file shared only with people you added."
+      },
+      {
+        "q": "Can I stop someone downloading a shared file?",
+        "a": "Turning off Allow downloading removes the Download button and the original file from the page. It cannot stop someone saving what they can see, such as a screenshot or a screen recording."
       }
     ]
   },
