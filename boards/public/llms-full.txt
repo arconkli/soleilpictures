@@ -10265,13 +10265,40 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-10-04
+Updated: 2026-10-18
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-10-18 — Sharing leads with inviting, and an invitation pays you both
+
+The Share panel opens on inviting people and says exactly how far an invitation reaches, everyone with access is in one list, and inviting someone new earns you both extra free cards and storage.
+
+### Sharing
+
+- **Share** is easier to find: it carries a little more weight than the icons
+  around it in the board header.
+- The panel opens on inviting. Type an address, choose **Can edit** or
+  **Can view**, and choose how far it reaches — **This cluster**, or for owners
+  and co-owners the **Whole workspace**. The line under it says exactly what
+  that grants, by name.
+- **Who has access** is one list: workspace members, people on this cluster,
+  invitations waiting on a signup, and the link as its last row. Each person
+  has one menu, to change their access, move them to the whole workspace,
+  remove them (with an undo) or revoke an invitation.
+- **Copy link** and **Done** stay at the bottom of the panel while the rest
+  scrolls. See [sharing and public links](/docs/collaborate/sharing).
+
+### Invitations
+
+- Invite someone new to Clusters and you both get
+  25 extra free cards, plus
+  0.5GB more storage each. Theirs arrives when they
+  join; yours as soon as they have opened the app and placed their first card,
+  with no three-day wait. See [referrals](/docs/account/referrals).
 
 ## 2026-10-04 — Folders become clusters, files keep their names, and search reads documents
 

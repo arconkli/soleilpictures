@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-18",
+    "anchor": "2026-10-18",
+    "title": "Sharing leads with inviting, and an invitation pays you both",
+    "summary": "The Share panel opens on inviting people and says exactly how far an invitation reaches, everyone with access is in one list, and inviting someone new earns you both extra free cards and storage.",
+    "headings": []
+  },
+  {
     "date": "2026-10-04",
     "anchor": "2026-10-04",
     "title": "Folders become clusters, files keep their names, and search reads documents",

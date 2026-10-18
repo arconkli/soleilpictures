@@ -2,6 +2,204 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-18": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Sharing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing"
+    }
+   ],
+   "id": "2026-10-18-sharing"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is easier to find: it carries a little more weight than the icons around it in the board header."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The panel opens on inviting. Type an address, choose "
+     },
+     {
+      "t": "strong",
+      "v": "Can edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Can view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can view"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and choose how far it reaches — "
+     },
+     {
+      "t": "strong",
+      "v": "This cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "This cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or for owners and co-owners the "
+     },
+     {
+      "t": "strong",
+      "v": "Whole workspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "Whole workspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". The line under it says exactly what that grants, by name."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Who has access",
+      "children": [
+       {
+        "t": "text",
+        "v": "Who has access"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is one list: workspace members, people on this cluster, invitations waiting on a signup, and the link as its last row. Each person has one menu, to change their access, move them to the whole workspace, remove them (with an undo) or revoke an invitation."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Done",
+      "children": [
+       {
+        "t": "text",
+        "v": "Done"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " stay at the bottom of the panel while the rest scrolls. See "
+     },
+     {
+      "t": "link",
+      "v": "sharing and public links",
+      "href": "/docs/collaborate/sharing",
+      "children": [
+       {
+        "t": "text",
+        "v": "sharing and public links"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Invitations",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Invitations"
+    }
+   ],
+   "id": "2026-10-18-invitations"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Invite someone new to Clusters and you both get 25 extra free cards, plus 0.5GB more storage each. Theirs arrives when they join; yours as soon as they have opened the app and placed their first card, with no three-day wait. See "
+     },
+     {
+      "t": "link",
+      "v": "referrals",
+      "href": "/docs/account/referrals",
+      "children": [
+       {
+        "t": "text",
+        "v": "referrals"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-04": [
   {
    "type": "para",
