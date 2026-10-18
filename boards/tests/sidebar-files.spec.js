@@ -63,13 +63,23 @@ test.describe('sidebar files', () => {
     await expect(f.locator('.sbf-files-name')).toHaveText('Locations');
   });
 
-  test('Home, Messages, Schedule, Recent and Starred sit in one row', async ({ page }) => {
+  test('Home, Messages, Schedule, Recent and Starred sit in one row of words', async ({ page }) => {
     await open(page);
     const btns = page.locator('.sbf-quick .sbf-quickbtn');
-    await expect(btns).toHaveText(['Home', /^2?Messages$/, 'Schedule', 'Recent', 'Starred']);
-    const tops = await btns.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
-    expect(new Set(tops).size).toBe(1);
+    await expect(btns).toHaveText(['Home', /^Messages2?$/, 'Schedule', 'Recent', 'Starred']);
+    await expect(page.locator('.sbf-quick svg')).toHaveCount(0);                 // words, no icons
+    const tops = () => btns.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(await tops()).size).toBe(1);
     await expect(btns.nth(1).locator('.sbf-quick-badge')).toHaveText('2');
+    // Too narrow for five: three over two, never one word alone, none cut.
+    await page.evaluate(() => window.__sidebarQa.setWidth(240));
+    await expect.poll(async () => new Set(await tops()).size).toBe(2);
+    const [a, b, c, d, e] = await tops();
+    expect([a === b && b === c, d === e, d > a]).toEqual([true, true, true]);
+    const cut = await btns.evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+    expect(cut).toBe(0);
+    await page.evaluate(() => window.__sidebarQa.setWidth(320));
+    await expect.poll(async () => new Set(await tops()).size).toBe(1);
     await btns.nth(0).click();
     await expect(page.getByTestId('sbqa-log')).toContainText('home');
     await btns.nth(3).click();

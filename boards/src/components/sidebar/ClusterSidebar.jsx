@@ -26,7 +26,7 @@ import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS } from '../primitives.jsx';
-import { Search, X, Star, Clock, Columns2, ArrowsOutSimple, Home, MessageSquare, Bell } from '../../lib/icons.js';
+import { Search, X, Columns2, ArrowsOutSimple } from '../../lib/icons.js';
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
 import { ClusterShelves } from './ClusterShelves.jsx';
 import { SidebarMeter } from './SidebarMeter.jsx';
@@ -91,18 +91,14 @@ function ClusterThumb({ board }) {
   );
 }
 
-// Where to go, in one row: Home, Messages and Schedule (App's), then Recent and
-// Starred, which show their files in the section below. Each a small icon
-// over its name, so five fit a narrow sidebar on one line.
-function QuickBtn({ icon, label, active = false, unread = 0, onClick }) {
+// Where to go, in one row of words: Home, Messages and Schedule (App's), then
+// Recent and Starred, which show their files in the section below. Words only,
+// no icons (the owner's call), with an unread count after the word.
+function QuickBtn({ label, active = false, unread = 0, onClick }) {
   return (
-    <button type="button" className={`sbf-quickbtn${active ? ' is-on' : ''}`} aria-pressed={active}
-            title={label} onClick={onClick}>
-      <span className="sbf-quick-icon">
-        <Icon as={icon} size={16} />
-        {unread > 0 && <span className="sbf-quick-badge" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
-      </span>
+    <button type="button" className={`sbf-quickbtn${active ? ' is-on' : ''}`} aria-pressed={active} onClick={onClick}>
       <span className="sbf-quick-label">{label}</span>
+      {unread > 0 && <span className="sbf-quick-badge" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
     </button>
   );
 }
@@ -669,12 +665,12 @@ export function ClusterSidebar({
   return (
     <>
       <nav className="sbf-quick" aria-label="Go to">
-        {quickNav?.home && <QuickBtn icon={Home} label="Home" {...quickNav.home} />}
-        {quickNav?.messages && <QuickBtn icon={MessageSquare} label="Messages" {...quickNav.messages} />}
-        {quickNav?.schedule && <QuickBtn icon={Bell} label="Schedule" {...quickNav.schedule} />}
-        <QuickBtn icon={Clock} label="Recent" active={view === 'recent'}
+        {quickNav?.home && <QuickBtn label="Home" {...quickNav.home} />}
+        {quickNav?.messages && <QuickBtn label="Messages" {...quickNav.messages} />}
+        {quickNav?.schedule && <QuickBtn label="Schedule" {...quickNav.schedule} />}
+        <QuickBtn label="Recent" active={view === 'recent'}
                   onClick={() => setShown(view === 'recent' ? null : 'recent')} />
-        <QuickBtn icon={Star} label="Starred" active={view === 'starred'}
+        <QuickBtn label="Starred" active={view === 'starred'}
                   onClick={() => setShown(view === 'starred' ? null : 'starred')} />
       </nav>
 
@@ -703,9 +699,7 @@ export function ClusterSidebar({
 
       <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}>
         <header className="sbf-files-head">
-          {view === 'cluster'
-            ? <ClusterThumb board={shownBoard} />
-            : <span className="sbf-thumb is-icon" aria-hidden="true"><Icon as={view === 'recent' ? Clock : Star} size={13} /></span>}
+          {view === 'cluster' && <ClusterThumb board={shownBoard} />}
           <div className="sbf-files-title">
             <span className="sbf-files-name" title={title}>{title}</span>
             <span className="sbf-files-sub">{subtitle}</span>

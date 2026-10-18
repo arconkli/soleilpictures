@@ -48,8 +48,8 @@ body.sbf-resizing .app { transition: none !important; }
   grid-template-areas: "top" "quick" "nav" "divider" "files" "meter" "foot";
 }
 .app.sb-files .sidebar.is-wide .sb-mid {
-  /* The clusters' column keeps room for the row of five (Home … Starred). */
-  grid-template-columns: minmax(284px, 42%) minmax(0, 1fr);
+  /* The clusters' column keeps room for the row of five words (Home … Starred). */
+  grid-template-columns: minmax(300px, 42%) minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   grid-template-areas: "top files" "quick files" "nav files" "meter files" "foot files";
 }
@@ -73,24 +73,26 @@ body.sbf-resizing .app { transition: none !important; }
   padding: 2px 8px 8px;
 }
 .app.sb-files .sidebar.is-wide .sb-mid > .sbf-nav { max-height: none; }
-/* Where to go, in one row (ClusterSidebar QuickBtn). */
-.sbf-quick { display: flex; gap: 2px; padding: 4px 8px 6px; }
+/* Where to go, in one row of words (ClusterSidebar QuickBtn). The buttons
+   share the width by their words' lengths. Too narrow for all five (a sidebar
+   dragged near its minimum, a small phone) they go three over two, never one
+   word alone on a second line, and never a word cut. The thresholds are the
+   five words' own widths with a "99+" count, in Aileron, which is self-hosted
+   and so measures the same everywhere. */
+.sbf-quick { display: flex; flex-wrap: wrap; padding: 2px 6px 6px; container-type: inline-size; }
 .sbf-quickbtn {
-  flex: 1 1 0; min-width: 0; height: 46px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 5px; padding: 0 2px;
-  border: 0; border-radius: 8px; background: transparent; color: var(--ink-2);
-  font: 500 10.5px/1 var(--font-sans); cursor: pointer;
+  flex: 1 1 auto; min-width: 0; height: 30px; display: flex; align-items: center; justify-content: center;
+  gap: 4px; padding: 0 4px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink-1); font: 500 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
 }
 .sbf-quickbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sbf-quickbtn.is-on { background: var(--soleil-soft); color: var(--ink-0); }
 .sbf-quickbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
-.sbf-quick-icon { position: relative; display: grid; place-items: center; }
 .sbf-quick-badge {
-  position: absolute; top: -6px; left: calc(100% - 5px); min-width: 15px; height: 15px; padding: 0 4px;
-  box-sizing: border-box; border-radius: 999px; background: var(--ink-0); color: var(--bg-0);
-  font: 700 9px/15px var(--font-sans); text-align: center;
+  min-width: 14px; height: 14px; padding: 0 3px; box-sizing: border-box; border-radius: 999px;
+  background: var(--ink-0); color: var(--bg-0); font: 700 9px/14px var(--font-sans); text-align: center;
 }
-.sbf-quick-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@container (max-width: 285px) { .sbf-quickbtn { min-width: 30%; } }
 
 /* Full Files shrinks back into the sidebar with this: shown at rest, not only
    on hover, since it is the way back. */
@@ -109,7 +111,6 @@ body.sbf-resizing .app { transition: none !important; }
   background: color-mix(in oklab, var(--sbf-tint, var(--bg-3)) 38%, var(--bg-2));
   color: var(--ink-1); font: 700 9px/1 var(--font-sans);
 }
-.sbf-thumb.is-icon { background: var(--bg-3); color: var(--ink-1); }
 .sbf-count {
   margin-left: auto; padding-left: 6px; color: var(--ink-3); font-weight: 500; font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -360,7 +361,8 @@ body.sbf-resizing .app { transition: none !important; }
 @media (hover: none) and (pointer: coarse) {
   .sb-tree-row.is-files { height: 44px; font-size: 15px; }
   .sbf-thumb { flex-basis: 22px; width: 22px; height: 22px; }
-  .sbf-quickbtn { height: 56px; font-size: 11.5px; }
+  .sbf-quickbtn { height: 44px; font-size: 13px; padding: 0 4px; }
+  @container (max-width: 299px) { .sbf-quickbtn { min-width: 30%; } }
   .sbf-files-head .sbf-thumb { flex-basis: 28px; width: 28px; height: 28px; }
   .sbf-files-name { font-size: 16px; }
   .sbf-iconbtn { width: 40px; height: 40px; }
