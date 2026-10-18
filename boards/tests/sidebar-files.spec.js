@@ -170,6 +170,65 @@ test.describe('sidebar files wiring (App.jsx)', () => {
     expect(app).toContain('<div className="sb-list" ref={sidebarScrollRef}>');   // the held-off branch, intact
     expect(host).toMatch(/export function sidebarFilesAllowed\(\) \{\s*if \(onPreviewHost\(\)\) return true;\s*if \(!import\.meta\.env\.DEV\) return false;/);
   });
+
+  test('the floating islands are held with it, and never replace a phone\'s bar', () => {
+    const app = read('src/App.jsx');
+    expect(app).toContain('const floatingChrome = filesSidebar && !mobileShell;');
+    expect(app).toMatch(/\{floatingChrome \? \(\s*<FloatingChrome/);
+    expect(app).toMatch(/\) : \(\s*<div className="topbar">/);   // the bar everyone else gets, intact
+    expect(app).toContain("${floatingChrome ? ' is-floating-chrome' : ''}");
+  });
+});
+
+test.describe('the top bar as floating islands', () => {
+  const rect = (loc) => loc.evaluate((el) => { const r = el.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; });
+  const overlaps = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+
+  test('no bar: the canvas starts at the top, and the islands stay clear of its own controls', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('.topbar')).toHaveCount(0);
+    const left = await rect(page.locator('.chrome-left'));
+    const right = await rect(page.locator('.chrome-right'));
+    const main = await rect(page.locator('main.main'));
+    const canvas = await rect(page.locator('.sbqa-canvas'));
+    expect(canvas.t).toBe(main.t);
+    expect(left.t - main.t).toBe(8);
+    for (const sel of ['.cnv-comments-eye', '.board-tags-strip', '.canvas-presence-roster', '.cnv-hint']) {
+      const box = await rect(page.locator(sel));
+      expect(overlaps(box, left), `${sel} vs the left island`).toBe(false);
+      expect(overlaps(box, right), `${sel} vs the right island`).toBe(false);
+    }
+    expect(overlaps(left, right)).toBe(false);
+  });
+
+  test('⋯ holds what is used now and then; Escape closes it and gives focus back', async ({ page }) => {
+    await open(page);
+    const more = page.locator('.chrome-more-btn');
+    await more.click();
+    await expect(page.locator('.chrome-menu-item')).toHaveText(
+      ['Version history', 'Deleted clusters', 'Pin a cluster alongside…', 'Help & feedback']);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.chrome-menu')).toHaveCount(0);
+    await expect(more).toBeFocused();
+    // From the keyboard the menu takes focus, and the arrows walk it.
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.chrome-menu-item').first()).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('.chrome-menu-item').nth(1)).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('sbqa-log')).toContainText('trash');
+    await expect(page.locator('.chrome-menu')).toHaveCount(0);
+  });
+
+  test('with the sidebar hidden, the left island offers it back', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('.chrome-left').getByRole('button', { name: 'Open sidebar' })).toHaveCount(0);
+    await page.evaluate(() => window.__sidebarQa.setCollapsed(true));
+    const reopen = page.locator('.chrome-left').getByRole('button', { name: 'Open sidebar' });
+    await expect(reopen).toBeVisible();
+    await reopen.click();
+    await expect(page.locator('.app')).not.toHaveClass(/sb-collapsed/);
+  });
 });
 
 test.describe('sidebar files: telling clusters apart', () => {

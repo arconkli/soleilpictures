@@ -33,6 +33,11 @@ body.sbf-resizing .app { transition: none !important; }
   touch-action: none;
 }
 .sbf-resizer:hover { box-shadow: inset -2px 0 0 var(--line-3); }
+/* The handle straddles the sidebar's edge, but the sidebar is its own
+   stacking context (the grain layer isolates it), so its z-index can't lift
+   the handle over the surface next door: half of it sat under the canvas.
+   Lifting the sidebar as a whole puts all of it on top. */
+.app.sb-files > .sidebar { z-index: 2; }
 .sbf-resizer:focus-visible { outline: none; box-shadow: inset -2px 0 0 var(--soleil); }
 
 /* ── Header: find, chips, sort ───────────────────────────────────────────── */

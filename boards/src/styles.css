@@ -18591,6 +18591,8 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .canvas-comment-layer,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .msg-panel,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .split-close,
+/* The desktop bar's floating islands (FloatingChrome.jsx), with the files sidebar: */
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .chrome-layer,
 /* Mobile / overlay chrome the original clean-mode list missed: */
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .mb-nav,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .board-tags-strip,
@@ -19139,7 +19141,7 @@ body:not([data-capture-clean='1']) .capture-hud-dot {
    cards are deliberately NOT locked: create/content steps need a canvas click to
    drop a card, and the cluster card itself is the .tour-target on rename/open. */
 body[data-tour-active] :is(
-  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .mb-nav,
+  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .chrome-island, .mb-nav,
   .cnv-comments-eye, .cnv-zoom, .upgrade-chip, .feedback-trigger, .fv-banner
 ) { pointer-events: none; }
 body[data-tour-active] :is(

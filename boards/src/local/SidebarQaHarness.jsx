@@ -14,6 +14,9 @@ import { SidebarResizer } from '../components/sidebar/SidebarResizer.jsx';
 import { SIDEBAR_W, clampSidebarWidth } from '../lib/sidebarWidth.js';
 import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
+import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
+import { Icon } from '../components/Icon.jsx';
+import { ChevronLeft, ChevronRight, PanelLeftOpen, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question } from '../lib/icons.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -166,6 +169,15 @@ function makeMoveApi(calls) {
   };
 }
 
+// The stand-in canvas: a dotted field to float over, and a corner for the
+// readout the specs watch.
+const QA_STYLE = `
+.sbqa-canvas { position: absolute; inset: 0; background: var(--bg-0, #0c0c0e);
+  background-image: radial-gradient(var(--line-2) 1px, transparent 1px); background-size: 22px 22px; }
+.sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); }
+.sbqa-tag, .sbqa-faces { color: var(--ink-1); font: 500 12px var(--font-sans); padding: 4px 8px; }
+`;
+
 export function SidebarQaHarness() {
   const [active, setActive] = useState('film');
   // A realtime change to any cluster rebuilds App's boards map; bumpBoards
@@ -177,6 +189,7 @@ export function SidebarQaHarness() {
   const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
   const [width, setWidth] = useState(phone ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : SIDEBAR_W.DEFAULT);
   const [log, setLog] = useState([]);
+  const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState(null);
   const listRef = useRef(null);
   const source = useMemo(() => {
@@ -185,6 +198,7 @@ export function SidebarQaHarness() {
       calls: s.calls,
       setActive: (id) => setActive(id),
       bumpBoards: () => setBoardsVersion((v) => v + 1),
+      setCollapsed: (v) => setCollapsed(!!v),
     };
     return s;
   }, []);
@@ -193,7 +207,10 @@ export function SidebarQaHarness() {
   const say = (msg) => setLog((l) => [...l.slice(-4), msg]);
 
   return (
-    <div className="app sb-files" style={{ '--sb-w': `${width}px`, height: '100vh' }} data-sidebarqa-ready="1">
+    <>
+    <style>{QA_STYLE}</style>
+    <div className={`app sb-files${phone ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}`}
+         style={{ '--sb-w': `${collapsed ? 0 : width}px`, height: '100vh' }} data-sidebarqa-ready="1">
       <aside className={`sidebar${phone ? ' is-mobile-open' : ''}`}>
         {!phone && <SidebarResizer width={width} onChange={(w) => setWidth(clampSidebarWidth(w))} />}
         <div className="sb-mid">
@@ -233,20 +250,81 @@ export function SidebarQaHarness() {
           />
         </div>
       </aside>
-      <main style={{ padding: 24, color: 'var(--ink-2)', font: '13px var(--font-sans)' }}>
-        <div data-testid="sbqa-active">open: {active}</div>
-        <div data-testid="sbqa-log">{log.join(' | ')}</div>
-        {toast && (
-          <div data-testid="sbqa-toast" style={{ marginTop: 12 }}>
-            <span>{toast.message}</span>
-            {toast.action && (
-              <button type="button" style={{ marginLeft: 8 }} onClick={() => { toast.action.onClick(); setToast(null); }}>
-                {toast.action.label}
-              </button>
+      <main className="main">
+        {/* The desktop bar as App draws it with the files sidebar, over a
+            stand-in canvas whose top-edge controls carry the real classes, so
+            the islands meet the very rules they would meet on a board. */}
+        {!phone && (
+          <FloatingChrome
+            left={(
+              <>
+                {collapsed && (
+                  <button className="tb-icon" aria-label="Open sidebar" onClick={() => setCollapsed(false)}>
+                    <Icon as={PanelLeftOpen} size={16} />
+                  </button>
+                )}
+                <button className="tb-icon" aria-label="Back" disabled><Icon as={ChevronLeft} size={15} /></button>
+                <button className="tb-icon" aria-label="Forward" disabled><Icon as={ChevronRight} size={15} /></button>
+                <div className="crumbs" data-tour="nav">
+                  {[...(BOARDS[active]?.parent_board_id ? [BOARDS[BOARDS[active].parent_board_id]] : []), BOARDS[active]].map((b, i, all) => (
+                    <span key={b.id} style={{ display: 'contents' }}>
+                      {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
+                      <span className={`crumb ${i === all.length - 1 ? 'here' : 'clk'}`}>{b.name}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
             )}
-          </div>
+            right={(
+              <>
+                <button className="tb-icon" aria-label="Undo"><Icon as={Undo} size={16} /></button>
+                <button className="tb-icon" aria-label="Redo" disabled><Icon as={Redo} size={16} /></button>
+                <button className="tb-icon" aria-label="Search"><Icon as={Search} size={16} /></button>
+                <button className="tb-icon" aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>
+                <span className="chrome-sep" aria-hidden="true" />
+                <span className="sbqa-faces" aria-label="2 people here">AC · JR</span>
+                <button className="tb-btn tb-share" aria-label="Share this cluster" onClick={() => say('share')}>
+                  <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
+                </button>
+              </>
+            )}
+            menuItems={[
+              { id: 'versions', label: 'Version history', icon: History, run: () => say('versions') },
+              { id: 'trash', label: 'Deleted clusters', icon: Trash2, run: () => say('trash') },
+              { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => say('split') },
+              { sep: true },
+              { id: 'help', label: 'Help & feedback', icon: Question, run: () => say('help') },
+            ]}
+          />
         )}
+        <div className="surface-wrap is-canvas" style={{ flex: 1 }}>
+          <div className="canvas-wrap sbqa-canvas">
+            {!phone && (
+              <>
+                <button type="button" className="cnv-comments-eye" aria-label="Comments">◉</button>
+                <div className="board-tags-strip"><span className="sbqa-tag">#location</span></div>
+                <div className="canvas-presence-roster"><span className="sbqa-tag">2 here</span></div>
+                <div className="cnv-hint">Drop files anywhere</div>
+              </>
+            )}
+            <div className="sbqa-readout">
+              <div data-testid="sbqa-active">open: {active}</div>
+              <div data-testid="sbqa-log">{log.join(' | ')}</div>
+              {toast && (
+                <div data-testid="sbqa-toast" style={{ marginTop: 12 }}>
+                  <span>{toast.message}</span>
+                  {toast.action && (
+                    <button type="button" style={{ marginLeft: 8 }} onClick={() => { toast.action.onClick(); setToast(null); }}>
+                      {toast.action.label}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </main>
     </div>
+    </>
   );
 }

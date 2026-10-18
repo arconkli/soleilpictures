@@ -202,6 +202,7 @@ import { todayISO } from './lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed } from './lib/appHost.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
+import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
 import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
 import { readSidebarWidth, writeSidebarWidth } from './lib/sidebarWidth.js';
@@ -809,6 +810,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
   // Read this early: with it, Files has no dock and no pill (see canDockMain).
   const filesSidebar = sidebarFilesAllowed();
+  // With the files sidebar the desktop bar floats as two islands over the
+  // surface (components/chrome/FloatingChrome.jsx); a phone keeps its bar.
+  const floatingChrome = filesSidebar && !mobileShell;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Ephemeral immersive "focus" view for touch — hides ALL chrome so the user
   // can just look at a board/pictures. Distinct from the persisted desktop
@@ -9190,8 +9194,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        canvas={mainFilesMode !== 'full' ? renderCanvas() : null}
                        files={mainFilesMode !== 'off' ? renderList(mainFilesMode) : null} />
     ) : (view === 'list' ? renderList('full') : renderCanvas());
+    // Whether this pane shows a canvas: the floating islands float over a
+    // canvas, and every other surface makes room for them (floatingChrome.css).
+    const showsCanvas = isMain ? mainFilesMode !== 'full' : view !== 'list';
     return (
-      <div className={`surface-wrap ${isMain ? '' : 'is-split'}`}>
+      <div className={`surface-wrap ${isMain ? '' : 'is-split'}${showsCanvas ? ' is-canvas' : ''}`}>
         {/* No chrome of its own — no bar (that read as a second toolbar) and no
             floating close either. Every corner of a canvas is already spoken
             for: comments eye and tags strip top-left, hint and selection count
@@ -9280,7 +9287,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         shell the sidebar IS the drawer, and .sb-collapsed hides every row in
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
-    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}`}
+    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}`}
          style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarW}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
@@ -9710,6 +9717,79 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         {/* Only renders for a Scout shell account — see the component header;
             the check is a string test on the session email, not a round trip. */}
         <ScoutClaimBanner user={user} />
+        {floatingChrome ? (
+          <FloatingChrome
+            left={(
+              <>
+                {!sidebarOpen && (
+                  <button className="tb-icon" title="Open sidebar (⌘B)" aria-label="Open sidebar"
+                          onClick={() => setSidebarOpen(true)}>
+                    <Icon as={PanelLeftOpen} size={16} />
+                  </button>
+                )}
+                <button className="tb-brand" title="Home" aria-label="Clusters home"
+                        onClick={() => setCurrentSurface('home')}>
+                  <ClustersMark size={20} />
+                </button>
+                <button className="tb-icon" title="Back" aria-label="Back"
+                        disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
+                  <Icon as={ChevronLeft} size={15} />
+                </button>
+                <button className="tb-icon" title="Forward" aria-label="Forward"
+                        disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
+                  <Icon as={ChevronRight} size={15} />
+                </button>
+                <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
+                     data-pane={toolbarPane}>
+                  {activeCrumbs.map((c, i) => (
+                    <React.Fragment key={`${c.id}-${i}`}>
+                      {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
+                      <span className={`crumb ${i === activeCrumbs.length - 1 ? 'here' : 'clk'}`}
+                            title={c.name} onClick={() => onActiveCrumb(i)}>{c.name}</span>
+                    </React.Fragment>
+                  ))}
+                </div>
+                {!canEditCurrent && (
+                  <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
+                )}
+              </>
+            )}
+            right={(
+              <>
+                <button className="tb-icon" title="Undo (⌘Z)" aria-label="Undo" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
+                  <Icon as={Undo} size={16} />
+                </button>
+                <button className="tb-icon" title="Redo (⌘⇧Z)" aria-label="Redo" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
+                  <Icon as={Redo} size={16} />
+                </button>
+                <button className="tb-icon" title="Search (⌘K)" aria-label="Search" onClick={() => setPaletteOpen(true)}>
+                  <Icon as={Search} size={16} />
+                </button>
+                <button className="tb-icon tb-icon-theme" title="Toggle theme" aria-label="Toggle theme"
+                        onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
+                  <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
+                </button>
+                <span className="chrome-sep" aria-hidden="true" />
+                <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
+                                        workspaceId={workspace.id} max={4} onJumpTo={jumpToPeer} />
+                <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
+                  <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
+                </button>
+              </>
+            )}
+            menuItems={[
+              { id: 'versions', label: 'Version history', icon: History, run: () => setVersionsOpen(true) },
+              { id: 'trash', label: 'Deleted clusters', icon: Trash2, run: () => setTrashOpen(true) },
+              splitId
+                ? { id: 'split', label: 'Close split view', icon: Columns2, run: () => setSplitId(null) }
+                : { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => setSplitPickerOpen(true) },
+              ...(isTouch ? [{ id: 'focus', label: 'Focus view', icon: Maximize2, run: () => setFocusMode(true) }] : []),
+              { sep: true },
+              { id: 'help', label: 'Help & feedback', icon: Question, run: () => openHelpHub('topbar') },
+              ...(myTier.tier === 'admin' ? [{ id: 'admin', label: 'Admin dashboard', run: () => window.location.assign('/admin') }] : []),
+            ]}
+          />
+        ) : (
         <div className="topbar">
           <div className="tb-left">
             {(!sidebarOpen || mobileShell) && (
@@ -9864,6 +9944,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             </button>
           </div>
         </div>
+        )}
         {altSessionId && (
           <div className="alt-session-banner">
             Test session ({altSessionId}) — sign in as a different account here, then collab with the main window.
