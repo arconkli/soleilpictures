@@ -103,7 +103,9 @@ function PdfPage({ doc, pageNum, scale, base, dpr, onRef }) {
 
 // `embedded`: drawn inside another viewer (Files' Quick look) — no overlay of
 // its own, no close button, and Escape belongs to the host. ↑/↓ still page.
-export function PdfViewer({ src, name, onClose, embedded = false }) {
+// `onPageChange(n)` reports the 1-based page; `pageRequest = {page, nonce}`
+// scrolls to a page whenever the nonce changes (file-share comment anchors).
+export function PdfViewer({ src, name, onClose, embedded = false, onPageChange = null, pageRequest = null }) {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [doc, setDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -186,6 +188,24 @@ export function PdfViewer({ src, name, onClose, embedded = false }) {
     const el = scrollRef.current;
     if (node && el) el.scrollTo({ top: node.offsetTop - 16, behavior: 'smooth' });
   }, [numPages]);
+
+  // Report the page to the host through a ref, so a new callback identity
+  // never re-runs the effect. Fires once after load, then on every change.
+  const onPageChangeRef = useRef(onPageChange);
+  onPageChangeRef.current = onPageChange;
+  useEffect(() => {
+    if (status !== 'ready') return;
+    onPageChangeRef.current?.(current);
+  }, [status, current]);
+
+  // A host asks for a page: same smooth scroll as the ↑/↓ paging.
+  const lastNonceRef = useRef(undefined);
+  useEffect(() => {
+    if (status !== 'ready' || !pageRequest) return;
+    if (lastNonceRef.current === pageRequest.nonce) return;
+    lastNonceRef.current = pageRequest.nonce;
+    scrollToPage(pageRequest.page);
+  }, [status, pageRequest?.nonce, pageRequest?.page, scrollToPage]);
 
   const registerPage = useCallback((n, node) => {
     if (node) pageEls.current.set(n, node);
