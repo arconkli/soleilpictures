@@ -60,7 +60,7 @@ import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js'
 import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
-import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, TRIAL_STORAGE_LABEL, CREATOR_TRIAL_DAYS, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS } from '../src/lib/billingCopy.js';
+import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, TRIAL_STORAGE_LABEL, CREATOR_TRIAL_DAYS, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS, STORAGE_ADDON_PRICING } from '../src/lib/billingCopy.js';
 import { AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
@@ -290,6 +290,15 @@ export const FACTS = {
   freeStorage: FREE_STORAGE_LABEL,
   // A Creator trial's drive until the first payment (0413).
   trialStorage: TRIAL_STORAGE_LABEL,
+  // Extra storage (0415): one block, its price on each interval, and the most
+  // an account can add. The block and the maximum are cross-checked against
+  // 0415 above; the prices are the storage-addon function's own, which
+  // refuses to sell at any other (storageAddon.test.mjs holds billingCopy to
+  // them).
+  storageAddonSize: STORAGE_ADDON_BLOCK_LABEL,
+  storageAddonMonthly: STORAGE_ADDON_PRICING.monthly.perLabel,
+  storageAddonAnnual: STORAGE_ADDON_PRICING.annual.perLabel,
+  storageAddonMax: String(STORAGE_ADDON_MAX_BLOCKS),
   // How long a signed-out "Get Creator" on /pricing is remembered through
   // sign-in (creatorIntent.js reads it back and expires it).
   creatorIntentHours: String(CREATOR_INTENT_MAX_AGE_MS / (60 * 60 * 1000)),

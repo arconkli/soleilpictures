@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { storageAddonCopy } from '../lib/billingCopy.js';
-import { applyStorageAddon, previewStorageAddon, storageAddonErrorMessage } from '../lib/storageAddon.js';
+import { applyStorageAddon, newAddonRequestId, previewStorageAddon, storageAddonErrorMessage } from '../lib/storageAddon.js';
 import './importCapDialog.css';
 
 // Add (or remove) 1TB of extra storage in one click, on the card the Creator
@@ -16,8 +16,9 @@ import './importCapDialog.css';
 // needs 3D Secure, or is declined, changes nothing: Stripe holds the change
 // until its invoice is paid, and the sheet sends the reader to that invoice.
 //
-// Held behind billingCopy STORAGE_ADDON_HELD: no surface opens this until the
-// owner creates the Stripe product and prices.
+// Offered since billingCopy STORAGE_ADDON_HELD lifted (2026-10-18), from
+// Settings → Plan & billing, a paying owner's drive-full toasts and the
+// import dialog when the drive is what overflows.
 //
 // `mode` 'add' | 'remove'. `surface` says what opened it, for the event.
 // `onDone({ blocks, quotaBytes })` after a change that took effect.
@@ -27,6 +28,11 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState('');
   const [payUrl, setPayUrl] = useState(null);
+  // The failed step, so Try again repeats exactly it: an apply is resent with
+  // the same total and the same request id, never recomputed from the mirror.
+  const [failedAt, setFailedAt] = useState(null);   // 'preview' | 'apply'
+  const [attempt, setAttempt] = useState(0);
+  const requestIdRef = useRef(null);
   const removing = mode === 'remove';
 
   useEffect(() => {
@@ -36,17 +42,26 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
     setPreview(null);
     setMessage('');
     setPayUrl(null);
-    logEvent(EV.STORAGE_ADDON_VIEW, { surface, mode });
+    setFailedAt(null);
+    requestIdRef.current = newAddonRequestId();
+    if (attempt === 0) logEvent(EV.STORAGE_ADDON_VIEW, { surface, mode });
     (async () => {
       // The reader's own block count, from their mirror row (RLS: subs read
       // self). The function checks it against Stripe before anything moves.
       const { data } = await supabase.from('subscriptions').select('storage_blocks').maybeSingle();
       const current = Number(data?.storage_blocks ?? 0);
-      const answer = await previewStorageAddon(removing ? current - 1 : current + 1);
+      let answer = await previewStorageAddon(removing ? current - 1 : current + 1);
+      // The mirror can trail Stripe by a webhook. If the asked-for total is
+      // already the live one, ask again from Stripe's own count, so the sheet
+      // never offers a change that would change nothing.
+      if (answer?.ok && answer.unchanged && Number.isInteger(answer.current_blocks)) {
+        answer = await previewStorageAddon(removing ? answer.current_blocks - 1 : answer.current_blocks + 1);
+      }
       if (cancelled) return;
-      if (!answer?.ok) {
-        logEvent(EV.STORAGE_ADDON_FAIL, { surface, mode, stage: 'preview', code: answer?.error ?? null });
+      if (!answer?.ok || answer.unchanged) {
+        logEvent(EV.STORAGE_ADDON_FAIL, { surface, mode, stage: 'preview', code: answer?.error ?? (answer?.unchanged ? 'unchanged' : null) });
         setMessage(storageAddonErrorMessage(answer));
+        setFailedAt('preview');
         setPhase('error');
         return;
       }
@@ -54,7 +69,7 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
       setPhase('ready');
     })();
     return () => { cancelled = true; };
-  }, [open, mode, surface, removing]);
+  }, [open, mode, surface, removing, attempt]);
 
   if (!open) return null;
 
@@ -69,7 +84,11 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
   const confirm = async () => {
     if (!preview || phase === 'working') return;
     setPhase('working');
-    const answer = await applyStorageAddon({ blocks: preview.target_blocks, prorationDate: preview.proration_date });
+    const answer = await applyStorageAddon({
+      blocks: preview.target_blocks,
+      prorationDate: preview.proration_date,
+      requestId: requestIdRef.current,
+    });
     if (answer?.status === 'requires_payment' && answer.hosted_invoice_url) {
       setPayUrl(answer.hosted_invoice_url);
       setPhase('pay');
@@ -79,6 +98,9 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
     if (!answer?.ok) {
       logEvent(EV.STORAGE_ADDON_FAIL, { surface, mode, stage: 'apply', code: answer?.error ?? null });
       setMessage(storageAddonErrorMessage(answer));
+      // A stale price was never charged: Try again fetches a fresh one. Any
+      // other apply failure is repeated exactly, under the same request id.
+      setFailedAt(answer?.error === 'stale_preview' ? 'preview' : 'apply');
       setPhase('error');
       return;
     }
@@ -129,6 +151,18 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
             onClick={confirm}
           >
             {phase === 'working' ? 'Working…' : copy.cta}
+          </button>
+        )}
+        {phase === 'error' && failedAt && (
+          <button
+            type="button"
+            className="impcap-btn impcap-btn-primary"
+            // An apply is repeated as it was — same total, same request id —
+            // so Stripe replays a change that already went through rather than
+            // charging for it again. A failed preview simply asks again.
+            onClick={() => (failedAt === 'apply' ? confirm() : setAttempt((n) => n + 1))}
+          >
+            Try again
           </button>
         )}
       </div>

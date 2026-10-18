@@ -127,6 +127,59 @@ export const CHANGELOG_CONTENT = {
      }
     ]
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "More storage",
+   "inline": [
+    {
+     "t": "text",
+     "v": "More storage"
+    }
+   ],
+   "id": "2026-10-17-more-storage"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A full Creator drive can grow 1TB at a time, up to 10 more: $25/month, or $240/year on the annual plan, added from "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → Plan & billing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Plan & billing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on the card you already pay with. See "
+     },
+     {
+      "t": "link",
+      "v": "more storage",
+      "href": "/docs/account/plans#more-storage",
+      "children": [
+       {
+        "t": "text",
+        "v": "more storage"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
   }
  ],
  "2026-10-04": [

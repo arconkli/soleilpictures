@@ -7,6 +7,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   STORAGE_ADDON_UNIT_AMOUNT,
   addonItems,
@@ -24,8 +27,11 @@ import {
   STORAGE_ADDON_HELD,
   STORAGE_ADDON_MAX_BLOCKS,
   STORAGE_ADDON_PRICING,
+  PRICING_FAQ,
   storageAddonCopy,
 } from './billingCopy.js';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 const CFG = {
   creatorProduct: 'prod_creator',
@@ -83,10 +89,22 @@ test('the server sells at exactly the prices the copy states', () => {
   assert.equal(STORAGE_ADDON_MAX_BLOCKS, 10);
 });
 
-test('extra storage stays held until the owner sets up Stripe', () => {
-  // Lifting the hold is a commit that ships the docs (CLAUDE.md). This test is
-  // the reminder: flip it and this line, together.
-  assert.equal(STORAGE_ADDON_HELD, true);
+test('extra storage is offered, and the docs that describe it ship with it', () => {
+  // The hold lifted (2026-10-18) in the commit that shipped the docs
+  // (CLAUDE.md: a public surface changes its docs in the same commit). Every
+  // figure reaches the page through a fact, never typed, so a price or block
+  // change cannot leave the docs behind.
+  assert.equal(STORAGE_ADDON_HELD, false);
+  const plans = readFileSync(join(HERE, '../../content/docs/account/plans.md'), 'utf8');
+  assert.match(plans, /^## More storage$/m, 'account/plans.md has the section the app links to');
+  for (const fact of ['storageAddonSize', 'storageAddonMonthly', 'storageAddonAnnual', 'storageAddonMax']) {
+    assert.match(plans, new RegExp(`\\{\\{fact:${fact}\\}\\}`), `account/plans.md states ${fact} through its fact`);
+  }
+  assert.doesNotMatch(plans, /\$25\/month|\$240\/year/, 'no add-on price is typed into the docs');
+  const faq = PRICING_FAQ.find((f) => /more storage/i.test(f.q));
+  assert.ok(faq, 'the pricing FAQ answers "can I get more storage?"');
+  assert.ok(faq.a.includes(STORAGE_ADDON_PRICING.monthly.perLabel) && faq.a.includes(STORAGE_ADDON_PRICING.annual.perLabel),
+    'with both prices, from the same constants the sheet uses');
 });
 
 test('the sheet states Stripe\'s amount, never one of its own', () => {
@@ -147,6 +165,9 @@ test('refusals come in order, most fundamental first', () => {
     ['schedule_attached', { sub: { ...activeSub(), schedule: 'sub_sched_1' } }],
     ['cancel_pending', { sub: { ...activeSub(), cancel_at_period_end: true } }],
     ['payment_pending', { sub: { ...activeSub(), pending_update: { expires_at: 1 } } }],
+    // A 3D Secure add leaves its proration invoice open: still "finish the
+    // payment", never "your payment failed".
+    ['payment_pending', { sub: { ...activeSub(), pending_update: { expires_at: 1 }, latest_invoice: { status: 'open' } } }],
     ['bad_request', { target: null }],
     ['price_mismatch', { price: storagePrice({ unit_amount: 1 }) }],
     ['discounted_subscription', { sub: { ...activeSub(), discounts: ['di_1'] } }],

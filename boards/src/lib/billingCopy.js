@@ -138,10 +138,12 @@ export const TRIAL_STORAGE_LABEL = '100GB';
 // (storageAddonCore STORAGE_ADDON_UNIT_AMOUNT) — it refuses to sell at any
 // other — and storageAddon.test.mjs holds the two in lockstep.
 //
-// HELD until the owner creates the Stripe product and prices. While true no
-// surface offers extra storage and the docs do not describe it; lifting it is
-// a commit that ships the docs with it (CLAUDE.md).
-export const STORAGE_ADDON_HELD = true;
+// Held until the Stripe product and prices existed (created in Stripe
+// 2026-10-18). While true no surface offers extra storage and the
+// docs do not describe it; it was lifted in the commit that shipped the docs
+// (account/plans.md "More storage"), and storageAddon.test.mjs keeps the two
+// together.
+export const STORAGE_ADDON_HELD = false;
 export const STORAGE_ADDON_BLOCK_LABEL = '1TB';
 export const STORAGE_ADDON_MAX_BLOCKS = 10;
 export const STORAGE_ADDON_PRICING = {
@@ -172,7 +174,7 @@ export function storageAddonCopy({ interval, amountToday = 0, creditNext = 0, re
   }
   return {
     title: `Add ${STORAGE_ADDON_BLOCK_LABEL} more storage`,
-    body: `${centsLabel(amountToday)} today for the rest of this ${period}, then ${priced.perLabel}, on the card you pay ${PLAN_NAME} with. Remove it anytime in Settings → Plan & billing.`,
+    body: `${centsLabel(amountToday)} today for the rest of this ${period}, then ${priced.perLabel}, on the card you pay ${PLAN_NAME} with. You can remove it later in Settings → Plan & billing.`,
     cta: `Add ${STORAGE_ADDON_BLOCK_LABEL} — ${priced.perLabel}`,
   };
 }
@@ -567,6 +569,12 @@ export const PRICING_FAQ = [
        'you simply cannot add more until you free some room or upgrade. Deleting a file gives its space back ' +
        'within a few minutes, and emptying the trash gives back everything in it at once.',
   },
+  ...(STORAGE_ADDON_HELD ? [] : [{
+    q: 'Can I get more storage?',
+    a: `Yes. On ${PLAN_NAME}, add ${STORAGE_ADDON_BLOCK_LABEL} at a time, up to ${STORAGE_ADDON_MAX_BLOCKS} more: ` +
+       `${STORAGE_ADDON_PRICING.monthly.perLabel} on the monthly plan or ${STORAGE_ADDON_PRICING.annual.perLabel} on the annual one, ` +
+       'from Settings → Plan & billing, on the card you already pay with. The first charge covers only the rest of your billing period, and while your plan is active you can remove a block again, as long as your files still fit.',
+  }]),
   {
     q: 'Can I cancel?',
     a: 'Any time, from Settings → Billing, and you keep access until the end of the period you have paid for. ' +

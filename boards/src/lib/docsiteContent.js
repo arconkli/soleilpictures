@@ -14529,7 +14529,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched."
+     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. On Creator you can also add "
+    },
+    {
+     "t": "link",
+     "v": "more storage",
+     "href": "/docs/account/plans#more-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "more storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", 1TB at a time."
     }
    ]
   },
@@ -33366,7 +33381,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Current plan, the Stripe customer portal for payment details and cancellation, and the "
+     "v": "Current plan, the Stripe customer portal for payment details and cancellation, the "
     },
     {
      "t": "strong",
@@ -33380,7 +33395,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " showing what you have used against your quota. See "
+     "v": " showing what you have used against your quota, and — on Creator — "
+    },
+    {
+     "t": "link",
+     "v": "extra storage",
+     "href": "/docs/account/plans#more-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "extra storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to add or remove, 1TB at a time. See "
     },
     {
      "t": "link",
@@ -34723,7 +34753,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "You are told when you reach either one, and offered the upgrade. Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead."
+     "v": "You are told when you reach either one, and offered the upgrade — or, when a Creator drive is full, "
+    },
+    {
+     "t": "link",
+     "v": "more storage",
+     "href": "#more-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "more storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead."
     }
    ]
   },
@@ -34757,6 +34802,82 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " grant bonus cards for people you invite who actually get started."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "More storage",
+   "inline": [
+    {
+     "t": "text",
+     "v": "More storage"
+    }
+   ],
+   "id": "more-storage"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If Creator's 1TB drive fills, add more in blocks of "
+    },
+    {
+     "t": "strong",
+     "v": "1TB",
+     "children": [
+      {
+       "t": "text",
+       "v": "1TB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": $25/month on the monthly plan, or $240/year on the annual one, up to 10 blocks. Add a block from "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Plan & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Plan & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or from the message or dialog that appears when an upload will not fit. It goes on the card your plan already bills, with no new checkout. The first charge covers only the rest of your current billing period, and the sheet shows that amount before you confirm."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If your bank asks to confirm the payment, Stripe opens a page to finish it. The storage is added once that payment goes through; until then nothing changes."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Remove a block from the same place while your plan is active and not set to cancel. The unused part of the period comes off your next bill. A block can't be removed while your files would no longer fit without it, so delete some or empty the trash first."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Extra storage can be added once a Creator trial has made its first payment, and only while the subscription is in good standing. It ends with the plan: if Creator is canceled, the extra storage goes with it."
     }
    ]
   },
@@ -34859,7 +34980,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " shows your plan, the storage meter, and a link to the Stripe customer portal for payment details, invoices and cancellation."
+     "v": " shows your plan, the storage meter, any "
+    },
+    {
+     "t": "link",
+     "v": "extra storage",
+     "href": "#more-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "extra storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " with the buttons to add or remove it, and a link to the Stripe customer portal for payment details, invoices and cancellation. Extra storage is changed in Settings, not in the portal."
     }
    ]
   },

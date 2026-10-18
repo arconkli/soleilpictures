@@ -53,7 +53,9 @@ behind it.
 Uploads count against your account's storage quota: 5GB on the
 free plan, 1TB on Creator. The meter is in
 **Settings → Plan & billing**. When it is full, new uploads stop until you
-delete files or upgrade — nothing already there is touched.
+delete files or upgrade — nothing already there is touched. On Creator
+you can also add [more storage](/docs/account/plans#more-storage),
+1TB at a time.
 
 Storage is counted against the **owner of the cluster**, not the person who
 uploaded. If you are an editor on someone else's board, your uploads use their

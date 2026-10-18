@@ -117,7 +117,8 @@ This is what makes free editors work — see
 
 ## Hitting a limit
 
-You are told when you reach either one, and offered the upgrade. Nothing you
+You are told when you reach either one, and offered the upgrade — or, when a
+{{fact:planName}} drive is full, [more storage](#more-storage). Nothing you
 have already made is removed, locked, or hidden. A drop that would not fit is
 caught before anything uploads, so you can add the part that fits instead.
 
@@ -127,6 +128,28 @@ once.
 
 You can also raise your own cap without paying: [referrals](/docs/account/referrals)
 grant bonus cards for people you invite who actually get started.
+
+## More storage
+
+If {{fact:planName}}'s {{fact:creatorStorage}} drive fills, add more in blocks of
+**{{fact:storageAddonSize}}**: {{fact:storageAddonMonthly}} on the monthly plan,
+or {{fact:storageAddonAnnual}} on the annual one, up to {{fact:storageAddonMax}}
+blocks. Add a block from **Settings → Plan & billing**, or from the message or dialog
+that appears when an upload will not fit. It goes on the card your plan already
+bills, with no new checkout. The first charge covers only the rest of your
+current billing period, and the sheet shows that amount before you confirm.
+
+If your bank asks to confirm the payment, Stripe opens a page to finish it. The
+storage is added once that payment goes through; until then nothing changes.
+
+Remove a block from the same place while your plan is active and not set to
+cancel. The unused part of the period comes off your next bill. A block can't
+be removed while your files would no longer fit without it, so delete some or
+empty the trash first.
+
+Extra storage can be added once a {{fact:planName}} trial has made its first
+payment, and only while the subscription is in good standing. It ends with the
+plan: if {{fact:planName}} is canceled, the extra storage goes with it.
 
 ## Trying {{fact:planName}} first
 
@@ -144,8 +167,10 @@ rather than on this page — it is for people who have built something.
 
 ## Billing
 
-**Settings → Plan & billing** shows your plan, the storage meter, and a link to the
-Stripe customer portal for payment details, invoices and cancellation.
+**Settings → Plan & billing** shows your plan, the storage meter, any
+[extra storage](#more-storage) with the buttons to add or remove it, and a link
+to the Stripe customer portal for payment details, invoices and cancellation.
+Extra storage is changed in Settings, not in the portal.
 
 Annual and monthly are the same product. Annual is cheaper per month.
 

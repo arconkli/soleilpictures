@@ -96,12 +96,16 @@ export function addonRefusal(state) {
   if (!items.creator) return { code: "no_subscription" };
   if (items.storage.length > 1) return { code: "contact_support" };
   if (sub.status === "trialing") return { code: "trial_active" };
+  // Before the open-invoice check: an add that needed 3D Secure leaves the
+  // subscription active with a pending update, and its open invoice is the
+  // one waiting to be paid. That is "finish your payment", not "your payment
+  // failed".
+  if (sub.pending_update) return { code: "payment_pending" };
   const inv = sub.latest_invoice && typeof sub.latest_invoice === "object" ? sub.latest_invoice : null;
   if (sub.status === "past_due" || sub.status === "unpaid" || inv?.status === "open") return { code: "past_due" };
   if (sub.status !== "active") return { code: "not_active", status: sub.status };
   if (hasSchedule(sub)) return { code: "schedule_attached" };
   if (sub.cancel_at_period_end || sub.cancel_at) return { code: "cancel_pending" };
-  if (sub.pending_update) return { code: "payment_pending" };
   if (target == null) return { code: "bad_request", max: maxBlocks };
   if (target < current && Number(usedBytes) > Number(quotaIfBytes)) {
     return { code: "over_usage", used_bytes: Number(usedBytes), quota_bytes: Number(quotaIfBytes) };

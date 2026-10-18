@@ -77,7 +77,9 @@ behind it.
 Uploads count against your account's storage quota: {{fact:freeStorage}} on the
 free plan, {{fact:creatorStorage}} on {{fact:planName}}. The meter is in
 **Settings → Plan & billing**. When it is full, new uploads stop until you
-delete files or upgrade — nothing already there is touched.
+delete files or upgrade — nothing already there is touched. On {{fact:planName}}
+you can also add [more storage](/docs/account/plans#more-storage),
+{{fact:storageAddonSize}} at a time.
 
 Storage is counted against the **owner of the cluster**, not the person who
 uploaded. If you are an editor on someone else's board, your uploads use their

@@ -6,7 +6,7 @@ _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters
 
 ## 2026-10-17 — Any file at any size on every plan, a 1TB Creator drive, and deleting frees space
 
-The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB. Deleting a file now gives its space back.
+The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB, and you can add more a terabyte at a time. Deleting a file now gives its space back.
 
 Storage works differently from today, on every plan.
 
@@ -30,6 +30,14 @@ Storage works differently from today, on every plan.
 - A drop that would not fit in your drive is caught before anything uploads,
   with the option to add the files that fit. See
   [what counts toward storage](/docs/files#what-counts).
+
+### More storage
+
+- A full Creator drive can grow 1TB at a time,
+  up to 10 more: $25/month, or
+  $240/year on the annual plan, added from
+  **Settings → Plan & billing** on the card you already pay with. See
+  [more storage](/docs/account/plans#more-storage).
 
 ## 2026-10-04 — Folders become clusters, files keep their names, and search reads documents
 

@@ -9946,6 +9946,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           bytesNeeded={importAsk.bytesNeeded ?? null}
           bytesLeft={importAsk.bytesLeft ?? null}
           canUpgrade={importAsk.limitKind === 'storage' ? (importAsk.own && !importAsk.paid) : true}
+          // A paying owner's full drive: close the question (nothing has
+          // uploaded) and open the extra-storage sheet; they drop again after.
+          onAddStorage={!STORAGE_ADDON_HELD && importAsk.limitKind === 'storage' && importAsk.own && importAsk.paid
+            ? () => {
+                answerImportAsk('cancel', 0);
+                window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'preflight' } }));
+              }
+            : null}
           trialOffer={creatorTrialEligibility({
             tier: myTier.tier, cards: myTier.serverCardCount,
             cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,

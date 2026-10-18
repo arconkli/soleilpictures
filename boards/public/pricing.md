@@ -48,6 +48,10 @@ No. Editors are free on every plan, and always were. What Creator does is carry 
 
 You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — you simply cannot add more until you free some room or upgrade. Deleting a file gives its space back within a few minutes, and emptying the trash gives back everything in it at once.
 
+### Can I get more storage?
+
+Yes. On Creator, add 1TB at a time, up to 10 more: $25/month on the monthly plan or $240/year on the annual one, from Settings → Plan & billing, on the card you already pay with. The first charge covers only the rest of your billing period, and while your plan is active you can remove a block again, as long as your files still fit.
+
 ### Can I cancel?
 
 Any time, from Settings → Billing, and you keep access until the end of the period you have paid for. Afterwards everything over the free allowance stays exactly where it is; you just cannot add more.

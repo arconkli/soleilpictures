@@ -2680,6 +2680,10 @@ export const DOCS_PAGES = [
         "text": "Hitting a limit"
       },
       {
+        "id": "more-storage",
+        "text": "More storage"
+      },
+      {
         "id": "trying-creator-first",
         "text": "Trying Creator first"
       },

@@ -35,9 +35,14 @@ export function previewStorageAddon(blocks) {
   return call({ action: 'preview', blocks });
 }
 
-// Do it, at the preview's proration date, under a fresh per-click request id.
-export function applyStorageAddon({ blocks, prorationDate }) {
-  const requestId = globalThis.crypto?.randomUUID?.() ?? null;
+// A request id for one confirmed preview. Retrying THAT preview reuses it, so
+// Stripe replays the first answer instead of applying the change twice.
+export function newAddonRequestId() {
+  return globalThis.crypto?.randomUUID?.() ?? null;
+}
+
+// Do it, at the preview's proration date, under the preview's request id.
+export function applyStorageAddon({ blocks, prorationDate, requestId }) {
   if (!requestId) return Promise.resolve({ ok: false, error: 'bad_request' });
   return call({ action: 'apply', blocks, proration_date: prorationDate, request_id: requestId });
 }
@@ -74,9 +79,9 @@ export function storageAddonErrorMessage(answer) {
     case 'network':
       return 'Couldn’t reach billing. Check your connection and try again.';
     default:
-      // A retry is always safe: the request names the TOTAL, so one that
-      // already went through finds nothing to change and charges nothing.
-      return 'Something went wrong with billing. Try again — you won’t be charged twice.';
+      // Safe to retry from the sheet: a retry resends the same total under the
+      // same request id, so one that already went through is not charged again.
+      return 'Something went wrong with billing. Use Try again here — repeating the same request never charges twice.';
   }
 }
 

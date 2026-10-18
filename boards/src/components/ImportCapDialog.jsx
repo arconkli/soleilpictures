@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Modal } from './Modal.jsx';
 import { rejectedNoun } from '../lib/demoCardCap.js';
-import { CTA, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, PLAN_NAME, storageAmountLabel } from '../lib/billingCopy.js';
+import { CTA, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, PLAN_NAME, STORAGE_ADDON_BLOCK_LABEL, storageAmountLabel } from '../lib/billingCopy.js';
 import './importCapDialog.css';
 
 // The over-cap folder drop, asked BEFORE anything uploads.
@@ -42,8 +42,10 @@ import './importCapDialog.css';
 // drive has room for; `take` is then how many files fit, in drop order.
 // `canUpgrade` is false where buying would not help — a paying owner whose
 // drive is full, or someone dropping into another person's cluster.
+// `onAddStorage` (0415): for a paying owner whose drive is what overflows, the
+// way to extra storage. Null hides it — anyone else, or while it is held.
 export function ImportCapDialog({ open, n, take, over, count, limit, kinds, folder = null, trialOffer = false,
-  limitKind = 'cards', bytesNeeded = null, bytesLeft = null, canUpgrade = true,
+  limitKind = 'cards', bytesNeeded = null, bytesLeft = null, canUpgrade = true, onAddStorage = null,
   onTakePartial, onUpgrade, onCancel }) {
   const primaryRef = useRef(null);
   if (!open) return null;
@@ -101,7 +103,9 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
           {storage
             ? (canUpgrade
               ? `Nothing has been uploaded yet. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`
-              : 'Nothing has been uploaded yet. Deleting files or emptying the trash makes room.')
+              : onAddStorage
+                ? `Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more and drop them again, or delete files or empty the trash to make room.`
+                : 'Nothing has been uploaded yet. Deleting files or emptying the trash makes room.')
             : `Nothing has been uploaded yet. Creator removes the limit entirely${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`}
         </p>
       </div>
@@ -114,6 +118,11 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
           <button type="button" className="impcap-btn" onClick={onTakePartial}
                   ref={canUpgrade ? undefined : primaryRef}>
             {folder ? 'Add what fits' : <>Add the first {take} {takeNoun}</>}
+          </button>
+        )}
+        {storage && !canUpgrade && onAddStorage && (
+          <button type="button" className="impcap-btn impcap-btn-primary" onClick={onAddStorage}>
+            Add {STORAGE_ADDON_BLOCK_LABEL}
           </button>
         )}
         {canUpgrade && (

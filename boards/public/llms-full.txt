@@ -1597,7 +1597,7 @@ Batches upload a few at a time so one huge file does not block eleven small ones
 
 Storage
 
-Uploads count against your account's storage quota: 5GB on the free plan, 1TB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched.
+Uploads count against your account's storage quota: 5GB on the free plan, 1TB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. On Creator you can also add more storage, 1TB at a time.
 
 Storage is counted against the owner of the cluster, not the person who uploaded. If you are an editor on someone else's board, your uploads use their quota — which is the same rule that governs the card cap.
 
@@ -3646,7 +3646,7 @@ API access — create and revoke personal access tokens for the REST API and MCP
 
 Plan & billing
 
-Current plan, the Stripe customer portal for payment details and cancellation, and the storage meter showing what you have used against your quota. See Plans.
+Current plan, the Stripe customer portal for payment details and cancellation, the storage meter showing what you have used against your quota, and — on Creator — extra storage to add or remove, 1TB at a time. See Plans.
 
 Invite & earn
 
@@ -3776,11 +3776,21 @@ Cards and files added to someone else's cluster count against them, not you. Thi
 
 Hitting a limit
 
-You are told when you reach either one, and offered the upgrade. Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead.
+You are told when you reach either one, and offered the upgrade — or, when a Creator drive is full, more storage. Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead.
 
 Deleting a file gives its space back within a few minutes — unless another cluster still uses it — and emptying the trash gives back everything in it at once.
 
 You can also raise your own cap without paying: referrals grant bonus cards for people you invite who actually get started.
+
+More storage
+
+If Creator's 1TB drive fills, add more in blocks of 1TB: $25/month on the monthly plan, or $240/year on the annual one, up to 10 blocks. Add a block from Settings → Plan & billing, or from the message or dialog that appears when an upload will not fit. It goes on the card your plan already bills, with no new checkout. The first charge covers only the rest of your current billing period, and the sheet shows that amount before you confirm.
+
+If your bank asks to confirm the payment, Stripe opens a page to finish it. The storage is added once that payment goes through; until then nothing changes.
+
+Remove a block from the same place while your plan is active and not set to cancel. The unused part of the period comes off your next bill. A block can't be removed while your files would no longer fit without it, so delete some or empty the trash first.
+
+Extra storage can be added once a Creator trial has made its first payment, and only while the subscription is in good standing. It ends with the plan: if Creator is canceled, the extra storage goes with it.
 
 Trying Creator first
 
@@ -3790,7 +3800,7 @@ A card is required; nothing is charged until the trial ends, and cancelling befo
 
 Billing
 
-Settings → Plan & billing shows your plan, the storage meter, and a link to the Stripe customer portal for payment details, invoices and cancellation.
+Settings → Plan & billing shows your plan, the storage meter, any extra storage with the buttons to add or remove it, and a link to the Stripe customer portal for payment details, invoices and cancellation. Extra storage is changed in Settings, not in the portal.
 
 Annual and monthly are the same product. Annual is cheaper per month.
 
@@ -10237,6 +10247,10 @@ No. Editors are free on every plan, and always were. What Creator does is carry 
 
 You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — you simply cannot add more until you free some room or upgrade. Deleting a file gives its space back within a few minutes, and emptying the trash gives back everything in it at once.
 
+### Can I get more storage?
+
+Yes. On Creator, add 1TB at a time, up to 10 more: $25/month on the monthly plan or $240/year on the annual one, from Settings → Plan & billing, on the card you already pay with. The first charge covers only the rest of your billing period, and while your plan is active you can remove a block again, as long as your files still fit.
+
 ### Can I cancel?
 
 Any time, from Settings → Billing, and you keep access until the end of the period you have paid for. Afterwards everything over the free allowance stays exactly where it is; you just cannot add more.
@@ -10260,7 +10274,7 @@ _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters
 
 ## 2026-10-17 — Any file at any size on every plan, a 1TB Creator drive, and deleting frees space
 
-The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB. Deleting a file now gives its space back.
+The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB, and you can add more a terabyte at a time. Deleting a file now gives its space back.
 
 Storage works differently from today, on every plan.
 
@@ -10284,6 +10298,14 @@ Storage works differently from today, on every plan.
 - A drop that would not fit in your drive is caught before anything uploads,
   with the option to add the files that fit. See
   [what counts toward storage](/docs/files#what-counts).
+
+### More storage
+
+- A full Creator drive can grow 1TB at a time,
+  up to 10 more: $25/month, or
+  $240/year on the annual plan, added from
+  **Settings → Plan & billing** on the card you already pay with. See
+  [more storage](/docs/account/plans#more-storage).
 
 ## 2026-10-04 — Folders become clusters, files keep their names, and search reads documents
 

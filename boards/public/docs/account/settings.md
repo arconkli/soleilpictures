@@ -71,8 +71,9 @@ Everything that can reach your clusters without being this browser.
 ### Plan & billing
 
 Current plan, the Stripe customer portal for payment details and cancellation,
-and the **storage meter** showing what you have used against your quota. See
-[Plans](/docs/account/plans).
+the **storage meter** showing what you have used against your quota, and — on
+Creator — [extra storage](/docs/account/plans#more-storage) to add or
+remove, 1TB at a time. See [Plans](/docs/account/plans).
 
 ### Invite & earn
 
