@@ -178,6 +178,12 @@ function isYType(v) {
     && (typeof v.observe === 'function' || typeof v.observeDeep === 'function' || v._item !== undefined);
 }
 
+// A card row is a Y.Map. Y.Array and the XML types have no `has`.
+function isYMap(v) {
+  return isYType(v) && typeof v.forEach === 'function' && typeof v.has === 'function';
+}
+let warnedNotYMap = false;
+
 function cardHash(card) {
   // Sort keys so iteration-order quirks don't cause false negatives.
   const keys = Object.keys(card).sort();
@@ -208,6 +214,17 @@ export function readCards(ydoc) {
   const seen = new Set();
   const out = [];
   cards.forEach((ym, key) => {
+    // Anything else under `cards` (a string or plain object from a writer
+    // that skipped cardToYMap) is skipped, not thrown on: yMapToCard would
+    // throw for every client on every update of the board, so one bad value
+    // took the whole board down.
+    if (!isYMap(ym)) {
+      if (!warnedNotYMap) {
+        warnedNotYMap = true;
+        console.warn('[readCards] skipping a card value that is not a Y.Map', key, typeof ym);
+      }
+      return;
+    }
     seen.add(key);
     const fresh = yMapToCard(ym);
     fresh.id = key;
