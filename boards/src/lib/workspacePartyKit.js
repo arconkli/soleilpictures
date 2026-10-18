@@ -11,6 +11,7 @@ import PartySocket from 'partysocket';
 import { supabase } from './supabase.js';
 import { PARTY_HOST as PARTYKIT_HOST } from './partyHost.js';
 import { parkWhileHidden } from './partyPark.js';
+import { pageBusy } from './buildWatch.js';
 
 // Workspace presence (who's in the workspace / which board) tolerates a few
 // seconds of staleness — live board cursors are a separate 250ms-throttled
@@ -135,6 +136,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
       console.log('[partykit] workspace', workspaceId, 'unparked');
       try { socket.reconnect(); } catch (_) {}
     },
+    isBusy: pageBusy,
   });
 
   // Token rotations need no handling (see the query function above). Only

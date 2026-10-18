@@ -104,6 +104,10 @@ export function reloadHeld() { return holds > 0; }
 
 let xhrInFlight = 0;
 let lastXhrEnd = 0;
+// Work that a party socket parking (lib/partyPark.js) would hold up: a hold,
+// or an upload on the wire.
+export function pageBusy() { return holds > 0 || xhrInFlight > 0; }
+
 function trackXhr() {
   if (typeof XMLHttpRequest === 'undefined' || XMLHttpRequest.prototype.__soleilTracked) return;
   const send = XMLHttpRequest.prototype.send;

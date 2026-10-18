@@ -39,7 +39,8 @@ import { getGestureActiveUntil } from './perfReport.js';
 import * as perf from './perf.js';
 import { PARTY_HOST } from './partyHost.js';
 import { socketLooksDead } from './partyKeepalive.js';
-import { parkWhileHidden } from './partyPark.js';
+import { parkWhileHidden, parkWhileIdle } from './partyPark.js';
+import { pageBusy } from './buildWatch.js';
 
 const KEEPALIVE_MS = 15_000;
 const MESSAGE_AWARENESS = 1;
@@ -113,21 +114,37 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     },
   });
 
-  // A tab hidden for five minutes lets go of the room (lib/partyPark.js): the
-  // room is billed for every second this socket is open. The doc stays here,
-  // so taking it back is the usual reconnect sync.
-  const parking = parkWhileHidden({
-    park: () => {
-      console.log('[partykit] board', boardId, 'parked (tab hidden)');
-      perf.bump('partykit.park');
-      try { provider.disconnect(); } catch (_) {}
-    },
-    unpark: () => {
-      if (destroyed) return;
-      console.log('[partykit] board', boardId, 'unparked');
-      try { Promise.resolve(provider.connect()).catch(() => {}); } catch (_) {}
-    },
-  });
+  // A tab hidden for five minutes, or on screen and unused for fifteen on a
+  // board where nobody else is doing anything, lets go of the room
+  // (lib/partyPark.js): the room is billed for every second this socket is
+  // open. The doc stays here, so taking it back is the usual reconnect sync.
+  // The socket is down while either reason holds.
+  const parkedFor = new Set();
+  const parkFor = (why) => () => {
+    const wasUp = parkedFor.size === 0;
+    parkedFor.add(why);
+    if (!wasUp) return;
+    console.log('[partykit] board', boardId, `parked (${why})`);
+    perf.bump('partykit.park');
+    try { provider.disconnect(); } catch (_) {}
+  };
+  const unparkFor = (why) => () => {
+    if (!parkedFor.delete(why) || parkedFor.size > 0 || destroyed) return;
+    console.log('[partykit] board', boardId, 'unparked');
+    try { Promise.resolve(provider.connect()).catch(() => {}); } catch (_) {}
+  };
+  const whileHidden = parkWhileHidden({ park: parkFor('tab hidden'), unpark: unparkFor('tab hidden'), isBusy: pageBusy });
+  const whileIdle = parkWhileIdle({ park: parkFor('idle'), unpark: unparkFor('idle'), isBusy: pageBusy });
+  const parking = {
+    isParked: () => parkedFor.size > 0,
+    dispose() { whileHidden.dispose(); whileIdle.dispose(); },
+  };
+  // What counts as someone else working: their edits, and their cursors and
+  // selections. Our own echoed keepalives change nothing, so they never count.
+  const onRemoteUpdate = (_update, origin) => { if (origin === provider) whileIdle.noteRemote(); };
+  const onAwarenessChange = (_changes, origin) => { if (origin !== 'local') whileIdle.noteRemote(); };
+  ydoc.on('update', onRemoteUpdate);
+  awareness.on('change', onAwarenessChange);
 
   // Liveness (see the header).
   let lastPingAt = 0;
@@ -255,6 +272,8 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       destroyed = true;
       clearInterval(keepalive);
       parking.dispose();
+      try { ydoc.off('update', onRemoteUpdate); } catch (_) {}
+      try { awareness.off('change', onAwarenessChange); } catch (_) {}
       reconnector.dispose();
       try { provider.destroy(); } catch (_) {}
       try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
