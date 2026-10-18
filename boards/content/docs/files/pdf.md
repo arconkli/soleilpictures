@@ -1,12 +1,12 @@
 ---
 title: PDFs — Soleil Clusters
-metaDescription: PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download. Free accounts cap PDFs at {{fact:freePdfCap}}.
+metaDescription: PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download, on every plan.
 h1: PDFs
 navLabel: PDFs
 section: files
 order: 1
-updated: 2026-08-08
-answer: Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. Free accounts can upload PDFs up to {{fact:freePdfCap}}; {{fact:planName}} removes the cap.
+updated: 2026-10-17
+answer: Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to {{fact:pdfViewerMax}} open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.
 faq:
   - q: Can I annotate a PDF?
     a: Not inside the document. You can draw on the canvas over the PDF card, and attach comments to the card, but the PDF file itself is not edited.
@@ -50,13 +50,13 @@ What you can do instead:
 - **Comment on the card** — see [Comments](/docs/collaborate/comments)
 - **Put a note beside it** with the feedback
 
-## Size limit
+## Size
 
-Free accounts cap PDFs at **{{fact:freePdfCap}}**. {{fact:planName}} removes the
-cap. See [Plans](/docs/account/plans).
-
-A script or a treatment is comfortably under that. A print-resolution deck with
-embedded images often is not.
+There is no PDF size limit on any plan — a PDF counts toward your
+[storage](/docs/files#storage) like any other file. Up to
+**{{fact:pdfViewerMax}}** it becomes a PDF card that opens in the viewer; a
+larger one lands as a file card with a download, so a print-resolution deck
+with embedded images still comes along whole.
 
 ## Making PDFs
 

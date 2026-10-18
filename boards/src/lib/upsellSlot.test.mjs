@@ -204,18 +204,29 @@ __resetUpsellSlot();
 assert(claimUpsellSlot('first-value', T, 'v1'), 'an offer shows first');
 assert(claimUpsellSlot('share-ask', W, 'v1'), 'and did not spend the visit\'s ambient ask');
 
-// "What's holding you back?" may follow an offer inside the window, but it is
-// still an ambient ask: behind one this visit already had, it waits.
+// "What's holding you back?" is not in the budget (owner, 2026-10-07). It only
+// follows an offer the person just closed, and those land mid-visit — after the
+// visit's ambient ask — so while it waited on the budget it was never asked.
+// It follows the offer whatever the visit already had, and spends nothing.
 __resetUpsellSlot();
 assert(claimUpsellSlot('share-ask', T, 'v1'), 'the share ask owned this visit');
 assert(claimUpsellSlot('cap-toast', W, 'v1'), 'an offer shows later in it');
-assertEq(claimUpsellSlot('upgrade-reason', W + 5_000, 'v1'), false,
-  'so the reason ask waits, though FOLLOWS would let it follow the offer');
+assert(claimUpsellSlot('upgrade-reason', W + 5_000, 'v1'),
+  'and the reason ask still follows the offer it belongs to');
+assertEq(claimUpsellSlot('power-reveal', W + 5_000 + UPSELL_STACK_WINDOW_MS + 1, 'v1'), false,
+  'the share ask still owns the visit afterwards');
 
 __resetUpsellSlot();
 assert(claimUpsellSlot('cap-toast', T, 'v1'), 'an offer in a visit with no ask yet');
 assert(claimUpsellSlot('upgrade-reason', T + 5_000, 'v1'), 'the reason ask follows it');
-assertEq(claimUpsellSlot('share-ask', W + 5_000, 'v1'), false, 'and is that visit\'s one ask');
+assert(claimUpsellSlot('share-ask', W + 5_000, 'v1'),
+  'and did not spend the visit\'s one ambient ask');
+
+// It still never stacks on something that is not an offer: the window holds.
+__resetUpsellSlot();
+assert(claimUpsellSlot('mix-prompt', T, 'v1'), 'a dock takes the minute');
+assertEq(claimUpsellSlot('upgrade-reason', T + 5_000, 'v1'), false,
+  'and the reason ask may not follow it — it only follows offers');
 
 // The return question is asked once per account, ever, and its answers are the
 // read on why people come back — it is let through the budget (owner, 10-01),

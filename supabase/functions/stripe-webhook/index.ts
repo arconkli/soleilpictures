@@ -15,12 +15,17 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import {
   activateUserFromSubscription,
-  netMonthlyFromSubscription,
-  periodEndFromSubscription,
-  planFromPriceId,
+  billingConfig,
+  flagUnknownItems,
+  mirrorRow,
   resolveUserId,
 } from "../_shared/activate.ts";
-import { filterLiveSubscriptions, subscriptionEventAction } from "../_shared/activateCore.mjs";
+import {
+  activationDecision,
+  filterLiveSubscriptions,
+  shouldDemote,
+  subscriptionEventAction,
+} from "../_shared/activateCore.mjs";
 import { emitCapi } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
@@ -118,6 +123,7 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
   }
 
   // Expand discounts so we can record the real net amount (100%-off → $0).
+  const observedAt = new Date().toISOString();
   const subscription = subId ? await stripe.subscriptions.retrieve(subId, { expand: ["discounts"] }) : null;
 
   // Replay guard: Stripe (or an operator re-send) can deliver an old
@@ -134,6 +140,7 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
     customerId,
     subscription,
     subscriptionId: subId ?? null,
+    observedAt,
   });
 
   // A soft refusal (dead/incomplete/absent subscription — activateCore's
@@ -331,26 +338,24 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
   // meant a stale retried `updated(active)` could re-grant paid tier to a
   // canceled user forever, and discounted subs recorded list-price MRR.
   // A throw here 500s and Stripe retries — same contract as onCheckoutCompleted.
-  const full = await stripe.subscriptions.retrieve(sub.id, { expand: ["discounts"] });
+  // latest_invoice tells a past_due Stripe is still retrying from one it has
+  // given up on (activateCore entitlementFromSubscription).
+  const observedAt = new Date().toISOString();
+  const full = await stripe.subscriptions.retrieve(sub.id, { expand: ["discounts", "latest_invoice"] });
 
-  const plan = planFromPriceId(full.items.data[0]?.price?.id);
-  const billing = netMonthlyFromSubscription(full);
-  const up = await admin.from("subscriptions").upsert({
-    user_id: userId,
-    stripe_customer_id: customerId,
-    stripe_subscription_id: full.id,
-    plan,
-    status: full.status,
-    current_period_end: periodEndFromSubscription(full),
-    cancel_at_period_end: full.cancel_at_period_end,
-    monthly_amount_cents: billing.monthlyAmountCents,
-    discount: billing.discount,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id" });
+  // The mirror row carries the extra-storage blocks (0415): this is how a
+  // block bought behind a 3D Secure step reaches the drive, once paid.
+  const up = await admin.from("subscriptions").upsert(
+    mirrorRow(full, { userId, customerId, observedAt }),
+    { onConflict: "user_id" },
+  );
   if (up.error) throw new Error(`subscriptions upsert failed: ${up.error.message}`);
+  await flagUnknownItems(admin, userId, full, "stripe-webhook");
 
-  // Active subs → ensure tier='paid' (unless admin).
-  if (full.status === "active" || full.status === "trialing") {
+  const cfg = billingConfig();
+  // Active subs → ensure tier='paid' (unless admin) — if they are a plan at
+  // all: a subscription whose only item is extra storage is not one.
+  if (activationDecision(full, cfg).live) {
     const flip = await admin.from("profiles").update({ tier: "paid" }).eq("user_id", userId).neq("tier", "admin");
     if (flip.error) throw new Error(`tier flip failed: ${flip.error.message}`);
 
@@ -368,8 +373,20 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
         .is("creator_trial_started_at", null);
       if (stamp.error) console.warn("[stripe] creator_trial_started_at stamp failed", stamp.error.message);
     }
+  } else if (shouldDemote(full, { cfg })) {
+    // Not entitled any more (activateCore): unpaid, paused, a past_due Stripe
+    // has stopped retrying or that has outrun the grace, or no plan item. Until
+    // 2026-10-17 this branch did nothing and waited for a deleted event that
+    // an `unpaid` or `paused` subscription never sends. Grant check first, as
+    // on every demotion path.
+    const grantQ = await admin.rpc("user_has_active_paid_grant", { p_user_id: userId });
+    if (grantQ.error) throw new Error(`grant check failed: ${grantQ.error.message}`);
+    if (grantQ.data !== true) {
+      const demote = await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
+      if (demote.error) throw new Error(`tier demote failed: ${demote.error.message}`);
+    }
   }
-  // Past-due / unpaid → leave tier as-is, the cancel event will drop them.
+  // Past-due while Stripe is still retrying → tier left as-is.
 }
 
 // charge.refunded / charge.dispute.created — money went backwards. Policy
@@ -489,12 +506,26 @@ async function onSubscriptionDeleted(admin: ReturnType<typeof createClient>, sub
     return;
   }
 
-  const cancelUpd = await admin.from("subscriptions").update({
+  // Stamped as an observation: a canceled subscription never comes back, so
+  // a read that started before this one must not write "active" over it.
+  // And only the row still tracking THIS subscription: a resubscribe can take
+  // the row over between the read above and this write, and canceling it then
+  // would mark the new, paying subscription dead and demote its owner. A
+  // legacy row with no subscription id is matched by user, as before.
+  const storedSubId = (stored.data?.stripe_subscription_id as string | undefined) ?? null;
+  let cancelQ = admin.from("subscriptions").update({
     status: "canceled",
     cancel_at_period_end: false,
+    observed_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
+  if (storedSubId) cancelQ = cancelQ.eq("stripe_subscription_id", sub.id);
+  const cancelUpd = await cancelQ.select("user_id");
   if (cancelUpd.error) throw new Error(`subscription cancel write failed: ${cancelUpd.error.message}`);
+  if (storedSubId && !cancelUpd.data?.length) {
+    console.warn("[stripe] deleted: the mirror moved to another subscription meanwhile — skipped", { userId, eventSub: sub.id });
+    return;
+  }
 
   // Don't drop to demo if the user still has an active admin grant —
   // their paid access comes from the grant, independent of Stripe. A

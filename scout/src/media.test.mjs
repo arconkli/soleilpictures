@@ -108,11 +108,11 @@ test('the free tier really does take video, audio and PDFs', () => {
   assert.equal(free('video/mp4', 'a.mp4', 20 * 1024 * 1024), 'video');
   assert.equal(free('audio/mpeg', 'a.mp3', 40 * 1024 * 1024), 'audio');
   assert.equal(free('application/pdf', 'a.pdf', 40 * 1024 * 1024), 'pdf');
-  // Over the caps is where the paywall starts — never the type (0367 opened
-  // file types on the free plan; any other file is a file card up to 50 MB).
-  assert.equal(free('video/mp4', 'a.mp4', 200 * 1024 * 1024), 'blocked');
+  // And at any size since 0413: the owner's drive is the only byte limit, so
+  // a big clip goes up in parts and a big file is a file card, on every plan.
+  assert.equal(free('video/mp4', 'a.mp4', 200 * 1024 * 1024), 'largeMedia');
   assert.equal(free('application/zip', 'a.zip', 1e6), 'file');
-  assert.equal(free('application/zip', 'a.zip', 60 * 1024 * 1024), 'blocked');
+  assert.equal(free('application/zip', 'a.zip', 60 * 1024 * 1024), 'file');
 });
 
 test('a paid owner is refused nothing', () => {

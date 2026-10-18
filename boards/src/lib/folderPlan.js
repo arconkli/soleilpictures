@@ -32,12 +32,17 @@ function planNode(node, ctx) {
 }
 
 export function countPlan(nodes) {
-  const out = { clusters: 0, files: 0, cost: 0, kinds: {}, depth: 0 };
+  // `bytes` is what the folder's files weigh, for the drive half of the
+  // preflight (importPreflight.planBytes); clusters weigh nothing.
+  const out = { clusters: 0, files: 0, cost: 0, kinds: {}, depth: 0, bytes: 0 };
   const walk = (n, depth) => {
     out.clusters++;
     out.files += n.items.length;
     out.depth = Math.max(out.depth, depth);
-    for (const it of n.items) out.kinds[it.kind] = (out.kinds[it.kind] || 0) + 1;
+    for (const it of n.items) {
+      out.kinds[it.kind] = (out.kinds[it.kind] || 0) + 1;
+      out.bytes += Math.max(0, Number(it.file?.size) || 0);
+    }
     n.children.forEach((c) => walk(c, depth + 1));
   };
   (nodes || []).forEach((n) => walk(n, 1));

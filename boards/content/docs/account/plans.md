@@ -1,29 +1,29 @@
 ---
 title: Plans and Pricing — Soleil Clusters
-metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards and free collaborators. Creator removes the card cap and the file size limits on a {{fact:creatorStorage}} drive.
+metaDescription: Soleil Clusters is free with {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, and free collaborators. Creator removes the card cap and gives you a {{fact:creatorStorage}} drive.
 h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-10-07
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards — each cluster counts as one — unlimited free collaborators, and any file type up to {{fact:freeFileCap}}. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and the size limits go: no per-file size or length limits, and a {{fact:creatorStorage}} drive instead of {{fact:freeStorage}}. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+updated: 2026-10-17
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first — each cluster counts as one card — unlimited free collaborators, and any file at any size. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from {{fact:freeStorage}} to {{fact:creatorStorage}}. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
-    a: Two things and only two — total cards, and how big or long a single file can be (video stops at {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio at {{fact:freeAudioCap}}, PDFs and any other file at {{fact:freeFileCap}}; images are never capped). Any file type is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+    a: Two things — total cards and total storage — {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
   - q: Do collaborators need to pay?
     a: No, and they never did — editors are free on every plan. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
   - q: If someone on my team upgrades, does my workspace get the higher limits?
     a: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it.
-  - q: What happens when I hit the card cap?
-    a: You are told, and asked to upgrade. Nothing already made is taken away or locked.
+  - q: What happens when I hit a limit?
+    a: You are told, and asked to upgrade. Nothing already made is taken away or locked. Deleting files gives their space back within a few minutes, and emptying the trash gives back everything in it at once.
   - q: My card limit is {{fact:legacyDemoCardLimit}}, not {{fact:demoCardLimit}}. Why?
     a: Accounts created before the free plan changed keep the {{fact:legacyDemoCardLimit}}-card allowance they signed up under, permanently. Nobody's cap was lowered.
   - q: Where do I enter a discount code?
     a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
   - q: Is there a free trial of {{fact:planName}}?
-    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. One trial per account.
+    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. During the trial your drive is {{fact:trialStorage}}; the full {{fact:creatorStorage}} comes with the first payment. One trial per account.
   - q: What happens to my work if I cancel, or my trial ends?
-    a: Nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it.
+    a: Nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -31,7 +31,7 @@ related:
 ---
 
 Two plans. The difference between them is deliberately small and deliberately
-honest — four enforced limits, listed below, and nothing else. The
+honest — two enforced limits, listed below, and nothing else. The
 [pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
 is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
 
@@ -44,10 +44,11 @@ page, drops it.
 ## Demo — free
 
 - **{{fact:demoCardLimit}} cards** to build with
+- A **{{fact:freeStorage}}** drive — any file, at any size
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
-- Any file type, up to {{fact:freeFileCap}} each — images are never capped
-- A **{{fact:freeStorage}}** drive for your files
+
+The free plan stops at whichever limit you reach first.
 
 ## {{fact:planName}}
 
@@ -57,24 +58,27 @@ page, drops it.
 
 - **Unlimited cards** — the {{fact:demoCardLimit}}-card ceiling comes off, and every
   card you have already made stays exactly where it is.
-- **No size limits** — video past {{fact:freeVideoCap}} or {{fact:freeVideoSec}}, audio past
-  {{fact:freeAudioCap}}, a PDF or a `.psd`, a `.fig`, a `.zip` past {{fact:freeFileCap}}, all
-  fine, on your own **{{fact:creatorStorage}}** drive.
+- **A {{fact:creatorStorage}} drive** — free holds {{fact:freeStorage}}; {{fact:planName}}
+  holds **{{fact:creatorStorage}}**, room for the footage, the camera originals and the
+  project archives. (During a [trial](#trying-creator-first) it is
+  {{fact:trialStorage}}, and the full drive comes with the first payment.)
 - **Covers your whole workspace** — everyone you invite builds at your limits,
   and there are no per-seat charges.
 
 ## What is genuinely limited
 
-Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:
+Two things — cards and storage. A free account stops at whichever it reaches
+first:
 
 | | Demo | {{fact:planName}} |
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | {{fact:demoCardLimit}} | Unlimited |
-| **[File types](/docs/files)** | Any — up to {{fact:freeFileCap}} each | Any, at any size |
-| **Per-file size and length** | Video {{fact:freeVideoCap}} or {{fact:freeVideoSec}} · audio {{fact:freeAudioCap}} · PDF and any other file {{fact:freeFileCap}} · images never | No limit |
-| **Storage** | {{fact:freeStorage}} | {{fact:creatorStorage}} |
+| **[Storage](/docs/files#storage)** | {{fact:freeStorage}} | {{fact:creatorStorage}} |
+| **[File types and sizes](/docs/files)** | Any, at any size | Any, at any size |
 
-Everything else is the same on both plans.
+Everything else is the same on both plans. [What counts toward
+storage](/docs/files#what-counts) — and what does not — is spelled out on the
+files page.
 
 A [grid](/docs/canvas/grids) counts the boxes you have filled, one card each,
 and an empty grid counts as nothing — so laying out a storyboard before you draw
@@ -100,7 +104,8 @@ work across several, the one that matters is the workspace the cluster lives in.
 > **Note:** There is no separate cap on clusters — each one is a card, and counts
 > as one. Collaborators, editing, sharing, [public links](/docs/collaborate/sharing),
 > comments, documents, [screenplay mode](/docs/documents/screenplay) and the
-> [API](/docs/api) are not capped at all. Images have no size cap on any plan.
+> [API](/docs/api) are not capped at all. No file has a size cap on any plan —
+> the drive is the only limit.
 
 ## Whose allowance
 
@@ -110,13 +115,41 @@ Cards and files added to someone else's cluster count against them, not you.
 This is what makes free editors work — see
 [Collaborating](/docs/collaborate).
 
-## Hitting the cap
+## Hitting a limit
 
-You are told when you reach it, and offered the upgrade. Nothing you have
-already made is removed, locked, or hidden.
+You are told when you reach either one, and offered the upgrade — or, when a
+{{fact:planName}} drive is full, [more storage](#more-storage). Nothing you
+have already made is removed, locked, or hidden. A drop that would not fit is
+caught before anything uploads, so you can add the part that fits instead.
+
+Deleting a file gives its space back within a few minutes — unless another
+cluster still uses it — and emptying the trash gives back everything in it at
+once.
 
 You can also raise your own cap without paying: [referrals](/docs/account/referrals)
 grant bonus cards for people you invite who actually get started.
+
+## More storage
+
+If {{fact:planName}}'s {{fact:creatorStorage}} drive fills, add more in blocks of
+**{{fact:storageAddonSize}}**: {{fact:storageAddonMonthly}} on the monthly plan,
+or {{fact:storageAddonAnnual}} on the annual one, up to {{fact:storageAddonMax}}
+blocks. Add a block from **Settings → Plan & billing**, or from the message or dialog
+that appears when an upload will not fit. It goes on the card your plan already
+bills, with no new checkout. The first charge covers only the rest of your
+current billing period, and the sheet shows that amount before you confirm.
+
+If your bank asks to confirm the payment, Stripe opens a page to finish it. The
+storage is added once that payment goes through; until then nothing changes.
+
+Remove a block from the same place while your plan is active and not set to
+cancel. The unused part of the period comes off your next bill. A block can't
+be removed while your files would no longer fit without it, so delete some or
+empty the trash first.
+
+Extra storage can be added once a {{fact:planName}} trial has made its first
+payment, and only while the subscription is in good standing. It ends with the
+plan: if {{fact:planName}} is canceled, the extra storage goes with it.
 
 ## Trying {{fact:planName}} first
 
@@ -134,8 +167,10 @@ rather than on this page — it is for people who have built something.
 
 ## Billing
 
-**Settings → Plan & billing** shows your plan, the storage meter, and a link to the
-Stripe customer portal for payment details, invoices and cancellation.
+**Settings → Plan & billing** shows your plan, the storage meter, any
+[extra storage](#more-storage) with the buttons to add or remove it, and a link
+to the Stripe customer portal for payment details, invoices and cancellation.
+Extra storage is changed in Settings, not in the portal.
 
 Annual and monthly are the same product. Annual is cheaper per month.
 
@@ -150,13 +185,14 @@ against paying monthly, so its checkout does not offer a code field.
 ## Free forever
 
 The Demo plan is not a trial. It does not expire and it does not degrade. If
-{{fact:demoCardLimit}} cards is enough for what you do, that is a complete
-account. The {{fact:planName}} trial above is separate: it is a taste of the
+{{fact:demoCardLimit}} cards and {{fact:freeStorage}} are enough for what you do,
+that is a complete account. The {{fact:planName}} trial above is separate: it is a taste of the
 paid plan, and when it ends you are back on exactly this one.
 
-When a trial or a paid plan ends, nothing you made is deleted. Every cluster
-and card stays where it is, and you can keep opening and editing it. If you are
-over your card limit, new cards will not fit until you are back under it.
+When a trial or a paid plan ends, nothing you made is deleted. Every cluster,
+card and file stays where it is, and you can keep opening and editing it. If
+you are over the free card limit or the free drive, new cards or uploads will
+not fit until you are back under them.
 
 ---
 

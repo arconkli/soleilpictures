@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
-import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING, CTA } from '../../lib/billingCopy.js';
+import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING, CTA, STORAGE_ADDON_HELD, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS } from '../../lib/billingCopy.js';
 import { creatorTrialEligibility } from '../../lib/creatorTrial.js';
 import { startPortal } from '../../lib/checkout.js';
 import { checkoutErrorMessage } from '../../lib/checkoutErrors.js';
@@ -16,6 +16,7 @@ import { useMyTier } from '../../hooks/useMyTier.js';
 import { useStorageUsage } from '../../hooks/useStorageUsage.js';
 import { formatBonusBytes } from '../../lib/inviteReward.js';
 import { PricingModal } from '../PricingModal.jsx';
+import { StorageAddonSheet } from '../StorageAddonSheet.jsx';
 import { useBfcacheRestore } from '../../auth/useBfcacheRestore.js';
 
 export function BillingTab({ user }) {
@@ -31,6 +32,10 @@ export function BillingTab({ user }) {
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
+  // Extra storage (held): which sheet is open, and a bump that remounts the
+  // meter so it re-reads my_storage_usage after a change.
+  const [addonMode, setAddonMode] = useState(null);
+  const [storageEpoch, setStorageEpoch] = useState(0);
   // Back from the Stripe portal restores the page with Manage billing busy.
   useBfcacheRestore(() => setBusy(false));
 
@@ -38,12 +43,12 @@ export function BillingTab({ user }) {
     if (!user?.id) return;
     let cancelled = false;
     supabase.from('subscriptions')
-      .select('plan, status, current_period_end, cancel_at_period_end')
+      .select('plan, status, current_period_end, cancel_at_period_end, storage_blocks')
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data }) => { if (!cancelled) setSub(data || null); });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, storageEpoch]);
 
   const openPortal = async () => {
     if (busy) return;
@@ -97,6 +102,9 @@ export function BillingTab({ user }) {
         effectiveCardLimit={effectiveCardLimit}
         trialOffer={trialOffer}
         busy={busy}
+        storageEpoch={storageEpoch}
+        onAddStorage={() => setAddonMode('add')}
+        onRemoveStorage={() => setAddonMode('remove')}
         onManage={openPortal}
         onUpgrade={() => {
           // Was dark: only the downstream modal pricing_view fired, so Settings
@@ -106,12 +114,22 @@ export function BillingTab({ user }) {
         }} />
 
       {pricingOpen && <PricingModal onClose={() => setPricingOpen(false)} via="settings" />}
+      {!STORAGE_ADDON_HELD && (
+        <StorageAddonSheet
+          open={addonMode != null}
+          mode={addonMode || 'add'}
+          surface="settings"
+          onClose={() => setAddonMode(null)}
+          onDone={() => setStorageEpoch((n) => n + 1)} />
+      )}
     </div>
   );
 }
 
 function fmtBytes(b) {
   if (b == null) return '—';
+  const tb = b / (1024 ** 4);
+  if (tb >= 1) return `${tb >= 10 ? Math.round(tb) : Math.round(tb * 10) / 10} TB`;
   const gb = b / (1024 ** 3);
   if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
   const mb = b / (1024 ** 2);
@@ -119,9 +137,10 @@ function fmtBytes(b) {
   return `${Math.round(b / 1024)} KB`;
 }
 
-// "X / 100 GB" usage meter for paid accounts (storage is a paid feature).
-// Shows used / quota, the live fill bar, and a remaining + percent sub-line so
-// it reads as a real usage gauge wherever it's mounted.
+// "X / <drive>" usage meter, for every plan: the drive is a limit on free as
+// well as on Creator (0413), and my_storage_usage reports the reader's OWN
+// quota since 0411. Shows used / quota, the live fill bar, and a remaining +
+// percent sub-line so it reads as a real usage gauge wherever it's mounted.
 export function StorageMeter() {
   const usage = useStorageUsage({ enabled: true });
   // Storage earned by invitations (0416) is already inside the quota above.
@@ -206,6 +225,7 @@ export function BillingSummary({
   tier, sub, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
   grantActive, grantExpiresAt, demoCardCount, effectiveCardLimit,
   trialOffer = false, busy, onManage, onUpgrade,
+  storageEpoch = 0, onAddStorage = null, onRemoveStorage = null,
 }) {
   const status = subscriptionStatus || sub?.status || null;
   // Paid access via an admin grant (no paying Stripe sub) — there's no portal to
@@ -223,6 +243,12 @@ export function BillingSummary({
   // figure is the one most likely to end in "I didn't know I'd be charged".
   const priced = PRICING[sub?.plan] || PRICING.monthly;
   const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
+  // Extra storage (0415), held until Stripe is set up. Only a paying Creator
+  // can change it: a trial buys after its first payment, a canceling plan
+  // takes its blocks with it, and comped access has no subscription to bill.
+  const blocks = Number(sub?.storage_blocks ?? 0);
+  const addonShown = !STORAGE_ADDON_HELD && tier === 'paid' && !grantBacked && !!onAddStorage;
+  const addonChangeable = addonShown && status === 'active' && !cancelPending;
 
   return (
     <>
@@ -254,6 +280,17 @@ export function BillingSummary({
           </>
         )}
 
+        {addonShown && (
+          <>
+            <span className="settings-billing-label">Extra storage</span>
+            <span className="settings-billing-value">
+              {blocks > 0 ? `${STORAGE_ADDON_BLOCK_LABEL} × ${blocks}` : 'None'}
+              {trialing && ' · after your first payment'}
+              {cancelPending && blocks > 0 && period && ` · until ${period.value}`}
+            </span>
+          </>
+        )}
+
         {grantBacked && (
           <>
             <span className="settings-billing-label">Access</span>
@@ -264,7 +301,7 @@ export function BillingSummary({
         )}
       </div>
 
-      {tier === 'paid' && <StorageMeter />}
+      {(tier === 'paid' || tier === 'admin' || tier === 'demo') && <StorageMeter key={storageEpoch} />}
 
       {grantLine && (
         <p className="settings-section-hint" style={{ marginTop: 8 }}>
@@ -279,6 +316,16 @@ export function BillingSummary({
       )}
 
       <div className="settings-row-actions">
+        {addonChangeable && blocks > 0 && onRemoveStorage && (
+          <button type="button" className="settings-btn" onClick={onRemoveStorage}>
+            Remove {STORAGE_ADDON_BLOCK_LABEL}
+          </button>
+        )}
+        {addonChangeable && blocks < STORAGE_ADDON_MAX_BLOCKS && (
+          <button type="button" className="settings-btn" onClick={onAddStorage}>
+            Add {STORAGE_ADDON_BLOCK_LABEL}
+          </button>
+        )}
         <span style={{ flex: 1 }} />
         {/* Grant-backed users have no Stripe customer — no portal to open. */}
         {tier === 'paid' && !grantBacked && onManage && (

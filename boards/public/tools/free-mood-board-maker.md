@@ -1,6 +1,6 @@
 # Free Online Mood Board Maker
 
-> Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and 100GB storage.
+> Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and a 1TB drive.
 
 _Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-02_
 
@@ -8,7 +8,7 @@ Runs in your browser. Drop images, notes, and palettes on an infinite canvas and
 
 ## Free, and actually usable
 
-A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, notes, links, and color palettes on an infinite canvas — and share it, without paying and without installing anything. When you outgrow it, Creator is $25/mo for unlimited cards and 100GB.
+A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, notes, links, and color palettes on an infinite canvas — and share it, without paying and without installing anything. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.
 
 - Works in any modern browser — nothing to download
 - Drop in images, links, video, notes, and palettes
@@ -34,7 +34,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage with no size limits.
+Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### Do I have to download anything?
 
@@ -42,7 +42,7 @@ No. It runs in your browser, and on a phone or tablet it can be added to the hom
 
 ### What is the catch with the free tier?
 
-The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and adds 100GB storage with no size limits.
+The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and gives you a 1TB drive.
 
 ### Can I share my free mood board?
 

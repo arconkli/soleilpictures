@@ -22,6 +22,9 @@ import {
   SAVINGS_PCT_LABEL,
   CREATOR_STORAGE_LABEL,
   PRICING_META_DESCRIPTION,
+  FREE_STORAGE_LABEL,
+  STORAGE_FULL_COPY,
+  storageFullMessage,
   planLabel,
   planBilling,
   ownWorkSummary,
@@ -328,6 +331,14 @@ assert(
   assert(t.includes(String(CREATOR_TRIAL_DAYS)), 'new-project offer: the day count is the fact, not a typed number');
   assert(t.includes('31') && t.includes('50'), 'new-project offer: names the live count and the limit');
   assert(/every project/i.test(t), 'new-project offer: says the cards are shared by every project');
+}
+
+// The storage wall talks to someone about THEIR drive, and invites make a free
+// drive larger than the 5GB a new account starts with (0416) — so it never
+// names the new-account figure, the same rule demoCardCap.js sets for cards.
+for (const line of [storageFullMessage({ own: true, paid: false }), STORAGE_FULL_COPY.sub]) {
+  assert(!line.includes(FREE_STORAGE_LABEL), `the storage wall never states the new-account drive as the reader's: ${line}`);
+  assert(/your free storage/i.test(line), `the storage wall says whose storage is full: ${line}`);
 }
 
 console.log(`${passed} passed, ${failed} failed`);

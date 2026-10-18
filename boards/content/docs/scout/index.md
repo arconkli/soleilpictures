@@ -66,11 +66,10 @@ moment to organize it — and it is the only moment when you actually know.
 | Links | A rich embed for YouTube, Vimeo, TikTok and the like; a preview card otherwise |
 | Plain text | A sticky note next to the imagery it refers to |
 
-Free-plan size limits are the same ones the canvas applies to a dropped file —
-{{fact:freeVideoCap}} for video, {{fact:freeAudioCap}} for audio,
-{{fact:freePdfCap}} for a PDF, {{fact:freeFileCap}} for any other file. Anything
-larger needs [Creator](/docs/account/plans). Scout says which files it could not
-take rather than dropping them quietly.
+There is no per-file size limit, on any plan — Scout takes what the canvas
+takes, and the only limit is the [drive](/docs/files#storage) of the workspace
+it files into. Scout says which files it could not take rather than dropping
+them quietly.
 
 ### Where and when a photo was taken
 

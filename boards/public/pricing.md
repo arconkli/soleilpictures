@@ -2,7 +2,7 @@
 
 URL: https://clusters.soleilpictures.com/pricing
 
-The free plan is a real plan, not a countdown. Creator lifts its three limits for $25/mo.
+The free plan is a real plan, not a countdown. Creator lifts its limits for $25/mo.
 
 Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: everyone invited builds at its limits, with no per-seat charges.
 
@@ -11,28 +11,26 @@ Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator i
 No card, no clock, no expiry.
 
 - **50 cards** to build with
+- A **5GB** drive — any file, any size
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
-- A **5GB** drive for your files
 
 ## Creator — $25/mo
 
 Or $20/mo billed annually ($240/yr) — save 20%. Cancel any time — your cards stay yours.
 
 - **Unlimited cards** — The 50-card ceiling comes off. Everything you have already made stays exactly where it is.
-- **Any file, any size** — Free takes any file up to 50 MB. Creator takes a .psd, a .fig, a .zip — anything at all — at any size.
-- **No size limits** — Video past 30 MB or 60 seconds, audio past 50 MB, a PDF past 50 MB — all fine, on a **100GB** drive.
+- **A 1TB drive** — Free holds 5GB. Creator holds **1TB** — room for the footage, the camera originals and the project archives.
 - **Covers your whole workspace** — Everyone you invite builds at your limits. There are no per-seat charges.
 
 ## Both plans, line by line
 
-Three differences, and nothing else. Everything absent from this table is on both plans — clusters, collaborators, editing, sharing, exports, version history, the API.
+These are the only differences. Everything absent from this table is on both plans — files of any size, clusters, collaborators, editing, sharing, exports, version history, the API.
 
 | | Free | Creator |
 |---|---|---|
 | Cards | 50 | Unlimited |
-| File types | Any file up to 50 MB (images never capped) | Any file, any size — .psd, .fig, .zip, anything |
-| Per-file size and length | Video 30 MB or 60s · audio 50 MB · PDF 50 MB, on a 5GB drive | No limit, on a 100GB drive |
+| Storage | 5GB — any file, any size | 1TB — any file, any size |
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -40,15 +38,19 @@ One Creator plan covers the whole workspace — everyone you invite builds at yo
 
 ### What is actually limited on the free plan?
 
-Two things and only two — how many cards you can have, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs and any other file at 50 MB; images are never capped). Any file type is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
 
 ### Do the people I invite need to pay?
 
 No. Editors are free on every plan, and always were. What Creator does is carry YOUR limits to them: everything they add counts against the workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges.
 
-### What happens when I reach 50 cards?
+### What happens when I reach 50 cards or fill 5GB?
 
-You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — you simply cannot add more until you free some room or upgrade.
+You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — you simply cannot add more until you free some room or upgrade. Deleting a file gives its space back within a few minutes, and emptying the trash gives back everything in it at once.
+
+### Can I get more storage?
+
+Yes. On Creator, add 1TB at a time, up to 10 more: $25/month on the monthly plan or $240/year on the annual one, from Settings → Plan & billing, on the card you already pay with. The first charge covers only the rest of your billing period, and while your plan is active you can remove a block again, as long as your files still fit.
 
 ### Can I cancel?
 

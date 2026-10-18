@@ -9,12 +9,8 @@
 // Matching is keyword-first (free, instant, no model call) and falls back to
 // classification only when the wording is unusual.
 
-import {
-  FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP,
-} from '../../boards/src/lib/fileIngest.js';
 import { DEMO_CARD_LIMIT } from '../../boards/src/lib/demoCardCap.js';
-
-const mb = (bytes) => `${Math.round(bytes / 1024 / 1024)}MB`;
+import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL } from '../../boards/src/lib/billingCopy.js';
 
 export const TOPICS = {
   how_it_works: {
@@ -37,23 +33,22 @@ export const TOPICS = {
     keywords: ['what can i upload', 'what can i send', 'what can you take',
                'what file', 'can i send video', 'can i send a pdf', 'what formats',
                'can you take video', 'do you take', 'voice note', 'voice memo'],
-    // The caps are INTERPOLATED FROM fileIngest.js, never typed here. This
-    // answer used to say "video and audio files need a Creator plan", which was
-    // simply false — the free tier takes all three inline, and only oversize
-    // media and arbitrary file types are paid. Wrong copy about the paywall is
-    // worse than no copy: it talks people out of the product for a reason that
-    // does not exist.
+    // Since 0413 no plan limits a file's size: the owner's drive is the only
+    // byte limit, and its figures come from billingCopy, never typed here.
+    // This answer once said "video and audio files need a Creator plan", which
+    // was simply false — wrong copy about the paywall is worse than no copy: it
+    // talks people out of the product for a reason that does not exist.
     answer: () => [
       'Photos — as many as you like, at full resolution. iPhone HEIC is fine;',
       'I convert it so it opens everywhere.',
       '',
-      `Video up to ${mb(FREE_VIDEO_CAP)} and audio up to ${mb(FREE_AUDIO_CAP)}, free.`,
-      'iPhone clips get converted so they play outside Safari too.',
+      'Video and audio, at any size. iPhone clips get converted so they play',
+      'outside Safari too.',
       '',
       'Voice notes — I transcribe them, so you can search what you said later.',
       '',
-      `PDFs up to ${mb(FREE_PDF_CAP)}, and any other file up to ${mb(FREE_FILE_CAP)} —`,
-      'a .psd, a .zip, a project file. Bigger than that needs a Creator plan.',
+      'PDFs and any other file — a .psd, a .zip, a project file — at any size.',
+      `The free plan holds ${FREE_STORAGE_LABEL}; Creator holds ${CREATOR_STORAGE_LABEL}.`,
       '',
       'Links — YouTube, Vimeo, TikTok and the like become real embedded cards.',
       'Anything else becomes a preview card with its title and image.',
@@ -111,7 +106,7 @@ export const TOPICS = {
     answer: (ctx) => {
       if (ctx.cap === Infinity) {
         return [
-          'You\'re on Creator — no card limit, 100GB of storage, and no file size limits.',
+          `You're on Creator — no card limit, and a ${CREATOR_STORAGE_LABEL} drive.`,
           '',
           'Send as much as you like.',
         ].join('\n');
@@ -119,14 +114,15 @@ export const TOPICS = {
       const cap = Number.isFinite(ctx.cap) ? ctx.cap : DEMO_CARD_LIMIT;
       const used = Number.isFinite(ctx.used) ? ctx.used : null;
       const lines = [
-        `Free to use. Your plan covers ${cap} cards across as many boards as you`,
-        'like, with collaborators included. Every photo, clip, link or note is one card.',
+        `Free to use. Your plan covers ${cap} cards or ${FREE_STORAGE_LABEL} of files, whichever`,
+        'comes first, across as many boards as you like, with collaborators included.',
+        'Every photo, clip, link or note is one card.',
       ];
       // Built by pushing, not filtered: a `.filter(Boolean)` over this array
       // silently eats the '' that separates the paragraphs, because '' is falsy.
       if (used !== null) lines.push('', `You're at ${used} of ${cap}.`);
-      lines.push('', 'When you hit the wall I\'ll tell you. Creator lifts the cap and adds 100GB',
-        `with no file size limits: ${ctx.origin}/pricing`);
+      lines.push('', `When you hit the wall I'll tell you. Creator lifts the cap and gives you ${CREATOR_STORAGE_LABEL}:`,
+        `${ctx.origin}/pricing`);
       return lines.join('\n');
     },
   },

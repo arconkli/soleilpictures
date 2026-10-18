@@ -77,7 +77,9 @@ test.describe('surface gallery wiring', () => {
     // A state you cannot be in has to be fed in. Every seam defaults
     // null/absent so no live path can reach one by accident.
     const pm = read('src/components/PricingModal.jsx');
-    expect(pm).toMatch(/tierPreview = null, ownWorkPreview = null \}\) \{/);
+    // Later props (initialPlan, 2026-10-01) may follow; each seam still
+    // defaults to null.
+    expect(pm).toMatch(/tierPreview = null, ownWorkPreview = null(, \w+ = null)* \}\) \{/);
     expect(pm).toMatch(/const live = useMyTier\(\{ userId: user\?\.id \}\);/);
     expect(pm).toMatch(/tierPreview \|\| live;/);
     // The own-work strip is the same problem one level along: an admin has no
@@ -94,8 +96,10 @@ test.describe('surface gallery wiring', () => {
     // states — plain, count, urgent, and (since studio_v4) the trial offer —
     // were unreachable until it was split out. showTrial defaults to false so
     // the split stays additive: an existing caller keeps the price ladder.
+    // storageLine (0413) defaults to null for the same reason: the pill reads
+    // in cards unless the drive is the nearer limit.
     const chip = read('src/components/UpgradeChip.jsx');
-    expect(chip).toMatch(/export function UpgradePill\(\{ innerRef = null, near, count, limit, showCount, showPrice, showTrial = false, onClick \}\)/);
+    expect(chip).toMatch(/export function UpgradePill\(\{ innerRef = null, near, count, limit, storageLine = null, showCount, showPrice, showTrial = false, onClick \}\)/);
     expect(chip).toMatch(/<UpgradePill\s/);
     // The share bar moved to its own module so previewing it does not drag the
     // Y.js decode path and CanvasSurface along.

@@ -18,16 +18,9 @@ export const PLAN_NAME = 'Creator';
 // pricing funnel events (pricing_view, pricing_creator_intent, first_value_*)
 // so conversion can be attributed before/after a copy change without an A/B
 // test (traffic is far too low for one). Bump on every material copy revision.
-export const COPY_REV = 'studio_v5';
+export const COPY_REV = 'studio_v6';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
-// The free-tier per-file byte caps, from the module that enforces them on the
-// ingest path. gen-docs.mjs reads the same three constants for {{fact:…}}, so
-// the pricing page and the docs cannot disagree about a number.
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
-
-const MB = 1024 * 1024;
-const mb = (bytes) => `${Math.round(bytes / MB)} MB`;
 
 // Root pricing object — both "per month" (shown on the cards) and "billed"
 // (shown on the Billing tab) figures derive from these so they can't drift.
@@ -89,27 +82,27 @@ export function planBilling(plan) {
 // FREE for every tier. Before adding a line, name the gate that enforces it.
 //
 // The real, enforced free/paid differences are exactly these two:
-//   1. cards      — enforce_demo_card_cap_trg (0187): demo stops at the cap
-//   2. size/length— free caps video 30MB/60s, audio 50MB, PDF 50MB (uploads.js)
-//                   and ANY OTHER file at FREE_FILE_CAP (fileIngest.js routes a
-//                   free owner's larger file to 'blocked'; authorize_upload()
-//                   answers owner_not_paid past the same number — 0367)
+//   1. cards   — enforce_demo_card_cap_trg (0187): demo stops at the cap
+//   2. storage — the owner's drive, _storage_quota_bytes(owner) (0387, 0413):
+//                FREE_STORAGE_LABEL on free, CREATOR_STORAGE_LABEL on Creator
+//                (TRIAL_STORAGE_LABEL until a trial's first payment), enforced
+//                by authorize_upload() / authorize_image_upload() answering
+//                over_quota. A free account stops at whichever it reaches first.
 //
-// File TYPES stopped being a difference on 2026-10-06 (0367): a free owner may
-// drop a .psd, a .fig, a .zip like anyone else, up to the cap. Any copy that
-// sells "any file type" as Creator's is now false, and publicClaims.test.mjs
-// bans that shape.
+// File TYPES stopped being a difference on 2026-10-06 (0367) and file SIZE on
+// 2026-10-17 (0413): a free owner may drop a .psd, a 4K clip, a .zip of any
+// size, and only the drive decides. Copy that sells "any file type" or "any
+// size" as Creator's is now false, and publicClaims.test.mjs bans both shapes.
 //
 // The third line is not a third LIMIT — it is the SCOPE of those two, and
 // it is the one genuinely competitive thing on this list. Migration 0187
 // ("owner-pays capacity, keyed consistently to the WORKSPACE owner") re-keyed
 // every gate to workspaces.created_by: enforce_demo_card_cap_trg counts across
 // the owner's workspaces via board_workspace_owner(), authorize_upload() reads
-// the owner's tier, authorize_image_upload() bills the owner's quota, and
-// CanvasSurface's canAttemptFiles = !(ownsWorkspace && !isPaidPlan) lets a
-// collaborator in someone else's workspace attempt optimistically and let the
-// server decide. So one subscription raises the ceiling for everyone working in
-// that workspace. That is true and worth saying, but it is not unique —
+// the owner's quota, authorize_image_upload() bills the owner's quota, and an
+// upload into someone else's workspace is attempted optimistically and the
+// server decides. So one subscription raises the ceiling for everyone working
+// in that workspace. That is true and worth saying, but it is not unique —
 // Milanote sells a flat team plan and Air charges no seats at all — so the copy
 // states what we do and never claims nobody else does.
 //
@@ -124,15 +117,78 @@ export function planBilling(plan) {
 // the free tier it counts toward the card limit like any other card.
 //
 // The storage figure mirrors the enforced default quota: app_config
-// 'storage_quota_bytes' = 107374182400 (100 GiB), seeded in migration 0154 and
-// read by _storage_quota_bytes(). gen-docs.mjs cross-checks this label against
-// that migration literal at build time.
-export const CREATOR_STORAGE_LABEL = '100GB';
+// 'storage_quota_bytes' = 1099511627776 (1 TiB, owner decision 2026-10-17,
+// migration 0413), read by _storage_quota_bytes(). gen-docs.mjs cross-checks
+// this label against that migration literal at build time. Binary units,
+// labelled the way the product labels them: 1 TiB reads "1TB".
+export const CREATOR_STORAGE_LABEL = '1TB';
+
+// A Creator trial's drive until its first payment (0413): app_config
+// 'storage_quota_trial_bytes' = 107374182400 (100 GiB), read by
+// _storage_quota_trial_bytes() while the subscription is trialing. A trial
+// costs a card and an email; without this, every trial would be a terabyte
+// stored for as long as the account exists. Cross-checked by gen-docs.mjs.
+export const TRIAL_STORAGE_LABEL = '100GB';
+
+// Extra storage (0415, owner decision 2026-10-17): blocks of app_config
+// storage_addon.block_bytes = 1099511627776 (1 TiB), at most max_blocks = 10,
+// each a second item on the Creator subscription at the plan's own interval.
+// gen-docs.mjs cross-checks the block and the maximum against 0415's
+// fallbacks. The prices are the storage-addon function's own
+// (storageAddonCore STORAGE_ADDON_UNIT_AMOUNT) — it refuses to sell at any
+// other — and storageAddon.test.mjs holds the two in lockstep.
+//
+// Held until the Stripe product and prices existed (created in Stripe
+// 2026-10-18). While true no surface offers extra storage and the
+// docs do not describe it; it was lifted in the commit that shipped the docs
+// (account/plans.md "More storage"), and storageAddon.test.mjs keeps the two
+// together.
+export const STORAGE_ADDON_HELD = false;
+export const STORAGE_ADDON_BLOCK_LABEL = '1TB';
+export const STORAGE_ADDON_MAX_BLOCKS = 10;
+export const STORAGE_ADDON_PRICING = {
+  monthly: { billed: 25,  perLabel: '$25/month' },
+  annual:  { billed: 240, perLabel: '$240/year' },
+};
+
+// Minor units to a label: 1840 → "$18.40", 2500 → "$25".
+function centsLabel(cents) {
+  const n = Math.max(0, Math.round(Number(cents) || 0));
+  return n % 100 === 0 ? `$${n / 100}` : `$${(n / 100).toFixed(2)}`;
+}
+
+// The extra-storage sheet's words, from the storage-addon function's preview:
+// every amount is Stripe's, never computed here. `interval` is the plan's
+// ('month' | 'year').
+export function storageAddonCopy({ interval, amountToday = 0, creditNext = 0, removing = false } = {}) {
+  const priced = interval === 'year' ? STORAGE_ADDON_PRICING.annual : STORAGE_ADDON_PRICING.monthly;
+  const period = interval === 'year' ? 'year' : 'month';
+  if (removing) {
+    return {
+      title: `Remove ${STORAGE_ADDON_BLOCK_LABEL} of extra storage?`,
+      body: creditNext > 0
+        ? `The unused part of this ${period} comes off your next bill (${centsLabel(creditNext)}). Files you already have stay put.`
+        : 'Files you already have stay put.',
+      cta: `Remove ${STORAGE_ADDON_BLOCK_LABEL}`,
+    };
+  }
+  return {
+    title: `Add ${STORAGE_ADDON_BLOCK_LABEL} more storage`,
+    body: `${centsLabel(amountToday)} today for the rest of this ${period}, then ${priced.perLabel}, on the card you pay ${PLAN_NAME} with. You can remove it later in Settings → Plan & billing.`,
+    cta: `Add ${STORAGE_ADDON_BLOCK_LABEL} — ${priced.perLabel}`,
+  };
+}
 
 // The free drive (owner decision 2026-10-06): app_config 'storage_quota_free_bytes'
 // = 5368709120 (5 GiB), seeded in migration 0387 and read by
 // _storage_quota_free_bytes() whenever the owner is not on a paid plan.
 // gen-docs.mjs cross-checks this label against that migration literal too.
+//
+// It is what a NEW account gets, not what any given reader has: invites add
+// storage on top (0416), the way referral credits add cards. So, as with the
+// card cap, never state it as the reader's own drive — in-app copy about THEIR
+// storage says "your free storage" or shows the quota my_storage_usage
+// returns.
 export const FREE_STORAGE_LABEL = '5GB';
 
 // ── Each claim, and what it actually means ─────────────────────────────────
@@ -174,27 +230,13 @@ export const CREATOR_BENEFITS = [
     body: `The ${DEMO_CARD_LIMIT}-card ceiling comes off. Everything you have already made stays exactly where it is.`,
   },
   {
-    // The key stays 'filetypes' for the scorecard's history; the claim moved.
-    // Since 0367 a free owner may drop any TYPE up to FREE_FILE_CAP
-    // (fileIngest.js) — what Creator removes is the size, on both ends:
-    // the client routes a larger file to 'blocked', authorize_upload() answers
-    // owner_not_paid past the same number.
-    key: 'filetypes',
-    title: 'Any file, any size',
-    body: `Free takes any file up to ${mb(FREE_FILE_CAP)}. ${PLAN_NAME} takes a .psd, a .fig, a .zip — anything at all — at any size.`,
-  },
-  {
+    // The drive is the whole of the storage difference now (0413): every
+    // plan takes any file at any size, and the owner's quota decides. The
+    // figure mirrors the enforced default (app_config 'storage_quota_bytes').
+    // 'filetypes' retired with the per-file caps; see LEGACY_FEATURE_KEYS.
     key: 'storage',
-    title: 'No size limits',
-    // The free per-file ceilings live in fileIngest.js and are injected here,
-    // never typed: the honest way to say what this unlocks is to name the
-    // walls it removes. The drive figure mirrors the enforced default quota
-    // (app_config 'storage_quota_bytes', migration 0154).
-    // LENGTH as well as weight. The free tier caps video duration at
-    // FREE_VIDEO_SECONDS (uploads.js, lifted only for a paid owner) and that
-    // half of the gate was public nowhere — so this sentence used to imply
-    // size was the only video wall while a 20 MB, 90-second clip was refused.
-    body: `Video past ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, audio past ${mb(FREE_AUDIO_CAP)}, a PDF past ${mb(FREE_PDF_CAP)} — all fine, on a **${CREATOR_STORAGE_LABEL}** drive.`,
+    title: `A ${CREATOR_STORAGE_LABEL} drive`,
+    body: `Free holds ${FREE_STORAGE_LABEL}. ${PLAN_NAME} holds **${CREATOR_STORAGE_LABEL}** — room for the footage, the camera originals and the project archives.`,
   },
   {
     key: 'workspace',
@@ -238,8 +280,9 @@ export const CREATOR_FEATURE_KEYS = CREATOR_BENEFITS.map((b) => b.key);
 
 // Retired keys, kept so historical up_feature_hover rows stay readable in the
 // admin scorecard. 'studio'/'edit_access' described lines that are gone;
-// 'tools'/'events' described features that never existed.
-export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events'];
+// 'tools'/'events' described features that never existed; 'filetypes' was the
+// per-file size line, retired when free took any size (0413).
+export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events', 'filetypes'];
 
 // What the free tier genuinely is. It is NOT view-only: since migration 0188 a
 // free user can edit any cluster they are invited to as an editor, and there is
@@ -250,10 +293,19 @@ export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events'];
 // content/docs/account/plans.md's list.
 export const DEMO_FEATURES = [
   `**${DEMO_CARD_LIMIT} cards** to build with`,
+  `A **${FREE_STORAGE_LABEL}** drive — any file, any size`,
   'No separate limit on clusters — each one counts as one of your cards',
   'Free collaboration — invite editors to any cluster',
-  `A **${FREE_STORAGE_LABEL}** drive for your files`,
 ];
+
+// The free plan's limit in one sentence, built from the two gates that exist.
+// `cardLimit` is the viewer's effective cap where known (grandfathered and
+// referred accounts differ from a new one); the default is a new account's.
+export function freeLimitSentence({ cardLimit } = {}) {
+  const n = Number(cardLimit);
+  const cards = Number.isFinite(n) && n > 0 ? n : DEMO_CARD_LIMIT;
+  return `${cards} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first`;
+}
 
 // The Creator trial. Fourteen days, card required, offered ONLY in-product to
 // accounts with a real body of work — see supabase/functions/_shared/trialCore.mjs
@@ -300,11 +352,31 @@ export const TRIAL_FROM_LABEL = `${CREATOR_TRIAL_DAYS} days free`;
 // Eligibility is the CALLER's decision (creatorTrial.js); this module stays
 // pure copy and must never grow a second opinion about who qualifies.
 
+// ── The drive is full ──────────────────────────────────────────────────────
+//
+// What an upload refused for storage (authorize_upload / authorize_image_upload
+// answering over_quota, a 402 to the client) says, by who is uploading. Since
+// 0413 the drive is the only byte limit on every plan, so this is the whole
+// storage wall: there are no per-file refusals left to explain.
+//   own  — the uploader owns the workspace, so it is their drive
+//   paid — that owner is on Creator (or comped / admin): nothing to sell them
+export function storageFullMessage({ own, paid } = {}) {
+  if (!own) return "This cluster's owner is out of storage — nothing more can be uploaded here until they make room.";
+  if (paid) return 'Your storage is full. Delete files or empty the trash to make room.';
+  return `You've filled your free storage. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}.`;
+}
+
+// The storage wall's header in the offer modal (PricingModal 'storage').
+export const STORAGE_FULL_COPY = {
+  title: 'Room for everything you make.',
+  sub: `You've filled your free storage. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL} and unlimited cards — any file, any size.`,
+};
+
 // The first-value banner's body. Highest-dwell surface in the product (9.2 s
 // median, several times the wall's), which is why it carries a full sentence
 // rather than a label.
 export function firstValueSentence(trialOffer) {
-  const lead = 'Creator is the complete studio — unlimited cards, any file at any size.';
+  const lead = `Creator is the complete studio — unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`;
   return trialOffer
     ? `${lead} Yours free for ${CREATOR_TRIAL_DAYS} days.`
     : `${lead} Everything your work deserves, ${PRICE_FROM_LABEL}.`;
@@ -387,7 +459,7 @@ export const PRICING_PAGE = {
   // free is not — which made the first thing on a pricing page a paragraph to
   // work through rather than a number to compare.
   subhead:
-    `The free plan is a real plan, not a countdown. ${PLAN_NAME} lifts its three limits for ${PRICING.monthly.billedLabel}.`,
+    `The free plan is a real plan, not a countdown. ${PLAN_NAME} lifts its limits for ${PRICING.monthly.billedLabel}.`,
   startFree: 'Start free',
   startFreeSub: 'No credit card. Nothing to install.',
   // The second half of the trust line under the plans. Here rather than typed
@@ -421,20 +493,16 @@ export const PRICING_PAGE = {
   // cards and has to say so in its title. It used to be headed "What Creator
   // changes" — the same promise the Creator card now makes 800px above it, in
   // more detail — and the only thing it uniquely carries is the FREE column:
-  // the actual per-file ceilings a free account runs into, which no card
-  // states. That is what it is for and what it is now called.
+  // the actual limits a free account runs into, side by side with Creator's.
   paidHeading: 'Both plans, line by line',
-  // Three rows, because three is the number of enforced differences. If a
-  // fourth ever appears here it has to name the code that enforces it, exactly
-  // as CREATOR_FEATURES does.
+  // One row per enforced difference (PLAN_COMPARISON). If another ever appears
+  // here it has to name the code that enforces it, exactly as CREATOR_FEATURES
+  // does — and this sentence is the other place that has to change with it.
   paidBody:
-    'Three differences, and nothing else. Everything absent from this table is on ' +
-    'both plans — clusters, collaborators, editing, sharing, exports, version ' +
-    'history, the API.',
-  // The third row covers size AND length; "three" stays true only because that
-  // row says both. If a fourth gate is ever added in code, this sentence and
-  // the table are the two places that have to change with it.
-  // The fourth CREATOR_FEATURES line. It is NOT a limit, so it has no row in
+    'These are the only differences. Everything absent from this table is on ' +
+    'both plans — files of any size, clusters, collaborators, editing, sharing, ' +
+    'exports, version history, the API.',
+  // The last CREATOR_FEATURES line. It is NOT a limit, so it has no row in
   // the table above — but it is the one genuinely competitive thing on the
   // list (migration 0187 keyed every gate to the workspace OWNER), so it gets
   // said out loud rather than left to the FAQ. Keyed 'workspace' to match.
@@ -454,13 +522,13 @@ export const PRICING_PAGE = {
   // what it unlocks; this says what it costs you to stop.
   paidCardSub: 'Cancel any time — your cards stay yours.',
   closing: 'Start with the free plan.',
-  closingSub: `Upgrade when the ${DEMO_CARD_LIMIT}th card is in your way, not before.`,
+  closingSub: `Upgrade when the ${DEMO_CARD_LIMIT}th card or the ${FREE_STORAGE_LABEL} drive is in your way, not before.`,
 };
 
 // The comparison, built from the two gates that actually exist:
-// enforce_demo_card_cap_trg (0187) and the per-file byte caps in fileIngest.js
-// (media by kind, any other file at FREE_FILE_CAP — 0367). Sizes are imported,
-// not typed, so a cap change cannot leave a stale promise on the pricing page.
+// enforce_demo_card_cap_trg (0187) and the owner's drive, _storage_quota_bytes
+// (0387, 0413). Figures are imported, not typed, so a limit change cannot leave
+// a stale promise on the pricing page.
 export const PLAN_COMPARISON = [
   {
     key: 'cards',
@@ -469,24 +537,13 @@ export const PLAN_COMPARISON = [
     creator: 'Unlimited',
   },
   {
-    // Still keyed 'filetypes' for up_feature_hover's history. The row now says
-    // the true shape: any type on both plans; the free one up to a size.
-    key: 'filetypes',
-    label: 'File types',
-    demo: `Any file up to ${mb(FREE_FILE_CAP)} (images never capped)`,
-    creator: 'Any file, any size — .psd, .fig, .zip, anything',
-  },
-  {
-    // Keyed 'storage' rather than 'size' so up_feature_hover's key space stays
-    // continuous with CREATOR_FEATURE_KEYS across every surface — this row IS
-    // the storage line, stated as the limit it actually is.
+    // Keyed 'storage' so up_feature_hover's key space stays continuous with
+    // CREATOR_FEATURE_KEYS across every surface. Any file at any size on both
+    // plans since 0413; the drive is the whole difference.
     key: 'storage',
-    // "and length", because video is capped on BOTH and only one was ever
-    // stated. A free owner refused a 20 MB, 90-second clip had been told by
-    // this very table that 30 MB was the wall.
-    label: 'Per-file size and length',
-    demo: `Video ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS}s · audio ${mb(FREE_AUDIO_CAP)} · PDF ${mb(FREE_PDF_CAP)}, on a ${FREE_STORAGE_LABEL} drive`,
-    creator: `No limit, on a ${CREATOR_STORAGE_LABEL} drive`,
+    label: 'Storage',
+    demo: `${FREE_STORAGE_LABEL} — any file, any size`,
+    creator: `${CREATOR_STORAGE_LABEL} — any file, any size`,
   },
 ];
 
@@ -496,10 +553,8 @@ export const PLAN_COMPARISON = [
 export const PRICING_FAQ = [
   {
     q: 'What is actually limited on the free plan?',
-    a: 'Two things and only two — how many cards you can have, ' +
-       `and how big or long a single file can be (video stops at ${mb(FREE_VIDEO_CAP)} or ${FREE_VIDEO_SECONDS} seconds, ` +
-       `audio at ${mb(FREE_AUDIO_CAP)}, PDFs and any other file at ${mb(FREE_FILE_CAP)}; images are never capped). ` +
-       'Any file type is welcome on either plan. Collaborators and editing are not limited, and there is ' +
+    a: `Two things — how many cards you can have and how much you can store: ${freeLimitSentence()}. ` +
+       'Any file of any size is welcome on either plan. Collaborators and editing are not limited, and there is ' +
        'no separate limit on clusters — each one simply counts as a card.',
   },
   {
@@ -509,10 +564,17 @@ export const PRICING_FAQ = [
        'workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges.',
   },
   {
-    q: `What happens when I reach ${DEMO_CARD_LIMIT} cards?`,
+    q: `What happens when I reach ${DEMO_CARD_LIMIT} cards or fill ${FREE_STORAGE_LABEL}?`,
     a: 'You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — ' +
-       'you simply cannot add more until you free some room or upgrade.',
+       'you simply cannot add more until you free some room or upgrade. Deleting a file gives its space back ' +
+       'within a few minutes, and emptying the trash gives back everything in it at once.',
   },
+  ...(STORAGE_ADDON_HELD ? [] : [{
+    q: 'Can I get more storage?',
+    a: `Yes. On ${PLAN_NAME}, add ${STORAGE_ADDON_BLOCK_LABEL} at a time, up to ${STORAGE_ADDON_MAX_BLOCKS} more: ` +
+       `${STORAGE_ADDON_PRICING.monthly.perLabel} on the monthly plan or ${STORAGE_ADDON_PRICING.annual.perLabel} on the annual one, ` +
+       'from Settings → Plan & billing, on the card you already pay with. The first charge covers only the rest of your billing period, and while your plan is active you can remove a block again, as long as your files still fit.',
+  }]),
   {
     q: 'Can I cancel?',
     a: 'Any time, from Settings → Billing, and you keep access until the end of the period you have paid for. ' +
@@ -586,7 +648,7 @@ export function trialPrice(plan) {
 
 export function trialNote(plan) {
   const p = PRICING[plan] || PRICING.monthly;
-  return `Card required, nothing charged for ${CREATOR_TRIAL_DAYS} days. Then ${p.billedLabel} — cancel before the trial ends and you pay nothing.`;
+  return `Card required, nothing charged for ${CREATOR_TRIAL_DAYS} days, with a ${TRIAL_STORAGE_LABEL} drive until the first payment unlocks ${CREATOR_STORAGE_LABEL}. Then ${p.billedLabel} — cancel before the trial ends and you pay nothing.`;
 }
 
 // Compact byte label for the own-work summary ("233 MB", "1.4 GB"). Local to
@@ -595,7 +657,7 @@ export function trialNote(plan) {
 function capBytes(n) {
   const b = Number(n);
   if (!Number.isFinite(b) || b <= 0) return null;
-  const units = [['GB', 1024 ** 3], ['MB', 1024 ** 2], ['KB', 1024]];
+  const units = [['TB', 1024 ** 4], ['GB', 1024 ** 3], ['MB', 1024 ** 2], ['KB', 1024]];
   for (const [label, size] of units) {
     if (b >= size) {
       const v = b / size;
@@ -603,6 +665,12 @@ function capBytes(n) {
     }
   }
   return `${Math.round(b)} B`;
+}
+
+// The same compact label for any surface that states an amount of storage
+// (the pill, the import dialog). Null for nothing, never "0 B".
+export function storageAmountLabel(n) {
+  return capBytes(n);
 }
 
 // ownWorkSummary — what this person has actually built, in their own numbers.
@@ -700,11 +768,19 @@ export function grantCopy({ grantActive, grantExpiresAt } = {}) {
 // are open on the free plan; only size is Creator's). Same predicate, window
 // and floor as above, dated from the production deploy that carries this;
 // expectation unchanged: "any file type" is not a query term either.
+//
+// AMENDED 2026-10-17 — the plan change itself (0413): the free plan stops at
+// its cards or its drive and takes any size, Creator's drive is now 1TB, so
+// "no size limits" stopped being Creator's. A truth fix that ships in the SAME
+// production deploy as the /pricing body rewrite (PLAN_COMPARISON, the FAQ),
+// so it is graded as one event with it, never as a copy test of its own. Same
+// predicate, window and floor as above, dated from that deploy. Expectation:
+// no material change — neither phrase is a query term.
 export const PRICING_META_DESCRIPTION =
-  `Soleil Clusters pricing — start free with the Demo (${DEMO_CARD_LIMIT} cards, ` +
+  `Soleil Clusters pricing — start free with the Demo (${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, ` +
   `free collaborators), or go ${PLAN_NAME} ` +
   `(${PRICING.monthly.billedLabel}, or ${PRICING.annual.perMonthLabel}/mo billed annually) ` +
-  `for unlimited cards and no size limits on a ${CREATOR_STORAGE_LABEL} drive.`;
+  `for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`;
 
 // `trial` matters: during a trial this date is the FIRST CHARGE, not a renewal.
 // Calling it "Renews" is the word that turns a forgotten trial into a disputed

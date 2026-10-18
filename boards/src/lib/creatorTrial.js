@@ -14,7 +14,7 @@ export const TRIAL_MIN_CARDS = THRESHOLDS.investedMin;
 export const TRIAL_CAP_FRAC = 0.8;
 
 export function creatorTrialEligibility(opts) {
-  const { tier, cards, cardLimit, trialStartedAt } = opts || {};
+  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota } = opts || {};
   if (tier !== 'demo') return { eligible: false, reason: 'not_demo' };
   if (trialStartedAt) return { eligible: false, reason: 'already_trialed' };
   const n = Number(cards);
@@ -22,8 +22,15 @@ export function creatorTrialEligibility(opts) {
   const cap = Number(cardLimit);
   const byCount = n >= TRIAL_MIN_CARDS;
   const byCap = Number.isFinite(cap) && cap > 0 && n >= TRIAL_CAP_FRAC * cap;
-  if (!byCount && !byCap) return { eligible: false, reason: 'too_early' };
-  return { eligible: true, reason: byCount ? 'body_of_work' : 'near_cap' };
+  // The free drive is the other wall (0413). Someone who filled it with a few
+  // big files has a real body of work at any card count. Only a known pair of
+  // numbers counts; missing storage never invites anyone.
+  const used = Number(storageUsed);
+  const quota = Number(storageQuota);
+  const byStorage = storageUsed != null && storageQuota != null
+    && Number.isFinite(used) && Number.isFinite(quota) && quota > 0 && used >= TRIAL_CAP_FRAC * quota;
+  if (!byCount && !byCap && !byStorage) return { eligible: false, reason: 'too_early' };
+  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : 'near_storage' };
 }
 
 // Is the trial decision still waiting on the server?

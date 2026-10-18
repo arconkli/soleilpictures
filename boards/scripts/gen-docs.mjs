@@ -60,9 +60,8 @@ import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js'
 import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
-import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS,
-         AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_FILE_CAP } from '../src/lib/fileIngest.js';
+import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, TRIAL_STORAGE_LABEL, CREATOR_TRIAL_DAYS, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS, STORAGE_ADDON_PRICING } from '../src/lib/billingCopy.js';
+import { AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
@@ -78,6 +77,7 @@ import { latestDefinition } from '../src/lib/migrationText.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
+const MIGRATIONS = resolve(BOARDS, '../supabase/migrations');
 const CONTENT = resolve(BOARDS, 'content/docs');
 const CHANGELOG = resolve(BOARDS, 'content/changelog');
 const TEMPLATES = resolve(BOARDS, 'content/templates');
@@ -102,26 +102,60 @@ const MB = 1024 * 1024;
 // below is that the text a visitor sees cannot diverge from the enforced
 // quota, and reading the constant twice would only prove it equals itself.
 const storageText = CREATOR_BENEFITS.map((b) => `${b.title} ${b.body}`).join(' ');
-const storageMatch = storageText.match(/\*\*(\d+\s*GB)\*\*/i);
+const storageMatch = storageText.match(/\*\*(\d+\s*[GT]B)\*\*/i);
 if (!storageMatch) {
   throw new Error('gen-docs: storage figure not found in CREATOR_BENEFITS — update the extractor in gen-docs.mjs');
 }
-// The storage label must equal the ENFORCED default quota — app_config
-// 'storage_quota_bytes' seeded in migration 0154 and read by
-// _storage_quota_bytes(). The quota is runtime-tunable via app_config, so the
-// migration literal is the default (same mirror caveat billingCopy documents
-// for the Stripe env prices), but marketing may never diverge from it silently.
-const quotaSql = readFileSync(resolve(BOARDS, '../supabase/migrations/0154_storage_quota.sql'), 'utf8');
-const quotaMatch = quotaSql.match(/'storage_quota_bytes',\s*jsonb_build_object\('bytes',\s*(\d+)/);
-if (!quotaMatch) {
-  throw new Error('gen-docs: storage_quota_bytes default not found in migration 0154 — update the extractor');
+// Binary units, labelled the way the product labels them: a whole number of
+// TiB reads "1TB", anything smaller a whole number of GiB, "5GB".
+const bytesLabel = (n) => (n >= 1024 ** 4 && n % (1024 ** 4) === 0 ? `${n / (1024 ** 4)}TB` : `${n / (1024 ** 3)}GB`);
+// The latest migration that defines the NO-ARGUMENT _storage_quota_bytes(): a
+// later file may redefine only the per-owner form, and the default lives here.
+function latestSqlMatching(re) {
+  return readdirSync(MIGRATIONS)
+    .filter((f) => f.endsWith('.sql'))
+    .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
+    .map((f) => readFileSync(resolve(MIGRATIONS, f), 'utf8'))
+    .filter((sql) => re.test(sql))
+    .pop();
 }
-const quotaGb = Number(quotaMatch[1]) / (1024 ** 3);
-if (`${quotaGb}GB` !== CREATOR_STORAGE_LABEL || storageMatch[1].replace(/\s+/g, '') !== CREATOR_STORAGE_LABEL) {
+// The storage label must equal the ENFORCED default quota — the fallback in
+// the latest _storage_quota_bytes() (0154, then 0413). The quota is
+// runtime-tunable via app_config, so the migration literal is the default (same
+// mirror caveat billingCopy documents for the Stripe env prices), but marketing
+// may never diverge from it silently.
+const quotaMatch = latestSqlMatching(/create\s+or\s+replace\s+function\s+public\._storage_quota_bytes\s*\(\s*\)/i)
+  ?.match(/function\s+public\._storage_quota_bytes\s*\(\s*\)[\s\S]*?key = 'storage_quota_bytes'\),\s*(\d+)\s*\)/i);
+if (!quotaMatch) {
+  throw new Error('gen-docs: the storage_quota_bytes default was not found in the latest _storage_quota_bytes() — update the extractor');
+}
+const quotaLabel = bytesLabel(Number(quotaMatch[1]));
+if (quotaLabel !== CREATOR_STORAGE_LABEL || storageMatch[1].replace(/\s+/g, '') !== CREATOR_STORAGE_LABEL) {
   throw new Error(
     `gen-docs: storage figures disagree — CREATOR_STORAGE_LABEL '${CREATOR_STORAGE_LABEL}', ` +
-    `CREATOR_BENEFITS '${storageMatch[1]}', migration default ${quotaGb}GB`,
+    `CREATOR_BENEFITS '${storageMatch[1]}', migration default ${quotaLabel}`,
   );
+}
+// The trial drive (0413): a Creator trial's drive until the first payment.
+// Read from the migration that DEFINES the helper — a later file that merely
+// calls or revokes it must not be mistaken for its source.
+const trialQuota = latestSqlDefining('_storage_quota_trial_bytes')
+  ?.match(/key = 'storage_quota_trial_bytes'\),\s*(\d+)\s*\)/);
+if (!trialQuota || bytesLabel(Number(trialQuota[1])) !== TRIAL_STORAGE_LABEL) {
+  throw new Error(`gen-docs: TRIAL_STORAGE_LABEL '${TRIAL_STORAGE_LABEL}' does not match the trial drive in the migration defining _storage_quota_trial_bytes`);
+}
+// Extra storage (0415): one block, and the most an account can hold. Held
+// copy today (STORAGE_ADDON_HELD), checked now so the day the hold lifts the
+// numbers are already the enforced ones.
+const addonBlock = latestSqlDefining('_storage_addon_block_bytes')
+  ?.match(/function\s+public\._storage_addon_block_bytes\s*\(\s*\)[\s\S]*?key = 'storage_addon'\),\s*(\d+)\s*\)/i);
+if (!addonBlock || bytesLabel(Number(addonBlock[1])) !== STORAGE_ADDON_BLOCK_LABEL) {
+  throw new Error(`gen-docs: STORAGE_ADDON_BLOCK_LABEL '${STORAGE_ADDON_BLOCK_LABEL}' does not match the block in the migration defining _storage_addon_block_bytes`);
+}
+const addonMax = latestSqlDefining('_storage_addon_max_blocks')
+  ?.match(/function\s+public\._storage_addon_max_blocks\s*\(\s*\)[\s\S]*?key = 'storage_addon'\),\s*(\d+)\s*\)/i);
+if (!addonMax || Number(addonMax[1]) !== STORAGE_ADDON_MAX_BLOCKS) {
+  throw new Error(`gen-docs: STORAGE_ADDON_MAX_BLOCKS ${STORAGE_ADDON_MAX_BLOCKS} does not match the maximum in the migration defining _storage_addon_max_blocks`);
 }
 const api = apiFacts();
 
@@ -129,7 +163,6 @@ const api = apiFacts();
 // function): read from the LATEST migration that defines _invite_budget_take,
 // as the named constants it declares, so the sharing page states exactly what
 // the server enforces.
-const MIGRATIONS = resolve(BOARDS, '../supabase/migrations');
 const inviteBudgetSql = readdirSync(MIGRATIONS)
   .filter((f) => f.endsWith('.sql'))
   .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
@@ -237,7 +270,7 @@ if (!embedBudget) {
 // _storage_quota_free_bytes(), migration 0387.
 const freeQuota = latestSqlDefining('_storage_quota_free_bytes')
   ?.match(/key = 'storage_quota_free_bytes'\),\s*(\d+)\)/);
-if (!freeQuota || `${Number(freeQuota[1]) / (1024 ** 3)}GB` !== FREE_STORAGE_LABEL) {
+if (!freeQuota || bytesLabel(Number(freeQuota[1])) !== FREE_STORAGE_LABEL) {
   throw new Error(`gen-docs: FREE_STORAGE_LABEL '${FREE_STORAGE_LABEL}' does not match the free quota in the migration defining _storage_quota_free_bytes`);
 }
 
@@ -255,6 +288,17 @@ export const FACTS = {
   creatorStorage: CREATOR_STORAGE_LABEL,
   // The free plan's drive (0387). A free owner's uploads stop at it.
   freeStorage: FREE_STORAGE_LABEL,
+  // A Creator trial's drive until the first payment (0413).
+  trialStorage: TRIAL_STORAGE_LABEL,
+  // Extra storage (0415): one block, its price on each interval, and the most
+  // an account can add. The block and the maximum are cross-checked against
+  // 0415 above; the prices are the storage-addon function's own, which
+  // refuses to sell at any other (storageAddon.test.mjs holds billingCopy to
+  // them).
+  storageAddonSize: STORAGE_ADDON_BLOCK_LABEL,
+  storageAddonMonthly: STORAGE_ADDON_PRICING.monthly.perLabel,
+  storageAddonAnnual: STORAGE_ADDON_PRICING.annual.perLabel,
+  storageAddonMax: String(STORAGE_ADDON_MAX_BLOCKS),
   // How long a signed-out "Get Creator" on /pricing is remembered through
   // sign-in (creatorIntent.js reads it back and expires it).
   creatorIntentHours: String(CREATOR_INTENT_MAX_AGE_MS / (60 * 60 * 1000)),
@@ -276,13 +320,12 @@ export const FACTS = {
   // The Creator trial length. Sourced from billingCopy, which trialCore.test.mjs
   // pins to the number the edge function puts on the Stripe session.
   creatorTrialDays: String(CREATOR_TRIAL_DAYS),
-  freeVideoCap: `${FREE_VIDEO_CAP / MB} MB`,
-  // The free tier caps video LENGTH as well as weight (uploads.js, lifted only
-  // for a paid owner). It was enforced for the product's life and stated on no
-  // public page, so a free owner's 20 MB, 90-second clip was refused by a rule
-  // the docs said nothing about while the same docs named 30 MB as the wall.
-  freeVideoSec: `${FREE_VIDEO_SECONDS} seconds`,
-  freeAudioCap: `${FREE_AUDIO_CAP / MB} MB`,
+  // (freeVideoCap, freeVideoSec, freeAudioCap, freePdfCap and freeFileCap are
+  // gone with the free per-file caps, 0413: every plan takes any file at any
+  // size and the drive decides. A page still naming one fails the build.)
+  // The largest PDF that becomes a PDF card with the viewer; past it a PDF is a
+  // downloadable file card (fileIngest classifyDropFile). Not a plan limit.
+  pdfViewerMax: `${FREE_PDF_CAP / MB} MB`,
   // Ceilings on WAVEFORM ANALYSIS, not on upload — over these an audio file
   // still uploads and still plays, it just arrives without a drawn waveform.
   // Stated publicly because "why does this one have no waveform" is otherwise
@@ -294,11 +337,6 @@ export const FACTS = {
   // fails. Stated so "why did my 600-file selection refuse" has an answer.
   zipMaxSize: `${ZIP_MAX_BYTES / MB} MB`,
   zipMaxFiles: String(ZIP_MAX_ENTRIES),
-  freePdfCap: `${FREE_PDF_CAP / MB} MB`,
-  // Any OTHER file type on the free plan, up to this size (0367 opened file
-  // types on free; the server's authorize_upload() allows a demo owner exactly
-  // this many bytes — fileGateMigration.test.mjs pins the two together).
-  freeFileCap: `${FREE_FILE_CAP / MB} MB`,
   // Invitations one account can send in a rolling day, and on its first day
   // (_invite_budget_take, migration 0358). Shares to existing accounts count.
   inviteDailyLimit: inviteDaily[1],

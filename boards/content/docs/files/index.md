@@ -1,21 +1,21 @@
 ---
 title: Files and Uploads — Soleil Clusters
-metaDescription: Upload any file type to Soleil Clusters. What is supported free, where the size caps are, how large uploads work, and where storage is counted.
+metaDescription: Upload any file to Soleil Clusters, at any size, on every plan. How large uploads work, what counts toward your storage, and how deleting frees space.
 h1: Files and uploads
 navLabel: Overview
 section: files
 order: 0
 updated: 2026-10-17
-answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a {{fact:creatorStorage}} drive.
+answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a {{fact:freeStorage}} drive and Creator a {{fact:creatorStorage}} one, and the drive is the only limit.
 faq:
   - q: What file types can I upload on the free plan?
-    a: Any. Images have no size cap on any plan; video, audio and PDFs have the size caps listed below; every other type — .psd, .fig, .zip, project files, archives — is a file card up to {{fact:freeFileCap}}.
+    a: Any, at any size. Video, audio, PDFs and images get their own cards; every other type — .psd, .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, {{fact:freeStorage}} on the free plan.
   - q: How large a file can I upload?
-    a: On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at {{fact:freeVideoCap}}, audio at {{fact:freeAudioCap}}, and a PDF or any other file at {{fact:freeFileCap}}.
+    a: As large as the room left on your drive — there is no per-file limit on any plan, and very large files upload in parts automatically. The drive is {{fact:freeStorage}} on the free plan and {{fact:creatorStorage}} on {{fact:planName}}.
   - q: Where do my files actually live?
     a: In private object storage. Files are served through signed URLs that expire, so a file cannot be reached by guessing a URL.
   - q: Can I bring in my PureRef boards?
-    a: Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards, which have no size cap on any plan.
+    a: Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards.
   - q: What happens if I drop a screenplay file?
     a: A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan.
   - q: What happens if the page closes while photos are still uploading?
@@ -48,27 +48,20 @@ Small text files get an inline preview on the card rather than only a download.
 
 ## Limits
 
-Two different things are limited, and they are limited for different reasons.
+**File type and size.** Any, on every plan. `.psd`, `.fig`, `.zip`, project
+files, archives, a 4K clip, a WAV stem — each lands as its own card, at any
+size. There is no per-file limit on any plan.
 
-**File type.** Any, on every plan. `.psd`, `.fig`, `.zip`, project files,
-archives — each lands as a file card with a download. On the free plan one of
-those is capped at {{fact:freeFileCap}}, the same ceiling as a PDF.
+**Storage.** The only limit is the drive: {{fact:freeStorage}} on the free
+plan, {{fact:creatorStorage}} on {{fact:planName}}. A drop that would not fit is
+caught before anything uploads, and you can add the part that fits. Inviting
+someone new adds {{fact:referralBonusStorage}} to your drive once they get
+started, and to theirs when they join ([Referrals](/docs/account/referrals)).
 
-**Size.** On the free plan:
-
-| Type | Cap |
-|---|---|
-| Video | {{fact:freeVideoCap}} |
-| Audio | {{fact:freeAudioCap}} |
-| PDF | {{fact:freePdfCap}} |
-| Any other file | {{fact:freeFileCap}} |
-| Images | No cap on any plan |
-
-{{fact:planName}} removes the size caps entirely.
-
-> **Note:** These are the real, enforced differences between free and paid —
-> along with the [card cap](/docs/canvas/cards). Clusters, collaborators and
-> editing are not limited on any plan.
+> **Note:** The drive and the [card cap](/docs/canvas/cards) are the real,
+> enforced differences between free and paid — a free account stops at
+> whichever it reaches first. Clusters, collaborators and editing are not
+> limited on any plan.
 
 ## Large uploads
 
@@ -84,13 +77,27 @@ behind it.
 Uploads count against your account's storage quota: {{fact:freeStorage}} on the
 free plan, {{fact:creatorStorage}} on {{fact:planName}}. The meter is in
 **Settings → Plan & billing**. When it is full, new uploads stop until you
-delete files or upgrade — nothing already there is touched. Inviting someone
-new adds {{fact:referralBonusStorage}} to your drive once they get started, and
-to theirs when they join ([Referrals](/docs/account/referrals)).
+delete files or upgrade — nothing already there is touched. On {{fact:planName}}
+you can also add [more storage](/docs/account/plans#more-storage),
+{{fact:storageAddonSize}} at a time.
 
 Storage is counted against the **owner of the cluster**, not the person who
 uploaded. If you are an editor on someone else's board, your uploads use their
 quota — which is the same rule that governs the [card cap](/docs/canvas/cards).
+
+### What counts
+
+- **A file counts while a cluster uses it.** Delete its card and the file stops
+  counting within a few minutes — unless another cluster still uses the same
+  file, as a [linked copy](/docs/clusters/list-view) does.
+- **Clusters in the trash still count** until the trash is emptied. Emptying
+  it frees their space at once.
+- **A deleted [version](#versions) counts** until it leaves Recently deleted.
+- **A file that is uploaded but not placed yet counts**, however long ago it
+  was uploaded — a file sent through the [API](/docs/api) that no card uses
+  yet, for example.
+- **Previews and thumbnails never count.** They are copies Clusters makes for
+  itself, not your files.
 
 ## How files are stored
 
@@ -99,8 +106,10 @@ back through signed URLs that expire. Nothing is in a public bucket and nothing
 is reachable by guessing a path.
 
 Files referenced by a board are protected from cleanup for as long as the board
-references them. Removing the last card that uses a file makes it eligible for
-deletion later, not immediately.
+references them. Removing the last card that uses a file stops it counting
+toward your storage within a few minutes; the file itself becomes eligible for
+deletion later, not immediately, so undo and version history can still bring it
+back.
 
 ## Versions
 

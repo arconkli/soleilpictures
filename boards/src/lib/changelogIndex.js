@@ -18,6 +18,13 @@ export const CHANGELOG_ENTRIES = [
     "headings": []
   },
   {
+    "date": "2026-10-17",
+    "anchor": "2026-10-17",
+    "title": "Any file at any size on every plan, a 1TB Creator drive, and deleting frees space",
+    "summary": "The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB, and you can add more a terabyte at a time. Deleting a file now gives its space back.",
+    "headings": []
+  },
+  {
     "date": "2026-10-04",
     "anchor": "2026-10-04",
     "title": "Folders become clusters, files keep their names, and search reads documents",

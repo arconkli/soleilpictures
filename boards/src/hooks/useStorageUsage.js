@@ -1,12 +1,14 @@
 // useStorageUsage — fetches the caller's account storage usage from the
-// my_storage_usage RPC (migration 0154). Sums live R2 bytes across all
-// workspaces the caller OWNS and returns the configured quota.
+// my_storage_usage RPC: what counts toward the drive across every workspace
+// the caller OWNS (0411 — files a cluster uses, or that were never placed),
+// plus uploads in flight, against the caller's OWN quota (free, trial or
+// Creator, 0413) — the same numbers the upload gates decide on.
 //
 // Returned shape: { used, quota, remaining, isPaid, loading, error, refetch }
 // (bytes; quota/remaining null until the RPC resolves). `error` is true when
 // the last fetch failed, so a meter can say so instead of drawing the
 // defaults as if they were real ("0 B / —"). Pass { enabled:false }
-// to skip the fetch for tiers that don't have a quota (demo/waitlist).
+// to skip the fetch where no number will be shown.
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';

@@ -12,15 +12,21 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LIVE_SUB_STATUSES,
+  PAST_DUE_GRACE_DAYS,
   activationDecision,
   decideCheckoutRoute,
+  entitlementFromSubscription,
   filterLiveSubscriptions,
+  mirrorFieldsFromSubscription,
   netMonthlyFromSubscription,
   periodEndFromSubscription,
   pickReusableCustomer,
   planFromPriceId,
+  planFromSubscription,
   promoCodesAllowedForPlan,
+  shouldDemote,
   subscriptionEventAction,
+  subscriptionItems,
 } from '../../../supabase/functions/_shared/activateCore.mjs';
 
 const usdPrice = (unit, interval = 'month', intervalCount = 1) => ({
@@ -227,3 +233,137 @@ test('a fresher sub takes over a terminal mirror (resubscribe)', () => {
   // ...but a redelivered deleted(old) after the terminal write is a no-op.
   assert.equal(subscriptionEventAction({ kind: 'deleted', eventSubId: 'sub_old2', storedSubId: 'sub_old', storedStatus: 'canceled' }), 'skip');
 });
+
+// ── Two items: Creator + extra storage (2026-10-17) ─────────────────────────
+// Every reader used to take items.data[0] as the plan. Stripe promises no item
+// order, so each case below puts the storage item FIRST.
+const CFG = {
+  creatorProduct: 'prod_creator',
+  storageProduct: 'prod_storage',
+  creatorPrices: { monthly: 'price_m', annual: 'price_a' },
+  storagePrices: { monthly: 'price_sm', annual: 'price_sa' },
+};
+const item = (id, product, unit, { qty = 1, interval = 'month', count = 1 } = {}) => ({
+  id: `si_${id}`,
+  quantity: qty,
+  price: { id, product, unit_amount: unit, currency: 'usd', recurring: { interval, interval_count: count } },
+});
+const twoItem = ({ status = 'active', blocks = 2, extra = {} } = {}) => ({
+  id: 'sub_two',
+  status,
+  current_period_end: 1780000000,
+  items: { data: [item('price_sm', 'prod_storage', 2500, { qty: blocks }), item('price_m', 'prod_creator', 2500)] },
+  ...extra,
+});
+
+test('with no config, a single item is the plan — every pre-storage subscription', () => {
+  const s = sub(usdPrice(2500));
+  const r = subscriptionItems(s);
+  assert.equal(r.creator, s.items.data[0]);
+  assert.equal(r.storageBlocks, 0);
+  assert.deepEqual(r.unknown, []);
+  assert.equal(activationDecision(s).live, true, 'existing callers that pass no cfg are unchanged');
+});
+
+test('the Creator item is found by product even when storage comes first', () => {
+  const s = twoItem();
+  const r = subscriptionItems(s, CFG);
+  assert.equal(r.creator.price.id, 'price_m');
+  assert.equal(r.storageBlocks, 2);
+  assert.equal(planFromSubscription(s, CFG), 'monthly', 'never the storage price read as an unknown plan');
+  assert.equal(activationDecision(s, CFG).live, true);
+});
+
+test('storage is recognised by price id when the config names no products', () => {
+  const cfg = { creatorPrices: CFG.creatorPrices, storagePrices: CFG.storagePrices };
+  const r = subscriptionItems(twoItem({ blocks: 3 }), cfg);
+  assert.equal(r.creator.price.id, 'price_m');
+  assert.equal(r.storageBlocks, 3);
+});
+
+test('a subscription that is only storage is not a plan', () => {
+  const s = { id: 'sub_s', status: 'active', items: { data: [item('price_sm', 'prod_storage', 2500, { qty: 1 })] } };
+  assert.deepEqual(activationDecision(s, CFG), { live: false, reason: 'no_creator_item' });
+  assert.equal(entitlementFromSubscription(s, { cfg: CFG }).entitled, false);
+  assert.equal(shouldDemote(s, { cfg: CFG }), true);
+});
+
+test('a Creator price the env does not name still counts as the plan, and is reported', () => {
+  // The owner changes the Creator price in Stripe before updating the secret:
+  // nobody may be demoted for it, and the operator should hear about it.
+  const s = { id: 'sub_n', status: 'active', items: { data: [item('price_new', 'prod_other', 3000, { interval: 'year' })] } };
+  const r = subscriptionItems(s, CFG);
+  assert.equal(r.creator.price.id, 'price_new');
+  assert.equal(r.unknown.length, 1);
+  assert.equal(planFromSubscription(s, CFG), 'annual', 'falls back to the interval');
+  assert.equal(activationDecision(s, CFG).live, true);
+});
+
+test('a plan is read off a plain interval only', () => {
+  const quarterly = { status: 'active', items: { data: [item('price_q', 'prod_x', 7500, { count: 3 })] } };
+  assert.equal(planFromSubscription(quarterly, CFG), null, 'quarterly is not monthly');
+  assert.equal(planFromSubscription(null, CFG), null);
+});
+
+test('the mirror counts every block and nothing else', () => {
+  const s = twoItem({ blocks: 4 });
+  s.items.data.push(item('price_sa', 'prod_storage', 24000, { qty: 'junk' }));
+  const m = mirrorFieldsFromSubscription(s, CFG);
+  assert.equal(m.storage_blocks, 4, 'a junk quantity adds nothing');
+  assert.equal(m.plan, 'monthly');
+  assert.equal(m.status, 'active');
+  assert.equal(m.cancel_at_period_end, false);
+  assert.equal(mirrorFieldsFromSubscription(sub(usdPrice(2500)), CFG).storage_blocks, 0);
+});
+
+test('MRR counts the storage blocks beside the plan', () => {
+  assert.equal(netMonthlyFromSubscription(twoItem({ blocks: 2 })).monthlyAmountCents, 7500);
+});
+
+// ── Dunning: one rule for the webhook, the cron and the SQL twin ────────────
+const DAY = 86_400_000;
+const NOW = 1_800_000_000_000;
+const pastDue = (inv, extra = {}) => ({ ...twoItem({ status: 'past_due' }), latest_invoice: inv, ...extra });
+
+test('active and trialing are entitled; incomplete is neither entitled nor demoted', () => {
+  assert.equal(entitlementFromSubscription(twoItem(), { cfg: CFG }).entitled, true);
+  assert.equal(entitlementFromSubscription(twoItem({ status: 'trialing' }), { cfg: CFG }).entitled, true);
+  const inc = twoItem({ status: 'incomplete' });
+  assert.equal(entitlementFromSubscription(inc, { cfg: CFG }).entitled, false);
+  assert.equal(shouldDemote(inc, { cfg: CFG }), false, 'nothing to demote before a first payment');
+});
+
+test('past_due keeps the plan while Stripe is still retrying, inside the grace window', () => {
+  const retrying = pastDue({ status: 'open', next_payment_attempt: NOW / 1000 + 3600, created: NOW / 1000 - 5 * 86400 });
+  assert.deepEqual(entitlementFromSubscription(retrying, { cfg: CFG, now: NOW }), { entitled: true, reason: 'past_due_retrying' });
+  assert.equal(shouldDemote(retrying, { cfg: CFG, now: NOW }), false);
+});
+
+test('past_due loses the plan once Stripe stops retrying', () => {
+  const givenUp = pastDue({ status: 'open', next_payment_attempt: null, created: NOW / 1000 - 5 * 86400 });
+  assert.equal(entitlementFromSubscription(givenUp, { cfg: CFG, now: NOW }).reason, 'past_due_not_retrying');
+  assert.equal(shouldDemote(givenUp, { cfg: CFG, now: NOW }), true);
+  const uncollectible = pastDue({ status: 'uncollectible', next_payment_attempt: null, created: NOW / 1000 });
+  assert.equal(shouldDemote(uncollectible, { cfg: CFG, now: NOW }), true);
+});
+
+test('past_due loses the plan after the grace window, whatever the retry schedule', () => {
+  const late = pastDue({ status: 'open', next_payment_attempt: NOW / 1000 + 3600, created: NOW / 1000 - (PAST_DUE_GRACE_DAYS + 1) * 86400 });
+  assert.equal(entitlementFromSubscription(late, { cfg: CFG, now: NOW }).reason, 'past_due_beyond_grace');
+  assert.equal(shouldDemote(late, { cfg: CFG, now: NOW }), true);
+});
+
+test('an unexpanded latest_invoice falls back to the period start for the grace window', () => {
+  const fresh = pastDue('in_123', { current_period_start: (NOW - 2 * DAY) / 1000 });
+  assert.equal(entitlementFromSubscription(fresh, { cfg: CFG, now: NOW }).entitled, true);
+  const stale = pastDue('in_123', { current_period_start: (NOW - 30 * DAY) / 1000 });
+  assert.equal(entitlementFromSubscription(stale, { cfg: CFG, now: NOW }).entitled, false);
+});
+
+test('unpaid, paused, canceled and incomplete_expired demote', () => {
+  for (const status of ['unpaid', 'paused', 'canceled', 'incomplete_expired']) {
+    assert.equal(shouldDemote(twoItem({ status }), { cfg: CFG }), true, status);
+  }
+  assert.equal(shouldDemote(null), false);
+});
+

@@ -121,8 +121,8 @@ board itself.
 
 ## Limits
 
-Images are not size-capped on any plan. The caps that exist are on
-[video, audio and PDF](/docs/files) for free accounts.
+No file is size-capped on any plan — images, [video, audio and
+PDFs](/docs/files) included. The drive is the only limit.
 
 Storage is counted against your account quota: {{fact:freeStorage}} on the free
 plan, {{fact:creatorStorage}} on {{fact:planName}}, plus {{fact:referralBonusStorage}} for

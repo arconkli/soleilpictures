@@ -35,6 +35,14 @@ const CASES = [
   [{ tier: 'demo', cards: -1, cardLimit: 50, trialStartedAt: null }, false, 'cards_unknown'],
   [{ tier: 'demo', cards: 13, cardLimit: null, trialStartedAt: null }, true, 'body_of_work'], // count alone suffices
   [{ tier: 'demo', cards: 5, cardLimit: null, trialStartedAt: null }, false, 'too_early'],
+  // The free drive is the other wall (0413): a nearly-full drive invites at
+  // any card count, a missing or partial pair of numbers never does.
+  [{ tier: 'demo', cards: 3, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9, storageQuota: 5e9 }, true, 'near_storage'],
+  [{ tier: 'demo', cards: 3, cardLimit: 50, trialStartedAt: null, storageUsed: 1e9, storageQuota: 5e9 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 3, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 3, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9, storageQuota: 0 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 13, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9, storageQuota: 5e9 }, true, 'body_of_work'],
+  [{ tier: 'paid', cards: 3, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9, storageQuota: 5e9 }, false, 'not_demo'],
   [undefined, false, 'not_demo'],
   [null, false, 'not_demo'],
 ];

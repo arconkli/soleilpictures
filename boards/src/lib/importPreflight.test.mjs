@@ -14,7 +14,7 @@
 // demoCardCap.test.mjs had to be rewritten; deriving them means the next move
 // costs nothing.
 
-import { planImport } from './importPreflight.js';
+import { planImport, planBytes, MEDIA_SLACK_BYTES } from './importPreflight.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
 let failed = 0;
@@ -128,5 +128,22 @@ for (const bad of [null, undefined, {}, { requested: 5 }, { requested: 5, resolv
 assertEq(planImport({ capped: true, resolved: true, count: 0, limit: 0, requested: 500 }).take,
   CAP, 'a junk limit falls back to the default cap, not to unlimited');
 
+// ── the drive (0413) ────────────────────────────────────────────────────────
+{
+  const MB = 1024 * 1024;
+  const items = [{ bytes: 40 * MB, kind: 'image' }, { bytes: 40 * MB, kind: 'image' }, { bytes: 40 * MB, kind: 'image' }];
+  assertEq(planBytes({ items, remaining: 100 * MB }).take, 2, 'the first files that fit, in drop order');
+  assertEq(planBytes({ items, remaining: 200 * MB }).take, 3, 'everything, when it all fits');
+  assertEq(planBytes({ items, remaining: 10 * MB }).take, 0, 'nothing, when nothing fits');
+  assertEq(planBytes({ items, remaining: null }).take, 3, 'unknown room takes everything and lets the server decide');
+  assertEq(planBytes({ items, remaining: null }).resolved, false, '…and says it did not know');
+  assertEq(planBytes({ items }).needed, 120 * MB, 'what the drop weighs');
+  const clip = [{ bytes: 50 * MB, kind: 'video' }];
+  assertEq(planBytes({ items: clip, remaining: 50 * MB }).take, 0, 'a clip is charged for its poster too');
+  assertEq(planBytes({ items: clip, remaining: 50 * MB + MEDIA_SLACK_BYTES }).take, 1, '…and fits with room for it');
+  assertEq(planBytes({ items: [], remaining: 0 }).take, 0, 'an empty drop takes nothing');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
+

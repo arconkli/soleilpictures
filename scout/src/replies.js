@@ -8,6 +8,8 @@
 // specific, no exclamation marks, no emoji padding. This is a tool used by
 // working crew standing in a parking lot, not a chat companion.
 
+import { CREATOR_STORAGE_LABEL } from '../../boards/src/lib/billingCopy.js';
+
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // Describe what actually landed, e.g. "5 photos + 1 voice note".
@@ -86,7 +88,7 @@ export function capReached({ cap, billingUrl, kept = 0 }) {
   if (kept > 0) lines.push(`I saved the first ${plural(kept, 'item', 'items')}; the rest didn't land.`);
   else lines.push('Nothing from that last batch landed.');
   lines.push('');
-  lines.push(`Creator lifts the cap and adds 100GB: ${billingUrl}`);
+  lines.push(`Creator lifts the cap and gives you ${CREATOR_STORAGE_LABEL}: ${billingUrl}`);
   return lines.join('\n');
 }
 
@@ -330,7 +332,7 @@ export function needsPaidPlan({ count, billingUrl }) {
     `${plural(count, 'file', 'files')} needs a Creator plan — big clips and`,
     'anything that isn\'t a photo, video, audio file or PDF.',
     '',
-    `Creator lifts it and adds 100GB: ${billingUrl}`,
+    `Creator lifts it and gives you ${CREATOR_STORAGE_LABEL}: ${billingUrl}`,
   ].join('\n');
 }
 

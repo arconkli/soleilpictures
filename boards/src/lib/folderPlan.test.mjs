@@ -28,11 +28,11 @@ test('files the drop never takes are counted, not planned', () => {
     f('stems.zip', 'application/zip'), f('masters.zip', 'application/zip', 60 * 1024 * 1024),
   ])]);
   const free = planFolderImport(root, { canAttemptFiles: false });
-  // 0367: a free owner's zip comes along like any other file; only the one
-  // past the free file cap is blocked, and for its size, never its type.
-  assert.equal(free.files, 2);
+  // 0413: every plan takes any file at any size — the drive decides — so a
+  // free owner's big zip comes along too. Only the .pur note stays free-only.
+  assert.equal(free.files, 3);
   assert.deepEqual(free.skipped, { partial: 1, pureref: 1, scripts: 1 });
-  assert.deepEqual(free.blocked.map((x) => x.name), ['masters.zip'], 'a free owner\'s over-cap file is blocked');
+  assert.deepEqual(free.blocked.map((x) => x.name), [], 'no file is refused for its size');
   const paid = planFolderImport(root, { canAttemptFiles: true });
   assert.equal(paid.files, 4, 'on a paid plan both zips come, and the .pur as a file card');
   assert.equal(paid.skipped.pureref, 0);
@@ -46,7 +46,7 @@ test('slicing never leaves an empty cluster, and keeps the first folders whole',
   assert.equal(plan.cost, 7);
   const four = slicePlan(plan.nodes, 4);
   // A (1) + 1.jpg + 2.jpg = 3; A1 needs 2 more but only 1 is left → dropped.
-  assert.deepEqual(countPlan(four), { clusters: 1, files: 2, cost: 3, kinds: { image: 2 }, depth: 1 });
+  assert.deepEqual(countPlan(four), { clusters: 1, files: 2, cost: 3, kinds: { image: 2 }, depth: 1, bytes: 2000 });
   const one = slicePlan(plan.nodes, 1);
   assert.deepEqual(one, [], 'room for a cluster but nothing in it is not room at all');
   assert.equal(countPlan(slicePlan(plan.nodes, 99)).cost, 7);

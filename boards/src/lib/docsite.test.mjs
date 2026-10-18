@@ -40,8 +40,7 @@ import { SEO_LISTICLE_PAGES } from './seoListicles.js';
 import { TEMPLATE_CATEGORIES } from './templateCards.js';
 import { TEMPLATE_STORE_HELD, isTemplateStorePath } from './templatePaths.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
-import { PRICING } from './billingCopy.js';
-import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP } from './fileIngest.js';
+import { PRICING, FREE_STORAGE_LABEL, CREATOR_STORAGE_LABEL, TRIAL_STORAGE_LABEL } from './billingCopy.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '../..');
@@ -326,9 +325,11 @@ test('FACTS: enforced limits in the docs match the code that enforces them', () 
     [`${DEMO_CARD_LIMIT} cards`, 'demo card cap'],
     [PRICING.monthly.billedLabel, 'monthly price'],
     [PRICING.annual.billedLabel, 'annual price'],
-    [`${FREE_VIDEO_CAP / MB} mb`, 'free video cap'],
-    [`${FREE_AUDIO_CAP / MB} mb`, 'free audio cap'],
-    [`${FREE_PDF_CAP / MB} mb`, 'free pdf cap'],
+    // The drives (0413) — the only byte limits on any plan since the free
+    // per-file caps went.
+    [FREE_STORAGE_LABEL, 'free drive'],
+    [CREATOR_STORAGE_LABEL, 'Creator drive'],
+    [TRIAL_STORAGE_LABEL, 'trial drive'],
     [String(surface.apiFacts.rateLimitPerHour), 'API rate limit'],
     [surface.apiFacts.tokenPrefix, 'API token prefix'],
     [String(surface.apiFacts.maxCardsPerCall), 'max cards per call'],

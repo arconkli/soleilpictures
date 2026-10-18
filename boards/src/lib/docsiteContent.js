@@ -8403,22 +8403,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Images are not size-capped on any plan. The caps that exist are on "
+     "v": "No file is size-capped on any plan — images, "
     },
     {
      "t": "link",
-     "v": "video, audio and PDF",
+     "v": "video, audio and PDFs",
      "href": "/docs/files",
      "children": [
       {
        "t": "text",
-       "v": "video, audio and PDF"
+       "v": "video, audio and PDFs"
       }
      ]
     },
     {
      "t": "text",
-     "v": " for free accounts."
+     "v": " included. The drive is the only limit."
     }
    ]
   },
@@ -8427,7 +8427,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Storage is counted against your account quota: 5GB on the free plan, 100GB on Creator, plus 0.5GB for each person you "
+     "v": "Storage is counted against your account quota: 5GB on the free plan, 1TB on Creator, plus 0.5GB for each person you "
     },
     {
      "t": "link",
@@ -14370,21 +14370,12 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
-     "t": "text",
-     "v": "Two different things are limited, and they are limited for different reasons."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
      "t": "strong",
-     "v": "File type.",
+     "v": "File type and size.",
      "children": [
       {
        "t": "text",
-       "v": "File type."
+       "v": "File type and size."
       }
      ]
     },
@@ -14414,7 +14405,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", project files, archives — each lands as a file card with a download. On the free plan one of those is capped at 50 MB, the same ceiling as a PDF."
+     "v": ", project files, archives, a 4K clip, a WAV stem — each lands as its own card, at any size. There is no per-file limit on any plan."
     }
    ]
   },
@@ -14423,115 +14414,32 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Size.",
+     "v": "Storage.",
      "children": [
       {
        "t": "text",
-       "v": "Size."
+       "v": "Storage."
       }
      ]
     },
     {
      "t": "text",
-     "v": " On the free plan:"
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Type"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Cap"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
+     "v": " The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits. Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join ("
+    },
+    {
+     "t": "link",
+     "v": "Referrals",
+     "href": "/docs/account/referrals",
+     "children": [
       {
        "t": "text",
-       "v": "Video"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "30 MB"
+       "v": "Referrals"
       }
      ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Audio"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "50 MB"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "PDF"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "50 MB"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Any other file"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "50 MB"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Images"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No cap on any plan"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
+    },
     {
      "t": "text",
-     "v": "Creator removes the size caps entirely."
+     "v": ")."
     }
    ]
   },
@@ -14541,7 +14449,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "These are the real, enforced differences between free and paid — along with the "
+     "v": "The drive and the "
     },
     {
      "t": "link",
@@ -14556,7 +14464,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Clusters, collaborators and editing are not limited on any plan."
+     "v": " are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters, collaborators and editing are not limited on any plan."
     }
    ]
   },
@@ -14607,7 +14515,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Uploads count against your account's storage quota: 5GB on the free plan, 100GB on Creator. The meter is in "
+     "v": "Uploads count against your account's storage quota: 5GB on the free plan, 1TB on Creator. The meter is in "
     },
     {
      "t": "strong",
@@ -14621,22 +14529,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join ("
+     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. On Creator you can also add "
     },
     {
      "t": "link",
-     "v": "Referrals",
-     "href": "/docs/account/referrals",
+     "v": "more storage",
+     "href": "/docs/account/plans#more-storage",
      "children": [
       {
        "t": "text",
-       "v": "Referrals"
+       "v": "more storage"
       }
      ]
     },
     {
      "t": "text",
-     "v": ")."
+     "v": ", 1TB at a time."
     }
    ]
   },
@@ -14680,6 +14588,149 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "What counts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What counts"
+    }
+   ],
+   "id": "what-counts"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A file counts while a cluster uses it.",
+      "children": [
+       {
+        "t": "text",
+        "v": "A file counts while a cluster uses it."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Delete its card and the file stops counting within a few minutes — unless another cluster still uses the same file, as a "
+     },
+     {
+      "t": "link",
+      "v": "linked copy",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "linked copy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " does."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Clusters in the trash still count",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clusters in the trash still count"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " until the trash is emptied. Emptying it frees their space at once."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A deleted [version](#versions) counts",
+      "children": [
+       {
+        "t": "text",
+        "v": "A deleted "
+       },
+       {
+        "t": "link",
+        "v": "version",
+        "href": "#versions",
+        "children": [
+         {
+          "t": "text",
+          "v": "version"
+         }
+        ]
+       },
+       {
+        "t": "text",
+        "v": " counts"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " until it leaves Recently deleted."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A file that is uploaded but not placed yet counts",
+      "children": [
+       {
+        "t": "text",
+        "v": "A file that is uploaded but not placed yet counts"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", however long ago it was uploaded — a file sent through the "
+     },
+     {
+      "t": "link",
+      "v": "API",
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " that no card uses yet, for example."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Previews and thumbnails never count.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Previews and thumbnails never count."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " They are copies Clusters makes for itself, not your files."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "How files are stored",
    "inline": [
@@ -14704,7 +14755,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Files referenced by a board are protected from cleanup for as long as the board references them. Removing the last card that uses a file makes it eligible for deletion later, not immediately."
+     "v": "Files referenced by a board are protected from cleanup for as long as the board references them. Removing the last card that uses a file stops it counting toward your storage within a few minutes; the file itself becomes eligible for deletion later, not immediately, so undo and version history can still bring it back."
     }
    ]
   },
@@ -15331,21 +15382,36 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Size limit",
+   "text": "Size",
    "inline": [
     {
      "t": "text",
-     "v": "Size limit"
+     "v": "Size"
     }
    ],
-   "id": "size-limit"
+   "id": "size"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Free accounts cap PDFs at "
+     "v": "There is no PDF size limit on any plan — a PDF counts toward your "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "/docs/files#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " like any other file. Up to "
     },
     {
      "t": "strong",
@@ -15359,31 +15425,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Creator removes the cap. See "
-    },
-    {
-     "t": "link",
-     "v": "Plans",
-     "href": "/docs/account/plans",
-     "children": [
-      {
-       "t": "text",
-       "v": "Plans"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A script or a treatment is comfortably under that. A print-resolution deck with embedded images often is not."
+     "v": " it becomes a PDF card that opens in the viewer; a larger one lands as a file card with a download, so a print-resolution deck with embedded images still comes along whole."
     }
    ]
   },
@@ -16689,21 +16731,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Free accounts cap video at "
+     "v": "There is no size or length limit on video, on any plan — a reference clip, a cut-down or a full-resolution master all land the same way, and very large files upload in parts. The only limit is your "
     },
     {
-     "t": "strong",
-     "v": "30 MB",
+     "t": "link",
+     "v": "drive",
+     "href": "/docs/files#storage",
      "children": [
       {
        "t": "text",
-       "v": "30 MB"
+       "v": "drive"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". That is enough for a reference clip or a cut-down, not for a full-resolution master. Creator removes the cap and handles very large files by uploading them in parts."
+     "v": "."
     }
    ]
   },
@@ -16800,21 +16843,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Free accounts cap audio at "
-    },
-    {
-     "t": "strong",
-     "v": "50 MB",
-     "children": [
-      {
-       "t": "text",
-       "v": "50 MB"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
+     "v": "There is no size limit on audio either, on any plan."
     }
    ]
   },
@@ -17254,7 +17283,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Media counts against your storage quota like everything else — 5GB free, 100GB on Creator, with the meter in "
+     "v": "Media counts against your storage quota like everything else — 5GB free, 1TB on Creator, with the meter in "
     },
     {
      "t": "strong",
@@ -21151,22 +21180,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Yes, on every plan. The free plan caps each file at 50 MB (standard media at its own "
-      },
-      {
-       "t": "link",
-       "v": "size caps",
-       "href": "/docs/account/plans",
-       "children": [
-        {
-         "t": "text",
-         "v": "size caps"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": "), and every file is one of its 50 cards; Creator lifts the size caps on a 100GB drive"
+       "v": "Yes, at any size, on every plan. The free plan holds 50 cards or 5GB of files, whichever comes first; Creator removes the card cap and gives you a 1TB drive"
       }
      ]
     ],
@@ -31939,22 +31953,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Free-plan size limits are the same ones the canvas applies to a dropped file — 30 MB for video, 50 MB for audio, 50 MB for a PDF, 50 MB for any other file. Anything larger needs "
+     "v": "There is no per-file size limit, on any plan — Scout takes what the canvas takes, and the only limit is the "
     },
     {
      "t": "link",
-     "v": "Creator",
-     "href": "/docs/account/plans",
+     "v": "drive",
+     "href": "/docs/files#storage",
      "children": [
       {
        "t": "text",
-       "v": "Creator"
+       "v": "drive"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". Scout says which files it could not take rather than dropping them quietly."
+     "v": " of the workspace it files into. Scout says which files it could not take rather than dropping them quietly."
     }
    ]
   },
@@ -33367,7 +33381,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Current plan, the Stripe customer portal for payment details and cancellation, and the "
+     "v": "Current plan, the Stripe customer portal for payment details and cancellation, the "
     },
     {
      "t": "strong",
@@ -33381,7 +33395,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " showing what you have used against your quota. See "
+     "v": " showing what you have used against your quota, and — on Creator — "
+    },
+    {
+     "t": "link",
+     "v": "extra storage",
+     "href": "/docs/account/plans#more-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "extra storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to add or remove, 1TB at a time. See "
     },
     {
      "t": "link",
@@ -34043,7 +34072,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two plans. The difference between them is deliberately small and deliberately honest — four enforced limits, listed below, and nothing else. The "
+     "v": "Two plans. The difference between them is deliberately small and deliberately honest — two enforced limits, listed below, and nothing else. The "
     },
     {
      "t": "link",
@@ -34149,24 +34178,6 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "No separate limit on clusters — each one counts as one of your cards"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Free collaboration — invite editors to any cluster"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Any file type, up to 50 MB each — images are never capped"
-     }
-    ],
-    [
-     {
-      "t": "text",
       "v": "A "
      },
      {
@@ -34181,9 +34192,30 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " drive for your files"
+      "v": " drive — any file, at any size"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "No separate limit on clusters — each one counts as one of your cards"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Free collaboration — invite editors to any cluster"
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The free plan stops at whichever limit you reach first."
+    }
    ]
   },
   {
@@ -34254,55 +34286,46 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "No size limits",
+      "v": "A 1TB drive",
       "children": [
        {
         "t": "text",
-        "v": "No size limits"
+        "v": "A 1TB drive"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — video past 30 MB or 60 seconds, audio past 50 MB, a PDF or a "
-     },
-     {
-      "t": "code",
-      "v": ".psd"
-     },
-     {
-      "t": "text",
-      "v": ", a "
-     },
-     {
-      "t": "code",
-      "v": ".fig"
-     },
-     {
-      "t": "text",
-      "v": ", a "
-     },
-     {
-      "t": "code",
-      "v": ".zip"
-     },
-     {
-      "t": "text",
-      "v": " past 50 MB, all fine, on your own "
+      "v": " — free holds 5GB; Creator holds "
      },
      {
       "t": "strong",
-      "v": "100GB",
+      "v": "1TB",
       "children": [
        {
         "t": "text",
-        "v": "100GB"
+        "v": "1TB"
        }
       ]
      },
      {
       "t": "text",
-      "v": " drive."
+      "v": ", room for the footage, the camera originals and the project archives. (During a "
+     },
+     {
+      "t": "link",
+      "v": "trial",
+      "href": "#trying-creator-first",
+      "children": [
+       {
+        "t": "text",
+        "v": "trial"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " it is 100GB, and the full drive comes with the first payment.)"
      }
     ],
     [
@@ -34340,7 +34363,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:"
+     "v": "Two things — cards and storage. A free account stops at whichever it reaches first:"
     }
    ]
   },
@@ -34408,70 +34431,18 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "[File types](/docs/files)",
+       "v": "[Storage](/docs/files#storage)",
        "children": [
         {
          "t": "link",
-         "v": "File types",
-         "href": "/docs/files",
+         "v": "Storage",
+         "href": "/docs/files#storage",
          "children": [
           {
            "t": "text",
-           "v": "File types"
+           "v": "Storage"
           }
          ]
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Any — up to 50 MB each"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Any, at any size"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Per-file size and length",
-       "children": [
-        {
-         "t": "text",
-         "v": "Per-file size and length"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Video 30 MB or 60 seconds · audio 50 MB · PDF and any other file 50 MB · images never"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No limit"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Storage",
-       "children": [
-        {
-         "t": "text",
-         "v": "Storage"
         }
        ]
       }
@@ -34485,7 +34456,40 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "100GB"
+       "v": "1TB"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "[File types and sizes](/docs/files)",
+       "children": [
+        {
+         "t": "link",
+         "v": "File types and sizes",
+         "href": "/docs/files",
+         "children": [
+          {
+           "t": "text",
+           "v": "File types and sizes"
+          }
+         ]
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Any, at any size"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Any, at any size"
       }
      ]
     ]
@@ -34496,7 +34500,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Everything else is the same on both plans."
+     "v": "Everything else is the same on both plans. "
+    },
+    {
+     "t": "link",
+     "v": "What counts toward storage",
+     "href": "/docs/files#what-counts",
+     "children": [
+      {
+       "t": "text",
+       "v": "What counts toward storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — and what does not — is spelled out on the files page."
     }
    ]
   },
@@ -34654,7 +34673,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are not capped at all. Images have no size cap on any plan."
+     "v": " are not capped at all. No file has a size cap on any plan — the drive is the only limit."
     }
    ]
   },
@@ -34720,21 +34739,45 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Hitting the cap",
+   "text": "Hitting a limit",
    "inline": [
     {
      "t": "text",
-     "v": "Hitting the cap"
+     "v": "Hitting a limit"
     }
    ],
-   "id": "hitting-the-cap"
+   "id": "hitting-a-limit"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "You are told when you reach it, and offered the upgrade. Nothing you have already made is removed, locked, or hidden."
+     "v": "You are told when you reach either one, and offered the upgrade — or, when a Creator drive is full, "
+    },
+    {
+     "t": "link",
+     "v": "more storage",
+     "href": "#more-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "more storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deleting a file gives its space back within a few minutes — unless another cluster still uses it — and emptying the trash gives back everything in it at once."
     }
    ]
   },
@@ -34759,6 +34802,82 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " grant bonus cards for people you invite who actually get started."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "More storage",
+   "inline": [
+    {
+     "t": "text",
+     "v": "More storage"
+    }
+   ],
+   "id": "more-storage"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If Creator's 1TB drive fills, add more in blocks of "
+    },
+    {
+     "t": "strong",
+     "v": "1TB",
+     "children": [
+      {
+       "t": "text",
+       "v": "1TB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": $25/month on the monthly plan, or $240/year on the annual one, up to 10 blocks. Add a block from "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Plan & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Plan & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or from the message or dialog that appears when an upload will not fit. It goes on the card your plan already bills, with no new checkout. The first charge covers only the rest of your current billing period, and the sheet shows that amount before you confirm."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If your bank asks to confirm the payment, Stripe opens a page to finish it. The storage is added once that payment goes through; until then nothing changes."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Remove a block from the same place while your plan is active and not set to cancel. The unused part of the period comes off your next bill. A block can't be removed while your files would no longer fit without it, so delete some or empty the trash first."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Extra storage can be added once a Creator trial has made its first payment, and only while the subscription is in good standing. It ends with the plan: if Creator is canceled, the extra storage goes with it."
     }
    ]
   },
@@ -34861,7 +34980,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " shows your plan, the storage meter, and a link to the Stripe customer portal for payment details, invoices and cancellation."
+     "v": " shows your plan, the storage meter, any "
+    },
+    {
+     "t": "link",
+     "v": "extra storage",
+     "href": "#more-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "extra storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " with the buttons to add or remove it, and a link to the Stripe customer portal for payment details, invoices and cancellation. Extra storage is changed in Settings, not in the portal."
     }
    ]
   },
@@ -34949,7 +35083,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards is enough for what you do, that is a complete account. The Creator trial above is separate: it is a taste of the paid plan, and when it ends you are back on exactly this one."
+     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards and 5GB are enough for what you do, that is a complete account. The Creator trial above is separate: it is a taste of the paid plan, and when it ends you are back on exactly this one."
     }
    ]
   },
@@ -34958,7 +35092,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "When a trial or a paid plan ends, nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it."
+     "v": "When a trial or a paid plan ends, nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them."
     }
    ]
   },

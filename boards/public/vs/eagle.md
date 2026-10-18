@@ -55,15 +55,14 @@ Start free. Pay when you outgrow it.
 **Free — $0 forever**
 
 - **50 cards** to build with
+- A **5GB** drive — any file, any size
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
-- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- Any file, any size
-- No size limits, on a 100GB drive
+- A 1TB drive, on a 1TB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -93,5 +92,5 @@ Clusters runs in the mobile browser and can be added to the home screen as a web
 
 ### How much does Eagle cost?
 
-As of October 2026, Eagle’s store lists US$34.95 as a one-time purchase with free lifetime updates, and each licence covers two devices. Clusters is free to start; Creator is $25 a month for unlimited cards, 100GB of storage with no size limits.
+As of October 2026, Eagle’s store lists US$34.95 as a one-time purchase with free lifetime updates, and each licence covers two devices. Clusters is free to start; Creator is $25 a month for unlimited cards and a 1TB drive.
 

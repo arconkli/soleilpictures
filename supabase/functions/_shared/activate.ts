@@ -13,18 +13,78 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import {
   activationDecision,
+  mirrorFieldsFromSubscription,
   netMonthlyFromSubscription as netMonthlyCore,
   periodEndFromSubscription as periodEndCore,
-  planFromPriceId as planFromPriceIdCore,
+  subscriptionItems,
 } from "./activateCore.mjs";
 
 type Admin = ReturnType<typeof createClient>;
 
-export function planFromPriceId(priceId: string | undefined): "monthly" | "annual" | null {
-  return planFromPriceIdCore(priceId, {
-    monthly: Deno.env.get("STRIPE_PRICE_MONTHLY"),
-    annual: Deno.env.get("STRIPE_PRICE_ANNUAL"),
-  }) as "monthly" | "annual" | null;
+// Which Stripe item is the plan and which is extra storage (activateCore
+// subscriptionItems). Products first; the price ids are the fallback for a
+// project whose secrets name no products yet.
+export interface BillingConfig {
+  creatorProduct: string | null;
+  storageProduct: string | null;
+  creatorPrices: { monthly: string | null; annual: string | null };
+  storagePrices: { monthly: string | null; annual: string | null };
+}
+
+export function billingConfig(): BillingConfig {
+  const env = (k: string) => Deno.env.get(k) || null;
+  return {
+    creatorProduct: env("STRIPE_PRODUCT_CREATOR"),
+    storageProduct: env("STRIPE_PRODUCT_STORAGE"),
+    creatorPrices: { monthly: env("STRIPE_PRICE_MONTHLY"), annual: env("STRIPE_PRICE_ANNUAL") },
+    storagePrices: { monthly: env("STRIPE_PRICE_STORAGE_MONTHLY"), annual: env("STRIPE_PRICE_STORAGE_ANNUAL") },
+  };
+}
+
+// The whole subscriptions row for an observation of `sub`, for every mirror
+// writer. `observedAt` is when the caller STARTED the Stripe read that
+// produced `sub` — taken before the request, so a read that raced a change
+// can only look older than it is, never newer. The mirror guard (0415)
+// discards a write older than the stored one.
+export function mirrorRow(
+  sub: Stripe.Subscription,
+  args: { userId: string; customerId: string; observedAt: string; subscriptionId?: string | null },
+): Record<string, unknown> {
+  return {
+    user_id: args.userId,
+    stripe_customer_id: args.customerId,
+    stripe_subscription_id: args.subscriptionId ?? sub.id ?? null,
+    ...mirrorFieldsFromSubscription(sub as unknown as Record<string, unknown>, billingConfig()),
+    observed_at: args.observedAt,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// An item that is neither the configured Creator plan nor extra storage — a
+// price changed in Stripe ahead of the secrets, or an item added by hand. It
+// still counts as the plan (activateCore never demotes for it); the operator
+// hears about it here. Best-effort, never throws.
+export async function flagUnknownItems(admin: Admin, userId: string, sub: Stripe.Subscription, source: string) {
+  try {
+    const { unknown } = subscriptionItems(sub as unknown as Record<string, unknown>, billingConfig()) as {
+      unknown: Array<{ price?: { id?: string; product?: unknown } }>;
+    };
+    if (!unknown.length) return;
+    const ins = await admin.from("analytics_events").insert({
+      user_id: userId,
+      event: "billing_flag",
+      props: {
+        kind: "unknown_subscription_item",
+        subscription_id: sub.id,
+        prices: unknown.map((i) => i.price?.id ?? null),
+        source,
+      },
+      path: `/${source}`,
+    });
+    if (ins.error) console.warn("[activate] unknown-item flag insert failed", ins.error.message);
+  } catch (e) {
+    console.warn("[activate] unknown-item flag threw", (e as Error)?.message || String(e));
+  }
 }
 
 export function periodEndFromSubscription(sub: Stripe.Subscription): string | null {
@@ -86,34 +146,26 @@ export async function activateUserFromSubscription(
     customerId: string;
     subscription: Stripe.Subscription | null;
     subscriptionId?: string | null;
+    // When the caller started the Stripe read that produced `subscription`.
+    observedAt: string;
   },
 ): Promise<ActivateResult> {
   const { userId, customerId, subscription } = args;
-  const decision = activationDecision(subscription as unknown as Record<string, unknown> | null);
+  const decision = activationDecision(subscription as unknown as Record<string, unknown> | null, billingConfig());
   if (!subscription) {
     return { activated: false, soft: true, reason: decision.reason ?? "no_subscription" };
   }
 
-  const subId = args.subscriptionId ?? subscription.id ?? null;
-  const plan = planFromPriceId(subscription.items.data[0]?.price?.id);
+  const row = mirrorRow(subscription, {
+    userId, customerId, observedAt: args.observedAt, subscriptionId: args.subscriptionId,
+  });
+  const plan = row.plan as "monthly" | "annual" | null;
   const status = subscription.status;
-  const currentPeriodEnd = periodEndFromSubscription(subscription);
-  const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
-  const billing = netMonthlyFromSubscription(subscription);
+  const currentPeriodEnd = row.current_period_end as string | null;
 
-  const up = await admin.from("subscriptions").upsert({
-    user_id: userId,
-    stripe_customer_id: customerId,
-    stripe_subscription_id: subId,
-    plan,
-    status,
-    current_period_end: currentPeriodEnd,
-    cancel_at_period_end: cancelAtPeriodEnd,
-    monthly_amount_cents: billing.monthlyAmountCents,
-    discount: billing.discount,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id" });
+  const up = await admin.from("subscriptions").upsert(row, { onConflict: "user_id" });
   if (up.error) return { activated: false, reason: `subscriptions upsert failed: ${up.error.message}` };
+  await flagUnknownItems(admin, userId, subscription, "activate");
 
   if (!decision.live) {
     return { activated: false, soft: true, reason: decision.reason ?? undefined, plan, currentPeriodEnd };

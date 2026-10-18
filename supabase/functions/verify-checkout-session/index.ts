@@ -63,6 +63,8 @@ Deno.serve(async (req) => {
     } catch { return json({ error: "invalid json" }, 400); }
     if (!sessionId.startsWith("cs_")) return json({ error: "session_id required" }, 400);
 
+    // Before the read: the subscription arrives expanded on the session.
+    const observedAt = new Date().toISOString();
     let session: Stripe.Checkout.Session;
     try {
       session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
@@ -119,6 +121,7 @@ Deno.serve(async (req) => {
       customerId,
       subscription,
       subscriptionId: subscription?.id ?? null,
+      observedAt,
     });
 
     // Meta CAPI Purchase — same event_id (session.id) as the stripe-webhook

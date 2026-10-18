@@ -13,7 +13,6 @@
 
 import { supabase } from './supabase.js';
 import {
-  FREE_VIDEO_CAP, FREE_VIDEO_SECONDS, FREE_AUDIO_CAP,
   isAnimatedImageKey, isAnimatedImageBytes, ANIMATION_SNIFF_BYTES,
 } from './fileIngest.js';
 import { analyzeAudioFile, analyzable } from './audioAnalysis.js';
@@ -774,7 +773,7 @@ export function readAudioMeta(file) {
 // missing row means no signed read URL gets issued and `<audio>`
 // silently fails to load.
 export async function uploadAudio({ file, workspaceId, boardId, cardId = null, userId, onProgress = null,
-                                    maxBytes = FREE_AUDIO_CAP, originalName = null }) {
+                                    maxBytes = Number.POSITIVE_INFINITY, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`Audio too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
@@ -864,7 +863,7 @@ function canvasToWebpBlob(canvas, quality = 0.82) {
 // If page-1 rendering fails we still return the PDF (src null) so the card
 // exists and the viewer works — only the thumbnail is missing.
 export async function uploadPdf({ file, workspaceId, boardId, cardId = null, userId, onProgress = null,
-                                  maxBytes = 50 * 1024 * 1024, originalName = null }) {
+                                  maxBytes = Number.POSITIVE_INFINITY, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`PDF too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
@@ -937,8 +936,8 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
 // a backstop. Returns the same shape as uploadImage so callers can
 // switch on `kind` rather than the URL.
 export async function uploadVideo({ file, workspaceId, boardId, cardId = null, userId, onProgress = null,
-                                    maxBytes = FREE_VIDEO_CAP,
-                                    maxDurationSec = FREE_VIDEO_SECONDS, originalName = null }) {
+                                    maxBytes = Number.POSITIVE_INFINITY,
+                                    maxDurationSec = Number.POSITIVE_INFINITY, originalName = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
   if (file.size > maxBytes) {
     throw new Error(`Video too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);

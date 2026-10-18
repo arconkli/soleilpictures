@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Modal } from './Modal.jsx';
 import { rejectedNoun } from '../lib/demoCardCap.js';
-import { CTA, CREATOR_TRIAL_DAYS } from '../lib/billingCopy.js';
+import { CTA, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, PLAN_NAME, STORAGE_ADDON_BLOCK_LABEL, storageAmountLabel } from '../lib/billingCopy.js';
 import './importCapDialog.css';
 
 // The over-cap folder drop, asked BEFORE anything uploads.
@@ -37,7 +37,16 @@ import './importCapDialog.css';
 // so the copy names the folder's files and clusters rather than calling the
 // total "photos", and the partial button adds what fits rather than "the first
 // N", since a folder is cut down whole folders first (lib/folderPlan slicePlan).
-export function ImportCapDialog({ open, n, take, over, count, limit, kinds, folder = null, trialOffer = false, onTakePartial, onUpgrade, onCancel }) {
+// `limitKind` 'storage' (0413): the DRIVE is what this drop overflows, not the
+// card cap. `bytesNeeded` is what the drop weighs and `bytesLeft` what the
+// drive has room for; `take` is then how many files fit, in drop order.
+// `canUpgrade` is false where buying would not help — a paying owner whose
+// drive is full, or someone dropping into another person's cluster.
+// `onAddStorage` (0415): for a paying owner whose drive is what overflows, the
+// way to extra storage. Null hides it — anyone else, or while it is held.
+export function ImportCapDialog({ open, n, take, over, count, limit, kinds, folder = null, trialOffer = false,
+  limitKind = 'cards', bytesNeeded = null, bytesLeft = null, canUpgrade = true, onAddStorage = null,
+  onTakePartial, onUpgrade, onCancel }) {
   const primaryRef = useRef(null);
   if (!open) return null;
 
@@ -46,6 +55,9 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
   // and already falls back to the neutral noun for a mixed batch.
   const noun = rejectedNoun(kinds, n);
   const takeNoun = rejectedNoun(kinds, take);
+  const storage = limitKind === 'storage';
+  const weighs = storageAmountLabel(bytesNeeded);
+  const left = storageAmountLabel(bytesLeft) || 'no room';
 
   return (
     <Modal
@@ -57,30 +69,44 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
       initialFocusRef={primaryRef}
     >
       <div className="impcap-head">
-        <div className="impcap-kicker">Card limit</div>
+        <div className="impcap-kicker">{storage ? 'Storage limit' : 'Card limit'}</div>
         <div className="impcap-title" id="impcap-title">
           {folder
-            ? <>You dropped {folder.files} {folder.files === 1 ? 'file' : 'files'} in {folder.clusters} {folder.clusters === 1 ? 'folder' : 'folders'}.</>
-            : <>You dropped {n} {noun}.</>}
+            ? <>You dropped {folder.files} {folder.files === 1 ? 'file' : 'files'} in {folder.clusters} {folder.clusters === 1 ? 'folder' : 'folders'}{storage && weighs ? ` (${weighs})` : ''}.</>
+            : <>You dropped {n} {noun}{storage && weighs ? ` (${weighs})` : ''}.</>}
         </div>
       </div>
 
       <div className="impcap-body">
-        <p className="impcap-lede">
-          This free cluster holds <strong>{take}</strong> more — you&rsquo;re at {count} of {limit} cards.
-          {folder ? ' Each file is a card, and so is each folder, which becomes a cluster.' : ''}
-        </p>
+        {storage ? (
+          <p className="impcap-lede">
+            {canUpgrade ? 'Your free storage has ' : 'This drive has '}
+            <strong>{left}</strong> left
+            {take > 0 ? <> — enough for the first <strong>{take}</strong>.</> : '.'}
+          </p>
+        ) : (
+          <p className="impcap-lede">
+            This free cluster holds <strong>{take}</strong> more — you&rsquo;re at {count} of {limit} cards.
+            {folder ? ' Each file is a card, and so is each folder, which becomes a cluster.' : ''}
+          </p>
+        )}
         {/* The meter is information, not pressure: it shows what the number
             already is rather than dramatising how little is left. Hidden at
             zero, where an empty track reads as a stray divider and says
             nothing the sentence above hasn't already said. */}
-        {count > 0 && (
+        {!storage && count > 0 && (
           <div className="impcap-meter" aria-hidden="true">
             <span className="impcap-meter-fill" style={{ width: `${Math.min(100, Math.round((count / (limit || 1)) * 100))}%` }} />
           </div>
         )}
         <p className="impcap-note">
-          Nothing has been uploaded yet. Creator removes the limit entirely{trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.
+          {storage
+            ? (canUpgrade
+              ? `Nothing has been uploaded yet. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`
+              : onAddStorage
+                ? `Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more and drop them again, or delete files or empty the trash to make room.`
+                : 'Nothing has been uploaded yet. Deleting files or emptying the trash makes room.')
+            : `Nothing has been uploaded yet. Creator removes the limit entirely${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`}
         </p>
       </div>
 
@@ -88,19 +114,29 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
         <button type="button" className="impcap-btn" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="impcap-btn" onClick={onTakePartial}>
-          {folder ? 'Add what fits' : <>Add the first {take} {takeNoun}</>}
-        </button>
-        <button
-          type="button"
-          ref={primaryRef}
-          className="impcap-btn impcap-btn-primary"
-          onClick={onUpgrade}
-        >
-          {trialOffer
-            ? `${CTA.tryCreatorShort} — keep all ${folder ? folder.files : n}`
-            : `Upgrade — keep all ${folder ? folder.files : n}`}
-        </button>
+        {take > 0 && (
+          <button type="button" className="impcap-btn" onClick={onTakePartial}
+                  ref={canUpgrade ? undefined : primaryRef}>
+            {folder ? 'Add what fits' : <>Add the first {take} {takeNoun}</>}
+          </button>
+        )}
+        {storage && !canUpgrade && onAddStorage && (
+          <button type="button" className="impcap-btn impcap-btn-primary" onClick={onAddStorage}>
+            Add {STORAGE_ADDON_BLOCK_LABEL}
+          </button>
+        )}
+        {canUpgrade && (
+          <button
+            type="button"
+            ref={primaryRef}
+            className="impcap-btn impcap-btn-primary"
+            onClick={onUpgrade}
+          >
+            {trialOffer
+              ? `${CTA.tryCreatorShort} — keep all ${folder ? folder.files : n}`
+              : `Upgrade — keep all ${folder ? folder.files : n}`}
+          </button>
+        )}
       </div>
     </Modal>
   );

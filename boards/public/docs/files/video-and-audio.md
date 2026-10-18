@@ -1,6 +1,6 @@
 # Video and audio
 
-> Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.
+> Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
 
 _Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-12_
 
@@ -123,10 +123,9 @@ before this existed is read the first time someone opens Info on it, a few
 kilobytes from the start (and end) of the file rather than the whole clip, and
 what it finds is kept on the card. WebM and other containers report less.
 
-Free accounts cap video at **30 MB**. That is enough for a
-reference clip or a cut-down, not for a full-resolution master.
-Creator removes the cap and handles very large files by uploading them
-in parts.
+There is no size or length limit on video, on any plan — a reference clip, a
+cut-down or a full-resolution master all land the same way, and very large
+files upload in parts. The only limit is your [drive](/docs/files#storage).
 
 ## Audio
 
@@ -140,7 +139,7 @@ Audio cards do more than provide a play button:
 second stops the first. On a board holding a dozen takes of the same cue, this
 is the only behaviour that makes sense.
 
-Free accounts cap audio at **50 MB**.
+There is no size limit on audio either, on any plan.
 
 ### Cover art
 
@@ -225,5 +224,5 @@ their first frame, so two cuts with different heads won't match frame for frame.
 ## Storage
 
 Media counts against your storage quota like everything else —
-5GB free, 100GB on Creator, with the meter in
+5GB free, 1TB on Creator, with the meter in
 **Settings → Plan & billing**. Video is usually what fills it.
