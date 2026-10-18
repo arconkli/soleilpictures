@@ -53,6 +53,9 @@ function writeJson(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* private mode */ }
 }
 
+// The cluster picker (App's requestClusterPick) resolves with the board.
+const pickedId = (picked) => (typeof picked === 'string' ? picked : picked?.id) || null;
+
 function ancestorsOf(boards, id) {
   const out = [];
   let p = boards?.[id]?.parent_board_id;
@@ -100,6 +103,7 @@ export function ClusterSidebar({
   activeBoardId,          // the cluster on screen, null off the board
   liveBoardId,            // the cluster whose doc is open (its cards are live)
   liveCards,
+  liveGroupNames = null,  // Map groupId → name, the open cluster's canvas groups
   width = 300,
   coarse = false,
   listRef,                // App's .sb-list ref (scroll edges)
@@ -143,21 +147,27 @@ export function ClusterSidebar({
   );
   const files = useSidebarFiles({
     enabled: true, workspaceId, boards: boardList, allBoards,
-    liveBoardId, liveCards, sort: prefs.sort, groupBy: prefs.groupBy, chip, query, source,
+    liveBoardId, liveCards, liveGroupNames, sort: prefs.sort, groupBy: prefs.groupBy, chip, query, source,
   });
 
   useEffect(() => { if (refreshToken) files.refresh(); }, [refreshToken]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Unfolding ─────────────────────────────────────────────────────────────
-  const [expand, dispatch] = useReducer(expandReducer, null,
-    () => initialExpandState(readJson(unfoldedKey(workspaceId), [])));
+  // Nothing saved yet (a first visit) starts with the workspace's root open,
+  // as the old tree did: folded, it shows one row and none of the clusters.
+  const savedUnfolded = () => readJson(unfoldedKey(workspaceId), null) ?? (rootId ? [rootId] : []);
+  const [expand, dispatch] = useReducer(expandReducer, null, () => initialExpandState(savedUnfolded()));
   useEffect(() => {
-    dispatch({ type: 'reset', state: initialExpandState(readJson(unfoldedKey(workspaceId), [])) });
-  }, [workspaceId]);
+    dispatch({ type: 'reset', state: initialExpandState(savedUnfolded()) });
+  }, [workspaceId]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Keyed on the path, not on the boards map: that map is rebuilt on every
+  // realtime change to any cluster (a thumbnail, a rename), and navigating
+  // again would undo a fold the person just made.
+  const activePath = activeBoardId ? [...ancestorsOf(allBoards, activeBoardId)].reverse().concat(activeBoardId).join('/') : '';
   useEffect(() => {
     if (!activeBoardId) return;
     dispatch({ type: 'navigate', activeId: activeBoardId, ancestorIds: ancestorsOf(allBoards, activeBoardId) });
-  }, [activeBoardId, allBoards]);
+  }, [activePath]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { writeJson(unfoldedKey(workspaceId), persistManual(expand)); }, [expand, workspaceId]);
 
   // A search opens every cluster it touches, and the ones above them.
@@ -190,6 +200,9 @@ export function ClusterSidebar({
   const [ql, setQl] = useState(null);   // { items: listItem[], index }
   const quickTimer = useRef(0);
   useEffect(() => () => clearTimeout(quickTimer.current), []);
+  // A click on a file just before going somewhere else must not open Quick
+  // look over wherever you went.
+  useEffect(() => { clearTimeout(quickTimer.current); }, [activeBoardId]);
   const openQuick = useCallback((item, siblings, e) => {
     const list = (siblings && siblings.length ? siblings : [item])
       .map((it) => toListItem({ ...cardFromItem(it), boardId: it.boardId }, { boards: allBoards, boardId: it.boardId }))
@@ -241,13 +254,34 @@ export function ClusterSidebar({
   const runMove = useCallback(async ({ from, to, cardIds, copy = false }) => {
     if (!from || !to || from === to || !cardIds?.length) return;
     const r = await api.moveFiles({ from, to, cardIds, mode: copy ? 'copy' : 'move' });
-    if (!r.ok) { toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') }); return; }
+    if (!r.ok) {
+      // They reached the other cluster but didn't all leave this one. The
+      // same move again finishes it without a second copy (the route finds
+      // them landed), so that is what the button does.
+      if (r.error === 'partial') {
+        files.refresh();
+        toast({
+          type: 'error',
+          message: `Moved to ${nameOf(to)}, but they’re still in ${nameOf(from)} too.`,
+          action: { label: 'Finish', onClick: () => runMove({ from, to, cardIds }) },
+        });
+        return;
+      }
+      toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') });
+      return;
+    }
     files.refresh();
+    if (!copy) clearSelection();
     const n = copy ? (r.copied || 0) : (r.moved || 0);
     const kept = r.kept?.length || 0;
     const skipped = r.skipped?.length || 0;
     if (!n) {
-      toast({ type: 'info', message: kept ? 'Those files are still uploading. Try again when they finish.' : 'Those can’t be copied, only moved.' });
+      toast({
+        type: 'info',
+        message: kept ? 'Those files are still uploading. Try again when they finish.'
+          : skipped ? 'Those can’t be copied, only moved.'
+            : 'Those files aren’t there any more.',
+      });
       return;
     }
     const what = n === 1 ? '1 file' : `${n} files`;
@@ -266,7 +300,7 @@ export function ClusterSidebar({
         files.refresh();
       },
     });
-  }, [api, files, feedback]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [api, files, feedback, clearSelection]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const groupByCluster = (items) => {
     const out = new Map();
@@ -311,7 +345,7 @@ export function ClusterSidebar({
   // ── The bar under a selection ─────────────────────────────────────────────
   const selItems = useMemo(() => [...selected.values()], [selected]);
   const moveSelection = async () => {
-    const to = await onPickCluster?.({ placeholder: 'Move to…' });
+    const to = pickedId(await onPickCluster?.({ placeholder: 'Move to…' }));
     if (!to) return;
     for (const [from, items] of groupByCluster(selItems)) {
       if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId) });
@@ -339,8 +373,13 @@ export function ClusterSidebar({
       }
       const r = await api.removeCards({ boardId, cardIds: ids });
       if (!r.ok) { toast({ type: 'error', message: failureMessage(r, 'remove') }); continue; }
+      // Say what the cluster actually let go of: a selection can outlive its
+      // files (someone else deleted them meanwhile).
+      const gone = r.removed?.length || 0;
+      if (!gone) { toast({ type: 'info', message: 'Those files aren’t there any more.' }); continue; }
+      const said = gone === 1 ? '1 file' : `${gone} files`;
       undoToast(feedback, {
-        message: `Deleted ${what} from ${nameOf(boardId)}`,
+        message: `Deleted ${said} from ${nameOf(boardId)}`,
         onUndo: async () => {
           const u = await api.appendCards({ boardId, cards: r.removed || [] });
           if (!u.ok) toast({ type: 'error', message: failureMessage(u, 'move') });
@@ -375,7 +414,7 @@ export function ClusterSidebar({
           else downloadCardAssets(cards, { zipName: 'files.zip', surface: 'sidebar' });
         } },
         ...(onPickCluster ? [{ id: 'move', label: many ? `Move ${group.length} to…` : 'Move to…', run: async () => {
-          const to = await onPickCluster({ placeholder: 'Move to…' });
+          const to = pickedId(await onPickCluster({ placeholder: 'Move to…' }));
           if (!to) return;
           for (const [from, items] of groupByCluster(group)) {
             if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId) });
@@ -437,6 +476,11 @@ export function ClusterSidebar({
   // ↑/↓ walk every item the tree shows, clusters and files alike, in the order
   // they appear; the rows keep their own Enter, →/←, F2 and menu keys.
   const onListKeyDown = (e) => {
+    // Typing in a box inside a row (renaming a cluster) is the box's business:
+    // an arrow there moves the caret, and moving focus would commit the
+    // half-typed name on blur.
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     if (selected.size && e.key === 'Escape') { e.preventDefault(); clearSelection(); return; }
     if (selected.size && (e.key === 'Backspace' || e.key === 'Delete') && e.target.closest?.('[data-sb-item]')) {
       e.preventDefault(); deleteSelection(); return;

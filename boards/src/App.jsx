@@ -201,6 +201,8 @@ import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed } from './lib/appHost.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
+import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
+import { repointCardRefs } from './lib/moveFromCluster.js';
 import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
 import { readSidebarWidth, writeSidebarWidth } from './lib/sidebarWidth.js';
 import { moveFiles, failureMessage } from './lib/clustersApi.js';
@@ -1591,6 +1593,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       .then(() => refreshBoards())
       .catch((e) => console.warn('persist board view failed', e));
   };
+
+  // The split pane's F and ⌘K. With the files sidebar they change only this
+  // device's view, as the main pane's do; only the cluster menu's "Always open
+  // in Files" writes the view everyone gets.
+  const setPaneView = (v, via, boardId) => {
+    if (!filesSidebar) { setView(v, via, boardId); return; }
+    if (!boardId) return;
+    setViewOverride((o) => ({ ...o, [boardId]: v }));
+    markViewSwitched();
+    logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: boardId, via });
+  };
+  const setPaneViewRef = useRef(setPaneView);
+  setPaneViewRef.current = setPaneView;
 
   // Every way of showing, sizing or putting away Files on the main pane comes
   // through here: the topbar switch, F, ⌘K, the panel's ⤢ ⤡ × buttons and the
@@ -4117,58 +4132,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   );
 
   // Desktop files dropped on a cluster row in the sidebar. The open cluster (or
-  // the split pane's) takes them through its own mutators. Any other cluster's
-  // doc opens here, in the background — never a second handle on a room this
-  // tab already holds (see splitNeedsOwnDoc) — so the files go in through the
-  // very same ingestFilesArranged as a drop into Files (the cap dialog, held
-  // uploads, scripts and all) while you stay where you are. One cluster at a
-  // time; its doc lets go once nothing it took is still uploading.
+  // the split pane's) takes them through its own mutators, once its doc is
+  // ready. Anything else queues for a BackgroundDrop (components/sidebar), which
+  // opens that cluster's doc, pours the files in through the very same
+  // ingestFilesArranged as a drop into Files (the cap dialog, held uploads,
+  // scripts and all) while you stay where you are, and lets the doc go when its
+  // uploads have settled. One cluster at a time.
   const [bgDrops, setBgDrops] = useState([]);       // queue of { boardId, files, token }
   const [sidebarRefresh, setSidebarRefresh] = useState(0);
   const bgDrop = bgDrops[0] || null;
-  const bgId = bgDrop && bgDrop.boardId !== currentId && bgDrop.boardId !== splitId ? bgDrop.boardId : null;
-  const bgYb = useYBoard(bgId, user.id, userInfo, workspace.id, true);
-  const bgYDoc = bgYb.ready && bgYb.boardId === bgId ? bgYb.ydoc : null;
-  const bgMutators = useMemo(
-    () => buildMutators({ ydoc: bgYDoc, boardId: bgId, undoManager: bgYb.undoManager }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bgYDoc, bgId, bgYb.undoManager]
-  );
-  const bgStarted = useRef(null);                    // { token, at }
-  useEffect(() => {
-    if (!bgDrop) return;
-    // The cluster opened meanwhile (or is the split's): no background doc needed.
-    if (!bgId) {
-      const muts = bgDrop.boardId === currentId ? mainMutators : splitMutators;
-      muts.ingestFilesArranged?.(bgDrop.files);
-      setBgDrops((q) => q.slice(1));
-      return;
-    }
-    if (!bgYDoc || bgStarted.current?.token === bgDrop.token) return;
-    bgStarted.current = { token: bgDrop.token, at: Date.now() };
-    bgMutators.ingestFilesArranged?.(bgDrop.files);
-  }, [bgDrop, bgId, bgYDoc]);   // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const started = bgStarted.current;
-    if (!bgDrop || !bgId || !bgYDoc || started?.token !== bgDrop.token) return undefined;
-    const settle = () => {
-      const pending = (bgYb.cards || []).some((c) => c?.pending === true);
-      const age = Date.now() - started.at;
-      if (pending && age < 15 * 60_000) return false;
-      // card_index is what the sidebar reads for a cluster nobody has open.
-      syncCardIndex({ boardId: bgId, ydoc: bgYDoc });
-      setBgDrops((q) => q.slice(1));
-      setSidebarRefresh((n) => n + 1);
-      return true;
-    };
-    if (Date.now() - started.at > 1500 && settle()) return undefined;
-    const t = setTimeout(settle, 1600);
-    return () => clearTimeout(t);
-  }, [bgYb.cards, bgDrop, bgId, bgYDoc]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const finishBgDrop = useCallback((drop) => {
+    setBgDrops((q) => q.filter((d) => d.token !== drop.token));
+    setSidebarRefresh((n) => n + 1);
+  }, []);
   const dropFilesOnCluster = (boardId, files) => {
     if (!boardId || !files?.length || !boards[boardId]) return;
-    if (boardId === currentId) { mainMutators.ingestFilesArranged?.(files); return; }
-    if (boardId === splitId) { splitMutators.ingestFilesArranged?.(files); return; }
+    // Refused up front, as the canvas refuses a drop on a view-only cluster —
+    // not after the uploads have started.
+    if (!canEditBoard(boardId)) {
+      feedback.toast({ type: 'info', message: `You can view ${boards[boardId].name || 'that cluster'} but not add to it.` });
+      return;
+    }
+    if (boardId === currentId && currentYDoc) { mainMutators.ingestFilesArranged?.(files); return; }
+    if (boardId === splitId && splitYDoc) { splitMutators.ingestFilesArranged?.(files); return; }
     setBgDrops((q) => [...q, { boardId, files, token: `${boardId}:${Date.now()}:${q.length}` }]);
   };
   const sidebarUploads = useMemo(() => {
@@ -5362,9 +5348,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [filesFilter, setFilesFilter] = useState(null);   // { boardId, buckets, token }
   const sidebarStorage = useStorageUsage({ enabled: filesSidebar });
   const [paletteQuery, setPaletteQuery] = useState('');
-  // Upload pressed off the board: the files wait here while the picked cluster
-  // opens, then go in the way any drop into Files does (stored off the board).
-  const pendingSidebarUpload = useRef(null);
+  // The open cluster's canvas groups by id, so the sidebar can name them.
+  const sidebarGroupNames = useMemo(
+    () => new Map((yb.groups || []).map((g) => [String(g.id), g.name || ''])),
+    [yb.groups],
+  );
+  // Words handed over by the sidebar's finder are for that one opening, however
+  // the palette is closed (⌘K again, a drawer row, Escape).
+  useEffect(() => { if (!paletteOpen) setPaletteQuery(''); }, [paletteOpen]);
   const openSidebarCluster = (id) => {
     if (!id || !boards[id]) return;
     setStack(ancestorPath(boards, id));
@@ -5382,22 +5373,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     openInFiles(boardId);
     setFilesReveal({ boardId, ids: [cardId], token: Date.now(), pane: 'main' });
   };
+  // Upload in the sidebar's foot: into the cluster on screen, or — off the
+  // board — into one picked from a list that leads with the recent ones. Either
+  // way it goes in as a drop on that cluster's row does: stored off the board,
+  // while you stay where you are. (The picker resolves with the board itself.)
   const uploadFromSidebar = async (files) => {
     if (!files?.length) return;
     const here = currentSurface === 'board' ? currentBoard?.id : null;
-    if (here && canEditBoard(here)) { mainMutators.ingestFilesArranged?.(files); return; }
+    if (here && canEditBoard(here)) { dropFilesOnCluster(here, files); return; }
     const picked = await requestClusterPick({ placeholder: 'Upload to…' });
-    if (!picked || !boards[picked]) return;
-    pendingSidebarUpload.current = { boardId: picked, files };
-    setStack(ancestorPath(boards, picked));
-    setCurrentSurface('board');
+    if (picked?.id && boards[picked.id]) dropFilesOnCluster(picked.id, files);
   };
-  useEffect(() => {
-    const p = pendingSidebarUpload.current;
-    if (!p || !yb.ready || yb.boardId !== p.boardId || currentBoard.id !== p.boardId) return;
-    pendingSidebarUpload.current = null;
-    mainMutators.ingestFilesArranged?.(p.files);
-  }, [yb.ready, yb.boardId, currentBoard.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Live mirror so stable callbacks (e.g. the guided-tour persist fn) read fresh
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
@@ -8259,6 +8245,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (cmtErr) {
           console.warn('comment move failed', cmtErr);
         }
+        // Stars (and shared files) are filed by card id, and every card here
+        // just got a new one.
+        repointCardRefs(sourceBoardId, targetBoardId, idMap);
 
         // ── The move's ONE undo affordance. ──
         // The source delete runs under the untracked 'cross-board-move'
@@ -8350,6 +8339,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     }).eq('id', row.id);
                   }
                 }
+                const cardsBack = {};
+                for (const [oldId, newId] of Object.entries(idMap)) cardsBack[newId] = oldId;
+                repointCardRefs(targetBoardId, sourceBoardId, cardsBack);
               } catch (_) {}
             } catch (undoErr) {
               console.error('[xbm] undo failed', undoErr);
@@ -8712,7 +8704,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (openDocCard && !dockedDoc) return;
       if (dockedDoc && activePaneId === 'split') return;
       e.preventDefault();
-      if (switchInSplit) setViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
+      if (switchInSplit) setPaneViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
       else applyFilesEventRef.current('toggle', 'shortcut');
     };
     window.addEventListener('keydown', onKey);
@@ -8748,7 +8740,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch', 'panel'],
       available: currentSurface === 'board',
       run: () => (switchInSplit
-        ? setView(nextView(switchView), 'palette', switchBoardId)
+        ? setPaneView(nextView(switchView), 'palette', switchBoardId)
         : applyFilesEventRef.current('toggle', 'palette')) },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
@@ -9048,7 +9040,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       onClose: () => applyFilesEvent('close', 'button'),
       // No pill to press with the files sidebar: full Files says how back.
       onBoard: filesSidebar ? () => applyFilesEvent('board', 'board_button') : null,
-    } : null;
+    } : (filesSidebar ? {
+      // The split pane's full Files: no pill above it either, so it says how back.
+      onBoard: () => setPaneView('canvas', 'board_button', board.id),
+    } : null);
     const renderList = (listMode) => {
       const paneId = listMode === 'panel' ? 'files' : basePaneId;
       return (
@@ -9099,6 +9094,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        mode={listMode}
                        dockControls={dockControls}
                        filterRequest={filesFilter?.boardId === board.id ? filesFilter : null}
+                       onFilterApplied={(token) => setFilesFilter((f) => (f?.token === token ? null : f))}
                        mutators={muts}
                        // Kept when browsing replaces board/cards/mutators: a drag
                        // that springs into another cluster moves files from here.
@@ -9508,6 +9504,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               activeBoardId={currentSurface === 'board' ? activeBoardId : null}
               liveBoardId={yb.ready && yb.boardId === currentBoard.id ? currentBoard.id : null}
               liveCards={yb.ready && yb.boardId === currentBoard.id ? yb.cards : null}
+              liveGroupNames={sidebarGroupNames}
               // In the drawer the width is the drawer's: min(86vw, 320px).
               width={mobileShell ? Math.round(Math.min((typeof window !== 'undefined' ? window.innerWidth : 375) * 0.86, 320)) : sidebarW}
               coarse={isTouch}
@@ -9696,6 +9693,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           only download when an admin actually opens it. */}
       {galleryActive && (
         <Suspense fallback={null}><SurfaceGallery /></Suspense>
+      )}
+
+      {bgDrop && (
+        <BackgroundDrop key={bgDrop.token} drop={bgDrop}
+                        userId={user.id} userInfo={userInfo} workspaceId={workspace.id}
+                        buildMutators={buildMutators} syncCardIndex={syncCardIndex}
+                        onDone={finishBgDrop} />
       )}
 
       <main className="main">

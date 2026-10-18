@@ -54,7 +54,11 @@ function ItemGlyph({ item }) {
 }
 
 // Touch has no right-click: holding a file opens its menu, and the tap that
-// ends the hold is swallowed so Quick look doesn't open under the menu.
+// ends the hold is swallowed so Quick look doesn't open under the menu. Only
+// THAT tap: the flag belongs to one gesture and the next pointerdown clears
+// it, because Android ends a long press with contextmenu and no click at all,
+// and a flag waiting for a click would eat the next real tap. The contextmenu
+// that a hold raises is the same request, not a second one.
 function useHoldForMenu(item, onMenu) {
   const ref = useRef(null);
   const held = useRef(false);
@@ -68,7 +72,9 @@ function useHoldForMenu(item, onMenu) {
     held.current = false;
     return true;
   };
-  return { ref, swallow };
+  const onPointerDown = () => { held.current = false; };
+  const heldNow = () => held.current;
+  return { ref, swallow, onPointerDown, heldNow };
 }
 
 // One item as a row: its thumbnail or icon, its name, the stored-off-the-board
@@ -89,7 +95,8 @@ export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = fal
             title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
             onClick={(e) => { if (!hold.swallow()) onClick?.(item, e); }}
             onDoubleClick={() => onOpen?.(item)}
-            onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(item, e.clientX, e.clientY); } : undefined}
+            onPointerDown={hold.onPointerDown}
+            onContextMenu={onMenu ? (e) => { e.preventDefault(); if (!hold.heldNow()) onMenu(item, e.clientX, e.clientY); } : undefined}
             onKeyDown={(e) => {
               if (e.key === 'Enter') { e.preventDefault(); onOpen?.(item); }
               if (onMenu && (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) {
@@ -123,7 +130,8 @@ export function SidebarTile({ item, depth = 0, starred = false, where = '', onCl
             data-sb-item={item.key}
             onClick={(e) => { if (!hold.swallow()) onClick?.(item, e); }}
             onDoubleClick={() => onOpen?.(item)}
-            onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(item, e.clientX, e.clientY); } : undefined}
+            onPointerDown={hold.onPointerDown}
+            onContextMenu={onMenu ? (e) => { e.preventDefault(); if (!hold.heldNow()) onMenu(item, e.clientX, e.clientY); } : undefined}
             onKeyDown={(e) => {
               if (e.key === 'Enter') { e.preventDefault(); onOpen?.(item); }
               if (onMenu && (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) {
@@ -216,7 +224,9 @@ function Row({ row, depth, ctx }) {
 }
 
 // The rows of a long block that touch the sidebar's viewport, recomputed on
-// scroll and resize (one rAF per frame at most).
+// scroll and resize (one rAF per frame at most). The row holding focus is
+// rendered wherever it is (see `pinned` below): unmounting it would drop focus
+// to the page, and ↑/↓ walk the rows that are in the DOM.
 function useWindow(scrollRef, blockRef, layout, active) {
   const [range, setRange] = useState({ start: 0, end: Math.min(layout.offsets.length, 60) });
   useLayoutEffect(() => {
@@ -262,6 +272,7 @@ export function ClusterShelves({
   const windowed = rows.length > WINDOW_AFTER;
   const blockRef = useRef(null);
   const range = useWindow(scrollRef, blockRef, layout, windowed);
+  const [pinned, setPinned] = useState(null);
 
   const ctx = {
     // Quick look steps through the whole shelf as loaded, not just the peek
@@ -294,17 +305,32 @@ export function ClusterShelves({
       </div>
     );
   }
-  const slice = rows.slice(range.start, range.end);
+  const shown = [];
+  for (let i = range.start; i < range.end; i++) shown.push(i);
+  if (pinned != null && (pinned < range.start || pinned >= range.end)) {
+    for (let i = Math.max(0, pinned - 1); i <= Math.min(rows.length - 1, pinned + 1); i++) {
+      if (i < range.start || i >= range.end) shown.push(i);
+    }
+    shown.sort((a, b) => a - b);
+  }
   return (
     <div className="sbf-block is-windowed" role="group" ref={blockRef}
          style={{ height: layout.total }}
-         aria-rowcount={rows.length}>
-      {slice.map((row, i) => (
-        <div key={row.key} className="sbf-slot"
-             style={{ top: layout.offsets[range.start + i], height: row.height }}>
-          <Row row={row} depth={row.depth} ctx={ctx} />
-        </div>
-      ))}
+         aria-rowcount={rows.length}
+         onFocus={(e) => {
+           const i = Number(e.target.closest?.('[data-slot]')?.dataset.slot);
+           if (Number.isFinite(i)) setPinned(i);
+         }}
+         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setPinned(null); }}>
+      {shown.map((i) => {
+        const row = rows[i];
+        return (
+          <div key={row.key} className="sbf-slot" data-slot={i}
+               style={{ top: layout.offsets[i], height: row.height }}>
+            <Row row={row} depth={row.depth} ctx={ctx} />
+          </div>
+        );
+      })}
     </div>
   );
 }

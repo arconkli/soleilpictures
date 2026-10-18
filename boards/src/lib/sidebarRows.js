@@ -51,7 +51,9 @@ export function contentRows(b, depth, {
     return rows;
   }
   if (!hasChildren && !shelves.some((s) => s.total > 0 || (s.items && s.items.length))) {
-    push('empty', `e:${b}`, {});
+    // A search unfolds a cluster whose NAME matched; with no files matching
+    // too, it shows nothing rather than claim the cluster is empty.
+    if (!c.searching) push('empty', `e:${b}`, {});
     return rows;
   }
   const folds = [];

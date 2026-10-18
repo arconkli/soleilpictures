@@ -28,9 +28,17 @@ import { scoutSelect, scoutInsert, scoutRpc, scoutPatch, scoutDelete } from './s
 import { PARTY_HOST } from './partyHost.js';
 
 const MESSAGE_SYNC = 0;
+const SYNC_STEP_1 = 0;
 const SYNC_STEP_2 = 1;
 const CONNECT_TIMEOUT_MS = 8_000;
+const CONFIRM_TIMEOUT_MS = 5_000;
 const FLUSH_GRACE_MS = 750;
+
+function roomUnavailable(message) {
+  const e = new Error(message);
+  e.code = 'room_unavailable';
+  return e;
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -154,6 +162,137 @@ async function drain(ws, timeoutMs = 5_000) {
   return true;
 }
 
+// ── Confirming a write ───────────────────────────────────────────────────────
+//
+// drain() proves the bytes left, not that the room APPLIED them, and they can
+// leave and still be lost:
+//   - The room treats a connection as read-only unless can_write_board said
+//     yes when it connected (party/board.ts isReadOnly), and a check that
+//     merely failed reads as no. A read-only connection's updates are dropped
+//     without a word (y-partyserver's readSyncMessage).
+//   - A Worker's socket may have no bufferedAmount, and drain() then sleeps
+//     and says yes regardless.
+//   - The room no longer writes an update to storage on receipt (the comment
+//     above predates our own party worker): it saves on a debounce, so even an
+//     applied update lives only in the room until that save.
+// A caller that deletes something next on the strength of a write (the
+// sidebar's move takes the cards off the source) needs better than that, so
+// it asks the room:
+//   1. syncStep1 on the SAME socket, after the update. The room handles one
+//      socket's messages in order and answers a step1 at once, so the reply
+//      means the update has been dealt with — applied, or dropped.
+//   2. A FRESH connection, which the room opens by sending its own state
+//      vector. If that vector has reached this doc's own clock, the room's doc
+//      holds every change this doc made.
+// Only for docs that hold the whole board (openBoard's): the step1 reply is
+// the diff against OUR state vector, which is small for a synced doc. A doc
+// holding only new cards (appendViaRoom) would be sent the entire board back.
+function readFrame(evt) {
+  if (evt.data instanceof ArrayBuffer) return new Uint8Array(evt.data);
+  if (typeof evt.data === 'string') return null;     // awareness/JSON chatter
+  return new Uint8Array(evt.data);
+}
+
+// The next syncStep2 on `ws`, after asking for one; false on timeout or close.
+function awaitReply(ws, doc, timeoutMs = CONFIRM_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      ws.removeEventListener?.('message', onMessage);
+      ws.removeEventListener?.('close', onClose);
+      resolve(ok);
+    };
+    const onMessage = (evt) => {
+      const bytes = readFrame(evt);
+      if (!bytes) return;
+      try {
+        const dec = decoding.createDecoder(bytes);
+        if (decoding.readVarUint(dec) !== MESSAGE_SYNC) return;
+        if (decoding.readVarUint(dec) === SYNC_STEP_2) finish(true);
+      } catch (_) { /* not ours */ }
+    };
+    const onClose = () => finish(false);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    ws.addEventListener('message', onMessage);
+    ws.addEventListener('close', onClose);
+    try {
+      const enc = encoding.createEncoder();
+      encoding.writeVarUint(enc, MESSAGE_SYNC);
+      syncProtocol.writeSyncStep1(enc, doc);
+      ws.send(encoding.toUint8Array(enc));
+    } catch (_) { finish(false); }
+  });
+}
+
+// true / false when the room answered; null when it couldn't be asked.
+//
+// Two things are checked, because Yjs records them differently:
+//   - what this doc ADDED or REPLACED is new items under its own client id, so
+//     the room holds it once its state vector reaches this doc's clock;
+//   - what it DELETED is not an item at all and leaves no mark on a state
+//     vector, so for those the room is asked for what a copy of the doc as it
+//     was BEFORE the change lacks. The answer carries the room's whole delete
+//     set; applied to that copy, a card the room let go of is gone from it.
+async function roomHolds(env, boardId, accessToken, { doc, pre, deleted }) {
+  const need = Y.getState(doc.store, doc.clientID);
+  if (!need && !deleted.length) return true;     // this doc wrote nothing
+  const scratch = new Y.Doc();
+  let ws = null;
+  try {
+    if (deleted.length) Y.applyUpdate(scratch, pre, 'snapshot');
+    ws = await connectPeer(env, boardId, accessToken);
+    const got = await new Promise((resolve, reject) => {
+      const out = { sv: null, diff: !deleted.length };
+      const timer = setTimeout(() => reject(new Error('the room did not answer')), CONFIRM_TIMEOUT_MS);
+      ws.addEventListener('message', (evt) => {
+        const bytes = readFrame(evt);
+        if (!bytes) return;
+        try {
+          const dec = decoding.createDecoder(bytes);
+          if (decoding.readVarUint(dec) !== MESSAGE_SYNC) return;
+          const step = decoding.readVarUint(dec);
+          if (step === SYNC_STEP_1 && !out.sv) out.sv = Y.decodeStateVector(decoding.readVarUint8Array(dec));
+          else if (step === SYNC_STEP_2 && !out.diff) {
+            Y.applyUpdate(scratch, decoding.readVarUint8Array(dec), 'room');
+            out.diff = true;
+          }
+          if (out.sv && out.diff) { clearTimeout(timer); resolve(out); }
+        } catch (_) { /* not ours */ }
+      });
+      ws.addEventListener('close', () => { clearTimeout(timer); reject(new Error('closed')); });
+      if (deleted.length) {
+        const enc = encoding.createEncoder();
+        encoding.writeVarUint(enc, MESSAGE_SYNC);
+        syncProtocol.writeSyncStep1(enc, scratch);
+        ws.send(encoding.toUint8Array(enc));
+      }
+    });
+    const added = (got.sv.get(doc.clientID) || 0) >= need;
+    const cards = scratch.getMap('cards');
+    return added && deleted.every((id) => !cards.has(id));
+  } catch (_) {
+    return null;
+  } finally {
+    try { ws?.close(); } catch (_) { /* already gone */ }
+    scratch.destroy();
+  }
+}
+
+// `change` is what commitDoc recorded: the doc before the mutation (encoded)
+// and the card ids the mutation deleted.
+async function confirmApplied(env, boardId, { ws, doc, accessToken }, change) {
+  if (!ws || !accessToken) return false;
+  if (!await awaitReply(ws, doc)) return false;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const holds = await roomHolds(env, boardId, accessToken, { doc, ...change });
+    if (holds !== null) return holds;
+  }
+  return false;
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 //
 // addCardsToBoard — load, sync, let the caller decide what to add given the
@@ -241,8 +380,16 @@ function stampForAppend(cards, userId, startZ = 0) {
   }));
 }
 
+//
+// requireLive (the sidebar's routes): refuse before writing unless the room is
+// live, and treat a push the room doesn't confirm as nothing added — the index
+// rows that went in first (for the cap) are taken back out, and board_state is
+// left alone. skipExisting: a card whose id the board already holds is left
+// as it is and reported in `existing`, rather than landed again under a new
+// id — so a retried append, or an Undo that already happened, adds nothing.
 export async function addCardsToBoard(env, {
   boardId, workspaceId, userId, accessToken, buildCards, appendCards,
+  requireLive = false, skipExisting = false,
 }) {
   // The O(batch) path, when the caller has already decided where the cards go.
   if (appendCards?.length) {
@@ -280,12 +427,15 @@ export async function addCardsToBoard(env, {
   }
 
   try {
+    if (requireLive && !live) throw roomUnavailable('the cluster could not be reached; nothing was added');
     const existing = readCards(doc);
-    const fresh = (await buildCards(existing)) || [];
-    if (!fresh.length) return { cards: [], live, cardCount: existing.length };
+    const cardsMap = doc.getMap('cards');
+    let fresh = (await buildCards(existing)) || [];
+    const already = skipExisting ? fresh.filter((c) => c.id && cardsMap.has(String(c.id))).map((c) => String(c.id)) : [];
+    if (already.length) fresh = fresh.filter((c) => !already.includes(String(c.id)));
+    if (!fresh.length) return { cards: [], existing: already, live, cardCount: existing.length };
 
     const nowIso = new Date().toISOString();
-    const cardsMap = doc.getMap('cards');
 
     // Resolve ids BEFORE anything is written anywhere.
     //
@@ -311,7 +461,7 @@ export async function addCardsToBoard(env, {
       };
     }).filter((c) => !cardsMap.has(c.id));   // never clobber, even if we ran out of tries
 
-    if (!stamped.length) return { cards: [], live, cardCount: existing.length };
+    if (!stamped.length) return { cards: [], existing: already, live, cardCount: existing.length };
 
     // 1. card_index FIRST — this is where the 100-card wall lives. A cap hit
     //    throws here, before anything reaches the user's canvas.
@@ -331,8 +481,15 @@ export async function addCardsToBoard(env, {
     if (ws) {
       try {
         pushUpdate(ws, delta);
-        await drain(ws);               // let the frame leave before we hang up
+        // Only additions here, so the room's state vector says it all.
+        if (requireLive) live = await confirmApplied(env, boardId, { ws, doc, accessToken }, { pre: null, deleted: [] });
+        else await drain(ws);          // let the frame leave before we hang up
       } catch (_) { live = false; }
+    }
+    if (requireLive && !live) {
+      await scoutDelete(env, 'card_index',
+        `board_id=eq.${boardId}&card_id=in.${encodeURIComponent(inList(stamped.map((c) => c.id)))}`).catch(() => {});
+      throw roomUnavailable('the cluster did not take the files; nothing was added');
     }
 
     // 4. board_state — cold load, history, and the image-ref recompute that
@@ -342,7 +499,7 @@ export async function addCardsToBoard(env, {
       board_id: boardId, doc: full, updated_at: new Date().toISOString(),
     }], { onConflict: 'board_id' });
 
-    return { cards: stamped, live, cardCount: existing.length + stamped.length };
+    return { cards: stamped, existing: already, live, cardCount: existing.length + stamped.length };
   } finally {
     try { ws?.close(); } catch (_) { /* already gone */ }
     doc.destroy();
@@ -388,11 +545,22 @@ async function openBoard(env, boardId, accessToken) {
       ws = null;
     }
   }
-  return { doc, ws, live, loaded };
+  return { doc, ws, live, loaded, accessToken };
 }
 
 // Commit a doc mutation everywhere: live push then board_state.
-async function commitDoc(env, boardId, { doc, ws }, mutate) {
+//
+// `confirm` (the sidebar's routes, which pass requireLive) waits for the room
+// to say it holds the change (confirmApplied) and writes board_state only
+// then. A room that is up saves its own doc over board_state, so writing a
+// change it never took would be erased by its next save, or, if it unloads
+// first, brought back later. Unconfirmed, nothing is written, so "nothing
+// changed, try again" is the truth.
+async function commitDoc(env, boardId, board, mutate, { confirm = false } = {}) {
+  const { doc, ws } = board;
+  const cards = doc.getMap('cards');
+  const pre = confirm ? Y.encodeStateAsUpdate(doc) : null;
+  const had = confirm ? [...cards.keys()] : [];
   const before = Y.encodeStateVector(doc);
   doc.transact(mutate, 'scout');
   const delta = Y.encodeStateAsUpdate(doc, before);
@@ -402,12 +570,14 @@ async function commitDoc(env, boardId, { doc, ws }, mutate) {
     try {
       pushUpdate(ws, delta);
       // drain() says false when the bytes never left the buffer, and a frame
-      // that never left was never applied. Reporting that as live would let a
-      // caller that only proceeds on a live write (the sidebar's move deletes
-      // from the source next) proceed on nothing.
-      live = await drain(ws);
-    } catch (_) { /* durable write below still happens */ }
+      // that never left was never applied. It can't say more than that; see
+      // confirmApplied for what can.
+      live = confirm
+        ? await confirmApplied(env, boardId, board, { pre, deleted: had.filter((id) => !cards.has(id)) })
+        : await drain(ws);
+    } catch (_) { live = false; }
   }
+  if (confirm && !live) return false;
 
   await scoutInsert(env, 'board_state', [{
     board_id: boardId, doc: bytesToB64(Y.encodeStateAsUpdate(doc)), updated_at: new Date().toISOString(),
@@ -444,13 +614,32 @@ async function saveVersionRow(env, boardId, doc, { triggerKind = 'api', label = 
   }
 }
 
+// One more try at taking cards off a board, on a fresh connection: the source
+// half of a move whose first removal the room didn't confirm.
+async function removeFromRoom(env, boardId, accessToken, ids) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    if (!board.live) return false;
+    const cards = board.doc.getMap('cards');
+    const still = ids.filter((id) => cards.has(id));
+    if (!still.length) return true;
+    return await commitDoc(env, boardId, board, () => {
+      for (const id of still) cards.delete(id);
+    }, { confirm: true });
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 // Move `cardIds` from one board to another, re-laid-out by `layout`.
 //
 //   layout(existingDestCards, movingCards) → positioned cards (same ids)
 //   dropIds — cards to DELETE from the source rather than move (an ingest
 //             section header whose photos have all just left, for instance)
 //
-//   requireLive — refuse unless BOTH rooms are live, before the first write.
+//   requireLive — refuse unless BOTH rooms are live, before the first write,
+//             and have each room confirm its half (commitDoc's `confirm`).
 //             A board_state write is only safe when no warm room is about to
 //             flush over it, and from here that can't be known; the sidebar,
 //             which deletes from the source a moment later, would rather be
@@ -458,7 +647,10 @@ async function saveVersionRow(env, boardId, doc, { triggerKind = 'api', label = 
 //   keep(card) — true leaves that card where it is (a file still uploading has
 //             no bytes to move yet); kept ids come back in `kept`.
 //
-// Returns { moved, pairs, count, live, droppedHeader, originals, kept }.
+// Returns { moved, pairs, count, live, droppedHeader, originals, kept }, plus
+// `partial: true` (with requireLive) when the cards reached the destination
+// but something after that failed: they are then on both boards, and calling
+// again with the same ids finishes the move without a second copy.
 // `originals` is where each moved card sat on the source, for an undo that
 // puts it back exactly.
 export async function moveCardsBetweenBoards(env, {
@@ -512,6 +704,18 @@ export async function moveCardsBetweenBoards(env, {
     const moving = present.filter((c) => !keptSet.has(String(c.id)));
     if (!moving.length) return { moved: [], count: 0, live: false, kept };
 
+    // A card THIS move already landed carries movedFrom = this source: a retry
+    // after a failure part-way, or after an answer the client never got. It is
+    // not landed again (that would rename it and leave two); it only still has
+    // to come off the source. Matching the id alone is not enough — a
+    // duplicated cluster holds cards with the same ids that are nobody's move.
+    const landed = moving.filter((c) => {
+      const there = dstCards.get(String(c.id));
+      return there instanceof Y.Map && there.get('movedFrom') === String(fromBoardId);
+    });
+    const landedIds = new Set(landed.map((c) => String(c.id)));
+    const toLand = moving.filter((c) => !landedIds.has(String(c.id)));
+
     const existing = readCards(dst.doc);
     const maxZ = existing.reduce((m, c) => Math.max(m, Number(c.z) || 0), 0);
     const nowIso = new Date().toISOString();
@@ -531,7 +735,7 @@ export async function moveCardsBetweenBoards(env, {
     // existing id REPLACES that card, and this is someone else's board.
     const renames = new Map();
     const originalOf = new Map();   // destination id → the id it had here
-    const prepared = moving.map((c, i) => {
+    const prepared = toLand.map((c, i) => {
       let id = String(c.id);
       let guard = 0;
       while (dstCards.has(id) && guard++ < 10) {
@@ -539,125 +743,163 @@ export async function moveCardsBetweenBoards(env, {
       }
       if (id !== String(c.id)) renames.set(String(c.id), id);
       originalOf.set(id, String(c.id));
-      return { ...c, id, z: maxZ + i + 1, updatedAt: nowIso, updatedBy: userId || null };
+      return {
+        ...c, id, z: maxZ + i + 1, updatedAt: nowIso, updatedBy: userId || null,
+        movedFrom: String(fromBoardId),
+      };
     }).filter((c) => !dstCards.has(c.id));
 
-    if (!prepared.length) return { moved: [], count: 0, live: false };
+    if (!prepared.length && !landed.length) return { moved: [], count: 0, live: false };
 
-    const placed = await layout(existing, prepared);
-    // A section header the layout invented is a NEW card, so it needs its own
-    // card_index row — and that row goes through the cap trigger. At exactly
-    // 100 cards the insert fails; the move itself must not fail with it, so we
-    // drop the label and keep the photos.
-    const movedIds = new Set(prepared.map((c) => c.id));
-    const fresh = placed.filter((c) => !movedIds.has(c.id));
+    // 1. DESTINATION doc + board_state (nothing to land when a retry finds
+    //    every card already there).
+    let liveTo = true;
     let droppedHeader = false;
-    if (fresh.length) {
-      try {
-        await scoutInsert(env, 'card_index',
-          buildCardIndexRows({ workspaceId: toWorkspaceId, boardId: toBoardId, cards: fresh }),
-          { onConflict: 'board_id,card_id' });
-      } catch (e) {
-        if (!e?.isCapHit) throw e;
-        droppedHeader = true;
+    if (prepared.length) {
+      const placed = await layout(existing, prepared);
+      // A section header the layout invented is a NEW card, so it needs its own
+      // card_index row — and that row goes through the cap trigger. At exactly
+      // 100 cards the insert fails; the move itself must not fail with it, so we
+      // drop the label and keep the photos.
+      const movedIds = new Set(prepared.map((c) => c.id));
+      const fresh = placed.filter((c) => !movedIds.has(c.id));
+      if (fresh.length) {
+        try {
+          await scoutInsert(env, 'card_index',
+            buildCardIndexRows({ workspaceId: toWorkspaceId, boardId: toBoardId, cards: fresh }),
+            { onConflict: 'board_id,card_id' });
+        } catch (e) {
+          if (!e?.isCapHit) throw e;
+          droppedHeader = true;
+        }
+      }
+      const finalCards = droppedHeader
+        ? placed.filter((c) => !fresh.some((f) => f.id === c.id))
+        : placed;
+
+      liveTo = await commitDoc(env, toBoardId, dst, () => {
+        for (const c of finalCards) dstCards.set(c.id, cardToYMap(c));
+      }, { confirm: requireLive });
+      // The destination didn't take them. Confirmed commits write nothing
+      // then, so all that is left to undo is a header's index row; the source
+      // was never touched. Without requireLive the cards are in board_state
+      // and the source keeps its copy: on both boards at worst, never none.
+      if (requireLive && !liveTo) {
+        if (fresh.length && !droppedHeader) {
+          await scoutDelete(env, 'card_index',
+            `board_id=eq.${toBoardId}&card_id=in.${encodeURIComponent(inList(fresh.map((c) => c.id)))}`).catch(() => {});
+        }
+        throw roomUnavailable('the destination cluster did not take the files; nothing was moved');
       }
     }
-    const finalCards = droppedHeader
-      ? placed.filter((c) => !fresh.some((f) => f.id === c.id))
-      : placed;
 
-    // 1. DESTINATION doc + board_state.
-    const liveTo = await commitDoc(env, toBoardId, dst, () => {
-      for (const c of finalCards) dstCards.set(c.id, cardToYMap(c));
-    });
-    // The push itself can fail after the open succeeded. The destination is
-    // then only in board_state, which a warm room may overwrite, so the source
-    // keeps its copy: the worst case is the card on both boards, never on none.
-    if (requireLive && !liveTo) {
-      const e = new Error('the destination cluster stopped answering; the files were left where they were');
-      e.code = 'room_unavailable';
-      throw e;
-    }
-
-    // 2. card_index follows the cards. One bulk UPDATE for the common case;
-    //    renamed ids (vanishingly rare) each need their own.
-    //
-    // UPDATE, never DELETE+INSERT: the cap, count and first-card triggers all
-    // fire on INSERT or DELETE only, so an update moves a card without
-    // consuming cap, without double-counting and without emitting a false
-    // "first card" signal (0209's header explains why that matters).
-    //
-    // 0209 said EVERY trigger on this table was INSERT/DELETE-only. That is no
-    // longer true — autotag_card_index now fires `AFTER INSERT OR UPDATE OF
-    // title, body`. It stays dormant here only because this patch touches
-    // neither column, which is load-bearing rather than incidental: adding
-    // title to the SET list would re-run tag matching for every moved card.
-    const patch = crossWorkspace
-      ? { board_id: toBoardId, workspace_id: toWorkspaceId }
-      : { board_id: toBoardId };
-    const renamedTo = new Set(renames.values());
-    const plain = prepared.map((c) => c.id).filter((id) => !renamedTo.has(id));
-    if (plain.length) {
-      await scoutPatch(env, 'card_index',
-        `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(plain))}`,
-        patch);
-    }
-    for (const [oldId, newId] of renames) {
-      await scoutPatch(env, 'card_index',
-        `board_id=eq.${fromBoardId}&card_id=eq.${encodeURIComponent(oldId)}`,
-        { ...patch, card_id: newId }).catch(() => {});
-    }
-    if (dropIds.length) {
-      await scoutDelete(env, 'card_index',
-        `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(dropIds))}`).catch(() => {});
-    }
-
-    // 2b. Auto-applied tag links are derived from the SOURCE workspace's tags,
-    //     and tags are workspace-scoped. Carried across a workspace boundary
-    //     they would claim a card is tagged with something that does not exist
-    //     where the card now lives. Drop them; the card is genuinely untagged
-    //     in its new workspace until autotag_card_index re-runs on the next
-    //     content edit. Only `auto` links — a human-applied link is a judgement,
-    //     not derived state, so it is re-pointed rather than discarded.
-    if (crossWorkspace) {
-      // Keyed on the ORIGINAL ids: a card re-named for a destination collision
-      // still appears in entity_links under the id it had here. Scoped to the
-      // source workspace too — source_id alone is not unique, and a card id
-      // collision across two workspaces, however unlikely, would mean editing
-      // a stranger's rows.
-      const originalIds = encodeURIComponent(inList(moving.map((c) => String(c.id))));
-      const scope = `source_kind=eq.card&source_workspace=eq.${fromWorkspaceId}&source_id=in.${originalIds}`;
-      await scoutDelete(env, 'entity_links', `${scope}&source=eq.auto`).catch(() => {});
-      await scoutPatch(env, 'entity_links', scope,
-        { source_workspace: toWorkspaceId, source_board_id: toBoardId },
-      ).catch(() => {});
-    }
-
-    // 3. SOURCE doc + board_state, last. Until this lands the cards exist on
-    //    both boards, which is the intended failure mode.
-    const removeIds = [...moving.map((c) => String(c.id)), ...dropIds.map(String)];
-    await commitDoc(env, fromBoardId, src, () => {
-      for (const id of removeIds) srcCards.delete(id);
-    });
-
-    return {
+    const pairs = [
+      ...prepared.map((c) => ({ from: originalOf.get(c.id) || String(c.id), to: c.id })),
+      ...landed.map((c) => ({ from: String(c.id), to: String(c.id) })),
+    ];
+    const originals = moving.map((c) => ({
+      id: String(c.id),
+      x: Number.isFinite(c.x) ? c.x : null,
+      y: Number.isFinite(c.y) ? c.y : null,
+      unplaced: c.unplaced === true,
+    }));
+    const result = (extra) => ({
+      // `moved` is what landed on the destination in THIS call; `count` and
+      // `pairs` include what an earlier attempt landed, since this call
+      // finished moving it.
       moved: prepared,
       // Which source id became which destination id, explicitly. `moved` is in
       // BOARD order, not the caller's, and skips ids that were not there, so
       // pairing it with the request by position put one card's identifiers and
       // props on another (2026-10-11 audit, API-07).
-      pairs: prepared.map((c) => ({ from: originalOf.get(c.id) || String(c.id), to: c.id })),
-      count: prepared.length,
+      pairs,
+      count: pairs.length,
       live: liveTo,
       droppedHeader,
-      originals: moving.map((c) => ({
-        id: String(c.id),
-        x: Number.isFinite(c.x) ? c.x : null,
-        y: Number.isFinite(c.y) ? c.y : null,
-        unplaced: c.unplaced === true,
-      })),
+      originals,
       kept,
-    };
+      ...extra,
+    });
+
+    // Past this point the cards are on the destination. Whatever fails now
+    // leaves them on BOTH clusters, and a caller that asked for live rooms is
+    // told exactly that — `partial`, with the pairs — rather than "nothing
+    // changed", so its retry (which finds them landed, above) can finish the
+    // job instead of landing a second copy.
+    try {
+      // 2. card_index follows the cards. One bulk UPDATE for the common case;
+      //    renamed ids (vanishingly rare) each need their own. A card an
+      //    earlier attempt landed may already have its row moved, which makes
+      //    its UPDATE a no-op rather than an error.
+      //
+      // UPDATE, never DELETE+INSERT: the cap, count and first-card triggers all
+      // fire on INSERT or DELETE only, so an update moves a card without
+      // consuming cap, without double-counting and without emitting a false
+      // "first card" signal (0209's header explains why that matters).
+      //
+      // 0209 said EVERY trigger on this table was INSERT/DELETE-only. That is no
+      // longer true — autotag_card_index now fires `AFTER INSERT OR UPDATE OF
+      // title, body`. It stays dormant here only because this patch touches
+      // neither column, which is load-bearing rather than incidental: adding
+      // title to the SET list would re-run tag matching for every moved card.
+      const patch = crossWorkspace
+        ? { board_id: toBoardId, workspace_id: toWorkspaceId }
+        : { board_id: toBoardId };
+      const renamedTo = new Set(renames.values());
+      const plain = [...prepared.map((c) => c.id), ...landedIds].filter((id) => !renamedTo.has(id));
+      if (plain.length) {
+        await scoutPatch(env, 'card_index',
+          `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(plain))}`,
+          patch);
+      }
+      for (const [oldId, newId] of renames) {
+        await scoutPatch(env, 'card_index',
+          `board_id=eq.${fromBoardId}&card_id=eq.${encodeURIComponent(oldId)}`,
+          { ...patch, card_id: newId }).catch(() => {});
+      }
+      if (dropIds.length) {
+        await scoutDelete(env, 'card_index',
+          `board_id=eq.${fromBoardId}&card_id=in.${encodeURIComponent(inList(dropIds))}`).catch(() => {});
+      }
+
+      // 2b. Auto-applied tag links are derived from the SOURCE workspace's tags,
+      //     and tags are workspace-scoped. Carried across a workspace boundary
+      //     they would claim a card is tagged with something that does not exist
+      //     where the card now lives. Drop them; the card is genuinely untagged
+      //     in its new workspace until autotag_card_index re-runs on the next
+      //     content edit. Only `auto` links — a human-applied link is a judgement,
+      //     not derived state, so it is re-pointed rather than discarded.
+      if (crossWorkspace) {
+        // Keyed on the ORIGINAL ids: a card re-named for a destination collision
+        // still appears in entity_links under the id it had here. Scoped to the
+        // source workspace too — source_id alone is not unique, and a card id
+        // collision across two workspaces, however unlikely, would mean editing
+        // a stranger's rows.
+        const originalIds = encodeURIComponent(inList(moving.map((c) => String(c.id))));
+        const scope = `source_kind=eq.card&source_workspace=eq.${fromWorkspaceId}&source_id=in.${originalIds}`;
+        await scoutDelete(env, 'entity_links', `${scope}&source=eq.auto`).catch(() => {});
+        await scoutPatch(env, 'entity_links', scope,
+          { source_workspace: toWorkspaceId, source_board_id: toBoardId },
+        ).catch(() => {});
+      }
+
+      // 3. SOURCE doc + board_state, last. Until this lands the cards exist on
+      //    both boards, which is the intended failure mode. With requireLive
+      //    the source room has to confirm it let them go; a room that didn't
+      //    gets one more try on a fresh connection.
+      const removeIds = [...moving.map((c) => String(c.id)), ...dropIds.map(String)];
+      let liveFrom = await commitDoc(env, fromBoardId, src, () => {
+        for (const id of removeIds) srcCards.delete(id);
+      }, { confirm: requireLive });
+      if (requireLive && !liveFrom) liveFrom = await removeFromRoom(env, fromBoardId, accessToken, removeIds);
+      if (requireLive && !liveFrom) {
+        return result({ partial: true, reason: 'the source cluster did not let the files go' });
+      }
+    } catch (e) {
+      if (!requireLive) throw e;
+      return result({ partial: true, reason: e?.message || String(e) });
+    }
+    return result({});
   } finally {
     try { src.ws?.close(); } catch (_) { /* already gone */ }
     try { dst.ws?.close(); } catch (_) { /* already gone */ }
@@ -689,12 +931,15 @@ export async function moveCardsBetweenBoards(env, {
 //
 // Returns the cards as they now are, in the order the patches were given,
 // with a null wherever the card did not exist.
+// requireLive (the sidebar's routes): refuse before writing unless the room is
+// live, and write board_state and card_index only once it confirms the change.
 export async function updateCardsOnBoard(env, {
-  boardId, workspaceId, userId, accessToken, patches,
+  boardId, workspaceId, userId, accessToken, patches, requireLive = false,
 }) {
   if (!patches?.length) return [];
   const board = await openBoard(env, boardId, accessToken);
   try {
+    if (requireLive && !board.live) throw roomUnavailable('the cluster could not be reached; nothing was changed');
     const cards = board.doc.getMap('cards');
     const byId = new Map(readCards(board.doc).map((c) => [String(c.id), c]));
     const stamp = new Date().toISOString();
@@ -714,9 +959,10 @@ export async function updateCardsOnBoard(env, {
 
     // One transaction, so collaborators see the batch land as a batch rather
     // than as five hundred separate edits arriving over a second.
-    await commitDoc(env, boardId, board, () => {
+    const live = await commitDoc(env, boardId, board, () => {
       for (const c of changed) cards.set(String(c.id), cardToYMap(c));
-    });
+    }, { confirm: requireLive });
+    if (requireLive && !live) throw roomUnavailable('the cluster did not take the change; nothing was changed');
 
     const rows = buildCardIndexRows({ workspaceId, boardId, cards: changed });
     if (rows.length) {
@@ -774,12 +1020,18 @@ export async function updateCardOnBoard(env, {
 // Remove cards. Returns the cards as they were — the API hands them back as the
 // response body, because an HTTP client has no undo toast and the removed card
 // is the only thing that can serve as one.
+//
+// requireLive (the sidebar's routes): refuse unless the room is live, and
+// remove the card_index rows only once the room confirms the cards are gone.
+// Deleting from a stale board_state while a warm room still holds the cards
+// brings them back on its next save, with no index row — unlisted, uncounted.
 export async function deleteCardsFromBoard(env, {
-  boardId, accessToken, cardIds = [],
+  boardId, accessToken, cardIds = [], requireLive = false,
 }) {
   if (!cardIds.length) return [];
   const board = await openBoard(env, boardId, accessToken);
   try {
+    if (requireLive && !board.live) throw roomUnavailable('the cluster could not be reached; nothing was removed');
     const cards = board.doc.getMap('cards');
     const wanted = new Set(cardIds.map(String));
     const removed = readCards(board.doc).filter((c) => wanted.has(String(c.id)));
@@ -793,9 +1045,10 @@ export async function deleteCardsFromBoard(env, {
       opSummary: { action: 'api-delete-cards', card_count: removed.length, card_ids: removed.map((c) => String(c.id)).slice(0, 50) },
     });
 
-    await commitDoc(env, boardId, board, () => {
+    const live = await commitDoc(env, boardId, board, () => {
       for (const c of removed) cards.delete(String(c.id));
-    });
+    }, { confirm: requireLive });
+    if (requireLive && !live) throw roomUnavailable('the cluster did not let the files go; nothing was removed');
 
     // card_index last: while the row survives the card is merely invisible,
     // which is recoverable. Deleting the index first would free cap for a card

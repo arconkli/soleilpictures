@@ -160,6 +160,7 @@ export function ListSurface({
   // { buckets, unplacedOnly, token } — open narrowed to these type buckets
   // (the sidebar's shelf ⤢); a new token applies it again.
   filterRequest = null,
+  onFilterApplied = null,  // the request is used up once applied, so a remount doesn't re-narrow
   onRevealDone = null,   // (token) => the shell forgets the request once shown
   // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
   // owners; opens the storage upgrade modal. Off in the ?local harness.
@@ -301,6 +302,7 @@ export function ListSurface({
     if (!filterRequest?.token) return;
     setFilters(new Set(filterRequest.buckets || []));
     setUnplacedOnly(!!filterRequest.unplacedOnly);
+    onFilterApplied?.(filterRequest.token);
   }, [filterRequest?.token]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Which linked-grid families are expanded (collapsed by default). Persisted.
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(prefs0.expandedGroups || []));

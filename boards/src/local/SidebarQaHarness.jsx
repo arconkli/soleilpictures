@@ -105,7 +105,9 @@ function makeSource(stars) {
       return out;
     }
     if (fn === 'sidebar_cluster_items') {
-      const rows = (ROWS[p.p_board_id] || []).filter((r) => shelfOf(r.kind) && (!p.p_shelf || shelfOf(r.kind) === p.p_shelf));
+      const rows = (ROWS[p.p_board_id] || []).filter((r) => shelfOf(r.kind)
+        && (!p.p_shelf || shelfOf(r.kind) === p.p_shelf)
+        && (!p.p_unplaced || r.meta?.unplaced === true));
       const byShelf = {};
       for (const r of sortRows(rows, p.p_sort)) (byShelf[shelfOf(r.kind)] ||= []).push(r);
       const out = [];
@@ -166,6 +168,10 @@ function makeMoveApi(calls) {
 
 export function SidebarQaHarness() {
   const [active, setActive] = useState('film');
+  // A realtime change to any cluster rebuilds App's boards map; bumpBoards
+  // does the same here (a new object, the same clusters).
+  const [boardsVersion, setBoardsVersion] = useState(0);
+  const allBoards = useMemo(() => ({ ...BOARDS }), [boardsVersion]);
   // A phone shows the sidebar as the app's drawer, open — as the menu button
   // would leave it — at the drawer's width.
   const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
@@ -175,7 +181,11 @@ export function SidebarQaHarness() {
   const listRef = useRef(null);
   const source = useMemo(() => {
     const s = makeSource(new Set(['mood:', 'loc:loc-img-0']));
-    window.__sidebarQa = { calls: s.calls, setActive: (id) => setActive(id) };
+    window.__sidebarQa = {
+      calls: s.calls,
+      setActive: (id) => setActive(id),
+      bumpBoards: () => setBoardsVersion((v) => v + 1),
+    };
     return s;
   }, []);
   const moveApi = useMemo(() => makeMoveApi(source.calls), [source]);
@@ -193,7 +203,7 @@ export function SidebarQaHarness() {
           <ClusterSidebar
             workspaceId={WS}
             boards={BOARDS}
-            allBoards={BOARDS}
+            allBoards={allBoards}
             rootId="root"
             activeBoardId={active}
             liveBoardId={active}
@@ -216,7 +226,7 @@ export function SidebarQaHarness() {
             onOpenPalette={(q) => say(`palette "${q}"`)}
             feedback={feedback}
             moveApi={moveApi}
-            onPickCluster={async () => 'mood'}
+            onPickCluster={async () => BOARDS.mood}
             onSetOpensAs={(id, v) => say(`opens-as ${id} ${v}`)}
             onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
             uploadsByBoard={{ cast: 3 }}

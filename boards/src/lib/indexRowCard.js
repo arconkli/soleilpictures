@@ -120,10 +120,12 @@ export function itemFromIndexRow(row, boardId) {
   });
 }
 
-export function itemFromCard(card, { boardId, workspaceId } = {}) {
+// `groupNameById` (a Map) names the live doc's canvas groups; without it every
+// group is "Untitled group".
+export function itemFromCard(card, { boardId, workspaceId, groupNameById = null } = {}) {
   if (!card) return null;
   const row = buildCardIndexRow({
-    workspaceId, boardId, cardId: String(card.id), get: (k) => card[k],
+    workspaceId, boardId, cardId: String(card.id), get: (k) => card[k], groupNameById,
   });
   if (!row) return null;
   const shelf = shelfOf(row.kind);

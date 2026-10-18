@@ -22,11 +22,15 @@ import { searchEntities } from '../lib/entitySearch.js';
 
 const PEEK_PER_SHELF = 12;
 const PAGE = 60;
-// Grouping by canvas group, and the Not on board chip, need a cluster whole:
-// a group or a stored file can sit anywhere in the order.
-const WHOLE = 200;
+// The most one call returns per shelf (0419 caps p_limit at 200).
+const BATCH = 200;
+// Grouping by canvas group needs a cluster whole — a group can sit anywhere in
+// the order — so in that mode its shelves are paged to the end, this far.
+const WHOLE_MAX = 2000;
 const REFRESH_MS = 60_000;
 const SEARCH_DEBOUNCE_MS = 200;
+// card_index trails a cluster you just left by the client's sync debounce.
+const LEFT_RELOAD_MS = 1500;
 
 async function rpc(fn, params) {
   if (!supabase) return null;
@@ -50,83 +54,125 @@ function byShelfFrom(rows, boardId) {
   return out;
 }
 
+const depthOf = (entry) => Math.max(0, ...Object.values(entry?.byShelf || {}).map((sh) => sh.items.length));
+
 // `source` swaps the network out — { rpc(fn, params), search(params),
 // toggleStar(boardId, cardId, on) } — for the dev-only sidebar QA harness
-// (?sidebarqa=1) and nothing else.
+// (?sidebarqa=1) and nothing else. `liveGroupNames` (a Map) names the open
+// cluster's canvas groups.
 export function useSidebarFiles({
   enabled = true, workspaceId, boards = [], allBoards = {}, liveBoardId = null, liveCards = null,
-  sort = 'newest', groupBy = 'type', chip = 'all', query = '', source = null,
+  liveGroupNames = null, sort = 'newest', groupBy = 'type', chip = 'all', query = '', source = null,
 }) {
   const call = source?.rpc || rpc;
   const find = source?.search || searchEntities;
   const [countRows, setCountRows] = useState([]);
-  const [contents, setContents] = useState({});   // boardId → { status, byShelf, key }
+  const [contents, setContents] = useState({});   // boardId → { status, byShelf, key, gen }
   const [recentRows, setRecentRows] = useState([]);
   const [starredRows, setStarredRows] = useState([]);
   const [search, setSearch] = useState({ q: '', rows: [], loading: false });
   const contentsRef = useRef(contents);
   contentsRef.current = contents;
+  // Answers can come back in any order. Each load takes a generation, and
+  // only the latest one for a cluster may land; workspace-wide reads check the
+  // workspace they were asked for is still the one on screen.
+  const genRef = useRef(0);
+  const latestGen = useRef({});        // boardId → the generation allowed to land
+  const asked = useRef({});            // boardId → the key a load is already out for
+  const wsRef = useRef(workspaceId);
+  wsRef.current = workspaceId;
+  const countsSeq = useRef(0);
 
   const boardIds = useMemo(() => boards.map((b) => b.id).filter(Boolean), [boards]);
   const boardIdsKey = boardIds.join(',');
-  const needsWhole = groupBy === 'canvas' || chip === 'unplaced';
-  // A loaded cluster belongs to one sort (the server orders it) and one depth.
-  const loadKey = `${sort}|${needsWhole ? 'whole' : 'peek'}`;
+  const whole = groupBy === 'canvas';
+  const storedOnly = chip === 'unplaced';
+  // A loaded cluster belongs to one sort (the server orders it), one depth and
+  // one filter (Not on board is asked of the server, 0420's p_unplaced).
+  const loadKey = `${sort}|${whole ? 'whole' : 'peek'}|${storedOnly ? 'stored' : 'all'}`;
+  const params = useCallback((boardId, extra) => ({
+    p_board_id: boardId, p_sort: sort, ...(storedOnly ? { p_unplaced: true } : {}), ...extra,
+  }), [sort, storedOnly]);
 
   const fetchCounts = useCallback(async () => {
     if (!enabled || !boardIds.length) { setCountRows([]); return; }
+    const seq = ++countsSeq.current;
     const rows = await call('sidebar_shelf_counts', { p_board_ids: boardIds });
-    if (rows) setCountRows(rows);
+    if (rows && seq === countsSeq.current) setCountRows(rows);
   }, [enabled, boardIdsKey, call]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchRecent = useCallback(async () => {
     if (!enabled || !workspaceId) return;
     const rows = await call('sidebar_recent', { p_workspace_id: workspaceId, p_limit: 8 });
-    if (rows) setRecentRows(rows);
+    if (rows && wsRef.current === workspaceId) setRecentRows(rows);
   }, [enabled, workspaceId, call]);
 
   const fetchStarred = useCallback(async () => {
     if (!enabled || !workspaceId) return;
     const rows = await call('sidebar_starred', { p_workspace_id: workspaceId });
-    if (rows) setStarredRows(rows);
+    if (rows && wsRef.current === workspaceId) setStarredRows(rows);
   }, [enabled, workspaceId, call]);
 
-  // `depth` is how many of each shelf to fetch: a peek, a whole cluster, or —
-  // on a refresh — as many as the person had already paged in, so a shelf
-  // they expanded doesn't shrink back under them once a minute.
-  const loadPeek = useCallback(async (boardId, key, depth = null) => {
-    setContents((c) => ({ ...c, [boardId]: { status: 'loading', byShelf: c[boardId]?.byShelf || {}, key } }));
-    const rows = await call('sidebar_cluster_items', {
-      p_board_id: boardId, p_shelf: null, p_sort: sort, p_offset: 0,
-      p_limit: needsWhole ? WHOLE : Math.min(WHOLE, Math.max(PEEK_PER_SHELF, depth || 0)),
-    });
-    setContents((c) => {
-      if (c[boardId]?.key !== key) return c;          // superseded by a newer load
-      if (!rows) return { ...c, [boardId]: { ...c[boardId], status: 'error' } };
-      const byShelf = byShelfFrom(rows, boardId);
-      if (needsWhole) for (const s of Object.values(byShelf)) s.done = true;
-      return { ...c, [boardId]: { status: 'ready', byShelf, key } };
-    });
-  }, [sort, needsWhole, call]);
+  // One cluster's shelves: the peek, or — on a refresh — as deep as the person
+  // had paged, or the whole of every shelf (canvas groups). A shelf is only
+  // `done` when a call came back short: a full page means there may be more,
+  // and the shelf says so instead of quietly stopping.
+  const loadPeek = useCallback(async (boardId, key, depth = 0) => {
+    const gen = ++genRef.current;
+    latestGen.current[boardId] = gen;
+    asked.current[boardId] = key;
+    const current = () => latestGen.current[boardId] === gen;
+    setContents((c) => ({ ...c, [boardId]: { status: 'loading', byShelf: c[boardId]?.byShelf || {}, key, gen } }));
+    const first = whole ? BATCH : Math.min(BATCH, Math.max(PEEK_PER_SHELF, depth));
+    const rows = await call('sidebar_cluster_items', params(boardId, { p_shelf: null, p_offset: 0, p_limit: first }));
+    if (!current()) return;
+    if (!rows) {
+      if (asked.current[boardId] === key) delete asked.current[boardId];
+      setContents((c) => (c[boardId]?.gen === gen ? { ...c, [boardId]: { ...c[boardId], status: 'error' } } : c));
+      return;
+    }
+    const byShelf = byShelfFrom(rows, boardId);
+    for (const sh of Object.values(byShelf)) sh.done = sh.items.length < first;
+    const target = whole ? WHOLE_MAX : depth;
+    for (const [shelfId, sh] of Object.entries(byShelf)) {
+      while (!sh.done && sh.items.length < target) {
+        const want = Math.min(BATCH, target - sh.items.length);
+        const more = await call('sidebar_cluster_items', params(boardId, { p_shelf: shelfId, p_offset: sh.items.length, p_limit: want }));
+        if (!current()) return;
+        if (!more) break;
+        const seen = new Set(sh.items.map((i) => i.cardId));
+        for (const r of more) {
+          const it = itemFromIndexRow(r, boardId);
+          if (it && !seen.has(it.cardId)) sh.items.push(it);
+        }
+        if (more.length < want) sh.done = true;
+      }
+    }
+    if (asked.current[boardId] === key) delete asked.current[boardId];
+    setContents((c) => (c[boardId]?.gen === gen ? { ...c, [boardId]: { status: 'ready', byShelf, key, gen } } : c));
+  }, [whole, params, call]);
 
   // Unfolding a cluster asks for its peek; asking again is free.
   const ensure = useCallback((boardId) => {
     if (!enabled || !boardId || boardId === liveBoardId) return;
     const cur = contentsRef.current[boardId];
     if (cur && cur.key === loadKey && cur.status !== 'error') return;
+    if (asked.current[boardId] === loadKey) return;
     loadPeek(boardId, loadKey);
   }, [enabled, liveBoardId, loadKey, loadPeek]);
 
   const loadMore = useCallback(async (boardId, shelfId) => {
     const cur = contentsRef.current[boardId];
-    const have = cur?.byShelf?.[shelfId]?.items?.length || 0;
-    const rows = await call('sidebar_cluster_items', {
-      p_board_id: boardId, p_shelf: shelfId, p_sort: sort, p_offset: have, p_limit: PAGE,
-    });
+    if (!cur || cur.status === 'loading') return;
+    const { gen } = cur;
+    const have = cur.byShelf?.[shelfId]?.items?.length || 0;
+    const rows = await call('sidebar_cluster_items', params(boardId, { p_shelf: shelfId, p_offset: have, p_limit: PAGE }));
     if (!rows) return;
     setContents((c) => {
       const entry = c[boardId];
-      if (!entry) return c;
+      // A refresh or a new sort replaced this cluster while the page was out,
+      // so its offset no longer points anywhere.
+      if (!entry || entry.gen !== gen) return c;
       const prev = entry.byShelf[shelfId] || { items: [], done: false };
       const seen = new Set(prev.items.map((i) => i.cardId));
       const more = rows.map((r) => itemFromIndexRow(r, boardId)).filter((i) => i && !seen.has(i.cardId));
@@ -138,12 +184,13 @@ export function useSidebarFiles({
         },
       };
     });
-  }, [sort, call]);
+  }, [params, call]);
 
-  // A new sort or depth reorders every closed cluster: reload what was loaded.
+  // A new sort, depth or filter reorders every closed cluster: reload what was
+  // loaded (ensure() sees `asked` and doesn't ask twice in the same commit).
   useEffect(() => {
     for (const [id, entry] of Object.entries(contentsRef.current)) {
-      if (entry.key !== loadKey) loadPeek(id, loadKey);
+      if (entry.key !== loadKey && asked.current[id] !== loadKey) loadPeek(id, loadKey);
     }
   }, [loadKey, loadPeek]);
 
@@ -151,13 +198,31 @@ export function useSidebarFiles({
     fetchCounts();
     fetchRecent();
     fetchStarred();
-    for (const [id, entry] of Object.entries(contentsRef.current)) {
-      const depth = Math.max(0, ...Object.values(entry.byShelf || {}).map((sh) => sh.items.length));
-      loadPeek(id, loadKey, depth);
-    }
+    for (const [id, entry] of Object.entries(contentsRef.current)) loadPeek(id, loadKey, depthOf(entry));
   }, [fetchCounts, fetchRecent, fetchStarred, loadPeek, loadKey]);
 
-  useEffect(() => { setContents({}); setSearch({ q: '', rows: [], loading: false }); }, [workspaceId]);
+  // The cluster you just left was read before you changed it: read it again
+  // once its card_index has caught up.
+  const prevLive = useRef(liveBoardId);
+  useEffect(() => {
+    const left = prevLive.current;
+    prevLive.current = liveBoardId;
+    if (!left || left === liveBoardId || !contentsRef.current[left]) return undefined;
+    const t = setTimeout(() => {
+      const entry = contentsRef.current[left];
+      if (entry) loadPeek(left, loadKey, depthOf(entry));
+    }, LEFT_RELOAD_MS);
+    return () => clearTimeout(t);
+  }, [liveBoardId]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setContents({});
+    setSearch({ q: '', rows: [], loading: false });
+    setRecentRows([]);
+    setStarredRows([]);
+    latestGen.current = {};
+    asked.current = {};
+  }, [workspaceId]);
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
   useEffect(() => { fetchRecent(); fetchStarred(); }, [fetchRecent, fetchStarred]);
 
@@ -198,12 +263,34 @@ export function useSidebarFiles({
   }, [search.rows]);
 
   // ── The open cluster, straight from its doc ───────────────────────────────
+  // readCards hands back the same object for a card that didn't change, so
+  // only what changed is projected again on each edit.
+  const itemCache = useRef(new WeakMap());
   const liveItems = useMemo(() => {
     if (!liveBoardId || !Array.isArray(liveCards)) return null;
-    return liveCards.map((c) => itemFromCard(c, { boardId: liveBoardId, workspaceId })).filter(Boolean);
-  }, [liveBoardId, liveCards, workspaceId]);
+    const out = [];
+    for (const c of liveCards) {
+      if (!c) continue;
+      const hit = itemCache.current.get(c);
+      if (hit && hit.boardId === liveBoardId && hit.groups === liveGroupNames) {
+        if (hit.item) out.push(hit.item);
+        continue;
+      }
+      const item = itemFromCard(c, { boardId: liveBoardId, workspaceId, groupNameById: liveGroupNames });
+      itemCache.current.set(c, { item, boardId: liveBoardId, groups: liveGroupNames });
+      if (item) out.push(item);
+    }
+    return out;
+  }, [liveBoardId, liveCards, liveGroupNames, workspaceId]);
 
   // ── Numbers ───────────────────────────────────────────────────────────────
+  const chipRows = useMemo(() => {
+    if (chip === 'all') return countRows;
+    if (chip === 'unplaced') return countRows.map((r) => ({ ...r, n: r.n_unplaced || 0 }));
+    return countRows.filter((r) => r.shelf === chip);
+  }, [countRows, chip]);
+  // What the server says each closed cluster holds, for the shelves' totals.
+  const serverChipOwn = useMemo(() => countsFromRows(chipRows), [chipRows]);
   const counts = useMemo(() => {
     const scoped = (rows, items) => {
       let own = countsFromRows(rows);
@@ -212,60 +299,70 @@ export function useSidebarFiles({
     };
     const all = scoped(countRows, liveItems || []);
     if (chip === 'all') return { ...all, chipRolled: all.rolled };
-    const chipRows = chip === 'unplaced'
-      ? countRows.map((r) => ({ ...r, n: r.n_unplaced || 0 }))
-      : countRows.filter((r) => r.shelf === chip);
-    const chipItems = filterItems(liveItems || [], { chip });
-    return { ...all, chipRolled: scoped(chipRows, chipItems).rolled };
-  }, [countRows, liveItems, liveBoardId, boards, chip]);
+    return { ...all, chipRolled: scoped(chipRows, filterItems(liveItems || [], { chip })).rolled };
+  }, [countRows, chipRows, liveItems, liveBoardId, boards, chip]);
 
   // ── Contents, shelved ─────────────────────────────────────────────────────
   const shelve = useCallback((items, totals) => {
     const visible = filterItems(items, { chip });
     if (groupBy === 'canvas') {
-      return groupItems(visible, { groupBy: 'canvas' }).map((s) => ({ ...s, total: s.items.length }));
+      return groupItems(visible, { groupBy: 'canvas' }).map((sh) => ({ ...sh, total: sh.items.length }));
     }
-    return SHELVES.map((s) => {
-      const mine = visible.filter((i) => i.shelf === s.id);
-      const total = totals ? totals(s.id, mine.length) : mine.length;
-      return { ...s, items: mine, total };
-    }).filter((s) => s.total > 0 || s.items.length > 0);
+    return SHELVES.map((sh) => {
+      const mine = visible.filter((i) => i.shelf === sh.id);
+      const total = totals ? totals(sh.id, mine.length) : mine.length;
+      return { ...sh, items: mine, total };
+    }).filter((sh) => sh.total > 0 || sh.items.length > 0);
   }, [chip, groupBy]);
 
+  const liveContents = useMemo(() => {
+    if (!liveBoardId || !liveItems) return null;
+    const items = q ? filterItems(liveItems, { query: q }) : sortItems(liveItems, sort);
+    return { loading: false, shelves: shelve(items, null), searching: !!q };
+  }, [liveBoardId, liveItems, q, sort, shelve]);
+
+  // Closed clusters' contents are kept per cluster until something they're
+  // made of changes, so an edit on the open canvas re-renders none of them.
+  const closedCache = useMemo(
+    () => new Map(),
+    [contents, serverChipOwn, shelve, q, searchHits, search.loading, whole, chip],
+  );
   const contentsOf = useCallback((boardId) => {
+    if (boardId === liveBoardId && liveContents) return liveContents;
+    if (closedCache.has(boardId)) return closedCache.get(boardId);
+    let out;
     if (q) {
-      const hits = boardId === liveBoardId && liveItems
-        ? filterItems(liveItems, { query: q })
-        : (searchHits.get(boardId) || []);
-      return { loading: search.loading && !hits.length, shelves: shelve(hits, null) };
+      const hits = searchHits.get(boardId) || [];
+      out = { loading: search.loading && !hits.length, shelves: shelve(hits, null), searching: true };
+    } else {
+      const entry = contents[boardId];
+      if (!entry || (entry.status === 'loading' && !Object.keys(entry.byShelf).length)) {
+        out = { loading: true, shelves: [] };
+      } else {
+        const own = serverChipOwn.get(boardId);
+        const items = Object.values(entry.byShelf).flatMap((sh) => sh.items);
+        out = {
+          loading: entry.status === 'loading',
+          shelves: shelve(items, (shelfId, shownCount) => {
+            // Whole clusters know their own totals; a peek takes them from
+            // the counts, and a shelf chip shows its own shelf and nothing else.
+            if (whole) return shownCount;
+            if (chip !== 'all' && chip !== 'unplaced' && shelfId !== chip) return 0;
+            return Math.max(own?.byShelf?.[shelfId] || 0, shownCount);
+          }),
+        };
+      }
     }
-    if (boardId === liveBoardId && liveItems) {
-      return { loading: false, shelves: shelve(sortItems(liveItems, sort), null) };
-    }
-    const entry = contents[boardId];
-    if (!entry || (entry.status === 'loading' && !Object.keys(entry.byShelf).length)) {
-      return { loading: true, shelves: [] };
-    }
-    const own = counts.own.get(boardId);
-    const items = Object.values(entry.byShelf).flatMap((s) => s.items);
-    return {
-      loading: entry.status === 'loading',
-      shelves: shelve(items, (shelfId, shownCount) => {
-        // A whole load knows its own totals; a peek takes them from the
-        // counts, and a shelf chip shows its own shelf and nothing else.
-        if (needsWhole) return shownCount;
-        if (chip !== 'all' && shelfId !== chip) return 0;
-        return Math.max(own?.byShelf?.[shelfId] || 0, shownCount);
-      }),
-    };
-  }, [q, liveBoardId, liveItems, searchHits, search.loading, shelve, sort, contents, counts, needsWhole, chip]);
+    closedCache.set(boardId, out);
+    return out;
+  }, [liveBoardId, liveContents, closedCache, q, searchHits, search.loading, shelve, contents, serverChipOwn, whole, chip]);
 
   // Whether the server has more of a shelf than the sidebar holds.
   const canLoadMore = useCallback((boardId, shelfId) => {
-    if (q || boardId === liveBoardId) return false;
+    if (q || whole || boardId === liveBoardId) return false;
     const entry = contents[boardId];
     return !!entry && !entry.byShelf?.[shelfId]?.done;
-  }, [q, liveBoardId, contents]);
+  }, [q, whole, liveBoardId, contents]);
 
   // Clusters a search touches: any with a hit, and any whose name matches.
   const searchClusterIds = useMemo(() => {
@@ -294,6 +391,8 @@ export function useSidebarFiles({
     }
     return { clusters, items };
   }, [starredRows]);
+  // A starred card is keyed where it is now (0420's sidebar_starred follows it
+  // by id), which is also where the sidebar shows it.
   const starKeys = useMemo(
     () => new Set(starredRows.map((r) => `${r.board_id}:${r.card_id || ''}`)),
     [starredRows],
@@ -312,8 +411,13 @@ export function useSidebarFiles({
     const ws = allBoards?.[boardId]?.workspace_id || workspaceId;
     if (starKeys.has(key)) {
       setStarredRows((rows) => rows.filter((r) => `${r.board_id}:${r.card_id || ''}` !== key));
-      const { error } = await supabase.from('starred_items').delete()
-        .eq('board_id', boardId).eq('card_id', cardId || '');
+      // A card's star may still be filed under the cluster it was starred in,
+      // so it is found by the card's id within the workspace; a cluster's star
+      // is its own row.
+      const del = supabase.from('starred_items').delete().eq('workspace_id', ws);
+      const { error } = cardId
+        ? await del.eq('card_id', cardId)
+        : await del.eq('board_id', boardId).eq('card_id', '');
       if (error) console.warn('[sidebar] unstar', error.message || error);
     } else {
       const { error } = await supabase.from('starred_items')
@@ -323,13 +427,15 @@ export function useSidebarFiles({
     fetchStarred();
   }, [starKeys, allBoards, workspaceId, fetchStarred, source]);
 
-  return {
-    counts,
-    countOf: (boardId) => (counts.chipRolled.get(boardId)?.total || 0),
-    totalOf: (boardId) => (counts.rolled.get(boardId)?.total || 0),
-    ownTotalOf: (boardId) => (counts.own.get(boardId)?.total || 0),
+  const countOf = useCallback((boardId) => (counts.chipRolled.get(boardId)?.total || 0), [counts]);
+  const totalOf = useCallback((boardId) => (counts.rolled.get(boardId)?.total || 0), [counts]);
+  const ownTotalOf = useCallback((boardId) => (counts.own.get(boardId)?.total || 0), [counts]);
+
+  return useMemo(() => ({
+    counts, countOf, totalOf, ownTotalOf,
     contentsOf, ensure, loadMore, canLoadMore, refresh,
     searching: !!q, searchLoading: search.loading, searchClusterIds,
     recent, starred, isStarred, toggleStar,
-  };
+  }), [counts, countOf, totalOf, ownTotalOf, contentsOf, ensure, loadMore, canLoadMore, refresh,
+    q, search.loading, searchClusterIds, recent, starred, isStarred, toggleStar]);
 }

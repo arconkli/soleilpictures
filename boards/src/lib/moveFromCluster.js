@@ -42,7 +42,27 @@ async function resetRoom(boardId) {
   try { window.__soleilEmitBoardReset?.(boardId); } catch (_) {}
 }
 
+// Everything else that is filed by card id follows the move too: everyone's
+// stars (0420), and from 0421 shared files. A move here gives each card a new
+// id, which no lookup by id can follow, so the database is told the pairs.
+// repoint_card_refs checks the caller can write both clusters itself.
+export async function repointCardRefs(fromBoardId, toBoardId, idMap) {
+  const pairs = Object.entries(idMap || {})
+    .filter(([from, to]) => from && to && from !== to)
+    .map(([from, to]) => ({ from, to }));
+  if (!pairs.length || !supabase || !fromBoardId || !toBoardId) return;
+  try {
+    for (let i = 0; i < pairs.length; i += 500) {
+      const { error } = await supabase.rpc('repoint_card_refs', {
+        p_from: fromBoardId, p_to: toBoardId, p_pairs: pairs.slice(i, i + 500),
+      });
+      if (error) { console.warn('[move-from-cluster] star repoint failed', error.message || error); return; }
+    }
+  } catch (err) { console.warn('[move-from-cluster] star repoint failed', err); }
+}
+
 export async function repointComments(fromBoardId, toBoardId, idMap) {
+  repointCardRefs(fromBoardId, toBoardId, idMap);
   const anchors = Object.keys(idMap);
   if (!anchors.length || !supabase) return;
   try {

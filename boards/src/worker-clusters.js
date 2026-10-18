@@ -176,6 +176,19 @@ async function routeMove(deps, env, token, userId, body) {
     keep: isStillUploading,
     layout: async (existing, moving) => landCards(existing, moving, { at, restore }),
   });
+  // The cards reached the destination but didn't all come off the source.
+  // Nothing hanging off them is repointed yet: the same request again finds
+  // them landed and finishes the move, repoints included.
+  if (out.partial) {
+    return json({
+      ok: false,
+      error: 'partial',
+      partial: true,
+      retry: true,
+      message: 'the files reached the other cluster but are still in this one too; try again to finish',
+      pairs: out.pairs || [],
+    }, 503);
+  }
   if (out.count) {
     await deps.repointCardMeta(env, token, {
       fromBoardId: src.id, toBoardId: dst.id, workspaceId: dst.workspace_id, idPairs: out.pairs || [],
@@ -213,6 +226,7 @@ async function routeCopy(deps, env, token, userId, { src, dst, cardIds, at }) {
     workspaceId: dst.workspace_id,
     userId,
     accessToken: token,
+    requireLive: true,
     buildCards: (existing) => landCards(existing, copyable.map((c) => ({
       ...plainCardForCopy(c),
       // The slow append path keeps whatever id it is handed (only the room
@@ -246,17 +260,25 @@ async function routeAppend(deps, env, token, userId, body) {
       throw fail(400, 'bad_request', 'every card needs a kind');
     }
     if (c.kind === 'board' || c.kind === 'boardlink') throw fail(400, 'bad_request', 'clusters are not cards here');
+    if (c.id != null && (typeof c.id !== 'string' || !c.id || c.id.length > 200)) {
+      throw fail(400, 'bad_request', 'a card id must be a short string');
+    }
     if (JSON.stringify(c).length > LIMITS.CARD_BYTES) throw fail(413, 'too_large', 'a card is too large');
   }
   const board = await boardFor(deps, env, token, body.boardId);
   if (!board) throw fail(404, 'not_found', 'cluster not found');
   if (!await canWrite(deps, env, token, board.id)) throw fail(403, 'forbidden', 'you cannot edit that cluster');
 
+  // skipExisting: an id the cluster already holds was put there by an earlier
+  // try of this same request (or the Undo already happened), so it is left
+  // alone rather than landed a second time under a new id.
   const out = await deps.addCardsToBoard(env, {
     boardId: board.id,
     workspaceId: board.workspace_id,
     userId,
     accessToken: token,
+    requireLive: true,
+    skipExisting: true,
     buildCards: (existing) => {
       // An upload names its cards up front (the bytes are filed under that
       // card id); anything that arrives without one gets one here.
@@ -266,7 +288,12 @@ async function routeAppend(deps, env, token, userId, body) {
       return [...placed, ...landCards([...existing, ...placed], loose)];
     },
   });
-  return json({ ok: true, cards: out.cards.map((c) => ({ id: String(c.id) })), live: !!out.live });
+  return json({
+    ok: true,
+    cards: out.cards.map((c) => ({ id: String(c.id) })),
+    existing: out.existing || [],
+    live: !!out.live,
+  });
 }
 
 async function routePatch(deps, env, token, userId, body) {
@@ -285,7 +312,7 @@ async function routePatch(deps, env, token, userId, body) {
   if (!await canWrite(deps, env, token, board.id)) throw fail(403, 'forbidden', 'you cannot edit that cluster');
 
   const out = await deps.updateCardsOnBoard(env, {
-    boardId: board.id, workspaceId: board.workspace_id, userId, accessToken: token, patches,
+    boardId: board.id, workspaceId: board.workspace_id, userId, accessToken: token, patches, requireLive: true,
   });
   return json({ ok: true, updated: out.filter(Boolean).length });
 }
@@ -297,7 +324,9 @@ async function routeRemove(deps, env, token, userId, body) {
   const board = await boardFor(deps, env, token, body.boardId);
   if (!board) throw fail(404, 'not_found', 'cluster not found');
   if (!await canWrite(deps, env, token, board.id)) throw fail(403, 'forbidden', 'you cannot edit that cluster');
-  const removed = await deps.deleteCardsFromBoard(env, { boardId: board.id, accessToken: token, cardIds });
+  const removed = await deps.deleteCardsFromBoard(env, {
+    boardId: board.id, accessToken: token, cardIds, requireLive: true,
+  });
   return json({ ok: true, removed });
 }
 
@@ -336,6 +365,7 @@ export async function handleClustersRoute(url, request, env, deps = DEFAULT_DEPS
     }
     if (e?.status) return json({ ok: false, error: e.code, message: e.message }, e.status);
     console.warn('[clusters] route failed', url.pathname, e?.message || e);
-    return json({ ok: false, error: 'server_error', message: 'something went wrong; nothing was changed' }, 500);
+    // Not "nothing was changed": an unexpected failure can come after a write.
+    return json({ ok: false, error: 'server_error', message: 'something went wrong' }, 500);
   }
 }

@@ -166,6 +166,32 @@ test.describe('sidebar files wiring (App.jsx)', () => {
   });
 });
 
+test.describe('sidebar files: keys and folding', () => {
+  test('renaming a cluster keeps its keys: an arrow moves the caret, not the focus', async ({ page }) => {
+    await open(page);
+    await row(page, 'Moodboards').focus();
+    await page.keyboard.press('F2');
+    const input = page.locator('.sb-tree-rename-input');
+    await expect(input).toBeFocused();
+    await page.keyboard.type(' v2');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowUp');
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue(/v2$/);
+  });
+
+  test('folding the cluster you are in stays folded when any cluster changes', async ({ page }) => {
+    await open(page);
+    const film = row(page, 'Feature film');
+    await expect(film).toHaveAttribute('aria-expanded', 'true');
+    await film.locator('.sb-tree-chev').click();
+    await expect(film).toHaveAttribute('aria-expanded', 'false');
+    await page.evaluate(() => window.__sidebarQa.bumpBoards());
+    await page.waitForTimeout(150);
+    await expect(film).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
 test.describe('sidebar files: organizing', () => {
   test('⌘-click builds a selection; the bar moves it, with Undo', async ({ page }) => {
     await open(page);

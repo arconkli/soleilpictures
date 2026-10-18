@@ -262,6 +262,8 @@ test('media rows carry their size only when the card knows it', () => {
   assert.equal(plainRow({ id: 'v', kind: 'video', src: 'r2:v', sizeBytes: 1048576.4 }).meta.sizeBytes, 1048576);
   assert.equal(plainRow({ id: 'a', kind: 'audio', src: 'r2:a', sizeBytes: 2048 }).meta.sizeBytes, 2048);
   assert.equal(plainRow({ id: 'p', kind: 'pdf', pdfSrc: 'r2:p', sizeBytes: 99 }).meta.sizeBytes, 99);
+  assert.equal(plainRow({ id: 'i1', kind: 'image', src: 'r2:i', sizeBytes: 512000 }).meta.sizeBytes, 512000,
+    'a photo with a size keeps it, so the sidebar can sort photos by size');
   assert.equal('sizeBytes' in plainRow({ id: 'i', kind: 'image', src: 'r2:i' }).meta, false);
   assert.equal('sizeBytes' in plainRow({ id: 'i2', kind: 'image', src: 'r2:i', sizeBytes: 'lots' }).meta, false);
   assert.equal('sizeBytes' in plainRow({ id: 'n', kind: 'note', sizeBytes: 5 }).meta, false, 'only files have a size');

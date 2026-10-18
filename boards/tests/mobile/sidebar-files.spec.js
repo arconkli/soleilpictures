@@ -38,12 +38,27 @@ test.describe('sidebar files on a phone', () => {
     const box = await file.boundingBox();
     const at = { clientX: box.x + 20, clientY: box.y + 10, pointerType: 'touch', isPrimary: true, bubbles: true, pointerId: 7 };
     await file.dispatchEvent('pointerdown', at);
-    await page.waitForTimeout(650);
-    await file.dispatchEvent('pointerup', at);
-    await file.dispatchEvent('click', at);
+    // Held until the menu shows, as a finger would be: lifting at a fixed time
+    // raced the hold's own timer on a loaded WebKit.
     const menu = page.locator('.ctx-menu').last();
     await expect(menu.getByText('Quick look', { exact: true })).toBeVisible();
+    await file.dispatchEvent('pointerup', at);
+    await file.dispatchEvent('click', at);
     await page.waitForTimeout(400);
     await expect(page.getByText(/of 3$/)).toHaveCount(0);   // no Quick look under the menu
+  });
+
+  test('a hold that ends without a click (Android) does not eat the next tap', async ({ page }) => {
+    await open(page);
+    const file = page.locator('.sbf-block .sbf-file', { hasText: 'film-take-1.mov' });
+    const box = await file.boundingBox();
+    const at = { clientX: box.x + 20, clientY: box.y + 10, pointerType: 'touch', isPrimary: true, bubbles: true, pointerId: 9 };
+    await file.dispatchEvent('pointerdown', at);
+    await expect(page.locator('.ctx-menu').last().getByText('Quick look', { exact: true })).toBeVisible();
+    await file.dispatchEvent('pointerup', at);          // …and no click, as Android ends a long press
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.ctx-menu')).toHaveCount(0);
+    await file.tap();
+    await expect(page.getByText(/of 3$/)).toBeVisible();
   });
 });
