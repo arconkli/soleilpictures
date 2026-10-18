@@ -48,7 +48,7 @@ export function planFromPriceId(priceId, priceIds) {
   return null;
 }
 
-// ── Which item is which ─────────────────────────────────────────────────────
+// Which item is which.
 // A Creator subscription can carry a second item since 2026-10-17: extra
 // storage, sold in blocks (the item's quantity) on a Product of its own. Every
 // reader used to take items.data[0] as "the plan", which stops being true the
@@ -125,7 +125,7 @@ export function planFromSubscription(sub, cfg) {
   return null;
 }
 
-// ── Dunning: who keeps the plan while a payment is failing ──────────────────
+// Dunning: who keeps the plan while a payment is failing.
 // One rule for every reader (the webhook, the reconcile cron, and the SQL
 // twin _subscription_entitles in migration 0415): active and trialing are
 // entitled, and past_due is entitled WHILE STRIPE IS STILL RETRYING — the open

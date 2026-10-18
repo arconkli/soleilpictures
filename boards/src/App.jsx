@@ -169,7 +169,9 @@ import { planImport, planBytes } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
 import { readUpgradePrompts, stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, storageFullMessage } from './lib/billingCopy.js';
+import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, storageFullMessage, STORAGE_ADDON_HELD, storageAmountLabel } from './lib/billingCopy.js';
+import { STORAGE_ADDON_OPEN_EVENT, storageAddonAction } from './lib/storageAddon.js';
+import { StorageAddonSheet } from './components/StorageAddonSheet.jsx';
 import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
 import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
@@ -1778,7 +1780,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
       } catch (_) {}
       if (own && !paid && pitchStorageGate({ force: true })) return;
-      feedback.toast({ type: 'warning', message: storageFullMessage({ own, paid }) });
+      const addon = own && paid ? storageAddonAction(surface) : null;
+      feedback.toast({ type: 'warning', message: storageFullMessage({ own, paid }), ...(addon ? { action: addon } : {}) });
     };
     // What is left on the drive this board's uploads count against — the
     // board OWNER's, exactly what authorize_image_upload will decide on. A dry
@@ -3224,6 +3227,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               type: 'warning',
               message: storageFullMessage({ own: csFiles.own, paid: paidNow }),
               ttl: 6000,
+              ...(csFiles.own && storageAddonAction('list') ? { action: storageAddonAction('list') } : {}),
             });
             else if (!pitchStorageGate()) feedback.toast({
               // Already explained this session (this branch runs once per
@@ -5337,6 +5341,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // it. That suspension is the feature: the old path had already spent the
   // bytes by the time it discovered it couldn't keep them.
   const [importAsk, setImportAsk] = useState(null);
+  // Extra storage (0415), held: a paying owner's "drive full" toast carries an
+  // Add 1TB action (lib/storageAddon storageAddonAction), which lands here.
+  const [storageAddonSurface, setStorageAddonSurface] = useState(null);
+  useEffect(() => {
+    if (STORAGE_ADDON_HELD) return undefined;
+    const openSheet = (e) => setStorageAddonSurface(e?.detail?.surface || 'storage_wall');
+    window.addEventListener(STORAGE_ADDON_OPEN_EVENT, openSheet);
+    return () => window.removeEventListener(STORAGE_ADDON_OPEN_EVENT, openSheet);
+  }, []);
   // Answer the pending import question exactly once. Belt-and-braces against a
   // double-click resolving a settled promise and a second drop inheriting it.
   const answerImportAsk = useCallback((action, take) => {
@@ -5864,7 +5877,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // pitch on top would be a second, wrong one.
       const paidNow = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
       try { logEventOnce(`storage_wall:folder:${paidNow ? 'paid' : 'free'}`, EV.STORAGE_WALL_VIEW, { surface: 'folder', own: true, paid: paidNow, offered: !paidNow }); } catch (_) {}
-      if (paidNow) feedback.toast({ type: 'warning', message: storageFullMessage({ own: true, paid: true }), ttl: 7000 });
+      if (paidNow) feedback.toast({ type: 'warning', message: storageFullMessage({ own: true, paid: true }), ttl: 7000, ...(storageAddonAction('folder') ? { action: storageAddonAction('folder') } : {}) });
       else pitchStorageGate();
     }
     if (plan.blocked.length && !res.stopped) {
@@ -9915,6 +9928,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onUpgrade={() => answerImportAsk('upgrade', 0)}
           onCancel={() => answerImportAsk('cancel', 0)}
         />
+      )}
+
+      {!STORAGE_ADDON_HELD && storageAddonSurface && (
+        <StorageAddonSheet
+          open
+          mode="add"
+          surface={storageAddonSurface}
+          onClose={() => setStorageAddonSurface(null)}
+          onDone={({ quotaBytes }) => feedback.toast({
+            type: 'success',
+            message: quotaBytes ? `Added — your drive is now ${storageAmountLabel(quotaBytes)}.` : 'Added.',
+          })} />
       )}
 
       {upgradeReason && (

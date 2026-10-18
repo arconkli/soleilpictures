@@ -130,6 +130,53 @@ export const CREATOR_STORAGE_LABEL = '1TB';
 // stored for as long as the account exists. Cross-checked by gen-docs.mjs.
 export const TRIAL_STORAGE_LABEL = '100GB';
 
+// Extra storage (0415, owner decision 2026-10-17): blocks of app_config
+// storage_addon.block_bytes = 1099511627776 (1 TiB), at most max_blocks = 10,
+// each a second item on the Creator subscription at the plan's own interval.
+// gen-docs.mjs cross-checks the block and the maximum against 0415's
+// fallbacks. The prices are the storage-addon function's own
+// (storageAddonCore STORAGE_ADDON_UNIT_AMOUNT) — it refuses to sell at any
+// other — and storageAddon.test.mjs holds the two in lockstep.
+//
+// HELD until the owner creates the Stripe product and prices. While true no
+// surface offers extra storage and the docs do not describe it; lifting it is
+// a commit that ships the docs with it (CLAUDE.md).
+export const STORAGE_ADDON_HELD = true;
+export const STORAGE_ADDON_BLOCK_LABEL = '1TB';
+export const STORAGE_ADDON_MAX_BLOCKS = 10;
+export const STORAGE_ADDON_PRICING = {
+  monthly: { billed: 25,  perLabel: '$25/month' },
+  annual:  { billed: 240, perLabel: '$240/year' },
+};
+
+// Minor units to a label: 1840 → "$18.40", 2500 → "$25".
+function centsLabel(cents) {
+  const n = Math.max(0, Math.round(Number(cents) || 0));
+  return n % 100 === 0 ? `$${n / 100}` : `$${(n / 100).toFixed(2)}`;
+}
+
+// The extra-storage sheet's words, from the storage-addon function's preview:
+// every amount is Stripe's, never computed here. `interval` is the plan's
+// ('month' | 'year').
+export function storageAddonCopy({ interval, amountToday = 0, creditNext = 0, removing = false } = {}) {
+  const priced = interval === 'year' ? STORAGE_ADDON_PRICING.annual : STORAGE_ADDON_PRICING.monthly;
+  const period = interval === 'year' ? 'year' : 'month';
+  if (removing) {
+    return {
+      title: `Remove ${STORAGE_ADDON_BLOCK_LABEL} of extra storage?`,
+      body: creditNext > 0
+        ? `The unused part of this ${period} comes off your next bill (${centsLabel(creditNext)}). Files you already have stay put.`
+        : 'Files you already have stay put.',
+      cta: `Remove ${STORAGE_ADDON_BLOCK_LABEL}`,
+    };
+  }
+  return {
+    title: `Add ${STORAGE_ADDON_BLOCK_LABEL} more storage`,
+    body: `${centsLabel(amountToday)} today for the rest of this ${period}, then ${priced.perLabel}, on the card you pay ${PLAN_NAME} with. Remove it anytime in Settings → Plan & billing.`,
+    cta: `Add ${STORAGE_ADDON_BLOCK_LABEL} — ${priced.perLabel}`,
+  };
+}
+
 // The free drive (owner decision 2026-10-06): app_config 'storage_quota_free_bytes'
 // = 5368709120 (5 GiB), seeded in migration 0387 and read by
 // _storage_quota_free_bytes() whenever the owner is not on a paid plan.

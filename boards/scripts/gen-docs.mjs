@@ -60,7 +60,7 @@ import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js'
 import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
 import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
-import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, TRIAL_STORAGE_LABEL, CREATOR_TRIAL_DAYS } from '../src/lib/billingCopy.js';
+import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, TRIAL_STORAGE_LABEL, CREATOR_TRIAL_DAYS, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS } from '../src/lib/billingCopy.js';
 import { AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
@@ -137,10 +137,25 @@ if (quotaLabel !== CREATOR_STORAGE_LABEL || storageMatch[1].replace(/\s+/g, '') 
   );
 }
 // The trial drive (0413): a Creator trial's drive until the first payment.
-const trialQuota = latestSqlMatching(/function\s+public\._storage_quota_trial_bytes\s*\(\s*\)/i)
+// Read from the migration that DEFINES the helper — a later file that merely
+// calls or revokes it must not be mistaken for its source.
+const trialQuota = latestSqlDefining('_storage_quota_trial_bytes')
   ?.match(/key = 'storage_quota_trial_bytes'\),\s*(\d+)\s*\)/);
 if (!trialQuota || bytesLabel(Number(trialQuota[1])) !== TRIAL_STORAGE_LABEL) {
   throw new Error(`gen-docs: TRIAL_STORAGE_LABEL '${TRIAL_STORAGE_LABEL}' does not match the trial drive in the migration defining _storage_quota_trial_bytes`);
+}
+// Extra storage (0415): one block, and the most an account can hold. Held
+// copy today (STORAGE_ADDON_HELD), checked now so the day the hold lifts the
+// numbers are already the enforced ones.
+const addonBlock = latestSqlDefining('_storage_addon_block_bytes')
+  ?.match(/function\s+public\._storage_addon_block_bytes\s*\(\s*\)[\s\S]*?key = 'storage_addon'\),\s*(\d+)\s*\)/i);
+if (!addonBlock || bytesLabel(Number(addonBlock[1])) !== STORAGE_ADDON_BLOCK_LABEL) {
+  throw new Error(`gen-docs: STORAGE_ADDON_BLOCK_LABEL '${STORAGE_ADDON_BLOCK_LABEL}' does not match the block in the migration defining _storage_addon_block_bytes`);
+}
+const addonMax = latestSqlDefining('_storage_addon_max_blocks')
+  ?.match(/function\s+public\._storage_addon_max_blocks\s*\(\s*\)[\s\S]*?key = 'storage_addon'\),\s*(\d+)\s*\)/i);
+if (!addonMax || Number(addonMax[1]) !== STORAGE_ADDON_MAX_BLOCKS) {
+  throw new Error(`gen-docs: STORAGE_ADDON_MAX_BLOCKS ${STORAGE_ADDON_MAX_BLOCKS} does not match the maximum in the migration defining _storage_addon_max_blocks`);
 }
 const api = apiFacts();
 

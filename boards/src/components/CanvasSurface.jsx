@@ -126,6 +126,7 @@ import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js';
+import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
@@ -3579,12 +3580,14 @@ export function CanvasSurface({
       const offer = ownsWorkspace && !isPaidPlan;
       const explained = offer ? upsell?.() : false;
       try { logEventOnce(`storage_wall:canvas:${ownsWorkspace ? (isPaidPlan ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, { surface: 'canvas', own: !!ownsWorkspace, paid: !!isPaidPlan, offered: !!explained }); } catch (_) {}
+      const addon = ownsWorkspace && isPaidPlan ? storageAddonAction('canvas') : null;
       feedback.toast({
         type: 'warning',
         message: storageFullMessage({ own: ownsWorkspace, paid: isPaidPlan }),
         ...(offer && !explained
           ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'server_quota' }); upsell?.({ force: true }); } } }
           : {}),
+        ...(addon ? { action: addon } : {}),
       });
     } else if (err?.code === 403) {
       // Since 0413 no plan refuses a file for its size, so a 403 from the
