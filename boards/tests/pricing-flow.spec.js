@@ -3,6 +3,7 @@ import { routeAnalytics } from './helpers/share-fixture.js';
 
 const byName = (rows, name) => rows.filter((r) => r.event === name);
 import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
+import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL } from '../src/lib/billingCopy.js';
 
 // Pricing / upgrade / billing flow specs.
 //
@@ -37,7 +38,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('pricing page states the price high, leads with the free action, and shows the three real limits', async ({ page }) => {
+test('pricing page states the price high, leads with the free action, and shows the two real limits', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=demo');
 
   // The page is a scrolling public page now, on the same shell as the
@@ -76,14 +77,18 @@ test('pricing page states the price high, leads with the free action, and shows 
   // promises, not that it goes to a /c/ slug.
   await expect(frame.locator('a.seo-frame-shot')).toHaveAttribute('href', /^\/(share|c)\//);
 
-  // The three differences that are actually enforced in code — the card cap
-  // trigger, the file-type gate, and the free per-file ceilings — as a
-  // comparison rather than four abstract bullets.
+  // The two differences that are actually enforced in code — the card cap
+  // trigger and the owner's drive (authorize_upload) — as a comparison rather
+  // than abstract bullets. File type (0367) and file size (0413) stopped being
+  // differences: every plan takes any file at any size, so neither may
+  // reappear as a row.
   const table = page.locator('.seo-compare');
-  await expect(table.locator('tbody tr')).toHaveCount(3);
+  await expect(table.locator('tbody tr')).toHaveCount(2);
   await expect(table).toContainText('Unlimited');
-  await expect(table).toContainText('Any file');
-  await expect(table).toContainText('No limit');
+  await expect(table).toContainText(FREE_STORAGE_LABEL);
+  await expect(table).toContainText(CREATOR_STORAGE_LABEL);
+  await expect(table).toContainText('any file, any size');
+  await expect(table).not.toContainText('No limit');
 
   // High-res exports was removed from the offering — must not reappear.
   await expect(page.getByText(/high.?res/i)).toHaveCount(0);
@@ -306,10 +311,13 @@ test('the in-app upgrade modal matches the pricing page copy, and offers the tri
 
   const modal = page.locator('.upgrade-modal');
   await expect(modal).toBeVisible();
-  // Same canonical Creator features as the public page. (Substrings chosen to
-  // sit only in the feature list, not the modal's subhead copy.)
-  await expect(modal.getByText('Any file type')).toBeVisible();
-  await expect(modal.getByText('No size limits')).toBeVisible();
+  // Same canonical Creator features as the public page, read off the rows
+  // PricingBits stamps with their feature keys — so a subhead that happens to
+  // repeat a phrase cannot pass for the feature list.
+  await expect(modal.locator('[data-up-featkey="cards"]')).toContainText('Unlimited cards');
+  await expect(modal.locator('[data-up-featkey="storage"]')).toContainText(CREATOR_STORAGE_LABEL);
+  // Size and type are free on every plan since 0413, so neither is sold here.
+  await expect(modal.getByText('No size limits')).toHaveCount(0);
   await expect(modal.getByText('All Virtual + Social events')).toHaveCount(0);
   await expect(modal.getByText(/high.?res/i)).toHaveCount(0);
 
