@@ -197,16 +197,18 @@ const RULES = [
     // false now, and so is selling file SIZE as Creator's.
     name: 'since 0413 free storage is a limit and size is free — never "uploads never metered", never size as a paid unlock',
     scoped: true,
-    pattern: /uploads? (are )?never metered|never meters uploads|no separate upload (budget|allowance)|not an upload budget|(creator|paid plan|upgrad(e|ing))[^.!?]*\b(lifts|removes|adds)\b[^.!?]*\b(size (limits?|caps?)|file size limits?)|no (file )?size limits on creator|any size on creator/i,
+    pattern: /uploads? (are )?never metered|never meters uploads|no separate upload (budget|allowance)|not an upload budget|(creator|paid plan|upgrad(e|ing))[^.!?]*\b(lifts|removes|adds)\b[^.!?]*\b(size (limits?|caps?)|file size limits?)|no (file )?size limits on creator|any size on creator|\bfree (plan|tier)\b[^.!?;]*\bcaps?\b[^.!?;]*\b(clip|file|video|audio|track|pdf|upload)s?[’']?s? (size|length)\b/i,
     known: [
       'with free collaborators and uploads never metered',
       'Creator removes the card cap and the file size limits',
       'Creator ($25/mo) lifts the cap and adds 100GB and no size limits.',
       'any file, at any size on Creator',
+      'The free plan caps each clip’s size and length; Creator lifts that.',
     ],
     theirs: [
       'Creator removes the card cap and gives you a 1TB drive.',
       'Any file of any size is welcome on either plan.',
+      'Video cards play at any size or length on every plan — the drive is the only limit: 5GB free, 1TB on Creator.',
     ],
   },
   {

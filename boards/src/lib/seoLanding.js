@@ -942,7 +942,7 @@ const PAGES = [
     faq: [
       { q: 'What is a cinematography lookbook?', a: 'A collection of reference images — film frames, photographs, tests — that defines how a film will look: light, contrast, colour, lensing and movement, organised by scene or look, with notes on how to achieve each.' },
       { q: 'How do I make a DP lookbook?', a: 'Make a cluster per scene or look, drop in the defining frames, note lens and lighting beside each, check values in black and white, and share it with the director and the team. The steps above walk through it.' },
-      { q: 'Can I put reference clips in it?', a: 'Yes. Video cards play on the board beside the stills. The free plan caps each clip’s size and length; Creator lifts that.' },
+      { q: 'Can I put reference clips in it?', a: `Yes. Video cards play on the board beside the stills, at any size or length on every plan — the drive is the only limit: ${FREE_STORAGE_LABEL} free, ${CREATOR_STORAGE_LABEL} on Creator.` },
       { q: 'Can the colourist see it without an account?', a: 'Yes, through a view-only link that opens in any browser and can expire after 7 or 30 days. To comment, invite them — free on every plan.' },
       { q: 'Is it free?', a: `Free for ${DEMO_CARD_LIMIT} cards — each cluster counts as one — with free editors. A full lookbook can outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.` },
     ],

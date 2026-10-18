@@ -70,11 +70,11 @@ export function isImage(mimeType) {
 // type through some pickers, and the router falls back to the extension — which
 // only works if we hand it the filename too.
 //
-// `canAttemptFiles` is the free-tier gate. Per fileIngest.js, video ≤30MB,
-// audio ≤50MB and PDF ≤50MB are FREE and return before the gate is consulted,
-// and since 0367 so is any other file up to FREE_FILE_CAP; only SIZE is the
-// paid feature. Scout's own copy used to claim all video and audio were paid,
-// and later that any other file type was — both simply wrong.
+// `canAttemptFiles` was the free-tier gate. File types went free in 0367 and
+// file sizes in 0413: every plan takes any file at any size, and the owner's
+// drive is the only limit, so all it still decides is the .pur note (see
+// fileIngest.js). Scout's own copy used to claim all video and audio were
+// paid, and later that any other file type was — both simply wrong.
 export function classifyAttachment(att, { canAttemptFiles = true } = {}) {
   return classifyDropFile(
     { type: att?.mimeType || '', name: att?.name || '', size: att?.bytes?.length || att?.size || 0 },

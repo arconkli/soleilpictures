@@ -101,8 +101,8 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   // a free owner is told the truth about it instead (it opens no board).
   if (!canAttemptFiles && PUREREF_FILE_RE.test(name)) return { route: 'pureref', kind: null, w: 0, h: 0 };
   // Some pickers surface iPhone HEIC/HEIF with an EMPTY mime type — match the
-  // extension too, or a camera-roll photo becomes a generic file card (which is
-  // paid-gated for free owners). Browsers that DO report a type say image/heic.
+  // extension too, or a camera-roll photo becomes a generic file card instead
+  // of a picture. Browsers that DO report a type say image/heic.
   // …except image types no browser can draw at all. Chrome calls a .psd
   // "image/vnd.adobe.photoshop" and a camera raw "image/x-sony-arw", and the
   // image route turned those into a blank card with nothing to download. As
@@ -114,8 +114,8 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   // Same empty-mime problem as HEIC, and it bites hardest on the formats
   // producers actually ship: Safari reports NO type for .flac and .aiff, and
   // some pickers do the same for .wav. Without an extension fallback those
-  // become generic file cards — which are PAID-GATED for a free owner, so a
-  // dropped sample pack half-uploads and half-refuses for no visible reason.
+  // become generic file cards with no player, so a dropped sample pack half
+  // plays and half doesn't for no visible reason.
   const isAudio = type.startsWith('audio/')
     || (!type && /\.(wav|aiff?|flac|m4a|aac|ogg|opus|mp3|caf)$/i.test(name));
   // Some browsers report an empty type for .pdf picks/drops — match the ext too.
