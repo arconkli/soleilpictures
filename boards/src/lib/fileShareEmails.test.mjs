@@ -42,7 +42,15 @@ test('the switch sanitises every attacker-typed field', () => {
 
 test('the link points at /f/<token>', () => {
   assert.match(tpl, /FILE_URL_BASE = "https:\/\/clusters\.soleilpictures\.com\/f\/"/);
-  assert.match(tpl, /FILE_URL_BASE \+ d\.token/);
+  assert.match(tpl, /fileUrlBase\(d\.origin\) \+ d\.token/);
+  assert.equal(tpl.match(/fileUrlBase\(d\.origin\) \+ d\.token/g).length, 2);
+});
+
+test('the link origin is production unless it is exactly the preview origin', () => {
+  assert.match(tpl, /FILE_PREVIEW_ORIGIN = "https:\/\/main-soleil-boards\.arconkli\.workers\.dev"/);
+  assert.match(tpl, /origin === FILE_PREVIEW_ORIGIN \? FILE_PREVIEW_ORIGIN \+ "\/f\/" : FILE_URL_BASE/);
+  const sw = tpl.slice(tpl.indexOf('case "file_shared"'), tpl.indexOf('case "activate_nudge_1"'));
+  assert.equal(sw.match(/origin:\s+String\(data\.origin \?\? ""\)/g).length, 2);
 });
 
 test('file_commented carries the comment-reply unsubscribe', () => {

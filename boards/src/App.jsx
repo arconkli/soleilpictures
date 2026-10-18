@@ -10376,7 +10376,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <PlayerHost
         resolveBoard={(id) => {
           const pane = yb.ready && yb.boardId === id ? yb : (splitYb.ready && splitYb.boardId === id ? splitYb : null);
-          return pane ? { cards: pane.cards } : null;
+          return pane ? { cards: pane.cards, canEdit: canEditBoard(id) } : null;
         }}
       />
       {fileSharesAllowed() && <FileShareHost />}

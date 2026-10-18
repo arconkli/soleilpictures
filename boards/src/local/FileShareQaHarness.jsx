@@ -5,6 +5,10 @@
 // import.meta.env.DEV guard, so none of this reaches a production bundle.
 //
 // window.__fileShareQa.calls records every api call as {fn, args}.
+// A fixture may also carry: errors {fn: error} (that write fails), delayMs (the
+// settings writes answer that late, so two can queue), shareSeq (the first
+// fetchFileShare answers, in order, before `share`), staleAfterMs (the page's
+// "these urls are old" threshold, so a spec can watch a viewer remount).
 // FIXTURES holds every fixture; makeFakeApi(fixture) is exported so another
 // harness view (the owner dialog) can share the same fake.
 import { useMemo, useState } from 'react';
@@ -95,6 +99,45 @@ export const FIXTURES = {
       people: [{ email: 'jun@example.com', role: 'comment', pending: false, name: 'Jun Park', avatar_url: null }],
     },
   },
+  // Two queued writes that both fail: the dialog must end on the server's row.
+  'dialog-fail': {
+    dialog: true,
+    share: { status: 'gone' },
+    comments: [],
+    card: { id: 'card-1', kind: 'video', title: 'Opening titles v3', src: 'r2:qa/opening.mp4', mime: 'video/mp4' },
+    settings: {
+      exists: true, token: QA_TOKEN, link_access: 'none', allow_download: true, comment_count: 0,
+      people: [
+        { email: 'jun@example.com', role: 'comment', pending: false, name: 'Jun Park', avatar_url: null },
+        { email: 'sam@example.com', role: 'comment', pending: false, name: 'Sam Lee', avatar_url: null },
+      ],
+    },
+    errors: {
+      setFileShare: { code: 'P0001', hint: 'new_account_risky', message: 'new_account_risky' },
+      setFileSharePerson: { code: 'P0001', message: 'offline' },
+    },
+    delayMs: 400,
+  },
+  // Urls count as old after 1.5s, so a refresh with new ones remounts the viewer.
+  'video-stale': {
+    share: ok({ kind: 'video', name: 'Opening titles v3', mime: 'video/mp4', size: 2304, duration: 2, ext: 'mp4' },
+      { access: 'manage', comment_count: 1, urls: { src: MEDIA.video } }),
+    comments: [comment('c-late', 'Hold this frame a beat longer', { at_ms: 1500, can_resolve: true })],
+    staleAfterMs: 1500,
+  },
+  'pdf-stale': {
+    share: ok({ kind: 'pdf', name: 'Treatment.pdf', mime: 'application/pdf', size: 48211, page_count: 3, ext: 'pdf' },
+      { comment_count: 1, urls: { src: MEDIA.pdf } }),
+    comments: [comment('p-1', 'Tighten this page', { page: 2 })],
+    staleAfterMs: 1500,
+  },
+  // The signed-in read keeps answering auth_expired; the anonymous retry opens it.
+  'auth-expired': {
+    shareSeq: [{ status: 'auth_expired' }],
+    share: ok({ kind: 'image', name: 'Look book', mime: 'image/webp', size: 81234, ext: 'webp' },
+      { access: 'view', signed_in: false, can_comment: false, allow_download: false, comment_count: null, urls: { src: MEDIA.image } }),
+    comments: [],
+  },
   gone: { share: { status: 'gone' }, comments: [] },
   'sign-in': { share: { status: 'sign_in' }, comments: [] },
   'no-access': { share: { status: 'no_access', email: 'sam@example.com' }, comments: [] },
@@ -110,15 +153,28 @@ export function makeFakeApi(fixture, calls = []) {
   const fx = fixture || { share: { status: 'gone' }, comments: [] };
   let comments = (fx.comments || []).map((c) => ({ ...c }));
   let share = fx.share;
+  const shareSeq = (fx.shareSeq || []).slice();
   let settings = fx.settings ? JSON.parse(JSON.stringify(fx.settings)) : { exists: false };
   const log = (fn, args) => { calls.push({ fn, args }); };
   const res = (data) => Promise.resolve({ data, error: null });
   const err = (fn) => (fx.errors && fx.errors[fn]) || null;
+  // A settings write's answer, after fx.delayMs (or its error).
+  const later = (fn, make) => {
+    const e = err(fn);
+    const out = () => (e ? { data: null, error: e } : { data: make(), error: null });
+    if (!fx.delayMs) return Promise.resolve(out());
+    return new Promise((r) => setTimeout(() => r(out()), fx.delayMs));
+  };
 
   return {
     calls,
     setShare(next) { share = next; },
-    fetchFileShare(token) { log('fetchFileShare', [token]); return Promise.resolve(JSON.parse(JSON.stringify(share))); },
+    getShare() { return JSON.parse(JSON.stringify(share)); },
+    fetchFileShare(token, opts) {
+      log('fetchFileShare', opts === undefined ? [token] : [token, opts]);
+      const next = shareSeq.length ? shareSeq.shift() : share;
+      return Promise.resolve(JSON.parse(JSON.stringify(next)));
+    },
     listFileComments(token) {
       log('listFileComments', [token]);
       if (share?.status !== 'ok') return res({ status: share?.status || 'gone' });
@@ -161,10 +217,11 @@ export function makeFakeApi(fixture, calls = []) {
     getFileShareSettings(boardId, cardId) { log('getFileShareSettings', [boardId, cardId]); return res(settings); },
     setFileShare(boardId, cardId, opts) {
       log('setFileShare', [boardId, cardId, opts]);
-      if (err('setFileShare')) return Promise.resolve({ data: null, error: err('setFileShare') });
-      settings = { ...settings, exists: true, token: settings.token || QA_TOKEN, link_access: opts?.linkAccess ?? settings.link_access ?? 'none',
-        allow_download: opts?.allowDownload ?? settings.allow_download ?? true, people: settings.people || [] };
-      return res(settings);
+      return later('setFileShare', () => {
+        settings = { ...settings, exists: true, token: settings.token || QA_TOKEN, link_access: opts?.linkAccess ?? settings.link_access ?? 'none',
+          allow_download: opts?.allowDownload ?? settings.allow_download ?? true, people: settings.people || [] };
+        return settings;
+      });
     },
     addFileSharePeople(boardId, cardId, emails, role) {
       log('addFileSharePeople', [boardId, cardId, emails, role]);
@@ -180,10 +237,12 @@ export function makeFakeApi(fixture, calls = []) {
     },
     setFileSharePerson(boardId, cardId, email, role) {
       log('setFileSharePerson', [boardId, cardId, email, role]);
-      const people = (settings.people || []).filter((p) => p.email !== email);
-      const prev = (settings.people || []).find((p) => p.email === email);
-      settings = { ...settings, people: role ? [...people, { ...(prev || { email, pending: true, name: null, avatar_url: null }), role }] : people };
-      return res(settings);
+      return later('setFileSharePerson', () => {
+        const people = (settings.people || []).filter((p) => p.email !== email);
+        const prev = (settings.people || []).find((p) => p.email === email);
+        settings = { ...settings, people: role ? [...people, { ...(prev || { email, pending: true, name: null, avatar_url: null }), role }] : people };
+        return settings;
+      });
     },
   };
 }
@@ -219,7 +278,8 @@ export function FileShareQaHarness() {
   return (
     <FeedbackProvider>
       <div data-fileshareqa-ready="1" data-fixture={name}>
-        <FileSharePage token={QA_TOKEN} api={api} />
+        <FileSharePage token={QA_TOKEN} api={api}
+                       {...(fixture.staleAfterMs != null ? { staleAfterMs: fixture.staleAfterMs } : {})} />
       </div>
     </FeedbackProvider>
   );

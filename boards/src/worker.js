@@ -522,7 +522,8 @@ function injectFileShareMeta(res, meta, token) {
     .on('meta[name="twitter:description"]', new SetContent(description));
   if (ok) {
     rw.on('meta[property="og:url"]', new SetContent(`${SITE_ORIGIN}/f/${token}`));
-    if (meta.keys?.poster) {
+    // webp only, matching handleFileThumb: anything else would unfurl a fallback.
+    if (/\.webp$/i.test(meta.keys?.poster || '')) {
       const img = `${SITE_ORIGIN}/api/file-thumb/${token}`;
       rw.on('meta[property="og:image"]',  new SetContent(img))
         .on('meta[name="twitter:image"]', new SetContent(img))

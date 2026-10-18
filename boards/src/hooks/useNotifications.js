@@ -15,6 +15,7 @@ import {
 } from '../lib/boardsApi.js';
 import { subscribeNotifications } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
+import { fileSharesAllowed } from '../lib/appHost.js';
 
 export function useNotifications({ userId, feedback = null, onOpenBoard = null } = {}) {
   const [items, setItems] = useState([]);
@@ -55,7 +56,7 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null }
         return [{ ...payload, read_at: null }, ...prev].slice(0, 50);
       });
       const openIt = () => { try { onOpenRef.current?.(payload.board_id); } catch (_) {} };
-      const fileToken = String(payload.kind || '').startsWith('file.') ? payload.data?.token : null;
+      const fileToken = fileSharesAllowed() && String(payload.kind || '').startsWith('file.') ? payload.data?.token : null;
       try {
         feedbackRef.current?.toast({
           type: 'info',

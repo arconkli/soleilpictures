@@ -38,10 +38,20 @@ test('NotificationsPanel routes file.* kinds to /f/<token>', () => {
   const s = src('../components/NotificationsPanel.jsx');
   assert.match(s, /startsWith\('file\.'\)/);
   assert.match(s, /window\.open\('\/f\/' \+ encodeURIComponent\(n\.data\.token\)/);
+  assert.match(s, /import \{ fileSharesAllowed \} from '\.\.\/lib\/appHost\.js'/);
+  assert.match(s, /startsWith\('file\.'\) && n\.data\?\.token && fileSharesAllowed\(\)/);
 });
 
 test('the live notification toast opens a file.* share in /f/', () => {
   const s = src('../hooks/useNotifications.js');
   assert.match(s, /startsWith\('file\.'\)/);
   assert.match(s, /'\/f\/' \+ encodeURIComponent\(fileToken\)/);
+  assert.match(s, /import \{ fileSharesAllowed \} from '\.\.\/lib\/appHost\.js'/);
+  assert.match(s, /fileSharesAllowed\(\) && String\(payload\.kind/);
+});
+
+test('the share dialog backdrop stacks above the player and Quick look, below toasts', () => {
+  const css = src('../components/fileShare/fileShareDialog.css');
+  assert.match(css, /\.modal-shell-bg\.fsd-backdrop\s*\{[^}]*z-index:\s*1096/);
+  assert.match(src('../components/fileShare/FileShareDialog.jsx'), /backdropClassName="fsd-backdrop"/);
 });

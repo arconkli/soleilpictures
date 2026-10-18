@@ -1,7 +1,8 @@
 // Pure core of the party Worker's POST /file-share route. get_file_share (SQL)
 // decides who may open the file; this turns its answer into the response the
 // recipient page reads, and decides which storage keys get a presigned URL.
-// Storage keys never leave the Worker: the page gets URLs only.
+// The page gets presigned URLs, and the party strips the storage keys from
+// the response before it is sent.
 
 export const FILE_SHARE_URL_TTL_SECONDS = 6 * 60 * 60;
 export const FILE_SHARE_CACHE_CONTROL = 'private, max-age=21600';

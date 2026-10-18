@@ -4,7 +4,10 @@
    that never scrolls away. Its own class names, so neither can break the
    other. Gold is focus and the on-switch only; everything at rest is ink. */
 
-.fsd-backdrop {
+/* Above the review player (.frv 1095) and Quick look (.ql 1090), below toasts
+   (1100). Doubled class to beat .modal-shell-bg { z-index: 200 }. */
+.modal-shell-bg.fsd-backdrop {
+  z-index: 1096;
   align-items: center;
   padding: 20px;
 }
@@ -301,7 +304,7 @@
 .fsd-comments ~ .fsd-done { margin-left: 0; }
 
 @media (max-width: 640px) {
-  .fsd-backdrop { padding: 0; align-items: stretch; }
+  .modal-shell-bg.fsd-backdrop { padding: 0; align-items: stretch; }
   .fsd-modal {
     width: 100vw; max-width: 100vw;
     height: calc(100vh - var(--safe-top, 0px));

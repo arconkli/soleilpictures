@@ -55,16 +55,19 @@ test('the file return href goes to /f/<token>, or home for garbage', () => {
   assert.equal(fileReturnHref(null), '/');
 });
 
-test('the file stash round-trips, is separate from the share stash, and never throws', () => {
+test('the file stash round-trips, is its own key, and never throws', () => {
   const s = mem();
   const T2 = '1f9a5c3e-1b2d-4e5f-8a9b-0c1d2e3f4a5b';
   stashShareReturn(T, s);
   stashFileReturn(T2, s);
-  assert.equal(readShareReturn(s), T);
   assert.equal(readFileReturn(s), T2);
+  assert.equal(readShareReturn(s), null, 'stashing a file return clears the share return (newest wins)');
+  stashShareReturn(T, s);
+  assert.equal(readFileReturn(s), null, 'stashing a share return clears the file return');
+  assert.equal(readShareReturn(s), T);
+  stashFileReturn(T2, s);
   clearFileReturn(s);
   assert.equal(readFileReturn(s), null);
-  assert.equal(readShareReturn(s), T, 'clearing the file return leaves the share return');
   stashFileReturn('garbage', s);
   assert.equal(readFileReturn(s), null);
   const broken = { getItem: () => { throw new Error('x'); }, setItem: () => { throw new Error('x'); }, removeItem: () => { throw new Error('x'); } };

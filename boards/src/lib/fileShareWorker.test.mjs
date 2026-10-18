@@ -75,6 +75,14 @@ test('/f/<uuid> with no usable file gets generic meta and no image', async () =>
   assert.equal(val('meta[property="og:image"]'), undefined);
 });
 
+test('/f/<uuid> with a non-webp poster sets no og:image', async () => {
+  stubRpc({ status: 'ok', file: { name: 'a.mov' }, shared_by: { name: 'Sam' }, keys: { poster: 'r2:a/p.png' } });
+  await get(`/f/${UUID}`, makeEnv());
+  assert.equal(val('meta[property="og:image"]'), undefined);
+  assert.equal(val('meta[name="twitter:image"]'), undefined);
+  assert.equal(val('meta[name="twitter:card"]'), undefined);
+});
+
 function fakeImages(store) {
   return { get: async (k) => (k in store ? { body: store[k], httpEtag: '"e1"' } : null) };
 }

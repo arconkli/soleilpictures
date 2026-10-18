@@ -111,8 +111,10 @@ async function accessToken(sb) {
 }
 
 // The recipient page's one read: the party presigns the file for this viewer.
-export async function fetchFileShare(token) {
-  const sb = await client();
+// { anonymous: true } asks as nobody (no bearer): the page's fallback when a
+// signed-in read keeps answering auth_expired.
+export async function fetchFileShare(token, { anonymous = false } = {}) {
+  const sb = anonymous ? null : await client();
   const url = `${PARTY_ORIGIN}/parties/upload/share/file-share`;
   const post = async () => {
     const bearer = sb ? await accessToken(sb) : '';

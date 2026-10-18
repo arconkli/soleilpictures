@@ -4,6 +4,9 @@
 // Every write goes to an RPC that returns the whole settings row (0421), so
 // the dialog renders whatever the server says last. Writes run one after
 // another (a promise chain), so two quick changes can't land out of order.
+// A change shows at once; when a write fails the dialog goes back to the last
+// settings the SERVER confirmed (serverRef), never to what the screen showed
+// when that write was clicked, which may hold another queued write's guess.
 //
 // `api` defaults to lib/fileShares.js; the DEV harness passes a fake.
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -90,10 +93,21 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
   const sRef = useRef(s);
   sRef.current = s;
   const chain = useRef(Promise.resolve());
+  // The last settings row an RPC returned: updated only by load and results.
+  const serverRef = useRef(null);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const apply = useCallback((data) => {
-    if (mounted.current && data && typeof data === 'object') setS(normalizeSettings(data));
+    if (!data || typeof data !== 'object') return;
+    serverRef.current = data;
+    if (mounted.current) setS(normalizeSettings(data));
+  }, []);
+
+  // A write failed: show what the server has, and why.
+  const rollback = useCallback((err) => {
+    if (!mounted.current) return;
+    setS(normalizeSettings(serverRef.current));
+    setError(friendlyShareError(err));
   }, []);
 
   // Runs one write after the last one finished. `fn` resolves {data, error}.
@@ -139,8 +153,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       });
       if (!mounted.current) return { data, error: err };
       if (err) {
-        setS(prev);
-        setError(friendlyShareError(err));
+        rollback(err);
       } else {
         apply(data);
         const after = normalizeSettings(data);
@@ -148,7 +161,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       }
       return { data, error: err };
     });
-  }, [api, apply, boardId, cardId, enqueue]);
+  }, [api, apply, rollback, boardId, cardId, enqueue]);
 
   const onGeneral = (v) => {
     if (v === 'anyone') writeShare({ linkAccess: s.linkAccess === 'none' ? 'view' : s.linkAccess });
@@ -220,7 +233,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     enqueue(async () => {
       const { data, error: err } = await api.setFileSharePerson(boardId, cardId, p.email, role);
       if (!mounted.current) return;
-      if (err) { setS(prev); setError(friendlyShareError(err)); } else apply(data);
+      if (err) rollback(err); else apply(data);
     });
   };
 
@@ -233,7 +246,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     enqueue(async () => {
       const { data, error: err } = await api.setFileSharePerson(boardId, cardId, p.email, null);
       if (!mounted.current) return;
-      if (err) { setS(prev); setError(friendlyShareError(err)); return; }
+      if (err) { rollback(err); return; }
       apply(data);
       // Undo puts the row back with its role. The server never re-sends the
       // invitation for an un-remove, and it spends no invite budget.

@@ -40,6 +40,9 @@ export function shareReturnHref(token) {
 export function stashShareReturn(token, storage = defaultStorage()) {
   if (!UUID_RE.test(String(token || ''))) return;
   try { storage?.setItem(KEY, token); } catch (_) {}
+  // Newest intent wins: a file return left over from an earlier visit must not
+  // outrank the cluster share the visitor just came from.
+  clearFileReturn(storage);
 }
 
 export function readShareReturn(storage = defaultStorage()) {
@@ -55,8 +58,8 @@ export function clearShareReturn(storage = defaultStorage()) {
 
 // The same contract for a single shared file (/f/<token>): the sign-in link
 // carries back=file&file_token=<uuid>, AuthGate stashes it across the OTP hop
-// and, once a session exists, goes back to /f/<token>. Its own key, so a
-// cluster share return and a file return never overwrite each other.
+// and, once a session exists, goes back to /f/<token>. Its own key, but only
+// one return is ever pending: stashing either clears the other.
 const FILE_KEY = 'soleil.boards.pending.file.return';
 const FILE_MARK = 'file';
 
@@ -74,6 +77,7 @@ export function fileReturnHref(token) {
 export function stashFileReturn(token, storage = defaultStorage()) {
   if (!UUID_RE.test(String(token || ''))) return;
   try { storage?.setItem(FILE_KEY, token); } catch (_) {}
+  clearShareReturn(storage);
 }
 
 export function readFileReturn(storage = defaultStorage()) {

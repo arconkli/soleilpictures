@@ -204,6 +204,93 @@ test.describe('a shared file', () => {
   });
 });
 
+test.describe('a shared file over time', () => {
+  const vid = (page) => page.locator('.fsp-stage video');
+  const refresh = (page, patch) => page.evaluate((p) => {
+    const a = window.__fileShareQa.api;
+    const cur = a.getShare();
+    a.setShare(p.status ? p : { ...cur, urls: { ...cur.urls, src: `${cur.urls.src.split('#')[0]}#${p.tag}` } });
+    if (p.event !== 'none') {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }
+  }, patch);
+  const fetches = async (page) => (await calls(page, 'fetchFileShare')).length;
+
+  test('a refresh that fails in any new way keeps the file, and keeps checking', async ({ page }) => {
+    await open(page, 'video-comment');
+    await expect(page.locator('.fsp-stage .film')).toHaveCount(1);
+    const before = await fetches(page);
+    await refresh(page, { status: 'auth_expired' });
+    await expect.poll(() => fetches(page)).toBeGreaterThan(before);
+    await expect(page.locator('.fsp-stage .film')).toHaveCount(1);
+    await expect(page.getByRole('heading', { name: "Couldn't load this file." })).toHaveCount(0);
+    await refresh(page, { status: 'gone' });
+    await expect(page.getByRole('heading', { name: "This file isn't available anymore." })).toBeVisible();
+  });
+
+  test('a first read that says auth_expired asks once more as nobody', async ({ page }) => {
+    await open(page, 'auth-expired');
+    await expect(page.locator('.fsp-name')).toHaveText('Look book');
+    // (StrictMode's double mount in dev reads twice; the first read is the one that retries.)
+    const args = (await calls(page, 'fetchFileShare')).map((c) => c.args);
+    expect(args[0]).toEqual([TOKEN]);
+    expect(args.filter((x) => x[1]?.anonymous === true)).toEqual([[TOKEN, { anonymous: true }]]);
+  });
+
+  test('old urls: a stopped video remounts on the fresh ones, at the same time', async ({ page }) => {
+    await open(page, 'video-stale');
+    await page.waitForFunction(() => (document.querySelector('.fsp-stage video')?.readyState || 0) >= 1);
+    await row(page, 'c-late').getByRole('button', { name: 'Go to 0:01' }).click();
+    await expect.poll(() => vid(page).evaluate((v) => v.currentTime)).toBeGreaterThan(1.4);
+    await vid(page).evaluate((v) => { v.dataset.old = '1'; });
+
+    // New urls while the old ones are still young: nothing moves.
+    const before = await fetches(page);
+    await refresh(page, { tag: 'young' });
+    await expect.poll(() => fetches(page)).toBeGreaterThan(before);
+    await page.waitForTimeout(200);
+    await expect(page.locator('.fsp-stage video[data-old]')).toHaveCount(1);
+
+    await page.waitForTimeout(1700);
+    await refresh(page, { tag: 'fresh' });
+    await expect(page.locator('.fsp-stage video[data-old]')).toHaveCount(0);
+    await expect(vid(page)).toHaveCount(1);
+    await expect.poll(() => vid(page).evaluate((v) => v.currentSrc)).toMatch(/#fresh$/);
+    await expect.poll(() => vid(page).evaluate((v) => v.currentTime)).toBeGreaterThan(1.4);
+    expect(await vid(page).evaluate((v) => v.paused)).toBe(true);
+  });
+
+  test('old urls: a video error re-fetches and remounts at once', async ({ page }) => {
+    await open(page, 'video-stale');
+    await page.waitForFunction(() => (document.querySelector('.fsp-stage video')?.readyState || 0) >= 1);
+    await row(page, 'c-late').getByRole('button', { name: 'Go to 0:01' }).click();
+    await expect.poll(() => vid(page).evaluate((v) => v.currentTime)).toBeGreaterThan(1.4);
+    await vid(page).evaluate((v) => { v.dataset.old = '1'; });
+    await page.waitForTimeout(1700);
+    await refresh(page, { tag: 'fresh', event: 'none' });
+    const before = await fetches(page);
+    await vid(page).evaluate((v) => v.dispatchEvent(new Event('error')));
+    await expect.poll(() => fetches(page)).toBeGreaterThan(before);
+    await expect(page.locator('.fsp-stage video[data-old]')).toHaveCount(0);
+    await expect.poll(() => vid(page).evaluate((v) => v.currentSrc)).toMatch(/#fresh$/);
+    await expect.poll(() => vid(page).evaluate((v) => v.currentTime)).toBeGreaterThan(1.4);
+  });
+
+  test('old urls: a PDF remounts on the fresh ones, on the same page', async ({ page }) => {
+    await open(page, 'pdf-stale');
+    await expect(page.locator('.pdfv-pageind')).toHaveText(/^1 \/ \d+$/, { timeout: 15000 });
+    await row(page, 'p-1').getByRole('button', { name: 'Go to page 2' }).click();
+    await expect(page.locator('.pdfv-pageind')).toHaveText(/^2 \/ \d+$/);
+    await page.locator('.fsp-stage .pdfv').evaluate((el) => { el.dataset.old = '1'; });
+    await page.waitForTimeout(1700);
+    await refresh(page, { tag: 'fresh' });
+    await expect(page.locator('.fsp-stage .pdfv[data-old]')).toHaveCount(0);
+    await expect(page.locator('.fsp-stage .pdfv')).toBeVisible();
+    await expect(page.locator('.pdfv-pageind')).toHaveText(/^2 \/ \d+$/, { timeout: 15000 });
+  });
+});
+
 test.describe('the owner dialog', () => {
   const dlg = (page) => page.locator('.fsd-modal');
 
@@ -249,6 +336,30 @@ test.describe('the owner dialog', () => {
     await expect(sw).toHaveAttribute('aria-checked', 'false');
     const last = (await calls(page, 'setFileShare')).pop();
     expect(last.args[2].allowDownload).toBe(false);
+  });
+
+  test('two queued writes that both fail end on what the server has', async ({ page }) => {
+    await open(page, 'dialog-fail');
+    await expect(dlg(page).getByText('Jun Park')).toBeVisible();
+    const who = dlg(page).getByLabel('Who can open it');
+    const sw = dlg(page).getByRole('switch', { name: 'Allow downloading' });
+    await who.selectOption('anyone');
+    await sw.click();
+    await expect.poll(async () => (await calls(page, 'setFileShare')).length).toBe(2);
+    await page.waitForTimeout(700);   // the second write's answer (400ms) lands
+    await expect(who).toHaveValue('restricted');
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    await expect(dlg(page).getByLabel('What anyone with the link can do')).toHaveCount(0);
+    await expect(dlg(page).locator('.fsd-error')).toHaveText("New accounts can't open program files to anyone with the link yet.");
+
+    // People: remove one, change another, both fail: both are back as they were.
+    await dlg(page).getByLabel('Access for Jun Park').selectOption('__remove');
+    await dlg(page).getByLabel('Access for Sam Lee').selectOption('view');
+    await expect.poll(async () => (await calls(page, 'setFileSharePerson')).length).toBe(2);
+    await page.waitForTimeout(700);
+    await expect(dlg(page).getByLabel('Access for Jun Park')).toHaveValue('comment');
+    await expect(dlg(page).getByLabel('Access for Sam Lee')).toHaveValue('comment');
+    await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(0);
   });
 
   test('Copy link writes the share URL', async ({ page, context }) => {

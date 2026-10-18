@@ -47,7 +47,7 @@ const noFocus = (e) => { if (e.pointerType === 'mouse') e.preventDefault(); };
 export function FilmReview({
   card, title = '', onClose, initialVersionId = null, initialFrame = null, initialTime = null, autoPlay = true,
   rail = null, playerRef: externalRef = null, onFrameChange, markers = [], ghostMarkers = [], overlay = null, overlayLive = false,
-  onAction, boardId = null, cardId = null,
+  onAction, boardId = null, cardId = null, canEdit = false,
 }) {
   const versions = useMemo(() => liveVersions(card), [card]);
   const current = useMemo(() => currentOf(card), [card]);
@@ -197,7 +197,7 @@ export function FilmReview({
               <span>{compareId ? `vs ${versionLabel(cmp)}` : 'Compare'}</span>
             </button>
           )}
-          {fileSharesAllowed() && boardId && cardId && isShareableCard(card) && (
+          {fileSharesAllowed() && canEdit && boardId && cardId && isShareableCard(card) && (
             <button type="button" onPointerDown={noFocus} className="frv-iconbtn" aria-label="Share file" title="Share file"
                     onClick={() => openFileShare({ boardId, cardId, card, boardName: null, surface: 'player' })}>
               <Icon as={Share2} size={18} weight="regular" />

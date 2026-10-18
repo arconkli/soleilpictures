@@ -3,11 +3,19 @@
 // comment. Neutral ink at rest; gold only marks focus and the active comment.
 //
 // The party's /file-share presigns the file for THIS viewer (0421's
-// get_file_share decides access as the caller). Storage keys never reach the
-// page: viewers get the pseudo-keys r2:__fs/src and r2:__fs/poster, which the
-// read-url resolver below maps onto the latest presigned urls. Those urls live
-// 6h; the page re-fetches every 5 minutes while visible and on coming back, so
-// a stopped share turns into "isn't available" within one refresh.
+// get_file_share decides access as the caller). The page gets URLs, never
+// storage keys: the RPC's keys are identifiers the party strips before it
+// answers (they open nothing on their own). Viewers get the pseudo-keys
+// r2:__fs/src and r2:__fs/poster, which the read-url resolver below maps onto
+// the latest presigned urls.
+//
+// Those urls live FILE_SHARE_URL_TTL_SECONDS (6h). The page re-fetches every 5
+// minutes while visible and on coming back, so a stopped share turns into
+// "isn't available" within one refresh. The resolver always answers the latest
+// url, but a mounted video or PDF keeps the one it opened with, so once that is
+// older than 5h (an hour before it dies) the viewer is remounted on the fresh
+// one at the same place: a video only while it is stopped (or at once when the
+// <video> errors, which also re-fetches), a PDF on the page it was on.
 //
 // The heavy viewers are lazy so each kind loads only its own.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,6 +24,7 @@ import {
   formatAt,
 } from '../../lib/fileShares.js';
 import { setReadUrlResolver, clearReadUrlResolver } from '../../lib/r2.js';
+import { FILE_SHARE_URL_TTL_SECONDS } from '../../lib/fileShareBundle.js';
 import { timeToFrame } from '../../lib/timecode.js';
 import { logEvent, logEventNow, logEventOnce } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
@@ -28,6 +37,10 @@ const PdfViewer = lazy(() => import('../PdfViewer.jsx').then((m) => ({ default: 
 const ImageZoomStage = lazy(() => import('../ImageLightbox.jsx').then((m) => ({ default: m.ImageZoomStage })));
 
 const REFRESH_MS = 5 * 60 * 1000;
+// A mounted viewer's urls older than this are swapped for fresh ones.
+export const STALE_URLS_MS = (FILE_SHARE_URL_TTL_SECONDS - 60 * 60) * 1000;
+// The answers that mean something; anything else is a failure to read.
+const KNOWN_STATUS = new Set(['ok', 'gone', 'sign_in', 'no_access']);
 const SRC = 'r2:__fs/src';
 const POSTER = 'r2:__fs/poster';
 
@@ -109,7 +122,7 @@ function FileCardView({ file }) {
   );
 }
 
-export function FileSharePage({ token, api = defaultApi }) {
+export function FileSharePage({ token, api = defaultApi, staleAfterMs = STALE_URLS_MS }) {
   const [res, setRes] = useState({ status: 'loading' });
   const urlsRef = useRef({});
   const okRef = useRef(false);
@@ -123,13 +136,23 @@ export function FileSharePage({ token, api = defaultApi }) {
   }, []);
 
   const load = useCallback(async ({ refresh = false } = {}) => {
-    const out = await api.fetchFileShare(token);
+    const asObj = (out) => (out && typeof out === 'object' ? out : { status: 'error' });
+    let r = asObj(await api.fetchFileShare(token));
     if (!alive.current) return;
-    const r = out && typeof out === 'object' ? out : { status: 'error' };
-    // A blip on a background refresh keeps the file on screen; a real answer
-    // (gone, sign_in, no_access) replaces it.
+    // A session that can't be renewed: ask once more as nobody, so a link
+    // anyone can open still opens (a person-only one says "Sign in").
+    if (!refresh && r.status === 'auth_expired') {
+      r = asObj(await api.fetchFileShare(token, { anonymous: true }));
+      if (!alive.current) return;
+    }
+    if (!KNOWN_STATUS.has(r.status)) r = { ...r, status: 'error' };
+    // A blip on a background refresh (any answer but a real one) keeps the
+    // file on screen and the polling going; gone, sign_in, no_access replace it.
     if (refresh && okRef.current && r.status === 'error') return;
-    if (r.status === 'ok') urlsRef.current = { ...(r.urls || {}) };
+    if (r.status === 'ok') {
+      urlsRef.current = { ...(r.urls || {}) };
+      r = { ...r, issuedAt: Date.now() };
+    }
     okRef.current = r.status === 'ok';
     setRes(r);
     if (!refresh) {
@@ -200,10 +223,13 @@ export function FileSharePage({ token, api = defaultApi }) {
       </Shell>
     );
   }
-  return <FileShareView token={token} res={res} api={api} signInHref={signInHref} />;
+  return (
+    <FileShareView token={token} res={res} api={api} signInHref={signInHref}
+                   staleAfterMs={staleAfterMs} onRefresh={() => load({ refresh: true })} />
+  );
 }
 
-function FileShareView({ token, res, api, signInHref }) {
+function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh }) {
   const file = res.file || {};
   const urls = res.urls || {};
   const kind = file.kind;
@@ -220,6 +246,122 @@ function FileShareView({ token, res, api, signInHref }) {
   const [pageRequest, setPageRequest] = useState(null);
   const [fps, setFps] = useState(null);
   const [focusReq, setFocusReq] = useState(0);
+
+  // ---- keeping a mounted video / PDF on live urls ----------------------
+  const stageRef = useRef(null);
+  const resRef = useRef(res);
+  resRef.current = res;
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+  const [gen, setGen] = useState(0);                 // the viewer's key
+  const viewerUrls = useRef({ src: urls.src || null, at: res.issuedAt || Date.now() });
+  const pendingRef = useRef(false);                  // stale, waiting for the video to stop
+  const forceRef = useRef(false);                    // the video errored: swap at once
+  const playingRef = useRef(false);
+  const restoreRef = useRef(null);
+  const pdfRestoreRef = useRef(null);
+
+  // The PDF reports its page once it is ready, then on every change. After a
+  // remount that first report means it is loaded: let it fit its width (the
+  // next frames), then turn back to the page it was on.
+  const onPdfPage = useCallback((n) => {
+    setPage(n);
+    const want = pdfRestoreRef.current;
+    if (want == null) return;
+    pdfRestoreRef.current = null;
+    requestAnimationFrame(() => requestAnimationFrame(() => setPageRequest({ page: want, nonce: Date.now() })));
+  }, []);
+
+  const isStale = useCallback(() => {
+    const src = resRef.current?.urls?.src || null;
+    const v = viewerUrls.current;
+    return !!src && src !== v.src && Date.now() - v.at > staleAfterMs;
+  }, [staleAfterMs]);
+
+  const remount = useCallback(() => {
+    if (kind === 'video') {
+      const st = playerRef.current?.getState?.();
+      const el = playerRef.current?.element?.();
+      const t = st && Number.isFinite(st.time) ? st.time : (el && Number.isFinite(el.currentTime) ? el.currentTime : 0);
+      restoreRef.current = { time: t, playing: playingRef.current };
+    } else {
+      restoreRef.current = { page: pageRef.current };
+    }
+    const r = resRef.current;
+    viewerUrls.current = { src: r?.urls?.src || null, at: r?.issuedAt || Date.now() };
+    pendingRef.current = false;
+    setGen((g) => g + 1);
+  }, [kind]);
+
+  useEffect(() => {
+    const force = forceRef.current;
+    forceRef.current = false;
+    if (!inline || (kind !== 'video' && kind !== 'pdf') || !isStale()) return;
+    if (kind === 'pdf' || force || !playerRef.current?.getPlaying?.()) remount();
+    else pendingRef.current = true;
+  }, [res]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Media events don't bubble, so the stage listens in the capture phase and
+  // keeps only the ones from the player's own <video>.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || kind !== 'video') return undefined;
+    const fromVideo = (e) => !!e.target && e.target === playerRef.current?.element?.();
+    const onPlay = (e) => { if (fromVideo(e)) playingRef.current = true; };
+    const onStop = (e) => {
+      if (!fromVideo(e)) return;
+      playingRef.current = false;
+      if (pendingRef.current && isStale()) remount();
+    };
+    const onErr = (e) => {
+      if (!fromVideo(e)) return;
+      forceRef.current = true;
+      onRefreshRef.current?.();
+    };
+    stage.addEventListener('play', onPlay, true);
+    stage.addEventListener('pause', onStop, true);
+    stage.addEventListener('ended', onStop, true);
+    stage.addEventListener('error', onErr, true);
+    return () => {
+      stage.removeEventListener('play', onPlay, true);
+      stage.removeEventListener('pause', onStop, true);
+      stage.removeEventListener('ended', onStop, true);
+      stage.removeEventListener('error', onErr, true);
+    };
+  }, [kind, isStale, remount]);
+
+  // After a remount: back to the same time (and playing, if it was), or page.
+  useEffect(() => {
+    const want = restoreRef.current;
+    restoreRef.current = null;
+    if (!gen || !want) return undefined;
+    if (kind === 'pdf') {
+      // Asked once the new viewer has laid its pages out (see onPdfPage).
+      pdfRestoreRef.current = want.page || 1;
+      return undefined;
+    }
+    let off = false;
+    let el = null;
+    let tries = 0;
+    let timer = null;
+    const go = () => {
+      if (off) return;
+      playerRef.current?.seekTime?.(want.time);
+      if (want.playing) playerRef.current?.play?.();
+    };
+    const onMeta = () => { el?.removeEventListener('loadedmetadata', onMeta); requestAnimationFrame(go); };
+    const find = () => {
+      if (off) return;
+      el = playerRef.current?.element?.() || null;
+      if (!el) { if (tries++ < 100) timer = setTimeout(find, 50); return; }
+      if (el.readyState >= 1) requestAnimationFrame(go);
+      else el.addEventListener('loadedmetadata', onMeta);
+    };
+    find();
+    return () => { off = true; clearTimeout(timer); el?.removeEventListener('loadedmetadata', onMeta); };
+  }, [gen]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // The audio element keeps its url until it fails: swapping src on every
   // refresh would restart playback. On an error it picks up the latest one.
@@ -294,7 +436,7 @@ function FileShareView({ token, res, api, signInHref }) {
     viewer = <FileCardView file={file} />;
   } else if (kind === 'video') {
     viewer = (
-      <FilmPlayer ref={playerRef} mode="full" keyboard src={SRC} poster={urls.poster ? POSTER : null}
+      <FilmPlayer key={`v${gen}`} ref={playerRef} mode="full" keyboard src={SRC} poster={urls.poster ? POSTER : null}
                   title={file.name || ''} markers={markers} onAction={onPlayerAction} onFrameChange={onFrameChange}
                   probe={() => import('../../hooks/useMediaFacts.js').then((m) => m.probeCardVideo({ kind: 'video', src: SRC }))} />
     );
@@ -307,7 +449,7 @@ function FileShareView({ token, res, api, signInHref }) {
       </div>
     );
   } else if (kind === 'pdf') {
-    viewer = <PdfViewer embedded src={SRC} name={file.name || 'PDF'} onPageChange={setPage} pageRequest={pageRequest} />;
+    viewer = <PdfViewer key={`p${gen}`} embedded src={SRC} name={file.name || 'PDF'} onPageChange={onPdfPage} pageRequest={pageRequest} />;
   } else if (kind === 'image') {
     viewer = <ImageZoomStage src={SRC} alt={file.name || ''} />;
   } else {
@@ -318,7 +460,7 @@ function FileShareView({ token, res, api, signInHref }) {
     <Shell signedOut={!signedIn} token={token} wide={showRail}>
       <div className={`fsp-layout${showRail ? ' has-rail' : ''}`}>
         <div className="fsp-col">
-          <div className={`fsp-stage fsp-stage--${inline ? kind : 'file'}`}>
+          <div ref={stageRef} className={`fsp-stage fsp-stage--${inline ? kind : 'file'}`}>
             <Suspense fallback={<span className="fsp-spinner" aria-label="Loading" />}>{viewer}</Suspense>
           </div>
           <div className="fsp-info">

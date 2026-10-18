@@ -74,3 +74,13 @@ test('fileDisplayName prefers title, then fileName, then name', () => {
   assert.equal(fileDisplayName({ name: 'n.pdf' }), 'n.pdf');
   assert.equal(fileDisplayName(null), 'File');
 });
+
+test('pasted wrappers are stripped and punctuation addresses are rejected', () => {
+  assert.deepEqual(parseEmails('mailto:A@b.co').emails, ['a@b.co']);
+  assert.deepEqual(parseEmails('MAILTO:a@b.co "c@d.co" <e@f.co> \'g@h.co\'').emails, ['a@b.co', 'c@d.co', 'e@f.co', 'g@h.co']);
+  assert.equal(isEmailLike('a"b@c.d'), false);
+  assert.equal(isEmailLike('a@b(c).d'), false);
+  assert.equal(isEmailLike('a:b@c.d'), false);
+  assert.equal(isEmailLike('a[b]@c.d'), false);
+  assert.equal(isEmailLike('a@b.co'), true);
+});

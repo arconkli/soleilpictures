@@ -3396,6 +3396,21 @@ async function dispatch(url, request, env, ctx) {
       idPairs: out.pairs || [],
     });
 
+    // Stars and file shares follow a card by (board, id) too. repoint_card_refs
+    // runs AS THE CALLER, and identical ids are included so a same-id move
+    // still carries them to the new board. A move only, never a copy. It must
+    // not fail a move that already happened.
+    const refPairs = (out.pairs || []).map((p) => ({ from: p.from, to: p.to }));
+    for (let i = 0; i < refPairs.length; i += 500) {
+      try {
+        await userRpc(env, token, 'repoint_card_refs', {
+          p_from: id, p_to: to, p_pairs: refPairs.slice(i, i + 500),
+        });
+      } catch (e) {
+        console.warn('repoint_card_refs failed after a card move', e?.message || e);
+      }
+    }
+
     return json({ moved: out.count, cards: out.moved.map(publicCard), live: out.live });
   }
 

@@ -5,7 +5,7 @@ import { FILE_SHARE_PEOPLE_PER_CALL } from './fileShares.js';
 
 // The same shape add_file_share_people accepts (0421). Anything else the
 // server would skip, so the dialog marks it before sending.
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const EMAIL_RE = /^[^@\s"'<>(),;:\[\]]+@[^@\s"'<>(),;:\[\]]+\.[^@\s"'<>(),;:\[\]]+$/;
 
 export function isEmailLike(s) {
   return EMAIL_RE.test(String(s || ''));
@@ -13,12 +13,12 @@ export function isEmailLike(s) {
 
 // Every distinct token in what was typed or pasted, in order, with whether it
 // looks like an address. Comma, semicolon and any whitespace separate;
-// lower-cased; "<a@x.com>" loses its brackets.
+// lower-cased; "<a@x.com>", "\"a@x.com\"" and "mailto:a@x.com" lose their wrapping.
 function tokens(text) {
   const out = [];
   const seen = new Set();
   for (const raw of String(text || '').split(/[,;\s]+/)) {
-    const t = raw.trim().replace(/^<|>$/g, '').toLowerCase();
+    const t = raw.trim().replace(/^mailto:/i, '').replace(/^["'<]+|["'>]+$/g, '').toLowerCase();
     if (!t || seen.has(t)) continue;
     seen.add(t);
     out.push({ email: t, invalid: !isEmailLike(t) });

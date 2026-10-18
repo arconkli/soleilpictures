@@ -590,6 +590,12 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
 // Single-file sharing (0421). The link is /f/<token>; the token is a uuid the
 // render switch has already checked, so it is safe to put in a path.
 const FILE_URL_BASE = "https://clusters.soleilpictures.com/f/";
+// A share made from the preview deploy links back to the preview, so the
+// recipient can open it. Exactly these two origins; anything else is production.
+const FILE_PREVIEW_ORIGIN = "https://main-soleil-boards.arconkli.workers.dev";
+function fileUrlBase(origin: string): string {
+  return origin === FILE_PREVIEW_ORIGIN ? FILE_PREVIEW_ORIGIN + "/f/" : FILE_URL_BASE;
+}
 
 // A file's name, for an email line. safeLabel strips anything domain-shaped,
 // and most extensions are also top-level domains (.mov, .zip, .app), so the
@@ -606,12 +612,13 @@ interface FileSharedData {
   fileName: string;
   role: string;
   token: string;
+  origin: string;
 }
 
 function fileShared(d: FileSharedData): RenderedEmail {
   const headline = `${d.sharerName} shared a file with you.`;
   const subtitle = `You can view${d.role === "comment" ? " and comment on" : ""} "${d.fileName}".`;
-  const url = FILE_URL_BASE + d.token;
+  const url = fileUrlBase(d.origin) + d.token;
   return {
     subject: `${d.sharerName} shared "${d.fileName}" with you`,
     html: renderEmail({
@@ -639,12 +646,13 @@ interface FileCommentedData {
   fileName: string;
   commentPreview: string;
   token: string;
+  origin: string;
   unsubscribeToken?: string;
 }
 
 function fileCommented(d: FileCommentedData): RenderedEmail {
   const subtitle = `On "${d.fileName}".`;
-  const url = FILE_URL_BASE + d.token;
+  const url = fileUrlBase(d.origin) + d.token;
   const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_comment_replies") : undefined;
   return {
     subject: `${d.commenterName} commented on "${d.fileName}"`,
@@ -1674,6 +1682,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         fileName:   fileLabel(data.fileName),
         role:       data.role === "comment" ? "comment" : "view",
         token,
+        origin:     String(data.origin ?? ""),
       });
     }
     case "file_commented": {
@@ -1684,6 +1693,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         fileName:       fileLabel(data.fileName),
         commentPreview: safeLabel(data.commentPreview, 280),
         token,
+        origin:         String(data.origin ?? ""),
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
       });
     }
