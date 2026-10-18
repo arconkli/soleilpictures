@@ -22,7 +22,8 @@
 // sleep, a network that changed under it — looked connected while every edit
 // stayed local. The keepalive below puts both back: a presence renewal every
 // KEEPALIVE_MS, which the room echoes to every socket including this one, and
-// a close when nothing at all has arrived for DEAD_AFTER_MS.
+// a close when the previous renewal was never answered (partyKeepalive.js —
+// never "silent for N seconds", which a throttled hidden tab always is).
 //
 // The previous design destroyed + reconstructed the entire provider on
 // every TOKEN_REFRESHED/SIGNED_IN pair (URL-token limitation workaround):
@@ -37,9 +38,9 @@ import { createStaleTokenReconnector } from './partyTokenRefresh.js';
 import { getGestureActiveUntil } from './perfReport.js';
 import * as perf from './perf.js';
 import { PARTY_HOST } from './partyHost.js';
+import { socketLooksDead } from './partyKeepalive.js';
 
 const KEEPALIVE_MS = 15_000;
-const DEAD_AFTER_MS = 45_000;
 const MESSAGE_AWARENESS = 1;
 
 async function freshAccessToken() {
@@ -112,11 +113,13 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   });
 
   // Liveness (see the header).
+  let lastPingAt = 0;
   const keepalive = setInterval(() => {
-    if (destroyed || !provider.wsconnected || !provider.ws) return;
-    if (Date.now() - (provider.wsLastMessageReceived || 0) > DEAD_AFTER_MS) {
-      console.warn('[partykit] board', boardId, 'socket silent for', DEAD_AFTER_MS / 1000, 's; reconnecting');
+    if (destroyed || !provider.wsconnected || !provider.ws) { lastPingAt = 0; return; }
+    if (socketLooksDead(provider.wsLastMessageReceived, lastPingAt)) {
+      console.warn('[partykit] board', boardId, 'socket never answered its keepalive; reconnecting');
       perf.bump('partykit.deadSocket');
+      lastPingAt = 0;
       try { provider.ws.close(); } catch (_) {}
       return;
     }
@@ -125,6 +128,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       encoding.writeVarUint(enc, MESSAGE_AWARENESS);
       encoding.writeVarUint8Array(enc, encodeAwarenessUpdate(awareness, [ydoc.clientID]));
       provider.ws.send(encoding.toUint8Array(enc));
+      lastPingAt = Date.now();
     } catch (_) { /* the next tick tries again */ }
   }, KEEPALIVE_MS);
 
