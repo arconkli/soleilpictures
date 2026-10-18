@@ -24,6 +24,27 @@ import { chromium } from '@playwright/test';
 
 export default async function globalSetup(config) {
   const baseURL = config.projects[0]?.use?.baseURL || 'http://127.0.0.1:5174';
+
+  // Refuse to run against a dev server wired to a real Supabase project.
+  // playwright.config.js reuses whatever already answers on the port, and on
+  // 2026-10-18 a suite on PW_PORT=5199 attached to a server somebody had
+  // started by hand with the real .env.local: ~6,000 ?local=1 fixture requests
+  // (board ids like "b-features", workspace "local-workspace") hit production.
+  // Vite inlines the env into this module, so the served text shows which
+  // project that server talks to. A failed fetch falls through to the warm-up,
+  // which reports an unreachable server in its own way.
+  let served = '';
+  try {
+    served = await (await fetch(`${baseURL}/src/lib/supabase.js`)).text();
+  } catch (_) { /* warm-up below handles an unreachable server */ }
+  const real = served.match(/https:\/\/(?!example\.)[a-z0-9-]+\.supabase\.co/)?.[0];
+  if (real) {
+    throw new Error(
+      `[global-setup] the dev server at ${baseURL} loads a real Supabase project (${real}). ` +
+      'It was probably started by hand with .env.local. Stop it, or pick a free PW_PORT ' +
+      'so Playwright starts its own server with the forced fake credentials.',
+    );
+  }
   const browser = await chromium.launch();
   const page = await browser.newPage();
   try {

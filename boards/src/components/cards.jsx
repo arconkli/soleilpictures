@@ -73,6 +73,7 @@ import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
+import { openableUrl } from '../lib/openableUrl.js';
 import { ensureFontsFromHtml, ensureFontForCss } from '../lib/googleFonts.js';
 import { FilmPlayer } from './film/FilmPlayer.jsx';
 import { registerCardPlayer } from '../lib/playerBus.js';
@@ -473,8 +474,8 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
       if (onOpenItem && onOpenItem(it) === true) return;
       if (it.boardId && onOpenChild) { onOpenChild(it.boardId); return; }
       if (it.kind === 'link' && it.url) {
-        const u = it.url.startsWith('http') ? it.url : 'https://' + it.url;
-        window.open(u, '_blank', 'noopener');
+        const u = openableUrl(it.url);
+        if (u) window.open(u, '_blank', 'noopener');
         return;
       }
       if (onOpen) onOpen();
@@ -1388,14 +1389,9 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
     );
   }
 
-  // Resolve a click-friendly URL (prefix bare hostnames so window.open
-  // doesn't treat them as a relative path).
-  const openHref = (() => {
-    if (!source) return null;
-    return source.startsWith('http://') || source.startsWith('https://')
-      ? source
-      : `https://${source}`;
-  })();
+  // Resolve a click-friendly URL (bare hostnames get https://; null when the
+  // source can't be opened, e.g. a dropped blob: URL).
+  const openHref = openableUrl(source);
   const openLink = (e) => {
     if (!openHref) return;
     e.stopPropagation();

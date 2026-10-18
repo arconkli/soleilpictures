@@ -7,6 +7,7 @@ import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed } from '../lib/appHost.js';
 import { openFileShare } from '../lib/fileShareBus.js';
+import { openableUrl } from '../lib/openableUrl.js';
 import { isShareableCard } from '../lib/fileShares.js';
 
 // Live expand map for a schedule card — Yjs gridMeta when present, else the
@@ -7417,8 +7418,9 @@ export function CanvasSurface({
             run: () => boards[c.target] && onOpenBoard(c.target) });
         } else if (c.kind === 'link' && (c.source || c.link)) {
           openItems.push({ id: 'open', label: 'Open link', run: () => {
-            const url = c.link || c.source;
-            window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
+            const href = openableUrl(c.link || c.source);
+            if (href) window.open(href, '_blank', 'noopener');
+            else feedback.toast({ type: 'error', message: "That link can't be opened." });
           }});
         }
         metaItems.push({ id: 'info', label: 'Info', shortcut: modShortcut('I'),
@@ -7719,8 +7721,9 @@ export function CanvasSurface({
         }});
         if (c.source || c.link) {
           openItems.push({ id: 'open', label: 'Open link', run: () => {
-            const url = c.link || c.source;
-            window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
+            const href = openableUrl(c.link || c.source);
+            if (href) window.open(href, '_blank', 'noopener');
+            else feedback.toast({ type: 'error', message: "That link can't be opened." });
           }});
         }
       } else if (c.kind === 'audio') {
@@ -10599,6 +10602,14 @@ export function CanvasSurface({
       e.preventDefault();
       const url = e.dataTransfer.getData('text/uri-list').split('\n')[0]?.trim();
       if (!url) return;
+      // A blob: URL is the source page's own in-memory copy — SharePoint and
+      // other web apps drag their images this way. It can't be read from here
+      // and it dies with that tab, so there is nothing to make a card from:
+      // say so, instead of leaving a link that can never open.
+      if (/^blob:/i.test(url)) {
+        feedback.toast({ type: 'info', message: 'That image only lives in the page it came from. Save it, then drop the file here.' });
+        return;
+      }
       // A drag from another tab is the one "bring material from elsewhere"
       // gesture that had no intent row, so it was invisible next to paste.
       noteCreateIntent('drag_in');

@@ -60,7 +60,7 @@ function isNoise(message, stack) {
   if (m === 'Script error.') return true;
   if (/^ResizeObserver loop/i.test(m)) return true;
   if (/iabjs:\/\/|navigation_performance_logger/i.test(s + m)) return true;
-  if (/chrome-extension:\/\/|moz-extension:\/\/|safari-extension:\/\//i.test(s)) return true;
+  if (/chrome-extension:\/\/|moz-extension:\/\/|safari-extension:\/\/|safari-web-extension:\/\/|webkit-masked-url:\/\//i.test(s)) return true;
   // Extension / embedded-webview artifacts injected INTO the page context, so
   // they carry no extension:// stack frame to match the rule above:
   //  - "Object Not Found Matching Id:N, MethodName:update, ParamCount:4" — a
