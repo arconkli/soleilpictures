@@ -141,15 +141,18 @@ test.describe('unresolved is not uncapped (App.jsx-only path)', () => {
     const s = app();
     // The promise is resolved by the dialog, so preflightImport genuinely waits.
     expect(s).toMatch(/return await new Promise\(\(resolve\) => \{/);
-    expect(s).toMatch(/ask\.resolve\?\.\(\{ take \}\)/);
+    // …with the take, and the hold: whatever the answer leaves out waits in
+    // the tab (lib/heldUploads.js). Cancel holds nothing; it lets the files go.
+    expect(s).toMatch(/ask\.resolve\?\.\(\{ take, hold: action === 'cancel' \? null : \(ask\.hold \|\| null\) \}\)/);
     // Answered once: a double-click must not resolve a settled promise and hand
     // a stale `take` to the next drop.
     expect(s).toMatch(/if \(!ask\) return null;/);
   });
 
   test('upgrading does not silently half-import', () => {
-    // Stripe checkout navigates away, so there is no honest way to hold a
-    // FileList across it — upgrade takes 0 and the folder stays on disk.
+    // Upgrade takes 0: nothing goes on before the plan changes. On the
+    // person's own plan the drop waits in the tab and goes on once checkout
+    // (opened in a new tab) lands; anywhere else the folder stays on disk.
     expect(app()).toMatch(/answerImportAsk\('upgrade', 0\)/);
     expect(app()).toMatch(/answerImportAsk\('cancel', 0\)/);
     expect(app()).toMatch(/answerImportAsk\('partial', importAsk\.take\)/);
