@@ -1,5 +1,10 @@
 // One unfolded cluster's contents in the sidebar: shelf headers, the photo
-// mosaic, rows for everything else, the folded Links · More line, "+N more".
+// mosaic, rows for everything else, the folded Links · More line, "Show N
+// more". They sit in a soft panel, indented under the cluster's name — files
+// live in panels and clusters never do, which is what tells them apart at a
+// glance — and when sub-clusters come between the name and the panel, the
+// panel opens with a line saying whose files these are (folded, it is only
+// that line).
 //
 // lib/sidebarRows.js turns the shelves into fixed-height rows; this draws them.
 // A short block renders whole (most clusters, and every peek). A long one —
@@ -13,10 +18,17 @@ import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
-import { contentRows, layoutRows, visibleRange, mosaicPerLine } from '../../lib/sidebarRows.js';
+import { contentRows, layoutRows, visibleRange, mosaicPerLine, INDENT } from '../../lib/sidebarRows.js';
 
 const WINDOW_AFTER = 80;
-const INDENT = 14;
+// Inside a panel every row starts here; the panel itself carries the indent.
+const PANEL_PAD = 8;
+
+// "Feature film's files", "Locations' files".
+function possessive(name) {
+  const n = (name || 'Untitled').trim();
+  return /s$/i.test(n) ? `${n}’` : `${n}’s`;
+}
 
 function clock(sec) {
   const s = Math.round(Number(sec) || 0);
@@ -80,7 +92,7 @@ function useHoldForMenu(item, onMenu) {
 // One item as a row: its thumbnail or icon, its name, the stored-off-the-board
 // mark, a star, and its length or size. Shelves, Starred and Recent all draw
 // items with it, so an item looks the same wherever the sidebar lists it.
-export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null, onMenu = null }) {
+export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null, onMenu = null }) {
   const meta = rowMeta(item);
   const hold = useHoldForMenu(item, onMenu);
   return (
@@ -89,7 +101,7 @@ export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = fal
             aria-selected={selected || undefined}
             draggable={!!onDragStart}
             onDragStart={onDragStart ? (e) => onDragStart(item, e) : undefined}
-            style={{ paddingLeft: 10 + depth * INDENT }}
+            style={{ paddingLeft: indent ?? 10 + depth * INDENT }}
             role="treeitem" aria-level={depth + 1}
             data-sb-item={item.key}
             title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
@@ -151,8 +163,21 @@ export function SidebarTile({ item, depth = 0, starred = false, where = '', onCl
 // Rows of the windowed block are positioned by offset; rows of a short block
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
-  const pad = { paddingLeft: 10 + depth * INDENT };
-  const { onItem, onItemOpen, onMore, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu } = ctx;
+  const pad = { paddingLeft: PANEL_PAD };
+  const { onItem, onItemOpen, onMore, onLess, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu, onToggleOwn, tileGap } = ctx;
+
+  if (row.type === 'own') {
+    return (
+      <button type="button" className={`sbf-own${row.open ? ' is-open' : ''}`} style={pad}
+              role="treeitem" aria-level={depth + 1} aria-expanded={row.open}
+              title={row.open ? 'Fold these away' : 'Show these files'}
+              onClick={() => onToggleOwn?.()}>
+        <span className="sbf-own-chev" aria-hidden="true">▸</span>
+        <span className="sbf-own-name">{possessive(row.name)} files</span>
+        <span className="sbf-own-count">{row.count}</span>
+      </button>
+    );
+  }
 
   if (row.type === 'shelf') {
     return (
@@ -171,7 +196,7 @@ function Row({ row, depth, ctx }) {
   }
   if (row.type === 'mosaic') {
     return (
-      <div className="sbf-mosaic" style={pad}>
+      <div className="sbf-mosaic" style={{ ...pad, gap: tileGap }}>
         {row.items.map((item) => (
           <SidebarTile key={item.key} item={item} depth={depth} starred={starred(item)}
                        selected={selected(item)} onDragStart={onDragItem}
@@ -183,7 +208,7 @@ function Row({ row, depth, ctx }) {
   }
   if (row.type === 'file') {
     return (
-      <SidebarItemRow item={row.item} depth={depth} starred={starred(row.item)}
+      <SidebarItemRow item={row.item} depth={depth} indent={PANEL_PAD} starred={starred(row.item)}
                       selected={selected(row.item)} onDragStart={onDragItem}
                       onMenu={onItemMenu ? (it, x, y) => onItemMenu(it, row, x, y) : null}
                       onClick={(item, e) => onItem(item, row, e)} onOpen={onItemOpen} />
@@ -191,25 +216,30 @@ function Row({ row, depth, ctx }) {
   }
   if (row.type === 'more') {
     return (
-      <button type="button" className="sbf-more" style={pad} tabIndex={-1}
-              onClick={() => onMore(row)}>
-        +{row.count} more
-      </button>
+      <div className="sbf-more" style={pad}>
+        {row.count > 0 && (
+          <button type="button" className="sbf-more-btn" tabIndex={-1} onClick={() => onMore(row)}>
+            Show {row.count} more
+          </button>
+        )}
+        {row.expanded && (
+          <button type="button" className="sbf-more-btn is-less" tabIndex={-1} onClick={() => onLess(row)}>
+            Show less
+          </button>
+        )}
+      </div>
     );
   }
   if (row.type === 'fold') {
     return (
       <div className="sbf-fold" style={pad}>
-        {row.parts.map((p, i) => (
-          <span key={p.shelfId} className="sbf-fold-part">
-            {i > 0 && <span className="sbf-fold-sep" aria-hidden="true">·</span>}
-            <button type="button" tabIndex={-1}
-                    className={`sbf-fold-btn${foldOpen(row.boardId, p.shelfId) ? ' is-open' : ''}`}
-                    aria-expanded={foldOpen(row.boardId, p.shelfId)}
-                    onClick={() => onFold(row.boardId, p.shelfId)}>
-              {p.label || p.shelfId} {p.count}
-            </button>
-          </span>
+        {row.parts.map((p) => (
+          <button type="button" key={p.shelfId} tabIndex={-1}
+                  className={`sbf-fold-btn${foldOpen(row.boardId, p.shelfId) ? ' is-open' : ''}`}
+                  aria-expanded={foldOpen(row.boardId, p.shelfId)}
+                  onClick={() => onFold(row.boardId, p.shelfId)}>
+            {p.label || p.shelfId} <span className="sbf-fold-count">{p.count}</span>
+          </button>
         ))}
       </div>
     );
@@ -218,7 +248,7 @@ function Row({ row, depth, ctx }) {
     return <div className="sbf-note" style={pad} aria-busy="true">Loading…</div>;
   }
   if (row.type === 'empty') {
-    return <div className="sbf-note" style={pad}>Nothing here yet</div>;
+    return <div className="sbf-note" style={pad}>No files yet — drop some here</div>;
   }
   return null;
 }
@@ -256,18 +286,29 @@ function useWindow(scrollRef, blockRef, layout, active) {
 
 export function ClusterShelves({
   boardId, depth, contents, hasChildren = false, width = 300, coarse = false,
+  own = null, onToggleOwn = null,
   shelfState, onToggleShelf, onLoadMore, canLoadMore,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
   isSelected = null, onDragItem = null, onItemMenu = null,
 }) {
-  // As many tiles as fit beside this block's own indent (the sidebar's
-  // padding, the row's 10px, 14px a level, and room for the scrollbar).
-  const perLine = mosaicPerLine(width, {
-    thumb: coarse ? 52 : 40, gap: coarse ? 5 : 4, inset: 16 + 10 + depth * INDENT + 8,
-  });
+  // The panel sits under the cluster's name: indented a level past it, 6px
+  // short of the edge.
+  const panelLeft = 6 + depth * INDENT;
+  // As many tiles as fit inside the panel (the sidebar's own padding, the
+  // panel's indent and edges, the row's padding, room for the scrollbar).
+  const thumb = coarse ? 52 : 40;
+  const minGap = coarse ? 5 : 4;
+  const inset = 16 + panelLeft + 6 + 8 + PANEL_PAD + 6;
+  const perLine = mosaicPerLine(width, { thumb, gap: minGap, inset });
+  // The room left over spreads between the tiles (up to a point), so a line
+  // of photos spans the panel instead of bunching at its left.
+  const tileGap = perLine > 1
+    ? Math.max(minGap, Math.min(12, Math.floor((width - inset - perLine * thumb) / (perLine - 1))))
+    : minGap;
+  const ownKey = own ? `${own.name}|${own.count}|${own.open}` : '';
   const rows = useMemo(() => contentRows(boardId, depth, {
-    contents, shelfState: (b, s) => shelfState?.(b, s) || {}, perLine, coarse, hasChildren,
-  }), [boardId, depth, contents, shelfState, perLine, coarse, hasChildren]);
+    contents, shelfState: (b, s) => shelfState?.(b, s) || {}, perLine, coarse, hasChildren, own,
+  }), [boardId, depth, contents, shelfState, perLine, coarse, hasChildren, ownKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const layout = useMemo(() => layoutRows(rows), [rows]);
   const windowed = rows.length > WINDOW_AFTER;
   const blockRef = useRef(null);
@@ -286,6 +327,9 @@ export function ClusterShelves({
       if (!row.expanded) { onToggleShelf?.(boardId, row.shelfId, 'expanded'); return; }
       if (canLoadMore?.(boardId, row.shelfId)) onLoadMore?.(boardId, row.shelfId);
     },
+    onLess: (row) => onToggleShelf?.(boardId, row.shelfId, 'expanded'),
+    onToggleOwn,
+    tileGap,
     onFold: (b, shelfId) => onToggleShelf?.(b, shelfId, 'open'),
     foldOpen: (b, shelfId) => !!shelfState?.(b, shelfId)?.open,
     onOpenShelf,
@@ -298,11 +342,16 @@ export function ClusterShelves({
     } : null,
   };
 
+  if (!rows.length) return null;
+  const folded = !!own && !own.open;
+  const panel = (block) => (
+    <div className={`sbf-panel${folded ? ' is-folded' : ''}`} style={{ marginLeft: panelLeft }}>{block}</div>
+  );
   if (!windowed) {
-    return (
+    return panel(
       <div className="sbf-block" role="group">
         {rows.map((row) => <Row key={row.key} row={row} depth={row.depth} ctx={ctx} />)}
-      </div>
+      </div>,
     );
   }
   const shown = [];
@@ -313,7 +362,7 @@ export function ClusterShelves({
     }
     shown.sort((a, b) => a - b);
   }
-  return (
+  return panel(
     <div className="sbf-block is-windowed" role="group" ref={blockRef}
          style={{ height: layout.total }}
          aria-rowcount={rows.length}
@@ -331,6 +380,6 @@ export function ClusterShelves({
           </div>
         );
       })}
-    </div>
+    </div>,
   );
 }

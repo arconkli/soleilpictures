@@ -31,7 +31,7 @@ test.describe('sidebar files', () => {
     const shelves = await block.locator('.sbf-shelf-label').allTextContents();
     expect(shelves.map((s) => s.toLowerCase())).toEqual(['photos', 'video', 'audio', 'files', 'writing']);
     await expect(block.locator('.sbf-mosaic')).toHaveCount(2, { timeout: 5000 });
-    await expect(block.locator('.sbf-more').first()).toHaveText('+20 more');
+    await expect(block.locator('.sbf-more-btn').first()).toHaveText('Show 20 more');
     await expect(block.locator('.sbf-fold')).toContainText('Links 4');
     await expect(block.locator('.sbf-fold')).toContainText('More 2');
     // A file stored off the board says so.
@@ -41,17 +41,19 @@ test.describe('sidebar files', () => {
   test('a long shelf expands in place, and a closed cluster pages from the server', async ({ page }) => {
     await open(page);
     const block = page.locator('.sbf-block').first();
-    await block.locator('.sbf-more').first().click();
+    await block.locator('.sbf-more-btn').first().click();
     await expect(block.locator('.sbf-mosaic')).toHaveCount(6);   // 30 photos, 5 a line
+    await block.locator('.sbf-more-btn', { hasText: 'Show less' }).click();
+    await expect(block.locator('.sbf-mosaic')).toHaveCount(2);   // back to the peek
 
     await row(page, 'Music video').locator('.sb-tree-chev').click();
     const mv = page.locator('.sbf-block').filter({ has: page.locator('[data-sb-item^="mv:"]') });
     await expect(mv.locator('.sbf-shelf-label').first()).toHaveText(/photos/i);
     const peek = await calls(page, 'sidebar_cluster_items');
     expect(peek.some((c) => c.params.p_board_id === 'mv' && c.params.p_shelf === null)).toBe(true);
-    await expect(mv.locator('.sbf-more').first()).toHaveText('+110 more');
-    await mv.locator('.sbf-more').first().click();             // expand the peek in place
-    await mv.locator('.sbf-more').first().click();             // then fetch the next page
+    await expect(mv.locator('.sbf-more-btn').first()).toHaveText('Show 110 more');
+    await mv.locator('.sbf-more-btn').first().click();         // expand the peek in place
+    await mv.locator('.sbf-more-btn').first().click();         // then fetch the next page
     await expect.poll(async () => (await calls(page, 'sidebar_cluster_items'))
       .some((c) => c.params.p_board_id === 'mv' && c.params.p_shelf === 'photos' && c.params.p_offset === 12)).toBe(true);
   });
@@ -149,6 +151,10 @@ test.describe('sidebar files', () => {
   test('↑/↓ walk clusters and files alike', async ({ page }) => {
     await open(page);
     await row(page, 'Casting').focus();
+    // Past the last sub-cluster: the line that opens Feature film's own files,
+    // then the files.
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('.sbf-own', { hasText: 'Feature film’s files' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     const focused = await page.evaluate(() => document.activeElement?.getAttribute('data-sb-item'));
     expect(focused).toMatch(/^film:film-img-/);
@@ -163,6 +169,58 @@ test.describe('sidebar files wiring (App.jsx)', () => {
     expect(app).toMatch(/\{filesSidebar \? \(\s*<ClusterSidebar/);
     expect(app).toContain('<div className="sb-list" ref={sidebarScrollRef}>');   // the held-off branch, intact
     expect(host).toMatch(/export function sidebarFilesAllowed\(\) \{\s*if \(onPreviewHost\(\)\) return true;\s*if \(!import\.meta\.env\.DEV\) return false;/);
+  });
+});
+
+test.describe('sidebar files: telling clusters apart', () => {
+  test('inside a sub-cluster, the clusters above fold their own files to one labeled line', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => window.__sidebarQa.setActive('loc'));
+    const film = page.locator('.sbf-own', { hasText: 'Feature film’s files' });
+    const studio = page.locator('.sbf-own', { hasText: 'Studio’s files' });
+    await expect(film).toHaveAttribute('aria-expanded', 'false');
+    await expect(film).toContainText('48');
+    await expect(studio).toHaveAttribute('aria-expanded', 'false');
+    // Locations' own files show in full, in their own panel, with no line:
+    // nothing sits between its name and them.
+    const loc = page.locator('.sbf-panel').filter({ has: page.locator('[data-sb-item^="loc:"]') });
+    await expect(loc.locator('.sbf-own')).toHaveCount(0);
+    await expect(loc.locator('.sbf-shelf-label').first()).toHaveText('Photos');
+    // Feature film's own files are only that line until asked for (Recent
+    // and Starred above the clusters may hold some of them; panels don't).
+    await expect(page.locator('.sbf-panel [data-sb-item^="film:"]')).toHaveCount(0);
+    await film.click();
+    await expect(film).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.sbf-panel').filter({ has: film }).locator('[data-sb-item^="film:"]').first()).toBeVisible();
+  });
+
+  test('a cluster name stays at the top while you scroll through its files', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 640 });
+    await open(page);
+    await page.evaluate(() => window.__sidebarQa.setActive('loc'));
+    const loc = page.locator('.sbf-panel').filter({ has: page.locator('[data-sb-item^="loc:"]') });
+    await loc.locator('.sbf-more-btn').first().click();
+    const list = page.locator('.sb-list');
+    await list.evaluate((el) => { el.scrollTop = el.scrollHeight / 2; });
+    const locRow = row(page, 'Locations');
+    await expect(locRow).toHaveAttribute('data-stuck', '1');
+    const [listTop, rowTop] = await Promise.all([
+      list.evaluate((el) => el.getBoundingClientRect().top),
+      locRow.evaluate((el) => el.getBoundingClientRect().top),
+    ]);
+    expect(Math.round(rowTop - listTop)).toBe(36);   // under Feature film, which sticks at the top
+    await expect(row(page, 'Feature film')).toHaveAttribute('data-stuck', '1');
+  });
+
+  test('every filter chip is in view: they wrap instead of scrolling', async ({ page }) => {
+    await open(page);
+    const chips = page.locator('.sbf-chips');
+    const [scroll, client] = await chips.evaluate((el) => [el.scrollWidth, el.clientWidth]);
+    expect(scroll).toBeLessThanOrEqual(client);
+    const right = await page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().right);
+    for (const r of await chips.locator('.sbf-chip').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right))) {
+      expect(r).toBeLessThanOrEqual(right);
+    }
   });
 });
 

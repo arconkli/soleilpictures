@@ -19,11 +19,13 @@ test.describe('sidebar files on a phone', () => {
     expect(await h('.sb-tree-row.is-files')).toBe(44);
     expect(await h('.sbf-block .sbf-file')).toBe(44);
     expect(await h('.sbf-block .sbf-mosaic')).toBe(58);
-    // Tiles stay inside the drawer: none overflows its right edge.
-    const drawerRight = await page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().right);
-    const tileRights = await page.locator('.sbf-block .sbf-mosaic').first().locator('.sbf-tile')
+    expect(await h('.sbf-own')).toBe(44);
+    // Tiles stay inside their panel: none overflows its right edge.
+    const panel = page.locator('.sbf-panel').filter({ has: page.locator('.sbf-mosaic') }).first();
+    const panelRight = await panel.evaluate((el) => el.getBoundingClientRect().right);
+    const tileRights = await panel.locator('.sbf-mosaic').first().locator('.sbf-tile')
       .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right));
-    for (const r of tileRights) expect(r).toBeLessThanOrEqual(drawerRight);
+    for (const r of tileRights) expect(r).toBeLessThanOrEqual(panelRight);
   });
 
   test('a tap opens Quick look', async ({ page }) => {

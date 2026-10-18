@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  ROW_HEIGHTS, PEEK, mosaicPerLine, flattenTree, layoutRows, visibleRange,
-} from './sidebarRows.js';
+import { ROW_HEIGHTS, PEEK, mosaicPerLine, flattenTree, layoutRows, visibleRange, contentRows } from './sidebarRows.js';
 
 const item = (b, n) => ({ key: `${b}:${n}`, boardId: b, cardId: String(n), kind: 'image', name: `n${n}` });
 const photos = (b, n, total = n) => ({
@@ -30,7 +28,7 @@ const types = (rows) => rows.map((r) => r.type);
 test('collapsed cluster is one row; heights follow coarse', () => {
   const r = build({ isExpanded: () => false });
   assert.deepEqual(types(r), ['cluster']);
-  assert.equal(r[0].height, 34);
+  assert.equal(r[0].height, 36);
   assert.equal(build({ isExpanded: () => false, coarse: true })[0].height, 44);
   assert.equal(ROW_HEIGHTS.fine.mosaic, 46);
 });
@@ -66,7 +64,25 @@ test('mosaic with 20 photos: more counts the rest; expanded shows all lines', ()
   assert.equal(r[4].expanded, false);
   assert.equal(r[3].key, 'm:A:photos:1');
   r = build({ contentsOf: c, perLine: 5, shelfState: () => ({ open: false, expanded: true }) });
-  assert.deepEqual(types(r), ['cluster', 'shelf', 'mosaic', 'mosaic', 'mosaic', 'mosaic']);
+  assert.deepEqual(types(r), ['cluster', 'shelf', 'mosaic', 'mosaic', 'mosaic', 'mosaic', 'more']);
+  assert.equal(r[6].count, 0, 'all shown: the row only offers Show less');
+  assert.equal(r[6].expanded, true);
+});
+
+test('own files under sub-clusters open with a line that says whose they are; folded, it is all there is', () => {
+  const contents = { loading: false, shelves: [photos('F', 3)] };
+  const open = contentRows('F', 1, { contents, hasChildren: true, own: { name: 'Feature film', count: 48, open: true } });
+  assert.deepEqual(open.map((x) => x.type), ['own', 'shelf', 'mosaic']);
+  assert.deepEqual([open[0].name, open[0].count, open[0].open, open[0].height], ['Feature film', 48, true, ROW_HEIGHTS.fine.own]);
+  const folded = contentRows('F', 1, { contents, hasChildren: true, own: { name: 'Feature film', count: 48, open: false } });
+  assert.deepEqual(folded.map((x) => x.type), ['own']);
+  assert.equal(contentRows('F', 1, { contents: null, own: { name: 'F', count: 2, open: false } }).length, 1,
+    'a folded line needs nothing loaded');
+});
+
+test('a search that only matched the cluster name shows no "nothing here" row', () => {
+  const r = contentRows('F', 1, { contents: { loading: false, shelves: [], searching: true } });
+  assert.deepEqual(r, []);
 });
 
 test('12 photos at 6 per line fits the peek exactly: no more row', () => {

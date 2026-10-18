@@ -298,8 +298,9 @@ export function useSidebarFiles({
       return { own, rolled: rollupCounts(boards, own) };
     };
     const all = scoped(countRows, liveItems || []);
-    if (chip === 'all') return { ...all, chipRolled: all.rolled };
-    return { ...all, chipRolled: scoped(chipRows, filterItems(liveItems || [], { chip })).rolled };
+    if (chip === 'all') return { ...all, chipRolled: all.rolled, chipOwn: all.own };
+    const chipped = scoped(chipRows, filterItems(liveItems || [], { chip }));
+    return { ...all, chipRolled: chipped.rolled, chipOwn: chipped.own };
   }, [countRows, chipRows, liveItems, liveBoardId, boards, chip]);
 
   // ── Contents, shelved ─────────────────────────────────────────────────────
@@ -430,12 +431,14 @@ export function useSidebarFiles({
   const countOf = useCallback((boardId) => (counts.chipRolled.get(boardId)?.total || 0), [counts]);
   const totalOf = useCallback((boardId) => (counts.rolled.get(boardId)?.total || 0), [counts]);
   const ownTotalOf = useCallback((boardId) => (counts.own.get(boardId)?.total || 0), [counts]);
+  // A cluster's own files only, as the chip sees them: the count on its files line.
+  const ownCountOf = useCallback((boardId) => (counts.chipOwn.get(boardId)?.total || 0), [counts]);
 
   return useMemo(() => ({
-    counts, countOf, totalOf, ownTotalOf,
+    counts, countOf, totalOf, ownTotalOf, ownCountOf,
     contentsOf, ensure, loadMore, canLoadMore, refresh,
     searching: !!q, searchLoading: search.loading, searchClusterIds,
     recent, starred, isStarred, toggleStar,
-  }), [counts, countOf, totalOf, ownTotalOf, contentsOf, ensure, loadMore, canLoadMore, refresh,
+  }), [counts, countOf, totalOf, ownTotalOf, ownCountOf, contentsOf, ensure, loadMore, canLoadMore, refresh,
     q, search.loading, searchClusterIds, recent, starred, isStarred, toggleStar]);
 }

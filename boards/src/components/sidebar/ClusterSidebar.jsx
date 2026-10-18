@@ -28,7 +28,7 @@ import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { FILTER_CHIPS } from '../../lib/sidebarShelves.js';
 import { SORTS } from '../../lib/sidebarSort.js';
-import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
+import { initialExpandState, expandReducer, isExpanded, filesUnfolded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
 import { downloadCardAsset, downloadCardAssets } from '../../lib/cardDownload.js';
@@ -186,10 +186,19 @@ export function ClusterSidebar({
   const shelfState = useCallback((b, s) => shelves[shelfKey(b, s)] || {}, [shelves]);
   const onToggleShelf = useCallback((b, s, field) => setShelves((m) => toggleShelf(m, shelfKey(b, s), field)), []);
 
-  // Every unfolded cluster loads its shelves (asking twice is free).
+  // Every unfolded cluster whose files show loads its shelves (asking twice is
+  // free). A cluster whose files are folded to their one line needs only the
+  // count on it, which every cluster already has.
+  const withKids = useMemo(() => {
+    const out = new Set();
+    for (const b of boardList) if (b.parent_board_id) out.add(b.parent_board_id);
+    return out;
+  }, [boardList]);
   const unfolded = useMemo(
-    () => boardList.filter((b) => isExpanded(expand, b.id)).map((b) => b.id),
-    [boardList, expand],
+    () => boardList
+      .filter((b) => isExpanded(expand, b.id) && (!withKids.has(b.id) || filesUnfolded(expand, b.id, rootId)))
+      .map((b) => b.id),
+    [boardList, expand, withKids, rootId],
   );
   useEffect(() => { for (const id of unfolded) files.ensure(id); }, [unfolded, files.ensure]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -455,6 +464,10 @@ export function ClusterSidebar({
     renderContents: (board, depth, hasChildren) => (
       <ClusterShelves
         boardId={board.id} depth={depth} hasChildren={hasChildren}
+        own={hasChildren ? {
+          name: board.name, count: files.ownCountOf(board.id), open: filesUnfolded(expand, board.id, rootId),
+        } : null}
+        onToggleOwn={() => dispatch({ type: 'toggleFiles', id: board.id, rootId })}
         contents={files.contentsOf(board.id)}
         width={width} coarse={coarse}
         shelfState={shelfState} onToggleShelf={onToggleShelf}
@@ -494,9 +507,45 @@ export function ClusterSidebar({
     const next = all[i + (e.key === 'ArrowDown' ? 1 : -1)];
     if (!next) return;
     e.preventDefault();
-    next.focus();
+    // Cluster names stick to the top while you're inside them, one row per
+    // level from the second (clusterSidebar.css); a row scrolled to "nearest"
+    // must land below them, not under them.
+    const level = Number(next.getAttribute('aria-level')) || 1;
+    root.style.scrollPaddingTop = `${Math.max(0, Math.min(3, level - 2)) * (coarse ? 44 : 36)}px`;
+    next.focus({ preventScroll: true });
     next.scrollIntoView?.({ block: 'nearest' });
   };
+
+  // Which cluster rows are stuck to the top right now (clusterSidebar.css
+  // gives a stuck row an opaque fill). A sticky row is stuck exactly when it
+  // has moved down from the top of its own node. A data attribute, not a
+  // class, so React re-rendering the row never wipes it.
+  useEffect(() => {
+    const list = listRef?.current;
+    if (!list) return undefined;
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      for (const row of list.querySelectorAll('.sb-tree-row.is-files')) {
+        const level = Number(row.getAttribute('aria-level'));
+        const stuck = level >= 2 && level <= 4
+          && row.getBoundingClientRect().top > row.parentElement.getBoundingClientRect().top + 0.5;
+        if (stuck) row.dataset.stuck = '1'; else delete row.dataset.stuck;
+      }
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(measure); };
+    const mo = new MutationObserver(schedule);
+    mo.observe(list, { childList: true, subtree: true });
+    list.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    schedule();
+    return () => {
+      mo.disconnect();
+      list.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [listRef]);
 
   const [starOpen, setStarOpen] = useState(true);
   const [recentOpen, setRecentOpen] = useState(true);
@@ -523,21 +572,10 @@ export function ClusterSidebar({
           {query
             ? <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} /></button>
             : <button type="button" className="sbf-search-kbd" title="Search everything (⌘K)" onClick={() => onOpenPalette?.('')}>⌘K</button>}
-        </div>
-        <div className="sbf-tools">
-          <div className="sbf-chips" role="toolbar" aria-label="Show">
-            {FILTER_CHIPS.map((c) => (
-              <button type="button" key={c.id}
-                      className={`sbf-chip${chip === c.id ? ' is-on' : ''}`}
-                      aria-pressed={chip === c.id}
-                      onClick={() => setChip(c.id === chip ? 'all' : c.id)}>
-                {c.label}
-              </button>
-            ))}
-          </div>
           <div className="sbf-sort" ref={menuRef}>
             <button type="button" className={`sbf-sort-btn${menuOpen ? ' is-on' : ''}`}
                     aria-haspopup="menu" aria-expanded={menuOpen}
+                    aria-label="Sort and group"
                     title={`Sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
                     onClick={() => setMenuOpen((o) => !o)}>⇅</button>
             {menuOpen && (
@@ -561,6 +599,17 @@ export function ClusterSidebar({
               </div>
             )}
           </div>
+        </div>
+        {/* Every chip in view: they wrap rather than scroll out of sight. */}
+        <div className="sbf-chips" role="toolbar" aria-label="Show">
+          {FILTER_CHIPS.map((c) => (
+            <button type="button" key={c.id}
+                    className={`sbf-chip${chip === c.id ? ' is-on' : ''}`}
+                    aria-pressed={chip === c.id}
+                    onClick={() => setChip(c.id === chip ? 'all' : c.id)}>
+              {c.label}
+            </button>
+          ))}
         </div>
       </div>
 

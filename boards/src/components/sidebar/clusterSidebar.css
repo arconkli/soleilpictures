@@ -4,8 +4,15 @@
 
    Row heights are not decoration: lib/sidebarRows.js ROW_HEIGHTS positions the
    rows of a long shelf by them, so a row here must be exactly that tall
-   (fine: shelf 24, file 26, mosaic 46, fold/more/note 26; coarse: shelf 32,
-   file 44, mosaic 58, fold/more/note 44).
+   (fine: own 30, shelf 28, file 28, mosaic 46, fold/more/note 28; coarse: own
+   44, shelf 36, file 44, mosaic 58, fold/more/note 44). Cluster rows are 36
+   (44 on touch), and the sticky offsets below count in them.
+
+   How the tree reads: clusters are rows on the sidebar itself; a cluster's own
+   files sit in a soft panel indented under its name; a guide line runs down
+   the left of everything inside an open cluster; and the name of each cluster
+   you are scrolling through sticks to the top. Files live in panels and
+   clusters never do, so the two never blur.
 
    Gold (--soleil) only for selection and focus: a chip that is on, the focus
    ring, the row you are in. Resting icons and the meter are neutral ink. */
@@ -29,16 +36,16 @@ body.sbf-resizing .app { transition: none !important; }
 .sbf-resizer:focus-visible { outline: none; box-shadow: inset -2px 0 0 var(--soleil); }
 
 /* ── Header: find, chips, sort ───────────────────────────────────────────── */
-.sbf-head { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px 2px 6px; }
+.sbf-head { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; padding: 6px 2px 10px; }
 .sbf-search {
-  display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 9px;
+  display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 3px 0 9px;
   border-radius: var(--radius-md); background: var(--bg-2); border: 1px solid var(--line-1);
   color: var(--ink-3);
 }
 .sbf-search:focus-within { border-color: var(--soleil); }
 .sbf-search input {
   flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
-  color: var(--ink-0); font: 400 12px/1 var(--font-sans);
+  color: var(--ink-0); font: 400 12.5px/1 var(--font-sans);
 }
 .sbf-search input::placeholder { color: var(--ink-3); }
 .sbf-search input:focus, .sbf-search input:focus-visible { outline: none; box-shadow: none; }
@@ -51,17 +58,13 @@ body.sbf-resizing .app { transition: none !important; }
 .sbf-search-clear { display: grid; place-items: center; border: 0; }
 .sbf-search-kbd:hover, .sbf-search-clear:hover { color: var(--ink-0); }
 
-.sbf-tools { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.sbf-chips {
-  flex: 1; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
-          mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
-}
-.sbf-chips::-webkit-scrollbar { display: none; }
+/* Every chip stays in view: they wrap onto a second line rather than scroll
+   sideways behind a fade. */
+.sbf-chips { display: flex; flex-wrap: wrap; gap: 5px 4px; min-width: 0; }
 .sbf-chip {
-  flex-shrink: 0; height: 22px; padding: 0 8px; border-radius: 999px; cursor: pointer;
+  flex-shrink: 0; height: 24px; padding: 0 9px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--line-2); background: transparent; color: var(--ink-2);
-  font: 500 11px/20px var(--font-sans); white-space: nowrap;
+  font: 500 11.5px/22px var(--font-sans); white-space: nowrap;
 }
 .sbf-chip:hover { color: var(--ink-0); border-color: var(--line-3); }
 .sbf-chip.is-on { background: var(--soleil-soft); border-color: var(--soleil); color: var(--ink-0); }
@@ -69,13 +72,14 @@ body.sbf-resizing .app { transition: none !important; }
 
 .sbf-sort { position: relative; flex-shrink: 0; }
 .sbf-sort-btn {
-  width: 24px; height: 22px; border-radius: 6px; cursor: pointer;
-  border: 1px solid var(--line-2); background: transparent; color: var(--ink-2);
-  font: 600 12px/1 var(--font-sans);
+  width: 26px; height: 24px; border-radius: 6px; cursor: pointer;
+  border: 0; background: transparent; color: var(--ink-2);
+  font: 600 13px/1 var(--font-sans);
 }
+.sbf-sort-btn:hover { background: var(--bg-hov); }
 .sbf-sort-btn:hover, .sbf-sort-btn.is-on { color: var(--ink-0); border-color: var(--line-3); }
 .sbf-menu {
-  position: absolute; right: 0; top: 26px; z-index: 60; min-width: 168px; padding: 4px;
+  position: absolute; right: 0; top: 28px; z-index: 60; min-width: 168px; padding: 4px;
   background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
 }
@@ -92,7 +96,7 @@ body.sbf-resizing .app { transition: none !important; }
 .sbf-menu-item.is-on::before { content: '✓'; position: absolute; left: 8px; color: var(--ink-0); }
 
 /* ── Sections: Starred, Recent ───────────────────────────────────────────── */
-.sbf-section { margin-bottom: 4px; }
+.sbf-section { margin-bottom: 8px; }
 .sbf-section-head { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .sbf-section-chev { display: inline-block; width: 10px; font-size: 9px; color: var(--ink-3); transition: transform .12s ease; }
 .sbf-section-chev.is-open { transform: rotate(90deg); }
@@ -100,9 +104,53 @@ body.sbf-resizing .app { transition: none !important; }
 .sbf-star-cluster { gap: 8px; }
 
 /* ── Cluster rows ────────────────────────────────────────────────────────── */
-.sb-tree-row.is-files { height: 34px; gap: 8px; font-weight: 600; font-size: 12.5px; }
+.sb-tree-row.is-files { height: 36px; gap: 8px; color: var(--ink-0); font-weight: 600; font-size: 13px; }
+
+/* The name of every cluster you are scrolling through stays at the top, one
+   row per level from the first under the root (the root itself, always first,
+   would only take a row): so a shelf deep in a long list still says whose it
+   is. Each row sticks inside its own .sb-tree-node, and lets go when the
+   cluster has scrolled past. */
+.sb-tree-row.is-files[aria-level="2"],
+.sb-tree-row.is-files[aria-level="3"],
+.sb-tree-row.is-files[aria-level="4"] { position: sticky; }
+.sb-tree-row.is-files[aria-level="2"] { top: 0; z-index: 6; }
+.sb-tree-row.is-files[aria-level="3"] { top: 36px; z-index: 5; }
+.sb-tree-row.is-files[aria-level="4"] { top: 72px; z-index: 4; }
+/* While stuck (data-stuck, set by ClusterSidebar as the list scrolls) a row
+   hides what scrolls beneath it and marks the edge; at rest it is as clear as
+   any row. The active and selected washes are translucent, so they sit on
+   the opaque fill rather than replace it. */
+.sb-tree-row.is-files[data-stuck] { background: var(--bg-1); box-shadow: 0 1px 0 var(--line-1); }
+.sb-tree-row.is-files[data-stuck]:hover { background: var(--bg-hov); }
+.sb-tree-row.is-files[data-stuck]:is(.active, .is-selected, .is-drop-target) {
+  background: linear-gradient(var(--soleil-soft), var(--soleil-soft)) var(--bg-1);
+}
+[data-theme='light'] .sb-tree-row.is-files.active[data-stuck] {
+  background: linear-gradient(rgba(255,165,0,.18), rgba(255,165,0,.18)) var(--bg-1);
+}
+/* A scroll-edge fade would wash out the stuck names; the bottom one stays. */
+.sb-mid .sb-list.sbf-list.fade-top:not(.fade-bottom) { -webkit-mask-image: none; mask-image: none; }
+.sb-mid .sb-list.sbf-list.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
+}
+
+/* What's inside an open cluster hangs off a guide line under its chevron
+   (6px row padding + 7px to the chevron's middle, a level being 16px). The
+   path to the cluster you're in draws a step darker. */
+.sb-tree-children.has-rail { position: relative; }
+.sb-tree-children.has-rail::before {
+  content: ''; position: absolute; top: 0; bottom: 8px;
+  left: calc(13px + var(--d, 0) * 16px); width: 1px;
+  background: var(--line-2); pointer-events: none;
+}
+.sb-tree-node.is-path > .sb-tree-children.has-rail::before { background: var(--ink-4); }
+/* An open cluster leaves air after everything in it, before its next sibling. */
+.sb-tree-node.is-open { margin-bottom: 6px; }
+
 .sbf-thumb {
-  flex: 0 0 20px; width: 20px; height: 20px; border-radius: 5px; overflow: hidden;
+  flex: 0 0 22px; width: 22px; height: 22px; border-radius: 6px; overflow: hidden;
   background: var(--bg-3); display: grid; place-items: center;
 }
 .sbf-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -111,21 +159,48 @@ body.sbf-resizing .app { transition: none !important; }
   color: var(--ink-1); font: 700 10px/1 var(--font-sans);
 }
 .sbf-count {
-  margin-left: auto; padding-left: 6px; color: var(--ink-3); font-weight: 500; font-size: 11px;
+  margin-left: auto; padding-left: 6px; color: var(--ink-3); font-weight: 500; font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 
 /* ── A cluster's contents ────────────────────────────────────────────────── */
+/* The panel: a cluster's own files, indented under its name (the margin is
+   set inline from the depth). A tint of the ink, so it reads in both themes. */
+.sbf-panel {
+  margin: 2px 6px 8px 0; padding: 2px 4px 4px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--ink-0) 3.5%, transparent);
+  border: 1px solid color-mix(in oklab, var(--ink-0) 6%, transparent);
+}
+/* Folded to its one line, the panel is a quiet bar. */
+.sbf-panel.is-folded { padding: 0 4px; background: transparent; }
 .sbf-block { position: relative; }
 .sbf-block.is-windowed .sbf-slot { position: absolute; left: 0; right: 0; }
 
-.sbf-shelf {
-  box-sizing: border-box; height: 24px; display: flex; align-items: center; gap: 6px; padding-right: 8px;
-  color: var(--ink-3); font: 600 10px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase;
+/* "Feature film's files" — says whose files follow when sub-clusters sit
+   between the cluster's name and them. */
+.sbf-own {
+  box-sizing: border-box; width: 100%; height: 30px; display: flex; align-items: center; gap: 7px;
+  padding-right: 8px; border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+  color: var(--ink-1); font: 600 12px/1 var(--font-sans); text-align: left;
 }
-.sbf-shelf-count { color: var(--ink-4, var(--ink-3)); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.sbf-own:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-own:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-own-chev { display: inline-block; width: 10px; font-size: 10px; color: var(--ink-2); transition: transform .12s ease; }
+.sbf-own.is-open .sbf-own-chev { transform: rotate(90deg); }
+.sbf-own-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbf-own-count { color: var(--ink-3); font-weight: 500; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+/* A shelf's height carries the air above its label: that space is what
+   separates one shelf from the next. */
+.sbf-shelf {
+  box-sizing: border-box; height: 28px; display: flex; align-items: flex-end; gap: 6px;
+  padding-right: 4px; padding-bottom: 5px;
+  color: var(--ink-2); font: 600 11.5px/1 var(--font-sans);
+}
+.sbf-shelf-count { color: var(--ink-3); font-weight: 500; font-size: 11px; font-variant-numeric: tabular-nums; }
 .sbf-shelf-open {
-  margin-left: auto; width: 20px; height: 18px; padding: 0; border: 0; border-radius: 4px;
+  margin-left: auto; margin-bottom: -2px; width: 22px; height: 20px; padding: 0; border: 0; border-radius: 4px;
   background: transparent; color: var(--ink-3); cursor: pointer; opacity: 0; font-size: 12px;
 }
 .sbf-shelf:hover .sbf-shelf-open, .sbf-shelf-open:focus-visible { opacity: 1; }
@@ -150,9 +225,9 @@ body.sbf-resizing .app { transition: none !important; }
 }
 
 .sbf-file {
-  box-sizing: border-box; width: 100%; height: 26px; display: flex; align-items: center; gap: 8px;
-  padding: 0 10px 0 0; border: 0; border-radius: var(--radius-sm); background: transparent;
-  color: var(--ink-1); font: 400 12px/1 var(--font-sans); text-align: left; cursor: pointer;
+  box-sizing: border-box; width: 100%; height: 28px; display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 0; border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink-1); font: 400 12.5px/1 var(--font-sans); text-align: left; cursor: pointer;
 }
 .sbf-file:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sbf-file:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
@@ -167,7 +242,7 @@ body.sbf-resizing .app { transition: none !important; }
   flex-shrink: 1; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--ink-3); font-size: 11px;
 }
-.sbf-file-meta { flex-shrink: 0; color: var(--ink-3); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.sbf-file-meta { flex-shrink: 0; color: var(--ink-3); font-size: 11px; font-variant-numeric: tabular-nums; }
 .sbf-stored-dot {
   flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--ink-3);
   box-sizing: border-box;
@@ -175,19 +250,28 @@ body.sbf-resizing .app { transition: none !important; }
 .sbf-star-mark { flex-shrink: 0; color: var(--ink-2); font-size: 10px; }
 
 .sbf-more {
-  box-sizing: border-box; display: block; width: 100%; height: 26px; border: 0; background: transparent;
-  color: var(--ink-2); font: 500 11.5px/26px var(--font-sans); text-align: left; cursor: pointer;
+  box-sizing: border-box; height: 28px; display: flex; align-items: center; gap: 14px;
 }
-.sbf-more:hover { color: var(--ink-0); }
+.sbf-more-btn {
+  border: 0; padding: 4px 0; background: transparent; cursor: pointer;
+  color: var(--ink-2); font: 500 12px/1 var(--font-sans);
+}
+.sbf-more-btn:hover { color: var(--ink-0); text-decoration: underline; text-underline-offset: 3px; }
+.sbf-more-btn.is-less { color: var(--ink-3); }
 .sbf-fold {
-  box-sizing: border-box; height: 26px; display: flex; align-items: center; gap: 4px;
-  color: var(--ink-3); font: 500 11.5px/1 var(--font-sans);
+  box-sizing: border-box; height: 28px; display: flex; align-items: center; gap: 6px;
 }
-.sbf-fold-btn { border: 0; padding: 2px 0; background: transparent; color: var(--ink-2); font: inherit; cursor: pointer; }
-.sbf-fold-btn:hover, .sbf-fold-btn.is-open { color: var(--ink-0); }
+.sbf-fold-btn {
+  height: 22px; padding: 0 9px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-2); background: transparent; color: var(--ink-2);
+  font: 500 11.5px/20px var(--font-sans); white-space: nowrap;
+}
+.sbf-fold-btn:hover { color: var(--ink-0); border-color: var(--line-3); }
+.sbf-fold-btn.is-open { color: var(--ink-0); background: var(--bg-hov); }
+.sbf-fold-count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .sbf-note {
-  box-sizing: border-box; height: 26px; line-height: 26px; color: var(--ink-3);
-  font: 400 11.5px/26px var(--font-sans);
+  box-sizing: border-box; height: 28px; line-height: 28px; color: var(--ink-3);
+  font: 400 12px/28px var(--font-sans);
 }
 
 /* ── Foot: room used, and a way to add files ─────────────────────────────── */
@@ -217,16 +301,22 @@ body.sbf-resizing .app { transition: none !important; }
 /* ── Touch: the drawer, and coarse pointers anywhere ─────────────────────── */
 @media (hover: none) and (pointer: coarse) {
   .sb-tree-row.is-files { height: 44px; font-size: 14px; }
+  .sb-tree-row.is-files[aria-level="3"] { top: 44px; }
+  .sb-tree-row.is-files[aria-level="4"] { top: 88px; }
   .sbf-thumb { flex-basis: 26px; width: 26px; height: 26px; }
-  .sbf-shelf { height: 32px; }
+  .sbf-own { height: 44px; font-size: 14px; }
+  .sbf-shelf { height: 36px; font-size: 13px; padding-bottom: 7px; }
   .sbf-mosaic { height: 58px; gap: 5px; }
   .sbf-tile { flex-basis: 52px; width: 52px; height: 52px; }
   .sbf-file, .sbf-more, .sbf-fold, .sbf-note { height: 44px; font-size: 14px; }
-  .sbf-more, .sbf-note { line-height: 44px; }
+  .sbf-more-btn { font-size: 14px; padding: 12px 0; }
+  .sbf-fold-btn { height: 32px; padding: 0 12px; font-size: 13px; line-height: 30px; }
+  .sbf-note { line-height: 44px; }
   .sbf-file-thumb, .sbf-file-icon { flex-basis: 24px; width: 24px; height: 24px; }
   .sbf-chip { height: 30px; padding: 0 12px; font-size: 13px; line-height: 28px; }
-  .sbf-search { height: 36px; }
+  .sbf-search { height: 38px; }
   .sbf-search input { font-size: 16px; }   /* under 16px, iOS zooms the page on focus */
+  .sbf-sort-btn { width: 36px; height: 34px; }
   .sbf-shelf-open { opacity: 1; }
 }
 

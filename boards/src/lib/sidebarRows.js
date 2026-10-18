@@ -7,10 +7,17 @@
 // only that. Fixed heights are what make that cheap — a row never has to be
 // measured.
 
+// A shelf header's height includes the air above its label (it is what
+// separates one shelf from the next); `own` is the "Feature film's files" line
+// that opens a cluster's own files when sub-clusters sit above them.
 export const ROW_HEIGHTS = {
-  fine: { cluster: 34, shelf: 24, file: 26, mosaic: 46, fold: 26, more: 26, loading: 26, empty: 26 },
-  coarse: { cluster: 44, shelf: 32, file: 44, mosaic: 58, fold: 44, more: 44, loading: 44, empty: 44 },
+  fine: { cluster: 36, own: 30, shelf: 28, file: 28, mosaic: 46, fold: 28, more: 28, loading: 28, empty: 28 },
+  coarse: { cluster: 44, own: 44, shelf: 36, file: 44, mosaic: 58, fold: 44, more: 44, loading: 44, empty: 44 },
 };
+
+// One level of the tree, in px: cluster rows step in by it (SidebarBoardTree),
+// and a cluster's files panel sits one step past its name (ClusterShelves).
+export const INDENT = 16;
 
 // How much of a shelf shows before "N more": two lines of thumbnails, five rows.
 export const PEEK = { mosaicLines: 2, rows: 5 };
@@ -20,12 +27,17 @@ export function mosaicPerLine(widthPx, { thumb = 40, gap = 4, inset = 0 } = {}) 
 }
 
 // One cluster's contents as rows: its shelves (header, mosaic lines or file
-// rows, "+N more"), the folded Links · More line and any fold shelf opened
+// rows, "Show N more"), the folded Links · More line and any fold shelf opened
 // under it, or a single loading / empty row. `depth` is the indent the rows
 // take; `hasChildren` says whether sub-clusters sit above them (a cluster with
 // sub-clusters and nothing of its own is not "empty").
+//
+// `own` — { name, count, open } — heads the rows with the cluster's own-files
+// line. The sidebar passes it when sub-clusters sit between the cluster's name
+// and its files, so the files say whose they are; folded (`open: false`), that
+// line is all there is.
 export function contentRows(b, depth, {
-  contents, shelfState = () => ({}), perLine = 6, coarse = false, hasChildren = false,
+  contents, shelfState = () => ({}), perLine = 6, coarse = false, hasChildren = false, own = null,
 } = {}) {
   const heights = ROW_HEIGHTS[coarse ? 'coarse' : 'fine'];
   const rows = [];
@@ -38,12 +50,18 @@ export function contentRows(b, depth, {
     for (const item of shown) push('file', `f:${b}:${item.cardId}`, { shelfId: shelf.id, item });
     return shown.length;
   };
+  // Past the peek: "Show N more", and once a shelf is open, "Show less" too.
   const pushMore = (shelf, shown, st) => {
-    if (shelf.total > shown) {
-      push('more', `x:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total - shown, expanded: !!st.expanded });
+    const rest = Math.max(0, shelf.total - shown);
+    if (rest > 0 || st.expanded) {
+      push('more', `x:${b}:${shelf.id}`, { shelfId: shelf.id, count: rest, expanded: !!st.expanded });
     }
   };
 
+  if (own) {
+    push('own', `h:${b}`, { name: own.name || '', count: own.count || 0, open: !!own.open });
+    if (!own.open) return rows;
+  }
   const c = contents;
   const shelves = (c && c.shelves) || [];
   if (!c || (c.loading && !shelves.length)) {
