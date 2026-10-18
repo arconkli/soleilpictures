@@ -60,7 +60,8 @@ export function SidebarBoardsSection({
         <span className={`sb-boards-chev ${open ? 'is-open' : ''}`} aria-hidden="true">
           <Icon as={ChevronRight} size={11} />
         </span>
-        <span className="sb-boards-head-label">CLUSTERS</span>
+        {/* Capitalised by .sb-eyebrow; the files sidebar shows it as written. */}
+        <span className="sb-boards-head-label">Clusters</span>
         {count > 0 && <span className="sb-boards-count">{count}</span>}
         {onCreateBoard && (
           <button className="sb-boards-add"

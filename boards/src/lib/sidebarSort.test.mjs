@@ -51,7 +51,7 @@ test('groupItems by type', () => {
   const xs = [it('1', { shelf: 'writing', kind: 'note' }), it('2'), it('3', { shelf: 'writing', kind: 'note' })];
   const g = groupItems(xs, {});
   assert.deepEqual(g.map((s) => [s.id, s.label, s.layout, ids(s.items)]), [
-    ['photos', 'Photos', 'mosaic', ['2']], ['writing', 'Writing', 'rows', ['1', '3']],
+    ['photos', 'Photos', 'rows', ['2']], ['writing', 'Writing', 'rows', ['1', '3']],
   ]);
 });
 
@@ -66,8 +66,8 @@ test('groupItems by canvas, with ungrouped fallback', () => {
   ];
   const g = groupItems(xs, { groupBy: 'canvas' });
   assert.deepEqual(g.map((s) => [s.id, s.label, s.layout]), [
-    ['group:g1', 'alpha', 'rows'], ['group:g2', 'Beta', 'mosaic'], ['group:g3', 'Untitled group', 'mosaic'],
-    ['photos', 'Photos', 'mosaic'], ['links', 'Links', 'fold'],
+    ['group:g1', 'alpha', 'rows'], ['group:g2', 'Beta', 'rows'], ['group:g3', 'Untitled group', 'rows'],
+    ['photos', 'Photos', 'rows'], ['links', 'Links', 'fold'],
   ]);
   assert.deepEqual(ids(g[3].items), ['6']);
   assert.deepEqual(groupItems([it('1')], { groupBy: 'canvas' }).map((s) => s.id), ['photos']);

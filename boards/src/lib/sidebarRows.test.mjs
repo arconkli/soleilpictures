@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ROW_HEIGHTS, PEEK, mosaicPerLine, flattenTree, layoutRows, visibleRange, contentRows } from './sidebarRows.js';
+import { ROW_HEIGHTS, PEEK, flattenTree, layoutRows, visibleRange, contentRows } from './sidebarRows.js';
 
 const item = (b, n) => ({ key: `${b}:${n}`, boardId: b, cardId: String(n), kind: 'image', name: `n${n}` });
 const photos = (b, n, total = n) => ({
-  id: 'photos', label: 'Photos', layout: 'mosaic', items: Array.from({ length: n }, (_, i) => item(b, i)), total,
+  id: 'photos', label: 'Photos', layout: 'rows', items: Array.from({ length: n }, (_, i) => item(b, i)), total,
 });
 const rowsShelf = (b, id, n, total = n) => ({
   id, label: id, layout: 'rows', items: Array.from({ length: n }, (_, i) => item(b, `${id}${i}`)), total,
@@ -30,13 +30,7 @@ test('collapsed cluster is one row; heights follow coarse', () => {
   assert.deepEqual(types(r), ['cluster']);
   assert.equal(r[0].height, 36);
   assert.equal(build({ isExpanded: () => false, coarse: true })[0].height, 44);
-  assert.equal(ROW_HEIGHTS.fine.mosaic, 46);
-});
-
-test('mosaicPerLine', () => {
-  assert.equal(mosaicPerLine(300), Math.floor(304 / 44));
-  assert.equal(mosaicPerLine(10), 3);
-  assert.equal(mosaicPerLine(300, { inset: 40 }), Math.floor(264 / 44));
+  assert.equal(ROW_HEIGHTS.fine.file, 28);
 });
 
 test('loading and empty rows', () => {
@@ -48,25 +42,18 @@ test('loading and empty rows', () => {
   assert.equal(e[1].depth, 1);
 });
 
-test('12-photo mosaic at 5 per line peeks 2 lines then a more row', () => {
-  const r = build({ perLine: 5, contentsOf: () => ({ loading: false, shelves: [photos('A', 12)] }) });
-  assert.deepEqual(types(r), ['cluster', 'shelf', 'mosaic', 'mosaic', 'more']);
+test('photos list as rows, like everything else: 12 peek 5 then Show 7 more; open, all 12', () => {
+  const c = () => ({ loading: false, shelves: [photos('A', 12)] });
+  let r = build({ contentsOf: c });
+  assert.deepEqual(types(r), ['cluster', 'shelf', 'file', 'file', 'file', 'file', 'file', 'more']);
   assert.equal(r[1].count, 12);
-  assert.equal(r[2].items.length, 5);
-  assert.equal(r[4].count, 2);
-});
-
-test('mosaic with 20 photos: more counts the rest; expanded shows all lines', () => {
-  const c = () => ({ loading: false, shelves: [photos('A', 20)] });
-  let r = build({ contentsOf: c, perLine: 5 });
-  assert.deepEqual(types(r), ['cluster', 'shelf', 'mosaic', 'mosaic', 'more']);
-  assert.equal(r[4].count, 10);
-  assert.equal(r[4].expanded, false);
-  assert.equal(r[3].key, 'm:A:photos:1');
-  r = build({ contentsOf: c, perLine: 5, shelfState: () => ({ open: false, expanded: true }) });
-  assert.deepEqual(types(r), ['cluster', 'shelf', 'mosaic', 'mosaic', 'mosaic', 'mosaic', 'more']);
-  assert.equal(r[6].count, 0, 'all shown: the row only offers Show less');
-  assert.equal(r[6].expanded, true);
+  assert.equal(r[2].key, 'f:A:0');
+  assert.equal(r.at(-1).count, 7);
+  assert.equal(r.at(-1).expanded, false);
+  r = build({ contentsOf: c, shelfState: () => ({ open: false, expanded: true }) });
+  assert.equal(r.filter((x) => x.type === 'file').length, 12);
+  assert.equal(r.at(-1).count, 0, 'all shown: the row only offers Show less');
+  assert.equal(r.at(-1).expanded, true);
 });
 
 test('a search that only matched the cluster name shows no "nothing here" row', () => {
@@ -74,15 +61,9 @@ test('a search that only matched the cluster name shows no "nothing here" row', 
   assert.deepEqual(r, []);
 });
 
-test('12 photos at 6 per line fits the peek exactly: no more row', () => {
-  const r = build({ contentsOf: () => ({ loading: false, shelves: [photos('A', 12)] }) });
-  assert.deepEqual(types(r), ['cluster', 'shelf', 'mosaic', 'mosaic']);
-});
-
-test('12 photos at 4 per line: 3rd line hidden behind more(4)', () => {
-  const r = build({ perLine: 4, contentsOf: () => ({ loading: false, shelves: [photos('A', 12)] }) });
-  assert.deepEqual(types(r), ['cluster', 'shelf', 'mosaic', 'mosaic', 'more']);
-  assert.equal(r[4].count, 4);
+test('5 photos fit the peek exactly: no more row', () => {
+  const r = build({ contentsOf: () => ({ loading: false, shelves: [photos('A', 5)] }) });
+  assert.deepEqual(types(r), ['cluster', 'shelf', 'file', 'file', 'file', 'file', 'file']);
 });
 
 test('rows shelf peeks 5, server total drives more; expanded loads next page', () => {
@@ -160,14 +141,14 @@ test('visibleRange on a 5,000-row list: top, middle, end, empty', () => {
   assert.deepEqual(visibleRange(layoutRows([]), 0, 600), { start: 0, end: 0 });
 });
 
-test('the files list: minor shelves as plain shelves, and photo rows as tall as asked', () => {
+test('the files list: minor shelves as plain shelves, and rows as tall as asked', () => {
   const contents = { loading: false, shelves: [
-    { id: 'photos', label: 'Photos', layout: 'mosaic', total: 8, items: Array.from({ length: 8 }, (_, i) => ({ cardId: `p${i}` })) },
+    { id: 'photos', label: 'Photos', layout: 'rows', total: 3, items: Array.from({ length: 3 }, (_, i) => ({ cardId: `p${i}` })) },
     { id: 'links', label: 'Links', layout: 'fold', total: 2, items: [{ cardId: 'l1' }, { cardId: 'l2' }] },
   ] };
-  const rows = contentRows('B', 0, { contents, perLine: 4, foldMinor: false, heights: { mosaic: 80, file: 36 } });
-  assert.deepEqual(rows.map((r) => r.type), ['shelf', 'mosaic', 'mosaic', 'shelf', 'file', 'file']);
-  assert.equal(rows[1].height, 80);
-  assert.equal(rows[4].height, 36);
-  assert.deepEqual(contentRows('B', 0, { contents, perLine: 4 }).map((r) => r.type).slice(-1), ['fold'], 'folded by default');
+  const rows = contentRows('B', 0, { contents, foldMinor: false, heights: { file: 36 } });
+  assert.deepEqual(rows.map((r) => r.type), ['shelf', 'file', 'file', 'file', 'shelf', 'file', 'file']);
+  assert.equal(rows[1].height, 36);
+  assert.equal(rows[0].height, ROW_HEIGHTS.fine.shelf);
+  assert.deepEqual(contentRows('B', 0, { contents }).map((r) => r.type).slice(-1), ['fold'], 'folded by default');
 });

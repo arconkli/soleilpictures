@@ -10,32 +10,28 @@
 // A shelf header's height includes the air above its label (it is what
 // separates one shelf from the next).
 export const ROW_HEIGHTS = {
-  fine: { cluster: 36, shelf: 28, file: 28, mosaic: 46, fold: 28, more: 28, loading: 28, empty: 28 },
-  coarse: { cluster: 44, shelf: 36, file: 44, mosaic: 58, fold: 44, more: 44, loading: 44, empty: 44 },
+  fine: { cluster: 36, shelf: 28, file: 28, fold: 28, more: 28, loading: 28, empty: 28 },
+  coarse: { cluster: 44, shelf: 36, file: 44, fold: 44, more: 44, loading: 44, empty: 44 },
 };
 
 // One level of the tree, in px: cluster rows step in by it (SidebarBoardTree),
 // and a cluster's files panel sits one step past its name (ClusterShelves).
 export const INDENT = 16;
 
-// How much of a shelf shows before "N more": two lines of thumbnails, five rows.
-export const PEEK = { mosaicLines: 2, rows: 5 };
+// How much of a shelf shows before "Show N more": five rows.
+export const PEEK = { rows: 5 };
 
-export function mosaicPerLine(widthPx, { thumb = 40, gap = 4, inset = 0 } = {}) {
-  return Math.max(3, Math.floor((widthPx - inset + gap) / (thumb + gap)));
-}
-
-// One cluster's contents as rows: its shelves (header, mosaic lines or file
-// rows, "Show N more"), the folded Links · More line and any fold shelf opened
+// One cluster's contents as rows: its shelves (header, file rows, "Show N
+// more"), the folded Links · More line and any fold shelf opened
 // under it, or a single loading / empty row. `depth` is the indent the rows
 // take; `hasChildren` says whether sub-clusters sit above them (a cluster with
 // sub-clusters and nothing of its own is not "empty").
 //
-// `heights` overrides row heights by type (the files list sizes its photo rows
-// to its width); `foldMinor: false` lists Links and More as ordinary shelves
-// instead of folding them into one line.
+// `heights` overrides row heights by type (the files list's rows are roomier
+// than the tree's); `foldMinor: false` lists Links and More as ordinary
+// shelves instead of folding them into one line.
 export function contentRows(b, depth, {
-  contents, shelfState = () => ({}), perLine = 6, coarse = false, hasChildren = false,
+  contents, shelfState = () => ({}), coarse = false, hasChildren = false,
   heights: heightOverrides = null, foldMinor = true,
 } = {}) {
   const heights = { ...ROW_HEIGHTS[coarse ? 'coarse' : 'fine'], ...(heightOverrides || {}) };
@@ -75,19 +71,7 @@ export function contentRows(b, depth, {
     if (!(shelf.total > 0)) continue;
     const st = shelfState(b, shelf.id) || {};
     push('shelf', `s:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total, label: shelf.label });
-    let shown;
-    if (shelf.layout === 'mosaic') {
-      const items = shelf.items || [];
-      const lines = [];
-      for (let i = 0; i < items.length; i += perLine) lines.push(items.slice(i, i + perLine));
-      const showLines = st.expanded ? lines : lines.slice(0, PEEK.mosaicLines);
-      showLines.forEach((chunk, i) =>
-        push('mosaic', `m:${b}:${shelf.id}:${i}`, { shelfId: shelf.id, items: chunk, line: i }));
-      shown = showLines.reduce((n, l) => n + l.length, 0);
-    } else {
-      shown = pushItems(shelf, st);
-    }
-    pushMore(shelf, shown, st);
+    pushMore(shelf, pushItems(shelf, st), st);
   }
   if (folds.length) {
     push('fold', `o:${b}`, { parts: folds.map((s) => ({ shelfId: s.id, count: s.total, label: s.label })) });
@@ -102,7 +86,7 @@ export function contentRows(b, depth, {
 }
 
 export function flattenTree({
-  rootIds, childrenOf, isExpanded, contentsOf, shelfState, perLine = 6, coarse = false,
+  rootIds, childrenOf, isExpanded, contentsOf, shelfState, coarse = false,
 }) {
   const heights = ROW_HEIGHTS[coarse ? 'coarse' : 'fine'];
   const rows = [];
@@ -116,7 +100,7 @@ export function flattenTree({
     const kids = childrenOf(id) || [];
     for (const k of kids) walk(k, depth + 1);
     rows.push(...contentRows(id, depth + 1, {
-      contents: contentsOf(id), shelfState, perLine, coarse, hasChildren: kids.length > 0,
+      contents: contentsOf(id), shelfState, coarse, hasChildren: kids.length > 0,
     }));
   }
 

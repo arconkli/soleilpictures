@@ -1,13 +1,13 @@
 // The files of one cluster (or of Recent, or Starred), as the sidebar's files
-// section lists them: a section per kind — photos as a grid that fills the
-// width, everything else as rows — with "Show N more" and "Show less".
+// section lists them: a section per kind, one row per file with a small
+// thumbnail, and "Show N more" and "Show less". Photos too: the board is the
+// visual place, and the sidebar stays a calm list (owner, 2026-10-18).
 //
 // lib/sidebarRows.js turns the shelves into fixed-height rows; this draws them.
 // A short list renders whole (most clusters, and every peek). A long one — a
 // shelf expanded in place to thousands — renders only the rows near the
 // section's viewport, against a spacer as tall as the whole list, so it
-// scrolls the same either way. Photo rows are as tall as the tiles the width
-// allows, measured, so that arithmetic stays exact.
+// scrolls the same either way.
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
@@ -20,15 +20,12 @@ import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebar
 const WINDOW_AFTER = 80;
 // Rows start a little in from the list's edge, so a hover fill has room.
 const ROW_PAD = 6;
-// Row heights for the list (the photo row's comes from the measured width).
+// Row heights for the list, in step with clusterSidebar.css.
 const LIST_HEIGHTS = {
   fine: { shelf: 34, file: 36, more: 30, loading: 32, empty: 44, fold: 30 },
   coarse: { shelf: 40, file: 48, more: 44, loading: 44, empty: 52, fold: 44 },
 };
-const TILE_GAP = 6;
-// Photos are about this wide; the count per line follows from the width.
-const TILE_TARGET = { fine: 76, coarse: 88 };
-
+const EMPTY_NOTE = 'No files here yet. Drop some in, or press Upload.';
 
 function clock(sec) {
   const s = Math.round(Number(sec) || 0);
@@ -127,44 +124,11 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
   );
 }
 
-// One item as a tile: the photo mosaic's square, used by Recent too.
-export function SidebarTile({ item, depth = 0, starred = false, where = '', onClick, onOpen, selected = false, onDragStart = null, onMenu = null }) {
-  const src = thumbSrc(item);
-  const hold = useHoldForMenu(item, onMenu);
-  return (
-    <button type="button" ref={hold.ref}
-            className={`sbf-tile${item.unplaced ? ' is-stored' : ''}${starred ? ' is-starred' : ''}${selected ? ' is-selected' : ''}`}
-            aria-selected={selected || undefined}
-            draggable={!!onDragStart}
-            onDragStart={onDragStart ? (e) => onDragStart(item, e) : undefined}
-            role="treeitem" aria-level={depth + 1} aria-label={item.name}
-            title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
-            data-sb-item={item.key}
-            onClick={(e) => { if (!hold.swallow()) onClick?.(item, e); }}
-            onDoubleClick={() => onOpen?.(item)}
-            onPointerDown={hold.onPointerDown}
-            onContextMenu={onMenu ? (e) => { e.preventDefault(); if (!hold.heldNow()) onMenu(item, e.clientX, e.clientY); } : undefined}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); onOpen?.(item); }
-              if (onMenu && (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) {
-                e.preventDefault();
-                const r = e.currentTarget.getBoundingClientRect();
-                onMenu(item, r.left + 24, r.bottom);
-              }
-            }}>
-      {src
-        ? <R2Image src={src} alt="" />
-        : <span className="sbf-tile-glyph"><KindIcon kind={item.kind} size={14} /></span>}
-      {item.kind === 'video' && <span className="sbf-tile-play" aria-hidden="true">▶</span>}
-    </button>
-  );
-}
-
 // Rows of the windowed block are positioned by offset; rows of a short block
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
   const pad = { paddingLeft: ROW_PAD };
-  const { onItem, onItemOpen, onMore, onLess, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu, tileGap, tileSize } = ctx;
+  const { onItem, onItemOpen, onMore, onLess, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu, emptyNote } = ctx;
 
   if (row.type === 'shelf') {
     return (
@@ -178,18 +142,6 @@ function Row({ row, depth, ctx }) {
             ⤢
           </button>
         )}
-      </div>
-    );
-  }
-  if (row.type === 'mosaic') {
-    return (
-      <div className="sbf-mosaic" style={{ ...pad, gap: tileGap, '--sbf-tile': `${tileSize}px` }}>
-        {row.items.map((item) => (
-          <SidebarTile key={item.key} item={item} depth={depth} starred={starred(item)}
-                       selected={selected(item)} onDragStart={onDragItem}
-                       onMenu={onItemMenu ? (it, x, y) => onItemMenu(it, row, x, y) : null}
-                       onClick={(it, e) => onItem(it, row, e)} onOpen={onItemOpen} />
-        ))}
       </div>
     );
   }
@@ -235,7 +187,7 @@ function Row({ row, depth, ctx }) {
     return <div className="sbf-note" style={pad} aria-busy="true">Loading…</div>;
   }
   if (row.type === 'empty') {
-    return <div className="sbf-note is-empty" style={pad}>No files here yet. Drop some in, or press Upload.</div>;
+    return <div className="sbf-note is-empty" style={pad}>{emptyNote}</div>;
   }
   return null;
 }
@@ -271,37 +223,18 @@ function useWindow(scrollRef, blockRef, layout, active) {
   return range;
 }
 
+// `emptyNote` is what an empty list says (a cluster whose files are all in
+// its sub-clusters says so, rather than "no files here yet").
 export function ClusterShelves({
-  boardId, depth = 0, contents, hasChildren = false, coarse = false,
+  boardId, depth = 0, contents, coarse = false, emptyNote = EMPTY_NOTE,
   shelfState, onToggleShelf, onLoadMore, canLoadMore,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
   isSelected = null, onDragItem = null, onItemMenu = null,
 }) {
-  // The list's own width, measured: how many photos fit a line, and how tall
-  // that line is, follow from it.
-  const boxRef = useRef(null);
-  const [boxW, setBoxW] = useState(280);
-  useLayoutEffect(() => {
-    const el = boxRef.current;
-    if (!el) return undefined;
-    const read = () => { const w = Math.floor(el.getBoundingClientRect().width); if (w > 0) setBoxW(w); };
-    read();
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(read);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const inner = Math.max(120, boxW - ROW_PAD * 2);
-  const perLine = Math.max(3, Math.min(8, Math.round(inner / TILE_TARGET[coarse ? 'coarse' : 'fine'])));
-  const tileSize = Math.floor((inner - TILE_GAP * (perLine - 1)) / perLine);
-  const heights = useMemo(
-    () => ({ ...LIST_HEIGHTS[coarse ? 'coarse' : 'fine'], mosaic: tileSize + TILE_GAP }),
-    [coarse, tileSize],
-  );
   const rows = useMemo(() => contentRows(boardId, depth, {
-    contents, shelfState: (b, s) => shelfState?.(b, s) || {}, perLine, coarse, hasChildren,
-    heights, foldMinor: false,
-  }), [boardId, depth, contents, shelfState, perLine, coarse, hasChildren, heights]);
+    contents, shelfState: (b, s) => shelfState?.(b, s) || {}, coarse,
+    heights: LIST_HEIGHTS[coarse ? 'coarse' : 'fine'], foldMinor: false,
+  }), [boardId, depth, contents, shelfState, coarse]);
   const layout = useMemo(() => layoutRows(rows), [rows]);
   const windowed = rows.length > WINDOW_AFTER;
   const blockRef = useRef(null);
@@ -321,8 +254,7 @@ export function ClusterShelves({
       if (canLoadMore?.(boardId, row.shelfId)) onLoadMore?.(boardId, row.shelfId);
     },
     onLess: (row) => onToggleShelf?.(boardId, row.shelfId, 'expanded'),
-    tileGap: TILE_GAP,
-    tileSize,
+    emptyNote,
     onFold: (b, shelfId) => onToggleShelf?.(b, shelfId, 'open'),
     foldOpen: (b, shelfId) => !!shelfState?.(b, shelfId)?.open,
     onOpenShelf,
@@ -335,12 +267,11 @@ export function ClusterShelves({
     } : null,
   };
 
-  const box = (block) => <div className="sbf-listbox" ref={boxRef}>{block}</div>;
   if (!windowed) {
-    return box(
+    return (
       <div className="sbf-block" role="group">
         {rows.map((row) => <Row key={row.key} row={row} depth={row.depth} ctx={ctx} />)}
-      </div>,
+      </div>
     );
   }
   const shown = [];
@@ -351,7 +282,7 @@ export function ClusterShelves({
     }
     shown.sort((a, b) => a - b);
   }
-  return box(
+  return (
     <div className="sbf-block is-windowed" role="group" ref={blockRef}
          style={{ height: layout.total }}
          aria-rowcount={rows.length}
@@ -369,6 +300,6 @@ export function ClusterShelves({
           </div>
         );
       })}
-    </div>,
+    </div>
   );
 }

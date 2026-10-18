@@ -55,7 +55,7 @@ export function SidebarSharedBoards({
            onClick={() => setRoot(!exp.root)}
            role="button" tabIndex={0}>
         <span className={`sb-shared-chev ${exp.root ? 'is-open' : ''}`}>▸</span>
-        SHARED WITH ME · {shared.length}
+        Shared with me<span className="sb-shared-count"> · {shared.length}</span>
       </div>
       {exp.root && (
         <div className="sb-shared-body">

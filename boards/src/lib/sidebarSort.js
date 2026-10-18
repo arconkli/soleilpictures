@@ -82,10 +82,7 @@ export function groupItems(items, { groupBy = 'type' } = {}) {
     g.items.push(item);
   }
   const shelves = [...groups.values()]
-    .map((g) => ({
-      ...g,
-      layout: g.items.every((i) => i.shelf === 'photos') ? 'mosaic' : 'rows',
-    }))
+    .map((g) => ({ ...g, layout: 'rows' }))
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
   return [...shelves, ...byType(loose)];
 }

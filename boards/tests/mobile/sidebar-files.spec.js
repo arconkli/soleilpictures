@@ -20,23 +20,24 @@ test.describe('sidebar files on a phone', () => {
     const h = (sel) => page.locator(sel).first().evaluate((el) => Math.round(el.getBoundingClientRect().height));
     expect(await h('.sb-tree-row.is-files')).toBe(44);
     expect(await h('.sbf-files .sbf-file')).toBe(48);
-    // A line of photos is as tall as its tiles, plus the gap below them.
-    const tile = await h('.sbf-files .sbf-tile');
-    expect(await h('.sbf-files .sbf-mosaic')).toBe(tile + 6);
+    // Photos are rows like every other file: no grid of tiles.
+    const photo = page.locator('.sbf-files [data-sb-item^="film:film-img-"]').first();
+    expect(await photo.evaluate((el) => Math.round(el.getBoundingClientRect().height))).toBe(48);
+    await expect(page.locator('.sbf-files .sbf-tile, .sbf-files .sbf-mosaic')).toHaveCount(0);
     // The files come after the clusters, in the same scroll.
     const navBottom = await page.locator('.sbf-nav').evaluate((el) => el.getBoundingClientRect().bottom);
     const filesTop = await page.locator('.sbf-files').evaluate((el) => el.getBoundingClientRect().top);
     expect(filesTop).toBeGreaterThanOrEqual(navBottom - 1);
-    // Tiles stay inside the files: none overflows their right edge.
+    // Rows stay inside the files: none overflows their right edge.
     const right = await page.locator('.sbf-files').evaluate((el) => el.getBoundingClientRect().right);
-    const tileRights = await page.locator('.sbf-files .sbf-mosaic').first().locator('.sbf-tile')
-      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right));
-    for (const r of tileRights) expect(r).toBeLessThanOrEqual(right);
+    const rowRights = await page.locator('.sbf-files .sbf-file')
+      .evaluateAll((els) => els.slice(0, 8).map((el) => el.getBoundingClientRect().right));
+    for (const r of rowRights) expect(r).toBeLessThanOrEqual(right);
   });
 
   test('a tap opens Quick look', async ({ page }) => {
     await open(page);
-    await page.locator('.sbf-files .sbf-tile').first().tap();
+    await page.locator('.sbf-files [data-sb-item^="film:film-img-"]').first().tap();
     await expect(page.getByText(/1 of 30/)).toBeVisible();
   });
 

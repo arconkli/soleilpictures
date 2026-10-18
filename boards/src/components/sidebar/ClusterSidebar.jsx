@@ -24,8 +24,6 @@ import { createPortal } from 'react-dom';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { Icon } from '../Icon.jsx';
-import { R2Image } from '../R2Image.jsx';
-import { COVER_TINTS } from '../primitives.jsx';
 import { Search, X, Columns2, ArrowsOutSimple } from '../../lib/icons.js';
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
 import { ClusterShelves } from './ClusterShelves.jsx';
@@ -76,24 +74,6 @@ function ancestorsOf(boards, id) {
   return out;
 }
 
-// A cluster's own picture, small: its rendered thumbnail, or its cover tint
-// and initial before it has one. Neutral at rest; the row's active state (the
-// gold bar and fill) says which one you're in.
-function ClusterThumb({ board }) {
-  if (board?.thumb_key) {
-    return (
-      <span className="sbf-thumb">
-        <R2Image src={board.thumb_key} bust={board.thumb_updated_at || board.thumb_version || undefined} alt="" />
-      </span>
-    );
-  }
-  const tint = COVER_TINTS[board?.cover] || COVER_TINTS.neutral;
-  const initial = ((board?.name || '?').trim().charAt(0) || '?').toUpperCase();
-  return (
-    <span className="sbf-thumb is-empty" style={{ '--sbf-tint': tint }} aria-hidden="true">{initial}</span>
-  );
-}
-
 // Where to go, in one row of words: Home, Messages and Schedule (App's), then
 // Recent and Starred, which show their files in the section below. Words only,
 // no icons (the owner's call), with an unread count after the word.
@@ -103,73 +83,6 @@ function QuickBtn({ label, active = false, unread = 0, onClick }) {
       <span className="sbf-quick-label">{label}</span>
       {unread > 0 && <span className="sbf-quick-badge" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
     </button>
-  );
-}
-
-// The kinds of file a list holds, as one line of chips. Whatever doesn't fit
-// the line goes behind "More", so a cluster with every kind of file still
-// takes one line, not three.
-function ChipRow({ chips, counts, chip, setChip }) {
-  const rowRef = useRef(null);
-  const [hidden, setHidden] = useState([]);
-  const [open, setOpen] = useState(false);
-  const moreRef = useRef(null);
-  useDismissOnOutside(moreRef, open, () => setOpen(false));
-  const key = chips.map((c) => c.id).join(',');
-  useEffect(() => {
-    const row = rowRef.current;
-    if (!row) return undefined;
-    const measure = () => {
-      const top = row.getBoundingClientRect().top;
-      const out = [];
-      for (const el of row.querySelectorAll('[data-chip]')) {
-        if (el.getBoundingClientRect().top > top + 4) out.push(el.dataset.chip);
-      }
-      setHidden((h) => (h.join(',') === out.join(',') ? h : out));
-    };
-    measure();
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(measure);
-    ro.observe(row);
-    return () => ro.disconnect();
-  }, [key]);
-  const overflow = chips.filter((c) => hidden.includes(c.id));
-  const chipButton = (c, extra = {}) => (
-    <button type="button" key={c.id} data-chip={c.id}
-            className={`sbf-chip${chip === c.id ? ' is-on' : ''}`}
-            aria-pressed={chip === c.id}
-            onClick={() => { setChip(c.id === chip ? 'all' : c.id); setOpen(false); }}
-            {...extra}>
-      {c.label}
-      {(counts[c.id] || 0) > 0 && <span className="sbf-chip-count">{counts[c.id]}</span>}
-    </button>
-  );
-  return (
-    <div className="sbf-chipline">
-      <div className="sbf-chips" role="toolbar" aria-label="Show" ref={rowRef}>
-        {chips.map((c) => chipButton(c, hidden.includes(c.id) ? { tabIndex: -1, 'aria-hidden': 'true' } : {}))}
-      </div>
-      {overflow.length > 0 && (
-        <div className="sbf-chipmore" ref={moreRef}>
-          <button type="button" className={`sbf-chip${overflow.some((c) => c.id === chip) ? ' is-on' : ''}`}
-                  aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-            More ▾
-          </button>
-          {open && (
-            <div className="sbf-menu" role="menu">
-              {overflow.map((c) => (
-                <button type="button" key={c.id} role="menuitemradio" aria-checked={chip === c.id}
-                        className={`sbf-menu-item${chip === c.id ? ' is-on' : ''}`}
-                        onClick={() => { setChip(c.id === chip ? 'all' : c.id); setOpen(false); }}>
-                  {c.label}
-                  {(counts[c.id] || 0) > 0 && <span className="sbf-chip-count">{counts[c.id]}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -219,6 +132,7 @@ export function ClusterSidebar({
   const setPref = (k, v) => setPrefs((p) => { const next = { ...p, [k]: v }; writeJson(PREFS_KEY, next); return next; });
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const filterBtnRef = useRef(null);
   useDismissOnOutside(menuRef, menuOpen, () => setMenuOpen(false));
 
   const boardList = useMemo(
@@ -542,14 +456,13 @@ export function ClusterSidebar({
   };
 
   // ── The tree's hook-in ────────────────────────────────────────────────────
-  // Clusters only: a row's chevron is for its sub-clusters, its count is
-  // everything inside it, and it takes files dropped on it.
+  // Clusters only, each row its name: its chevron is for its sub-clusters, it
+  // shows an upload's progress, and it takes files dropped on it.
   const filesView = useMemo(() => ({
     isExpanded: (id) => isExpanded(expand, id),
     toggle: (id) => dispatch({ type: 'toggle', id }),
     hasContents: () => false,
     isHidden: () => false,
-    countOf: (id) => files.totalOf(id),
     statusOf: (id) => {
       const n = uploadsByBoard?.[id] || 0;
       return n > 0 ? `↑ ${n}` : null;
@@ -564,7 +477,6 @@ export function ClusterSidebar({
         run: () => onSetOpensAs(board.id, board.view === 'list' ? 'canvas' : 'list'),
       }] : []),
     ],
-    renderThumb: (board) => <ClusterThumb board={board} />,
   }), [expand, files, uploadsByBoard, dropEffect, onDropOnCluster, onSetOpensAs]);
 
   // ↑/↓ walk the rows of whichever part has focus (the clusters, or the
@@ -596,7 +508,6 @@ export function ClusterSidebar({
   const nameOf = (id) => allBoards?.[id]?.name || 'a cluster';
 
   // ── The files section's subject ───────────────────────────────────────────
-  const starCount = files.starred.clusters.length + files.starred.items.length;
   const shownBoard = view === 'cluster' ? allBoards?.[shownId] : null;
   const listItems = view === 'recent' ? files.recent : view === 'starred' ? files.starred.items : null;
   // Recent and Starred are short lists already in hand: filtered here. A
@@ -622,8 +533,9 @@ export function ClusterSidebar({
     return out;
   }, [view, shownId, files, listItems]);
   const chips = FILTER_CHIPS.filter((c) => c.id === 'all' || chip === c.id || (chipCounts[c.id] || 0) > 0);
-  // A cluster's own sub-clusters, as tiles above its files (Starred shows the
-  // starred clusters the same way).
+  // A cluster's own sub-clusters: the tree lists them, so here they only change
+  // what an empty list says. In Starred, the starred clusters, listed by name
+  // above the starred files.
   const subs = useMemo(() => {
     if (view === 'starred') return files.starred.clusters.map((c) => ({ id: c.boardId, board: allBoards?.[c.boardId], name: c.name }));
     if (view !== 'cluster') return [];
@@ -632,18 +544,12 @@ export function ClusterSidebar({
       .sort((x, y) => (x.name || '').localeCompare(y.name || ''))
       .map((b) => ({ id: b.id, board: b, name: b.name || 'Untitled' }));
   }, [view, shownId, allBoards, files.starred]);
-  const showSubs = subs.length > 0 && chip === 'all' && !query.trim();
-  const parentName = shownBoard?.parent_board_id ? allBoards?.[shownBoard.parent_board_id]?.name : null;
+  const starredClusters = view === 'starred' && chip === 'all' && !query.trim() ? subs : [];
   const title = view === 'recent' ? 'Recent' : view === 'starred' ? 'Starred' : (shownBoard?.name || 'Untitled');
-  const subtitle = view === 'recent'
-    ? 'Added lately, across your clusters'
-    : view === 'starred'
-      ? (starCount ? `${starCount} starred` : 'Nothing starred yet')
-      : [
-        `${chipCounts.all} ${chipCounts.all === 1 ? 'file' : 'files'}`,
-        subs.length ? `${subs.length} ${subs.length === 1 ? 'cluster' : 'clusters'}` : null,
-        parentName ? `in ${parentName}` : null,
-      ].filter(Boolean).join(' · ');
+  const emptyNote = view === 'cluster' && subs.length ? `Nothing in ${title} itself — open one of its clusters.` : undefined;
+  // The one control above the files: what they show, and in its menu the sort
+  // and the grouping too (it replaced a row of chips and a ⇅ button).
+  const chipLabel = chip === 'all' ? 'All files' : (FILTER_CHIPS.find((c) => c.id === chip)?.label || 'All files');
   const nothing = !contents.loading && !(contents.shelves || []).some((sh) => sh.total > 0 || sh.items?.length);
   const filesListRef = useRef(null);
   // What scrolls the files, for a long list's windowing: their own list, or
@@ -710,11 +616,7 @@ export function ClusterSidebar({
 
       <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}>
         <header className="sbf-files-head">
-          {view === 'cluster' && <ClusterThumb board={shownBoard} />}
-          <div className="sbf-files-title">
-            <span className="sbf-files-name" title={title}>{title}</span>
-            <span className="sbf-files-sub">{subtitle}</span>
-          </div>
+          <span className="sbf-files-name" title={title}>{title}</span>
           {view !== 'cluster' && (
             <button type="button" className="sbf-iconbtn" aria-label="Back to the cluster’s files" title="Back to the cluster’s files"
                     onClick={() => setShown(null)}>
@@ -722,7 +624,7 @@ export function ClusterSidebar({
             </button>
           )}
           {!coarse && onSetWidth && (
-            <button type="button" className={`sbf-iconbtn${wide ? ' is-on' : ''}`}
+            <button type="button" className={`sbf-iconbtn is-reveal${wide ? ' is-on' : ''}`}
                     aria-label={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
                     title={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
                     aria-pressed={wide}
@@ -742,7 +644,7 @@ export function ClusterSidebar({
           <div className="sbf-search">
             <Icon as={Search} size={13} />
             <input type="search" value={query}
-                   placeholder={`Search ${view === 'cluster' ? title : title.toLowerCase()}`}
+                   placeholder="Search"
                    aria-label={`Search ${title}`}
                    onChange={(e) => setQuery(e.target.value)}
                    onKeyDown={(e) => {
@@ -753,14 +655,32 @@ export function ClusterSidebar({
             {query && (
               <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} /></button>
             )}
-            <div className="sbf-sort" ref={menuRef}>
-              <button type="button" className={`sbf-sort-btn${menuOpen ? ' is-on' : ''}`}
+            <div className="sbf-filter" ref={menuRef}
+                 onKeyDown={(e) => {
+                   if (e.key !== 'Escape' || !menuOpen) return;
+                   e.preventDefault();
+                   e.stopPropagation();
+                   setMenuOpen(false);
+                   filterBtnRef.current?.focus();
+                 }}>
+              <button type="button" ref={filterBtnRef}
+                      className={`sbf-filter-btn${chip !== 'all' ? ' is-on' : ''}${menuOpen ? ' is-open' : ''}`}
                       aria-haspopup="menu" aria-expanded={menuOpen}
-                      aria-label="Sort and group"
-                      title={`Sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
-                      onClick={() => setMenuOpen((o) => !o)}>⇅</button>
+                      title={`Showing ${chipLabel.toLowerCase()} · sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
+                      onClick={() => setMenuOpen((o) => !o)}>
+                {chipLabel}<span className="sbf-filter-caret" aria-hidden="true">▾</span>
+              </button>
               {menuOpen && (
                 <div className="sbf-menu" role="menu">
+                  <div className="sbf-menu-label">Show</div>
+                  {chips.map((c) => (
+                    <button type="button" key={c.id} role="menuitemradio" aria-checked={chip === c.id}
+                            className={`sbf-menu-item${chip === c.id ? ' is-on' : ''}`}
+                            onClick={() => { setChip(c.id); setMenuOpen(false); }}>
+                      {c.id === 'all' ? 'All files' : c.label}
+                      {(chipCounts[c.id] || 0) > 0 && <span className="sbf-menu-count">{chipCounts[c.id]}</span>}
+                    </button>
+                  ))}
                   <div className="sbf-menu-label">Sort</div>
                   {SORTS.map((so) => (
                     <button type="button" key={so} role="menuitemradio" aria-checked={prefs.sort === so}
@@ -781,37 +701,38 @@ export function ClusterSidebar({
               )}
             </div>
           </div>
-          {chips.length > 1 && (
-            <ChipRow chips={chips} counts={chipCounts} chip={chip} setChip={setChip} />
-          )}
         </div>
 
         <div className="sbf-files-list" ref={filesListRef} onKeyDown={onListKeyDown}>
-          {showSubs && (
-            <div className="sbf-subs" role="group" aria-label="Clusters">
-              {subs.map((c) => (
-                <button type="button" key={c.id} className="sbf-sub" onClick={() => onOpenBoard?.(c.id)}
+          {starredClusters.length > 0 && (
+            <div className="sbf-block" role="group" aria-label="Starred clusters">
+              <div className="sbf-shelf sbf-starred-head">
+                <span className="sbf-shelf-label">Clusters</span>
+                <span className="sbf-shelf-count">{starredClusters.length}</span>
+              </div>
+              {starredClusters.map((c) => (
+                <button type="button" key={c.id} className="sbf-file sbf-cluster-link" onClick={() => onOpenBoard?.(c.id)}
                         title={`Open ${c.name}`}>
-                  <ClusterThumb board={c.board} />
-                  <span className="sbf-sub-name">{c.name}</span>
-                  <span className="sbf-sub-count">{files.totalOf(c.id) || ''}</span>
+                  <span className="sbf-file-name">{c.name}</span>
                 </button>
               ))}
             </div>
           )}
           {nothing && view !== 'cluster' ? (
-            <div className="sbf-files-empty">
-              {query.trim() ? `Nothing in ${title.toLowerCase()} matches “${query.trim()}”. Press Enter to search everywhere.`
-                : view === 'recent' ? 'Nothing added lately.'
-                  : (showSubs ? '' : 'Star a file or a cluster from its menu and it stays here.')}
-            </div>
+            starredClusters.length > 0 ? null : (
+              <div className="sbf-files-empty">
+                {query.trim() ? `Nothing in ${title.toLowerCase()} matches “${query.trim()}”. Press Enter to search everywhere.`
+                  : view === 'recent' ? 'Nothing added lately.'
+                    : 'Star a file or a cluster from its menu and it stays here.'}
+              </div>
+            )
           ) : nothing && query.trim() ? (
             <div className="sbf-files-empty">Nothing in {title} matches “{query.trim()}”. Press Enter to search everywhere.</div>
           ) : (
             <ClusterShelves
               boardId={view === 'cluster' ? shownId : view}
               contents={contents}
-              hasChildren={showSubs}
+              emptyNote={emptyNote}
               coarse={coarse}
               shelfState={shelfState} onToggleShelf={onToggleShelf}
               onLoadMore={files.loadMore} canLoadMore={view === 'cluster' ? files.canLoadMore : () => false}

@@ -36,7 +36,7 @@ test('the SQL twin puts every kind on the same shelf as the client', () => {
 
 test('shelves come in the order people look for them', () => {
   assert.deepEqual(SHELF_IDS, ['photos', 'video', 'audio', 'files', 'writing', 'links', 'more']);
-  assert.equal(shelfById('photos').layout, 'mosaic');
+  assert.equal(shelfById('photos').layout, 'rows', 'photos list like everything else: no mosaic');
   assert.equal(shelfById('links').layout, 'fold');
   assert.equal(shelfById('nope'), null);
 });

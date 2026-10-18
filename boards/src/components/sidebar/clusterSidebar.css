@@ -63,8 +63,12 @@ body.sbf-resizing .app { transition: none !important; }
 
 /* Rows read at 13px here, the nav rows above the clusters included. */
 .app.sb-files .sb-mid .sb-row { font-size: 13px; }
-/* Quieter section labels: the clusters are the point, not their headings. */
-.app.sb-files .sb-mid .sb-eyebrow { letter-spacing: 0.1em; font-size: 10.5px; padding-top: 10px; }
+/* Quiet section labels: a word as written ("Clusters"), no tracking, no
+   count. .sb-eyebrow capitalises them everywhere else. */
+.app.sb-files .sb-mid .sb-eyebrow,
+.app.sb-files .sb-mid .sb-eyebrow span { text-transform: none; letter-spacing: 0; }
+.app.sb-files .sb-mid .sb-eyebrow { font: 600 12px/1.4 var(--font-sans); color: var(--ink-2); padding-top: 10px; }
+.app.sb-files .sb-boards-count, .app.sb-files .sb-tags-head-count, .app.sb-files .sb-shared-count { display: none; }
 
 /* The clusters. Narrow, they get as much height as they need up to about two
    fifths of the sidebar (the divider changes that); wide, all of it. */
@@ -99,22 +103,9 @@ body.sbf-resizing .app { transition: none !important; }
 .app.sb-files .cbt-shrink { border-color: var(--line-2); background: var(--bg-3); color: var(--ink-1); }
 .app.sb-files .cbt-shrink:hover { border-color: var(--line-3); color: var(--ink-0); }
 
-/* Cluster rows: one line each, a cover, a name, everything-inside count. */
+/* Cluster rows: one line each, the name alone (and an upload's ↑ 3). */
 .sb-tree-row.is-files { height: 30px; gap: 6px; font-size: 13px; font-weight: 500; color: var(--ink-1); }
 .sb-tree-row.is-files.active { color: var(--ink-0); font-weight: 600; }
-.sbf-thumb {
-  flex: 0 0 16px; width: 16px; height: 16px; border-radius: 4px; overflow: hidden;
-  background: var(--bg-3); display: grid; place-items: center;
-}
-.sbf-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sbf-thumb.is-empty {
-  background: color-mix(in oklab, var(--sbf-tint, var(--bg-3)) 38%, var(--bg-2));
-  color: var(--ink-1); font: 700 9px/1 var(--font-sans);
-}
-.sbf-count {
-  margin-left: auto; padding-left: 6px; color: var(--ink-3); font-weight: 500; font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
 .sbf-status { margin-left: auto; padding-left: 6px; color: var(--ink-2); font-weight: 500; font-size: 11.5px; white-space: nowrap; }
 .sb-tree-row.is-files.is-drop-target { box-shadow: inset 0 0 0 1.5px var(--soleil); }
 
@@ -136,18 +127,19 @@ body.sbf-resizing .app { transition: none !important; }
 }
 .sbf-files.is-dropping { box-shadow: inset 0 0 0 2px var(--soleil); }
 
-.sbf-files-head { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 6px 4px 14px; }
-.app.sb-files .sidebar.is-wide .sbf-files-head { min-height: 56px; padding-top: 10px; }
-.sbf-files-head .sbf-thumb { flex-basis: 24px; width: 24px; height: 24px; border-radius: 6px; font-size: 10.5px; }
-.sbf-files-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+/* The files' header: the cluster's name, and ⤢ to the full Files page. The
+   split toggle shows when you reach for the header, and stays put while the
+   sidebar is wide, where it is the way back. */
+.sbf-files-head { display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 6px 2px 14px; }
+.app.sb-files .sidebar.is-wide .sbf-files-head { min-height: 46px; padding-top: 10px; }
 .sbf-files-name {
-  color: var(--ink-0); font: 600 14px/1.15 var(--font-sans);
+  flex: 1; min-width: 0; color: var(--ink-0); font: 600 14px/1.15 var(--font-sans);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sbf-files-sub {
-  color: var(--ink-3); font: 400 12px/1.2 var(--font-sans);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.sbf-files-head .sbf-iconbtn.is-reveal { opacity: 0; transition: opacity .12s ease; }
+.sbf-files-head:hover .sbf-iconbtn.is-reveal,
+.sbf-files-head:focus-within .sbf-iconbtn.is-reveal,
+.sbf-files-head .sbf-iconbtn.is-reveal.is-on { opacity: 1; }
 .sbf-iconbtn {
   flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px;
   background: transparent; color: var(--ink-2); display: grid; place-items: center; cursor: pointer;
@@ -155,7 +147,7 @@ body.sbf-resizing .app { transition: none !important; }
 .sbf-iconbtn:hover, .sbf-iconbtn.is-on { background: var(--bg-hov); color: var(--ink-0); }
 .sbf-iconbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 
-.sbf-files-tools { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 8px; }
+.sbf-files-tools { padding: 2px 10px 8px; }
 .sbf-search {
   display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 3px 0 9px;
   border-radius: var(--radius-md); background: var(--bg-2); border: 1px solid var(--line-1);
@@ -175,37 +167,24 @@ body.sbf-resizing .app { transition: none !important; }
 }
 .sbf-search-clear:hover { color: var(--ink-0); }
 
-/* One line of chips: the row wraps but shows only its first line, and what
-   fell to the next goes behind "More" (ClusterSidebar's ChipRow). */
-.sbf-chipline { display: flex; align-items: flex-start; gap: 5px; min-width: 0; }
-.sbf-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 5px; height: 24px; overflow: hidden; }
-.sbf-chipmore { position: relative; flex-shrink: 0; }
-.sbf-chip {
-  flex-shrink: 0; height: 24px; padding: 0 9px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line-2); background: transparent; color: var(--ink-1);
-  font: 500 12px/22px var(--font-sans); white-space: nowrap;
+/* What the list shows ("All files ▾"), with the sort and the grouping in its
+   menu. A filter other than All is a choice in force: the active fill. */
+.sbf-filter { position: relative; flex-shrink: 0; }
+.sbf-filter-btn {
+  display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 7px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer;
+  font: 500 12px/1 var(--font-sans); white-space: nowrap;
 }
-.sbf-chip:hover { color: var(--ink-0); border-color: var(--line-3); }
-.sbf-chip.is-on { background: var(--soleil-soft); border-color: var(--soleil); color: var(--ink-0); }
-.sbf-chip-count { margin-left: 5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.sbf-chip:focus-visible, .sbf-sort-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
-
-.sbf-sort { position: relative; flex-shrink: 0; }
-.sbf-sort-btn {
-  width: 26px; height: 24px; border-radius: 6px; cursor: pointer;
-  border: 0; background: transparent; color: var(--ink-2);
-  font: 600 13px/1 var(--font-sans);
-}
-.sbf-sort-btn:hover, .sbf-sort-btn.is-on { color: var(--ink-0); background: var(--bg-hov); }
+.sbf-filter-btn:hover, .sbf-filter-btn.is-open { color: var(--ink-0); background: var(--bg-hov); }
+.sbf-filter-btn.is-on { color: var(--ink-0); background: var(--soleil-soft); }
+.sbf-filter-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.sbf-filter-caret { color: var(--ink-3); font-size: 10px; }
 .sbf-menu {
   position: absolute; right: 0; top: 28px; z-index: 60; min-width: 168px; padding: 4px;
   background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
 }
-.sbf-menu-label {
-  padding: 6px 8px 3px; color: var(--ink-3);
-  font: 600 10px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase;
-}
+.sbf-menu-label { padding: 8px 8px 4px; color: var(--ink-3); font: 600 11px/1 var(--font-sans); }
 .sbf-menu-item {
   display: flex; align-items: center; gap: 8px; width: 100%; height: 26px; padding: 0 8px 0 24px;
   position: relative; border: 0; border-radius: var(--radius-sm); background: transparent;
@@ -213,25 +192,14 @@ body.sbf-resizing .app { transition: none !important; }
 }
 .sbf-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sbf-menu-item.is-on::before { content: '✓'; position: absolute; left: 8px; color: var(--ink-0); }
+.sbf-menu-count { margin-left: auto; padding-left: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
 .sbf-files-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 8px 14px; }
 .sbf-files-empty { padding: 14px 6px; color: var(--ink-3); font: 400 12.5px/1.5 var(--font-sans); }
 
-/* A cluster's sub-clusters, as tiles above its files. */
-.sbf-subs {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px;
-  padding: 2px 0 4px;
-}
-.sbf-sub {
-  min-width: 0; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px;
-  border: 1px solid var(--line-1); border-radius: 9px; background: var(--bg-2);
-  color: var(--ink-0); font: 500 12.5px/1 var(--font-sans); text-align: left; cursor: pointer;
-}
-.sbf-sub:hover { border-color: var(--line-3); background: var(--bg-hov); }
-.sbf-sub:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
-.sbf-sub .sbf-thumb { flex-basis: 20px; width: 20px; height: 20px; border-radius: 5px; }
-.sbf-sub-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sbf-sub-count { color: var(--ink-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+/* Starred clusters, by name, above the starred files. */
+.sbf-starred-head { padding-left: 6px; }
+.sbf-file.sbf-cluster-link { padding-left: 6px; }
 
 /* A section per kind of file. */
 .sbf-block { position: relative; }
@@ -249,29 +217,7 @@ body.sbf-resizing .app { transition: none !important; }
 .sbf-shelf:hover .sbf-shelf-open, .sbf-shelf-open:focus-visible { opacity: 1; }
 .sbf-shelf-open:hover { color: var(--ink-0); background: var(--bg-hov); }
 
-/* Photos: a grid whose tiles fill the width (ClusterShelves sets --sbf-tile). */
-.sbf-mosaic {
-  box-sizing: border-box; height: calc(var(--sbf-tile, 64px) + 6px);
-  display: flex; align-items: flex-start;
-}
-.sbf-tile {
-  position: relative; flex: 0 0 var(--sbf-tile, 64px); width: var(--sbf-tile, 64px); height: var(--sbf-tile, 64px);
-  padding: 0; overflow: hidden; border-radius: 7px; border: 0; background: var(--bg-2); cursor: pointer;
-}
-.sbf-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sbf-tile:hover { box-shadow: 0 0 0 2px var(--line-3); }
-.sbf-tile:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
-.sbf-tile-glyph { display: grid; place-items: center; width: 100%; height: 100%; color: var(--ink-2); }
-.sbf-tile-play {
-  position: absolute; left: 4px; bottom: 4px; width: 16px; height: 16px; border-radius: 50%;
-  display: grid; place-items: center; background: rgba(0,0,0,.55); color: #fff; font-size: 8px;
-}
-.sbf-tile.is-stored::after {
-  content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%;
-  border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35);
-}
-
-/* Everything else: one row each. */
+/* One row per file, a small thumbnail (or its kind's mark) beside its name. */
 .sbf-file {
   box-sizing: border-box; width: 100%; height: 36px; display: flex; align-items: center; gap: 10px;
   padding: 0 8px 0 0; border: 0; border-radius: 8px; background: transparent;
@@ -317,33 +263,31 @@ body.sbf-resizing .app { transition: none !important; }
 }
 .sbf-note.is-empty { height: 44px; display: flex; align-items: center; line-height: 1.4; }
 
-/* ── Foot: room used, and a way to add files ─────────────────────────────── */
+/* ── Foot: room used, on one line, and a way to add files ────────────────── */
 .sbf-meter {
-  flex-shrink: 0; display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px 6px; border-top: 1px solid var(--line-1);
+  flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 10px 9px 12px; border-top: 1px solid var(--line-1);
 }
-.sbf-meter-bars {
-  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px;
-  padding: 2px; border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer; text-align: left;
+.sbf-meter-line { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.sbf-meter-text {
+  flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left;
+  color: var(--ink-2); font: 400 11.5px/1.3 var(--font-sans); font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.sbf-meter-bars:hover { background: var(--bg-hov); }
-.sbf-meter-text { display: flex; justify-content: space-between; gap: 6px; font: 400 10.5px/1.2 var(--font-sans); }
-.sbf-meter-label { color: var(--ink-3); }
-.sbf-meter-value { color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sbf-meter-track { height: 4px; border-radius: 999px; background: var(--line-1); overflow: hidden; margin-top: 3px; }
+.sbf-meter-text:hover { color: var(--ink-0); }
+.sbf-meter-text:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 3px; }
+.sbf-meter-track { height: 2px; border-radius: 999px; background: var(--line-1); overflow: hidden; }
 .sbf-meter-fill { height: 100%; border-radius: 999px; background: var(--ink-2); transition: width .3s ease; }
 .sbf-meter-fill.is-near { background: #ef4444; }
 .sbf-upload {
-  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
-  border-radius: var(--radius-md); border: 1px solid var(--line-2); background: var(--bg-2);
-  color: var(--ink-0); font: 500 12px/1 var(--font-sans); cursor: pointer;
+  flex-shrink: 0; margin-left: auto; height: 24px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--ink-1); font: 500 12px/1 var(--font-sans); cursor: pointer;
 }
-.sbf-upload:hover { background: var(--bg-hov); border-color: var(--line-3); }
+.sbf-upload:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sbf-upload:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 
 /* ── Selection (⌘/⇧-click) and the bar that acts on it ───────────────────── */
 .sbf-file.is-selected { background: var(--soleil-soft); }
-.sbf-tile.is-selected { box-shadow: 0 0 0 2px var(--soleil); }
 .sbf-bulk {
   flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 8px 10px;
   border-top: 1px solid var(--line-1); background: var(--bg-1);
@@ -360,18 +304,14 @@ body.sbf-resizing .app { transition: none !important; }
 /* ── Touch: the drawer, and coarse pointers anywhere ─────────────────────── */
 @media (hover: none) and (pointer: coarse) {
   .sb-tree-row.is-files { height: 44px; font-size: 15px; }
-  .sbf-thumb { flex-basis: 22px; width: 22px; height: 22px; }
   .sbf-quickbtn { height: 44px; font-size: 13px; padding: 0 4px; }
   @container (max-width: 299px) { .sbf-quickbtn { min-width: 30%; } }
-  .sbf-files-head .sbf-thumb { flex-basis: 28px; width: 28px; height: 28px; }
   .sbf-files-name { font-size: 16px; }
   .sbf-iconbtn { width: 40px; height: 40px; }
   .sbf-search { height: 38px; }
   .sbf-search input { font-size: 16px; }   /* under 16px, iOS zooms the page on focus */
-  .sbf-sort-btn { width: 36px; height: 34px; }
-  .sbf-chip { height: 32px; padding: 0 12px; font-size: 13px; line-height: 30px; }
-  .sbf-chips { height: 32px; }
-  .sbf-sub { height: 48px; font-size: 14px; }
+  .sbf-filter-btn { height: 34px; padding: 0 10px; font-size: 14px; }
+  .sbf-menu-item { height: 40px; font-size: 14px; }
   .sbf-shelf { height: 40px; font-size: 13.5px; padding-bottom: 9px; }
   .sbf-file { height: 48px; font-size: 15px; }
   .sbf-file-thumb, .sbf-file-icon { flex-basis: 30px; width: 30px; height: 30px; }
@@ -383,6 +323,8 @@ body.sbf-resizing .app { transition: none !important; }
   .sbf-shelf-open { opacity: 1; }
   .sbf-divider { height: 18px; }
   .sbf-bulk-btn { height: 36px; padding: 0 12px; font-size: 13px; }
+  .sbf-meter-text { font-size: 13px; }
+  .sbf-upload { height: 36px; padding: 0 12px; font-size: 14px; }
 }
 
 /* ── The phone drawer: one scroll for everything ─────────────────────────── */

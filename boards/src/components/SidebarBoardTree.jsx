@@ -64,10 +64,11 @@ export function SidebarBoardTree({
   onJumpToPeer,
   // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx,
   // behind sidebarFilesAllowed). When set it owns unfolding ("follow me"),
-  // draws each row's cover and count, hides rows a search or filter rules
+  // draws each row as its name alone (no cover, no count: the owner's call,
+  // 2026-10-18) plus an upload's progress, hides rows a search or filter rules
   // out, and renders an unfolded cluster's shelves after its sub-clusters:
   //   { isExpanded(id), toggle(id), hasContents(id), isHidden(id),
-  //     countOf(id), renderThumb(board, isActive), renderContents(board, depth, hasChildren),
+  //     statusOf(id) → '↑ 3' | null, renderContents(board, depth, hasChildren),
   //     dropEffect(event, boardId) → 'move' | 'copy' | null, onDrop(boardId, event),
   //     menuItems(board, canEdit) → extra row-menu items }
   // dropEffect says whether a drag of FILES (not clusters) may land on a row;
@@ -553,9 +554,7 @@ export function SidebarBoardTree({
                   aria-hidden="true">
             {isOpen ? '▾' : '▸'}
           </button>
-          {filesView
-            ? filesView.renderThumb(board, isActive)
-            : <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />}
+          {!filesView && <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />}
           {isRenaming ? (
             <input ref={renameInputRef}
                    className="sb-tree-rename-input"
@@ -573,9 +572,7 @@ export function SidebarBoardTree({
           )}
           {filesView && !isRenaming && (() => {
             const status = filesView.statusOf?.(board.id);
-            if (status) return <span className="sbf-status">{status}</span>;
-            const n = filesView.countOf(board.id);
-            return n > 0 ? <span className="sb-row-count sbf-count">{n}</span> : null;
+            return status ? <span className="sbf-status">{status}</span> : null;
           })()}
           {presence.length > 0 && (
             <span className="bc-toc-peers">

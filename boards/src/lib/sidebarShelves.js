@@ -2,8 +2,9 @@
 //
 // The sidebar lists EVERYTHING in a cluster, so it has to sort it before it
 // shows it: sub-clusters first, then one shelf per kind of thing, in the order
-// people look for them. Photos are a thumbnail mosaic; video, audio, files and
-// writing are rows; links and everything else fold into one line until opened.
+// people look for them. Every shelf is a list of rows, a small thumbnail beside
+// each name: the board is the visual place, the sidebar a calm list (owner,
+// 2026-10-18). Links and everything else can fold into one line until opened.
 //
 // SHELF_OF_KIND has a twin in SQL — sidebar_shelf_of() in
 // supabase/migrations/0419_sidebar_files.sql — because a closed cluster is
@@ -11,7 +12,7 @@
 // and fails when the two disagree, so change both or neither.
 
 export const SHELVES = [
-  { id: 'photos',  label: 'Photos',  layout: 'mosaic' },
+  { id: 'photos',  label: 'Photos',  layout: 'rows' },
   { id: 'video',   label: 'Video',   layout: 'rows' },
   { id: 'audio',   label: 'Audio',   layout: 'rows' },
   { id: 'files',   label: 'Files',   layout: 'rows' },
