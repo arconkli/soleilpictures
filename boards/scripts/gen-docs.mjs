@@ -71,7 +71,7 @@ import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '.
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
-  INVITE_BONUS_STORAGE_BYTES, INVITE_BONUS_STORAGE_LABEL,
+  INVITE_BONUS_STORAGE_BYTES, INVITE_BONUS_STORAGE_LABEL, formatBonusBytes,
 } from '../src/lib/inviteReward.js';
 import { latestDefinition } from '../src/lib/migrationText.mjs';
 
@@ -242,11 +242,11 @@ if (Number(referralCards[1]) !== REFERRAL_REWARD_CARDS
     || Number(referralPer30[1]) !== REFERRAL_REWARDS_PER_30_DAYS
     || friendCards.some((c) => Number(c) !== REFERRAL_BONUS_CARDS)
     || Number(inviteStorage[1]) !== INVITE_BONUS_STORAGE_BYTES
-    || bytesLabel(Number(inviteStorage[1])) !== INVITE_BONUS_STORAGE_LABEL) {
+    || formatBonusBytes(Number(inviteStorage[1])) !== INVITE_BONUS_STORAGE_LABEL) {
   throw new Error(
     'gen-docs: inviteReward.js disagrees with the migrations that pay invitations — ' +
     `inviter ${referralCards[1]} cards / ${referralPer30[1]} per 30 days, friend ${friendCards.join('/')} cards, ` +
-    `storage ${inviteStorage[1]} bytes (${bytesLabel(Number(inviteStorage[1]))})`,
+    `storage ${inviteStorage[1]} bytes (${formatBonusBytes(Number(inviteStorage[1]))})`,
   );
 }
 
@@ -358,7 +358,9 @@ export const FACTS = {
   referralRewardCards: referralCards[1],
   referralRewardsPer30Days: referralPer30[1],
   referralFriendCards: friendCards[0],
-  referralBonusStorage: bytesLabel(Number(inviteStorage[1])),
+  // Labelled by the app's own formatter (inviteReward.js), so the docs and the
+  // share panel say the same "0.5GB" from the same code.
+  referralBonusStorage: formatBonusBytes(Number(inviteStorage[1])),
   referralLinkJoinDays: referralLinkDays[1],
   // Days a request's hashed network and browser are kept (0378).
   requestOriginRetentionDays: originRetention[1],
