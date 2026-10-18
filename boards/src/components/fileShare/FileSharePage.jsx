@@ -18,6 +18,11 @@
 // <video> errors, which also re-fetches), a PDF on the page it was on.
 //
 // The heavy viewers are lazy so each kind loads only its own.
+//
+// Someone who can manage the file (access 'manage': the answer then carries
+// board_id and card_id) gets "Manage sharing" in the header, which opens the
+// owner's dialog right here (lazy). When it closes, or any write lands
+// (FILE_SHARE_CHANGED_EVENT), the page reads its state again.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchFileShare, listFileComments, addFileComment, resolveFileComment, deleteFileComment, restoreFileComment,
@@ -30,11 +35,13 @@ import { logEvent, logEventNow, logEventOnce } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { ClustersMark } from '../SoleilWordmark.jsx';
 import { FileComments, Avatar } from './FileComments.jsx';
+import { FILE_SHARE_CHANGED_EVENT } from '../../lib/fileShareBus.js';
 import './fileShare.css';
 
 const FilmPlayer = lazy(() => import('../film/FilmPlayer.jsx').then((m) => ({ default: m.FilmPlayer })));
 const PdfViewer = lazy(() => import('../PdfViewer.jsx').then((m) => ({ default: m.PdfViewer })));
 const ImageZoomStage = lazy(() => import('../ImageLightbox.jsx').then((m) => ({ default: m.ImageZoomStage })));
+const FileShareDialog = lazy(() => import('./FileShareDialog.jsx').then((m) => ({ default: m.FileShareDialog })));
 
 const REFRESH_MS = 5 * 60 * 1000;
 // A mounted viewer's urls older than this are swapped for fresh ones.
@@ -83,7 +90,7 @@ function factsLine(file) {
   return parts.filter(Boolean).join(' · ');
 }
 
-function Shell({ children, signedOut, token, wide = false }) {
+function Shell({ children, signedOut, token, wide = false, action = null }) {
   return (
     <div className="fsp public-dark">
       <header className="fsp-top">
@@ -91,6 +98,7 @@ function Shell({ children, signedOut, token, wide = false }) {
           <ClustersMark size={22} />
           <span>Clusters</span>
         </a>
+        {action}
         {signedOut && (
           <a className="fsp-top-link" href={signInHrefFor(token)}
              onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'topbar' })}>Sign in</a>
@@ -246,6 +254,23 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh })
   const [pageRequest, setPageRequest] = useState(null);
   const [fps, setFps] = useState(null);
   const [focusReq, setFocusReq] = useState(0);
+
+  // ---- the owner's dialog, on the page ---------------------------------
+  const canManage = res.access === 'manage' && !!res.board_id && !!res.card_id;
+  const [manageOpen, setManageOpen] = useState(false);
+  useEffect(() => {
+    if (!canManage) return undefined;
+    const on = (e) => {
+      const d = e.detail || {};
+      if (d.boardId === res.board_id && d.cardId === res.card_id) onRefreshRef.current?.();
+    };
+    document.addEventListener(FILE_SHARE_CHANGED_EVENT, on);
+    return () => document.removeEventListener(FILE_SHARE_CHANGED_EVENT, on);
+  }, [canManage, res.board_id, res.card_id]);
+  const closeManage = useCallback(() => {
+    setManageOpen(false);
+    onRefreshRef.current?.();
+  }, []);
 
   // ---- keeping a mounted video / PDF on live urls ----------------------
   const stageRef = useRef(null);
@@ -436,7 +461,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh })
     viewer = <FileCardView file={file} />;
   } else if (kind === 'video') {
     viewer = (
-      <FilmPlayer key={`v${gen}`} ref={playerRef} mode="full" keyboard src={SRC} poster={urls.poster ? POSTER : null}
+      <FilmPlayer key={`v${gen}`} ref={playerRef} mode="full" keyboard={!manageOpen} src={SRC} poster={urls.poster ? POSTER : null}
                   title={file.name || ''} markers={markers} onAction={onPlayerAction} onFrameChange={onFrameChange}
                   probe={() => import('../../hooks/useMediaFacts.js').then((m) => m.probeCardVideo({ kind: 'video', src: SRC }))} />
     );
@@ -457,7 +482,20 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh })
   }
 
   return (
-    <Shell signedOut={!signedIn} token={token} wide={showRail}>
+    <Shell signedOut={!signedIn} token={token} wide={showRail}
+           action={canManage ? (
+             <button type="button" className="fsp-btn fsp-manage" onClick={() => setManageOpen(true)}>
+               Manage sharing
+             </button>
+           ) : null}>
+      {canManage && manageOpen && (
+        <Suspense fallback={null}>
+          <FileShareDialog boardId={res.board_id} cardId={res.card_id}
+                           card={{ id: res.card_id, kind: file.kind, fileName: file.name }}
+                           onClose={closeManage}
+                           {...(typeof api?.getFileShareSettings === 'function' ? { api } : {})} />
+        </Suspense>
+      )}
       <div className={`fsp-layout${showRail ? ' has-rail' : ''}`}>
         <div className="fsp-col">
           <div ref={stageRef} className={`fsp-stage fsp-stage--${inline ? kind : 'file'}`}>

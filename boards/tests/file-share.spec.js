@@ -308,10 +308,9 @@ test.describe('the owner dialog', () => {
     expect(added).toHaveLength(1);
     expect(added[0].args[2]).toEqual(['sam@example.com']);
     expect(added[0].args[3]).toBe('comment');
-    // The toast itself leaves after 4.2s, which a busy run can outlast while
-    // the checks above wait; the feedback system's live region keeps the
-    // announcement, which is what the dialog guarantees.
-    await expect(page.locator('[aria-live="polite"]')).toContainText('Shared with 1 · 1 skipped');
+    // The dialog's own status line, never a toast: it can sit over a
+    // full-screen viewer, which covers the toast stack.
+    await expect(dlg(page).locator('.fsd-notice[role="status"]')).toContainText('Shared with 1 · 1 skipped');
 
     await dlg(page).getByLabel('Access for Jun Park').selectOption('view');
     await expect.poll(async () => (await calls(page, 'setFileSharePerson')).length).toBe(1);
@@ -319,7 +318,8 @@ test.describe('the owner dialog', () => {
 
     await dlg(page).getByLabel('Access for Jun Park').selectOption('__remove');
     await expect(dlg(page).locator('.fsd-person[data-email="jun@example.com"]')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(dlg(page).locator('.fsd-notice[role="status"]')).toContainText('Removed Jun Park');
+    await dlg(page).getByRole('button', { name: 'Undo' }).click();
     await expect(dlg(page).locator('.fsd-person[data-email="jun@example.com"]')).toBeVisible();
     const sp = await calls(page, 'setFileSharePerson');
     expect(sp[sp.length - 1].args.slice(2)).toEqual(['jun@example.com', 'view']);
@@ -369,5 +369,107 @@ test.describe('the owner dialog', () => {
     await expect(dlg(page).getByRole('button', { name: 'Copied' })).toBeVisible();
     const text = await page.evaluate(() => navigator.clipboard.readText());
     expect(text).toMatch(new RegExp(`/f/${TOKEN}$`));
+  });
+});
+
+test.describe('sharing from a full-screen viewer', () => {
+  const dlg = (page) => page.locator('.fsd-modal');
+  const share = (page) => page.locator('.fsb-btn');
+
+  // The dialog is the thing on top: the point at its centre is inside it.
+  async function dialogOnTop(page) {
+    await expect(dlg(page)).toBeVisible();
+    await expect(dlg(page).getByLabel('Add people by email')).toBeVisible();
+    const inside = await page.evaluate(() => {
+      const r = document.querySelector('.fsd-modal').getBoundingClientRect();
+      const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!el?.closest?.('.fsd-modal');
+    });
+    expect(inside).toBe(true);
+  }
+
+  test('the lightbox: Shared, opens the dialog on top, keys stay in it, Escape closes only it', async ({ page }) => {
+    await open(page, 'lightbox-share');
+    await expect(page.locator('.lightbox')).toBeVisible();
+    await expect(share(page)).toHaveText('Shared');
+    await expect(share(page)).toHaveAttribute('aria-label', 'Shared - manage sharing');
+    await expect(share(page)).toHaveClass(/lightbox-share/);
+    await share(page).click();
+    await dialogOnTop(page);
+    await expect(page.locator('.lightbox')).toBeVisible();
+
+    const input = dlg(page).getByLabel('Add people by email');
+    await input.click();
+    await input.press('ArrowRight');
+    await input.press('ArrowLeft');
+    await input.press('Space');
+    await expect(page.locator('.lightbox')).toHaveClass(/lightbox-mode-fit/);
+    await expect(page.locator('.lightbox')).toBeVisible();
+
+    await input.press('Escape');
+    await expect(dlg(page)).toHaveCount(0);
+    await expect(page.locator('.lightbox')).toBeVisible();
+    await expect(page.locator('[data-fileshareqa-viewer-closed]')).toHaveCount(0);
+    // And the viewer's own Escape still works once the dialog is gone.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-fileshareqa-viewer-closed]')).toHaveCount(1);
+  });
+
+  test('the PDF viewer: Share, dialog on top, no paging from the dialog, Shared after a write', async ({ page }) => {
+    await open(page, 'pdf-share');
+    await expect(page.locator('.pdfv')).toBeVisible();
+    await expect(page.locator('.pdfv-pageind')).toHaveText(/^1 \/ \d+$/, { timeout: 15000 });
+    await expect(share(page)).toHaveText('Share');
+    await expect(share(page)).toHaveAttribute('aria-label', 'Share file');
+    await expect(share(page)).toHaveClass(/pdfv-btn/);
+    // It sits in the bar before Download.
+    const order = await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('.pdfv-bar > button')];
+      return [btns.findIndex((b) => b.classList.contains('fsb-btn')), btns.findIndex((b) => b.getAttribute('aria-label') === 'Download')];
+    });
+    expect(order[0]).toBeGreaterThan(-1);
+    expect(order[0]).toBeLessThan(order[1]);
+
+    await share(page).click();
+    await dialogOnTop(page);
+    const input = dlg(page).getByLabel('Add people by email');
+    await input.click();
+    for (const k of ['ArrowRight', 'ArrowDown', 'PageDown', 'Space']) await input.press(k);
+    await page.waitForTimeout(400);   // a smooth scroll to page 2 would have landed
+    await expect(page.locator('.pdfv-pageind')).toHaveText(/^1 \/ \d+$/);
+    expect(await page.locator('.pdfv-scroll').evaluate((el) => el.scrollTop)).toBe(0);
+
+    // A write turns the button to Shared, through the bus.
+    await input.fill('sam@example.com');
+    await dlg(page).getByRole('button', { name: 'Send' }).click();
+    await expect(dlg(page).locator('.fsd-notice[role="status"]')).toContainText('Shared with 1');
+    await expect(share(page)).toHaveText('Shared');
+
+    await page.keyboard.press('Escape');
+    await expect(dlg(page)).toHaveCount(0);
+    await expect(page.locator('.pdfv')).toBeVisible();
+    await expect(page.locator('[data-fileshareqa-viewer-closed]')).toHaveCount(0);
+  });
+
+  test('the page: Manage sharing for someone who manages it, and only them', async ({ page }) => {
+    await open(page, 'manage-page');
+    await expect(page.locator('.fsp-name')).toHaveText('Look book');
+    const manage = page.getByRole('button', { name: 'Manage sharing' });
+    await expect(manage).toBeVisible();
+    await manage.click();
+    await dialogOnTop(page);
+    const settings = await calls(page, 'getFileShareSettings');
+    expect(settings[settings.length - 1].args).toEqual(['qa-board', 'card-1']);
+    const before = (await calls(page, 'fetchFileShare')).length;
+    await dlg(page).getByRole('button', { name: 'Done' }).click();
+    await expect(dlg(page)).toHaveCount(0);
+    await expect.poll(async () => (await calls(page, 'fetchFileShare')).length).toBeGreaterThan(before);
+
+    await open(page, 'image');   // view access
+    await expect(page.locator('.fsp-name')).toHaveText('Look book');
+    await expect(page.getByRole('button', { name: 'Manage sharing' })).toHaveCount(0);
+    await open(page, 'pdf');     // comment access
+    await expect(page.locator('.fsp-name')).toHaveText('Treatment.pdf');
+    await expect(page.getByRole('button', { name: 'Manage sharing' })).toHaveCount(0);
   });
 });

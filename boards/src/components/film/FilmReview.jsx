@@ -23,9 +23,9 @@ import { cardLinkUrl } from '../../lib/cardLink.js';
 import { downloadCardAsset } from '../../lib/cardDownload.js';
 import { Icon } from '../Icon.jsx';
 import { fileSharesAllowed } from '../../lib/appHost.js';
-import { openFileShare } from '../../lib/fileShareBus.js';
 import { isShareableCard } from '../../lib/fileShares.js';
-import { X, Keyboard, Share2, SquareSplitHorizontal, ChevronDown } from '../../lib/icons.js';
+import { FileShareButton } from '../fileShare/FileShareButton.jsx';
+import { X, Keyboard, SquareSplitHorizontal, ChevronDown } from '../../lib/icons.js';
 
 // The fields a version's player needs, from a version entry or the card.
 function sourceOf(card, v) {
@@ -198,10 +198,7 @@ export function FilmReview({
             </button>
           )}
           {fileSharesAllowed() && canEdit && boardId && cardId && isShareableCard(card) && (
-            <button type="button" onPointerDown={noFocus} className="frv-iconbtn" aria-label="Share file" title="Share file"
-                    onClick={() => openFileShare({ boardId, cardId, card, boardName: null, surface: 'player' })}>
-              <Icon as={Share2} size={18} weight="regular" />
-            </button>
+            <FileShareButton variant="frv" surface="player" boardId={boardId} cardId={cardId} card={card} boardName={null} />
           )}
           <button type="button" onPointerDown={noFocus} className="frv-iconbtn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"
                   onClick={() => playerRef.current?.toggleHelp?.()}>

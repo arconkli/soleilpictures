@@ -11,10 +11,16 @@
 // "these urls are old" threshold, so a spec can watch a viewer remount).
 // FIXTURES holds every fixture; makeFakeApi(fixture) is exported so another
 // harness view (the owner dialog) can share the same fake.
+// A fixture with `viewer: 'lightbox' | 'pdf'` mounts that full-screen viewer
+// with a shareTarget, plus a FileShareHost over the same fake, the way the
+// canvas does: the Share button opens the dialog over the viewer.
 import { useMemo, useState } from 'react';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 import { FileSharePage } from '../components/fileShare/FileSharePage.jsx';
 import { FileShareDialog } from '../components/fileShare/FileShareDialog.jsx';
+import { FileShareHost } from '../components/fileShare/FileShareHost.jsx';
+import { ImageLightbox } from '../components/ImageLightbox.jsx';
+import { PdfViewer } from '../components/PdfViewer.jsx';
 
 export const QA_TOKEN = '0f9a5c3e-1b2d-4e5f-8a9b-0c1d2e3f4a5b';
 
@@ -138,6 +144,37 @@ export const FIXTURES = {
       { access: 'view', signed_in: false, can_comment: false, allow_download: false, comment_count: null, urls: { src: MEDIA.image } }),
     comments: [],
   },
+  // The full-screen viewers with a Share button (the canvas's lightbox and
+  // PDF viewer). Shared already (a person), so the image's button says Shared.
+  'lightbox-share': {
+    viewer: 'lightbox',
+    share: { status: 'gone' },
+    comments: [],
+    card: { id: 'card-1', kind: 'image', title: 'Look book', src: 'r2:qa/look.webp' },
+    media: MEDIA.image,
+    settings: {
+      exists: true, token: QA_TOKEN, link_access: 'none', allow_download: true, comment_count: 0,
+      people: [{ email: 'jun@example.com', role: 'comment', pending: false, name: 'Jun Park', avatar_url: null }],
+    },
+  },
+  // Not shared yet: the PDF's button says Share until the dialog adds someone.
+  'pdf-share': {
+    viewer: 'pdf',
+    share: { status: 'gone' },
+    comments: [],
+    card: { id: 'card-2', kind: 'pdf', title: 'Treatment.pdf', pdfSrc: 'r2:qa/treatment.pdf' },
+    media: MEDIA.pdf,
+    settings: { exists: false },
+  },
+  // The /f/ page as someone who can manage the file: "Manage sharing".
+  'manage-page': {
+    share: ok({ kind: 'image', name: 'Look book', mime: 'image/webp', size: 81234, ext: 'webp' },
+      { access: 'manage', board_id: 'qa-board', card_id: 'card-1', comment_count: 0, urls: { src: MEDIA.image } }),
+    comments: [],
+    settings: {
+      exists: true, token: QA_TOKEN, link_access: 'view', allow_download: true, comment_count: 0, people: [],
+    },
+  },
   gone: { share: { status: 'gone' }, comments: [] },
   'sign-in': { share: { status: 'sign_in' }, comments: [] },
   'no-access': { share: { status: 'no_access', email: 'sam@example.com' }, comments: [] },
@@ -249,6 +286,7 @@ export function makeFakeApi(fixture, calls = []) {
 
 export function FileShareQaHarness() {
   const [dialogOpen, setDialogOpen] = useState(true);
+  const [viewerOpen, setViewerOpen] = useState(true);
   const name = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fileshareqa')) || '';
   const fixture = FIXTURES[name];
   const api = useMemo(() => {
@@ -262,6 +300,25 @@ export function FileShareQaHarness() {
       <div data-fileshareqa-ready="1" style={{ padding: 24, fontFamily: 'system-ui' }}>
         Unknown fixture “{name}”. Try: {Object.keys(FIXTURES).join(', ')}
       </div>
+    );
+  }
+  if (fixture.viewer) {
+    const shareTarget = { boardId: 'qa-board', cardId: fixture.card.id, card: fixture.card, boardName: 'Opening sequence', api };
+    let viewer = <p data-fileshareqa-viewer-closed="1">Viewer closed</p>;
+    if (viewerOpen && fixture.viewer === 'lightbox') {
+      viewer = <ImageLightbox src={fixture.media} title={fixture.card.title} cardId={fixture.card.id}
+                              shareTarget={shareTarget} onClose={() => setViewerOpen(false)} />;
+    } else if (viewerOpen && fixture.viewer === 'pdf') {
+      viewer = <PdfViewer src={fixture.media} name={fixture.card.title}
+                          shareTarget={shareTarget} onClose={() => setViewerOpen(false)} />;
+    }
+    return (
+      <FeedbackProvider>
+        <div data-fileshareqa-ready="1" data-fixture={name}>
+          {viewer}
+          <FileShareHost api={api} />
+        </div>
+      </FeedbackProvider>
     );
   }
   if (fixture.dialog) {

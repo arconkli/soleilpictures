@@ -9,9 +9,15 @@
 // when that write was clicked, which may hold another queued write's guess.
 //
 // `api` defaults to lib/fileShares.js; the DEV harness passes a fake.
+//
+// It opens over the full-screen viewers (the lightbox and the PDF viewer sit
+// at the top z-index; the dialog ties them and, portaled later, wins). The
+// app's toast stack sits BELOW those, so every message here, Remove's Undo
+// included, is the dialog's own inline notice (role="status"), never a toast.
+// Every confirmed write tells the bus (notifyFileShareChanged), so the
+// viewers' Share / Shared buttons and an open /f/ page re-read.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '../Modal.jsx';
-import { useOptionalFeedback } from '../AppFeedback.jsx';
 import { Icon as Glyph } from '../Icon.jsx';
 import { X as XIcon, Link as LinkIcon, Globe as GlobeIcon, Lock as LockIcon } from '../../lib/icons.js';
 import * as realApi from '../../lib/fileShares.js';
@@ -20,7 +26,7 @@ import {
   mergeChips, normalizeSettings, sharedMessage, commentsLabel, fileDisplayName,
 } from '../../lib/fileShareDialog.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
-import { undoToast } from '../../lib/undoToast.js';
+import { notifyFileShareChanged } from '../../lib/fileShareBus.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './fileShareDialog.css';
@@ -73,7 +79,6 @@ async function writeClipboard(textOrPromise) {
 
 export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName = '', onClose, api = realApi }) {
   const cardId = cardIdProp || card?.id;
-  const feedback = useOptionalFeedback();
   const name = fileDisplayName(card);
 
   const [phase, setPhase] = useState('loading'); // loading | ready | denied | error
@@ -85,7 +90,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
   const [copying, setCopying] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState(null); // only without a FeedbackProvider
+  const [notice, setNotice] = useState(null); // { message, action? }: the inline status line
 
   const copyRef = useRef(null);
   const inputRef = useRef(null);
@@ -103,6 +108,12 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     if (mounted.current) setS(normalizeSettings(data));
   }, []);
 
+  // A write the server confirmed: apply it, and tell the viewers.
+  const applyWrite = useCallback((data) => {
+    apply(data);
+    notifyFileShareChanged({ boardId, cardId });
+  }, [apply, boardId, cardId]);
+
   // A write failed: show what the server has, and why.
   const rollback = useCallback((err) => {
     if (!mounted.current) return;
@@ -118,12 +129,8 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
   }, []);
 
   const say = useCallback((message, action = null) => {
-    if (feedback?.toast) {
-      feedback.toast({ type: 'info', message, ...(action ? { action } : {}) });
-    } else if (mounted.current) {
-      setNotice({ message, action });
-    }
-  }, [feedback]);
+    if (mounted.current) setNotice({ message, action });
+  }, []);
 
   const load = useCallback(async () => {
     setPhase('loading');
@@ -155,13 +162,13 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       if (err) {
         rollback(err);
       } else {
-        apply(data);
+        applyWrite(data);
         const after = normalizeSettings(data);
         logEvent(EV.FILE_SHARE_ACCESS_SET, { link_access: after.linkAccess, allow_download: after.allowDownload });
       }
       return { data, error: err };
     });
-  }, [api, apply, rollback, boardId, cardId, enqueue]);
+  }, [api, applyWrite, rollback, boardId, cardId, enqueue]);
 
   const onGeneral = (v) => {
     if (v === 'anyone') writeShare({ linkAccess: s.linkAccess === 'none' ? 'view' : s.linkAccess });
@@ -197,7 +204,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       setError(friendlyShareError(err));
       return;
     }
-    apply(data);
+    applyWrite(data);
     const added = Array.isArray(data?.added) ? data.added.length : 0;
     const skipped = (Array.isArray(data?.skipped) ? data.skipped.length : 0) + invalidCount;
     setChips([]);
@@ -233,7 +240,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     enqueue(async () => {
       const { data, error: err } = await api.setFileSharePerson(boardId, cardId, p.email, role);
       if (!mounted.current) return;
-      if (err) rollback(err); else apply(data);
+      if (err) rollback(err); else applyWrite(data);
     });
   };
 
@@ -247,18 +254,18 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       const { data, error: err } = await api.setFileSharePerson(boardId, cardId, p.email, null);
       if (!mounted.current) return;
       if (err) { rollback(err); return; }
-      apply(data);
+      applyWrite(data);
       // Undo puts the row back with its role. The server never re-sends the
       // invitation for an un-remove, and it spends no invite budget.
       const onUndo = () => {
         enqueue(async () => {
           const r = await api.setFileSharePerson(boardId, cardId, p.email, prevRole);
+          if (!mounted.current) return;
           if (r.error) say(friendlyShareError(r.error));
-          else apply(r.data);
+          else applyWrite(r.data);
         });
       };
-      if (feedback?.toast) undoToast(feedback, { message: `Removed ${label}`, onUndo });
-      else setNotice({ message: `Removed ${label}`, action: { label: 'Undo', onClick: () => { setNotice(null); onUndo(); } } });
+      say(`Removed ${label}`, { label: 'Undo', onClick: () => { setNotice(null); onUndo(); } });
     });
   };
 
@@ -282,7 +289,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       if (!mounted.current) return;
       setCopying(false);
       if (err) { setError(friendlyShareError(err)); return; }
-      apply(data);
+      applyWrite(data);
     }
     if (!mounted.current) return;
     if (!ok) { setError("Couldn't copy the link. Try again."); return; }

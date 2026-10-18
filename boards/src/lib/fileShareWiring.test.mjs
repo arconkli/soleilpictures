@@ -18,8 +18,6 @@ test('App mounts FileShareHost only behind fileSharesAllowed()', () => {
 const ENTRY_POINTS = {
   canvas: '../components/CanvasSurface.jsx',
   list: '../components/ListSurface.jsx',
-  player: '../components/film/FilmReview.jsx',
-  quicklook: '../components/clusterBrowser/QuickLook.jsx',
 };
 for (const [surface, rel] of Object.entries(ENTRY_POINTS)) {
   test(`the ${surface} entry point opens the dialog behind fileSharesAllowed()`, () => {
@@ -33,6 +31,59 @@ for (const [surface, rel] of Object.entries(ENTRY_POINTS)) {
     assert.ok(at > -1 && s.slice(Math.max(0, at - 400), at).includes('fileSharesAllowed()'), 'gate sits just before the call');
   });
 }
+
+// The viewers' Share button (FileShareButton) replaced the plain buttons; the
+// gates stay with each viewer.
+const BUTTON_POINTS = {
+  player: ['../components/film/FilmReview.jsx', /fileSharesAllowed\(\) && canEdit && boardId && cardId && isShareableCard\(card\) && \(\s*<FileShareButton variant="frv" surface="player"/],
+  quicklook: ['../components/clusterBrowser/QuickLook.jsx', /canEdit && item\.boardId && !isPublicSurface\(\) && fileSharesAllowed\(\) && isShareableCard\(item\.card\) && \(\s*<FileShareButton [^>]*variant="ql" surface="quicklook"/],
+};
+for (const [surface, [rel, re]] of Object.entries(BUTTON_POINTS)) {
+  test(`the ${surface} uses FileShareButton behind its gates`, () => {
+    const s = src(rel);
+    assert.match(s, re);
+    assert.equal(s.match(/<FileShareButton/g).length, 1);
+    assert.ok(!s.includes('openFileShare('), 'no second, plain Share button');
+  });
+}
+
+test('FileShareButton opens the bus and keeps Shared neutral', () => {
+  const s = src('../components/fileShare/FileShareButton.jsx');
+  assert.match(s, /openFileShare\(\{ boardId, cardId, card: card \|\| \{ id: cardId \}, boardName, surface \}\)/);
+  assert.match(s, /'Shared - manage sharing' : 'Share file'/);
+  assert.match(s, /frv: \{ className: 'frv-iconbtn/);
+  assert.match(s, /ql: \{ className: 'ql-btn/);
+  assert.match(s, /lightbox: \{ className: 'lightbox-download lightbox-share/);
+  assert.match(s, /pdfv: \{ className: 'pdfv-btn/);
+  assert.ok(!/soleil/.test(src('../components/fileShare/fileShareButton.css')), 'no gold on the button');
+});
+
+test('CanvasSurface hands both viewers a shareTarget only behind every gate', () => {
+  const s = src('../components/CanvasSurface.jsx');
+  const gate = /\(canEdit && !isPublic && fileSharesAllowed\(\) && isShareableCard\(shareCard\)\)\s*\?\s*\{ boardId: board\.id, cardId: shareCard\.id/g;
+  assert.equal(s.match(gate)?.length, 2, 'one gate per viewer');
+  assert.match(s, /<ImageLightbox [^>]*shareTarget=\{shareTarget\}/);
+  assert.match(s, /<PdfViewer [^>]*shareTarget=\{shareTarget\}/);
+  assert.equal(s.match(/setPdfViewer\(\{ src: c\.pdfSrc, name: c\.name \|\| c\.title \|\| 'PDF', cardId: c\.id \}\)/g)?.length, 3);
+});
+
+test('the viewers draw the button only when handed a shareTarget', () => {
+  const lb = src('../components/ImageLightbox.jsx');
+  assert.match(lb, /shareTarget = null/);
+  assert.match(lb, /\{shareTarget\?\.boardId && shareTarget\?\.cardId && \(\s*<FileShareButton variant="lightbox"/);
+  const pdf = src('../components/PdfViewer.jsx');
+  assert.match(pdf, /shareTarget = null/);
+  assert.match(pdf, /\{!embedded && shareTarget\?\.boardId && shareTarget\?\.cardId && \(\s*<FileShareButton variant="pdfv"/);
+  // Before Download, in the bar.
+  assert.ok(pdf.indexOf('<FileShareButton') < pdf.indexOf('aria-label="Download"'));
+});
+
+test('the dialog never toasts, and tells the bus after a write', () => {
+  const s = src('../components/fileShare/FileShareDialog.jsx');
+  assert.ok(!/feedback\.toast|undoToast|useOptionalFeedback/.test(s), 'messages stay inline (.fsd-notice)');
+  assert.match(s, /className="fsd-notice" role="status"/);
+  assert.match(s, /notifyFileShareChanged\(\{ boardId, cardId \}\)/);
+});
 
 test('NotificationsPanel routes file.* kinds to /f/<token>', () => {
   const s = src('../components/NotificationsPanel.jsx');
@@ -50,8 +101,10 @@ test('the live notification toast opens a file.* share in /f/', () => {
   assert.match(s, /fileSharesAllowed\(\) && String\(payload\.kind/);
 });
 
-test('the share dialog backdrop stacks above the player and Quick look, below toasts', () => {
+test('the share dialog backdrop ties the top-layer viewers (lightbox, PDF), on desktop and phone', () => {
   const css = src('../components/fileShare/fileShareDialog.css');
-  assert.match(css, /\.modal-shell-bg\.fsd-backdrop\s*\{[^}]*z-index:\s*1096/);
+  const rules = css.match(/\.modal-shell-bg\.fsd-backdrop\s*\{[^}]*\}/g) || [];
+  assert.equal(rules.length, 2);
+  for (const r of rules) assert.match(r, /z-index:\s*2147483647/);
   assert.match(src('../components/fileShare/FileShareDialog.jsx'), /backdropClassName="fsd-backdrop"/);
 });

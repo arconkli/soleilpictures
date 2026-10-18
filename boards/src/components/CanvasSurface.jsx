@@ -7552,7 +7552,7 @@ export function CanvasSurface({
         }
       } else if (c.kind === 'pdf') {
         openItems.push({ id: 'pdf-open', label: 'Open',
-          run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
+          run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id }); } });
         items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
           run: () => triggerInlineEdit(c.id, 'title') });
         items.push({ id: 'pdf-download', label: 'Download', run: () => runDownload(c, 'pdf') });
@@ -9369,7 +9369,7 @@ export function CanvasSurface({
     if (c.kind === 'pdf') {
       if (!c.pdfSrc) return;
       e.stopPropagation();
-      setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' });
+      setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id });
       return;
     }
     // image / note / link / etc — defer to inner editors so dbl-click
@@ -9917,7 +9917,7 @@ export function CanvasSurface({
                                                       editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                       pending={!!c.pending}
                                                       uploadProgress={uploadProgressById[c.id] ?? null}
-                                                      onExpand={() => c.pdfSrc && setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' })}
+                                                      onExpand={() => c.pdfSrc && setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id })}
                                                       onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'doc') {
       // Rich doc card. Pull the live cardYMap so RichDocCard can read its
@@ -13252,11 +13252,17 @@ export function CanvasSurface({
           </button>
         </div>
       )}
-      {lightbox && (
-        <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
-                       downloadName={lightbox.downloadName || null}
-                       onClose={() => setLightbox(null)} />
-      )}
+      {lightbox && (() => {
+        // Share this one file from the viewer: same gates as the card menu.
+        const shareCard = lightbox.cardId ? cards.find(x => x.id === lightbox.cardId) : null;
+        const shareTarget = (canEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))
+          ? { boardId: board.id, cardId: shareCard.id, card: shareCard, boardName: board.name, surface: 'canvas' } : null;
+        return (
+          <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
+                         downloadName={lightbox.downloadName || null} shareTarget={shareTarget}
+                         onClose={() => setLightbox(null)} />
+        );
+      })()}
       {/* Per-card photo-adjustment SVG filter defs, referenced by id. Keyed off
           adjusted cards so the modal/lightbox resolve even when a card is culled. */}
       <ImageAdjustFilters cards={cards} />
@@ -13289,7 +13295,12 @@ export function CanvasSurface({
       })()}
       {pdfViewer && (
         <Suspense fallback={<div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>}>
-          <PdfViewer src={pdfViewer.src} name={pdfViewer.name} onClose={() => setPdfViewer(null)} />
+          {(() => {
+            const shareCard = pdfViewer.cardId ? cards.find(x => x.id === pdfViewer.cardId) : null;
+            const shareTarget = (canEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))
+              ? { boardId: board.id, cardId: shareCard.id, card: shareCard, boardName: board.name, surface: 'canvas' } : null;
+            return <PdfViewer src={pdfViewer.src} name={pdfViewer.name} shareTarget={shareTarget} onClose={() => setPdfViewer(null)} />;
+          })()}
         </Suspense>
       )}
       {boardDropTarget && boardDropHoverPos && (() => {

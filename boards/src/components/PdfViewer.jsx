@@ -23,6 +23,7 @@ import { downloadCardAsset } from '../lib/cardDownload.js';
 import { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } from '../lib/pdfEngine.js';
 import { Spinner } from './Spinner.jsx';
 import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
+import { FileShareButton } from './fileShare/FileShareButton.jsx';
 
 // A portal still bubbles through the React tree to the card and canvas
 // handlers that rendered it; presses on the viewer are the viewer's own.
@@ -105,7 +106,9 @@ function PdfPage({ doc, pageNum, scale, base, dpr, onRef }) {
 // its own, no close button, and Escape belongs to the host. ↑/↓ still page.
 // `onPageChange(n)` reports the 1-based page; `pageRequest = {page, nonce}`
 // scrolls to a page whenever the nonce changes (file-share comment anchors).
-export function PdfViewer({ src, name, onClose, embedded = false, onPageChange = null, pageRequest = null }) {
+// `shareTarget = { boardId, cardId, card, boardName }`: the full-screen viewer
+// (never the embedded one) gets a Share button before Download.
+export function PdfViewer({ src, name, onClose, embedded = false, onPageChange = null, pageRequest = null, shareTarget = null }) {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [doc, setDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -272,6 +275,11 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
   useEffect(() => {
     const onKey = (e) => {
       if (guardRef.current && !isTopModal(guardRef.current)) return;
+      // Embedded, the host is the registered layer, so the check above can't
+      // see a dialog opened over it (the share dialog over Quick look): a key
+      // typed inside another modal dialog is that dialog's.
+      const inDialog = e.target?.closest?.('[aria-modal="true"]');
+      if (inDialog && !inDialog.contains(scrollRef.current)) return;
       if (e.key === 'Escape') { if (embedded) return; e.stopPropagation(); onClose?.(); return; }
       if (status !== 'ready') return;
       if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); e.stopPropagation(); scrollToPage(current + 1); }
@@ -330,6 +338,12 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
             <button className="pdfv-btn" aria-label="Zoom in" title="Zoom in"
                     onClick={() => zoom((z) => clampZoom(z + ZOOM_STEP))}>+</button>
           </span>
+        )}
+        {!embedded && shareTarget?.boardId && shareTarget?.cardId && (
+          <FileShareButton variant="pdfv" surface={shareTarget.surface || 'pdf_viewer'}
+                           boardId={shareTarget.boardId} cardId={shareTarget.cardId}
+                           card={shareTarget.card || null} boardName={shareTarget.boardName || null}
+                           {...(shareTarget.api ? { api: shareTarget.api } : {})} />
         )}
         {!embedded && (
           <button className="pdfv-btn" aria-label="Download" title="Download"

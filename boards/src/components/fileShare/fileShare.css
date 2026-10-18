@@ -51,6 +51,7 @@
 }
 .fsp-top-link { color: var(--fsp-ink-1); text-decoration: none; font-weight: 500; padding: 6px 10px; border-radius: 8px; }
 .fsp-top-link:hover { color: var(--fsp-ink-0); background: var(--fsp-hover); }
+.fsp-top .fsp-manage { margin-left: auto; height: 32px; padding: 0 12px; }
 
 /* ── Buttons ─────────────────────────────────────────────────────────── */
 .fsp-btn {
