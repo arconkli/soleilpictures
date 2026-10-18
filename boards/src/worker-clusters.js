@@ -144,6 +144,22 @@ async function repointExtras(deps, env, { fromBoardId, toBoardId, pairs }) {
   }
 }
 
+// ...and its file share. Since 0422 a share follows its card only through an
+// explicit repoint: duplicated clusters keep card ids, so finding a share's
+// card again by id could hand a deleted card's link to its copy. As the user
+// (repoint_card_refs checks can_write_board on both ends), every pair, kept ids
+// included ({from: X, to: X}): the card changed clusters even where its id
+// didn't. The RPC takes at most 500 pairs a call (0420).
+const REPOINT_PAIRS = 500;
+async function repointRefs(deps, env, token, { fromBoardId, toBoardId, pairs }) {
+  const all = pairs || [];
+  for (let i = 0; i < all.length; i += REPOINT_PAIRS) {
+    await deps.userRpc(env, token, 'repoint_card_refs', {
+      p_from: fromBoardId, p_to: toBoardId, p_pairs: all.slice(i, i + REPOINT_PAIRS),
+    }).catch(() => {});
+  }
+}
+
 async function routeMove(deps, env, token, userId, body) {
   if (!isUuid(body.from) || !isUuid(body.to)) throw fail(400, 'bad_request', 'from and to must be cluster ids');
   if (body.from === body.to) throw fail(400, 'bad_request', 'from and to are the same cluster');
@@ -194,6 +210,7 @@ async function routeMove(deps, env, token, userId, body) {
       fromBoardId: src.id, toBoardId: dst.id, workspaceId: dst.workspace_id, idPairs: out.pairs || [],
     }).catch(() => {});
     await repointExtras(deps, env, { fromBoardId: src.id, toBoardId: dst.id, pairs: out.pairs });
+    await repointRefs(deps, env, token, { fromBoardId: src.id, toBoardId: dst.id, pairs: out.pairs });
   }
   return json({
     ok: true,

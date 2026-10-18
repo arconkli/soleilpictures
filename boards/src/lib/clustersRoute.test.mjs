@@ -134,6 +134,45 @@ test('a move demands live rooms, keeps uploads back, and takes comments and star
   assert.deepEqual(r.body.originals, [{ id: 'c1', x: 1, y: 2, unplaced: false }]);
 });
 
+const repoints = (named) => named('userRpc').filter((c) => c.args[2] === 'repoint_card_refs');
+
+test('a move takes the file share along: repoint_card_refs as the user, every pair, kept ids included', async () => {
+  const pairs = [{ from: 'c1', to: 'c1' }, { from: 'c2', to: 'c2-renamed' }];
+  const { deps, named } = fakeDeps({
+    move: async () => ({ count: 2, pairs, live: true, originals: [], kept: [] }),
+  });
+  const r = await call(deps, '/api/clusters/move', { from: A, to: B, cardIds: ['c1', 'c2'] });
+  assert.equal(r.status, 200);
+  const [one, ...rest] = repoints(named);
+  assert.equal(rest.length, 0);
+  assert.equal(one.args[1], 'tok', 'with the user\'s own token');
+  assert.deepEqual(one.args[3], { p_from: A, p_to: B, p_pairs: pairs });
+});
+
+test('a long move repoints at most 500 pairs a call', async () => {
+  const pairs = Array.from({ length: 501 }, (_, i) => ({ from: `c${i}`, to: `c${i}` }));
+  const { deps, named } = fakeDeps({
+    move: async () => ({ count: pairs.length, pairs, live: true, originals: [], kept: [] }),
+  });
+  await call(deps, '/api/clusters/move', { from: A, to: B, cardIds: ['c0'] });
+  assert.deepEqual(repoints(named).map((c) => c.args[3].p_pairs.length), [500, 1]);
+  assert.deepEqual(repoints(named)[1].args[3].p_pairs, [{ from: 'c500', to: 'c500' }]);
+});
+
+test('the retry that finishes a partial move repoints then, and only then', async () => {
+  let n = 0;
+  const pairs = [{ from: 'c1', to: 'c1' }];
+  const { deps, named } = fakeDeps({
+    move: async () => (++n === 1
+      ? { partial: true, count: 1, pairs, originals: [], kept: [] }
+      : { count: 1, pairs, live: true, originals: [], kept: [] }),
+  });
+  assert.equal((await call(deps, '/api/clusters/move', { from: A, to: B, cardIds: ['c1'] })).status, 503);
+  assert.equal(repoints(named).length, 0);
+  assert.equal((await call(deps, '/api/clusters/move', { from: A, to: B, cardIds: ['c1'] })).status, 200);
+  assert.deepEqual(repoints(named).map((c) => c.args[3].p_pairs), [pairs]);
+});
+
 test('a move the rooms could not take comes back as try-again, with nothing repointed', async () => {
   const { deps, named } = fakeDeps({
     move: async () => { const e = new Error('nope'); e.code = 'room_unavailable'; throw e; },
@@ -143,6 +182,7 @@ test('a move the rooms could not take comes back as try-again, with nothing repo
   assert.equal(r.body.retry, true);
   assert.equal(named('repointMeta').length, 0);
   assert.equal(named('scoutPatch').length, 0);
+  assert.equal(repoints(named).length, 0);
 });
 
 test('a copy only needs to write the destination, and copies only what a snapshot can carry', async () => {
@@ -158,6 +198,7 @@ test('a copy only needs to write the destination, and copies only what a snapsho
   assert.equal(built[0].src, 'r2:p1', 'the same stored file');
   assert.equal(built[0].groupId, undefined, 'place fields stay behind');
   assert.equal(built[0].unplaced, true, 'dropped on a cluster, so stored off the board');
+  assert.equal(repoints(named).length, 0, 'a copy never takes the original\'s share');
 });
 
 test('a copy past the card cap is a 402', async () => {
@@ -244,6 +285,7 @@ test('a move that landed but could not leave the source says so, with the pairs,
   assert.deepEqual(r.body.pairs, [{ from: 'c1', to: 'c1' }]);
   assert.equal(named('repointMeta').length, 0);
   assert.equal(named('scoutPatch').length, 0);
+  assert.equal(repoints(named).length, 0);
 });
 
 test('landing: undo puts cards back exactly, a drop point places them, a cluster stores them', () => {
