@@ -5,7 +5,7 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-10-12
+updated: 2026-10-17
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
@@ -95,7 +95,7 @@ and the **storage meter** showing what you have used against your quota. See
 ### Invite & earn
 
 Your [referral](/docs/account/referrals) link, share targets, and the stats:
-friends joined, how many got started, cards earned, free months.
+friends joined, how many got started, cards and storage earned, free months.
 
 ## This workspace
 

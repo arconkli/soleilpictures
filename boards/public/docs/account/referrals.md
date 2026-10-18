@@ -1,18 +1,20 @@
 # Referrals
 
-> Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get 25 bonus cards once they have actually started using Clusters and their account is 72 hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.
+> Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
 
-_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-10-17_
 
-**Settings → Invite and earn.**
+Invite from **Share** on any cluster, or from **Settings → Invite and earn**.
 
 ## How it works
 
-Share your referral link. Someone who signs up through it gets bonus cards of
-their own straight away. You get **25 bonus cards**
-once they **actually get started** — they have placed their first card — and
-their account is 72 hours old and has been opened in
-the app.
+Invite someone who does not have a Clusters account yet: by email from a
+cluster's [Share panel](/docs/collaborate/sharing), with one of your edit links,
+or with your referral link. When they sign up they get
+**25 extra cards** and **0.5GB
+of storage** straight away. You get **25 bonus cards**
+and **0.5GB** as soon as they **actually get started** —
+they have opened the app and placed their first card.
 
 The activation gate is the important detail. The reward is not for a signup, it
 is for someone who used the product — which means the number in your stats
@@ -23,32 +25,41 @@ reflects people who are actually there.
 - **4 rewards in any 30 days.** Friends past
   that still count as got started; their rewards wait their turn, oldest first,
   and land as the 30-day window frees.
+- **Only people new to Clusters count.** Inviting someone who already has an
+  account shares the cluster with them, but earns no reward.
 - **Nothing is paid to, or for, a banned account.**
-- Rewards are checked every hour, so one lands within the hour of coming due.
+- Anything held back is checked again every hour, so it lands within the hour of
+  coming due.
 
-## Bonus cards
+## Bonus cards and storage
 
 Bonus cards raise your card limit above the free plan's
-**50**. They stack across referrals and they do not expire.
+**50**. Bonus storage adds to your drive on any plan:
+0.5GB for joining through an invitation, and
+0.5GB for each friend of yours who gets started. Both
+stack across referrals and neither expires.
 
-They apply on top of your allowance, so a free account with referrals genuinely
-has more room rather than a temporary boost. See
-[Cards](/docs/canvas/cards).
+They go to each person's own account, on top of their own allowance, so a free
+account with referrals genuinely has more room rather than a temporary boost.
+Work inside someone else's cluster still counts against that cluster's owner, as
+it always does. See [Cards](/docs/canvas/cards) and
+[Plans](/docs/account/plans).
 
 ## Stats
 
-The tab tracks four things:
+The tab tracks:
 
 | Stat | Meaning |
 |---|---|
-| Friends joined | Signed up through your link |
+| Friends joined | Signed up through your link or your invitation |
 | Got started | Of those, how many actually used it |
 | Cards earned | Bonus cards credited to you |
+| Storage earned | Bonus storage credited to you |
 | Free months | Any subscription time earned |
 
 The gap between the first two is the honest one. It is shown rather than hidden.
-Cards still on their way — for friends who got started recently, or past the
-30-day limit — are listed under the stats until they land.
+Rewards still on their way — past the 30-day limit — are listed under the stats
+until they land.
 
 ## Sharing the link
 

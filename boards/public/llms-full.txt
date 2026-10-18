@@ -717,7 +717,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-07
+Updated: 2026-10-17
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -785,7 +785,7 @@ Limits
 
 No file is size-capped on any plan — images, video, audio and PDFs included. The drive is the only limit.
 
-Storage is counted against your account quota: 5GB on the free plan, 1TB on Creator. The meter is in Settings → Plan & billing.
+Storage is counted against your account quota: 5GB on the free plan, 1TB on Creator, plus 0.5GB for each person you invite who gets started. The meter is in Settings → Plan & billing.
 
 Building a reference wall specifically? The mood board maker guide walks the whole workflow.
 
@@ -1585,7 +1585,7 @@ Limits
 
 File type and size. Any, on every plan. .psd, .fig, .zip, project files, archives, a 4K clip, a WAV stem — each lands as its own card, at any size. There is no per-file limit on any plan.
 
-Storage. The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits.
+Storage. The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits. Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join (Referrals).
 
 The drive and the card cap are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters, collaborators and editing are not limited on any plan.
 
@@ -3598,7 +3598,7 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-10-12
+Updated: 2026-10-17
 
 Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
@@ -3642,7 +3642,7 @@ Current plan, the Stripe customer portal for payment details and cancellation, a
 
 Invite & earn
 
-Your referral link, share targets, and the stats: friends joined, how many got started, cards earned, free months.
+Your referral link, share targets, and the stats: friends joined, how many got started, cards and storage earned, free months.
 
 This workspace
 
@@ -3898,41 +3898,43 @@ A: No. Text colours are resolved against the actual background, so notes stay le
 ========================================================================
 # Referrals
 URL: https://clusters.soleilpictures.com/docs/account/referrals
-Updated: 2026-10-07
+Updated: 2026-10-17
 
-Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get 25 bonus cards once they have actually started using Clusters and their account is 72 hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.
+Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
 
-Settings → Invite and earn.
+Invite from Share on any cluster, or from Settings → Invite and earn.
 
 How it works
 
-Share your referral link. Someone who signs up through it gets bonus cards of their own straight away. You get 25 bonus cards once they actually get started — they have placed their first card — and their account is 72 hours old and has been opened in the app.
+Invite someone who does not have a Clusters account yet: by email from a cluster's Share panel, with one of your edit links, or with your referral link. When they sign up they get 25 extra cards and 0.5GB of storage straight away. You get 25 bonus cards and 0.5GB as soon as they actually get started — they have opened the app and placed their first card.
 
 The activation gate is the important detail. The reward is not for a signup, it is for someone who used the product — which means the number in your stats reflects people who are actually there.
 
 Limits
 
 4 rewards in any 30 days. Friends past that still count as got started; their rewards wait their turn, oldest first, and land as the 30-day window frees.
+Only people new to Clusters count. Inviting someone who already has an account shares the cluster with them, but earns no reward.
 Nothing is paid to, or for, a banned account.
-Rewards are checked every hour, so one lands within the hour of coming due.
+Anything held back is checked again every hour, so it lands within the hour of coming due.
 
-Bonus cards
+Bonus cards and storage
 
-Bonus cards raise your card limit above the free plan's 50. They stack across referrals and they do not expire.
+Bonus cards raise your card limit above the free plan's 50. Bonus storage adds to your drive on any plan: 0.5GB for joining through an invitation, and 0.5GB for each friend of yours who gets started. Both stack across referrals and neither expires.
 
-They apply on top of your allowance, so a free account with referrals genuinely has more room rather than a temporary boost. See Cards.
+They go to each person's own account, on top of their own allowance, so a free account with referrals genuinely has more room rather than a temporary boost. Work inside someone else's cluster still counts against that cluster's owner, as it always does. See Cards and Plans.
 
 Stats
 
-The tab tracks four things:
+The tab tracks:
 
 Stat | Meaning
-Friends joined | Signed up through your link
+Friends joined | Signed up through your link or your invitation
 Got started | Of those, how many actually used it
 Cards earned | Bonus cards credited to you
+Storage earned | Bonus storage credited to you
 Free months | Any subscription time earned
 
-The gap between the first two is the honest one. It is shown rather than hidden. Cards still on their way — for friends who got started recently, or past the 30-day limit — are listed under the stats until they land.
+The gap between the first two is the honest one. It is shown rather than hidden. Rewards still on their way — past the 30-day limit — are listed under the stats until they land.
 
 Sharing the link
 
@@ -3950,16 +3952,19 @@ They overlap in one place: someone who signs up because you invited them to a cl
 ## Frequently asked questions
 
 Q: When does the reward land?
-A: Your friend's bonus lands when they sign up. Yours lands once they have placed their first card, opened the app, and their account is 72 hours old. Rewards are checked every hour. A dormant signup earns you nothing.
+A: Your friend's bonus lands when they sign up. Yours lands as soon as they have opened the app and placed their first card. Anything held back is checked again every hour.
 
 Q: Is there a limit?
 A: You can earn at most 4 rewards in any 30 days. Friends past that still count; their rewards wait their turn and land as the window frees.
 
-Q: What do bonus cards do?
-A: They raise your card limit above the free plan's 50. They stack, and they do not expire.
+Q: What do the bonuses do?
+A: Bonus cards raise your card limit above the free plan's 50. Bonus storage adds to your drive on any plan. Both stack, and neither expires.
+
+Q: Does inviting someone who already has an account count?
+A: No. It shares the cluster with them as usual, but only people new to Clusters earn a reward.
 
 Q: Where do I see how it is going?
-A: Settings, under Invite and earn — friends joined, how many got started, cards earned, free months, and any cards still on their way.
+A: Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way.
 
 
 ========================================================================

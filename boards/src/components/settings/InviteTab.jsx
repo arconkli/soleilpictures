@@ -1,6 +1,8 @@
 // Invite & earn — the permanent home for the referral link + stats.
-// Two-sided: the friend starts with +25 bonus cards; the referrer earns +25
-// when that friend creates their first genuine card (granted server-side).
+// Two-sided: the friend starts with extra cards and storage; the inviter gets
+// cards and the same storage once that friend has opened the app and placed a
+// first card (granted server-side, 0377/0416). inviteReward.js holds every
+// figure, and the build holds those to the SQL that pays them.
 import { useEffect, useState } from 'react';
 import { getOrCreateMyReferralCode, getMyReferralStats } from '../../lib/boardsApi.js';
 import { logEvent, logEventNow } from '../../lib/analytics.js';
@@ -8,6 +10,10 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { logClientError } from '../../lib/errorReporting.js';
 import { describeReason } from '../../lib/describeReason.js';
 import { REFERRAL_PITCH, referralMessage, buildShareTargets } from '../../lib/shareTargets.js';
+import {
+  REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
+  INVITE_BONUS_STORAGE_LABEL, formatBonusBytes, storageEarnedBytes,
+} from '../../lib/inviteReward.js';
 import { useFeedback } from '../AppFeedback.jsx';
 
 function ReferralStat({ label, value, highlight }) {
@@ -103,8 +109,9 @@ export function InviteTab({ user }) {
       <h3 className="settings-section-title">Invite &amp; earn</h3>
       <p className="settings-section-hint">
         Clusters is better with people in it — invite someone to build with you.
-        {' '}You <b>both</b> get free cards: your friend starts with <b>25 bonus cards</b>,
-        {' '}and the moment they place their first card, <b>you earn 25 too</b>.
+        {' '}You <b>both</b> get more room: your friend starts with
+        {' '}<b>{REFERRAL_BONUS_CARDS} extra cards and {INVITE_BONUS_STORAGE_LABEL}</b>, and once they
+        {' '}place their first card, <b>you get {REFERRAL_REWARD_CARDS} cards and {INVITE_BONUS_STORAGE_LABEL} too</b>.
         {' '}When a friend <b>upgrades to a paid plan, you get a free month</b> — up to 10 a month.
       </p>
 
@@ -156,6 +163,7 @@ export function InviteTab({ user }) {
             <ReferralStat label="Friends joined" value={stats?.friendsJoined ?? 0} />
             <ReferralStat label="Got started"    value={stats?.friendsActivated ?? 0} />
             <ReferralStat label="Cards earned"   value={stats?.cardsEarned ?? 0} highlight />
+            <ReferralStat label="Storage earned" value={formatBonusBytes(storageEarnedBytes(stats?.cardsEarned))} highlight />
             {(stats?.monthsEarned ?? 0) > 0 && (
               <ReferralStat label="Free months" value={stats.monthsEarned} highlight />
             )}
@@ -163,14 +171,13 @@ export function InviteTab({ user }) {
           {stats?.pending > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 12 }}>
               {stats.pending} {stats.pending === 1 ? 'friend has joined but hasn’t' : 'friends have joined but haven’t'}
-              {' '}placed a first card yet. You earn 25 cards for each friend who gets started,
-              {' '}once their account is three days old.
+              {' '}placed a first card yet. You earn {REFERRAL_REWARD_CARDS} cards and {INVITE_BONUS_STORAGE_LABEL} for each friend who gets started.
             </p>
           )}
           {(stats?.rewardsWaiting ?? 0) > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 8 }}>
-              Cards for {stats.rewardsWaiting} {stats.rewardsWaiting === 1 ? 'friend' : 'friends'} are on the way.
-              {' '}They land once a friend’s account is three days old, for up to four friends a month.
+              Rewards for {stats.rewardsWaiting} {stats.rewardsWaiting === 1 ? 'friend' : 'friends'} are on the way.
+              {' '}They land as the 30-day limit frees, for up to {REFERRAL_REWARDS_PER_30_DAYS} friends a month.
             </p>
           )}
           {(stats?.friendsPaid ?? 0) > 0 && (

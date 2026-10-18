@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { latestDefinition, latestPolicy, latestMatch, migrationFiles, MIGRATIONS_DIR } from './migrationText.mjs';
 import { safeLabel } from '../../../supabase/functions/_shared/email/safeLabel.mjs';
+import { REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS } from './inviteReward.js';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const templates = read('../../../supabase/functions/_shared/email/templates.ts');
@@ -491,15 +492,16 @@ test('the invite budget belongs to the inbox, so plus-addressed accounts share i
     'the lock is per inbox too, or two accounts on one inbox race the count');
 });
 
-// ── 0377: a referral pays once the friend is real, a few at a time ──────────
+// ── 0377 + 0416: a referral pays once the friend gets started, a few at a time ─
 
-test('a referral pays the referrer only for an aged friend who opened the app, a few a month', () => {
+test('a referral pays the inviter once the friend opened the app and placed a first card, a few a month', () => {
   const pay = latestDefinition('_pay_referral_rewards').body;
   const num = (name) => Number(pay.match(new RegExp(`${name}\\s+constant\\s+integer\\s*:=\\s*(\\d+)`))[1]);
-  const hours = num('c_mature_hours'), per30 = num('c_per_30_days'), cards = num('c_reward_cards');
-  assert.ok(hours >= 72, 'the friend\'s account must be at least three days old');
+  const per30 = num('c_per_30_days'), cards = num('c_reward_cards');
   assert.ok(per30 <= 4, 'at most four rewards in 30 days');
-  assert.match(pay, /u\.created_at <= now\(\) - make_interval\(hours => c_mature_hours\)/);
+  // 0416, owner decision 2026-10-17: the reward no longer waits for the
+  // friend's account to age. Everything else 0377 put in place stays.
+  assert.doesNotMatch(pay, /c_mature_hours|make_interval|auth\.users/, 'the payout does not wait for the account to age');
   assert.match(pay, /exists \(select 1 from public\.user_presence pr where pr\.user_id = rf\.referee_id\)/,
     'the friend has opened the app');
   assert.match(pay, /not public\._user_banned\(rf\.referee_id\)\s+and not public\._user_banned\(rf\.referrer_id\)/);
@@ -507,7 +509,7 @@ test('a referral pays the referrer only for an aged friend who opened the app, a
     'the 30-day count is race-safe');
   assert.match(pay, /x\.reward_granted_at > now\(\) - interval '30 days'\) >= c_per_30_days then\s+continue;/);
   assert.ok(latestMatch(/cron\.schedule\('referral-rewards', '[^']+', \$\$select public\._pay_referral_rewards\(\)\$\$\)/),
-    'waiting rewards are paid by a schedule');
+    'rewards held back by the limit are paid by a schedule');
 
   // Activation no longer pays on its own; it asks the payer, and a payout
   // failure must not undo it (_stamp_first_card fires once per account).
@@ -532,21 +534,25 @@ test('a referral pays the referrer only for an aged friend who opened the app, a
   }
   assert.ok(latestMatch(/revoke execute on function public\.get_my_referral_stats\(\) from public, anon;/));
 
-  // The Invite tab says the same numbers the payer enforces.
-  const WORDS = { 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven' };
-  assert.equal(hours % 24, 0);
+  // The app says the numbers the payer enforces: the share panel and the
+  // Invite tab both read them from inviteReward.js.
+  assert.equal(REFERRAL_REWARD_CARDS, cards, 'inviteReward.js REFERRAL_REWARD_CARDS');
+  assert.equal(REFERRAL_REWARDS_PER_30_DAYS, per30, 'inviteReward.js REFERRAL_REWARDS_PER_30_DAYS');
   const tab = read('../components/settings/InviteTab.jsx');
-  assert.ok(tab.includes(`You earn ${cards} cards for each friend who gets started`));
-  assert.equal(tab.split(`${WORDS[hours / 24]} days old`).length - 1, 2, 'both hints name the waiting period');
-  assert.ok(tab.includes(`for up to ${WORDS[per30]} friends a month`));
+  assert.ok(tab.includes("from '../../lib/inviteReward.js'"));
+  assert.ok(tab.includes('You earn {REFERRAL_REWARD_CARDS} cards and {INVITE_BONUS_STORAGE_LABEL} for each friend who gets started'));
+  assert.ok(tab.includes('for up to {REFERRAL_REWARDS_PER_30_DAYS} friends a month'));
+  assert.doesNotMatch(tab, /days old/, 'nothing waits for an account to age any more');
   assert.match(read('./boardsApi.js'), /rewardsWaiting:\s+Number\(row\?\.rewards_waiting \?\? 0\)/);
 
   // The public page states the rules from code, and no longer says invitations
   // never make referrals (emailed invitations and edit links do).
   const doc = read('../../content/docs/account/referrals.md');
-  for (const fact of ['referralRewardCards', 'referralMatureHours', 'referralRewardsPer30Days', 'referralLinkJoinDays']) {
+  for (const fact of ['referralRewardCards', 'referralFriendCards', 'referralBonusStorage',
+    'referralRewardsPer30Days', 'referralLinkJoinDays']) {
     assert.ok(doc.includes(`{{fact:${fact}}}`), `referrals.md must use {{fact:${fact}}}`);
   }
+  assert.doesNotMatch(doc, /hours old|days old/, 'the page must not promise a wait the payer no longer has');
   assert.doesNotMatch(doc, /does not consume or produce referral/);
 });
 

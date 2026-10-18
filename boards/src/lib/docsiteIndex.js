@@ -492,7 +492,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-10-07",
+    "updated": "2026-10-17",
     "navLabel": "Images",
     "headings": [
       {
@@ -2592,7 +2592,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-10-12",
+    "updated": "2026-10-17",
     "navLabel": "Settings",
     "headings": [
       {
@@ -2783,12 +2783,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/referrals",
     "title": "Referrals — Invite and Earn — Soleil Clusters",
-    "metaDescription": "Invite people to Soleil Clusters and earn bonus cards when they actually get started. Your referral link, share targets and stats live in Settings.",
+    "metaDescription": "Invite people to Soleil Clusters and you both get bonus cards and storage once they get started. Your link, share targets and stats live in Settings.",
     "h1": "Referrals",
-    "answer": "Settings has an Invite and earn tab with your referral link. Someone who signs up through it gets bonus cards straight away, and you get 25 bonus cards once they have actually started using Clusters and their account is 72 hours old. The reward is activation-gated, so a signup that never makes anything earns you nothing.",
+    "answer": "Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.",
     "section": "account",
     "order": 3,
-    "updated": "2026-10-07",
+    "updated": "2026-10-17",
     "navLabel": "Referrals",
     "headings": [
       {
@@ -2800,8 +2800,8 @@ export const DOCS_PAGES = [
         "text": "Limits"
       },
       {
-        "id": "bonus-cards",
-        "text": "Bonus cards"
+        "id": "bonus-cards-and-storage",
+        "text": "Bonus cards and storage"
       },
       {
         "id": "stats",
@@ -2818,25 +2818,30 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/account/plans",
+      "/docs/collaborate/sharing",
       "/docs/canvas/cards",
       "/docs/collaborate"
     ],
     "faq": [
       {
         "q": "When does the reward land?",
-        "a": "Your friend's bonus lands when they sign up. Yours lands once they have placed their first card, opened the app, and their account is 72 hours old. Rewards are checked every hour. A dormant signup earns you nothing."
+        "a": "Your friend's bonus lands when they sign up. Yours lands as soon as they have opened the app and placed their first card. Anything held back is checked again every hour."
       },
       {
         "q": "Is there a limit?",
         "a": "You can earn at most 4 rewards in any 30 days. Friends past that still count; their rewards wait their turn and land as the window frees."
       },
       {
-        "q": "What do bonus cards do?",
-        "a": "They raise your card limit above the free plan's 50. They stack, and they do not expire."
+        "q": "What do the bonuses do?",
+        "a": "Bonus cards raise your card limit above the free plan's 50. Bonus storage adds to your drive on any plan. Both stack, and neither expires."
+      },
+      {
+        "q": "Does inviting someone who already has an account count?",
+        "a": "No. It shares the cluster with them as usual, but only people new to Clusters earn a reward."
       },
       {
         "q": "Where do I see how it is going?",
-        "a": "Settings, under Invite and earn — friends joined, how many got started, cards earned, free months, and any cards still on their way."
+        "a": "Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way."
       }
     ]
   },

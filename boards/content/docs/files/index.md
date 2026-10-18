@@ -54,7 +54,9 @@ size. There is no per-file limit on any plan.
 
 **Storage.** The only limit is the drive: {{fact:freeStorage}} on the free
 plan, {{fact:creatorStorage}} on {{fact:planName}}. A drop that would not fit is
-caught before anything uploads, and you can add the part that fits.
+caught before anything uploads, and you can add the part that fits. Inviting
+someone new adds {{fact:referralBonusStorage}} to your drive once they get
+started, and to theirs when they join ([Referrals](/docs/account/referrals)).
 
 > **Note:** The drive and the [card cap](/docs/canvas/cards) are the real,
 > enforced differences between free and paid — a free account stops at
