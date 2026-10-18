@@ -1,23 +1,24 @@
-// Share panel — everything about who can open one cluster, in four blocks:
+// Share panel — everything about who can open one cluster, laid out the way
+// people already know from shared documents, in the order they decide it:
 //
-//   1. General access — one picker, one button. Who can open this via a link?
-//   2. Invite specific people — email + role
-//   3. People with access — one truthful list
+//   1. Invite people — email + role, a line saying what that role can do, and
+//      what inviting someone NEW earns (InviteRewardNote)
+//   2. People with access — one truthful list
+//   3. Link access — one picker: who can open this with a link?
 //   4. Publish to Explore — collapsed
+//   …and a footer that stays put: Copy link, Done.
 //
-// The panel used to render the two kinds of link (anonymous view-only, and the
-// sign-in-then-join-as-editor invite) as two independent sections with two
-// create flows, two sets of options and up to four buttons per link row, above
-// two people lists with two headers and two empty states. Nothing in it was
-// unnecessary — permissions are genuinely detailed — but ALL of it was present
-// at rest, so the common case (hand someone a link) was buried inside the rare
-// one (audit and revoke). At rest this is now one button, one picker, one
-// invite row and one list; every option that existed still exists, one
-// disclosure away.
+// The panel used to open on the link picker, with invitations second and
+// labelled like a permissions console ("GENERAL ACCESS", "INVITE SPECIFIC
+// PEOPLE"). It explained nothing about roles and never mentioned that an
+// invitation pays both people. Copy link moved to the footer rather than away:
+// it is still the first thing focused, so Share then Enter is still a link on
+// the clipboard.
 //
-// The two link kinds are not two features to somebody deciding what to send a
-// person. They are one question with two answers, so the panel asks it once and
-// lib/shareAccess.js does the mapping back to rows.
+// The two link kinds (anonymous view-only, and sign-in-then-join-as-editor)
+// are not two features to somebody deciding what to send a person. They are one
+// question with two answers, so the panel asks it once and lib/shareAccess.js
+// does the mapping back to rows.
 //
 // Owners and editors can invite people and create links. Editors may only
 // remove/change the invites and links THEY created; the owner can manage
@@ -44,10 +45,13 @@ import { maskName, maskEmail } from '../lib/captureIdentity.js';
 import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { ExplorePublishSection } from './ExplorePublishSection.jsx';
+import { InviteRewardNote } from './InviteRewardNote.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
-import { X as XIcon, Link as LinkIcon, UserPlus as UserPlusIcon } from '../lib/icons.js';
+import {
+  X as XIcon, Link as LinkIcon, UserPlus as UserPlusIcon, Globe as GlobeIcon, Lock as LockIcon,
+} from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 
 // Turn an expiry choice into a timestamp. 'never' is an explicit null, which
@@ -85,6 +89,14 @@ export function ShareModal({
   // (the workspaces list carries it). workspaceMembers can still be loading
   // on a panel that opens right after a workspace switch.
   myWorkspaceRole = null,
+  // The invitation reward note. rewardTier is the caller's own tier (it picks
+  // the wording); loadReferralStats is an async () => stats, or null for no
+  // progress line; onOpenInvites closes the panel and opens Settings → Invite
+  // & earn. Passed in rather than read here: an extra useMyTier() instance
+  // without a userId resets the app's one shared tier store.
+  rewardTier = null,
+  loadReferralStats = null,
+  onOpenInvites = null,
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
@@ -97,6 +109,9 @@ export function ShareModal({
   // create public links. The manager-only affordances (workspace membership,
   // managing OTHER people's invites/links) stay gated on isManager below.
   const canInvite = isManager || canManage;
+  // Which reward sentence the invite note shows (InviteRewardNote): carried on
+  // INVITE_SENT so the invite rate can be read by the wording people saw.
+  const rewardNote = rewardTier === 'demo' ? 'free' : 'paid';
   const workspaceScope = scope === 'workspace';
   const [shares, setShares] = useState([]);          // per-board shares
   // Shares on an ANCESTOR cluster: access cascades down the tree, so these
@@ -127,18 +142,36 @@ export function ShareModal({
   const [publicLinks, setPublicLinks] = useState([]);  // active links, both kinds
   const [busyLink, setBusyLink] = useState(false);
 
-  // GENERAL ACCESS. One picker over both link kinds: 'view' (anonymous, no
+  // LINK ACCESS. One picker over both link kinds: 'view' (anonymous, no
   // account) · 'edit' (signs in, joins as editor) · 'off' (nothing live).
   // Derived from what is actually true the first time the links land, so the
   // panel opens describing the board rather than proposing something.
   const [accessMode, setAccessMode] = useState('view');
   const derivedFor = useRef(null);
   const [linkSettingsOpen, setLinkSettingsOpen] = useState(false);
-  // Opening the panel lands you ON the copy button rather than on the close X
-  // (Modal's default is the first focusable, which is the header's close). The
-  // topbar is a single "Share" that opens this, so Share → Enter has to be a
-  // link on the clipboard or the one-press path is genuinely gone.
-  const takeLinkRef = useRef(null);
+  // Opening the panel lands you ON the footer's Copy link rather than on the
+  // close X (Modal's default is the first focusable, which is the header's
+  // close). The topbar is a single "Share" that opens this, so Share → Enter
+  // has to be a link on the clipboard or the one-press path is genuinely gone.
+  // Never the email box: on a phone, focusing it throws up the keyboard over
+  // the panel. Viewers, who cannot make a link, land on Done.
+  const copyLinkRef = useRef(null);
+  const doneRef = useRef(null);
+
+  // "3 joined through you · 50 cards and 1GB earned", once per open. Without
+  // it the note still says what an invitation pays; it just has no progress.
+  const [referralStats, setReferralStats] = useState(null);
+  useEffect(() => {
+    if (!canInvite || !loadReferralStats) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stats = await loadReferralStats();
+        if (!cancelled) setReferralStats(stats || null);
+      } catch (_) { /* the note reads fine without a progress line */ }
+    })();
+    return () => { cancelled = true; };
+  }, [canInvite, loadReferralStats]);
 
   // Expiry is per-kind, and the two defaults are the ones that shipped: a
   // view-only link you paste into a brief should outlive the brief, and an
@@ -253,7 +286,7 @@ export function ShareModal({
     catch (_) { return false; }
   };
 
-  // ── General access ────────────────────────────────────────────────────────
+  // ── Link access ────────────────────────────────────────────────────────
 
   const live = activeLinks(publicLinks);
   const modeOpts = { selfUserId, includeSubboards: linkIncludeSubboards };
@@ -554,8 +587,8 @@ export function ShareModal({
     // records signups, so without this the "invites per activated user" half
     // of the loop is invisible. One event per outcome group, not per address.
     try {
-      if (granted.length > 0) logEventNow(EV.INVITE_SENT, { role: inviteRole, result: 'granted', n: granted.length, surface: 'share_modal' });
-      if (pending.length > 0) logEventNow(EV.INVITE_SENT, { role: inviteRole, result: 'pending', n: pending.length, surface: 'share_modal' });
+      if (granted.length > 0) logEventNow(EV.INVITE_SENT, { role: inviteRole, result: 'granted', n: granted.length, surface: 'share_modal', reward_note: rewardNote });
+      if (pending.length > 0) logEventNow(EV.INVITE_SENT, { role: inviteRole, result: 'pending', n: pending.length, surface: 'share_modal', reward_note: rewardNote });
     } catch (_) { /* analytics must never break the invite flow */ }
 
     // Refresh derived state once after the loop.
@@ -765,14 +798,35 @@ export function ShareModal({
 
   const ROLE_LABEL = { viewer: 'Viewer', editor: 'Editor', workspace: 'Workspace member', workspaceviewer: 'Workspace viewer' };
 
+  // What the role picked for an invitation lets that person do, said under the
+  // invite row so the choice explains itself. Workspace roles name the
+  // workspace, because the scope is the whole point of choosing them.
+  const wsName = workspace?.name || 'this workspace';
+  const roleHint = inviteRole === 'viewer'
+    ? 'Can open everything here, but can’t change anything.'
+    : inviteRole === 'workspace'
+      ? `Can edit every cluster in “${wsName}”. Editors are free on every plan.`
+      : inviteRole === 'workspaceviewer'
+        ? `Can open every cluster in “${wsName}”, but can’t change anything.`
+        : 'Can add, move and delete cards here and in every sub-cluster. Editors are free on every plan.';
+
+  // Gold marks the action the panel is about to take, and only one control
+  // carries it. At rest that is Copy link — it has focus, so Share → Enter
+  // copies. While there are addresses in the box it is Invite. Under "Only
+  // people with access" there is no link to copy, so nothing is gold.
+  const goldControl = !canInvite ? null
+    : inviteEmail.trim() ? 'invite'
+      : accessMode === 'off' ? null : 'copy';
+  const goldIf = (which) => (goldControl === which ? ' share-btn-gold' : '');
+
   // What the general-access block says about itself. Built from rows, never
   // from the picker, so it can never claim a link that does not exist.
   const accessHint = accessMode === 'off'
     ? (live.length > 0
-        ? 'Only the people listed below can open this cluster, plus anyone holding a link that is still live. Links other people created can only be revoked by them, the owner or a co-owner.'
-        : 'Only the people listed below can open this cluster.')
+        ? 'Only the people above can open this cluster, plus anyone holding a link that is still live. Links other people created can only be revoked by them, the owner or a co-owner.'
+        : 'Only the people above can open this cluster.')
     : accessMode === 'edit'
-      ? 'Anyone with the link can preview this cluster and join as an editor with one click. They sign in to accept; sub-clusters are included.'
+      ? 'Anyone with the link can preview this cluster and join as an editor with one click. They sign in to accept; sub-clusters are included. New accounts that join through it count as your invitations.'
       : `Anyone with the link can open this cluster${linkIncludeSubboards ? ' and its sub-clusters' : ''} — view only, no account needed.`;
 
   const linkStatus = () => {
@@ -847,14 +901,16 @@ export function ShareModal({
 
   return (
     <Modal open onClose={onClose} className="share-modal" backdropClassName="share-backdrop"
-           labelledBy="share-title" initialFocusRef={canInvite ? takeLinkRef : undefined}>
+           labelledBy="share-title" initialFocusRef={canInvite ? copyLinkRef : doneRef}>
         <div className="share-head">
-          <div>
-            <div className="share-eyebrow">{workspaceScope ? 'SHARE WORKSPACE' : 'SHARE'}</div>
-            <div className="share-title" id="share-title">
-              {workspaceScope ? (workspace?.name || 'Workspace') : (board?.name || 'Untitled cluster')}
-            </div>
-          </div>
+          {/* "Share “Lookbook”" — what the panel does and to what, in one line.
+              The name truncates; the verb never does. */}
+          <h2 className="share-title" id="share-title">
+            <span className="share-title-verb">{workspaceScope ? 'Share workspace' : 'Share'}</span>{' '}
+            <span className="share-title-name">
+              “{workspaceScope ? (workspace?.name || 'Workspace') : (board?.name || 'Untitled cluster')}”
+            </span>
+          </h2>
           <button className="share-close" onClick={onClose} aria-label="Close">
             <Glyph as={XIcon} size={14} />
           </button>
@@ -863,102 +919,16 @@ export function ShareModal({
         {/* ONE scroll container. Each section used to carry its own
             overflow-y:auto, which on a phone — where .share-modal is a
             full-screen flex column — meant three independently scrolling
-            regions stacked inside one dialog. */}
+            regions stacked inside one dialog. The footer sits outside it. */}
         <div className="share-body">
 
-        {/* GENERAL ACCESS — the whole point of the panel, in one row.
-            "Anonymous view-only link" and "sign-in-then-join-as-editor link"
-            are not two features to somebody deciding what to send a person;
-            they are one question with two answers. Everything else about a
-            link — expiry, scope, indexing, the list of them — is behind Link
-            settings, where its density is correct. */}
+        {/* INVITE PEOPLE — first, because naming who you want in is where most
+            people start, and because it is the one place to say what an
+            invitation earns. The line under the row says what the chosen role
+            can do, so the picker explains itself. */}
         {canInvite && (
           <div className="share-section">
-            <div className="share-eyebrow">GENERAL ACCESS</div>
-
-            <div className="share-access-row">
-              <button className="share-invite-btn share-invite-btn-primary"
-                      ref={takeLinkRef}
-                      onClick={takeLink}
-                      disabled={busyLink || accessMode === 'off'}
-                      title={accessMode === 'off'
-                        ? 'Nobody can open this by link — choose an access level first'
-                        : 'Copies the existing link when one is already live.'}>
-                <Glyph as={LinkIcon} size={14} />{' '}
-                {busyLink ? 'Working…' : currentLink ? 'Copy link' : 'Create link & copy'}
-              </button>
-              <select className="share-role-select share-access-select"
-                      aria-label="Who can open this cluster with a link"
-                      value={accessMode}
-                      onChange={(e) => onPickAccess(e.target.value)}>
-                <option value="view">Anyone with the link · can view</option>
-                <option value="edit">Anyone with the link · can edit</option>
-                <option value="off">Only invited people</option>
-              </select>
-            </div>
-
-            <div className="share-status">{linkStatus()}</div>
-            <div className="share-hint">
-              {accessHint}
-              {otherLinks.length > 0 && (
-                <>
-                  {' '}Also live: {otherLinks.length} other link{otherLinks.length === 1 ? '' : 's'} —{' '}
-                  <button type="button" className="share-linkish"
-                          onClick={() => setLinkSettingsOpen(true)}>
-                    manage
-                  </button>.
-                </>
-              )}
-            </div>
-
-            <details className="share-link-options"
-                     open={linkSettingsOpen}
-                     onToggle={(e) => setLinkSettingsOpen(e.currentTarget.open)}>
-              <summary className="share-hint">Link settings</summary>
-              <div className="share-link-create">
-                <label className="share-link-opt">
-                  Expires:
-                  <select className="share-role-select"
-                          value={accessMode === 'edit' ? inviteLinkExpiry : linkExpiry}
-                          onChange={(e) => (accessMode === 'edit'
-                            ? setInviteLinkExpiry(e.target.value)
-                            : setLinkExpiry(e.target.value))}>
-                    <option value="never">Never</option>
-                    <option value="7d">In 7 days</option>
-                    <option value="30d">In 30 days</option>
-                  </select>
-                </label>
-                {/* Invite links cover the subtree inherently, so the scope
-                    choice only means something for a view-only link. */}
-                {accessMode !== 'edit' && (
-                  <label className="share-link-opt">
-                    <input type="checkbox"
-                           checked={linkIncludeSubboards}
-                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
-                    Include sub-clusters
-                  </label>
-                )}
-              </div>
-              <div className="share-hint">
-                Applies to the next link you create. Existing links keep their own
-                settings — change them below.
-              </div>
-
-              {live.length > 0 && (
-                <div className="share-list" style={{ marginTop: 10 }}>
-                  {live.map(linkRow)}
-                </div>
-              )}
-            </details>
-          </div>
-        )}
-
-        {/* INVITE SPECIFIC PEOPLE — the addressed path. Unchanged in behaviour;
-            the role labels shed the scope explanation, which now lives once in
-            the hint instead of inside every <option>. */}
-        {canInvite && (
-          <div className="share-section">
-            <div className="share-eyebrow">INVITE SPECIFIC PEOPLE</div>
+            <h3 className="share-section-title">Invite people</h3>
             <div className="share-invite-row">
               <input className="share-input"
                      type="text"
@@ -977,40 +947,37 @@ export function ShareModal({
                 {/* Workspace membership grants access to every board, so
                     only the owner or a co-owner may hand it out. */}
                 {isManager && (
-                  <option value="workspace">Whole workspace — can edit</option>
+                  <option value="workspace">Whole workspace · can edit</option>
                 )}
                 {isManager && (
-                  <option value="workspaceviewer">Whole workspace — view only</option>
+                  <option value="workspaceviewer">Whole workspace · can view</option>
                 )}
               </select>
-              <button className="share-invite-btn"
+              <button className={'share-invite-btn' + goldIf('invite')}
                       onClick={submitInvite}
                       disabled={!inviteEmail.trim() || inviting}>
                 {inviting ? 'Inviting…' : 'Invite'}
               </button>
             </div>
-            <div className="share-hint">
-              They sign in to accept, and get the same access to this
-              cluster&apos;s sub-clusters. Editors are free on every plan.
-              {isManager && (isWorkspaceInvite && workspaceRole === 'viewer' ? ' Workspace viewers can open every cluster in this workspace, but change nothing.' : ' Workspace members can edit every cluster in this workspace, not just this one.')}
-            </div>
+            <div className="share-hint share-role-hint">{roleHint}</div>
+            <InviteRewardNote tier={rewardTier} stats={referralStats} onOpenInvites={onOpenInvites} />
           </div>
         )}
 
-        {/* PEOPLE WITH ACCESS — one truthful list. It used to be two lists with
+        {/* People with access — one truthful list. It used to be two lists with
             two headers, two counts and two empty states; the scope that
             justified the split is already spelled out in every row's sub-line
             ("can edit every cluster" vs. "Can edit"), so the split was buying
             nothing and costing a screenful. */}
         <div className="share-section">
-          <div className="share-eyebrow">PEOPLE WITH ACCESS · {accessCount}</div>
+          <h3 className="share-section-title">People with access · {accessCount}</h3>
           <div className="share-list">
             {loadingShares && accessCount === 0 ? (
               <div className="share-empty">Loading…</div>
             ) : accessCount === 0 ? (
               <div className="share-empty">
-                Just you so far — invite someone above and they&apos;ll see this
-                cluster and everything inside it.
+                Just you so far. Anyone you invite above will see this cluster
+                and everything inside it.
               </div>
             ) : null}
 
@@ -1065,7 +1032,7 @@ export function ShareModal({
                 <div className="share-row-text">
                   <div className="share-row-name">{maskEmail(row.email, row.id)}</div>
                   <div className="share-row-sub">
-                    Workspace invite sent — gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
+                    Invited to the whole workspace · joins when they sign up · {new Date(row.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 {isManager && (
@@ -1140,7 +1107,7 @@ export function ShareModal({
                 <div className="share-row-text">
                   <div className="share-row-name">{row.email}</div>
                   <div className="share-row-sub">
-                    {ROLE_LABEL[row.role] || row.role} · gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
+                    {ROLE_LABEL[row.role] || row.role} · invited, joins when they sign up · {new Date(row.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 {(isManager || row.invited_by === selfUserId) && (
@@ -1153,6 +1120,86 @@ export function ShareModal({
           </div>
         </div>
 
+        {/* LINK ACCESS — who can open this with a link, as one question with
+            three answers. "Anonymous view-only link" and "sign-in-then-join-as-
+            editor link" are not two features to somebody deciding what to send
+            a person. Copying lives in the footer, where it is the first thing
+            focused; everything else about a link — expiry, scope, indexing,
+            the list of them — is behind Link settings, where its density is
+            correct. */}
+        {canInvite && (
+          <div className="share-section">
+            <h3 className="share-section-title">Link access</h3>
+
+            <div className="share-access-row">
+              <span className="share-access-icon" aria-hidden="true">
+                <Glyph as={accessMode === 'off' ? LockIcon : GlobeIcon} size={16} weight="regular" />
+              </span>
+              <select className="share-role-select share-access-select"
+                      aria-label="Who can open this cluster with a link"
+                      value={accessMode}
+                      onChange={(e) => onPickAccess(e.target.value)}>
+                <option value="view">Anyone with the link can view</option>
+                <option value="edit">Anyone with the link can edit</option>
+                <option value="off">Only people with access</option>
+              </select>
+            </div>
+
+            <div className="share-status">{linkStatus()}</div>
+            <div className="share-hint">
+              {accessHint}
+              {otherLinks.length > 0 && (
+                <>
+                  {' '}Also live: {otherLinks.length} other link{otherLinks.length === 1 ? '' : 's'} —{' '}
+                  <button type="button" className="share-linkish"
+                          onClick={() => setLinkSettingsOpen(true)}>
+                    manage
+                  </button>.
+                </>
+              )}
+            </div>
+            <details className="share-link-options"
+                     open={linkSettingsOpen}
+                     onToggle={(e) => setLinkSettingsOpen(e.currentTarget.open)}>
+              <summary className="share-hint">Link settings</summary>
+              <div className="share-link-create">
+                <label className="share-link-opt">
+                  Expires:
+                  <select className="share-role-select"
+                          value={accessMode === 'edit' ? inviteLinkExpiry : linkExpiry}
+                          onChange={(e) => (accessMode === 'edit'
+                            ? setInviteLinkExpiry(e.target.value)
+                            : setLinkExpiry(e.target.value))}>
+                    <option value="never">Never</option>
+                    <option value="7d">In 7 days</option>
+                    <option value="30d">In 30 days</option>
+                  </select>
+                </label>
+                {/* Invite links cover the subtree inherently, so the scope
+                    choice only means something for a view-only link. */}
+                {accessMode !== 'edit' && (
+                  <label className="share-link-opt">
+                    <input type="checkbox"
+                           checked={linkIncludeSubboards}
+                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
+                    Include sub-clusters
+                  </label>
+                )}
+              </div>
+              <div className="share-hint">
+                Applies to the next link you create. Existing links keep their own
+                settings — change them below.
+              </div>
+
+              {live.length > 0 && (
+                <div className="share-list" style={{ marginTop: 10 }}>
+                  {live.map(linkRow)}
+                </div>
+              )}
+            </details>
+          </div>
+        )}
+
         <ExplorePublishSection board={board} canManage={canInvite} collapsible />
 
         {!canInvite && (
@@ -1163,6 +1210,29 @@ export function ShareModal({
             </div>
           </div>
         )}
+        </div>
+
+        {/* The footer stays put while the body scrolls: the link is one press
+            away wherever you are in the panel, and Done is where a thumb is on
+            a phone. Viewers cannot make a link, so they get Done alone. */}
+        <div className="share-foot">
+          {canInvite && (
+            <button className={'share-invite-btn share-foot-btn' + goldIf('copy')}
+                    ref={copyLinkRef}
+                    onClick={takeLink}
+                    disabled={busyLink || accessMode === 'off'}
+                    title={accessMode === 'off'
+                      ? 'Nobody can open this by link — choose who can under Link access first'
+                      : 'Copies the existing link when one is already live.'}>
+              <Glyph as={LinkIcon} size={14} />{' '}
+              {busyLink ? 'Working…' : currentLink ? 'Copy link' : 'Create link & copy'}
+            </button>
+          )}
+          <button className="share-invite-btn share-foot-btn share-foot-done"
+                  ref={doneRef}
+                  onClick={onClose}>
+            Done
+          </button>
         </div>
     </Modal>
   );

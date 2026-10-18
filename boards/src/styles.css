@@ -2259,8 +2259,8 @@ body {
   animation: modalRise var(--dur-slow) var(--ease);
 }
 .share-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  padding: 16px 18px 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px 12px;
   border-bottom: 1px solid var(--line-1);
 }
 .share-eyebrow {
@@ -2273,8 +2273,20 @@ body {
 .share-title {
   font: 700 16px/1.3 var(--font-sans);
   color: var(--ink-0);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 380px;
+  margin: 0;
+  display: flex; gap: 0.3em;
+  min-width: 0;
+  white-space: nowrap;
+}
+.share-title-verb { flex: 0 0 auto; }
+.share-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Each block's name, in words rather than a caps eyebrow: "Invite people",
+   "People with access", "Link access". */
+.share-section-title {
+  font: 600 13px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  margin: 0 0 8px;
 }
 .share-close {
   appearance: none; border: 0; background: transparent;
@@ -2372,7 +2384,7 @@ body {
    action in here used to be, so the eye was pulled equally by "hand someone a
    link" and by "submit this cluster for editorial review" — which is the same
    flattening the whole rework is undoing, expressed in colour. Base is neutral;
-   .share-invite-btn-primary below carries the accent. */
+   .share-btn-gold below carries the accent, on one control at a time. */
 .share-invite-btn {
   appearance: none;
   background: var(--bg-3);
@@ -2422,20 +2434,16 @@ body {
 }
 .share-link-opt input[type="checkbox"] { cursor: pointer; }
 
-/* The one action the whole panel exists for: mint-or-copy the link the access
-   picker describes. It leads the row and the picker follows it, so the first
-   thing you can press is the thing you came for — expiry, scope, indexing and
-   the list of live links all sit inside .share-link-options below. */
-.share-invite-btn-primary {
-  flex: 1 1 180px;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+/* The action the panel is about to take, and only that one: Copy link at rest
+   (it holds focus, so Share → Enter copies), Invite while there are addresses
+   in the box, nothing under "Only people with access". ShareModal's goldIf()
+   is the only thing that adds this class. */
+.share-btn-gold {
   background: var(--soleil);
   border-color: transparent;
   color: var(--on-soleil);
-  padding: 11px 14px;
-  font-size: 13px;
 }
-.share-invite-btn-primary:hover:not(:disabled) {
+.share-btn-gold:hover:not(:disabled) {
   background: color-mix(in srgb, var(--soleil) 88%, #fff);
   border-color: transparent;
 }
@@ -2451,6 +2459,74 @@ body {
 .share-link-options > summary:hover { color: var(--ink-2); }
 .share-link-options > summary::marker { color: var(--ink-3); }
 .share-link-options[open] > summary { margin-bottom: 8px; }
+
+/* What the role picked for an invitation lets that person do. */
+.share-role-hint { color: var(--ink-2); margin-top: 2px; }
+
+/* The invitation reward, under the invite row. Neutral on purpose: it is
+   information about the action above it, not a second call to action. */
+.share-reward {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+}
+.share-reward-icon { flex: 0 0 auto; color: var(--ink-1); margin-top: 1px; }
+.share-reward-text { flex: 1 1 auto; min-width: 0; }
+.share-reward-lead { font: 600 12.5px/1.4 var(--font-sans); color: var(--ink-0); }
+.share-reward-detail { font: 500 11.5px/1.45 var(--font-sans); color: var(--ink-2); margin-top: 2px; }
+.share-reward-progress {
+  font: 600 11px/1.4 var(--font-sans);
+  color: var(--ink-1);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.share-reward-how { margin-top: 6px; }
+.share-reward-how > summary {
+  cursor: pointer;
+  user-select: none;
+  width: fit-content;
+  font: 500 11px/1.4 var(--font-sans);
+  color: var(--ink-2);
+}
+.share-reward-how > summary:hover { color: var(--ink-0); }
+.share-reward-how > summary::marker { color: var(--ink-3); }
+.share-reward-how ul {
+  margin: 6px 0 8px;
+  padding-left: 16px;
+  font: 500 11px/1.5 var(--font-sans);
+  color: var(--ink-2);
+}
+.share-reward-how li + li { margin-top: 3px; }
+.share-reward-how .share-linkish { font: 600 11px/1.4 var(--font-sans); }
+
+/* Globe while a link opens this, lock while only people on the list can. */
+.share-access-icon {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 34px; height: 34px;
+  border-radius: var(--radius);
+  background: var(--bg-3);
+  color: var(--ink-1);
+}
+
+/* Outside .share-body, so it never scrolls away: the link is one press from
+   anywhere in the panel, and Done sits where a thumb is on a phone. */
+.share-foot {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-1);
+}
+.share-foot-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 14px;
+  font-size: 12.5px;
+}
+.share-foot-done { margin-left: auto; }
 
 .share-list { display: flex; flex-direction: column; gap: 2px; }
 .share-empty {
@@ -2549,7 +2625,8 @@ body {
   transition: transform var(--dur-fast) var(--ease);
 }
 .share-advanced[open] > summary::before { transform: rotate(90deg) translateX(1px); }
-.share-advanced > summary .share-eyebrow { margin-bottom: 0; }
+.share-advanced > summary .share-eyebrow,
+.share-advanced > summary .share-section-title { margin-bottom: 0; }
 .share-advanced[open] > summary { margin-bottom: 10px; }
 .share-advanced-status {
   font: 600 10px/1.3 var(--font-sans);
@@ -3355,6 +3432,24 @@ body {
 .tb-icon:hover:not(:disabled), .tb-btn:hover:not(:disabled) { color: var(--ink-0); background: var(--bg-hov); }
 .tb-icon:disabled, .tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .tb-btn-label { font: 500 13px/1 var(--font-sans); }
+
+/* Share is the one control in the top bar that is filled at rest, so it reads
+   as the thing to press without spending gold (gold marks active, selection
+   and focus). The fill is the text colour, so it inverts with the theme: a
+   white pill on dark, a black pill on light. The hover must set the colour too,
+   or the generic .tb-btn:hover paints --ink-0 text onto an --ink-0 fill. */
+.tb-btn.tb-share {
+  background: var(--ink-0);
+  color: var(--bg-0);
+  border-radius: 999px;
+  padding: 0 14px 0 12px;
+  gap: 6px;
+}
+.tb-btn.tb-share .tb-btn-label { font-weight: 600; }
+.tb-btn.tb-share:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink-0) 86%, var(--bg-0));
+  color: var(--bg-0);
+}
 
 /* Clusters brand chip in the topbar — small cluster mark + "CLUSTERS"
    wordmark in Brandon Grotesque, click goes home. Sits at the very left
@@ -20985,6 +21080,19 @@ button, [role="button"], a {
     padding-left: 8px; padding-right: 8px; gap: 0;
     min-width: 40px; min-height: 40px; justify-content: center;
   }
+  /* Share keeps the 40px hit area the fit budget counts, and draws a 32px
+     solid circle inside it (the fill stops at the content box). */
+  .topbar .tb-btn.tb-share {
+    width: 40px; padding: 4px;
+    border-radius: 50%;
+    background-clip: content-box;
+  }
+  .share-modal {
+    height: calc(100vh - var(--safe-top));
+    height: calc(100dvh - var(--safe-top));
+  }
+  .share-foot { padding-bottom: calc(12px + var(--safe-bottom, 0px)); }
+  .share-foot-btn { min-height: 44px; padding-left: 16px; padding-right: 16px; }
   /* Presence: one face and a "+N" (App.jsx passes max=1), overlapped. */
   .topbar .ws-presence { gap: 0; padding: 0 2px; }
   .topbar .ws-presence-status { margin-right: 4px; }

@@ -85,8 +85,8 @@ for (const who of ['owner', 'coowner']) {
 
     const modal = page.locator('.share-modal');
     await expect(modal).toBeVisible();
-    await expect(modal.locator('.share-eyebrow').first()).toHaveText('SHARE WORKSPACE');
-    await expect(modal.locator('#share-title')).toHaveText('Team space');
+    await expect(modal.locator('#share-title .share-title-verb')).toHaveText('Share workspace');
+    await expect(modal.locator('#share-title .share-title-name')).toHaveText('“Team space”');
     await expect(modal.locator('select[aria-label="Access level for invitees"]')).toHaveValue('workspace');
 
     // The editor's row: both can remove them; only the owner can hand over.
@@ -109,8 +109,8 @@ test('a cluster-scoped Share panel still starts on this cluster', async ({ page 
     });
   }, { me: ME });
   const modal = page.locator('.share-modal');
-  await expect(modal.locator('.share-eyebrow').first()).toHaveText('SHARE');
-  await expect(modal.locator('#share-title')).toHaveText('Studio');
+  await expect(modal.locator('#share-title .share-title-verb')).toHaveText('Share');
+  await expect(modal.locator('#share-title .share-title-name')).toHaveText('“Studio”');
   await expect(modal.locator('select[aria-label="Access level for invitees"]')).toHaveValue('editor');
 });
 

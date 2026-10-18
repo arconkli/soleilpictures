@@ -501,7 +501,11 @@ test('a referral pays the inviter once the friend opened the app and placed a fi
   assert.ok(per30 <= 4, 'at most four rewards in 30 days');
   // 0416, owner decision 2026-10-17: the reward no longer waits for the
   // friend's account to age. Everything else 0377 put in place stays.
-  assert.doesNotMatch(pay, /c_mature_hours|make_interval|auth\.users/, 'the payout does not wait for the account to age');
+  assert.doesNotMatch(pay, /c_mature_hours|make_interval|auth\.users|created_at/, 'the payout does not wait for the account to age');
+  // Any other spelling of a wait reads the clock: the only reads allowed are the
+  // 30-day cap and the payout's own stamp.
+  assert.equal([...pay.matchAll(/now\(\)/g)].length, 2, 'a new time condition crept into the payout');
+  assert.equal([...pay.matchAll(/\binterval\s+'/g)].length, 1, 'the 30-day window is the only interval');
   assert.match(pay, /exists \(select 1 from public\.user_presence pr where pr\.user_id = rf\.referee_id\)/,
     'the friend has opened the app');
   assert.match(pay, /not public\._user_banned\(rf\.referee_id\)\s+and not public\._user_banned\(rf\.referrer_id\)/);

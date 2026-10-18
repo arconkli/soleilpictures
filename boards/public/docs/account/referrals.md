@@ -77,4 +77,5 @@ Two different things:
 They overlap in one place: someone who signs up because you invited them to a
 cluster by email counts as your referral, and so does someone who joins through
 one of your edit links within 7 days of signing up.
-The same rules apply, and each person counts once.
+The same rules apply, and each person counts once. The Share panel says so
+under its invite box.

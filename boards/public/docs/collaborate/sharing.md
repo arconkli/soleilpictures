@@ -2,35 +2,38 @@
 
 > A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-17_
 
-The **Share** panel answers one question — who can open this cluster? — and
-everything in it hangs off that answer. It opens on one button and one picker;
-the rest is behind **Link settings**.
+The **Share** panel answers one question — who can open this cluster? — in the
+order you decide it: **Invite people** by email first, then **People with
+access**, then **Link access** for anyone else. **Copy link** and **Done** sit at
+the bottom and stay put while the rest scrolls; anything more detailed about
+links is behind **Link settings**.
 
-You open it from **Share** in the board header, from `⌘K` → "Share this
-cluster", or by right-clicking any cluster in the sidebar and choosing
-**Share…** — the last of these shares the cluster you right-clicked, not the one
-currently on screen.
+You open it from **Share** — the filled button in the board header, a filled
+round button on a phone — from `⌘K` → "Share this cluster", or by
+right-clicking any cluster in the sidebar and choosing **Share…** — the last of
+these shares the cluster you right-clicked, not the one currently on screen.
 
-## General access — the link, and what it grants
+## Link access — the link, and what it grants
 
 One picker, three answers:
 
 | Setting | What the link does | Account needed |
 |---|---|---|
-| **Anyone with the link · can view** | Opens the cluster read-only | No |
-| **Anyone with the link · can edit** | Recipient confirms, signs in, and joins as an editor | Yes |
-| **Only invited people** | Revokes every link on the cluster that you can revoke | — |
+| **Anyone with the link can view** | Opens the cluster read-only | No |
+| **Anyone with the link can edit** | Recipient confirms, signs in, and joins as an editor | Yes |
+| **Only people with access** | Revokes every link on the cluster that you can revoke | — |
 
-Choosing one hands you the link straight away; the button beside the picker
-copies it again any time. Switching between **can view** and **can edit** never
-revokes anything — a link you have already sent someone keeps working, and the
-panel tells you it is still live. Only **Only invited people** revokes, and it
+Choosing a setting that already has a link copies it straight away. **Copy
+link** at the bottom of the panel copies it again any time, and makes the link
+the first time. Switching between **can view** and **can edit** never revokes
+anything — a link you have already sent someone keeps working, and the panel
+tells you it is still live. Only **Only people with access** revokes, and it
 asks first.
 
 Owners and co-owners can revoke any link on the cluster. An editor can revoke
-the links they made themselves, so when an editor picks **Only invited people**
+the links they made themselves, so when an editor picks **Only people with access**
 their own links are revoked and the panel says how many links other people made
 are still live. Those stay until the person who made them, the owner or a
 co-owner revokes them.
@@ -80,12 +83,27 @@ actually read, rather than fitting the whole thing into an unreadable speck.
 Pinch out to see everything; nothing is hidden, only the starting view differs.
 Boards small enough to fit legibly still open showing all of themselves.
 
-## Inviting specific people
+## Inviting people
 
 Use this when you have addresses and want named people rather than whoever holds
 a URL. Enter one address or several separated by commas, pick **Can edit** or
-**Can view**, and send. If they do not have an account yet they get an invitation
+**Can view**, and press **Invite**. The line under the box says what the role you
+picked lets them do. If they do not have an account yet they get an invitation
 and the access is waiting for them when they sign up.
+
+### Inviting someone new
+
+The panel says, under the invite box, what an invitation is worth. Someone who
+joins Clusters through your invitation starts with
+25 extra cards and 0.5GB of
+storage, and you get 25 bonus cards and
+0.5GB as soon as they have opened the app and placed
+their first card — whichever role you invited them as, to one cluster or to the
+whole workspace. A new account that joins through one of your edit links counts
+the same way. Inviting someone who already has an account shares the cluster
+just as well but earns no reward. Once anyone has joined through you, the panel
+also shows how many, and what you have earned. The limits are on
+[Referrals](/docs/account/referrals).
 
 Each account can send 20 invitations a day, or
 5 on its first day. Sharing a cluster with someone who
@@ -114,10 +132,11 @@ sent can't be accepted, and if the account is less than a week old its share
 links pause too. All of it works again, and held invitations are sent, if the
 review clears it.
 
-Workspace owners and co-owners get a third choice, **Whole workspace** — that
-grants every cluster in the workspace, not just this one, so only they can hand
-it out. **Share workspace…** in a workspace's right-click or **⋯** menu opens
-the panel with that choice already picked.
+Workspace owners and co-owners also get **Whole workspace · can edit** and
+**Whole workspace · can view** — those grant every cluster in the workspace, not
+just this one, so only they can hand them out. **Share workspace…** in a
+workspace's right-click or **⋯** menu opens the panel with **Whole workspace ·
+can edit** already picked.
 
 Editors are **free on every plan**. See [Collaborating](/docs/collaborate).
 
@@ -138,9 +157,10 @@ instead — the transfer dialog offers that.
 ## Getting a link fast
 
 Two presses, and the second one is already under your cursor: **Share** opens
-the panel focused on **Create link & copy**, so `Share` then `Enter` puts a
-view-only link on your clipboard. Creating it also refreshes the preview image
-the link will unfurl with.
+the panel focused on **Copy link** (it reads **Create link & copy** until the
+cluster has a link), so `Share` then `Enter` puts a view-only link on your
+clipboard. Creating it also refreshes the preview image the link will unfurl
+with.
 
 Boards you are viewing without edit rights show a clear VIEW ONLY badge, so
 there is never ambiguity about whether your changes will stick. You cannot mint

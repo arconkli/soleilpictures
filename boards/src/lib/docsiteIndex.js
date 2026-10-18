@@ -2096,7 +2096,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-10-12",
+    "updated": "2026-10-17",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2152,20 +2152,20 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-10-12",
+    "updated": "2026-10-17",
     "navLabel": "Sharing",
     "headings": [
       {
-        "id": "general-access-the-link-and-what-it-grants",
-        "text": "General access — the link, and what it grants"
+        "id": "link-access-the-link-and-what-it-grants",
+        "text": "Link access — the link, and what it grants"
       },
       {
         "id": "link-settings",
         "text": "Link settings"
       },
       {
-        "id": "inviting-specific-people",
-        "text": "Inviting specific people"
+        "id": "inviting-people",
+        "text": "Inviting people"
       },
       {
         "id": "people-with-access",
@@ -2783,7 +2783,7 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/referrals",
     "title": "Referrals — Invite and Earn — Soleil Clusters",
-    "metaDescription": "Invite people to Soleil Clusters and you both get bonus cards and storage once they get started. Your link, share targets and stats live in Settings.",
+    "metaDescription": "Invite people to Soleil Clusters. They get bonus cards and storage when they join; you get yours once they get started. Stats live in Settings.",
     "h1": "Referrals",
     "answer": "Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.",
     "section": "account",
@@ -2841,7 +2841,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do I see how it is going?",
-        "a": "Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way."
+        "a": "Settings, under Invite and earn — friends joined, how many got started, cards and storage earned, free months, and any rewards still on their way. Under its invite box, the Share panel shows how many joined through you, what you have earned and what is on its way."
       }
     ]
   },

@@ -43,7 +43,7 @@ function buildTopbar({ peers, viewOnly }) {
       <div class="ws-presence"><span class="ws-presence-status on"></span>${avatars}</div>
       <span class="tb-divider"></span>
       ${viewOnly ? '<span class="tb-viewonly">VIEW ONLY</span>' : ''}
-      <button class="tb-btn" data-probe="share" title="Share this cluster">${ICON.replace(/16/g, '14')} <span class="tb-btn-label">Share</span></button>
+      <button class="tb-btn tb-share" data-probe="share" title="Share this cluster" aria-label="Share this cluster">${ICON.replace(/16/g, '14')} <span class="tb-btn-label">Share</span></button>
       ${btn('tb-icon tb-icon-theme', 'Toggle theme')}
       ${btn('tb-icon tb-icon-split', 'Pin alongside')}
     </div>`;

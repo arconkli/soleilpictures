@@ -113,23 +113,23 @@ test.describe('collab invite-link wiring', () => {
     expect(s).not.toMatch(/publicLinks\.filter\(l => l\.kind === 'invite'\)/);
   });
 
-  test('the modal is ordered by what people actually do', () => {
-    // Demand order, measured: 29 of the first 32 links ever made were view
-    // links and exactly one email invite was ever sent, yet the email form led
-    // the modal and the link sections sat below it. Handing someone a link
-    // comes first, then the addressed invite, then the access list, then
-    // Explore — which is now a collapsed disclosure at the bottom.
+  test('the panel is ordered the way people decide who gets in', () => {
+    // Invite-first (owner decision 2026-10-17): naming who you want in comes
+    // first, and is where an invitation's reward is said; then who already has
+    // access; then link access for everyone else; then Explore, collapsed.
+    // The copy moved to a footer that never scrolls away and is still the
+    // first thing focused, so the link path lost nothing.
     const s = share();
-    const order = ['GENERAL ACCESS', 'INVITE SPECIFIC PEOPLE', 'PEOPLE WITH ACCESS', 'ExplorePublishSection board='];
+    const order = ['Invite people</h3>', 'People with access · ', 'Link access</h3>',
+      'ExplorePublishSection board=', 'className="share-foot"'];
     const at = order.map(k => s.indexOf(k));
     at.forEach((i, n) => expect(i, `${order[n]} missing`).toBeGreaterThan(-1));
     expect(at).toEqual([...at].sort((a, b) => a - b));
-    // The one action the panel exists for must precede the options that
-    // qualify it — the selects were in front of it once, so the thing you
-    // came for was never the first thing you could press.
-    expect(s.indexOf('share-invite-btn-primary')).toBeLessThan(s.indexOf('share-link-options'));
-    // The addressed path is secondary to the link, not the lead.
-    expect(s.indexOf('INVITE SPECIFIC PEOPLE')).toBeGreaterThan(s.indexOf('share-invite-btn-primary'));
+    // The reward is said where the inviting happens.
+    expect(s.indexOf('<InviteRewardNote')).toBeGreaterThan(s.indexOf('Invite people</h3>'));
+    expect(s.indexOf('<InviteRewardNote')).toBeLessThan(s.indexOf('People with access · '));
+    // A link's options still qualify the link, inside its own section.
+    expect(s.indexOf('share-link-options')).toBeGreaterThan(s.indexOf('Link access</h3>'));
   });
 
   test('every copy of a link is recorded', () => {

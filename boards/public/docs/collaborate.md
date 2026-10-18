@@ -2,7 +2,7 @@
 
 > Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-10-17_
 
 Collaboration is deliberately not a paid feature. Inviting people is how boards
 become useful, and charging per seat would make the product worse at the thing
@@ -33,12 +33,19 @@ owns the work pays for it, and inviting help costs nothing extra.
 
 ## Inviting
 
-**Share** on any cluster opens the dialog. Two mechanisms:
+**Share** on any cluster opens the panel, with inviting at the top. Two
+mechanisms:
 
 - **By email** — name a person and a role. They get an invitation.
 - **By link** — a URL carrying a role, which grants that access to whoever opens it and confirms.
 
-Also in the dialog: current workspace members, existing per-board shares, and
+Inviting someone who is new to Clusters also pays you both: they get bonus
+cards and 0.5GB of storage when they join, and you get
+bonus cards and 0.5GB once they get started. The panel
+says so under the invite box, and [Referrals](/docs/account/referrals) has the
+rules.
+
+Also in the panel: current workspace members, existing per-board shares, and
 [public links](/docs/collaborate/sharing) — which are a different thing, and
 always view-only.
 

@@ -12,8 +12,12 @@
 // future change could quietly undo:
 //
 //   1. the advanced controls live INSIDE the disclosure, not beside it
-//   2. there is one primary action, one access decision, one people list
+//   2. one gold control at a time, one access decision, one people list
 //   3. nothing that used to be reachable stopped being reachable
+//
+// Since 2026-10-17 the panel is invite-first (owner decision): Invite people,
+// People with access, Link access, Explore, and a footer with Copy link and
+// Done that never scrolls away.
 //
 // SOURCE-LEVEL, deliberately: App.jsx early-returns to LocalBoardsApp under
 // ?local=1, so the panel never mounts in the harness and LocalBoardsApp has no
@@ -44,12 +48,37 @@ function linkSettingsBlock(s) {
 }
 
 test.describe('the resting panel is one decision and one action', () => {
-  test('exactly one primary button, and it leads its row', () => {
+  test('one gold control at a time, decided in one place', () => {
+    // Every action in here was gold once, so "hand someone a link" and "submit
+    // for editorial review" pulled the eye equally. Gold marks the action the
+    // panel is about to take: Copy link at rest, Invite while there are
+    // addresses in the box, nothing when no link can exist.
     const s = modal();
-    expect(s.match(/share-invite-btn-primary/g)?.length).toBe(1);
-    // The button precedes the picker: the first thing you can press is the
-    // thing you came for, and the picker qualifies it rather than gating it.
-    expect(s.indexOf('share-invite-btn-primary')).toBeLessThan(s.indexOf('share-access-select'));
+    expect(s.match(/share-btn-gold/g)?.length, 'only goldIf may add the class').toBe(1);
+    expect(s).toMatch(/const goldIf = \(which\) => \(goldControl === which \? ' share-btn-gold' : ''\);/);
+    expect(s).toMatch(/inviteEmail\.trim\(\) \? 'invite'\s*:\s*accessMode === 'off' \? null : 'copy';/);
+    expect(s).toMatch(/className=\{'share-invite-btn' \+ goldIf\('invite'\)\}/);
+    expect(s).toMatch(/className=\{'share-invite-btn share-foot-btn' \+ goldIf\('copy'\)\}/);
+    expect(css()).not.toContain('share-invite-btn-primary');
+  });
+
+  test('the panel opens on Copy link, or on Done for someone who cannot make one', () => {
+    // Share → Enter is a link on the clipboard. Never the email box: on a
+    // phone, focusing it throws the keyboard up over the panel.
+    const s = modal();
+    expect(s).toMatch(/initialFocusRef=\{canInvite \? copyLinkRef : doneRef\}/);
+    expect(s).toMatch(/ref=\{copyLinkRef\}\s*\n\s*onClick=\{takeLink\}/);
+    expect(s).toMatch(/ref=\{doneRef\}\s*\n\s*onClick=\{onClose\}/);
+  });
+
+  test('the invite row says what the role means and what an invitation earns', () => {
+    const s = modal();
+    expect(s).toContain('<div className="share-hint share-role-hint">{roleHint}</div>');
+    expect(s).toContain('<InviteRewardNote tier={rewardTier} stats={referralStats} onOpenInvites={onOpenInvites} />');
+    // The tier comes in as a prop: a second useMyTier() instance without a
+    // userId resets the app's one shared tier store.
+    expect(s).not.toMatch(/=\s*useMyTier\(/);
+    expect(s).not.toContain("from '../hooks/useMyTier.js'");
   });
 
   test('one picker with exactly three states, over both kinds of link', () => {
@@ -109,7 +138,7 @@ test.describe('everything that was on the front page is one disclosure away', ()
 test.describe('one list, one scroll region', () => {
   test('the two people lists became one, and none of their controls were lost', () => {
     const s = modal();
-    expect(s.match(/PEOPLE WITH ACCESS · /g)?.length).toBe(1);
+    expect(s.match(/People with access · /g)?.length).toBe(1);
     // The sub-headers that split it are gone — scope is carried per row.
     expect(s).not.toContain('share-subhead');
     expect(s).toContain('Member — can edit every cluster');
@@ -155,18 +184,26 @@ test.describe('one list, one scroll region', () => {
     const section = c.slice(c.indexOf('.share-section {'), c.indexOf('.share-section:last-child'));
     expect(section, '.share-section scrolls again').not.toContain('overflow-y');
   });
+
+  test('the footer sits outside the scrolling body', () => {
+    // Copy link and Done stay one press away wherever the panel is scrolled.
+    const s = modal();
+    expect(s.indexOf('className="share-foot"')).toBeGreaterThan(s.indexOf('<ExplorePublishSection'));
+    expect(css()).toMatch(/\.share-foot \{\s*flex: 0 0 auto;/);
+  });
 });
 
 test.describe('the simplification did not weaken the permissions', () => {
   test('viewers get no link controls at all', () => {
-    // canInvite gates both the general-access block and the invite row; a
-    // viewer cannot mint a link, and offering one produces an RLS error.
+    // canInvite gates the invite row (and the reward note in it), the link
+    // section and the footer's Copy link; a viewer cannot mint a link, and
+    // offering one produces an RLS error.
     const s = modal();
-    // Anchor on the rendered eyebrow, not on the prose — the section names
+    // Anchor on the rendered headings, not on the prose — the section names
     // appear in this file's header comment first.
-    for (const eyebrow of ['GENERAL ACCESS</div>', 'INVITE SPECIFIC PEOPLE</div>']) {
-      const at = s.indexOf(eyebrow);
-      expect(at, `${eyebrow} missing`).toBeGreaterThan(-1);
+    for (const heading of ['Invite people</h3>', 'Link access</h3>', 'ref={copyLinkRef}']) {
+      const at = s.indexOf(heading);
+      expect(at, `${heading} missing`).toBeGreaterThan(-1);
       expect(s.slice(Math.max(0, at - 300), at)).toContain('{canInvite && (');
     }
   });
