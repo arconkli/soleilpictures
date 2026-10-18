@@ -18,14 +18,13 @@
 //     still screen is "I don't know", which is not what a wall
 //     display is for.
 //
-// PartyKit host is read from VITE_PARTYKIT_HOST (defaults to
-// localhost:1999 for dev), matching boards/src/lib/yPartyKit.js.
+// The party host comes from lib/partyHost.js, like every other party client.
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
+import { PARTY_ORIGIN } from '../../lib/partyHost.js';
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
-const PARTY_BASE = `${PARTYKIT_HOST.includes('://') ? '' : (PARTYKIT_HOST.startsWith('localhost') ? 'http://' : 'https://')}${PARTYKIT_HOST}/parties/universe/main`;
+const PARTY_BASE = `${PARTY_ORIGIN}/parties/universe/main`;
 
 async function getToken() {
   if (!supabase) return null;

@@ -12,7 +12,7 @@ primary_region = "sjc"
 
 [env]
   APP_ORIGIN = "https://clusters.soleilpictures.com"
-  PARTYKIT_HOST = "soleil-boards-party.arconkli.partykit.dev"
+  PARTY_HOST = "soleil-boards-party.arconkli.workers.dev"
   R2_BUCKET = "soleil-boards-images"
   SCOUT_BURST_MS = "20000"
 

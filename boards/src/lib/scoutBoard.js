@@ -25,6 +25,7 @@ import * as decoding from 'lib0/decoding';
 import { bytesToB64, b64ToBytes, cardToYMap, readCards } from './yhelpers.js';
 import { buildCardIndexRows, stampCard } from '../../scripts/lib/cardEncode.mjs';
 import { scoutSelect, scoutInsert, scoutRpc, scoutPatch, scoutDelete } from './scoutDb.js';
+import { PARTY_HOST } from './partyHost.js';
 
 const MESSAGE_SYNC = 0;
 const SYNC_STEP_2 = 1;
@@ -38,8 +39,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // We speak the y-websocket wire protocol directly rather than using
 // y-partykit/provider: the provider is built for a long-lived browser session
 // with reconnection and awareness, and we want one short, deterministic
-// push-then-leave. Room is the board id on the default ("main") party, matching
-// `new YPartyKitProvider(HOST, boardId, ...)` in yPartyKit.js:62.
+// push-then-leave. Room is the board id on the "main" party, matching
+// `new YProvider(PARTY_HOST, boardId, ..., { party: 'main' })` in yPartyKit.js.
 //
 // Uses the STANDARD WebSocket constructor rather than Cloudflare's
 // fetch-with-Upgrade extension, so this file runs unchanged in the Node ingest
@@ -47,7 +48,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // actually open — the caller starts the Yjs handshake immediately and would
 // otherwise race the connection.
 async function connectPeer(env, boardId, accessToken) {
-  const host = env.PARTYKIT_HOST || 'soleil-boards-party.arconkli.partykit.dev';
+  const host = env.PARTY_HOST || PARTY_HOST;
   const url = `wss://${host}/parties/main/${encodeURIComponent(boardId)}`
     + `?access_token=${encodeURIComponent(accessToken)}`;
 

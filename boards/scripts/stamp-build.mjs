@@ -7,16 +7,19 @@
 // an expected minimum to catch "prod isn't serving what we shipped", and an open
 // tab compares `party` with its own (lib/buildWatch.js) to know the party moved.
 //
-// PARTY_HOST is read the way Vite reads it (loadEnv: the process environment,
-// which is where Workers Builds puts its build variables, over .env files), with
-// the same fallback the client modules use, so a tab and the Worker serving it
-// can only disagree when they come from different builds.
+// PARTY_HOST is lib/partyHost.js's answer, computed the way Vite will compute
+// it for this build: VITE_PARTY_HOST if set (loadEnv: the process environment,
+// which is where Workers Builds puts its build variables, over .env files), else
+// the default in lib/partyDefaults.js. Every client module reads the stamped
+// value through partyHost.js, so a tab and the Worker serving it can only
+// disagree when they come from different builds.
 
 import { execSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
+import { DEFAULT_PARTY_HOST } from '../src/lib/partyDefaults.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, '../src/lib/buildInfo.js');
@@ -31,7 +34,7 @@ try {
 }
 
 const env = loadEnv('production', resolve(HERE, '..'), 'VITE_');
-let party = (env.VITE_PARTYKIT_HOST || 'localhost:1999').trim();
+let party = (env.VITE_PARTY_HOST || DEFAULT_PARTY_HOST).trim();
 // Anything that is not a bare host[:port] is stamped empty, which switches the
 // watcher off for this build rather than failing the build over it.
 if (!/^[a-z0-9.-]+(:\d+)?$/i.test(party)) {

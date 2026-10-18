@@ -109,7 +109,7 @@ Other deploy targets:
 | Thing | How |
 |---|---|
 | Worker + SPA | Cloudflare Workers Builds, on push |
-| PartyKit | `npm run deploy:party` |
+| Party Worker (live sync, uploads, share bundles; PartyKit until Oct 2026) | `cd boards && npm run deploy:party` (wrangler 4, `party/wrangler.jsonc`) |
 | Supabase functions | via MCP — the local CLI is authenticated to the wrong org |
 | Scout bot | `fly deploy --config scout/fly.toml --dockerfile scout/Dockerfile .` from the repo root |
 

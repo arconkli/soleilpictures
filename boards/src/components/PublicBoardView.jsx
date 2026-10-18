@@ -61,9 +61,8 @@ import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
 import { placedOf } from '../lib/placement.js';
 import { bundleFailureKind, bundleHttpError } from '../lib/shareLoadError.js';
+import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from '../lib/partyHost.js';
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
-const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
 
 const EMPTY = [];
 const EMPTY_OBJ = {};

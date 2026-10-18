@@ -28,7 +28,13 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const PARTYKIT_HOST = Deno.env.get("PARTYKIT_HOST") || "soleil-boards-party.arconkli.partykit.dev";
+// The party Worker (boards/src/lib/partyHost.js). The old PARTYKIT_HOST
+// variable is deliberately not read: it named the PartyKit project the Worker
+// replaced in October 2026. Until that project is deleted (2026-10-23) its room
+// is reset too, for tabs that have not reloaded off it.
+const PARTY_HOST = Deno.env.get("PARTY_HOST") || "soleil-boards-party.arconkli.workers.dev";
+const OLD_PARTY_HOST = "soleil-boards-party.arconkli.partykit.dev";
+const OLD_PARTY_GONE_AFTER = Date.parse("2026-10-24T00:00:00Z");
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
@@ -46,15 +52,15 @@ interface RewindBody {
   client_request_id?: string;
 }
 
-async function notifyPartyKitReset(boardId: string, userToken: string) {
+async function resetRoom(host: string, boardId: string, userToken: string) {
   try {
     const res = await fetch(
-      `https://${PARTYKIT_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`,
+      `https://${host}/parties/main/${encodeURIComponent(boardId)}/reset`,
       {
         method: "POST",
         headers: { Authorization: `Bearer ${userToken}`, "Content-Type": "application/json" },
         body: "{}",
-        // Best-effort: don't let a hung PartyKit stall the rewind response.
+        // Best-effort: don't let a hung party stall the rewind response.
         signal: AbortSignal.timeout(10_000),
       },
     );
@@ -62,6 +68,15 @@ async function notifyPartyKitReset(boardId: string, userToken: string) {
   } catch {
     return { board_id: boardId, ok: false, status: 0 };
   }
+}
+
+// The new room's answer is the one reported; the old one is best effort.
+async function notifyPartyKitReset(boardId: string, userToken: string) {
+  const [result] = await Promise.all([
+    resetRoom(PARTY_HOST, boardId, userToken),
+    Date.now() < OLD_PARTY_GONE_AFTER ? resetRoom(OLD_PARTY_HOST, boardId, userToken) : null,
+  ]);
+  return result;
 }
 
 Deno.serve(async (req) => {

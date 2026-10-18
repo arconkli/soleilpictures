@@ -47,6 +47,7 @@ import {
   readBoardGroups, writeBoardGroups,
 } from './lib/scoutBoard.js';
 import { arrangeExisting } from './lib/scoutCards.js';
+import { PARTY_HOST } from './lib/partyHost.js';
 import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
@@ -675,7 +676,7 @@ async function requireBoardWrite(env, token, boardId) {
 // A single-shot POST /uploads stays for small files, because one call is what
 // makes it usable from a tool call.
 async function partyMpu(env, token, workspaceId, action, body) {
-  const host = env.PARTYKIT_HOST || 'soleil-boards-party.arconkli.partykit.dev';
+  const host = env.PARTY_HOST || PARTY_HOST;
   let res;
   try {
     res = await fetch(`https://${host}/parties/upload/${encodeURIComponent(workspaceId)}/mpu/${action}`, {
