@@ -1,11 +1,11 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and the size limits go: no per-file size or length limits, and a 100GB drive instead of 5GB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — each cluster counts as one card — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
-_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-17_
 
 Two plans. The difference between them is deliberately small and deliberately
-honest — four enforced limits, listed below, and nothing else. The
+honest — two enforced limits, listed below, and nothing else. The
 [pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
 is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
 
@@ -18,10 +18,11 @@ page, drops it.
 ## Demo — free
 
 - **50 cards** to build with
+- A **5GB** drive — any file, at any size
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
-- Any file type, up to 50 MB each — images are never capped
-- A **5GB** drive for your files
+
+The free plan stops at whichever limit you reach first.
 
 ## Creator
 
@@ -31,24 +32,27 @@ page, drops it.
 
 - **Unlimited cards** — the 50-card ceiling comes off, and every
   card you have already made stays exactly where it is.
-- **No size limits** — video past 30 MB or 60 seconds, audio past
-  50 MB, a PDF or a `.psd`, a `.fig`, a `.zip` past 50 MB, all
-  fine, on your own **100GB** drive.
+- **A 1TB drive** — free holds 5GB; Creator
+  holds **1TB**, room for the footage, the camera originals and the
+  project archives. (During a [trial](#trying-creator-first) it is
+  100GB, and the full drive comes with the first payment.)
 - **Covers your whole workspace** — everyone you invite builds at your limits,
   and there are no per-seat charges.
 
 ## What is genuinely limited
 
-Two things — cards and size — with size said three ways: what a file may be, how big, and how much you can keep:
+Two things — cards and storage. A free account stops at whichever it reaches
+first:
 
 | | Demo | Creator |
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | 50 | Unlimited |
-| **[File types](/docs/files)** | Any — up to 50 MB each | Any, at any size |
-| **Per-file size and length** | Video 30 MB or 60 seconds · audio 50 MB · PDF and any other file 50 MB · images never | No limit |
-| **Storage** | 5GB | 100GB |
+| **[Storage](/docs/files#storage)** | 5GB | 1TB |
+| **[File types and sizes](/docs/files)** | Any, at any size | Any, at any size |
 
-Everything else is the same on both plans.
+Everything else is the same on both plans. [What counts toward
+storage](/docs/files#what-counts) — and what does not — is spelled out on the
+files page.
 
 A [grid](/docs/canvas/grids) counts the boxes you have filled, one card each,
 and an empty grid counts as nothing — so laying out a storyboard before you draw
@@ -74,7 +78,8 @@ work across several, the one that matters is the workspace the cluster lives in.
 > **Note:** There is no separate cap on clusters — each one is a card, and counts
 > as one. Collaborators, editing, sharing, [public links](/docs/collaborate/sharing),
 > comments, documents, [screenplay mode](/docs/documents/screenplay) and the
-> [API](/docs/api) are not capped at all. Images have no size cap on any plan.
+> [API](/docs/api) are not capped at all. No file has a size cap on any plan —
+> the drive is the only limit.
 
 ## Whose allowance
 
@@ -84,10 +89,15 @@ Cards and files added to someone else's cluster count against them, not you.
 This is what makes free editors work — see
 [Collaborating](/docs/collaborate).
 
-## Hitting the cap
+## Hitting a limit
 
-You are told when you reach it, and offered the upgrade. Nothing you have
-already made is removed, locked, or hidden.
+You are told when you reach either one, and offered the upgrade. Nothing you
+have already made is removed, locked, or hidden. A drop that would not fit is
+caught before anything uploads, so you can add the part that fits instead.
+
+Deleting a file gives its space back within a few minutes — unless another
+cluster still uses it — and emptying the trash gives back everything in it at
+once.
 
 You can also raise your own cap without paying: [referrals](/docs/account/referrals)
 grant bonus cards for people you invite who actually get started.
@@ -124,13 +134,14 @@ against paying monthly, so its checkout does not offer a code field.
 ## Free forever
 
 The Demo plan is not a trial. It does not expire and it does not degrade. If
-50 cards is enough for what you do, that is a complete
-account. The Creator trial above is separate: it is a taste of the
+50 cards and 5GB are enough for what you do,
+that is a complete account. The Creator trial above is separate: it is a taste of the
 paid plan, and when it ends you are back on exactly this one.
 
-When a trial or a paid plan ends, nothing you made is deleted. Every cluster
-and card stays where it is, and you can keep opening and editing it. If you are
-over your card limit, new cards will not fit until you are back under it.
+When a trial or a paid plan ends, nothing you made is deleted. Every cluster,
+card and file stays where it is, and you can keep opening and editing it. If
+you are over the free card limit or the free drive, new cards or uploads will
+not fit until you are back under them.
 
 ---
 

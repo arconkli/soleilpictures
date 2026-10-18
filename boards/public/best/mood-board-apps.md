@@ -52,7 +52,7 @@ Where to start: open the storyboard and shot list pages for how the mood board c
 
 **Rating:** 9.3/10
 
-**Pricing:** Free (Demo tier, no credit card, no trial clock); Creator $25/mo flat — unlimited cards, 100GB storage, no size limits _(as of August 2026)_
+**Pricing:** Free (Demo tier, no credit card, no trial clock); Creator $25/mo flat — unlimited cards, 1TB drive _(as of August 2026)_
 
 The only app on this list where the mood board is argued over live, approved in one link, and then becomes the look book and the shot list.
 
@@ -62,7 +62,7 @@ The arguing is the point. Boards are real-time multiplayer — live cursors, pre
 
 Then the board keeps working. Boards nest with live thumbnails and connect through a relationship graph, so the approved mood board sits beside the look book, the storyboard, and the shot list as one project instead of four files in three apps. That is the after-the-board-looks-good test the rest of this list keeps failing, and the one job we rank ourselves first for.
 
-The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat $25 a month — not per person — for unlimited cards, 100GB, and no size limits.
+The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat $25 a month — not per person — for unlimited cards and a 1TB drive.
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate
@@ -387,7 +387,7 @@ The tool matters less than the decision the board records. A board that got the 
 
 ### What is the best free mood board app?
 
-For production work, Soleil Clusters — the free Demo tier has no credit card, no trial clock, and no separate upload allowance, which is what a reference pull actually spends. Canva's free tier is generous too (unlimited whiteboards, 5GB), and Pinterest is entirely free for discovery. Milanote's free plan stops at 10 file uploads, ever.
+For production work, Soleil Clusters — the free Demo tier has no credit card, no trial clock, and any file at any size up to 50 cards or 5GB of files, which is what a reference pull actually spends. Canva's free tier is generous too (unlimited whiteboards, 5GB), and Pinterest is entirely free for discovery. Milanote's free plan stops at 10 file uploads, ever.
 
 ### Which mood board apps do not add watermarks?
 

@@ -31,19 +31,18 @@ test('a free owner may drop any file type up to the free file cap', () => {
   }
 });
 
-test('past the free file cap a free owner is refused for SIZE, never for the type', () => {
-  const c = classifyDropFile(f('pack.zip', 'application/zip', FREE_FILE_CAP + 1), { canAttemptFiles: false });
-  assert.equal(c.route, 'blocked');
-  assert.equal(c.why, 'size');
-  // Media past its own cap says the same thing.
+test('a free owner takes any file at any size — the drive decides (0413)', () => {
+  const big = classifyDropFile(f('pack.zip', 'application/zip', FREE_FILE_CAP + 1), { canAttemptFiles: false });
+  assert.equal(big.route, 'file', 'a big zip is a file card on every plan');
   const pdf = classifyDropFile(f('deck.pdf', 'application/pdf', FREE_PDF_CAP + 1), { canAttemptFiles: false });
-  assert.equal(pdf.route, 'blocked');
-  assert.equal(pdf.why, 'size');
-  // A paid owner takes both.
+  assert.equal(pdf.route, 'file', 'a big PDF is a downloadable file card on every plan');
+  // A paid owner routes the same way.
   assert.equal(classifyDropFile(f('pack.zip', 'application/zip', FREE_FILE_CAP + 1), { canAttemptFiles: true }).route, 'file');
   assert.equal(classifyDropFile(f('deck.pdf', 'application/pdf', FREE_PDF_CAP + 1), { canAttemptFiles: true }).route, 'file');
-  assert.equal(FREE_FILE_CAP, FREE_PDF_CAP, 'the file cap is the PDF cap — one number on the pricing page, not two');
-  assert.equal(FREE_FILE_CAP_LABEL, '50 MB');
+  // No route refuses a file for its size any more.
+  for (const [name, type] of [['clip.mov', 'video/quicktime'], ['stem.wav', 'audio/wav'], ['deck.pdf', 'application/pdf'], ['take.braw', '']]) {
+    assert.notEqual(classifyDropFile(f(name, type, 4 * 1024 ** 3), { canAttemptFiles: false }).route, 'blocked', name);
+  }
 });
 
 test('audio mime types route to the audio card', () => {
@@ -75,12 +74,12 @@ test('a non-audio empty-mime file is still a file card', () => {
   assert.equal(classifyDropFile(f('README', '')).route, 'file');
 });
 
-test('over-cap audio goes to multipart, and is refused for a free owner', () => {
+test('big audio goes to multipart on every plan, and stays an audio card', () => {
   const big = f('stem.wav', 'audio/wav', FREE_AUDIO_CAP + 1);
   assert.equal(classifyDropFile(big, { canAttemptFiles: true }).route, 'largeMedia');
   assert.equal(classifyDropFile(big, { canAttemptFiles: true }).kind, 'audio',
-    'an over-cap loop is still an AUDIO card, not a generic file');
-  assert.equal(classifyDropFile(big, { canAttemptFiles: false }).route, 'blocked');
+    'a big loop is still an AUDIO card, not a generic file');
+  assert.equal(classifyDropFile(big, { canAttemptFiles: false }).route, 'largeMedia', 'a free owner too (0413)');
 });
 
 test('at exactly the cap the free inline route still applies', () => {

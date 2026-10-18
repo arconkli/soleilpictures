@@ -12,10 +12,13 @@
 // separately (they're async); the fallback dims here just seed the layout so a
 // batch can be arranged before uploads resolve, then corrected on the card.
 
-// Free-tier inline-media byte caps. Over these (and paid), video/audio still
-// become inline cards but upload via multipart ('largeMedia'); anything else
-// non-standard becomes a generic downloadable file card — on free too, up to
-// FREE_FILE_CAP below.
+// Inline-media thresholds. Up to these, a video, audio file or PDF uploads in
+// one request with its poster / waveform / page-1 image; over them, video and
+// audio still become inline cards but upload in parts ('largeMedia'), and a
+// PDF becomes a downloadable file card. These USED to be the free plan's
+// per-file ceilings; since 0413 every plan takes any file at any size and the
+// owner's drive is the only byte limit, so the names are historical and none
+// of them is a plan limit any more.
 export const FREE_VIDEO_CAP = 30 * 1024 * 1024;
 export const FREE_AUDIO_CAP = 50 * 1024 * 1024;
 export const FREE_PDF_CAP   = 50 * 1024 * 1024;
@@ -30,15 +33,9 @@ export const FREE_PDF_CAP   = 50 * 1024 * 1024;
 export const FREE_FILE_CAP = 50 * 1024 * 1024;
 export const FREE_FILE_CAP_LABEL = `${FREE_FILE_CAP / (1024 * 1024)} MB`;
 
-// The free tier also caps video LENGTH, not just weight, and that half of the
-// gate was enforced for the product's life while being stated nowhere public —
-// so a free owner's 90-second, 20 MB clip was refused by a rule no page
-// mentioned, with a red "Upload failed" and no route to the offer.
-//
-// It lives here beside the byte caps, rather than as a bare default on
-// uploads.js's uploadVideo, so the public copy can inject it the way it injects
-// the others and cannot state a stale number. uploads.js imports it; this
-// module imports nothing, so there is no cycle.
+// The free tier used to cap video LENGTH as well as weight. Since 0413 neither
+// is a limit on any plan; the constant stays only so an older caller that
+// still imports it keeps building. Nothing enforces it.
 export const FREE_VIDEO_SECONDS = 60;
 
 // Ceilings on WAVEFORM ANALYSIS — not on upload. Over these the file still
@@ -83,11 +80,12 @@ export const UNDRAWABLE_IMAGE_RE = /\.(psd|psb|dng|cr2|cr3|crw|nef|nrw|arw|srf|s
 
 // Decide the upload route + card kind + fallback size for a File.
 //   canAttemptFiles — false when the user OWNS this workspace and is NOT on a
-//                     paid plan, so the "upload anything" feature is hard-blocked
-//                     client-side (shared workspaces attempt optimistically and
-//                     let the server's 402/403 decide).
+//                     paid plan. Since 0413 that no longer limits what may be
+//                     uploaded — every plan takes any file at any size, and the
+//                     drive (authorize_upload / authorize_image_upload) is the
+//                     only gate — so all it still decides is the .pur note.
 // Returns { route, kind, w, h } where route ∈
-//   'image' | 'video' | 'audio' | 'pdf' | 'largeMedia' | 'file' | 'blocked'
+//   'image' | 'video' | 'audio' | 'pdf' | 'largeMedia' | 'file'
 //   | 'partial'    — an unfinished download: skipped, never pitched
 //   | 'screenplay' — becomes a script document (scriptImport.js), every tier
 //   | 'pureref'    — a free owner's .pur: an honest note, never pitched.
@@ -99,8 +97,8 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   // can carry no type at all, and must never reach an upload or a pitch.
   if (PARTIAL_DOWNLOAD_RE.test(name)) return { route: 'partial', kind: null, w: 0, h: 0 };
   if (SCREENPLAY_FILE_RE.test(name)) return { route: 'screenplay', kind: 'doc', w: 0, h: 0 };
-  // A paying owner keeps "any file type" exactly as sold (a downloadable file
-  // card); a free owner is told the truth instead of being sold storage.
+  // A paying owner gets a downloadable file card for a .pur, as for any file;
+  // a free owner is told the truth about it instead (it opens no board).
   if (!canAttemptFiles && PUREREF_FILE_RE.test(name)) return { route: 'pureref', kind: null, w: 0, h: 0 };
   // Some pickers surface iPhone HEIC/HEIF with an EMPTY mime type — match the
   // extension too, or a camera-roll photo becomes a generic file card (which is
@@ -127,15 +125,6 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   if (isVideo && size <= FREE_VIDEO_CAP) return { route: 'video', kind: 'video', ...FALLBACK_DIMS.video };
   if (isAudio && size <= FREE_AUDIO_CAP) return { route: 'audio', kind: 'audio', ...FALLBACK_DIMS.audio };
   if (isPdf && size <= FREE_PDF_CAP) return { route: 'pdf', kind: 'pdf', ...FALLBACK_DIMS.pdf };
-  if (!canAttemptFiles) {
-    // A free owner. Media past its own cap is refused — that is the size
-    // gate, Creator's. Any other type is a file card up to FREE_FILE_CAP
-    // (0367 opened file TYPES on free); past it, the same size gate. `why`
-    // tells the refusal copy what to say: it is never the type any more.
-    if (isVideo || isAudio || isPdf) return { route: 'blocked', why: 'size', kind: null, w: 0, h: 0 };
-    if (size <= FREE_FILE_CAP) return { route: 'file', kind: 'file', ...FALLBACK_DIMS.file };
-    return { route: 'blocked', why: 'size', kind: null, w: 0, h: 0 };
-  }
   if (isVideo || isAudio) {
     return isVideo
       ? { route: 'largeMedia', kind: 'video', ...FALLBACK_DIMS.video }

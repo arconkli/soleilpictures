@@ -165,11 +165,11 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, fitByCost, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
-import { planImport } from './lib/importPreflight.js';
+import { planImport, planBytes } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
 import { readUpgradePrompts, stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL } from './lib/billingCopy.js';
+import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, storageFullMessage } from './lib/billingCopy.js';
 import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
 import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
@@ -1768,6 +1768,36 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Cap-hit surfacing differs by ownership: owners get the upgrade modal;
     // collaborators get a toast — upgrading THEIR account wouldn't lift the
     // owner's cap.
+    // The drive is full (0413: the free plan's other wall, and the only byte
+    // limit on every plan). A free owner gets the offer; a paying owner, or
+    // anyone uploading into someone else's cluster, gets the one sentence.
+    const surfaceStorageFull = ({ own, paid, surface }) => {
+      try {
+        logEventOnce(`storage_wall:${surface}:${own ? (paid ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, {
+          surface, own: !!own, paid: !!paid, offered: !!(own && !paid),
+        });
+      } catch (_) {}
+      if (own && !paid && pitchStorageGate({ force: true })) return;
+      feedback.toast({ type: 'warning', message: storageFullMessage({ own, paid }) });
+    };
+    // What is left on the drive this board's uploads count against — the
+    // board OWNER's, exactly what authorize_image_upload will decide on. A dry
+    // run: p_bytes 0, and the function writes nothing (STABLE). Null when it
+    // cannot be read (offline, local mode, no longer a writer): the server
+    // still decides each file, so not knowing never blocks a drop.
+    const storageRoom = async (bid) => {
+      if (!bid || !supabase) return null;
+      try {
+        const { data, error } = await supabase.rpc('authorize_image_upload', { p_board_id: bid, p_bytes: 0 });
+        if (error) return null;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row || row.reason === 'not_writer' || row.reason === 'no_workspace') return null;
+        const quota = Number(row.quota);
+        const used = Number(row.used);
+        if (!Number.isFinite(quota) || !Number.isFinite(used) || quota <= 0) return null;
+        return { used, quota, remaining: Math.max(0, quota - used) };
+      } catch (_) { return null; }
+    };
     const surfaceCapHit = (cs) => {
       if (cs.own) { pitchCapWall(cs); return; }
       feedback.toast({
@@ -1829,7 +1859,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     //      overflowed, it had failed whole.
     // `folder` ({ files, clusters }) when the drop was a folder: n is then its
     // whole cost in cards — a card per file AND per cluster (lib/folderPlan).
-    const preflightImport = async ({ n, kinds = null, source = 'drop', folder = null } = {}) => {
+    //
+    // `items` ([{ bytes, kind }], one per card, in placement order) or `bytes`
+    // (a folder's whole weight) lets it ask the DRIVE too (0413): the free
+    // plan's other wall and the only byte limit on any plan. Without it an
+    // over-full drop places optimistic cards and rolls each back on its 402.
+    const preflightImport = async ({ n, kinds = null, source = 'drop', folder = null, items = null, bytes = null } = {}) => {
       const requested = Math.max(0, Number(n) | 0);
       if (requested <= 0) return { take: 0 };
 
@@ -1855,6 +1890,46 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // path exists to stop.
       if (plan.outcome === 'unresolved') return { take: requested };
 
+      // The drive. A folder is weighed whole: it is cut down by CARDS
+      // (slicePlan), and a byte budget is not a card count, so it fits or it
+      // does not. A loose drop is cut file by file, in placement order.
+      const byteItems = Array.isArray(items) && items.length
+        ? items
+        : (Number(bytes) > 0 ? [{ bytes: Number(bytes), kind: 'folder' }] : null);
+      const drive = byteItems ? await storageRoom(boardId) : null;
+      let byteTake = requested;
+      let bytesNeeded = 0;
+      if (drive) {
+        const bp = planBytes({ items: byteItems, remaining: drive.remaining });
+        bytesNeeded = bp.needed;
+        byteTake = (folder || !Array.isArray(items))
+          ? (bp.take >= byteItems.length ? requested : 0)
+          : Math.min(requested, bp.take);
+      }
+      const cardTake = plan.outcome === 'blocked' ? 0 : plan.take;
+      if (drive && byteTake < cardTake) {
+        // The drive binds before the cards do.
+        const paidNow = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
+        logEventNow(EV.IMPORT_PREFLIGHT, {
+          action: byteTake > 0 ? 'view' : 'blocked', limit: 'storage',
+          n_files: requested, take: byteTake, over: requested - byteTake,
+          bytes: bytesNeeded, left: drive.remaining,
+          count: plan.count, limit_cards: plan.limit, source, board_id: boardId,
+        });
+        if (byteTake <= 0) {
+          surfaceStorageFull({ own: cs.own, paid: paidNow, surface: 'preflight' });
+          return { take: 0 };
+        }
+        return await new Promise((resolve) => {
+          setImportAsk({
+            n: requested, take: byteTake, over: requested - byteTake,
+            count: plan.count, limit: plan.limit,
+            kinds, source, boardId, own: cs.own, resolve, folder,
+            limitKind: 'storage', bytesNeeded, bytesLeft: drive.remaining, paid: paidNow,
+          });
+        });
+      }
+
       if (plan.outcome === 'proceed') return { take: plan.take };
 
       if (plan.outcome === 'blocked') {
@@ -1878,7 +1953,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         setImportAsk({
           n: requested, take: plan.take, over: plan.over,
           count: plan.count, limit: plan.limit,
-          kinds, source, boardId, own: cs.own, resolve, folder,
+          kinds, source, boardId, own: cs.own, resolve, folder, limitKind: 'cards',
         });
       });
     };
@@ -2940,7 +3015,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       //     legible in the data as one dropped on the canvas.
       let over = 0;
       if (accepted.length) {
-        const { take } = await preflightImport({ n: nClassified, kinds: classifiedKinds, source: 'list_drop' }) || {};
+        const { take } = await preflightImport({
+          n: nClassified, kinds: classifiedKinds, source: 'list_drop',
+          items: accepted.map((it) => ({ bytes: it.file?.size || 0, kind: it.kind })),
+        }) || {};
         const keep = Math.max(0, Math.min(nClassified, Number(take) || 0));
         over = nClassified - keep;
         if (keep < nClassified) accepted = accepted.slice(0, keep);
@@ -3131,14 +3209,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (err) {
           console.error('list drop upload failed', err);
           if (err?.code === 402 || err?.code === 403) {
-            // Owner-pays: the server gate keyed on the OWNER's plan. Pitch the
-            // upgrade only at the owner — a collaborator's own plan is
-            // irrelevant and upgrading it cannot unblock the board.
-            if (!csFiles.own) feedback.toast({
+            // Owner-pays: the server gate keyed on the OWNER's drive (0413: the
+            // only byte limit on every plan). Offer the bigger drive only to a
+            // free owner — a collaborator's own plan cannot unblock the board,
+            // and a paying owner has nothing to buy here. A 403 is no longer a
+            // size refusal on any plan: the write itself was refused.
+            const paidNow = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
+            if (err.code === 403) feedback.toast({
               type: 'warning',
-              message: err.code === 402
-                ? "This cluster's owner is out of storage — they'll need to upgrade for more space."
-                : "Uploading that file needs the cluster's owner to be on a paid plan.",
+              message: 'That upload was refused — you may no longer be able to edit this cluster.',
+              ttl: 6000,
+            });
+            else if (!csFiles.own || paidNow) feedback.toast({
+              type: 'warning',
+              message: storageFullMessage({ own: csFiles.own, paid: paidNow }),
               ttl: 6000,
             });
             else if (!pitchStorageGate()) feedback.toast({
@@ -3146,12 +3230,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // refused FILE, so a folder lands here repeatedly). Say what
               // happened and keep a route open; do not re-interrupt.
               type: 'warning',
-              message: err.code === 402
-                ? "You're out of storage. Creator lifts the limit."
-                : `That file is over the free ${FREE_FILE_CAP_LABEL} limit — Creator takes any size.`,
+              message: storageFullMessage({ own: true, paid: false }),
               ttl: 6000,
-              action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: err.code === 402 ? 'server_quota' : 'server_403' }); pitchStorageGate({ force: true }); } },
+              action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: 'server_quota' }); pitchStorageGate({ force: true }); } },
             });
+            if (err.code === 402) {
+              try { logEventOnce(`storage_wall:list:${csFiles.own ? (paidNow ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, { surface: 'list', own: !!csFiles.own, paid: paidNow, offered: false }); } catch (_) {}
+            }
             logEvent(EV.UPLOAD_BLOCKED, {
               reason: err.code === 402 ? 'server_quota' : 'server_403', surface: 'list', n: 1,
               ext: (it.file?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
@@ -5280,7 +5365,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // Remember the folder: checkout can't carry it, and the return should
         // say so (checkoutReturn.js).
         notePendingImport({ n: ask.n });
-        openCapWall();
+        // A drop the DRIVE stopped opens the storage wall, not the card wall.
+        if (ask.limitKind === 'storage') pitchStorageGate({ force: true });
+        else openCapWall();
       } else if (ask.own && (action === 'cancel' || action === 'partial')) {
         // Declining the room this drop needed is declining the offer: the one
         // moment to ask why (UpgradeReasonAsk). Only on the person's own plan —
@@ -5627,6 +5714,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const { take } = await muts.preflightImport?.({
       n: plan.cost, kinds: plan.kinds, source: 'folder',
       folder: { files: plan.files, clusters: plan.clusters },
+      bytes: plan.bytes,
     }) || { take: plan.cost };
     const nodes = slicePlan(plan.nodes, Math.min(plan.cost, Number(take) || 0));
     const total = countFiles(nodes);
@@ -5770,11 +5858,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({ type: 'info', message: res.cancelled ? 'Folder import cancelled — nothing was added.' : 'Nothing in that folder could be added.' });
     }
     if (res.stopped && res.stopped.code !== 'cap') {
-      // Out of storage, or a file type the owner's plan does not take: the
-      // one pitch, after what landed is safe. A 'cap' stop already showed the
-      // card wall (addCard's own refusal) — a storage pitch on top would be a
-      // second, wrong one.
-      pitchStorageGate();
+      // Out of storage: the one pitch, after what landed is safe — or, for a
+      // paying owner, the one sentence on how to make room. A 'cap' stop
+      // already showed the card wall (addCard's own refusal) — a storage
+      // pitch on top would be a second, wrong one.
+      const paidNow = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
+      try { logEventOnce(`storage_wall:folder:${paidNow ? 'paid' : 'free'}`, EV.STORAGE_WALL_VIEW, { surface: 'folder', own: true, paid: paidNow, offered: !paidNow }); } catch (_) {}
+      if (paidNow) feedback.toast({ type: 'warning', message: storageFullMessage({ own: true, paid: true }), ttl: 7000 });
+      else pitchStorageGate();
     }
     if (plan.blocked.length && !res.stopped) {
       feedback.toast({
@@ -9812,6 +9903,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           limit={importAsk.limit}
           kinds={importAsk.kinds}
           folder={importAsk.folder || null}
+          limitKind={importAsk.limitKind || 'cards'}
+          bytesNeeded={importAsk.bytesNeeded ?? null}
+          bytesLeft={importAsk.bytesLeft ?? null}
+          canUpgrade={importAsk.limitKind === 'storage' ? (importAsk.own && !importAsk.paid) : true}
           trialOffer={creatorTrialEligibility({
             tier: myTier.tier, cards: myTier.serverCardCount,
             cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,

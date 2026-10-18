@@ -149,7 +149,7 @@ PureRef's own site says it "currently supports Windows, Mac and most Linux distr
 
 **Rating:** 9.2/10
 
-**Pricing:** Free (Demo) — no credit card, no trial clock; Creator $25/mo flat (not per person): unlimited cards, 100GB storage, no size limits _(as of August 2026)_
+**Pricing:** Free (Demo) — no credit card, no trial clock, 50 cards or 5GB of files; Creator $25/mo flat (not per person): unlimited cards, 1TB drive _(as of August 2026)_
 
 The reference wall that follows the project — in the browser, shared with one link, edited live by the whole team.
 
@@ -159,7 +159,7 @@ The team mechanics are the point. Live cursors and presence show who is on the b
 
 A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.
 
-It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, with a card cap on the free tier; Creator is a flat $25 a month — not per person — for unlimited cards, 100GB of storage, and no file size limits. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.
+It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, and covers 50 cards or 5GB of files, whichever comes first; Creator is a flat $25 a month — not per person — for unlimited cards and a 1TB drive. Both plans take any file at any size. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate

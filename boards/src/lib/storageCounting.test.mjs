@@ -54,11 +54,13 @@ test('the Settings meter reads the owner\'s own quota, the same numbers the gate
   assert.match(meter, /public\._storage_used_bytes\(v_uid\) \+ public\._storage_pending_bytes\(v_uid\)/);
 });
 
-test('an owner with no room left hears "full" before "too big"', () => {
+test('the drive is the only byte limit: no plan refuses a file for its size (0413)', () => {
   const gate = latestDefinition('authorize_upload').body;
-  const full = gate.indexOf("'over_quota'::text; return;");
-  const big = gate.indexOf("'owner_not_paid'::text; return;");
-  assert.ok(full > 0 && big > 0 && full < big, 'the quota answer comes first');
+  assert.match(gate, /'over_quota'::text; return;/, 'a full drive is refused');
+  assert.doesNotMatch(gate, /owner_not_paid/, 'no per-file size refusal remains');
+  assert.doesNotMatch(gate, /v_free_file_cap/, 'no free file cap remains');
+  assert.match(gate, /returns table\(allow boolean, used bigint, quota bigint, remaining bigint, reason text\)/,
+    'same return shape: the deployed room reads it');
 });
 
 test('a transfer moves only the bytes that count', () => {

@@ -20,7 +20,7 @@ Share a look book with a single link and the recipient sees a clean, interactive
 
 ## Keep every project’s looks together
 
-Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays yours, at up to 100GB with no size limits on Creator.
+Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays yours, in a 1TB drive on Creator.
 
 ## How to make a look book
 
@@ -50,5 +50,5 @@ Yes. Nest boards inside boards so each season, campaign, or client has its own s
 
 ### Is it free?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with uploads never metered. Creator ($25/mo) adds unlimited cards, 100GB storage, and no size limits.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards. Creator ($25/mo) adds unlimited cards and a 1TB drive.
 

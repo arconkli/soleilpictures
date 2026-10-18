@@ -84,3 +84,45 @@ function plan(outcome, take, over, o) {
     limit: Number.isFinite(Number(o.limit)) ? Number(o.limit) : null,
   };
 }
+
+// ── The drive ───────────────────────────────────────────────────────────────
+//
+// Since 0413 the owner's drive is the free plan's other wall, and the only byte
+// limit on any plan. A drop that cannot fit in what is left would otherwise
+// place optimistic cards and roll each one back on its own 402 — exactly the
+// failure the card preflight above was written to end. So the drop is measured
+// first: every surface holds the File objects before it uploads anything.
+//
+// A video or an audio file brings a small original of its own (the poster, the
+// embedded cover), which counts too, so each of those is charged a little
+// slack. Previews and thumbnails never count (0411), so images carry none.
+export const MEDIA_SLACK_BYTES = 1024 * 1024;
+
+// planBytes({ items, remaining }) -> { take, needed, resolved }
+//
+//   items      [{ bytes, kind }] in the order the drop would place them
+//   remaining  bytes left on the drive the upload counts against, or null
+//              when that is not known
+//
+// `take` is how many of `items`, from the front, fit. Unknown room is NOT
+// "no room": it resolves to taking everything and letting the server decide,
+// the same fail-open the card preflight uses when its RPC is down — a drop
+// that silently does nothing is indistinguishable from a broken app.
+export function planBytes(opts) {
+  const o = opts || {};
+  const list = Array.isArray(o.items) ? o.items : [];
+  const room = o.remaining == null ? NaN : Number(o.remaining);
+  let needed = 0;
+  for (const it of list) needed += Math.max(0, Number(it?.bytes) || 0);
+  if (!Number.isFinite(room)) return { take: list.length, needed, resolved: false };
+  let used = 0;
+  let take = 0;
+  for (const it of list) {
+    const slack = it?.kind === 'video' || it?.kind === 'audio' ? MEDIA_SLACK_BYTES : 0;
+    const cost = Math.max(0, Number(it?.bytes) || 0) + slack;
+    if (used + cost > room) break;
+    used += cost;
+    take++;
+  }
+  return { take, needed, resolved: true };
+}

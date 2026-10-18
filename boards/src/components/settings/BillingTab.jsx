@@ -111,6 +111,8 @@ export function BillingTab({ user }) {
 
 function fmtBytes(b) {
   if (b == null) return '—';
+  const tb = b / (1024 ** 4);
+  if (tb >= 1) return `${tb >= 10 ? Math.round(tb) : Math.round(tb * 10) / 10} TB`;
   const gb = b / (1024 ** 3);
   if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
   const mb = b / (1024 ** 2);
@@ -118,9 +120,10 @@ function fmtBytes(b) {
   return `${Math.round(b / 1024)} KB`;
 }
 
-// "X / 100 GB" usage meter for paid accounts (storage is a paid feature).
-// Shows used / quota, the live fill bar, and a remaining + percent sub-line so
-// it reads as a real usage gauge wherever it's mounted.
+// "X / <drive>" usage meter, for every plan: the drive is a limit on free as
+// well as on Creator (0413), and my_storage_usage reports the reader's OWN
+// quota since 0411. Shows used / quota, the live fill bar, and a remaining +
+// percent sub-line so it reads as a real usage gauge wherever it's mounted.
 export function StorageMeter() {
   const usage = useStorageUsage({ enabled: true });
   const pct = usage.quota ? Math.min(100, (usage.used / usage.quota) * 100) : 0;
@@ -238,7 +241,7 @@ export function BillingSummary({
         )}
       </div>
 
-      {tier === 'paid' && <StorageMeter />}
+      {(tier === 'paid' || tier === 'admin' || tier === 'demo') && <StorageMeter />}
 
       {grantLine && (
         <p className="settings-section-hint" style={{ marginTop: 8 }}>

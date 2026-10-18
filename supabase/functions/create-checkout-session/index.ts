@@ -216,11 +216,19 @@ Deno.serve(async (req) => {
       }
       const t = await userClient.rpc("get_my_tier");
       const row = Array.isArray(t.data) ? t.data[0] : t.data;
+      // The drive is the free plan's other wall (0413), so the trial's
+      // storage route needs the caller's own numbers — as the caller, the
+      // same rows the meter and the upload gates read. A failed read simply
+      // leaves that route closed; the card routes still decide.
+      const s = await userClient.rpc("my_storage_usage");
+      const srow = Array.isArray(s.data) ? s.data[0] : s.data;
       const elig = creatorTrialEligibility({
         tier: row?.tier ?? null,
         cards: row?.demo_card_count,
         cardLimit: row?.effective_card_limit,
         trialStartedAt: row?.creator_trial_started_at ?? null,
+        storageUsed: s.error ? null : (srow?.used ?? null),
+        storageQuota: s.error ? null : (srow?.quota ?? null),
       });
       if (t.error || !elig.eligible || everTrialed) {
         return json({

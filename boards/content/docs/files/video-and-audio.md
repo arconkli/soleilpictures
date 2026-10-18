@@ -6,7 +6,7 @@ navLabel: Video and audio
 section: files
 order: 2
 updated: 2026-10-12
-answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at {{fact:freeVideoCap}} and audio at {{fact:freeAudioCap}}; {{fact:planName}} removes both caps.
+answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
 faq:
   - q: Why does starting one audio card stop another?
     a: Deliberate. Boards commonly hold a dozen takes, and having several play over each other is never what someone wanted. Playback is exclusive across the board.
@@ -141,10 +141,9 @@ before this existed is read the first time someone opens Info on it, a few
 kilobytes from the start (and end) of the file rather than the whole clip, and
 what it finds is kept on the card. WebM and other containers report less.
 
-Free accounts cap video at **{{fact:freeVideoCap}}**. That is enough for a
-reference clip or a cut-down, not for a full-resolution master.
-{{fact:planName}} removes the cap and handles very large files by uploading them
-in parts.
+There is no size or length limit on video, on any plan — a reference clip, a
+cut-down or a full-resolution master all land the same way, and very large
+files upload in parts. The only limit is your [drive](/docs/files#storage).
 
 ## Audio
 
@@ -158,7 +157,7 @@ Audio cards do more than provide a play button:
 second stops the first. On a board holding a dozen takes of the same cue, this
 is the only behaviour that makes sense.
 
-Free accounts cap audio at **{{fact:freeAudioCap}}**.
+There is no size limit on audio either, on any plan.
 
 ### Cover art
 

@@ -28,19 +28,19 @@ test('the latest authorize_upload is a create or replace, and keeps 0318\'s prop
   assert.match(def.body, /can_write_workspace\(p_workspace_id\)/);
 });
 
-test('the server cap is the client cap, to the byte', () => {
-  const m = latestDefinition('authorize_upload').body.match(/v_free_file_cap constant bigint := (\d+);/);
-  assert.ok(m, 'the migration names the cap as v_free_file_cap');
-  assert.equal(Number(m[1]), FREE_FILE_CAP, 'fileIngest.js FREE_FILE_CAP and 0367 v_free_file_cap differ');
-  assert.equal(FREE_FILE_CAP, FREE_PDF_CAP, 'one number on the pricing page');
-  assert.match(latestDefinition('authorize_upload').body, /not in \('paid', 'admin'\) and v_bytes > v_free_file_cap/,
-    'a demo owner is refused only PAST the cap');
-});
-
-test('the client routes a free owner\'s non-media file as the server would answer', () => {
-  const at = classifyDropFile({ name: 'pack.zip', type: 'application/zip', size: FREE_FILE_CAP }, { canAttemptFiles: false });
-  const over = classifyDropFile({ name: 'pack.zip', type: 'application/zip', size: FREE_FILE_CAP + 1 }, { canAttemptFiles: false });
-  assert.equal(at.route, 'file');
-  assert.equal(over.route, 'blocked');
-  assert.equal(over.why, 'size');
+test('no plan refuses a file for its size — the server and the client agree (0413)', () => {
+  // 0367 opened file TYPES on the free plan and kept a per-file SIZE cap, and
+  // this file pinned the two halves of that cap to each other. 0413 removed the
+  // cap: the owner's drive is the only byte limit on every plan. So the pin is
+  // now that NEITHER half refuses a file for its size — a client that still
+  // blocked would refuse what the server takes, and a server that still
+  // answered owner_not_paid would refuse what the client sends.
+  const body = latestDefinition('authorize_upload').body;
+  assert.doesNotMatch(body, /v_free_file_cap/, 'the server has no free file cap');
+  assert.doesNotMatch(body, /owner_not_paid/, 'and never answers owner_not_paid');
+  assert.match(body, /v_used \+ v_bytes > v_quota/, 'the drive is what decides');
+  const big = classifyDropFile({ name: 'pack.zip', type: 'application/zip', size: FREE_FILE_CAP * 100 }, { canAttemptFiles: false });
+  assert.equal(big.route, 'file', 'the client sends a free owner\'s big file');
+  const pdf = classifyDropFile({ name: 'deck.pdf', type: 'application/pdf', size: FREE_PDF_CAP * 10 }, { canAttemptFiles: false });
+  assert.notEqual(pdf.route, 'blocked');
 });

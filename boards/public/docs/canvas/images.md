@@ -105,11 +105,11 @@ board itself.
 
 ## Limits
 
-Images are not size-capped on any plan. The caps that exist are on
-[video, audio and PDF](/docs/files) for free accounts.
+No file is size-capped on any plan — images, [video, audio and
+PDFs](/docs/files) included. The drive is the only limit.
 
 Storage is counted against your account quota: 5GB on the free
-plan, 100GB on Creator. The meter is in Settings → Plan & billing.
+plan, 1TB on Creator. The meter is in Settings → Plan & billing.
 
 ---
 

@@ -5,8 +5,16 @@
     <link>https://clusters.soleilpictures.com/changelog</link>
     <description>Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.</description>
     <language>en</language>
-    <lastBuildDate>Sun, 04 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 17 Oct 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://clusters.soleilpictures.com/changelog.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Any file at any size on every plan, a 1TB Creator drive, and deleting frees space</title>
+      <link>https://clusters.soleilpictures.com/changelog#2026-10-17</link>
+      <guid isPermaLink="false">clusters-changelog-2026-10-17</guid>
+      <pubDate>Sat, 17 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB. Deleting a file now gives its space back.</description>
+      <content:encoded><![CDATA[<p>Storage works differently from today, on every plan.</p><h3>Plans</h3><ul><li>The free plan holds 50 cards or 5GB of files, whichever you reach first — and takes any file at any size. The per-file limits on video, audio, PDFs and other files are gone; the drive is the only limit. See <a href="https://clusters.soleilpictures.com/docs/account/plans">plans and pricing</a>.</li><li>Creator&#39;s drive grows to 1TB. During a trial it is 100GB, and the full drive comes with the first payment.</li><li>Every plan now has a storage meter in <b>Settings → Plan &amp; billing</b>, and the upgrade pill shows your storage once the drive is the nearer of your two limits.</li></ul><h3>Storage</h3><ul><li>Deleting a file gives its space back within a few minutes, and emptying the trash gives back everything in it at once.</li><li>Previews and thumbnails no longer count toward your storage.</li><li>A drop that would not fit in your drive is caught before anything uploads, with the option to add the files that fit. See <a href="https://clusters.soleilpictures.com/docs/files#what-counts">what counts toward storage</a>.</li></ul>]]></content:encoded>
+    </item>
     <item>
       <title>Folders become clusters, files keep their names, and search reads documents</title>
       <link>https://clusters.soleilpictures.com/changelog#2026-10-04</link>

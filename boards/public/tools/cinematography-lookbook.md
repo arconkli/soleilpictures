@@ -49,15 +49,14 @@ Start free. Pay when you outgrow it.
 **Free — $0 forever**
 
 - **50 cards** to build with
+- A **5GB** drive — any file, any size
 - No separate limit on clusters — each one counts as one of your cards
 - Free collaboration — invite editors to any cluster
-- A **5GB** drive for your files
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- Any file, any size
-- No size limits, on a 100GB drive
+- A 1TB drive, on a 1TB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 

@@ -7,7 +7,7 @@
 //   • "cap-hit"     → demo card cap reached
 //   • "near-cap"    → opened from the 80% warning toast (nothing refused yet)
 //   • "first-value" → first genuine card placed (warm nudge)
-//   • "storage"     → paid-only file/upload gate
+//   • "storage"     → the free drive is full (0413: the only byte limit)
 //
 // Already-paid users (paid/admin) get the "Manage billing" path to the
 // Stripe Customer Portal instead of a second checkout.
@@ -28,7 +28,7 @@ import { BenefitGrid, PlanToggle, CreatorPriceRow, TrialPriceRow } from './Prici
 import {
   CTA, PRICING, COPY_REV, PLAN_NAME, TRIAL_FROM_LABEL,
   creatorBenefits, ownWorkSummary, trialNote, currentPlanRow,
-  PRICING_INTENT_COPY,
+  PRICING_INTENT_COPY, STORAGE_FULL_COPY,
 } from '../lib/billingCopy.js';
 import { OwnWorkStrip } from './OwnWorkStrip.jsx';
 import { readOwnWork } from '../lib/ownWork.js';
@@ -68,8 +68,15 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // exact boundary: a card placed two seconds ago is in useMyTier's delta and
   // not yet in the server's count, so using the optimistic number offers a
   // trial that is then refused.
+  // Storage bytes cost an RPC, so only the two headers that are ABOUT capacity
+  // pay for it. The ambient headers still name what the reader has built; they
+  // just do it in cards and clusters, which are already in hand. Read before
+  // the trial decision: a full free drive is the trial's storage route (0413).
+  const storage = useStorageUsage({ enabled: header === 'cap-hit' || header === 'storage' });
   const trialDecision = creatorTrialEligibility({
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
+    storageUsed: storage.loading || storage.error ? null : storage.used,
+    storageQuota: storage.loading || storage.error ? null : storage.quota,
   });
   const trialOffer = !trialRefused && trialDecision.eligible;
   // Re-read the server's count the moment the offer opens. It used to be as
@@ -85,10 +92,6 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     // Once per open. refetch is stable for the lifetime of the store.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // Storage bytes cost an RPC, so only the two headers that are ABOUT capacity
-  // pay for it. The ambient headers still name what the reader has built; they
-  // just do it in cards and clusters, which are already in hand.
-  const storage = useStorageUsage({ enabled: header === 'cap-hit' || header === 'storage' });
   // What this person has actually made, on every header rather than only at the
   // wall. The finding that put it on the wall — that the abstract feature list
   // goes unread by a reader who has spent real time building — was never
@@ -286,7 +289,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             {header === 'cap-hit'     ? 'Your work outgrew the demo.'
              : header === 'near-cap'  ? "You're close to the free limit."
              : header === 'first-value' ? "You're building something."
-             : header === 'storage'   ? 'Room for everything you make.'
+             : header === 'storage'   ? STORAGE_FULL_COPY.title
              : header === 'pricing-intent' ? PRICING_INTENT_COPY.title
              : 'Everything your work deserves.'}
           </h2>
@@ -321,10 +324,11 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               this person is in. Where nothing happened — the pill, the
               first-value nudge — there is nothing to say, and the offer starts
               immediately instead of clearing its throat. */}
+          {/* Since 0413 the drive is the only byte limit on every plan, so the
+              storage header is always "the drive is full": no plan refuses a
+              file for its size any more. */}
           {header === 'storage' && (
-            <p className="upgrade-sub t-body">
-              That file needs a paid plan — free accounts take standard media, under the size caps below.
-            </p>
+            <p className="upgrade-sub t-body">{STORAGE_FULL_COPY.sub}</p>
           )}
           {header === 'first-value' && (
             <p className="upgrade-sub t-body">Your first cluster is taking shape.</p>

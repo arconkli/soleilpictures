@@ -101,7 +101,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 50 cards — every cluster counts as one — and unlimited collaborators. Creator removes the card limit and adds any-file-type uploads on a 100GB drive."
+        "a": "Yes. The free Demo plan gives you 50 cards — every cluster counts as one — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
       },
       {
         "q": "What is a cluster?",
@@ -1123,12 +1123,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/files",
     "title": "Files and Uploads — Soleil Clusters",
-    "metaDescription": "Upload any file type to Soleil Clusters. What is supported free, where the size caps are, how large uploads work, and where storage is counted.",
+    "metaDescription": "Upload any file to Soleil Clusters, at any size, on every plan. How large uploads work, what counts toward your storage, and how deleting frees space.",
     "h1": "Files and uploads",
-    "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.",
+    "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-12",
+    "updated": "2026-10-17",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1168,11 +1168,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What file types can I upload on the free plan?",
-        "a": "Any. Images have no size cap on any plan; video, audio and PDFs have the size caps listed below; every other type — .psd, .fig, .zip, project files, archives — is a file card up to 50 MB."
+        "a": "Any, at any size. Video, audio, PDFs and images get their own cards; every other type — .psd, .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan."
       },
       {
         "q": "How large a file can I upload?",
-        "a": "On Creator there is no per-file limit; very large files upload in parts automatically. On the free plan video is capped at 30 MB, audio at 50 MB, and a PDF or any other file at 50 MB."
+        "a": "As large as the room left on your drive — there is no per-file limit on any plan, and very large files upload in parts automatically. The drive is 5GB on the free plan and 1TB on Creator."
       },
       {
         "q": "Where do my files actually live?",
@@ -1180,7 +1180,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I bring in my PureRef boards?",
-        "a": "Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards, which have no size cap on any plan."
+        "a": "Not as .pur files yet — Clusters cannot open a PureRef scene, on any plan. Export the images from PureRef and drop those onto a canvas; they become image cards."
       },
       {
         "q": "What happens if I drop a screenplay file?",
@@ -1199,12 +1199,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/files/pdf",
     "title": "PDFs — Soleil Clusters",
-    "metaDescription": "PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download. Free accounts cap PDFs at 50 MB.",
+    "metaDescription": "PDF cards in Soleil Clusters show page one and a page count, and open into a full-screen scrolling viewer with download, on every plan.",
     "h1": "PDFs",
-    "answer": "Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. Free accounts can upload PDFs up to 50 MB; Creator removes the cap.",
+    "answer": "Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.",
     "section": "files",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-17",
     "navLabel": "PDFs",
     "headings": [
       {
@@ -1220,8 +1220,8 @@ export const DOCS_PAGES = [
         "text": "What you cannot do"
       },
       {
-        "id": "size-limit",
-        "text": "Size limit"
+        "id": "size",
+        "text": "Size"
       },
       {
         "id": "making-pdfs",
@@ -1253,7 +1253,7 @@ export const DOCS_PAGES = [
     "title": "Video and Audio — Soleil Clusters",
     "metaDescription": "Video and audio play inline on the canvas. Video steps frame by frame in a review player; audio draws a real waveform with cover art.",
     "h1": "Video and audio",
-    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. Free accounts cap video at 30 MB and audio at 50 MB; Creator removes both caps.",
+    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.",
     "section": "files",
     "order": 2,
     "updated": "2026-10-12",
@@ -2647,12 +2647,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/plans",
     "title": "Plans and Pricing — Soleil Clusters",
-    "metaDescription": "Soleil Clusters is free with 50 cards and free collaborators. Creator removes the card cap and the file size limits on a 100GB drive.",
+    "metaDescription": "Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards — each cluster counts as one — unlimited free collaborators, and any file type up to 50 MB. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and the size limits go: no per-file size or length limits, and a 100GB drive instead of 5GB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
+    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — each cluster counts as one card — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
-    "updated": "2026-10-07",
+    "updated": "2026-10-17",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2676,8 +2676,8 @@ export const DOCS_PAGES = [
         "text": "Whose allowance"
       },
       {
-        "id": "hitting-the-cap",
-        "text": "Hitting the cap"
+        "id": "hitting-a-limit",
+        "text": "Hitting a limit"
       },
       {
         "id": "trying-creator-first",
@@ -2704,7 +2704,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Two things and only two — total cards, and how big or long a single file can be (video stops at 30 MB or 60 seconds, audio at 50 MB, PDFs and any other file at 50 MB; images are never capped). Any file type is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card."
+        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card."
       },
       {
         "q": "Do collaborators need to pay?",
@@ -2715,8 +2715,8 @@ export const DOCS_PAGES = [
         "a": "Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it."
       },
       {
-        "q": "What happens when I hit the card cap?",
-        "a": "You are told, and asked to upgrade. Nothing already made is taken away or locked."
+        "q": "What happens when I hit a limit?",
+        "a": "You are told, and asked to upgrade. Nothing already made is taken away or locked. Deleting files gives their space back within a few minutes, and emptying the trash gives back everything in it at once."
       },
       {
         "q": "My card limit is 100, not 50. Why?",
@@ -2728,11 +2728,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a free trial of Creator?",
-        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. One trial per account."
+        "a": "Yes, once you have built something. Accounts with a real cluster on them are offered 14 days of Creator inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. During the trial your drive is 100GB; the full 1TB comes with the first payment. One trial per account."
       },
       {
         "q": "What happens to my work if I cancel, or my trial ends?",
-        "a": "Nothing you made is deleted. Every cluster and card stays where it is, and you can keep opening and editing it. If you are over your card limit, new cards will not fit until you are back under it."
+        "a": "Nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them."
       }
     ]
   },

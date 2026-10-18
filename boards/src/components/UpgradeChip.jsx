@@ -21,7 +21,8 @@ import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/localMode.js';
 import { ImportCapDialog } from './ImportCapDialog.jsx';
 import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
-import { COPY_REV, PRICE_FROM_LABEL, TRIAL_FROM_LABEL } from '../lib/billingCopy.js';
+import { COPY_REV, PRICE_FROM_LABEL, TRIAL_FROM_LABEL, FREE_STORAGE_LABEL, storageAmountLabel } from '../lib/billingCopy.js';
+import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { creatorTrialEligibility, trialAwaitingServer } from '../lib/creatorTrial.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
 import { claimUpsellSlot } from '../lib/upsellSlot.js';
@@ -57,6 +58,14 @@ export function UpgradeChip() {
     ? Math.max(0, Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000))
     : 0;
   const elig = evaluateUpsell({ tier, demoCardCount, cardLimit, accountAgeDays });
+  // The drive is the free plan's other wall (0413). When it is the nearer of
+  // the two — most of the way full, and further along than the cards — the
+  // pill says so instead of counting cards someone is nowhere near using up.
+  const storage = useStorageUsage({ enabled: tier === 'demo' });
+  const storageKnown = !storage.loading && !storage.error && Number(storage.quota) > 0;
+  const storageFrac = storageKnown ? Number(storage.used) / Number(storage.quota) : 0;
+  const cardFrac = cardLimit > 0 ? (Number(demoCardCount) || 0) / cardLimit : 0;
+  const storageNear = storageKnown && storageFrac >= 0.8 && storageFrac > cardFrac;
   // Is this viewer owed the invitation rather than the request?
   //
   // Decided on serverCardCount, NOT demoCardCount. The optimistic count is
@@ -68,6 +77,8 @@ export function UpgradeChip() {
   // which fails closed to the price.
   const trialDecision = creatorTrialEligibility({
     tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
+    storageUsed: storageKnown ? storage.used : null,
+    storageQuota: storageKnown ? storage.quota : null,
   });
   const trialOffer = trialDecision.eligible;
   // The canvas already qualifies and the server hasn't caught up yet. Nothing
@@ -359,10 +370,13 @@ export function UpgradeChip() {
   // burns the once-per-account stamp; the modals only exist once something
   // opened them). Returning null for the whole component would silently break
   // both, since a suppressed chip would also unmount an already-open modal.
-  const showChip = tier === 'demo' && elig.eligible;
+  const showChip = tier === 'demo' && (elig.eligible || storageNear);
 
-  const near = elig.pressure === 'urgent';
-  const showCount = elig.pressure === 'urgent' || elig.pressure === 'count';
+  const near = elig.pressure === 'urgent' || storageNear;
+  const showCount = elig.pressure === 'urgent' || elig.pressure === 'count' || storageNear;
+  const storageLine = storageNear
+    ? `${storageAmountLabel(storage.used) || '0 MB'} of ${FREE_STORAGE_LABEL}`
+    : null;
   // Once the pill is a meter it also says what lifting the ceiling costs. A
   // label that just reads "Get Creator" sends the one number that decides
   // anything behind a click most people never take.
@@ -426,6 +440,7 @@ export function UpgradeChip() {
           near={near}
           count={demoCardCount}
           limit={cardLimit}
+          storageLine={storageLine}
           showCount={showCount}
           showPrice={showPrice}
           showTrial={showTrial}
@@ -483,7 +498,7 @@ export function UpgradeChip() {
 // this split the admin Surface Gallery could only ever show whichever state
 // the previewing account happened to be in, which for an admin is none of
 // them. Presentational: no hooks, no analytics, no tier reads.
-export function UpgradePill({ innerRef = null, near, count, limit, showCount, showPrice, showTrial = false, onClick }) {
+export function UpgradePill({ innerRef = null, near, count, limit, storageLine = null, showCount, showPrice, showTrial = false, onClick }) {
   return (
     <button
       ref={innerRef}
@@ -497,9 +512,14 @@ export function UpgradePill({ innerRef = null, near, count, limit, showCount, sh
           invisible right up until it stopped you. Now the count appears once
           usage is genuinely underway, and the ask sharpens only near the end. */}
       <span className="upgrade-chip-label">
-        {near ? `${Math.max(0, limit - count)} cards left` : 'Get Creator'}
+        {storageLine ? 'Storage almost full' : near ? `${Math.max(0, limit - count)} cards left` : 'Get Creator'}
       </span>
-      {showCount && !near && (
+      {storageLine ? (
+        <>
+          <span className="upgrade-chip-sep">·</span>
+          <span className="upgrade-chip-count">{storageLine}</span>
+        </>
+      ) : showCount && !near && (
         <>
           <span className="upgrade-chip-sep">·</span>
           <span className="upgrade-chip-count">{count}/{limit}</span>

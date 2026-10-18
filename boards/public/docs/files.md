@@ -1,8 +1,8 @@
 # Files and uploads
 
-> Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. Free accounts upload any file within size caps, and Creator lifts the size limits on a 100GB drive.
+> Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
-_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-17_
 
 Drag a file onto the canvas. The type is detected and the right kind of card is
 created — you never pick "upload as image" from a menu.
@@ -24,27 +24,18 @@ Small text files get an inline preview on the card rather than only a download.
 
 ## Limits
 
-Two different things are limited, and they are limited for different reasons.
+**File type and size.** Any, on every plan. `.psd`, `.fig`, `.zip`, project
+files, archives, a 4K clip, a WAV stem — each lands as its own card, at any
+size. There is no per-file limit on any plan.
 
-**File type.** Any, on every plan. `.psd`, `.fig`, `.zip`, project files,
-archives — each lands as a file card with a download. On the free plan one of
-those is capped at 50 MB, the same ceiling as a PDF.
+**Storage.** The only limit is the drive: 5GB on the free
+plan, 1TB on Creator. A drop that would not fit is
+caught before anything uploads, and you can add the part that fits.
 
-**Size.** On the free plan:
-
-| Type | Cap |
-|---|---|
-| Video | 30 MB |
-| Audio | 50 MB |
-| PDF | 50 MB |
-| Any other file | 50 MB |
-| Images | No cap on any plan |
-
-Creator removes the size caps entirely.
-
-> **Note:** These are the real, enforced differences between free and paid —
-> along with the [card cap](/docs/canvas/cards). Clusters, collaborators and
-> editing are not limited on any plan.
+> **Note:** The drive and the [card cap](/docs/canvas/cards) are the real,
+> enforced differences between free and paid — a free account stops at
+> whichever it reaches first. Clusters, collaborators and editing are not
+> limited on any plan.
 
 ## Large uploads
 
@@ -58,7 +49,7 @@ behind it.
 ## Storage
 
 Uploads count against your account's storage quota: 5GB on the
-free plan, 100GB on Creator. The meter is in
+free plan, 1TB on Creator. The meter is in
 **Settings → Plan & billing**. When it is full, new uploads stop until you
 delete files or upgrade — nothing already there is touched.
 

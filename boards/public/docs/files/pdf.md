@@ -1,8 +1,8 @@
 # PDFs
 
-> Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. Free accounts can upload PDFs up to 50 MB; Creator removes the cap.
+> Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.
 
-_Source: https://clusters.soleilpictures.com/docs/files/pdf · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/files/pdf · Updated 2026-10-17_
 
 A PDF on a board is a real document, not a download link.
 
@@ -34,13 +34,13 @@ What you can do instead:
 - **Comment on the card** — see [Comments](/docs/collaborate/comments)
 - **Put a note beside it** with the feedback
 
-## Size limit
+## Size
 
-Free accounts cap PDFs at **50 MB**. Creator removes the
-cap. See [Plans](/docs/account/plans).
-
-A script or a treatment is comfortably under that. A print-resolution deck with
-embedded images often is not.
+There is no PDF size limit on any plan — a PDF counts toward your
+[storage](/docs/files#storage) like any other file. Up to
+**50 MB** it becomes a PDF card that opens in the viewer; a
+larger one lands as a file card with a download, so a print-resolution deck
+with embedded images still comes along whole.
 
 ## Making PDFs
 

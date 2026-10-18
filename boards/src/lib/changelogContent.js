@@ -2,6 +2,133 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-17": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Storage works differently from today, on every plan."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Plans",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Plans"
+    }
+   ],
+   "id": "2026-10-17-plans"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The free plan holds 50 cards or 5GB of files, whichever you reach first — and takes any file at any size. The per-file limits on video, audio, PDFs and other files are gone; the drive is the only limit. See "
+     },
+     {
+      "t": "link",
+      "v": "plans and pricing",
+      "href": "/docs/account/plans",
+      "children": [
+       {
+        "t": "text",
+        "v": "plans and pricing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Creator's drive grows to 1TB. During a trial it is 100GB, and the full drive comes with the first payment."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Every plan now has a storage meter in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → Plan & billing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Plan & billing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and the upgrade pill shows your storage once the drive is the nearer of your two limits."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Storage",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Storage"
+    }
+   ],
+   "id": "2026-10-17-storage"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Deleting a file gives its space back within a few minutes, and emptying the trash gives back everything in it at once."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Previews and thumbnails no longer count toward your storage."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A drop that would not fit in your drive is caught before anything uploads, with the option to add the files that fit. See "
+     },
+     {
+      "t": "link",
+      "v": "what counts toward storage",
+      "href": "/docs/files#what-counts",
+      "children": [
+       {
+        "t": "text",
+        "v": "what counts toward storage"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-04": [
   {
    "type": "para",

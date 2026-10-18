@@ -3,7 +3,7 @@
 // a header variant:
 //   'cap-hit'     → demo card cap copy
 //   'first-value' → warm "you're building something" copy (the first-value nudge)
-//   'storage'     → "Room for everything you make" copy (the file-upload paywall)
+//   'storage'     → "Room for everything you make" — the free drive is full
 //   'manual' / null → generic "Everything your work deserves" copy
 //   'pricing-intent' → its own header (billingCopy PRICING_INTENT_COPY), opened
 //                      because the person pressed "Get Creator" on the public

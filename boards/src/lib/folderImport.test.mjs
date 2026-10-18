@@ -227,7 +227,9 @@ test('a subfolder that cannot be created costs that subfolder, not its parent', 
 test('a card-cap stop is not pitched as storage — the board already showed its wall', () => {
   const app = read('App.jsx');
   const fn = app.slice(app.indexOf('const importFolderOnce = useCallback('));
-  assert.match(fn, /if \(res\.stopped && res\.stopped\.code !== 'cap'\) \{[\s\S]{0,400}?pitchStorageGate\(\);/);
+  assert.match(fn, /if \(res\.stopped && res\.stopped\.code !== 'cap'\) \{[\s\S]{0,1400}?else pitchStorageGate\(\);/);
+  assert.match(fn, /if \(paidNow\) feedback\.toast\(\{ type: 'warning', message: storageFullMessage\(\{ own: true, paid: true \}\)/,
+    'a paying owner whose drive is full is told how to make room, not offered the plan they have');
   assert.match(fn, /const placed = muts\.addCard\?\.\(card\);[\s\S]{0,200}?return placed \?\? null;/,
     'placeTopCard hands back the refusal, so the import can stop on it');
 });

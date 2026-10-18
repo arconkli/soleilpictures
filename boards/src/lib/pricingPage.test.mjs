@@ -20,7 +20,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PRICING, CREATOR_BENEFITS,
-  CREATOR_FEATURE_KEYS, CREATOR_STORAGE_LABEL, PLAN_NAME, creatorBenefits, DEMO_FEATURES,
+  CREATOR_FEATURE_KEYS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, PLAN_NAME, creatorBenefits, DEMO_FEATURES,
 } from './billingCopy.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
@@ -66,22 +66,21 @@ test('every number on the page is injected from the code that enforces it', () =
   // the literal it has to be, in the one place it is allowed to be one.
   assert.equal(PRICING_PAGE.freeCardPrice, '$0');
 
-  // The per-file ceilings, from fileIngest — the module the ingest path routes
-  // on. A literal here would be a promise nothing keeps.
+  // The drives, from billingCopy's labels — which gen-docs pins to the
+  // migration fallbacks the quota functions enforce (0387, 0413). A literal
+  // here would be a promise nothing keeps.
   const size = PLAN_COMPARISON.find((r) => r.key === 'storage');
-  for (const bytes of [FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP]) {
-    assert.ok(size.demo.includes(String(Math.round(bytes / (1024 * 1024)))),
-      `the free size row must name ${bytes} bytes as MB, from fileIngest`);
-  }
-  assert.ok(size.creator.includes(CREATOR_STORAGE_LABEL));
+  assert.ok(size.demo.includes(FREE_STORAGE_LABEL), 'the free column names the free drive');
+  assert.ok(size.creator.includes(CREATOR_STORAGE_LABEL), 'the Creator column names the Creator drive');
 });
 
-test('the comparison is the three enforced gates, and nothing else', () => {
-  // Three, because three is how many free/paid differences exist in code:
-  // enforce_demo_card_cap_trg, fileIngest's blocked route for a free owner,
-  // and the per-file byte caps. A fourth row means someone sold something the
-  // server does not enforce — the exact failure billingCopy's header describes.
-  assert.equal(PLAN_COMPARISON.length, 3);
+test('the comparison is the two enforced gates, and nothing else', () => {
+  // Two, because two is how many free/paid differences exist in code since
+  // 0413: enforce_demo_card_cap_trg and the owner's drive (_storage_quota_bytes,
+  // enforced by authorize_upload / authorize_image_upload). A third row means
+  // someone sold something the server does not enforce — the exact failure
+  // billingCopy's header describes.
+  assert.equal(PLAN_COMPARISON.length, 2);
   for (const row of PLAN_COMPARISON) {
     for (const f of ['key', 'label', 'demo', 'creator']) {
       assert.ok(row[f] && String(row[f]).length, `${row.key}.${f} must be set`);
@@ -94,14 +93,12 @@ test('the comparison is the three enforced gates, and nothing else', () => {
     'the comparison rows plus the workspace note carry the modal’s feature keys, in order');
 });
 
-test('every gate the code enforces is disclosed, including video LENGTH', () => {
+test('every gate the code enforces is disclosed, and no retired one is', () => {
   // The rule in this repo is that every public CLAIM is true. This is its
-  // mirror, and the half that was missing: every enforced LIMIT must be stated.
-  // uploads.js has capped free video duration at FREE_VIDEO_SECONDS for the
-  // product's life, lifted only for a paid owner (CanvasSurface's allowLong),
-  // and no page said so — so a free owner's 20 MB, 90-second clip was refused
-  // by a rule the pricing page contradicted, since the same page named 30 MB as
-  // the wall. An undisclosed limit is a false claim told by omission.
+  // mirror: every enforced LIMIT must be stated — and, since 0413 removed the
+  // free per-file caps, no limit that no longer exists may be stated either.
+  // An undisclosed limit is a false claim told by omission; a retired one is a
+  // false claim told outright.
   const publicText = [
     ...CREATOR_BENEFITS.map((b) => `${b.title} ${b.body}`),
     ...PLAN_COMPARISON.map((r) => `${r.label} ${r.demo} ${r.creator}`),
@@ -109,21 +106,14 @@ test('every gate the code enforces is disclosed, including video LENGTH', () => 
     PRICING_PAGE.paidBody,
   ].join(' ');
 
-  assert.match(publicText, new RegExp(`${FREE_VIDEO_SECONDS}\\s*(seconds|s\\b)`),
-    'the free video DURATION cap must be stated somewhere a buyer reads');
-  // And in the row that is about per-file limits, whose label has to admit it
-  // covers length — "Per-file size" alone is what made the omission readable
-  // as a complete statement.
-  const sizeRow = PLAN_COMPARISON.find((r) => r.key === 'storage');
-  assert.match(sizeRow.label, /length/i, 'the per-file row covers size AND length');
-  assert.ok(sizeRow.demo.includes(String(FREE_VIDEO_SECONDS)),
-    'the free column names the duration cap beside the byte caps');
-
-  // The byte caps too, so this test covers the whole gate rather than the one
-  // clause that happened to be wrong.
+  assert.ok(publicText.includes(`${DEMO_CARD_LIMIT} cards`), 'the card cap is stated');
+  assert.ok(publicText.includes(FREE_STORAGE_LABEL), 'the free drive is stated');
+  assert.ok(publicText.includes(CREATOR_STORAGE_LABEL), 'the Creator drive is stated');
+  assert.doesNotMatch(publicText, new RegExp(`${FREE_VIDEO_SECONDS}\\s*(seconds|s\\b)`),
+    'no video length cap exists on any plan any more');
   for (const bytes of [FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP]) {
-    assert.ok(publicText.includes(String(Math.round(bytes / (1024 * 1024)))),
-      `the free ceiling ${bytes} must be disclosed`);
+    assert.doesNotMatch(publicText, new RegExp(`\\b${Math.round(bytes / (1024 * 1024))}\\s*MB\\b`),
+      `no per-file ceiling of ${bytes} bytes exists on any plan any more`);
   }
 });
 

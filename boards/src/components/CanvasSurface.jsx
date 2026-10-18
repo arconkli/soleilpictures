@@ -125,6 +125,7 @@ import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } fr
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
+import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
@@ -3571,26 +3572,26 @@ export function CanvasSurface({
     // the second and later refusals it is the ONLY route to the offer, so it
     // carries the action. Quieter must not mean unreachable.
     if (err?.code === 402) {
-      const explained = ownsWorkspace ? upsell?.() : false;
+      // The drive is full (0413: the only byte limit on every plan). A free
+      // owner is offered the bigger drive; a paying owner has nothing to buy
+      // here yet and is told how to make room; anyone else is told whose
+      // drive it is, since their own plan cannot unblock this cluster.
+      const offer = ownsWorkspace && !isPaidPlan;
+      const explained = offer ? upsell?.() : false;
+      try { logEventOnce(`storage_wall:canvas:${ownsWorkspace ? (isPaidPlan ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, { surface: 'canvas', own: !!ownsWorkspace, paid: !!isPaidPlan, offered: !!explained }); } catch (_) {}
       feedback.toast({
         type: 'warning',
-        message: ownsWorkspace
-          ? "You're out of storage. Upgrade for more space."
-          : "This cluster's owner is out of storage — they'll need to upgrade for more space.",
-        ...(ownsWorkspace && !explained
-          ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: err.code === 402 ? 'server_quota' : 'server_403' }); upsell?.({ force: true }); } } }
+        message: storageFullMessage({ own: ownsWorkspace, paid: isPaidPlan }),
+        ...(offer && !explained
+          ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'server_quota' }); upsell?.({ force: true }); } } }
           : {}),
       });
     } else if (err?.code === 403) {
-      const explained = ownsWorkspace ? upsell?.() : false;
+      // Since 0413 no plan refuses a file for its size, so a 403 from the
+      // upload party means the write itself was refused — edit access ended.
       feedback.toast({
         type: 'warning',
-        message: ownsWorkspace
-          ? `Files over ${FREE_FILE_CAP_LABEL} need Creator — upgrade for any size.`
-          : `Files over ${FREE_FILE_CAP_LABEL} need the cluster's owner to be on a paid plan.`,
-        ...(ownsWorkspace && !explained
-          ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: err.code === 402 ? 'server_quota' : 'server_403' }); upsell?.({ force: true }); } } }
-          : {}),
+        message: "That upload was refused — you may no longer be able to edit this cluster.",
       });
     } else if (err?.code === 'video_too_long') {
       // The free clip-length cap is a paid limit like the two above, and only
@@ -3640,7 +3641,7 @@ export function CanvasSurface({
         onDismiss: () => { failed.items = []; },
       });
     }
-  }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, cardIsLive]);
+  }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, isPaidPlan, cardIsLive]);
 
   // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
   //
@@ -4286,7 +4287,12 @@ export function CanvasSurface({
     // toast below.
     let over = 0;
     if (classified && mutators.preflightImport) {
-      const { take } = await mutators.preflightImport({ n: classified, kinds, source }) || {};
+      const { take } = await mutators.preflightImport({
+        n: classified, kinds, source,
+        // The drive half of the question (0413): every accepted file, as it
+        // will be placed, with what it weighs.
+        items: accepted.map((it) => ({ bytes: it.file?.size || 0, kind: it.kind })),
+      }) || {};
       const keep = Math.max(0, Math.min(classified, Number(take) || 0));
       over = classified - keep;
       if (keep < classified) accepted.splice(keep);
@@ -4373,7 +4379,7 @@ export function CanvasSurface({
       } catch (_) {}
       feedback.toast({
         type: 'warning',
-        message: `${blockedForUpgrade.length === 1 ? 'That file is' : `${blockedForUpgrade.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blockedForUpgrade.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to 100GB.`,
+        message: `${blockedForUpgrade.length === 1 ? 'That file is' : `${blockedForUpgrade.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blockedForUpgrade.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`,
         ttl: 6000,
         ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });

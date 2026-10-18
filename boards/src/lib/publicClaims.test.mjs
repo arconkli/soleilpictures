@@ -12,9 +12,10 @@
 // process.
 //
 // The enforced free/paid differences are exactly two (see billingCopy.js):
-// cards, and per-file size on a 100GB drive. File TYPES stopped being one on
-// 2026-10-06 (0367): a free owner may drop any type up to the free file cap.
-// Anything else sold as a paid unlock is false.
+// cards, and the size of the drive. File TYPES stopped being one on 2026-10-06
+// (0367) and file SIZE on 2026-10-17 (0413): every plan takes any file at any
+// size, and the drive is the only byte limit. Anything else sold as a paid
+// unlock is false.
 //
 // SCOPE NOTE: these files legitimately describe COMPETITORS' plans, which do
 // cap boards and do gate editing. Every rule below is therefore scoped to
@@ -187,6 +188,25 @@ const RULES = [
     ],
     theirs: [
       'Any file type is welcome on either plan.',
+    ],
+  },
+  {
+    // 0413 (2026-10-17): the free drive became a real limit beside the card
+    // cap, and every plan takes any file at any size. So "uploads never
+    // metered" / "no separate upload budget" — the true form until then — is
+    // false now, and so is selling file SIZE as Creator's.
+    name: 'since 0413 free storage is a limit and size is free — never "uploads never metered", never size as a paid unlock',
+    scoped: true,
+    pattern: /uploads? (are )?never metered|never meters uploads|no separate upload (budget|allowance)|not an upload budget|(creator|paid plan|upgrad(e|ing))[^.!?]*\b(lifts|removes|adds)\b[^.!?]*\b(size (limits?|caps?)|file size limits?)|no (file )?size limits on creator|any size on creator/i,
+    known: [
+      'with free collaborators and uploads never metered',
+      'Creator removes the card cap and the file size limits',
+      'Creator ($25/mo) lifts the cap and adds 100GB and no size limits.',
+      'any file, at any size on Creator',
+    ],
+    theirs: [
+      'Creator removes the card cap and gives you a 1TB drive.',
+      'Any file of any size is welcome on either plan.',
     ],
   },
   {

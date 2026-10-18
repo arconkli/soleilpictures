@@ -42,6 +42,7 @@
 //   }
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL } from './billingCopy.js';
 import { treatmentPageSteps } from './starterSections.js';
 // The template store hold: data-free, so it costs neither bundle anything.
 import { TEMPLATE_STORE_HELD, isTemplateStorePath } from './templatePaths.js';
@@ -147,7 +148,7 @@ const PAGES = [
         bullets: [
           'Real cards you can move, group, and connect with arrows',
           'Share the whole board with one link, no account needed to view',
-          `Free to start — ${DEMO_CARD_LIMIT} cards, free collaborators, uploads never metered`,
+          `Free to start — ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, free collaborators`,
         ],
       },
     ],
@@ -162,7 +163,7 @@ const PAGES = [
       { q: 'Does it work on Android?', a: 'Scout is invite-only right now — leave your number and it texts you when your line is ready. iPhone works over iMessage; Android follows as soon as SMS delivery is confirmed.' },
       { q: 'What happens to my photos?', a: 'They upload at full resolution to your own private board. Nobody else sees them unless you share it.' },
       { q: 'How does it know where to put things?', a: 'It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the group. Everything collects in your Scout Bin until you file it — and Scout shows you exactly what will move first.' },
-      { q: 'Is it free?', a: `Yes, to start. The free tier covers ${DEMO_CARD_LIMIT} cards — each cluster is one — with free collaborators and uploads never metered. Creator ($25/mo) lifts the cap and adds 100GB and no size limits.` },
+      { q: 'Is it free?', a: `Yes, to start. The free tier covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first — each cluster is one — with free collaborators. Creator ($25/mo) lifts the cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
       // Settings → Connections carries the connect code on main, but
       // PRODUCTION's ConnectionsTab holds the Scout section ("SCOUT IS HELD ON
       // PRODUCTION") because connecting a phone there ends in silence. So this
@@ -200,7 +201,7 @@ const PAGES = [
         heading: 'Everything in one place, not fifteen tabs',
         body: 'A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.',
         bullets: [
-          'Drag in images, links, video, PDFs — any file, with no size limits on Creator',
+          'Drag in images, links, video, PDFs — any file, at any size',
           'Tags gather references from every board into one view',
           'Color palettes and notes sit right beside the imagery',
         ],
@@ -215,9 +216,9 @@ const PAGES = [
       },
     ],
     faq: [
-      { q: 'Is the mood board maker free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with collaborators included and uploads never metered. Creator ($25/mo) removes the card cap and adds 100GB storage with no size limits — collaboration is free for everyone.` },
+      { q: 'Is the mood board maker free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first — every cluster you make is one of the cards — with collaborators included. Creator ($25/mo) removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive — collaboration is free for everyone.` },
       { q: 'Can I make a mood board with my team?', a: 'Yes — Clusters is a real-time collaborative canvas. Multiple people can edit the same board at once with live cursors, comments, and presence, so your whole team can build the board together.' },
-      { q: 'What can I put on a mood board?', a: 'Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file — with no size limits on Creator. Everything lives on one infinite canvas you can pan and zoom.' },
+      { q: 'What can I put on a mood board?', a: 'Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file, at any size. Everything lives on one infinite canvas you can pan and zoom.' },
       { q: 'Can I share a mood board without making people sign up?', a: 'Yes. Every board can be shared with a single public link that opens a clean, interactive read-only preview — no account required for viewers.' },
       { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser; on a phone or tablet it can be added to the home screen as a web app. There is nothing to download to get started, and no store app yet.' },
           { q: 'Can an AI assistant make the board for me?', a: 'Yes. Connect Claude or any MCP client with one URL and ask. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.' },
@@ -356,7 +357,7 @@ const PAGES = [
       { q: 'Can I draw my own frames?', a: 'Yes. You can sketch directly on the canvas with the draw tools, or drop in reference photos, screenshots, or AI-generated frames — whatever your process uses.' },
       { q: 'Can I keep a shot list with the storyboard?', a: 'Yes. Put a doc beside your frames — tables work — to track lens, camera movement, location, and shoot day, so the visual board and the logistics stay together.' },
       { q: 'Can my crew collaborate on the storyboard?', a: 'Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on the same storyboard at once with live cursors and presence.' },
-      { q: 'Is it free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with uploads never metered. Creator ($25/mo) removes the card cap and adds 100GB storage with no size limits — collaborators edit free.` },
+      { q: 'Is it free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first — every cluster you make is one of the cards. Creator ($25/mo) removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive — collaborators edit free.` },
     ],
     siblingListicle: { path: '/best/storyboard-software', label: 'See all 10 storyboard tools, ranked by a film studio.' },
     related: ['/tools/shot-list-maker', '/tools/directors-treatment', '/tools/cinematography-lookbook', '/tools/mood-board-maker', '/best/storyboard-software', '/use-cases'],
@@ -420,7 +421,7 @@ const PAGES = [
       { q: 'Can I organize shots by scene or day?', a: 'Yes. Group shots on the canvas, and make a nested board per scene or per shoot day — drag a shot card into it to file it there.' },
       { q: 'Can the crew see updates in real time?', a: 'Yes. Clusters is a live board, so when you change a shot everyone viewing or editing sees the update immediately.' },
       { q: 'Can I export or share the shot list?', a: 'Yes. Share a live link with your crew, or export boards and docs to PDF.' },
-      { q: 'Is it free to start?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage with no size limits.` },
+      { q: 'Is it free to start?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
       { q: 'How do I make a shot list for a short film?', a: 'Make a board per scene, add a card per shot with its reference frame, lens, and movement, then group the shots into a cluster per shoot day. Open the short-film shot list example board below to see a finished one.' },
       { q: 'Does Clusters have a shot list template?', a: 'The fastest start is the public short-film shot list example board — open it, see how the shot cards are structured, and rebuild that structure in your own board in a few minutes.' },
       { q: 'Is this a shot planner?', a: 'Yes — planning the shots is the whole point. Each shot card carries its reference frame, lens, and movement, nested clusters group the shots by shoot day and location, and the crew works from one live board. If what you searched for was a shot planner, this is that tool with the pictures kept in.' },
@@ -464,7 +465,7 @@ const PAGES = [
       },
       {
         heading: 'Keep every project’s looks together',
-        body: 'Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays yours, at up to 100GB with no size limits on Creator.',
+        body: `Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays yours, in a ${CREATOR_STORAGE_LABEL} drive on Creator.`,
       },
     ],
     faq: [
@@ -472,7 +473,7 @@ const PAGES = [
       { q: 'Can I adjust images inside the look book?', a: 'Yes. Clusters has non-destructive photo adjustments — brightness, contrast, saturation, warmth, black and white — so you can unify a set of references without a separate editor.' },
       { q: 'How do I share a look book with a client?', a: 'Send one link. The client sees a clean, interactive read-only preview with no account required, and you control whether it can be indexed by search engines.' },
       { q: 'Can I keep multiple look books organized?', a: 'Yes. Nest boards inside boards so each season, campaign, or client has its own space, and navigate between them with the relationship graph.' },
-      { q: 'Is it free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with uploads never metered. Creator ($25/mo) adds unlimited cards, 100GB storage, and no size limits.` },
+      { q: 'Is it free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first — every cluster you make is one of the cards. Creator ($25/mo) adds unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
     ],
     related: ['/tools/mood-board-maker', '/tools/directors-treatment', '/tools/costume-design-mood-board', '/vs/milanote', '/use-cases', '/tools/ai-mood-board-maker'],
   },
@@ -486,7 +487,7 @@ const PAGES = [
     subhead:
       'Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.',
     answer:
-      'Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and 100GB storage.',
+      `Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`,
     updated: '2026-10-02',
     cta: { label: 'Make one free', sub: 'No credit card. No install.' },
     stepsHeading: 'How to make a mood board online, free',
@@ -500,7 +501,7 @@ const PAGES = [
     sections: [
       {
         heading: 'Free, and actually usable',
-        body: 'A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, notes, links, and color palettes on an infinite canvas — and share it, without paying and without installing anything. When you outgrow it, Creator is $25/mo for unlimited cards and 100GB.',
+        body: `A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, notes, links, and color palettes on an infinite canvas — and share it, without paying and without installing anything. When you outgrow it, Creator is $25/mo for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`,
         bullets: [
           'Works in any modern browser — nothing to download',
           'Drop in images, links, video, notes, and palettes',
@@ -517,9 +518,9 @@ const PAGES = [
       },
     ],
     faq: [
-      { q: 'Is it really free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and adds 100GB storage with no size limits.` },
+      { q: 'Is it really free?', a: `Yes. The free Demo tier covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
       { q: 'Do I have to download anything?', a: 'No. It runs in your browser, and on a phone or tablet it can be added to the home screen as a web app. There is no store app to install, and nothing is required to start.' },
-      { q: 'What is the catch with the free tier?', a: 'The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and adds 100GB storage with no size limits.' },
+      { q: 'What is the catch with the free tier?', a: `The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
       { q: 'Can I share my free mood board?', a: 'Yes. Every board can be shared with a public link that opens a clean, interactive preview with no sign-up needed.' },
       { q: 'Will my boards stay mine?', a: 'Yes. You own your references and control who can see each board and whether it is discoverable by search engines.' },
     ],
@@ -572,14 +573,14 @@ const PAGES = [
         bullets: [
           'Check your values — flip any image to black and white, or nudge brightness, contrast, saturation, and warmth. Every adjustment is non-destructive.',
           'Steal the palette — sample swatches off any image with the eyedropper and keep them on the board beside the work they came from.',
-          'Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; any other file lands as a card too, and Creator lifts the size caps.',
+          'Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; any other file lands as a card too, at any size.',
           'Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.',
           'One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.',
         ],
       },
       {
         heading: 'Free to start, flat when you grow',
-        body: `The Demo tier is genuinely free: no credit card, no trial countdown, and ${DEMO_CARD_LIMIT} cards, with each cluster you make counting as one. Invited collaborators edit free on every tier. When a team needs big files or serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and 100GB of storage.`,
+        body: `The Demo tier is genuinely free: no credit card, no trial countdown, and ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, with each cluster you make counting as one. Invited collaborators edit free on every tier. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`,
       },
       {
         heading: 'The case for staying on desktop',
@@ -593,7 +594,7 @@ const PAGES = [
       { q: 'Do I need to install anything to make a reference board?', a: 'No. Clusters runs entirely in the browser on any machine, which matters on studio workstations where you can’t install software. On a phone or tablet it can be added to the home screen as a web app; there is no store app yet.' },
       { q: 'Can I use a reference board on an iPad?', a: 'Yes. Boards open in the tablet’s browser, and it can be added to the home screen as a web app — the same board you arranged on your workstation is waiting when you pick up the iPad.' },
       { q: 'Can my team or art director see my reference board?', a: 'Yes — one public link opens a clean, read-only view in any browser, with no account required. Invited collaborators can also edit the board live on any plan, with real-time cursors and comments pinned to specific images.' },
-      { q: 'Can a reference board include video or other files?', a: 'Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and any other file, at any size on Creator. Motion reference sits on the board right next to your stills.' },
+      { q: 'Can a reference board include video or other files?', a: 'Yes. Cards can be images, screenshots, links, video, audio, PDFs, notes, and color palettes — and any other file, at any size. Motion reference sits on the board right next to your stills.' },
       // The query /vs/pureref answers alone ("pureref online", "pureref web"),
       // answered on a second page in the same honest terms: in 2026-09 Google
       // dropped /vs/pureref for eight days and nothing else carried the intent.
@@ -684,7 +685,7 @@ const PAGES = [
       },
       {
         heading: 'One plan for the team, not a licence per seat',
-        body: `Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace ${DEMO_CARD_LIMIT} cards, with each cluster counting as one, shared by everyone working in it. Creator lifts that ceiling for the whole workspace at once and removes the per-file size limits — so a team of six pays for one plan, not six.`,
+        body: `Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, with each cluster counting as one card, shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a ${CREATOR_STORAGE_LABEL} drive — so a team of six pays for one plan, not six.`,
       },
       {
         heading: 'Where a desktop app is still the right call',
@@ -697,7 +698,7 @@ const PAGES = [
       { q: 'Can a client or supervisor see the board without an account?', a: 'Yes. A view-only link opens the board in any browser with no account, can include its nested clusters, and can expire after 7 or 30 days. To comment or vote, invite them instead — that is free too.' },
       { q: 'Can we bring our PureRef boards over?', a: 'Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.' },
       { q: 'Does it work offline?', a: 'No. Clusters is a browser workspace and needs a connection. In exchange the board is backed up and identical on every machine and for every artist.' },
-      { q: 'Is it free?', a: `Free for ${DEMO_CARD_LIMIT} cards across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and the file size limits; see “What it costs” on this page.` },
+      { q: 'Is it free?', a: `Free for ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive; see “What it costs” on this page.` },
     ],
     related: ['/tools/reference-board-maker', '/vs/pureref', '/best/pureref-alternatives', '/tools/production-design-mood-board', '/tools/cinematography-lookbook'],
   },
@@ -797,11 +798,11 @@ const PAGES = [
       },
       {
         heading: 'References, palettes and plans together',
-        body: 'A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Sample a palette off any reference with the eyedropper, a swatch at a time. A .psd, a .zip of drawings, a model file ride along as attachments — at any size on Creator.',
+        body: 'A set board is not only pictures. Drop period photography and film frames beside the floor plan as a PDF, a fabric photo beside the paint chip, and a note on what the set has to do for the scene. Sample a palette off any reference with the eyedropper, a swatch at a time. A .psd, a .zip of drawings, a model file ride along as attachments — at any size.',
         bullets: [
           'PDF plans and drawings beside the references',
           'Palettes sampled off any image, with hex values',
-          'Any file as an attachment — any size on Creator',
+          'Any file as an attachment — any size',
         ],
       },
       {
@@ -820,7 +821,7 @@ const PAGES = [
     faq: [
       { q: 'What should a production design mood board include?', a: 'For each set: period and genre references, film frames with the feel you want, a palette, textures and materials, key props, and any plans or drawings — plus a note on what the set has to do for the story. One board per set keeps each one readable.' },
       { q: 'Can the whole art department work on the same boards?', a: 'Yes. Invite set decorators, prop masters and graphics as editors — free on every plan — and everyone works in the same project live, each in their own nested cluster.' },
-      { q: 'Can I attach floor plans and drawings?', a: 'Yes. PDFs of plans and drawings sit on the board as cards beside the references. Other formats — a .psd, a .zip, a model file — attach on any plan; Creator lifts the size caps.' },
+      { q: 'Can I attach floor plans and drawings?', a: 'Yes. PDFs of plans and drawings sit on the board as cards beside the references. Other formats — a .psd, a .zip, a model file — attach on any plan, at any size.' },
       { q: 'How do I share the boards with the director and producer?', a: 'Invite them to comment and vote, free — or send a view-only link that opens without an account, includes the nested sets, and can expire after 7 or 30 days.' },
       { q: 'Is it free?', a: `Free for ${DEMO_CARD_LIMIT} cards across the workspace — each cluster counts as one — with free editors. A full art department will outgrow that; Creator removes the cap for the whole workspace at once. See “What it costs” on this page.` },
     ],
@@ -977,13 +978,13 @@ const PAGES = [
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
     answer:
-      'Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier that never meters uploads — Creator is a flat $25/mo with 100GB storage. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
+      `Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier of ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files — Creator is a flat $25/mo with a ${CREATOR_STORAGE_LABEL} drive. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.`,
     updated: '2026-10-02',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
         heading: 'Where Clusters is different',
-        body: 'Both tools are beautiful, board-based, and made for creative work. Clusters leans harder into real-time team production: a live multiplayer canvas with cursors and presence, comments pinned to the exact card they are about, a relationship graph that connects a whole project, and 100GB of storage with no size limits on Creator. If you are organizing a shoot or a campaign with a team, that is the difference.',
+        body: `Both tools are beautiful, board-based, and made for creative work. Clusters leans harder into real-time team production: a live multiplayer canvas with cursors and presence, comments pinned to the exact card they are about, a relationship graph that connects a whole project, and a ${CREATOR_STORAGE_LABEL} drive on Creator. If you are organizing a shoot or a campaign with a team, that is the difference.`,
         bullets: [
           'Live multiplayer canvas with cursors and presence',
           'Comments pinned to the exact card they are about',
@@ -992,11 +993,11 @@ const PAGES = [
       },
       {
         heading: 'A free Milanote alternative without the per-person bill',
-        body: 'Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo, billed annually, for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards, 100GB of storage, and no size limits — not a price that multiplies with every teammate you bring in.',
+        body: `Milanote’s free plan caps the total number of items you can add — around a hundred notes, images, and links across everything — which tends to run out right in the middle of a real project. Its individual plans are priced per person, and its team plan is a flat $49/mo, billed annually, for up to ten people. Clusters’ free Demo tier is a generous sandbox with no time limit, and Creator is a flat $25/mo for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive — not a price that multiplies with every teammate you bring in.`,
         bullets: [
           'No trial clock on the free Demo tier',
           'Flat $25/mo Creator — not per-person pricing',
-          'Unlimited cards and 100GB on Creator',
+          `Unlimited cards and a ${CREATOR_STORAGE_LABEL} drive on Creator`,
         ],
       },
       {
@@ -1014,7 +1015,7 @@ const PAGES = [
       },
       {
         heading: 'Switching is painless',
-        body: 'Start a board, drag your references in, and share a link — there is nothing to install and nothing to migrate up front. Your Demo boards are free, and you only move to Creator when you want unlimited cards and 100GB.',
+        body: `Start a board, drag your references in, and share a link — there is nothing to install and nothing to migrate up front. Your Demo boards are free, and you only move to Creator when you want unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`,
       },
     ],
     compare: {
@@ -1023,7 +1024,7 @@ const PAGES = [
       rows: [
         { feature: 'Real-time multiplayer canvas (live cursors)', us: 'Yes', them: 'Limited' },
         { feature: 'Relationship graph across boards', us: 'Yes', them: 'No' },
-        { feature: 'Files of any type, up to 100GB', us: 'Yes — any size on Creator', them: 'Limited' },
+        { feature: 'Files of any type, at any size', us: 'Yes — any size, on every plan', them: 'Limited' },
         { feature: 'Video & audio on the board', us: 'Yes', them: 'Limited' },
         { feature: 'Built-in docs & screenplay mode', us: 'Yes', them: 'Notes' },
         { feature: 'Share a live, interactive link', us: 'Yes', them: 'Yes' },
@@ -1033,20 +1034,20 @@ const PAGES = [
         // assistant asked "what is the free cap" can do nothing with it. The
         // upload clause is the true difference and already carried by the FAQ
         // below; naming both is honest even though our raw cap is the smaller.
-        { feature: 'Free-plan item cap', us: `${DEMO_CARD_LIMIT} cards, uploads never metered`, them: 'Caps items, plus 10 uploads ever' },
+        { feature: 'Free-plan item cap', us: `${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files`, them: 'Caps items, plus 10 uploads ever' },
         { feature: 'Template library', us: 'Growing', them: 'Extensive' },
       ],
     },
     faq: [
-      { q: 'Is Soleil Clusters a good Milanote alternative?', a: 'Yes, especially for teams doing visual, media-heavy, collaborative work. Clusters adds a real-time multiplayer canvas, screenplay mode, a relationship graph, and 100GB storage with no size limits on Creator.' },
+      { q: 'Is Soleil Clusters a good Milanote alternative?', a: `Yes, especially for teams doing visual, media-heavy, collaborative work. Clusters adds a real-time multiplayer canvas, screenplay mode, a relationship graph, and a ${CREATOR_STORAGE_LABEL} drive on Creator.` },
       { q: 'How is Clusters different from Milanote?', a: 'Clusters focuses on live team production — multiplayer editing with cursors and presence, screenplay mode and docs beside the imagery, and connecting a whole project through a relationship graph — rather than solo planning boards.' },
-      { q: 'Does Clusters have a free tier like Milanote?', a: `Yes. The Demo tier is free with no credit card and covers ${DEMO_CARD_LIMIT} cards — every cluster you make is one of them — with uploads never metered. Creator is $25/mo for unlimited cards, 100GB storage, and no size limits.` },
+      { q: 'Does Clusters have a free tier like Milanote?', a: `Yes. The Demo tier is free with no credit card and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first — every cluster you make is one of the cards. Creator is $25/mo for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
       { q: 'Can I move my Milanote boards over?', a: 'You can drag your images, links, and files straight into a new Clusters board and share it — there is no complex migration to do first.' },
-      { q: 'Does Milanote limit how many items I can add?', a: 'Yes — Milanote’s free plan caps the total number of items across your boards, and separately allows 10 file uploads, ever. Clusters’ free Demo tier also caps cards, but never meters uploads and has no time limit; Creator ($25/mo) removes the card cap and adds 100GB of storage.' },
+      { q: 'Does Milanote limit how many items I can add?', a: `Yes — Milanote’s free plan caps the total number of items across your boards, and separately allows 10 file uploads, ever. Clusters’ free Demo tier also caps cards and holds ${FREE_STORAGE_LABEL} of files, with no cap on any single file and no time limit; Creator ($25/mo) removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
       { q: 'Is Clusters cheaper than Milanote for a team?', a: 'Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo, billed annually, for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.' },
-      { q: 'Is there a free Milanote alternative without item caps?', a: 'Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters has no separate upload budget, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.' },
+      { q: 'Is there a free Milanote alternative without item caps?', a: `Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters limits files by storage (${FREE_STORAGE_LABEL}), not by a count of uploads, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.` },
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard and the shot list as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
-      { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas that never meters uploads, where the finished board shares with one link a client can open without an account.' },
+      { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas that takes any file at any size, where the finished board shares with one link a client can open without an account.' },
           { q: 'Can I drive it from an AI assistant?', a: 'Clusters connects to Claude and any other MCP client with a single URL, so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.' },
 ],
     siblingListicle: { path: '/best/milanote-alternatives', label: 'See all 12 Milanote alternatives, ranked by a film studio.' },
@@ -1115,7 +1116,7 @@ const PAGES = [
       },
       {
         heading: 'Where Clusters is different',
-        body: 'A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size up to 100GB, rides on Creator. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.',
+        body: `A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on either plan; Creator holds ${CREATOR_STORAGE_LABEL}. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.`,
         bullets: [
           'Mood board, storyboard, shot list and screenplay as nested boards',
           'Tags and a relationship graph across the whole project',
@@ -1124,9 +1125,9 @@ const PAGES = [
       },
       {
         heading: 'A free plan you can use today, and a flat price after it',
-        body: `Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers ${DEMO_CARD_LIMIT} cards — each cluster you make is one of them — and never meters uploads. Creator is a flat $25 a month for unlimited cards, 100GB with no size limits, and everyone you invite edits free.`,
+        body: `Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers ${DEMO_CARD_LIMIT} cards — each cluster you make is one of them — or ${FREE_STORAGE_LABEL} of files, whichever comes first. Creator is a flat $25 a month for unlimited cards, a ${CREATOR_STORAGE_LABEL} drive, and everyone you invite edits free.`,
         bullets: [
-          `Free today: ${DEMO_CARD_LIMIT} cards (each cluster is one), uploads never metered`,
+          `Free today: ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files (each cluster is one card)`,
           'Creator is $25/mo flat — not per seat, not per AI call',
           'Storyflow: paid early access; its Free plan is due before the end of 2026',
         ],
@@ -1151,9 +1152,9 @@ const PAGES = [
         { feature: 'Real-time multiplayer canvas', us: 'Yes', them: 'Yes' },
         { feature: 'Nested boards with a relationship graph', us: 'Yes', them: 'Not on its pricing page (September 2026)' },
         { feature: 'Screenplay mode (Final Draft and Fountain)', us: 'Yes', them: 'Not on its pricing page (September 2026)' },
-        { feature: 'Files of any type, up to 100GB', us: 'Yes — any size on Creator', them: 'Unlimited uploads on paid plans; 20 on the coming free plan' },
+        { feature: 'Files of any type, at any size', us: 'Yes — any size, on every plan', them: 'Unlimited uploads on paid plans; 20 on the coming free plan' },
         // Our own number, stated plainly, the same way /vs/milanote states it.
-        { feature: 'Free-plan card cap', us: `${DEMO_CARD_LIMIT} cards, uploads never metered`, them: 'No object or board limit on any plan; uploads and AI are capped' },
+        { feature: 'Free-plan card cap', us: `${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files`, them: 'No object or board limit on any plan; uploads and AI are capped' },
         { feature: 'Template library', us: 'Growing (grid templates)', them: '200+ frameworks on paid plans' },
         { feature: 'Works with Claude and other MCP clients', us: 'Yes, one URL', them: 'No server listed in the MCP registry' },
       ],
@@ -1165,7 +1166,7 @@ const PAGES = [
       { q: 'Does Clusters generate boards with AI like Storyflow does?', a: 'No. Clusters does not generate boards or images. It connects to Claude and any other MCP client with one URL, so your own assistant can create a board, bring in references from links and arrange them — working with images you already have. No Storyflow server is listed in the official Model Context Protocol registry at the time of writing.' },
       { q: 'How much does Storyflow cost?', a: 'As of September 2026: Plus is $9.99/mo, or $7.99/mo billed annually ($95.88 once a year); Pro $19/mo, or $14/mo annually ($168); Max $49/mo, or $39/mo annually ($468). Each tier carries a different AI usage allowance. Clusters’ Creator plan is a flat $25 a month.' },
       { q: 'Can I move my Storyflow boards to Clusters?', a: 'Storyflow exports boards as PNG, SVG or PDF. Bring the original images and files you gathered, drop them onto a new cluster, and rebuild the structure as nested boards. There is no importer and no migration to run first.' },
-      { q: 'Does Clusters have a limit like Storyflow’s upload cap?', a: `Clusters’ free Demo tier caps cards at ${DEMO_CARD_LIMIT} — each cluster you make is one — and never meters uploads; Creator ($25/mo) removes the cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.` },
+      { q: 'Does Clusters have a limit like Storyflow’s upload cap?', a: `Clusters’ free Demo tier caps cards at ${DEMO_CARD_LIMIT} or storage at ${FREE_STORAGE_LABEL} — each cluster you make is one card — and takes files of any size; Creator ($25/mo) removes the card cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.` },
       { q: 'Can I use Clusters on an iPad or a phone?', a: 'Yes. Clusters runs in the mobile browser and can be added to the home screen as a web app, where it opens without browser chrome. There is no App Store or Play Store listing yet.' },
     ],
     siblingListicle: { path: '/best/mood-board-apps', label: 'See all 12 mood board apps, ranked by a film studio.' },
@@ -1263,7 +1264,7 @@ const PAGES = [
       { q: 'Can I use Eagle and Clusters together?', a: 'Yes, and it is the natural split. Keep the archive in Eagle. When a project starts, bring the references it needs onto a cluster — Eagle keeps every original as a real file on your disk — and build the board with your team there.' },
       { q: 'Does Clusters work offline like Eagle?', a: 'No. Clusters lives in the cloud and needs a connection, and anything on a board can be downloaded again. If offline access to a large personal library matters most, Eagle is built for exactly that.' },
       { q: 'Is there a Clusters app for iPhone or iPad?', a: 'Clusters runs in the mobile browser and can be added to the home screen as a web app, where it opens without browser chrome. There is no App Store or Play Store listing yet. Eagle has no official mobile app either.' },
-      { q: 'How much does Eagle cost?', a: 'As of October 2026, Eagle’s store lists US$34.95 as a one-time purchase with free lifetime updates, and each licence covers two devices. Clusters is free to start; Creator is $25 a month for unlimited cards, 100GB of storage with no size limits.' },
+      { q: 'How much does Eagle cost?', a: `As of October 2026, Eagle’s store lists US$34.95 as a one-time purchase with free lifetime updates, and each licence covers two devices. Clusters is free to start; Creator is $25 a month for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
     ],
     siblingListicle: { path: '/best/pureref-alternatives', label: 'See every PureRef alternative, Eagle included, ranked by a film studio.' },
     related: ['/vs/pureref', '/best/pureref-alternatives', '/tools/reference-board-maker', '/tools/shared-reference-board', '/vs/milanote', '/use-cases'],
@@ -1505,7 +1506,7 @@ const PAGES = [
       { q: 'How do I move my PureRef boards into Clusters?', a: 'Export the images from PureRef (or gather the originals), then drag the whole set onto a new Clusters board. It lands in one drop, and you can rebuild your layout in minutes.' },
       { q: 'Does Clusters work offline like PureRef?', a: 'Clusters is a cloud, browser-based workspace, so it is not a fully-offline desktop window the way PureRef is. In exchange you get sharing, collaboration, and cross-device sync.' },
       { q: 'Can I put more than images on a Clusters board?', a: 'Yes — images, notes, links, video, PDFs, docs, and color palettes all live on the same canvas, with non-destructive image adjustments built in.' },
-      { q: 'Is Clusters free?', a: 'Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited cards, 100GB storage, and no size limits.' },
+      { q: 'Is Clusters free?', a: `Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
           { q: 'Can an AI assistant work with my reference board?', a: 'In Clusters, yes — connect Claude or any MCP client with one URL and ask it to build or tidy a board. PureRef is an offline desktop app with no API, so there is nothing for an assistant to connect to. Clusters arranges the references you already have rather than generating images.' },
 ],
     siblingListicle: { path: '/best/pureref-alternatives', label: 'See all 10 PureRef alternatives, ranked by a film studio.' },
@@ -1571,7 +1572,7 @@ const PAGES = [
       { q: 'Why choose Clusters over Miro?', a: 'Clusters is purpose-built for visual creative work — mood boards, look books, storyboards, and film pre-production — with image adjustments, palettes, screenplay mode, and a relationship graph. Miro is a general whiteboard; Clusters is pointed at creative reference workflows.' },
       { q: 'Is Miro overkill for mood boards?', a: 'For many creative teams, yes. Miro is powerful for diagramming and workshops, but a reference-first tool like Clusters is lighter and better tuned for mood boards, look books, and storyboards.' },
       { q: 'Can clients view a Clusters board without an account?', a: 'Yes. Share a link and they see a clean, interactive read-only preview — no workspace invite required.' },
-      { q: 'Does Clusters have a free tier?', a: 'Yes. The Demo tier is free; Creator is $25/mo for unlimited cards, 100GB storage, and no size limits.' },
+      { q: 'Does Clusters have a free tier?', a: `Yes. The Demo tier is free; Creator is $25/mo for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
       { q: 'Is there a simpler Miro alternative for mood boards?', a: 'Yes — Clusters. It keeps the infinite collaborative canvas but strips the diagramming clutter, and adds the creative pieces Miro lacks: photo adjustments, color palettes, docs, and screenplay mode.' },
       { q: 'Can my team use Clusters without per-seat pricing?', a: 'Yes. Creator is a flat $25/mo — not a per-member subscription — and anyone you share with can open a board free with one link.' },
     ],

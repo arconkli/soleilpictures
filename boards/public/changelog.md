@@ -4,6 +4,33 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-10-17 — Any file at any size on every plan, a 1TB Creator drive, and deleting frees space
+
+The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB. Deleting a file now gives its space back.
+
+Storage works differently from today, on every plan.
+
+### Plans
+
+- The free plan holds 50 cards or 5GB of
+  files, whichever you reach first — and takes any file at any size. The
+  per-file limits on video, audio, PDFs and other files are gone; the drive is
+  the only limit. See [plans and pricing](/docs/account/plans).
+- Creator's drive grows to 1TB. During a trial it
+  is 100GB, and the full drive comes with the first payment.
+- Every plan now has a storage meter in **Settings → Plan & billing**, and the
+  upgrade pill shows your storage once the drive is the nearer of your two
+  limits.
+
+### Storage
+
+- Deleting a file gives its space back within a few minutes, and emptying the
+  trash gives back everything in it at once.
+- Previews and thumbnails no longer count toward your storage.
+- A drop that would not fit in your drive is caught before anything uploads,
+  with the option to add the files that fit. See
+  [what counts toward storage](/docs/files#what-counts).
+
 ## 2026-10-04 — Folders become clusters, files keep their names, and search reads documents
 
 A dropped folder arrives as nested clusters, images keep their file names, web images are kept as copies, search reads inside documents, and Home lists your projects.
