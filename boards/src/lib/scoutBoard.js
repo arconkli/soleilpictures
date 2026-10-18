@@ -401,8 +401,11 @@ async function commitDoc(env, boardId, { doc, ws }, mutate) {
   if (ws) {
     try {
       pushUpdate(ws, delta);
-      await drain(ws);
-      live = true;
+      // drain() says false when the bytes never left the buffer, and a frame
+      // that never left was never applied. Reporting that as live would let a
+      // caller that only proceeds on a live write (the sidebar's move deletes
+      // from the source next) proceed on nothing.
+      live = await drain(ws);
     } catch (_) { /* durable write below still happens */ }
   }
 
@@ -447,10 +450,20 @@ async function saveVersionRow(env, boardId, doc, { triggerKind = 'api', label = 
 //   dropIds — cards to DELETE from the source rather than move (an ingest
 //             section header whose photos have all just left, for instance)
 //
-// Returns { moved, pairs, count, live, droppedHeader }.
+//   requireLive — refuse unless BOTH rooms are live, before the first write.
+//             A board_state write is only safe when no warm room is about to
+//             flush over it, and from here that can't be known; the sidebar,
+//             which deletes from the source a moment later, would rather be
+//             told "try again" than lose the destination copy.
+//   keep(card) — true leaves that card where it is (a file still uploading has
+//             no bytes to move yet); kept ids come back in `kept`.
+//
+// Returns { moved, pairs, count, live, droppedHeader, originals, kept }.
+// `originals` is where each moved card sat on the source, for an undo that
+// puts it back exactly.
 export async function moveCardsBetweenBoards(env, {
   fromBoardId, toBoardId, workspaceId, userId, accessToken,
-  cardIds = [], dropIds = [], layout,
+  cardIds = [], dropIds = [], layout, requireLive = false, keep = null,
 }) {
   if (!cardIds.length || fromBoardId === toBoardId) {
     return { moved: [], count: 0, live: false };
@@ -481,14 +494,23 @@ export async function moveCardsBetweenBoards(env, {
   const dst = await openBoard(env, toBoardId, accessToken);
 
   try {
+    if (requireLive && !(src.live && dst.live)) {
+      const e = new Error('a cluster could not be reached, so nothing was moved');
+      e.code = 'room_unavailable';
+      throw e;
+    }
+
     const srcCards = src.doc.getMap('cards');
     const dstCards = dst.doc.getMap('cards');
 
     // Only move what's actually there. A card can vanish between the read that
     // built the confirmation and the YES that acts on it.
     const wanted = new Set(cardIds.map(String));
-    const moving = readCards(src.doc).filter((c) => wanted.has(String(c.id)));
-    if (!moving.length) return { moved: [], count: 0, live: false };
+    const present = readCards(src.doc).filter((c) => wanted.has(String(c.id)));
+    const kept = keep ? present.filter((c) => keep(c)).map((c) => String(c.id)) : [];
+    const keptSet = new Set(kept);
+    const moving = present.filter((c) => !keptSet.has(String(c.id)));
+    if (!moving.length) return { moved: [], count: 0, live: false, kept };
 
     const existing = readCards(dst.doc);
     const maxZ = existing.reduce((m, c) => Math.max(m, Number(c.z) || 0), 0);
@@ -548,6 +570,14 @@ export async function moveCardsBetweenBoards(env, {
     const liveTo = await commitDoc(env, toBoardId, dst, () => {
       for (const c of finalCards) dstCards.set(c.id, cardToYMap(c));
     });
+    // The push itself can fail after the open succeeded. The destination is
+    // then only in board_state, which a warm room may overwrite, so the source
+    // keeps its copy: the worst case is the card on both boards, never on none.
+    if (requireLive && !liveTo) {
+      const e = new Error('the destination cluster stopped answering; the files were left where they were');
+      e.code = 'room_unavailable';
+      throw e;
+    }
 
     // 2. card_index follows the cards. One bulk UPDATE for the common case;
     //    renamed ids (vanishingly rare) each need their own.
@@ -620,6 +650,13 @@ export async function moveCardsBetweenBoards(env, {
       count: prepared.length,
       live: liveTo,
       droppedHeader,
+      originals: moving.map((c) => ({
+        id: String(c.id),
+        x: Number.isFinite(c.x) ? c.x : null,
+        y: Number.isFinite(c.y) ? c.y : null,
+        unplaced: c.unplaced === true,
+      })),
+      kept,
     };
   } finally {
     try { src.ws?.close(); } catch (_) { /* already gone */ }

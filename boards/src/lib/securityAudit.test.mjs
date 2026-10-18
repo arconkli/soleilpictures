@@ -1016,3 +1016,30 @@ test('no client makes a workspace, or rewrites a member\'s role, by writing the 
     }
   }
 });
+
+// ── 0419: the sidebar writes clusters that aren't open ──────────────────────
+// worker-clusters.js reaches scoutBoard's service-role triple write from a
+// browser session. What stands in front of it: a verified user, can_write_board
+// asked AS that user before every write, one workspace, and a move that refuses
+// unless both rooms are live (clustersRoute.test.mjs drives each of these).
+
+test('the sidebar\'s cluster writes verify the user and ask can_write_board before any service-role write', () => {
+  const src = read('../worker-clusters.js');
+  const entry = src.slice(src.indexOf('export async function handleClustersRoute'));
+  assert.ok(entry.indexOf('await deps.verifyUser(request, env)') > 0, 'the session is verified');
+  assert.ok(entry.indexOf('await deps.verifyUser(request, env)') < entry.indexOf('await route('), 'before any route runs');
+  for (const [fn, write] of [
+    ['async function routeMove', 'deps.moveCardsBetweenBoards('],
+    ['async function routeAppend', 'deps.addCardsToBoard('],
+    ['async function routePatch', 'deps.updateCardsOnBoard('],
+    ['async function routeRemove', 'deps.deleteCardsFromBoard('],
+  ]) {
+    const body = src.slice(src.indexOf(fn), src.indexOf('\n}\n', src.indexOf(fn)));
+    const ask = body.indexOf('canWrite(deps, env, token');
+    assert.ok(ask > 0 && ask < body.indexOf(write), `${fn}: can_write_board before ${write}`);
+  }
+  assert.match(src, /userRpc\(env, token, 'can_write_board', \{ p_board_id: boardId \}\)/, 'asked as the user');
+  assert.match(src, /requireLive: true,/, 'a move never half-happens');
+  assert.match(src, /src\.workspace_id !== dst\.workspace_id/, 'one workspace');
+  assert.match(read('../worker.js'), /startsWith\('\/api\/clusters\/'\)\) return await handleClustersRoute/);
+});

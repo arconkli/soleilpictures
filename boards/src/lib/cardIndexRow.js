@@ -33,6 +33,9 @@ import { resolveTagText } from './gridSequence.js';
 import { schedItems, schedLegacyRows } from './schedLayout.js';
 
 export const TITLE_MAX = 200;
+
+// `file` projects sizeBytes in buildCardMeta already; these add it when known.
+const SIZED_MEDIA = new Set(['image', 'video', 'audio', 'pdf']);
 export const BODY_MAX = 500;
 
 // The richer of the two implementations, and the correct one. The browser's
@@ -244,6 +247,14 @@ export function buildCardIndexRow({ workspaceId, boardId, cardId, get, groupName
       w: Math.round(get('w') || 0), h: Math.round(get('h') || 0),
     };
   }
+  // Stored off the board (lib/placement.js): the sidebar's Not on board chip
+  // and its counts read this. Only `true` is projected, and only the media
+  // kinds gain a size, and only when the card has one: every other row stays
+  // byte-identical, so the card.updated webhook (0222, `meta is distinct from`)
+  // fires once per affected card and never for the rest.
+  if (get('unplaced') === true) meta.unplaced = true;
+  const bytes = Number(get('sizeBytes'));
+  if (SIZED_MEDIA.has(kind) && Number.isFinite(bytes) && bytes > 0) meta.sizeBytes = Math.round(bytes);
   if (get('sectionHeader')) {
     meta.sectionHeader = true;
     const sub = get('sub');

@@ -8,6 +8,9 @@
 //                       emergent clusters). See worker-tags.js for the
 //                       per-route contracts. All routes auth-checked
 //                       against the user's Supabase JWT.
+// /api/clusters/*     — the sidebar's writes to clusters that aren't open:
+//                       move, copy, append, patch, remove (worker-clusters.js).
+//                       The user's Supabase JWT, and can_write_board as them.
 // /api/share-thumb/*  — serves a shared board's stored R2 thumbnail as the
 //                       og:image behind /share link previews. Gated by the
 //                       share token (get_share_meta RPC), no user auth.
@@ -16,6 +19,7 @@
 //                       Gated by an HMAC in the URL, no user auth.
 
 import { handleTagsRoute } from './worker-tags.js';
+import { handleClustersRoute } from './worker-clusters.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
@@ -629,6 +633,7 @@ const worker = {
       // Supabase's confirmation flow rather than written here.
       if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
+      if (url.pathname.startsWith('/api/clusters/')) return await handleClustersRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
       // A web image dragged onto a canvas, kept as a copy (worker-media.js).
