@@ -96,10 +96,10 @@ async function resyncSubscription(admin: Admin, userId: string) {
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
   // The same row every mirror writer builds (activate.ts), extra-storage
   // blocks included.
-  const row = mirrorRow(sub, { userId, customerId, observedAt });
-  const upd = await admin.from("subscriptions").update(row).eq("user_id", userId);
+  const mirror = mirrorRow(sub, { userId, customerId, observedAt });
+  const upd = await admin.from("subscriptions").update(mirror).eq("user_id", userId);
   if (upd.error) return { ok: false, reason: upd.error.message };
-  return { ok: true, status: sub.status, monthly_amount_cents: row.monthly_amount_cents, discount: row.discount };
+  return { ok: true, status: sub.status, monthly_amount_cents: mirror.monthly_amount_cents, discount: mirror.discount };
 }
 
 Deno.serve(async (req) => {

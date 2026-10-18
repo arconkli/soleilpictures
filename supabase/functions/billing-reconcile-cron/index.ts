@@ -10,10 +10,23 @@
 //   • paid + no subscription row / no sub id  → billing_flag only, NEVER
 //     auto-demote — that shape is an admin comp (manual tier set); policing it
 //     automatically would surprise the operator
-//   • paid + mirrored sub healthy (<3d slack) → skip
-//   • paid + mirrored sub stale or non-live   → retrieve from Stripe:
-//       live (active/trialing) → repair the mirror (activateUserFromSubscription)
-//       dead / missing         → mirror the terminal status + demote
+//   • paid + mirrored sub healthy             → skip, where healthy means
+//     active/trialing with a period that has not lapsed (<3d slack), no
+//     extra-storage blocks, and an observation less than a week old
+//   • anything else                           → retrieve from Stripe:
+//       a plan (active/trialing)  → repair the mirror (activateUserFromSubscription)
+//       past_due, still retrying  → refresh the mirror, keep the plan
+//       not entitled / missing    → mirror the truth + demote
+//
+// What counts as entitled is activateCore's rule (entitlementFromSubscription),
+// the same one the webhook and 0415's _subscription_entitles use: until
+// 2026-10-17 this job demoted a past_due account the morning after the webhook
+// kept it. A subscription carrying extra storage is re-read every run, and any
+// other at least weekly, so a block added or removed behind a missed webhook is
+// caught. Paid users are read in pages by user_id — this job used to read the
+// first 50 and never anyone after them — inside a time budget; a run that
+// runs out of time says so (`truncated`) and the next run starts again from
+// the top.
 //
 // Authorization: same dual contract as waitlist-accept-cron —
 //   • Bearer <SUPABASE_SERVICE_ROLE_KEY>   (admin tools, manual curl)
@@ -27,7 +40,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
-import { activateUserFromSubscription } from "../_shared/activate.ts";
+import { activateUserFromSubscription, billingConfig, mirrorRow } from "../_shared/activate.ts";
+import { activationDecision, entitlementFromSubscription, subscriptionItems } from "../_shared/activateCore.mjs";
 import { renderTrialEnding } from "../_shared/email/trialEnding.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -36,7 +50,13 @@ const STRIPE_KEY   = Deno.env.get("STRIPE_SECRET_KEY")!;
 const CRON_SECRET  = Deno.env.get("CRON_SECRET") || "";
 
 const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
+// A mirror nobody has re-read for this long is re-read even when it looks
+// healthy: that is how drift in extra-storage blocks surfaces.
+const REVERIFY_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 const BATCH = 50;
+// Stop starting new users after this long, well inside the edge runtime's
+// wall clock, so the trial reminders below still run.
+const TIME_BUDGET_MS = 100_000;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 // Same sender identity send-transactional-email gives its hello@-class mail:
 // a billing notice should land where a reply reaches a person.
@@ -68,83 +88,126 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-  const paid = await admin.from("profiles").select("user_id").eq("tier", "paid").limit(BATCH);
-  if (paid.error) return json({ error: paid.error.message }, 500);
-
-  let checked = 0, repaired = 0, demoted = 0, flagged = 0, skipped = 0;
+  const cfg = billingConfig();
+  const startedAt = Date.now();
+  let checked = 0, repaired = 0, verified = 0, kept = 0, demoted = 0, flagged = 0, skipped = 0;
+  let truncated = false;
   const notes: Array<Record<string, unknown>> = [];
 
-  for (const row of paid.data || []) {
-    const userId = row.user_id as string;
-    checked++;
-    try {
-      const grantQ = await admin.rpc("user_has_active_paid_grant", { p_user_id: userId });
-      if (grantQ.error) throw new Error(`grant check failed: ${grantQ.error.message}`);
-      if (grantQ.data === true) { skipped++; continue; }
+  let cursor: string | null = null;
+  pages: while (true) {
+    let q = admin.from("profiles").select("user_id").eq("tier", "paid").order("user_id").limit(BATCH);
+    if (cursor) q = q.gt("user_id", cursor);
+    const page = await q;
+    if (page.error) return json({ error: page.error.message }, 500);
+    const rows = page.data || [];
+    if (!rows.length) break;
 
-      const sub = await admin.from("subscriptions")
-        .select("stripe_customer_id, stripe_subscription_id, status, current_period_end")
-        .eq("user_id", userId).maybeSingle();
-      if (sub.error) throw new Error(`mirror read failed: ${sub.error.message}`);
-
-      const subId = (sub.data?.stripe_subscription_id as string | undefined) || null;
-      if (!subId) {
-        // Billing-invisible paid user (no grant, no tracked sub) — an admin
-        // comp shape. Flag for the operator, never auto-demote.
-        flagged++;
-        await flag(admin, userId, { kind: "reconcile", action: "no_subscription_no_grant" });
-        continue;
-      }
-
-      const status = (sub.data?.status as string | undefined) || null;
-      const periodEnd = sub.data?.current_period_end ? Date.parse(sub.data.current_period_end as string) : null;
-      const healthy = (status === "active" || status === "trialing")
-        && periodEnd !== null && periodEnd > Date.now() - STALE_AFTER_MS;
-      if (healthy) { skipped++; continue; }
-
-      // Stale or non-live mirror on a still-paid tier — ask Stripe.
-      let live: Stripe.Subscription | null = null;
-      const observedAt = new Date().toISOString();
+    for (const row of rows) {
+      if (Date.now() - startedAt > TIME_BUDGET_MS) { truncated = true; break pages; }
+      const userId = row.user_id as string;
+      checked++;
       try {
-        live = await stripe.subscriptions.retrieve(subId, { expand: ["discounts"] });
-      } catch (_e) {
-        live = null; // deleted long ago / no such subscription
-      }
+        const grantQ = await admin.rpc("user_has_active_paid_grant", { p_user_id: userId });
+        if (grantQ.error) throw new Error(`grant check failed: ${grantQ.error.message}`);
+        if (grantQ.data === true) { skipped++; continue; }
 
-      if (live && (live.status === "active" || live.status === "trialing")) {
-        // Stripe says alive (a renewal the dead webhook missed) — repair.
-        const customerId = typeof live.customer === "string" ? live.customer : live.customer.id;
-        const r = await activateUserFromSubscription(admin, { userId, customerId, subscription: live, observedAt });
-        if (!r.activated && !r.soft) throw new Error(`repair failed: ${r.reason}`);
-        repaired++;
-        notes.push({ userId, action: "repaired", status: live.status });
-        continue;
-      }
+        const sub = await admin.from("subscriptions")
+          .select("stripe_customer_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end, storage_blocks, observed_at")
+          .eq("user_id", userId).maybeSingle();
+        if (sub.error) throw new Error(`mirror read failed: ${sub.error.message}`);
 
-      // Stripe says dead — mirror the truth and demote (tier guard keeps
-      // admins safe; the grant case was excluded above).
-      const upd = await admin.from("subscriptions").update({
-        status: live?.status ?? "canceled",
-        cancel_at_period_end: false,
-        observed_at: observedAt,
-        updated_at: new Date().toISOString(),
-      }).eq("user_id", userId);
-      if (upd.error) throw new Error(`mirror write failed: ${upd.error.message}`);
-      const dem = await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
-      if (dem.error) throw new Error(`demote failed: ${dem.error.message}`);
-      demoted++;
-      await flag(admin, userId, { kind: "reconcile", action: "demoted_stale_paid", stripe_status: live?.status ?? "missing" });
-      notes.push({ userId, action: "demoted", status: live?.status ?? "missing" });
-    } catch (e) {
-      flagged++;
-      notes.push({ userId, action: "error", message: (e as Error)?.message || String(e) });
-      console.error("[billing-reconcile] user failed", userId, e);
+        const subId = (sub.data?.stripe_subscription_id as string | undefined) || null;
+        if (!subId) {
+          // Billing-invisible paid user (no grant, no tracked sub) — an admin
+          // comp shape. Flag for the operator, never auto-demote.
+          flagged++;
+          await flag(admin, userId, { kind: "reconcile", action: "no_subscription_no_grant" });
+          continue;
+        }
+
+        const status = (sub.data?.status as string | undefined) || null;
+        const periodEnd = sub.data?.current_period_end ? Date.parse(sub.data.current_period_end as string) : null;
+        const observed = sub.data?.observed_at ? Date.parse(sub.data.observed_at as string) : null;
+        const healthy = (status === "active" || status === "trialing")
+          && periodEnd !== null && periodEnd > Date.now() - STALE_AFTER_MS
+          && !((sub.data?.storage_blocks as number | undefined) ?? 0)
+          && observed !== null && observed > Date.now() - REVERIFY_AFTER_MS;
+        if (healthy) { skipped++; continue; }
+
+        // Ask Stripe. latest_invoice tells a past_due Stripe is still retrying
+        // from one it has given up on.
+        let live: Stripe.Subscription | null = null;
+        const observedAt = new Date().toISOString();
+        try {
+          live = await stripe.subscriptions.retrieve(subId, { expand: ["discounts", "latest_invoice"] });
+        } catch (_e) {
+          live = null; // deleted long ago / no such subscription
+        }
+        const customerId = live
+          ? (typeof live.customer === "string" ? live.customer : live.customer.id)
+          : (sub.data?.stripe_customer_id as string);
+
+        if (live && activationDecision(live, cfg).live) {
+          // A plan, alive — repair the mirror if a webhook was missed.
+          const r = await activateUserFromSubscription(admin, { userId, customerId, subscription: live, observedAt });
+          if (!r.activated && !r.soft) throw new Error(`repair failed: ${r.reason}`);
+          const same = live.status === status
+            && (r.currentPeriodEnd ? Date.parse(r.currentPeriodEnd) : null) === periodEnd
+            && Boolean(live.cancel_at_period_end) === Boolean(sub.data?.cancel_at_period_end)
+            && subscriptionItems(live, cfg).storageBlocks === ((sub.data?.storage_blocks as number | undefined) ?? 0);
+          if (same) {
+            verified++;
+          } else {
+            repaired++;
+            notes.push({ userId, action: "repaired", status: live.status });
+          }
+          continue;
+        }
+
+        if (live && entitlementFromSubscription(live, { cfg }).entitled) {
+          // past_due while Stripe is still retrying, inside the grace: the
+          // plan stays (activateCore), the mirror catches up.
+          const up = await admin.from("subscriptions").upsert(
+            mirrorRow(live, { userId, customerId, observedAt }),
+            { onConflict: "user_id" },
+          );
+          if (up.error) throw new Error(`mirror write failed: ${up.error.message}`);
+          kept++;
+          notes.push({ userId, action: "kept_past_due", status: live.status });
+          continue;
+        }
+
+        // Not entitled, or gone — mirror the truth and demote (tier guard keeps
+        // admins safe; the grant case was excluded above).
+        const upd = live
+          ? await admin.from("subscriptions").upsert(mirrorRow(live, { userId, customerId, observedAt }), { onConflict: "user_id" })
+          : await admin.from("subscriptions").update({
+              status: "canceled",
+              cancel_at_period_end: false,
+              observed_at: observedAt,
+              updated_at: new Date().toISOString(),
+            }).eq("user_id", userId);
+        if (upd.error) throw new Error(`mirror write failed: ${upd.error.message}`);
+        const dem = await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
+        if (dem.error) throw new Error(`demote failed: ${dem.error.message}`);
+        demoted++;
+        await flag(admin, userId, { kind: "reconcile", action: "demoted_stale_paid", stripe_status: live?.status ?? "missing" });
+        notes.push({ userId, action: "demoted", status: live?.status ?? "missing" });
+      } catch (e) {
+        flagged++;
+        notes.push({ userId, action: "error", message: (e as Error)?.message || String(e) });
+        console.error("[billing-reconcile] user failed", userId, e);
+      }
     }
+
+    cursor = rows[rows.length - 1].user_id as string;
+    if (rows.length < BATCH) break;
   }
 
   const reminders = await sendTrialReminders(admin);
 
-  const summary = { checked, repaired, demoted, flagged, skipped, notes, reminders };
+  const summary = { checked, repaired, verified, kept, demoted, flagged, skipped, truncated, notes, reminders };
   console.log("[billing-reconcile]", JSON.stringify(summary));
   return json(summary, 200);
 });
@@ -236,7 +299,8 @@ async function chargeLabel(subId: string | null, plan: string | null): Promise<s
   if (!subId) return `the Creator ${plan === "annual" ? "annual" : "monthly"} price`;
   try {
     const sub = await stripe.subscriptions.retrieve(subId);
-    const price = sub.items?.data?.[0]?.price;
+    // The plan's own price, never whichever item Stripe lists first.
+    const price = subscriptionItems(sub, billingConfig()).creator?.price;
     const cents = price?.unit_amount;
     const interval = price?.recurring?.interval || cadence;
     if (typeof cents === "number") {
