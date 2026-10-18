@@ -16,7 +16,7 @@ import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { ChevronLeft, ChevronRight, PanelLeftOpen, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Home, MessageSquare } from '../lib/icons.js';
+import { ChevronLeft, ChevronRight, PanelLeftOpen, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question } from '../lib/icons.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -225,8 +225,6 @@ export function SidebarQaHarness() {
             <button type="button" className="sb-search" onClick={() => say('palette ""')}>
               <Icon as={Search} size={13} /><span>Search…</span><span className="sb-search-kbd">⌘K</span>
             </button>
-            <div className="sb-row" role="button" tabIndex={0} onClick={() => say('home')}><Icon as={Home} size={15} /><span className="sb-row-label">Home</span></div>
-            <div className="sb-row" role="button" tabIndex={0} onClick={() => say('messages')}><Icon as={MessageSquare} size={15} /><span className="sb-row-label">Messages</span></div>
           </div>
           <ClusterSidebar
             workspaceId={WS}
@@ -239,6 +237,11 @@ export function SidebarQaHarness() {
             width={width}
             coarse={phone}
             onSetWidth={phone ? null : (w) => setWidth(clampSidebarWidth(w))}
+            quickNav={{
+              home: { active: false, onClick: () => say('home') },
+              messages: { active: false, unread: 2, onClick: () => say('messages') },
+              schedule: { active: false, unread: 0, onClick: () => say('schedule') },
+            }}
             listRef={listRef}
             source={source}
             boardsSectionProps={{

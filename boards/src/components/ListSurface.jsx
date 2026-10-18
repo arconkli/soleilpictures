@@ -1930,16 +1930,10 @@ export function ListSurface({
                      : 'Download all'}</span>
               </button>
             )}
-            {dockControls?.onBoard && (
-              <button type="button" className="list-section-act cb-pagehead-board" onClick={dockControls.onBoard}
-                      title="Back to the board (F)">
-                <Icon as={BoundingBox} size={16} weight="light" />
-                <span>Board</span>
-              </button>
-            )}
             {dockControls?.canShrink && dockControls?.onShrink && (
               <button type="button" className="cbt-iconbtn cbt-shrink" onClick={dockControls.onShrink}
-                      aria-label="Beside board" title="Put Files beside the board">
+                      aria-label={dockControls.shrinkLabel || 'Beside board'}
+                      title={dockControls.shrinkTitle || dockControls.shrinkLabel || 'Put Files beside the board'}>
                 <Icon as={ArrowsInSimple} size={16} weight="light" />
               </button>
             )}

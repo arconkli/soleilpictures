@@ -44,15 +44,17 @@ body.sbf-resizing .app { transition: none !important; }
 .app.sb-files .sidebar .sb-mid {
   display: grid; padding: 0; gap: 0; overflow: hidden;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
-  grid-template-areas: "top" "nav" "divider" "files" "meter" "foot";
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "top" "quick" "nav" "divider" "files" "meter" "foot";
 }
 .app.sb-files .sidebar.is-wide .sb-mid {
-  grid-template-columns: minmax(220px, 42%) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  grid-template-areas: "top files" "nav files" "meter files" "foot files";
+  /* The clusters' column keeps room for the row of five (Home … Starred). */
+  grid-template-columns: minmax(284px, 42%) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "top files" "quick files" "nav files" "meter files" "foot files";
 }
 .app.sb-files .sb-mid > .sb-top { grid-area: top; padding: 10px 8px 2px; }
+.app.sb-files .sb-mid > .sbf-quick { grid-area: quick; }
 .app.sb-files .sb-mid > .sbf-nav { grid-area: nav; }
 .app.sb-files .sb-mid > .sbf-divider { grid-area: divider; }
 .app.sb-files .sb-mid > .sbf-files { grid-area: files; }
@@ -71,9 +73,29 @@ body.sbf-resizing .app { transition: none !important; }
   padding: 2px 8px 8px;
 }
 .app.sb-files .sidebar.is-wide .sb-mid > .sbf-nav { max-height: none; }
-.sbf-navrows { display: flex; flex-direction: column; gap: 1px; padding-bottom: 2px; }
-.sbf-navrow { width: 100%; border: 0; background: transparent; text-align: left; font-family: inherit; }
-.sbf-navrow-count { margin-left: auto; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* Where to go, in one row (ClusterSidebar QuickBtn). */
+.sbf-quick { display: flex; gap: 2px; padding: 4px 8px 6px; }
+.sbf-quickbtn {
+  flex: 1 1 0; min-width: 0; height: 46px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 5px; padding: 0 2px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink-2);
+  font: 500 10.5px/1 var(--font-sans); cursor: pointer;
+}
+.sbf-quickbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-quickbtn.is-on { background: var(--soleil-soft); color: var(--ink-0); }
+.sbf-quickbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-quick-icon { position: relative; display: grid; place-items: center; }
+.sbf-quick-badge {
+  position: absolute; top: -6px; left: calc(100% - 5px); min-width: 15px; height: 15px; padding: 0 4px;
+  box-sizing: border-box; border-radius: 999px; background: var(--ink-0); color: var(--bg-0);
+  font: 700 9px/15px var(--font-sans); text-align: center;
+}
+.sbf-quick-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Full Files shrinks back into the sidebar with this: shown at rest, not only
+   on hover, since it is the way back. */
+.app.sb-files .cbt-shrink { border-color: var(--line-2); background: var(--bg-3); color: var(--ink-1); }
+.app.sb-files .cbt-shrink:hover { border-color: var(--line-3); color: var(--ink-0); }
 
 /* Cluster rows: one line each, a cover, a name, everything-inside count. */
 .sb-tree-row.is-files { height: 30px; gap: 6px; font-size: 13px; font-weight: 500; color: var(--ink-1); }
@@ -338,7 +360,7 @@ body.sbf-resizing .app { transition: none !important; }
 @media (hover: none) and (pointer: coarse) {
   .sb-tree-row.is-files { height: 44px; font-size: 15px; }
   .sbf-thumb { flex-basis: 22px; width: 22px; height: 22px; }
-  .sbf-navrow { min-height: 44px; }
+  .sbf-quickbtn { height: 56px; font-size: 11.5px; }
   .sbf-files-head .sbf-thumb { flex-basis: 28px; width: 28px; height: 28px; }
   .sbf-files-name { font-size: 16px; }
   .sbf-iconbtn { width: 40px; height: 40px; }
@@ -368,7 +390,7 @@ body.sbf-resizing .app { transition: none !important; }
   overflow-y: auto; overflow-x: hidden;
   /* max-content, not auto: auto rows would be squeezed to the drawer's
      height and the parts would spill over one another. */
-  grid-template-rows: repeat(6, max-content);
+  grid-template-rows: repeat(7, max-content);
 }
 .app.sb-files .sidebar.is-mobile-open .sb-mid > .sbf-nav { max-height: none; overflow: visible; }
 .app.sb-files .sidebar.is-mobile-open .sb-mid > .sbf-divider { display: none; }

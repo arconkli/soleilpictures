@@ -26,7 +26,7 @@ import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS } from '../primitives.jsx';
-import { Search, X, Star, Clock, Columns2, Maximize2 } from '../../lib/icons.js';
+import { Search, X, Star, Clock, Columns2, ArrowsOutSimple, Home, MessageSquare, Bell } from '../../lib/icons.js';
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
 import { ClusterShelves } from './ClusterShelves.jsx';
 import { SidebarMeter } from './SidebarMeter.jsx';
@@ -88,6 +88,22 @@ function ClusterThumb({ board }) {
   const initial = ((board?.name || '?').trim().charAt(0) || '?').toUpperCase();
   return (
     <span className="sbf-thumb is-empty" style={{ '--sbf-tint': tint }} aria-hidden="true">{initial}</span>
+  );
+}
+
+// Where to go, in one row: Home, Messages and Schedule (App's), then Recent and
+// Starred, which show their files in the section below. Each a small icon
+// over its name, so five fit a narrow sidebar on one line.
+function QuickBtn({ icon, label, active = false, unread = 0, onClick }) {
+  return (
+    <button type="button" className={`sbf-quickbtn${active ? ' is-on' : ''}`} aria-pressed={active}
+            title={label} onClick={onClick}>
+      <span className="sbf-quick-icon">
+        <Icon as={icon} size={16} />
+        {unread > 0 && <span className="sbf-quick-badge" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
+      </span>
+      <span className="sbf-quick-label">{label}</span>
+    </button>
   );
 }
 
@@ -170,6 +186,7 @@ export function ClusterSidebar({
   width = 320,
   coarse = false,
   onSetWidth = null,      // (px) => void — the expand button's jump between narrow and wide
+  quickNav = null,        // { home, messages, schedule }: { active, unread?, onClick } each, from App
   listRef,                // App's .sb-list ref (scroll edges)
   boardsSectionProps,     // everything SidebarBoardsSection already took from App
   sharedSection,          // <SidebarSharedBoards/>
@@ -651,23 +668,18 @@ export function ClusterSidebar({
 
   return (
     <>
+      <nav className="sbf-quick" aria-label="Go to">
+        {quickNav?.home && <QuickBtn icon={Home} label="Home" {...quickNav.home} />}
+        {quickNav?.messages && <QuickBtn icon={MessageSquare} label="Messages" {...quickNav.messages} />}
+        {quickNav?.schedule && <QuickBtn icon={Bell} label="Schedule" {...quickNav.schedule} />}
+        <QuickBtn icon={Clock} label="Recent" active={view === 'recent'}
+                  onClick={() => setShown(view === 'recent' ? null : 'recent')} />
+        <QuickBtn icon={Star} label="Starred" active={view === 'starred'}
+                  onClick={() => setShown(view === 'starred' ? null : 'starred')} />
+      </nav>
+
       <div className="sb-list sbf-nav" ref={listRef} onKeyDown={onListKeyDown}
            style={!wide && navH ? { maxHeight: navH } : undefined}>
-        <div className="sbf-navrows">
-          <button type="button" className={`sb-row sbf-navrow${view === 'recent' ? ' active' : ''}`}
-                  aria-pressed={view === 'recent'}
-                  onClick={() => setShown(view === 'recent' ? null : 'recent')}>
-            <Icon as={Clock} size={14} />
-            <span className="sb-row-label">Recent</span>
-          </button>
-          <button type="button" className={`sb-row sbf-navrow${view === 'starred' ? ' active' : ''}`}
-                  aria-pressed={view === 'starred'}
-                  onClick={() => setShown(view === 'starred' ? null : 'starred')}>
-            <Icon as={Star} size={14} />
-            <span className="sb-row-label">Starred</span>
-            {starCount > 0 && <span className="sbf-navrow-count">{starCount}</span>}
-          </button>
-        </div>
         <SidebarBoardsSection {...boardsSectionProps} filesView={filesView} />
         {sharedSection}
         {tagsSection}
@@ -716,7 +728,7 @@ export function ClusterSidebar({
           {view === 'cluster' && onOpenShelf && (
             <button type="button" className="sbf-iconbtn" aria-label="Open in the full Files page" title="Open in the full Files page"
                     onClick={() => onOpenShelf(shownId, null)}>
-              <Icon as={Maximize2} size={14} />
+              <Icon as={ArrowsOutSimple} size={14} />
             </button>
           )}
         </header>

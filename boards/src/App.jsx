@@ -9037,16 +9037,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // keeps its keys until the pointer crosses into Files (lib/activePane.js).
     const basePaneId = paneId;
     const dockPanel = isMain && mainFilesMode === 'panel';
+    // With the files sidebar there's no pill to go back with: full Files
+    // shrinks back into the sidebar with the same icon that opened it, turned
+    // around, and the board returns.
+    const shrinkToSidebar = { shrinkLabel: 'Shrink back to the sidebar', shrinkTitle: 'Shrink back to the sidebar (F)' };
     const dockControls = isMain ? {
-      canShrink: canDockMain,
+      canShrink: canDockMain || filesSidebar,
       onExpand: () => applyFilesEvent('expand', 'button'),
-      onShrink: () => applyFilesEvent('shrink', 'button'),
+      onShrink: filesSidebar ? () => applyFilesEvent('board', 'shrink_button') : () => applyFilesEvent('shrink', 'button'),
       onClose: () => applyFilesEvent('close', 'button'),
-      // No pill to press with the files sidebar: full Files says how back.
-      onBoard: filesSidebar ? () => applyFilesEvent('board', 'board_button') : null,
+      ...(filesSidebar ? shrinkToSidebar : {}),
     } : (filesSidebar ? {
-      // The split pane's full Files: no pill above it either, so it says how back.
-      onBoard: () => setPaneView('canvas', 'board_button', board.id),
+      canShrink: true,
+      onShrink: () => setPaneView('canvas', 'shrink_button', board.id),
+      ...shrinkToSidebar,
     } : null);
     const renderList = (listMode) => {
       const paneId = listMode === 'panel' ? 'files' : basePaneId;
@@ -9434,6 +9438,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <span className="sb-search-kbd">⌘K</span>
           </button>
 
+          {/* With the files sidebar these are one row of the sidebar's own,
+              beside Recent and Starred (ClusterSidebar quickNav). */}
+          {!filesSidebar && (<>
           <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
                {...rowButtonProps(() => setCurrentSurface('home'))}>
             <Icon as={Home} size={14} />
@@ -9471,6 +9478,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
           </div>
           )}
+          </>)}
           {/* The phone topbar has no room for these (SHELL-06), so the drawer
               carries them. Search is above, Help is in the footer. */}
           {mobileShell && currentSurface === 'board' && (
@@ -9515,6 +9523,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               coarse={isTouch}
               // The files section's expand button: files beside the clusters, or under them.
               onSetWidth={mobileShell ? null : (w) => { const v = clampSidebarWidth(w); setSidebarW(v); writeSidebarWidth(v); }}
+              quickNav={{
+                home: { active: currentSurface === 'home', onClick: () => setCurrentSurface('home') },
+                messages: { active: !!tweak.showMessages, unread: messagesUnread, onClick: () => setTweak('showMessages', !tweak.showMessages) },
+                // The bell only when it has something to show, as in the old rows.
+                schedule: ((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) ? {
+                  active: notifOpen,
+                  unread: notifications.unread || 0,
+                  onClick: () => {
+                    if (!notifOpen) {
+                      try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
+                    }
+                    setNotifOpen((v) => !v);
+                  },
+                } : null,
+              }}
               listRef={sidebarScrollRef}
               boardsSectionProps={{
                 boards: ownedBoards,

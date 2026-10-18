@@ -50,17 +50,31 @@ test.describe('sidebar files', () => {
     await expect(f.locator('.sbf-files-name')).toHaveText('Locations');
     await expect(f.locator('.sbf-files-sub')).toHaveText('43 files · in Feature film');
 
-    await page.locator('.sbf-navrow', { hasText: 'Recent' }).click();
+    await page.locator('.sbf-quickbtn', { hasText: 'Recent' }).click();
     await expect(f.locator('.sbf-files-name')).toHaveText('Recent');
     await expect(f.locator('[data-sb-item]').first()).toBeVisible();
 
-    await page.locator('.sbf-navrow', { hasText: 'Starred' }).click();
+    await page.locator('.sbf-quickbtn', { hasText: 'Starred' }).click();
     await expect(f.locator('.sbf-files-name')).toHaveText('Starred');
     await expect(f.locator('.sbf-sub', { hasText: 'Moodboards' })).toBeVisible();      // a starred cluster
     await expect(f.locator('[data-sb-item="loc:loc-img-0"]')).toBeVisible();          // a starred file
 
     await f.getByRole('button', { name: 'Back to the cluster’s files' }).click();
     await expect(f.locator('.sbf-files-name')).toHaveText('Locations');
+  });
+
+  test('Home, Messages, Schedule, Recent and Starred sit in one row', async ({ page }) => {
+    await open(page);
+    const btns = page.locator('.sbf-quick .sbf-quickbtn');
+    await expect(btns).toHaveText(['Home', /^2?Messages$/, 'Schedule', 'Recent', 'Starred']);
+    const tops = await btns.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(tops).size).toBe(1);
+    await expect(btns.nth(1).locator('.sbf-quick-badge')).toHaveText('2');
+    await btns.nth(0).click();
+    await expect(page.getByTestId('sbqa-log')).toContainText('home');
+    await btns.nth(3).click();
+    await expect(btns.nth(3)).toHaveAttribute('aria-pressed', 'true');
+    await expect(files(page).locator('.sbf-files-name')).toHaveText('Recent');
   });
 
   test('a long shelf expands in place, and a cluster read from the server pages', async ({ page }) => {
@@ -223,6 +237,10 @@ test.describe('sidebar files wiring (App.jsx)', () => {
     expect(app).toMatch(/\{floatingChrome \? \(\s*<FloatingChrome/);
     expect(app).toMatch(/\) : \(\s*<div className="topbar">/);   // the bar everyone else gets, intact
     expect(app).toContain("${floatingChrome ? ' is-floating-chrome' : ''}");
+    // Full Files shrinks back into the sidebar with one icon, in either pane.
+    expect(app).toContain("const shrinkToSidebar = { shrinkLabel: 'Shrink back to the sidebar'");
+    expect(app).toMatch(/onShrink: filesSidebar \? \(\) => applyFilesEvent\('board', 'shrink_button'\)/);
+    expect(read('src/components/ListSurface.jsx')).toContain("aria-label={dockControls.shrinkLabel || 'Beside board'}");
     // Admins keep the Admin pill in view, in the right island.
     const right = app.slice(app.indexOf('right={('), app.indexOf('menuItems={['));
     expect(right).toMatch(/myTier\.tier === 'admin' && \(\s*<button className="tb-admin-btn"/);
@@ -380,7 +398,7 @@ test.describe('sidebar files: menus', () => {
       .some((c) => c.params.boardId === 'film' && c.params.cardId === 'film-vid-1' && c.params.on)).toBe(true);
     // Marked on its row, and listed under Starred.
     await expect(file.locator('.sbf-star-mark')).toBeVisible();
-    await page.locator('.sbf-navrow', { hasText: 'Starred' }).click();
+    await page.locator('.sbf-quickbtn', { hasText: 'Starred' }).click();
     await expect(files(page).locator('.sbf-file', { hasText: 'film-take-2.mov' })).toBeVisible();
   });
 
