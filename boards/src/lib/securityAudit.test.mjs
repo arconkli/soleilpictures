@@ -544,7 +544,7 @@ test('a referral pays the inviter once the friend opened the app and placed a fi
   assert.equal(REFERRAL_REWARDS_PER_30_DAYS, per30, 'inviteReward.js REFERRAL_REWARDS_PER_30_DAYS');
   const tab = read('../components/settings/InviteTab.jsx');
   assert.ok(tab.includes("from '../../lib/inviteReward.js'"));
-  assert.ok(tab.includes('You earn {REFERRAL_REWARD_CARDS} cards and {INVITE_BONUS_STORAGE_LABEL} for each friend who gets started'));
+  assert.ok(tab.includes('You earn {REFERRAL_REWARD_CARDS} free cards (plus {INVITE_BONUS_STORAGE_LABEL} of storage) for each friend who gets started'));
   assert.ok(tab.includes('for up to {REFERRAL_REWARDS_PER_30_DAYS} friends a month'));
   assert.doesNotMatch(tab, /days old/, 'nothing waits for an account to age any more');
   assert.match(read('./boardsApi.js'), /rewardsWaiting:\s+Number\(row\?\.rewards_waiting \?\? 0\)/);

@@ -5872,7 +5872,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     prevBonusRef.current = cur;
     if (prev != null && cur > prev) {
       const delta = cur - prev;
-      const tier = myTier.tier;
       (async () => {
         let asInviter = true;   // the common case, and all this toast used to say
         try {
@@ -5882,7 +5881,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try {
           feedback.toast({
             type: 'success',
-            message: rewardToastMessage({ deltaCards: delta, tier, asInviter }),
+            message: rewardToastMessage({ deltaCards: delta, asInviter }),
             // The highest-intent re-share moment — turn the celebration back into
             // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
             action: { label: asInviter ? 'Invite more' : 'Invite someone', onClick: () => openInviteFriends('reward_toast') },
@@ -9389,10 +9388,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 What that buys back: invites, revoking, and publishing stop being
                 reachable only through a toast that disappears.
 
-                It is also the one control in the bar that is filled at rest
-                (.tb-share): a solid pill in the text colour, a solid circle on a
-                phone where the label is hidden. Grey text among grey icons was
-                easy to miss, and it is the way people reach invitations. */}
+                It also carries a little more weight than the icons around it
+                (.tb-share): a raised pill with full-strength text, a raised
+                circle on a phone where the label is hidden. Grey text among grey
+                icons was easy to miss, and it is the way people reach
+                invitations. */}
             <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
               <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
             </button>

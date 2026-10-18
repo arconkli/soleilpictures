@@ -78,7 +78,9 @@ test('a free account is told what inviting someone new earns, with progress once
   const note = panel.locator('.share-reward');
   await expect(note.locator('.share-reward-lead')).toHaveText(copy.lead);
   await expect(note.locator('.share-reward-detail')).toHaveText(copy.detail);
-  await expect(note.locator('.share-reward-progress')).toHaveText('3 joined through you · 50 cards and 1GB earned · 1 on the way');
+  await expect(note.locator('.share-reward-progress')).toHaveText('3 joined through you · 50 free cards earned · 1 on the way');
+  // The cards are the headline; the storage rides in the second line.
+  await expect(note.locator('.share-reward-lead')).not.toContainText('GB');
 
   // The fine print is one press away, and leads to the full invite page.
   await expect(note.locator('.share-reward-how li').first()).toBeHidden();
@@ -88,12 +90,14 @@ test('a free account is told what inviting someone new earns, with progress once
   expect(await page.evaluate(() => window.__sharePanel.invites)).toBe(1);
 });
 
-test('a Creator is told about the storage, not about cards they do not need', async ({ page }) => {
+test("a Creator's headline is the friend's free cards, and the storage comes second", async ({ page }) => {
   await boot(page);
   const panel = await mountPanel(page, { tier: 'paid' });
   const copy = inviteRewardCopy({ tier: 'paid' });
   await expect(panel.locator('.share-reward-lead')).toHaveText(copy.lead);
-  await expect(panel.locator('.share-reward-lead')).not.toContainText('cards');
+  await expect(panel.locator('.share-reward-lead')).toContainText('they get');
+  await expect(panel.locator('.share-reward-lead')).not.toContainText('GB');
+  await expect(panel.locator('.share-reward-detail')).toContainText('more storage');
   // No stats loader, no progress line.
   await expect(panel.locator('.share-reward-progress')).toHaveCount(0);
 });

@@ -26,8 +26,8 @@ access**, then **Link access** for anyone else. **Copy link** and **Done** sit a
 the bottom and stay put while the rest scrolls; anything more detailed about
 links is behind **Link settings**.
 
-You open it from **Share** — the filled button in the board header, a filled
-round button on a phone — from `⌘K` → "Share this cluster", or by
+You open it from **Share** in the board header (a round button on a phone),
+from `⌘K` → "Share this cluster", or by
 right-clicking any cluster in the sidebar and choosing **Share…** — the last of
 these shares the cluster you right-clicked, not the one currently on screen.
 
