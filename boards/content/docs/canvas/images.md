@@ -5,7 +5,7 @@ h1: Images and photo editing
 navLabel: Images
 section: canvas
 order: 2
-updated: 2026-10-07
+updated: 2026-10-17
 answer: Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 faq:
   - q: Do adjustments change my original file?
@@ -125,7 +125,8 @@ Images are not size-capped on any plan. The caps that exist are on
 [video, audio and PDF](/docs/files) for free accounts.
 
 Storage is counted against your account quota: {{fact:freeStorage}} on the free
-plan, {{fact:creatorStorage}} on {{fact:planName}}. The meter is in Settings → Plan & billing.
+plan, {{fact:creatorStorage}} on {{fact:planName}}, plus {{fact:referralBonusStorage}} for
+each person you [invite](/docs/account/referrals) who gets started. The meter is in Settings → Plan & billing.
 
 ---
 

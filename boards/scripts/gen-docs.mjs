@@ -70,6 +70,11 @@ import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
+import {
+  REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
+  INVITE_BONUS_STORAGE_BYTES, INVITE_BONUS_STORAGE_LABEL,
+} from '../src/lib/inviteReward.js';
+import { latestDefinition } from '../src/lib/migrationText.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
@@ -180,19 +185,36 @@ if (!newAccountHours || !newAccountWorkspaces) {
   throw new Error('gen-docs: the new-account limits were not found — update the extractor');
 }
 
-// A referral's reward to the referrer (_pay_referral_rewards, migration 0377):
-// the cards, how old the friend's account must be before it pays, and how many
-// rewards one person collects in 30 days. Plus how new an account joining
+// A referral's reward (_pay_referral_rewards, migrations 0377 and 0416): the
+// cards it pays the inviter and how many rewards one person collects in 30
+// days. The friend's own cards on joining, granted in the two places a referral
+// is made (the signup trigger and claim_collab_link). The storage both sides
+// get (_referral_bonus_storage_bytes, 0416). And how new an account joining
 // through an edit link must be to count as the link creator's referral
-// (claim_collab_link).
+// (claim_collab_link). The share panel and the Invite tab say the same numbers
+// from inviteReward.js, so each one is held to the SQL here.
 const referralSql = latestSqlDefining('_pay_referral_rewards');
 const referralCards = referralSql?.match(/c_reward_cards\s+constant\s+integer\s*:=\s*(\d+)/);
-const referralHours = referralSql?.match(/c_mature_hours\s+constant\s+integer\s*:=\s*(\d+)/);
 const referralPer30 = referralSql?.match(/c_per_30_days\s+constant\s+integer\s*:=\s*(\d+)/);
 const referralLinkDays = latestSqlDefining('claim_collab_link')
   ?.match(/created_at > now\(\) - interval '(\d+) days'\) into v_is_new_user/i);
-if (!referralCards || !referralHours || !referralPer30 || !referralLinkDays) {
+const friendCards = ['ensure_profile_for_new_user', 'claim_collab_link'].map((fn) => latestDefinition(fn)
+  ?.body.match(/bonus_card_credits\s*=\s*coalesce\(bonus_card_credits,\s*0\)\s*\+\s*(\d+)/i)?.[1]);
+const inviteStorage = latestSqlDefining('_referral_bonus_storage_bytes')
+  ?.match(/function\s+public\._referral_bonus_storage_bytes\s*\(\s*\)[\s\S]*?select\s+(\d+)::bigint/i);
+if (!referralCards || !referralPer30 || !referralLinkDays || friendCards.some((c) => !c) || !inviteStorage) {
   throw new Error('gen-docs: the referral reward rules were not found — update the extractor');
+}
+if (Number(referralCards[1]) !== REFERRAL_REWARD_CARDS
+    || Number(referralPer30[1]) !== REFERRAL_REWARDS_PER_30_DAYS
+    || friendCards.some((c) => Number(c) !== REFERRAL_BONUS_CARDS)
+    || Number(inviteStorage[1]) !== INVITE_BONUS_STORAGE_BYTES
+    || bytesLabel(Number(inviteStorage[1])) !== INVITE_BONUS_STORAGE_LABEL) {
+  throw new Error(
+    'gen-docs: inviteReward.js disagrees with the migrations that pay invitations — ' +
+    `inviter ${referralCards[1]} cards / ${referralPer30[1]} per 30 days, friend ${friendCards.join('/')} cards, ` +
+    `storage ${inviteStorage[1]} bytes (${bytesLabel(Number(inviteStorage[1]))})`,
+  );
 }
 
 // How long the hashed origins of requests are kept for abuse prevention
@@ -292,11 +314,13 @@ export const FACTS = {
   // meanwhile (0375).
   newAccountHours: newAccountHours[1],
   newAccountWorkspaces: newAccountWorkspaces[1],
-  // What a referral pays the referrer, when, and how often (0377), and the
-  // edit-link window for counting as a referral (claim_collab_link).
+  // What a referral pays the inviter and how often (0377, 0416), what the
+  // friend gets on joining (0163, 0371), the storage each side gets (0416),
+  // and the edit-link window for counting as a referral (claim_collab_link).
   referralRewardCards: referralCards[1],
-  referralMatureHours: referralHours[1],
   referralRewardsPer30Days: referralPer30[1],
+  referralFriendCards: friendCards[0],
+  referralBonusStorage: bytesLabel(Number(inviteStorage[1])),
   referralLinkJoinDays: referralLinkDays[1],
   // Days a request's hashed network and browser are kept (0378).
   requestOriginRetentionDays: originRetention[1],
