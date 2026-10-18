@@ -3433,22 +3433,23 @@ body {
 .tb-icon:disabled, .tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .tb-btn-label { font: 500 13px/1 var(--font-sans); }
 
-/* Share is the one control in the top bar that is filled at rest, so it reads
-   as the thing to press without spending gold (gold marks active, selection
-   and focus). The fill is the text colour, so it inverts with the theme: a
-   white pill on dark, a black pill on light. The hover must set the colour too,
-   or the generic .tb-btn:hover paints --ink-0 text onto an --ink-0 fill. */
+/* Share carries a little more weight than the icons around it: a raised pill
+   with full-strength text, so it reads as the thing to press. Not louder than
+   that — a solid fill in the text colour stood out too much — and no gold,
+   which marks active, selection and focus. */
 .tb-btn.tb-share {
-  background: var(--ink-0);
-  color: var(--bg-0);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
   border-radius: 999px;
-  padding: 0 14px 0 12px;
+  padding: 0 13px 0 11px;
   gap: 6px;
 }
 .tb-btn.tb-share .tb-btn-label { font-weight: 600; }
 .tb-btn.tb-share:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink-0) 86%, var(--bg-0));
-  color: var(--bg-0);
+  background: var(--bg-4);
+  border-color: var(--line-3);
+  color: var(--ink-0);
 }
 
 /* Clusters brand chip in the topbar — small cluster mark + "CLUSTERS"
@@ -21080,12 +21081,17 @@ button, [role="button"], a {
     padding-left: 8px; padding-right: 8px; gap: 0;
     min-width: 40px; min-height: 40px; justify-content: center;
   }
-  /* Share keeps the 40px hit area the fit budget counts, and draws a 32px
-     solid circle inside it (the fill stops at the content box). */
+  /* Share keeps the 40px hit area the fit budget counts, and draws the same
+     raised pill as a 34px circle inside it: fill, then a hairline ring. */
   .topbar .tb-btn.tb-share {
-    width: 40px; padding: 4px;
-    border-radius: 50%;
-    background-clip: content-box;
+    width: 40px; padding: 0;
+    border: 0; border-radius: 50%;
+    background: radial-gradient(circle closest-side,
+      var(--bg-3) 16px, var(--line-2) 16.5px, var(--line-2) 17px, transparent 17.5px);
+  }
+  .topbar .tb-btn.tb-share:hover:not(:disabled) {
+    background: radial-gradient(circle closest-side,
+      var(--bg-4) 16px, var(--line-3) 16.5px, var(--line-3) 17px, transparent 17.5px);
   }
   .share-modal {
     height: calc(100vh - var(--safe-top));

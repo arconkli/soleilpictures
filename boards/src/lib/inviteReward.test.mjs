@@ -22,17 +22,22 @@ test('storage reads in the units every drive is labelled in', () => {
   assert.equal(formatBonusBytes(1024 ** 4), '1TB');
 });
 
-test('a free account hears about cards and storage; every other tier about storage', () => {
+test('the headline is the free cards; the storage comes second', () => {
+  // Owner, 2026-10-17: lead with the 25 cards, not the half GB.
   const free = inviteRewardCopy({ tier: 'demo' });
-  assert.ok(free.lead.includes(`get ${REFERRAL_REWARD_CARDS} free cards and ${INVITE_BONUS_STORAGE_LABEL}`));
-  assert.ok(free.detail.includes(`They get ${REFERRAL_BONUS_CARDS} extra cards and ${INVITE_BONUS_STORAGE_LABEL} when they join`));
-  // Creator has no card limit for bonus cards to raise, and a tier still
-  // loading or on the waitlist gets the sentence that is true for every tier.
+  assert.equal(free.lead, `Invite someone new and get ${REFERRAL_REWARD_CARDS} free cards.`);
+  assert.ok(free.detail.includes(`They get ${REFERRAL_BONUS_CARDS} extra cards too`));
+  assert.ok(free.detail.includes(`you both get ${INVITE_BONUS_STORAGE_LABEL} more storage`));
+  // Creator has no card limit for the inviter's cards to raise, so its headline
+  // is the friend's cards; a tier still loading or on the waitlist gets that
+  // sentence too, which is true for every tier.
   for (const tier of ['paid', 'admin', 'waitlist', null, undefined]) {
     const c = inviteRewardCopy({ tier });
-    assert.ok(c.lead.includes(`get ${INVITE_BONUS_STORAGE_LABEL} more storage`), String(tier));
-    assert.doesNotMatch(c.lead, /cards/, `${tier}: the inviter's cards only matter on the free plan`);
-    assert.ok(c.detail.includes(`They start with ${REFERRAL_BONUS_CARDS} extra free cards`));
+    assert.equal(c.lead, `Invite someone new and they get ${REFERRAL_BONUS_CARDS} free cards.`, String(tier));
+    assert.ok(c.detail.includes(`You both get ${INVITE_BONUS_STORAGE_LABEL} more storage too`));
+  }
+  for (const tier of ['demo', 'paid', null]) {
+    assert.doesNotMatch(inviteRewardCopy({ tier }).lead, /GB/, `${tier}: the storage is not the headline`);
   }
 });
 
@@ -62,25 +67,21 @@ test('the progress line says nothing until someone joins, then only what is true
   assert.equal(inviteProgressLine({ friendsJoined: 1, cardsEarned: 0, rewardsWaiting: 0 }), '1 joined through you');
   assert.equal(
     inviteProgressLine({ friendsJoined: 3, cardsEarned: REFERRAL_REWARD_CARDS * 2, rewardsWaiting: 1 }),
-    `3 joined through you · ${REFERRAL_REWARD_CARDS * 2} cards and 1GB earned · 1 on the way`,
+    `3 joined through you · ${REFERRAL_REWARD_CARDS * 2} free cards earned · 1 on the way`,
   );
 });
 
-test('the reward toast tells an inviter from a newcomer', () => {
+test('the reward toast leads with the cards and tells an inviter from a newcomer', () => {
   assert.equal(
-    rewardToastMessage({ deltaCards: REFERRAL_REWARD_CARDS, tier: 'demo', asInviter: true }),
-    `You earned ${REFERRAL_REWARD_CARDS} free cards and 0.5GB — a friend you invited just got started.`,
+    rewardToastMessage({ deltaCards: REFERRAL_REWARD_CARDS, asInviter: true }),
+    `You earned ${REFERRAL_REWARD_CARDS} free cards, plus 0.5GB of storage — a friend you invited just got started.`,
   );
-  assert.equal(
-    rewardToastMessage({ deltaCards: REFERRAL_REWARD_CARDS, tier: 'paid', asInviter: true }),
-    'You earned 0.5GB more storage — a friend you invited just got started.',
-  );
-  const own = rewardToastMessage({ deltaCards: REFERRAL_BONUS_CARDS, tier: 'demo', asInviter: false });
-  assert.match(own, /for joining through an invite/);
+  const own = rewardToastMessage({ deltaCards: REFERRAL_BONUS_CARDS, asInviter: false });
+  assert.match(own, new RegExp(`^You got ${REFERRAL_BONUS_CARDS} extra free cards for joining through an invite`));
   assert.doesNotMatch(own, /friend you invited/);
   // A change that is not a whole reward never claims storage it did not pay.
   assert.equal(
-    rewardToastMessage({ deltaCards: 1, tier: 'demo', asInviter: true }),
+    rewardToastMessage({ deltaCards: 1, asInviter: true }),
     'You earned 1 free card — a friend you invited just got started.',
   );
 });

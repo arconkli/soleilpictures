@@ -109,9 +109,9 @@ export function InviteTab({ user }) {
       <h3 className="settings-section-title">Invite &amp; earn</h3>
       <p className="settings-section-hint">
         Clusters is better with people in it — invite someone to build with you.
-        {' '}You <b>both</b> get more room: your friend starts with
-        {' '}<b>{REFERRAL_BONUS_CARDS} extra cards and {INVITE_BONUS_STORAGE_LABEL}</b>, and once they
-        {' '}place their first card, <b>you get {REFERRAL_REWARD_CARDS} cards and {INVITE_BONUS_STORAGE_LABEL} too</b>.
+        {' '}You <b>both</b> get free cards: your friend starts with <b>{REFERRAL_BONUS_CARDS} extra cards</b>,
+        {' '}and once they place their first card, <b>you get {REFERRAL_REWARD_CARDS} too</b>.
+        {' '}You each get {INVITE_BONUS_STORAGE_LABEL} more storage as well.
         {' '}When a friend <b>upgrades to a paid plan, you get a free month</b> — up to 10 a month.
       </p>
 
@@ -171,7 +171,7 @@ export function InviteTab({ user }) {
           {stats?.pending > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 12 }}>
               {stats.pending} {stats.pending === 1 ? 'friend has joined but hasn’t' : 'friends have joined but haven’t'}
-              {' '}placed a first card yet. You earn {REFERRAL_REWARD_CARDS} cards and {INVITE_BONUS_STORAGE_LABEL} for each friend who gets started.
+              {' '}placed a first card yet. You earn {REFERRAL_REWARD_CARDS} free cards (plus {INVITE_BONUS_STORAGE_LABEL} of storage) for each friend who gets started.
             </p>
           )}
           {(stats?.rewardsWaiting ?? 0) > 0 && (

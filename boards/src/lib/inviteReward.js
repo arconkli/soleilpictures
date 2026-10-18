@@ -36,20 +36,22 @@ export function formatBonusBytes(bytes) {
 
 export const INVITE_BONUS_STORAGE_LABEL = formatBonusBytes(INVITE_BONUS_STORAGE_BYTES);
 
-// Only a free plan has a card limit for bonus cards to raise; on Creator the
-// storage is the part of the reward that is yours.
+// Only a free plan has a card limit for bonus cards to raise. On Creator the
+// inviter's own cards change nothing, so the headline is the friend's cards.
 const earnsCards = (tier) => tier === 'demo';
 
-// The share panel's note. `lead` is the sentence that has to land; `detail`
-// says when; `how` is the fine print behind "How it works".
+// The share panel's note. `lead` is the sentence that has to land, and it is
+// about cards (owner, 2026-10-17: the 25 cards come first, not the storage);
+// `detail` adds the storage and says when; `how` is the fine print behind
+// "How it works".
 export function inviteRewardCopy({ tier } = {}) {
   const storage = INVITE_BONUS_STORAGE_LABEL;
   const lead = earnsCards(tier)
-    ? `Invite someone new and get ${REFERRAL_REWARD_CARDS} free cards and ${storage}.`
-    : `Invite someone new and get ${storage} more storage.`;
+    ? `Invite someone new and get ${REFERRAL_REWARD_CARDS} free cards.`
+    : `Invite someone new and they get ${REFERRAL_BONUS_CARDS} free cards.`;
   const detail = earnsCards(tier)
-    ? `They get ${REFERRAL_BONUS_CARDS} extra cards and ${storage} when they join. Yours lands when they add their first card.`
-    : `They start with ${REFERRAL_BONUS_CARDS} extra free cards and ${storage}. Yours lands when they add their first card.`;
+    ? `They get ${REFERRAL_BONUS_CARDS} extra cards too, and you both get ${storage} more storage. Yours arrive when they add their first card.`
+    : `You both get ${storage} more storage too. Yours arrives when they add their first card.`;
   return {
     lead,
     detail,
@@ -70,33 +72,31 @@ export function storageEarnedBytes(cardsEarned) {
   return rewards * INVITE_BONUS_STORAGE_BYTES;
 }
 
-// "3 joined through you · 50 cards and 1GB earned · 1 on the way", from
-// getMyReferralStats(). Nothing until someone has joined.
+// "3 joined through you · 50 free cards earned · 1 on the way", from
+// getMyReferralStats(). Cards only: the storage is in Settings → Invite & earn.
+// Nothing until someone has joined.
 export function inviteProgressLine(stats) {
   const joined = Number(stats?.friendsJoined) || 0;
   if (joined <= 0) return null;
   const cards = Number(stats?.cardsEarned) || 0;
   const waiting = Number(stats?.rewardsWaiting) || 0;
   const parts = [`${joined} joined through you`];
-  if (cards > 0) parts.push(`${cards} cards and ${formatBonusBytes(storageEarnedBytes(cards))} earned`);
+  if (cards > 0) parts.push(`${cards} free cards earned`);
   if (waiting > 0) parts.push(`${waiting} on the way`);
   return parts.join(' · ');
 }
 
-// The toast when bonus cards grow mid-session. `asInviter` is whether the
-// referral stats show a new reward paid to you; otherwise the cards are your
-// own welcome bonus (a new account joining through an edit link).
-export function rewardToastMessage({ deltaCards, tier, asInviter } = {}) {
+// The toast when bonus cards grow mid-session — cards first, the storage after.
+// `asInviter` is whether the referral stats show a new reward paid to you;
+// otherwise the cards are your own welcome bonus (a new account joining
+// through an edit link).
+export function rewardToastMessage({ deltaCards, asInviter } = {}) {
   const cards = Math.max(0, Number(deltaCards) || 0);
+  const plural = cards === 1 ? '' : 's';
   if (!asInviter) {
-    return `You got ${cards} extra free card${cards === 1 ? '' : 's'} and ${INVITE_BONUS_STORAGE_LABEL} for joining through an invite.`;
+    return `You got ${cards} extra free card${plural} for joining through an invite, plus ${INVITE_BONUS_STORAGE_LABEL} of storage.`;
   }
   const bytes = storageEarnedBytes(cards);
-  if (earnsCards(tier)) {
-    const andStorage = bytes > 0 ? ` and ${formatBonusBytes(bytes)}` : '';
-    return `You earned ${cards} free card${cards === 1 ? '' : 's'}${andStorage} — a friend you invited just got started.`;
-  }
-  return bytes > 0
-    ? `You earned ${formatBonusBytes(bytes)} more storage — a friend you invited just got started.`
-    : 'A friend you invited just got started.';
+  const plus = bytes > 0 ? `, plus ${formatBonusBytes(bytes)} of storage` : '';
+  return `You earned ${cards} free card${plural}${plus} — a friend you invited just got started.`;
 }

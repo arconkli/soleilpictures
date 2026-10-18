@@ -69,13 +69,16 @@ test.describe('one Share control, and Share opens sharing', () => {
     expect(m).toMatch(/goldIf\('copy'\)\}\s*\n\s*ref=\{copyLinkRef\}/);
   });
 
-  test('Share is the one control in the top bar that is filled at rest', () => {
+  test('Share carries a little more weight than the icons around it, and no more', () => {
     // A grey label among grey icons was easy to miss, and it is the way people
-    // reach invitations. The fill is the text colour (no gold: that marks
-    // active, selection and focus), and the hover keeps the text readable.
+    // reach invitations. A raised pill with full-strength text — not a solid
+    // fill (that stood out too much), and no gold, which marks active,
+    // selection and focus.
     const c = read('src/styles.css');
-    expect(c).toMatch(/\.tb-btn\.tb-share \{\s*background: var\(--ink-0\);\s*color: var\(--bg-0\);/);
-    expect(c).toMatch(/\.tb-btn\.tb-share:hover:not\(:disabled\) \{[^}]*color: var\(--bg-0\);/);
+    expect(c).toMatch(/\.tb-btn\.tb-share \{\s*background: var\(--bg-3\);\s*border: 1px solid var\(--line-2\);\s*color: var\(--ink-0\);/);
+    const rule = c.slice(c.indexOf('.tb-btn.tb-share {'), c.indexOf('}', c.indexOf('.tb-btn.tb-share {')));
+    expect(rule).not.toMatch(/--soleil|--accent|--ink-0\);\s*color: var\(--bg/);
+    expect(c).toMatch(/\.tb-btn\.tb-share:hover:not\(:disabled\) \{[^}]*color: var\(--ink-0\);/);
   });
 
   test('the copy is still distinguishable from the dialog open', () => {

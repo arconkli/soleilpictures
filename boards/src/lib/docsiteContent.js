@@ -27951,7 +27951,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — the filled button in the board header, a filled round button on a phone — from "
+     "v": " in the board header (a round button on a phone), from "
     },
     {
      "t": "code",
