@@ -98,12 +98,12 @@ test('a free account is told what inviting someone new earns, with progress once
   expect(await page.evaluate(() => window.__sharePanel.invites)).toBe(1);
 });
 
-test("a Creator's headline is the friend's free cards, and the storage comes second", async ({ page }) => {
+test("a Creator's headline is the same: you both get the free cards, storage second", async ({ page }) => {
   await boot(page);
   const panel = await mountPanel(page, { tier: 'paid' });
   const copy = inviteRewardCopy({ tier: 'paid' });
   await expect(panel.locator('.share-reward-lead')).toHaveText(copy.lead);
-  await expect(panel.locator('.share-reward-lead')).toContainText('they get');
+  await expect(panel.locator('.share-reward-lead')).toContainText('you both get');
   await expect(panel.locator('.share-reward-lead')).not.toContainText('GB');
   await panel.locator('.share-reward-toggle').click();
   await expect(panel.locator('.share-reward-detail')).toContainText('more storage');

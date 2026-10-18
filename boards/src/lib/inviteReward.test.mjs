@@ -22,22 +22,17 @@ test('storage reads in the units every drive is labelled in', () => {
   assert.equal(formatBonusBytes(1024 ** 4), '1TB');
 });
 
-test('the headline is the free cards; the storage comes second', () => {
-  // Owner, 2026-10-17: lead with the 25 cards, not the half GB.
-  const free = inviteRewardCopy({ tier: 'demo' });
-  assert.equal(free.lead, `Invite someone new and get ${REFERRAL_REWARD_CARDS} free cards.`);
-  assert.ok(free.detail.includes(`They get ${REFERRAL_BONUS_CARDS} extra cards too`));
-  assert.ok(free.detail.includes(`you both get ${INVITE_BONUS_STORAGE_LABEL} more storage`));
-  // Creator has no card limit for the inviter's cards to raise, so its headline
-  // is the friend's cards; a tier still loading or on the waitlist gets that
-  // sentence too, which is true for every tier.
-  for (const tier of ['paid', 'admin', 'waitlist', null, undefined]) {
+test('the headline is that you both get the free cards; the storage comes second', () => {
+  // Owner, 2026-10-17: lead with the 25 cards, not the half GB, and say that
+  // BOTH people get them. "Both" is only true while the friend's bonus and the
+  // inviter's reward are one number; gen-docs holds each to its SQL.
+  assert.equal(REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, 'the "you both get" sentence needs one number');
+  for (const tier of ['demo', 'paid', 'admin', 'waitlist', null, undefined]) {
     const c = inviteRewardCopy({ tier });
-    assert.equal(c.lead, `Invite someone new and they get ${REFERRAL_BONUS_CARDS} free cards.`, String(tier));
+    assert.equal(c.lead, `Invite someone new and you both get ${REFERRAL_REWARD_CARDS} extra free cards.`, String(tier));
+    assert.doesNotMatch(c.lead, /GB/, `${tier}: the storage is not the headline`);
     assert.ok(c.detail.includes(`You both get ${INVITE_BONUS_STORAGE_LABEL} more storage too`));
-  }
-  for (const tier of ['demo', 'paid', null]) {
-    assert.doesNotMatch(inviteRewardCopy({ tier }).lead, /GB/, `${tier}: the storage is not the headline`);
+    assert.match(c.detail, /Theirs arrives when they join; yours when they add their first card\./);
   }
 });
 
