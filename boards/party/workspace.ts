@@ -5,6 +5,16 @@
 // so the topbar avatars + click-to-jump work. Pure broadcast — no
 // Y.Doc here, just message fanout + presence tracking.
 //
+// The room HIBERNATES. A Durable Object is billed for every second it sits in
+// memory unable to hibernate, and with plain sockets that was every second any
+// tab had its workspace open: presence alone was a third of the party's room
+// time the day the account outgrew Cloudflare's free tier (2026-10-18). So no
+// roster lives in this object's memory. Each tab's presence rides on its own
+// socket (conn.setState, which partyserver writes to the socket's hibernation
+// attachment); the runtime can evict the room between heartbeats, and whatever
+// wakes it reads the roster back from getConnections(). The rules are pure, in
+// lib/workspaceRoster.js.
+//
 // Wire protocol (JSON over WebSocket):
 //   {type:'here', user, location, tabId}        ← client → server (heartbeat)
 //   {type:'here', from, user, location}          ← server → other clients
@@ -16,81 +26,52 @@
 
 import { Server, type Connection, type ConnectionContext } from "partyserver";
 import type { Env } from "./env";
+import { heldElsewhere, isFresh, rosterFrom, shouldAnnounce } from "../src/lib/workspaceRoster.js";
 
-interface PeerRecord {
-  tabId: string;
-  user: { id: string; name?: string; color?: string; email?: string };
-  location?: { boardId?: string; boardName?: string; surface?: string; pageId?: string | null; docCardId?: string | null; isActive?: boolean; scrollTop?: number };
-  lastSeen: number;
-  // Epoch of the connection that currently owns this tab (see connInfo). A
-  // stale onClose only fires `leave` when its epoch still matches this.
-  ownerEpoch?: number;
+// What one socket carries (see lib/workspaceRoster.js).
+interface Presence {
+  sid: string;
+  userId?: string;
+  tabId?: string;
+  user?: { id: string; name?: string; color?: string; email?: string };
+  location?: { boardId?: string; boardName?: string; surface?: string; pageId?: string | null; docCardId?: string | null; isActive?: boolean; scrollTop?: number } | null;
+  lastSeen?: number;
 }
 
-const STALE_MS = 60_000;     // peers go stale after 60s with no heartbeat (backstop only)
-// How often a room with peers checks for stale ones. Pruning used to run only
-// when some socket connected or closed; a laptop that slept or dropped off the
-// network without a clean close (no FIN) stayed in everyone's topbar for as
-// long as nobody else came or went (COMMS-21). An alarm, the same pattern as
-// BoardParty's ban check, sweeps every PRUNE_MS while anyone is listed and
-// lapses once the room is empty. Clients need nothing new: a stale tab leaves
-// as the `leave` delta they already handle.
+// How often a room with anyone present checks for stale tabs. A laptop that
+// slept or dropped off the network without a clean close (no FIN) leaves its
+// socket open but silent; without a sweep it stayed in everyone's topbar for as
+// long as nobody else came or went (COMMS-21). The alarm runs every PRUNE_MS
+// while anyone is present and lapses once nobody is. Clients need nothing new:
+// a stale tab leaves as the `leave` delta they already handle.
 const PRUNE_MS = 20_000;
 
-// True when nothing a consumer renders has changed between two records — used to
-// suppress steady-state heartbeat fanout. Mirrors useWorkspacePresence.peerKey:
-// only the fields consumers actually differentiate on (identity + the rendered
-// location bits), NOT scrollTop.
-function sameUserLoc(a: PeerRecord, b: PeerRecord): boolean {
-  const au = a.user || ({} as any), bu = b.user || ({} as any);
-  if (au.id !== bu.id || au.name !== bu.name || au.color !== bu.color) return false;
-  const al = a.location || ({} as any), bl = b.location || ({} as any);
-  return al.boardId === bl.boardId
-      && al.surface === bl.surface
-      && al.pageId === bl.pageId
-      && al.docCardId === bl.docCardId
-      && al.isActive === bl.isActive;
-}
-
 export class WorkspaceParty extends Server<Env> {
-  // In memory, as on PartyKit: a fresh instance re-learns the roster as peers
-  // send their next heartbeat.
-  static options = { hibernate: false };
+  static options = { hibernate: true };
 
-  // tabId → record. Lives in DO memory; on restart the room re-populates
-  // as peers reconnect and re-broadcast their location.
-  private peers: Map<string, PeerRecord> = new Map();
-  // Per-connection state, keyed by the Connection OBJECT (a WeakMap, so it
-  // GCs with the socket). A reconnect REUSES connection.id but is a distinct
-  // connection object with a fresh, higher epoch — that epoch is how onClose
-  // tells a dead old socket from the live new one (connection.id can't: it's
-  // stable across reconnects). tabId lets onClose fire a precise INSTANT leave
-  // instead of waiting out STALE_MS.
-  private connInfo: WeakMap<Connection, { tabId?: string; epoch: number; userId?: string }> = new WeakMap();
-  private epoch = 0;
+  private presenceOf(conn: Connection): Presence {
+    return (conn.state as Presence | null) ?? { sid: "" };
+  }
+
+  private presences(): Presence[] {
+    return [...this.getConnections()].map((c) => this.presenceOf(c));
+  }
 
   // Auth is index.ts beforeConnect: the token must belong to a member of this
   // workspace, and x-user-id carries the JWT subject so a `here` claiming to be
   // someone else is refused.
   onConnect(conn: Connection, ctx: ConnectionContext) {
-    // Stamp a fresh epoch for this connection object up front, so even a
-    // reconnect that reuses connection.id is distinguishable from its dead
-    // predecessor. Also remember whose JWT opened it.
-    const userId = ctx.request.headers.get("x-user-id") || undefined;
-    this.connInfo.set(conn, { epoch: ++this.epoch, userId });
-    // Send the current roster (minus the joiner themselves — they don't
-    // need to see their own row) so they see existing peers immediately.
-    this.pruneStale();
-    const roster = [...this.peers.values()];
-    conn.send(JSON.stringify({ type: "roster", peers: roster }));
+    conn.setState({ sid: crypto.randomUUID(), userId: ctx.request.headers.get("x-user-id") || undefined });
+    // Everyone present, so the joiner sees existing peers immediately.
+    conn.send(JSON.stringify({ type: "roster", peers: rosterFrom(this.presences(), Date.now()) }));
   }
 
-  // In memory, so a steady heartbeat costs no storage call; a fresh instance
-  // (after eviction) starts false and the next `here` checks storage again.
+  // In memory, so a steady heartbeat costs no storage call while the room is
+  // awake; a woken room starts false and its next `here` checks storage again.
   private pruneArmed = false;
 
   async armPrune() {
-    if (this.pruneArmed || this.peers.size === 0) return;
+    if (this.pruneArmed) return;
     this.pruneArmed = true;
     try {
       if ((await this.ctx.storage.getAlarm()) == null) {
@@ -104,92 +85,81 @@ export class WorkspaceParty extends Server<Env> {
 
   async onAlarm() {
     this.pruneArmed = false;
-    this.pruneStale();
-    await this.armPrune();   // an empty room lets the alarm lapse
+    const now = Date.now();
+    const conns = [...this.getConnections()];
+    const all = conns.map((c) => this.presenceOf(c));
+    let anyonePresent = false;
+    conns.forEach((conn, i) => {
+      const p = all[i];
+      if (!p.tabId) return;
+      if (isFresh(p, now)) { anyonePresent = true; return; }
+      // Stale: out of every roster from now on, and gone from everyone's
+      // topbar unless the tab is still here through another socket.
+      const cleared: Presence = { sid: p.sid, userId: p.userId };
+      conn.setState(cleared);
+      all[i] = cleared;
+      if (!heldElsewhere(all, p.tabId, p.sid, now)) {
+        this.broadcast(JSON.stringify({ type: "leave", from: p.tabId }));
+      }
+    });
+    if (anyonePresent) await this.armPrune();   // an empty room lets the alarm lapse
   }
 
   onMessage(sender: Connection, message: string | ArrayBuffer | ArrayBufferView) {
     if (typeof message !== "string") return;
     let msg: any;
     try { msg = JSON.parse(message); } catch { return; }
+    const mine = this.presenceOf(sender);
     if (msg?.type === "here" && msg?.tabId && msg?.user?.id) {
-      const owner = this.connInfo.get(sender)?.userId;
-      if (owner && String(msg.user.id) !== owner) {
+      if (mine.userId && String(msg.user.id) !== mine.userId) {
         // A member claiming to be another member. Drop it; the socket stays
         // open because the rest of the protocol is fine.
         console.warn(`[workspace ${this.name}] presence identity mismatch`);
         return;
       }
-      const tabId = String(msg.tabId);
-      const prev = this.peers.get(tabId);
-      // Stamp this connection as the tab's current owner (fresh epoch per
-      // connection object) so a later stale onClose from a reconnected socket
-      // can't delete the live peer.
-      const info = this.connInfo.get(sender) ?? { epoch: ++this.epoch };
-      info.tabId = tabId;
-      this.connInfo.set(sender, info);
-      const rec: PeerRecord = {
-        tabId,
+      const next: Presence = {
+        sid: mine.sid,
+        userId: mine.userId,
+        tabId: String(msg.tabId),
         user: msg.user,
         location: msg.location ?? null,
         lastSeen: Date.now(),
-        ownerEpoch: info.epoch,
       };
-      this.peers.set(tabId, rec);
+      sender.setState(next);
       void this.armPrune();
-      // Only fan out when something a consumer renders actually changed: a new
-      // peer, an identity change, or a navigation. A steady-state heartbeat
-      // with an unchanged location is suppressed — idle fanout drops to ~zero,
-      // which is the difference between O(N) and O(N^2) chatter as a workspace
-      // fills up.
-      if (!prev || !sameUserLoc(prev, rec)) {
+      if (shouldAnnounce(mine, next)) {
         this.broadcast(JSON.stringify({
           type: "here",
-          from: tabId,
-          user: rec.user,
-          location: rec.location,
+          from: next.tabId,
+          user: next.user,
+          location: next.location,
         }), [sender.id]);
       }
     } else if (msg?.type === "leave" && msg?.tabId) {
+      // A socket withdraws only its own tab's presence.
       const tabId = String(msg.tabId);
-      this.peers.delete(tabId);
-      const info = this.connInfo.get(sender);
-      if (info) info.tabId = undefined;  // an explicit leave clears ownership
+      if (mine.tabId !== tabId) return;
+      sender.setState({ sid: mine.sid, userId: mine.userId });
       this.broadcast(JSON.stringify({ type: "leave", from: tabId }), [sender.id]);
     }
   }
 
+  // Instant departure: a closed socket's tab leaves, unless a reconnect has
+  // already brought it back on another socket. The alarm sweep is the backstop
+  // for sockets that die without a close.
   onClose(conn: Connection) {
-    // Precise instant departure — but ONLY if this closing connection is still
-    // the tab's live owner. A reconnect reuses connection.id and is a distinct
-    // connection object with a higher epoch; once it re-sends `here`, the peer's
-    // ownerEpoch advances past this (dead) socket's epoch, so we suppress the
-    // phantom `leave` that would otherwise flicker the live peer out of other
-    // viewers' rosters. STALE_MS pruning below stays as the backstop.
-    const info = this.connInfo.get(conn);
-    this.connInfo.delete(conn);
-    const tabId = info?.tabId;
-    if (tabId) {
-      const rec = this.peers.get(tabId);
-      if (rec && rec.ownerEpoch === info!.epoch) {
-        this.peers.delete(tabId);
-        this.broadcast(JSON.stringify({ type: "leave", from: tabId }));
-      }
-    }
-    this.pruneStale();
+    this.depart(conn);
   }
 
-  private pruneStale() {
-    const now = Date.now();
-    const removed: string[] = [];
-    for (const [k, p] of this.peers) {
-      if (now - p.lastSeen > STALE_MS) { this.peers.delete(k); removed.push(k); }
-    }
-    // Emit a `leave` DELTA per stale tab instead of rebroadcasting the entire
-    // roster to everyone (the old O(N) cost on every prune). Clients already
-    // handle `leave` by dropping that tab.
-    for (const tabId of removed) {
-      this.broadcast(JSON.stringify({ type: "leave", from: tabId }));
+  onError(conn: Connection) {
+    this.depart(conn);
+  }
+
+  private depart(conn: Connection) {
+    const p = this.presenceOf(conn);
+    if (!p.tabId) return;
+    if (!heldElsewhere(this.presences(), p.tabId, p.sid, Date.now())) {
+      this.broadcast(JSON.stringify({ type: "leave", from: p.tabId }));
     }
   }
 }
