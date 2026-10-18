@@ -70,7 +70,8 @@ test('the board provider is y-partyserver on the main party, with the liveness k
   assert.match(y, /import YProvider from 'y-partyserver\/provider';/);
   assert.match(y, /new YProvider\(PARTY_HOST, boardId, ydoc, \{\s*party: 'main',/);
   assert.doesNotMatch(y, /from 'y-partykit/);
-  assert.match(y, /Date\.now\(\) - \(provider\.wsLastMessageReceived \|\| 0\) > DEAD_AFTER_MS/);
+  assert.match(y, /if \(socketLooksDead\(provider\.wsLastMessageReceived, lastPingAt\)\) \{/);
+  assert.match(y, /provider\.ws\.send\(encoding\.toUint8Array\(enc\)\);\n      lastPingAt = Date\.now\(\);/);
   assert.match(y, /clearInterval\(keepalive\)/);
   // The reset frame is read raw; the room never prefixes it.
   assert.match(y, /msg\.type !== 'soleil-board-reset'/);
