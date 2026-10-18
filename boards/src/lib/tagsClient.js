@@ -8,8 +8,8 @@
 import { supabase } from './supabase.js';
 
 // Round 19: per-endpoint cooldown. When /api/tags/embed (or /api/tags/apply)
-// returns a 5xx — typically because OpenAI is over-quota or the upstream
-// is down — stop hammering it for a while. Without this, every caller
+// returns a 5xx — typically because the model (Workers AI) failed or the
+// upstream is down — stop hammering it for a while. Without this, every caller
 // (warmup batches, centroid seeding, new-tag init, every keystroke that
 // triggers a suggest) keeps generating 502 traffic. Cooldown clears on
 // the first successful response, so when the outage ends we resume

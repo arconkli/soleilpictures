@@ -3,15 +3,17 @@
 // Three routes (Phase 1 = embed + apply; cluster-name + revalidate land in
 // later phases):
 //
-//   POST /api/tags/embed         — OpenAI text-embedding-3-small in batch
+//   POST /api/tags/embed         — Workers AI (bge-m3) embeddings in batch
 //   POST /api/tags/apply         — Workers AI (llama) word verdicts, batched
 //   POST /api/tags/cluster-name  — Workers AI (llama) names emergent clusters
 //
-// Completions (apply + cluster-name) run on FREE Cloudflare Workers AI via
-// env.AI — no per-token bill. (The old gpt-4o apply path blew the budget when
-// it fired per-card on every keystroke; this keeps the same prompts on a free
-// model.) Embeddings stay on OpenAI because the pgvector corpus/index is
-// 1536-dim and that path is cheap + content-hash-cached.
+// All three run on Cloudflare Workers AI via env.AI, inside the account's
+// daily free allowance. (The old gpt-4o apply path blew the budget when it
+// fired per-card on every keystroke.) Embeddings were the last OpenAI call:
+// text-embedding-3-small, until the credits ran out in 2026 and nothing had
+// been embedded since May. Since 0418 they are @cf/baai/bge-m3 (1024-dim,
+// multilingual); the old vectors were cleared and re-embed on demand, and the
+// thresholds in lib/clusterMath.js were recalibrated for the new model.
 //
 // Auth: every request must carry a valid Supabase user JWT in the
 // Authorization header. We verify by calling the project's /auth/v1/user
@@ -23,24 +25,25 @@
 // the normal Supabase client, respecting RLS.
 //
 // Required secrets / vars (set via `wrangler secret put` or CF dashboard):
-//   OPENAI_API_KEY     — embeddings only (completions moved to free env.AI)
+//   AI (binding)       — Workers AI, for all three routes
 //   SUPABASE_URL       — used to validate user JWTs (already known publicly)
 //   SUPABASE_ANON_KEY  — required by Supabase /auth/v1/user as the apikey hdr
 
 import { parseJsonLoose, runWorkersAiChat } from './worker-llm.js';
 import { verifyUser } from './lib/workerAuth.js';
 
-// Models. Doc-page word verdicts + cluster naming now run on FREE Cloudflare
-// Workers AI (env.AI) with the SAME prompts — no per-token OpenAI bill. The
-// cascade already distrusts the model's char offsets (it regex-relocates each
-// claimed word) and drops "low" verdicts, so a smaller model's looser
-// precision is a non-issue; only verdict quality matters. Embeddings stay on
-// OpenAI (text-embedding-3-small) because the corpus + pgvector index are
-// 1536-dim and that path is cheap + content-hash-cached.
+// Models. Doc-page word verdicts + cluster naming run on Workers AI (env.AI)
+// with the SAME prompts the OpenAI models had. The cascade already distrusts
+// the model's char offsets (it regex-relocates each claimed word) and drops
+// "low" verdicts, so a smaller model's looser precision is a non-issue; only
+// verdict quality matters. Embeddings: bge-m3, chosen over qwen3-embedding-0.6b
+// on 2026-10-18 by re-embedding the stored cards — equal rank agreement with
+// the OpenAI vectors (Spearman ~0.60), better-spread scores near the top, and a
+// fifth of the cold-call latency.
 const APPLY_MODEL = '@cf/meta/llama-3.1-8b-instruct';        // /api/tags/apply
 const CLUSTER_NAME_MODEL = '@cf/meta/llama-3.2-3b-instruct'; // /api/tags/cluster-name
-const EMBEDDING_MODEL = 'text-embedding-3-small';
-const EMBEDDING_DIM = 1536;
+const EMBEDDING_MODEL = '@cf/baai/bge-m3';
+const EMBEDDING_DIM = 1024;   // pgvector columns are vector(1024) since 0418
 
 // Hard caps so a misbehaving client can't run up the bill in one call.
 const MAX_EMBED_CARDS_PER_CALL = 64;
@@ -103,15 +106,15 @@ async function embedBudgetOk(env, request, chars) {
 }
 
 async function handleEmbed(request, env) {
-  if (!env.OPENAI_API_KEY) return json({ error: 'openai key not configured' }, 500);
+  if (!env.AI) return json({ error: 'env.AI (Workers AI) binding not configured' }, 500);
   const body = await request.json().catch(() => null);
   if (!Array.isArray(body?.cards)) return json({ error: 'cards array required' }, 400);
   if (body.cards.length === 0) return json({ embeddings: [] }, 200);
   if (body.cards.length > MAX_EMBED_CARDS_PER_CALL) {
     return json({ error: `max ${MAX_EMBED_CARDS_PER_CALL} cards per call` }, 400);
   }
-  // OpenAI's batch embedding endpoint takes an array of strings and returns
-  // them in order. We map id ↔ index ourselves.
+  // The model takes an array of strings and returns them in order. We map
+  // id ↔ index ourselves.
   const ids = [];
   const texts = [];
   for (const c of body.cards) {
@@ -119,35 +122,41 @@ async function handleEmbed(request, env) {
       return json({ error: 'each card needs {id, text}' }, 400);
     }
     ids.push(c.id);
-    // Cap input length to keep token costs predictable.
-    texts.push(c.text.slice(0, 8000));
+    // Cap input length (bge-m3 reads up to 8,192 tokens; this keeps calls
+    // well inside it and the neuron cost predictable). Never send an empty
+    // string: the model has nothing to pool.
+    texts.push(c.text.slice(0, 8000) || ' ');
   }
-  // A daily budget, per account and for everyone (0381, audit SE-3): this route
-  // turns a signed-in request straight into OpenAI spend. Spend only on a yes.
+  // A daily budget, per account and for everyone (0381, audit SE-3): beyond the
+  // free allowance this route is spend, so spend only on a yes.
   const chars = texts.reduce((n, t) => n + t.length, 0);
   if (!await embedBudgetOk(env, request, chars)) {
     return json({ error: 'daily embedding budget reached' }, 429);
   }
-  const r = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'authorization': `Bearer ${env.OPENAI_API_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ model: EMBEDDING_MODEL, input: texts }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!r.ok) {
-    const err = await r.text();
-    return json({ error: `openai ${r.status}`, detail: err.slice(0, 500) }, 502);
+  let result;
+  try {
+    result = await env.AI.run(EMBEDDING_MODEL, { text: texts });
+  } catch (e) {
+    return json({ error: 'embedding failed', detail: String(e?.message || e).slice(0, 300) }, 502);
   }
-  const data = await r.json();
-  const out = data?.data || [];
-  if (out.length !== ids.length) {
+  const rows = Array.isArray(result?.data) ? result.data : [];
+  if (rows.length !== ids.length) {
     return json({ error: 'embedding count mismatch' }, 502);
   }
-  const embeddings = out.map((row, i) => ({ id: ids[i], vector: row.embedding }));
-  return json({ embeddings, dim: EMBEDDING_DIM, usage: data.usage || null }, 200);
+  if (rows.some((v) => !Array.isArray(v) || v.length !== EMBEDDING_DIM)) {
+    return json({ error: 'unexpected embedding size' }, 502);
+  }
+  // Unit length, as OpenAI's were. clusterMath compares by true cosine, so this
+  // changes no answer; it keeps every stored vector the same shape.
+  const embeddings = rows.map((v, i) => ({ id: ids[i], vector: unitLength(v) }));
+  return json({ embeddings, dim: EMBEDDING_DIM, model: EMBEDDING_MODEL }, 200);
+}
+
+function unitLength(v) {
+  let n = 0;
+  for (const x of v) n += x * x;
+  n = Math.sqrt(n);
+  return n > 0 ? v.map((x) => x / n) : v;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -168,7 +177,8 @@ async function handleEmbed(request, env) {
 //
 // All cards in one call share the system prompt. The client is responsible
 // for embedding-prefiltering candidate_tags down to the middle band
-// (cosine 0.20–0.55) before calling — we don't second-guess that here.
+// (cosine distance SILENT_APPLY_DIST–NO_MATCH_DIST in lib/clusterMath.js)
+// before calling — we don't second-guess that here.
 async function handleApply(request, env) {
   if (!env.AI) return json({ error: 'env.AI (Workers AI) binding not configured' }, 500);
   const body = await request.json().catch(() => null);
