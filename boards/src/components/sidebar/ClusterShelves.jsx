@@ -55,7 +55,7 @@ function ItemGlyph({ item }) {
 // One item as a row: its thumbnail or icon, its name, the stored-off-the-board
 // mark, a star, and its length or size. Shelves, Starred and Recent all draw
 // items with it, so an item looks the same wherever the sidebar lists it.
-export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null }) {
+export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null, onMenu = null }) {
   const meta = rowMeta(item);
   return (
     <button type="button"
@@ -69,7 +69,15 @@ export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = fal
             title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
             onClick={(e) => onClick?.(item, e)}
             onDoubleClick={() => onOpen?.(item)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onOpen?.(item); } }}>
+            onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(item, e.clientX, e.clientY); } : undefined}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); onOpen?.(item); }
+              if (onMenu && (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) {
+                e.preventDefault();
+                const r = e.currentTarget.getBoundingClientRect();
+                onMenu(item, r.left + 24, r.bottom);
+              }
+            }}>
       <ItemGlyph item={item} />
       <span className="sbf-file-name">{item.name}</span>
       {where && <span className="sbf-file-where">{where}</span>}
@@ -81,7 +89,7 @@ export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = fal
 }
 
 // One item as a tile: the photo mosaic's square, used by Recent too.
-export function SidebarTile({ item, depth = 0, starred = false, where = '', onClick, onOpen, selected = false, onDragStart = null }) {
+export function SidebarTile({ item, depth = 0, starred = false, where = '', onClick, onOpen, selected = false, onDragStart = null, onMenu = null }) {
   const src = thumbSrc(item);
   return (
     <button type="button"
@@ -94,7 +102,15 @@ export function SidebarTile({ item, depth = 0, starred = false, where = '', onCl
             data-sb-item={item.key}
             onClick={(e) => onClick?.(item, e)}
             onDoubleClick={() => onOpen?.(item)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onOpen?.(item); } }}>
+            onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(item, e.clientX, e.clientY); } : undefined}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); onOpen?.(item); }
+              if (onMenu && (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) {
+                e.preventDefault();
+                const r = e.currentTarget.getBoundingClientRect();
+                onMenu(item, r.left + 24, r.bottom);
+              }
+            }}>
       {src
         ? <R2Image src={src} alt="" />
         : <span className="sbf-tile-glyph"><KindIcon kind={item.kind} size={14} /></span>}
@@ -107,7 +123,7 @@ export function SidebarTile({ item, depth = 0, starred = false, where = '', onCl
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
   const pad = { paddingLeft: 10 + depth * INDENT };
-  const { onItem, onItemOpen, onMore, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem } = ctx;
+  const { onItem, onItemOpen, onMore, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu } = ctx;
 
   if (row.type === 'shelf') {
     return (
@@ -130,6 +146,7 @@ function Row({ row, depth, ctx }) {
         {row.items.map((item) => (
           <SidebarTile key={item.key} item={item} depth={depth} starred={starred(item)}
                        selected={selected(item)} onDragStart={onDragItem}
+                       onMenu={onItemMenu ? (it, x, y) => onItemMenu(it, row, x, y) : null}
                        onClick={(it, e) => onItem(it, row, e)} onOpen={onItemOpen} />
         ))}
       </div>
@@ -139,6 +156,7 @@ function Row({ row, depth, ctx }) {
     return (
       <SidebarItemRow item={row.item} depth={depth} starred={starred(row.item)}
                       selected={selected(row.item)} onDragStart={onDragItem}
+                      onMenu={onItemMenu ? (it, x, y) => onItemMenu(it, row, x, y) : null}
                       onClick={(item, e) => onItem(item, row, e)} onOpen={onItemOpen} />
     );
   }
@@ -209,7 +227,7 @@ export function ClusterShelves({
   boardId, depth, contents, hasChildren = false, width = 300, coarse = false,
   shelfState, onToggleShelf, onLoadMore, canLoadMore,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
-  isSelected = null, onDragItem = null,
+  isSelected = null, onDragItem = null, onItemMenu = null,
 }) {
   // As many tiles as fit beside this block's own indent (the sidebar's
   // padding, the row's 10px, 14px a level, and room for the scrollbar).
@@ -242,6 +260,10 @@ export function ClusterShelves({
     starred: (item) => !!isStarred?.(item.boardId, item.cardId),
     selected: (item) => !!isSelected?.(item),
     onDragItem,
+    onItemMenu: onItemMenu ? (item, row, x, y) => {
+      const shelf = contents?.shelves?.find((s) => s.id === row.shelfId);
+      onItemMenu(item, shelf?.items || [item], x, y);
+    } : null,
   };
 
   if (!windowed) {

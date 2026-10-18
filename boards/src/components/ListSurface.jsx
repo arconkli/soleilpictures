@@ -157,6 +157,9 @@ export function ListSurface({
   onPickCluster = null,
   // { ids, token } — pick out files that aren't on the board (App.revealInFiles).
   revealRequest = null,
+  // { buckets, unplacedOnly, token } — open narrowed to these type buckets
+  // (the sidebar's shelf ⤢); a new token applies it again.
+  filterRequest = null,
   onRevealDone = null,   // (token) => the shell forgets the request once shown
   // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
   // owners; opens the storage upgrade modal. Off in the ?local harness.
@@ -292,6 +295,13 @@ export function ListSurface({
   // "Not on board": files in the cluster that aren't on its board yet.
   const [unplacedOnly, setUnplacedOnly] = useState(false);
   useEffect(() => { setQuery(''); setFilters(new Set()); setUnplacedOnly(false); }, [board?.id]);
+  // Declared after the reset above so that, landing on a new cluster, the
+  // request wins over the reset in the same commit.
+  useEffect(() => {
+    if (!filterRequest?.token) return;
+    setFilters(new Set(filterRequest.buckets || []));
+    setUnplacedOnly(!!filterRequest.unplacedOnly);
+  }, [filterRequest?.token]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Which linked-grid families are expanded (collapsed by default). Persisted.
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(prefs0.expandedGroups || []));
   // A grid family selected for the detail popout (family view). Card selection
@@ -1916,6 +1926,13 @@ export function ListSurface({
                 <span>{zipping ? 'Preparing…'
                      : narrowed ? `Download ${downloadableVisible.length}`
                      : 'Download all'}</span>
+              </button>
+            )}
+            {dockControls?.onBoard && (
+              <button type="button" className="list-section-act cb-pagehead-board" onClick={dockControls.onBoard}
+                      title="Back to the board (F)">
+                <Icon as={BoundingBox} size={16} weight="light" />
+                <span>Board</span>
               </button>
             )}
             {dockControls?.canShrink && dockControls?.onShrink && (

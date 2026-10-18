@@ -67,7 +67,8 @@ export function SidebarBoardTree({
   // out, and renders an unfolded cluster's shelves after its sub-clusters:
   //   { isExpanded(id), toggle(id), hasContents(id), isHidden(id),
   //     countOf(id), renderThumb(board, isActive), renderContents(board, depth, hasChildren),
-  //     dropEffect(event, boardId) → 'move' | 'copy' | null, onDrop(boardId, event) }
+  //     dropEffect(event, boardId) → 'move' | 'copy' | null, onDrop(boardId, event),
+  //     menuItems(board, canEdit) → extra row-menu items }
   // dropEffect says whether a drag of FILES (not clusters) may land on a row;
   // cluster drags still reparent exactly as before.
   // Without it the tree is exactly what it was.
@@ -208,6 +209,8 @@ export function SidebarBoardTree({
     const openItems = [
       { id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) },
       { id: 'share', label: 'Share…', run: () => onShareBoard?.(board.id) },
+      // The files sidebar's own: Star, and "Always open in Files".
+      ...(filesView?.menuItems?.(board, canEdit) || []),
     ];
     const editItems = [];
     const clipboardItems = [{ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) }];

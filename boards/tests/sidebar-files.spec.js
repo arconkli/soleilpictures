@@ -225,3 +225,30 @@ test.describe('sidebar files: organizing', () => {
     await expect(row(page, 'Casting').locator('.sbf-status')).toHaveText('↑ 3');
   });
 });
+
+test.describe('sidebar files: menus', () => {
+  test('a file’s menu stars it, and Star shows up on its row', async ({ page }) => {
+    await open(page);
+    const file = page.locator('.sbf-file', { hasText: 'film-take-2.mov' });
+    await file.first().click({ button: 'right' });
+    const menu = page.locator('.ctx-menu').last();
+    for (const label of ['Quick look', 'Show on board', 'Star', 'Download', 'Move to…', 'Delete']) {
+      await expect(menu.getByText(label, { exact: true })).toBeVisible();
+    }
+    await menu.getByText('Star', { exact: true }).click();
+    await expect.poll(async () => (await calls(page, 'toggleStar'))
+      .some((c) => c.params.boardId === 'film' && c.params.cardId === 'film-vid-1' && c.params.on)).toBe(true);
+    // Now in Starred as well as on its shelf, marked in both places.
+    await expect(file).toHaveCount(2);
+    await expect(page.locator('.sbf-block .sbf-file', { hasText: 'film-take-2.mov' }).locator('.sbf-star-mark')).toBeVisible();
+  });
+
+  test('a cluster’s menu stars it, and sets how it opens for everyone', async ({ page }) => {
+    await open(page);
+    await row(page, 'Casting').click({ button: 'right' });
+    const menu = page.locator('.ctx-menu').last();
+    await expect(menu.getByText('Star', { exact: true })).toBeVisible();
+    await menu.getByText('Always open in Files', { exact: true }).click();
+    await expect(page.getByTestId('sbqa-log')).toContainText('opens-as cast list');
+  });
+});

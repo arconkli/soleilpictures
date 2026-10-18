@@ -213,6 +213,7 @@ export function SidebarQaHarness() {
             feedback={feedback}
             moveApi={moveApi}
             onPickCluster={async () => 'mood'}
+            onSetOpensAs={(id, v) => say(`opens-as ${id} ${v}`)}
             onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
             uploadsByBoard={{ cast: 3 }}
           />

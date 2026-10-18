@@ -13,6 +13,9 @@
 // opens Quick look; double-clicking goes to it on its board.
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { CardContextMenu } from '../CardContextMenu.jsx';
+import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS } from '../primitives.jsx';
@@ -112,6 +115,7 @@ export function ClusterSidebar({
   onOpenPalette,          // (query) => void
   feedback = null,        // the app's toasts (useFeedback)
   onPickCluster = null,   // ({ placeholder, excludeIds }) => Promise<boardId|null>
+  onSetOpensAs = null,    // (boardId, 'list' | 'canvas') => void — the cluster's view, for everyone
   onDropFilesOnCluster = null,  // (boardId, File[]) => void — desktop files dropped on a row
   uploadsByBoard = null,  // { boardId: n } — files still going up into a cluster
   liveMutators = null,    // the open cluster's mutators (deleteCards, undo, undoManager)
@@ -319,8 +323,9 @@ export function ClusterSidebar({
     if (cards.length === 1) downloadCardAsset(cards[0], cards[0].kind, { surface: 'sidebar' });
     else downloadCardAssets(cards, { zipName: 'files.zip', surface: 'sidebar' });
   };
-  const deleteSelection = async () => {
-    for (const [boardId, items] of groupByCluster(selItems)) {
+  const deleteSelection = () => deleteItems(selItems);
+  const deleteItems = async (list) => {
+    for (const [boardId, items] of groupByCluster(list)) {
       const ids = items.map((x) => x.cardId);
       const what = ids.length === 1 ? '1 file' : `${ids.length} files`;
       if (boardId === liveBoardId && liveMutators?.deleteCards) {
@@ -347,6 +352,41 @@ export function ClusterSidebar({
     files.refresh();
   };
 
+  // ── A file's menu (right-click, Shift+F10, the Menu key) ───────────────────
+  // On a file that is part of a selection it acts on the whole selection.
+  const [fileMenu, setFileMenu] = useState(null);   // { x, y, item, siblings }
+  const onItemMenu = useCallback((item, siblings, x, y) => setFileMenu({ item, siblings, x, y }), []);
+  const fileMenuItems = () => {
+    const m = fileMenu;
+    if (!m) return [];
+    const group = selected.has(m.item.key) ? selItems : [m.item];
+    const many = group.length > 1;
+    const starredNow = files.isStarred(m.item.boardId, m.item.cardId);
+    return composeMenuSections([
+      { items: [
+        { id: 'quick', label: 'Quick look', run: () => openQuick(m.item, m.siblings, { detail: 0 }) },
+        { id: 'show', label: m.item.unplaced ? 'Show in Files' : 'Show on board', run: () => openItem(m.item) },
+        { id: 'star', label: starredNow ? 'Unstar' : 'Star', run: () => files.toggleStar(m.item.boardId, m.item.cardId) },
+      ] },
+      { header: SECTION.EDIT, items: [
+        { id: 'download', label: many ? `Download ${group.length}` : 'Download', run: () => {
+          const cards = group.map((x) => cardFromItem(x));
+          if (cards.length === 1) downloadCardAsset(cards[0], cards[0].kind, { surface: 'sidebar' });
+          else downloadCardAssets(cards, { zipName: 'files.zip', surface: 'sidebar' });
+        } },
+        ...(onPickCluster ? [{ id: 'move', label: many ? `Move ${group.length} to…` : 'Move to…', run: async () => {
+          const to = await onPickCluster({ placeholder: 'Move to…' });
+          if (!to) return;
+          for (const [from, items] of groupByCluster(group)) {
+            if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId) });
+          }
+          clearSelection();
+        } }] : []),
+        { id: 'delete', label: many ? `Delete ${group.length}` : 'Delete', danger: true, run: () => { deleteItems(group); clearSelection(); } },
+      ] },
+    ]);
+  };
+
   // ── The tree's hook-in ────────────────────────────────────────────────────
   const filesView = useMemo(() => ({
     isExpanded: (id) => isExpanded(expand, id),
@@ -364,6 +404,14 @@ export function ClusterSidebar({
     },
     dropEffect,
     onDrop: onDropOnCluster,
+    menuItems: (board, canEdit) => [
+      { id: 'star', label: files.isStarred(board.id) ? 'Unstar' : 'Star', run: () => files.toggleStar(board.id) },
+      ...(canEdit && onSetOpensAs ? [{
+        id: 'opens-as',
+        label: board.view === 'list' ? 'Open on the board by default' : 'Always open in Files',
+        run: () => onSetOpensAs(board.id, board.view === 'list' ? 'canvas' : 'list'),
+      }] : []),
+    ],
     renderThumb: (board) => <ClusterThumb board={board} />,
     renderContents: (board, depth, hasChildren) => (
       <ClusterShelves
@@ -375,6 +423,7 @@ export function ClusterSidebar({
         onItem={onItem}
         isSelected={isSelected}
         onDragItem={onDragItem}
+        onItemMenu={onItemMenu}
         onItemOpen={openItem}
         onOpenShelf={onOpenShelf}
         isStarred={files.isStarred}
@@ -382,7 +431,7 @@ export function ClusterSidebar({
       />
     ),
   }), [expand, files, liveBoardId, liveCards, rootId, searchVisible, chip, width, coarse, shelfState,
-    onToggleShelf, onItem, isSelected, onDragItem, openItem, onOpenShelf, listRef, uploadsByBoard,
+    onToggleShelf, onItem, isSelected, onDragItem, onItemMenu, openItem, onOpenShelf, listRef, uploadsByBoard,
     dropEffect, onDropOnCluster]);
 
   // ↑/↓ walk every item the tree shows, clusters and files alike, in the order
@@ -490,6 +539,7 @@ export function ClusterSidebar({
                   <SidebarItemRow key={item.key} item={item} starred
                                   where={nameOf(item.boardId)}
                                   selected={isSelected(item)} onDragStart={onDragItem}
+                                  onMenu={(it, x, y) => onItemMenu(it, files.starred.items, x, y)}
                                   onClick={(it, e) => onItem(it, files.starred.items, e)} onOpen={openItem} />
                 ))}
               </div>
@@ -509,6 +559,7 @@ export function ClusterSidebar({
                                starred={files.isStarred(item.boardId, item.cardId)}
                                where={nameOf(item.boardId)}
                                selected={isSelected(item)} onDragStart={onDragItem}
+                               onMenu={(it, x, y) => onItemMenu(it, files.recent, x, y)}
                                onClick={(it, e) => onItem(it, files.recent, e)} onOpen={openItem} />
                 ))}
               </div>
@@ -533,6 +584,12 @@ export function ClusterSidebar({
       )}
       <SidebarMeter {...meterProps} onOpenPlan={onOpenPlan} onUpload={onUpload} />
 
+      {createPortal(
+        <CardContextMenu open={!!fileMenu} x={fileMenu?.x || 0} y={fileMenu?.y || 0}
+                         items={fileMenuItems()} onClose={() => setFileMenu(null)}
+                         workspaceId={workspaceId} boardId={fileMenu?.item?.boardId} card={null} />,
+        document.body,
+      )}
       {ql && (
         <Suspense fallback={null}>
           <QuickLook

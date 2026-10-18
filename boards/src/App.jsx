@@ -204,6 +204,7 @@ import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
 import { readSidebarWidth, writeSidebarWidth } from './lib/sidebarWidth.js';
 import { moveFiles, failureMessage } from './lib/clustersApi.js';
+import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
 import { useStorageUsage } from './hooks/useStorageUsage.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
@@ -802,6 +803,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // orientation. Plain desktop (mouse, !isTouch) is unaffected.
   const { isPhone, isTablet, isTouch } = useBreakpoint();
   const mobileShell = isPhone || (isTablet && isTouch);
+  // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx),
+  // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
+  // Read this early: with it, Files has no dock and no pill (see canDockMain).
+  const filesSidebar = sidebarFilesAllowed();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Ephemeral immersive "focus" view for touch — hides ALL chrome so the user
   // can just look at a board/pictures. Distinct from the persisted desktop
@@ -1327,7 +1332,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [mainRoom, setMainRoom] = useState(() => (
     typeof window !== 'undefined' && canDock(window.innerWidth - 240, { mobileShell })
   ));
-  const canDockMain = mainRoom && !mobileShell;
+  // With the files sidebar the files live on the left, so Files never docks on
+  // the right: F and Show Files open the full page, a Board button comes back.
+  const canDockMain = mainRoom && !mobileShell && !filesSidebar;
   const mainFilesMode = filesModeOf({ view, dockOpen: dockPrefs.open, canDock: canDockMain });
   // Read at call time by handlers that outlive this render: which board is in
   // full Files (null when none is), and whether there's room beside it.
@@ -1598,6 +1605,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const from = mainFilesMode;
     const to = plan.next;
     if (to === from) return;
+    // With the files sidebar, F, ⤢ and the Board button change what THIS device
+    // shows, never the cluster: how it opens for everyone is its own menu item
+    // ("Always open in Files"), not a side effect of looking at its files.
+    if (filesSidebar && (to === 'full' || from === 'full')) {
+      setViewOverride((o) => ({ ...o, [currentId]: to === 'full' ? 'list' : 'canvas' }));
+      if (to === 'full') {
+        markViewSwitched();
+        tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId: currentId });
+      }
+      logEvent(EV.FILES_DOCK, { from, to, via, board_id: currentId });
+      return;
+    }
     if (to === 'full') setView('list', via);
     else if (from === 'full') setView('canvas', via);
     if (to === 'panel') updateDockPrefs({ open: true });
@@ -5338,10 +5357,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
 
-  // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx),
-  // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
-  const filesSidebar = sidebarFilesAllowed();
   const [sidebarW, setSidebarW] = useState(() => readSidebarWidth());
+  // A shelf's ⤢ opens its cluster in full Files narrowed to that shelf.
+  const [filesFilter, setFilesFilter] = useState(null);   // { boardId, buckets, token }
   const sidebarStorage = useStorageUsage({ enabled: filesSidebar });
   const [paletteQuery, setPaletteQuery] = useState('');
   // Upload pressed off the board: the files wait here while the picked cluster
@@ -9028,6 +9046,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       onExpand: () => applyFilesEvent('expand', 'button'),
       onShrink: () => applyFilesEvent('shrink', 'button'),
       onClose: () => applyFilesEvent('close', 'button'),
+      // No pill to press with the files sidebar: full Files says how back.
+      onBoard: filesSidebar ? () => applyFilesEvent('board', 'board_button') : null,
     } : null;
     const renderList = (listMode) => {
       const paneId = listMode === 'panel' ? 'files' : basePaneId;
@@ -9078,6 +9098,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        hasSplit={listMode === 'panel' || !!splitId}
                        mode={listMode}
                        dockControls={dockControls}
+                       filterRequest={filesFilter?.boardId === board.id ? filesFilter : null}
                        mutators={muts}
                        // Kept when browsing replaces board/cards/mutators: a drag
                        // that springs into another cluster moves files from here.
@@ -9541,10 +9562,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               onUpload={uploadFromSidebar}
               onOpenBoard={openSidebarCluster}
               onShowFile={showSidebarFile}
-              onOpenShelf={(boardId) => { if (mobileShell) setMobileNavOpen(false); setCurrentSurface('board'); openInFiles(boardId); }}
+              onOpenShelf={(boardId, shelfId) => {
+                if (mobileShell) setMobileNavOpen(false);
+                setCurrentSurface('board');
+                setFilesFilter({ boardId, buckets: SHELF_BUCKETS[shelfId] || [], token: Date.now() });
+                openInFiles(boardId);
+              }}
               onOpenPalette={(q) => { setPaletteQuery(q || ''); setPaletteOpen(true); }}
               feedback={feedback}
               onPickCluster={requestClusterPick}
+              onSetOpensAs={(id, v) => setView(v, 'sidebar_menu', id)}
               onDropFilesOnCluster={dropFilesOnCluster}
               uploadsByBoard={sidebarUploads}
               liveMutators={mainMutators}
@@ -9725,6 +9752,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-center">
+            {!filesSidebar && (
             <ViewSwitch mode={switchMode} filesCount={switchFilesCount}
                         onSegment={(seg) => {
                           if (!switchInSplit) { applyFilesEvent(seg, 'topbar'); return; }
@@ -9733,6 +9761,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                           const want = seg === 'board' ? 'canvas' : 'list';
                           if (want !== switchView) setView(want, 'topbar', switchBoardId);
                         }} />
+            )}
           </div>
 
           <div className="tb-right">
