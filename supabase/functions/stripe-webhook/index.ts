@@ -508,13 +508,24 @@ async function onSubscriptionDeleted(admin: ReturnType<typeof createClient>, sub
 
   // Stamped as an observation: a canceled subscription never comes back, so
   // a read that started before this one must not write "active" over it.
-  const cancelUpd = await admin.from("subscriptions").update({
+  // And only the row still tracking THIS subscription: a resubscribe can take
+  // the row over between the read above and this write, and canceling it then
+  // would mark the new, paying subscription dead and demote its owner. A
+  // legacy row with no subscription id is matched by user, as before.
+  const storedSubId = (stored.data?.stripe_subscription_id as string | undefined) ?? null;
+  let cancelQ = admin.from("subscriptions").update({
     status: "canceled",
     cancel_at_period_end: false,
     observed_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
+  if (storedSubId) cancelQ = cancelQ.eq("stripe_subscription_id", sub.id);
+  const cancelUpd = await cancelQ.select("user_id");
   if (cancelUpd.error) throw new Error(`subscription cancel write failed: ${cancelUpd.error.message}`);
+  if (storedSubId && !cancelUpd.data?.length) {
+    console.warn("[stripe] deleted: the mirror moved to another subscription meanwhile — skipped", { userId, eventSub: sub.id });
+    return;
+  }
 
   // Don't drop to demo if the user still has an active admin grant —
   // their paid access comes from the grant, independent of Stripe. A

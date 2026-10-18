@@ -70,6 +70,10 @@ async function cancelStripeSub(admin: Admin, userId: string): Promise<{ canceled
   const live = ["active", "trialing", "past_due", "unpaid", "paused"].includes(status ?? "");
   if (!subId || !live) return { canceled: false, subId };
 
+  // Before the cancel: a mirror writer that read Stripe before it and writes
+  // after it then looks older, and the mirror guard (0415) turns it away
+  // instead of writing "active" back over a canceled subscription.
+  const observedAt = new Date().toISOString();
   try {
     await stripe.subscriptions.cancel(subId);
   } catch (e) {
@@ -80,6 +84,7 @@ async function cancelStripeSub(admin: Admin, userId: string): Promise<{ canceled
   await admin.from("subscriptions").update({
     status: "canceled",
     cancel_at_period_end: false,
+    observed_at: observedAt,
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
   return { canceled: true, subId };

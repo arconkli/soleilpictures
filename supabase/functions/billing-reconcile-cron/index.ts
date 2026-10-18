@@ -141,8 +141,16 @@ Deno.serve(async (req) => {
         const observedAt = new Date().toISOString();
         try {
           live = await stripe.subscriptions.retrieve(subId, { expand: ["discounts", "latest_invoice"] });
-        } catch (_e) {
-          live = null; // deleted long ago / no such subscription
+        } catch (e) {
+          // Only Stripe saying the subscription does not exist means it is
+          // gone. A rate limit, a 5xx or a dropped connection says nothing
+          // about it: rethrow, so this user counts as an error and is tried
+          // again tomorrow. Read as "missing", one failed request on a run
+          // that re-reads every paid user would mark a paying customer
+          // canceled and demote them.
+          const err = e as { code?: string; statusCode?: number };
+          if (err?.code !== "resource_missing" && err?.statusCode !== 404) throw e;
+          live = null;
         }
         const customerId = live
           ? (typeof live.customer === "string" ? live.customer : live.customer.id)
@@ -165,13 +173,17 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Below, every write goes only to the row still tracking the
+        // subscription read above. A resubscribe can take the row over while
+        // this run is mid-user; writing the old subscription back over it —
+        // and demoting on its account — would cancel a paying customer.
+        const tracked = () => admin.from("subscriptions");
+
         if (live && entitlementFromSubscription(live, { cfg }).entitled) {
           // past_due while Stripe is still retrying, inside the grace: the
           // plan stays (activateCore), the mirror catches up.
-          const up = await admin.from("subscriptions").upsert(
-            mirrorRow(live, { userId, customerId, observedAt }),
-            { onConflict: "user_id" },
-          );
+          const up = await tracked().update(mirrorRow(live, { userId, customerId, observedAt }))
+            .eq("user_id", userId).eq("stripe_subscription_id", subId).select("user_id");
           if (up.error) throw new Error(`mirror write failed: ${up.error.message}`);
           kept++;
           notes.push({ userId, action: "kept_past_due", status: live.status });
@@ -180,15 +192,16 @@ Deno.serve(async (req) => {
 
         // Not entitled, or gone — mirror the truth and demote (tier guard keeps
         // admins safe; the grant case was excluded above).
-        const upd = live
-          ? await admin.from("subscriptions").upsert(mirrorRow(live, { userId, customerId, observedAt }), { onConflict: "user_id" })
-          : await admin.from("subscriptions").update({
+        const upd = await tracked().update(live
+          ? mirrorRow(live, { userId, customerId, observedAt })
+          : {
               status: "canceled",
               cancel_at_period_end: false,
               observed_at: observedAt,
               updated_at: new Date().toISOString(),
-            }).eq("user_id", userId);
+            }).eq("user_id", userId).eq("stripe_subscription_id", subId).select("user_id");
         if (upd.error) throw new Error(`mirror write failed: ${upd.error.message}`);
+        if (!upd.data?.length) { skipped++; continue; }   // the row moved to another subscription
         const dem = await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
         if (dem.error) throw new Error(`demote failed: ${dem.error.message}`);
         demoted++;
