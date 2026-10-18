@@ -107,6 +107,10 @@ const NOOP = () => {};
 const USER = { id: '00000000-0000-4000-8000-000000000000', email: 'preview@example.com', created_at: '2026-08-01T00:00:00Z' };
 const BOARD = { id: '00000000-0000-4000-8000-00000000b0a4', name: 'Reference wall', workspace_id: '00000000-0000-4000-8000-0000000077aa' };
 const WORKSPACE = { id: BOARD.workspace_id, name: 'My workspace', created_by: USER.id };
+// Someone else's workspace, for the view-only Share panel.
+const OTHER_USER_ID = '00000000-0000-4000-8000-0000000000aa';
+// What get_my_referral_stats would say for someone with a few invitations out.
+const SHARE_STATS = async () => ({ friendsJoined: 3, friendsActivated: 2, pending: 1, cardsEarned: 50, rewardsWaiting: 0 });
 
 // A 2×2 mid-grey PNG. Deliberately not a 1×1: a 1×1 satisfies toBeVisible while
 // proving nothing, and the same is true of a preview you are looking at.
@@ -193,8 +197,13 @@ export const RENDERERS = {
   'tour-project': ({ close }) => <OnboardingTour step={stepsFor('project_first')[0]} onEvent={NOOP} onSkip={close} onView={NOOP} onAction={NOOP} />,
 
   // Sharing
-  'share-modal': ({ close }) => <ShareModal board={BOARD} workspace={WORKSPACE} selfUserId={USER.id} canManage onClose={close} />,
-  'share-modal-invite': ({ close }) => <ShareModal board={BOARD} workspace={WORKSPACE} selfUserId={USER.id} canManage initialSection="invite-link" onClose={close} />,
+  // The reward note reads the referral stats through loadReferralStats; these
+  // fixtures stand in for get_my_referral_stats so no preview shows a real
+  // account's numbers.
+  'share-modal': ({ close }) => <ShareModal board={BOARD} workspace={WORKSPACE} selfUserId={USER.id} canManage rewardTier="demo" loadReferralStats={SHARE_STATS} onOpenInvites={close} onClose={close} />,
+  'share-modal-invite': ({ close }) => <ShareModal board={BOARD} workspace={WORKSPACE} selfUserId={USER.id} canManage initialSection="invite-link" rewardTier="demo" onClose={close} />,
+  'share-modal-paid': ({ close }) => <ShareModal board={BOARD} workspace={WORKSPACE} selfUserId={USER.id} canManage rewardTier="paid" onClose={close} />,
+  'share-modal-viewer': ({ close }) => <ShareModal board={BOARD} workspace={{ ...WORKSPACE, created_by: OTHER_USER_ID }} selfUserId={USER.id} rewardTier="demo" onClose={close} />,
   'public-topbar-signed-out': () => <PublicTopbar hrefFor={() => '#'} onCta={() => NOOP} center={<div className="public-topbar-spacer" />} />,
   'public-topbar-remix': () => <PublicTopbar hrefFor={() => '#'} onCta={() => NOOP} remixUrl="#" center={<div className="public-topbar-spacer" />} />,
   'public-topbar-signed-in': () => <PublicTopbar hrefFor={() => '#'} onCta={() => NOOP} remixUrl="#" signedIn center={<div className="public-topbar-spacer" />} />,

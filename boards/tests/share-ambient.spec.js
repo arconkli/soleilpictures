@@ -39,7 +39,7 @@ test.describe('one Share control, and Share opens sharing', () => {
     const s = app();
     // It names the pane it was pressed in (split view shares the split's
     // cluster, not the main one) and then opens the one panel.
-    expect(s).toMatch(/className="tb-btn" onClick=\{\(\) => \{ setShareBoardId\([^)]*\); setShareOpen\(true\); \}\} title="Share this cluster"/);
+    expect(s).toMatch(/className="tb-btn tb-share" onClick=\{\(\) => \{ setShareBoardId\([^)]*\); setShareOpen\(true\); \}\} title="Share this cluster" aria-label="Share this cluster"/);
     // Not two: an icon beside it opening the console is what the intermediate
     // fix shipped, and on a phone .tb-btn-label is hidden, so the pair rendered
     // as two unlabelled share glyphs with nothing to tell them apart.
@@ -65,8 +65,17 @@ test.describe('one Share control, and Share opens sharing', () => {
     // no longer copying, Share → Enter has to put a link on the clipboard or the
     // one-press path is genuinely gone rather than relocated.
     const m = modal();
-    expect(m).toMatch(/initialFocusRef=\{canInvite \? takeLinkRef : undefined\}/);
-    expect(m).toMatch(/share-invite-btn-primary"\s*\n\s*ref=\{takeLinkRef\}/);
+    expect(m).toMatch(/initialFocusRef=\{canInvite \? copyLinkRef : doneRef\}/);
+    expect(m).toMatch(/goldIf\('copy'\)\}\s*\n\s*ref=\{copyLinkRef\}/);
+  });
+
+  test('Share is the one control in the top bar that is filled at rest', () => {
+    // A grey label among grey icons was easy to miss, and it is the way people
+    // reach invitations. The fill is the text colour (no gold: that marks
+    // active, selection and focus), and the hover keeps the text readable.
+    const c = read('src/styles.css');
+    expect(c).toMatch(/\.tb-btn\.tb-share \{\s*background: var\(--ink-0\);\s*color: var\(--bg-0\);/);
+    expect(c).toMatch(/\.tb-btn\.tb-share:hover:not\(:disabled\) \{[^}]*color: var\(--bg-0\);/);
   });
 
   test('the copy is still distinguishable from the dialog open', () => {

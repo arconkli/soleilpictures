@@ -171,7 +171,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
   if (!collapsible) {
     return (
       <div className="share-section">
-        <div className="share-eyebrow">PUBLISH TO EXPLORE</div>
+        <h3 className="share-section-title">Publish to Explore</h3>
         {body}
       </div>
     );
@@ -180,7 +180,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
   return (
     <details className="share-section share-advanced">
       <summary>
-        <span className="share-eyebrow">PUBLISH TO EXPLORE</span>
+        <span className="share-section-title">Publish to Explore</span>
         {statusChip && <span className="share-advanced-status">{statusChip}</span>}
       </summary>
       {body}

@@ -363,7 +363,7 @@ export const EV = Object.freeze({
   // ── Referral / "Invite friends, earn free cards" (migration 0163) ──
   // Client-fired; the three conversion events (signup/activated/reward_granted)
   // are fired SERVER-side from the signup + first-card triggers into analytics_events.
-  REFERRAL_OPEN:           'referral_open',               // opened the invite surface {surface:'cap_toast'|'nudge'|'cap_modal'|'menu'|'reward_toast'|'paid_nudge'}
+  REFERRAL_OPEN:           'referral_open',               // opened the invite surface {surface:'cap_toast'|'nudge'|'cap_modal'|'menu'|'reward_toast'|'paid_nudge'|'share_modal'}
   REFERRAL_TAB_VIEW:       'referral_tab_view',           // Invite & earn account tab mounted {has_code}
   REFERRAL_LINK_COPIED:    'referral_link_copied',        // copied the ?ref= link {surface}
   REFERRAL_LINK_SHARED:    'referral_link_shared',        // shared the link {surface,channel:'native'|'whatsapp'|'x'|'email'|'sms'}
@@ -375,7 +375,7 @@ export const EV = Object.freeze({
   // never referenced these constants.
   REFERRAL_SIGNUP:         'referral_signup',             // SERVER: friend signed up via a referral {source,code}
   REFERRAL_ACTIVATED:      'referral_activated',          // SERVER: referee created first genuine card
-  REFERRAL_REWARD_GRANTED: 'referral_reward_granted',     // SERVER: referrer credited {referee,amount}
+  REFERRAL_REWARD_GRANTED: 'referral_reward_granted',     // SERVER: referrer credited {referee,amount,storage_bytes}
 
   // ── Collaborator invites (the "build together" growth loop) ──
   // The banner fires at the activation beat (3 genuine cards) and routes into
@@ -384,7 +384,7 @@ export const EV = Object.freeze({
   INVITE_NUDGE_VIEW:       'invite_nudge_view',           // "build this together" banner shown {surface}
   INVITE_NUDGE_CTA:        'invite_nudge_cta',            // banner CTA clicked → Share panel (must-land)
   INVITE_NUDGE_DISMISS:    'invite_nudge_dismiss',        // banner dismissed {surface}
-  INVITE_SENT:             'invite_sent',                 // collaborator invite(s) submitted {role,result:'granted'|'pending',n,surface} (must-land)
+  INVITE_SENT:             'invite_sent',                 // collaborator invite(s) submitted {role,result:'granted'|'pending',n,surface,reward_note:'free'|'paid'} (must-land)
 
   // ── Invite links ("anyone with this link joins as editor/viewer", 0189) ──
   INVITE_LINK_CREATED:     'invite_link_created',         // link minted/reused in ShareModal {role,expiry,board_id,surface} (must-land)

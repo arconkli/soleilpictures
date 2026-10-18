@@ -23,7 +23,7 @@ test('profiles carries the invitation storage, and no client can write it', () =
   for (const f of migrationFiles().filter((f) => prefix(f) >= 416)) {
     const text = readFileSync(new URL(f, `file://${MIGRATIONS_DIR}`), 'utf8');
     assert.doesNotMatch(text, /grant\s+[^;]*\bbonus_storage_bytes\b[^;]*\bto\s+[^;]*\b(?:anon|authenticated)\b/i, f);
-    assert.doesNotMatch(text, /grant\s+(?:all|insert|update)(?:\s*,\s*\w+)*\s+on\s+(?:table\s+)?public\.profiles\s+to\s+[^;]*\b(?:anon|authenticated)\b/i, f);
+    assert.doesNotMatch(text, /\bgrant\s+[^;]*?\b(?:all|insert|update)\b[^;]*?\bon\s+(?:table\s+)?public\.profiles\s+to\s+[^;]*\b(?:anon|authenticated)\b/i, f);
   }
 });
 

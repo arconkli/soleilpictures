@@ -27382,7 +27382,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on any cluster opens the dialog. Two mechanisms:"
+     "v": " on any cluster opens the panel, with inviting at the top. Two mechanisms:"
     }
    ]
   },
@@ -27429,7 +27429,31 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Also in the dialog: current workspace members, existing per-board shares, and "
+     "v": "Inviting someone who is new to Clusters also pays you both: they get bonus cards and 0.5GB of storage when they join, and you get bonus cards and 0.5GB once they get started. The panel says so under the invite box, and "
+    },
+    {
+     "t": "link",
+     "v": "Referrals",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "Referrals"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " has the rules."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Also in the panel: current workspace members, existing per-board shares, and "
     },
     {
      "t": "link",
@@ -27820,7 +27844,77 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " panel answers one question — who can open this cluster? — and everything in it hangs off that answer. It opens on one button and one picker; the rest is behind "
+     "v": " panel answers one question — who can open this cluster? — in the order you decide it: "
+    },
+    {
+     "t": "strong",
+     "v": "Invite people",
+     "children": [
+      {
+       "t": "text",
+       "v": "Invite people"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " by email first, then "
+    },
+    {
+     "t": "strong",
+     "v": "People with access",
+     "children": [
+      {
+       "t": "text",
+       "v": "People with access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "Link access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Link access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for anyone else. "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " sit at the bottom and stay put while the rest scrolls; anything more detailed about links is behind "
     },
     {
      "t": "strong",
@@ -27857,7 +27951,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the board header, from "
+     "v": " — the filled button in the board header, a filled round button on a phone — from "
     },
     {
      "t": "code",
@@ -27886,14 +27980,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "General access — the link, and what it grants",
+   "text": "Link access — the link, and what it grants",
    "inline": [
     {
      "t": "text",
-     "v": "General access — the link, and what it grants"
+     "v": "Link access — the link, and what it grants"
     }
    ],
-   "id": "general-access-the-link-and-what-it-grants"
+   "id": "link-access-the-link-and-what-it-grants"
   },
   {
    "type": "para",
@@ -27931,11 +28025,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Anyone with the link · can view",
+       "v": "Anyone with the link can view",
        "children": [
         {
          "t": "text",
-         "v": "Anyone with the link · can view"
+         "v": "Anyone with the link can view"
         }
        ]
       }
@@ -27957,11 +28051,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Anyone with the link · can edit",
+       "v": "Anyone with the link can edit",
        "children": [
         {
          "t": "text",
-         "v": "Anyone with the link · can edit"
+         "v": "Anyone with the link can edit"
         }
        ]
       }
@@ -27983,11 +28077,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Only invited people",
+       "v": "Only people with access",
        "children": [
         {
          "t": "text",
-         "v": "Only invited people"
+         "v": "Only people with access"
         }
        ]
       }
@@ -28012,7 +28106,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Choosing one hands you the link straight away; the button beside the picker copies it again any time. Switching between "
+     "v": "Choosing a setting that already has a link copies it straight away. "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the bottom of the panel copies it again any time, and makes the link the first time. Switching between "
     },
     {
      "t": "strong",
@@ -28044,11 +28152,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Only invited people",
+     "v": "Only people with access",
      "children": [
       {
        "t": "text",
-       "v": "Only invited people"
+       "v": "Only people with access"
       }
      ]
     },
@@ -28067,11 +28175,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Only invited people",
+     "v": "Only people with access",
      "children": [
       {
        "t": "text",
-       "v": "Only invited people"
+       "v": "Only people with access"
       }
      ]
     },
@@ -28351,14 +28459,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Inviting specific people",
+   "text": "Inviting people",
    "inline": [
     {
      "t": "text",
-     "v": "Inviting specific people"
+     "v": "Inviting people"
     }
    ],
-   "id": "inviting-specific-people"
+   "id": "inviting-people"
   },
   {
    "type": "para",
@@ -28393,7 +28501,57 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and send. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up."
+     "v": ", and press "
+    },
+    {
+     "t": "strong",
+     "v": "Invite",
+     "children": [
+      {
+       "t": "text",
+       "v": "Invite"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The line under the box says what the role you picked lets them do. If they do not have an account yet they get an invitation and the access is waiting for them when they sign up."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Inviting someone new",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Inviting someone new"
+    }
+   ],
+   "id": "inviting-someone-new"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The panel says, under the invite box, what an invitation is worth. Someone who joins Clusters through your invitation starts with 25 extra cards and 0.5GB of storage, and you get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card — whichever role you invited them as, to one cluster or to the whole workspace. A new account that joins through one of your edit links counts the same way. Inviting someone who already has an account shares the cluster just as well but earns no reward. Once anyone has joined through you, the panel also shows how many, and what you have earned. The limits are on "
+    },
+    {
+     "t": "link",
+     "v": "Referrals",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "Referrals"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -28446,21 +28604,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Workspace owners and co-owners get a third choice, "
+     "v": "Workspace owners and co-owners also get "
     },
     {
      "t": "strong",
-     "v": "Whole workspace",
+     "v": "Whole workspace · can edit",
      "children": [
       {
        "t": "text",
-       "v": "Whole workspace"
+       "v": "Whole workspace · can edit"
       }
      ]
     },
     {
      "t": "text",
-     "v": " — that grants every cluster in the workspace, not just this one, so only they can hand it out. "
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Whole workspace · can view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Whole workspace · can view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — those grant every cluster in the workspace, not just this one, so only they can hand them out. "
     },
     {
      "t": "strong",
@@ -28488,7 +28660,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " menu opens the panel with that choice already picked."
+     "v": " menu opens the panel with "
+    },
+    {
+     "t": "strong",
+     "v": "Whole workspace · can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Whole workspace · can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " already picked."
     }
    ]
   },
@@ -28600,6 +28786,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (it reads "
+    },
+    {
+     "t": "strong",
      "v": "Create link & copy",
      "children": [
       {
@@ -28610,7 +28810,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", so "
+     "v": " until the cluster has a link), so "
     },
     {
      "t": "code",
@@ -35802,7 +36002,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once."
+     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel says so under its invite box."
     }
    ]
   }

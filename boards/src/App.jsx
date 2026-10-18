@@ -154,7 +154,8 @@ import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats } from './lib/boardsApi.js';
+import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { isAbandonedUpload } from './lib/abandonedUploads.js';
@@ -5961,6 +5962,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // invited just activated — granted server-side, picked up on the next
   // focus refetch), confirm it. The first known value sets a silent baseline
   // so we never toast on load or for the referee's own signup head-start.
+  //
+  // Whose cards these are comes from the referral stats: a reward paid to you
+  // is counted in cardsEarned, a new account's own bonus for joining through an
+  // edit link mid-session is not — and was being announced as "a friend you
+  // invited just got started". The storage half of a reward lands with the
+  // cards (0416), so the toast names both.
   const prevBonusRef = useRef(null);
   useEffect(() => {
     if (myTier.loading) return;
@@ -5969,16 +5976,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     prevBonusRef.current = cur;
     if (prev != null && cur > prev) {
       const delta = cur - prev;
-      try {
-        feedback.toast({
-          type: 'success',
-          message: `You earned ${delta} free card${delta === 1 ? '' : 's'} — a friend you invited just got started.`,
-          // The highest-intent re-share moment — turn the celebration back into
-          // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
-          action: { label: 'Invite more', onClick: () => openInviteFriends('reward_toast') },
-          ttl: 12000,
-        });
-      } catch (_) {}
+      const tier = myTier.tier;
+      (async () => {
+        let asInviter = true;   // the common case, and all this toast used to say
+        try {
+          const stats = await getMyReferralStats();
+          asInviter = (Number(stats?.cardsEarned) || 0) >= delta;
+        } catch (_) { /* keep the inviter wording */ }
+        try {
+          feedback.toast({
+            type: 'success',
+            message: rewardToastMessage({ deltaCards: delta, tier, asInviter }),
+            // The highest-intent re-share moment — turn the celebration back into
+            // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
+            action: { label: asInviter ? 'Invite more' : 'Invite someone', onClick: () => openInviteFriends('reward_toast') },
+            ttl: 12000,
+          });
+        } catch (_) {}
+      })();
     }
   }, [myTier.bonusCardCredits, myTier.loading]);
 
@@ -9476,9 +9491,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 the door rather than instead of it.
 
                 What that buys back: invites, revoking, and publishing stop being
-                reachable only through a toast that disappears. */}
-            <button className="tb-btn" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster">
-              <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
+                reachable only through a toast that disappears.
+
+                It is also the one control in the bar that is filled at rest
+                (.tb-share): a solid pill in the text colour, a solid circle on a
+                phone where the label is hidden. Grey text among grey icons was
+                easy to miss, and it is the way people reach invitations. */}
+            <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
+              <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
             </button>
             <button className="tb-icon tb-icon-theme" title="Toggle theme"
                     onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
@@ -9832,6 +9852,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }}
             onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
             onWorkspacesChanged={() => { refreshWorkspaceRole(); onWorkspacesChanged?.(); }}
+            rewardTier={myTier.tier}
+            loadReferralStats={getMyReferralStats}
+            onOpenInvites={() => {
+              setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null);
+              openInviteFriends('share_modal');
+            }}
             onSharesChanged={() => { refreshSharedBoards?.(); }}
             onLinkCreated={() => {
               try {

@@ -171,4 +171,5 @@ export {
   CornersIn,
   SpeakerLow,
   Keyboard,
+  Gift,
 } from '@phosphor-icons/react';

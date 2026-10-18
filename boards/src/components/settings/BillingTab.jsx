@@ -14,6 +14,7 @@ import { checkoutErrorMessage } from '../../lib/checkoutErrors.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { useMyTier } from '../../hooks/useMyTier.js';
 import { useStorageUsage } from '../../hooks/useStorageUsage.js';
+import { formatBonusBytes } from '../../lib/inviteReward.js';
 import { PricingModal } from '../PricingModal.jsx';
 import { StorageAddonSheet } from '../StorageAddonSheet.jsx';
 import { useBfcacheRestore } from '../../auth/useBfcacheRestore.js';
@@ -142,6 +143,26 @@ function fmtBytes(b) {
 // percent sub-line so it reads as a real usage gauge wherever it's mounted.
 export function StorageMeter() {
   const usage = useStorageUsage({ enabled: true });
+  // Storage earned by invitations (0416) is already inside the quota above.
+  // Say where it came from, or a drive bigger than the plan's reads like a
+  // mistake next to every page that names the plan's figure.
+  const [inviteBytes, setInviteBytes] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const uid = session?.user?.id;
+        if (!uid) return;
+        const { data } = await supabase.from('profiles')
+          .select('bonus_storage_bytes')
+          .eq('user_id', uid)
+          .maybeSingle();
+        if (!cancelled) setInviteBytes(Number(data?.bonus_storage_bytes) || 0);
+      } catch (_) { /* the meter is complete without the attribution line */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const pct = usage.quota ? Math.min(100, (usage.used / usage.quota) * 100) : 0;
   const near = pct >= 90;
   const remaining = usage.remaining != null
@@ -186,6 +207,11 @@ export function StorageMeter() {
           {remaining != null ? `${fmtBytes(remaining)} free` : ''}
           {remaining != null ? ' · ' : ''}
           {Math.round(pct)}% used
+        </div>
+      )}
+      {inviteBytes > 0 && (
+        <div className="t-meta" style={{ marginTop: 4, color: 'var(--ink-3, #9aa0aa)' }}>
+          Includes {formatBonusBytes(inviteBytes)} from invites
         </div>
       )}
     </div>
