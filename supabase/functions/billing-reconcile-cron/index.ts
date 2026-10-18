@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
 
       // Stale or non-live mirror on a still-paid tier — ask Stripe.
       let live: Stripe.Subscription | null = null;
+      const observedAt = new Date().toISOString();
       try {
         live = await stripe.subscriptions.retrieve(subId, { expand: ["discounts"] });
       } catch (_e) {
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
       if (live && (live.status === "active" || live.status === "trialing")) {
         // Stripe says alive (a renewal the dead webhook missed) — repair.
         const customerId = typeof live.customer === "string" ? live.customer : live.customer.id;
-        const r = await activateUserFromSubscription(admin, { userId, customerId, subscription: live });
+        const r = await activateUserFromSubscription(admin, { userId, customerId, subscription: live, observedAt });
         if (!r.activated && !r.soft) throw new Error(`repair failed: ${r.reason}`);
         repaired++;
         notes.push({ userId, action: "repaired", status: live.status });
@@ -125,6 +126,7 @@ Deno.serve(async (req) => {
       const upd = await admin.from("subscriptions").update({
         status: live?.status ?? "canceled",
         cancel_at_period_end: false,
+        observed_at: observedAt,
         updated_at: new Date().toISOString(),
       }).eq("user_id", userId);
       if (upd.error) throw new Error(`mirror write failed: ${upd.error.message}`);

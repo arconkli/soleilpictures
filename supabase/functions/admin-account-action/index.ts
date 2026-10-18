@@ -31,11 +31,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
-import {
-  netMonthlyFromSubscription,
-  periodEndFromSubscription,
-  planFromPriceId,
-} from "../_shared/activate.ts";
+import { mirrorRow } from "../_shared/activate.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -95,19 +91,15 @@ async function resyncSubscription(admin: Admin, userId: string) {
   const subId = (row.data?.stripe_subscription_id as string | null) ?? null;
   if (!subId) return { ok: false, reason: "no subscription on file" };
 
+  const observedAt = new Date().toISOString();
   const sub = await stripe.subscriptions.retrieve(subId, { expand: ["discounts"] });
-  const billing = netMonthlyFromSubscription(sub);
-  const upd = await admin.from("subscriptions").update({
-    plan: planFromPriceId(sub.items.data[0]?.price?.id),
-    status: sub.status,
-    current_period_end: periodEndFromSubscription(sub),
-    cancel_at_period_end: sub.cancel_at_period_end,
-    monthly_amount_cents: billing.monthlyAmountCents,
-    discount: billing.discount,
-    updated_at: new Date().toISOString(),
-  }).eq("user_id", userId);
+  const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  // The same row every mirror writer builds (activate.ts), extra-storage
+  // blocks included.
+  const row = mirrorRow(sub, { userId, customerId, observedAt });
+  const upd = await admin.from("subscriptions").update(row).eq("user_id", userId);
   if (upd.error) return { ok: false, reason: upd.error.message };
-  return { ok: true, status: sub.status, monthly_amount_cents: billing.monthlyAmountCents, discount: billing.discount };
+  return { ok: true, status: sub.status, monthly_amount_cents: row.monthly_amount_cents, discount: row.discount };
 }
 
 Deno.serve(async (req) => {
