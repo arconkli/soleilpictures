@@ -11,9 +11,8 @@
 //      so a refresh always lands before the URL expires.
 
 import { supabase } from './supabase.js';
+import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from './partyHost.js';
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
-const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
 
 // The upload party signs read URLs valid for 7 days; we cache them for 6 so a
 // refresh always lands before expiry. Long-lived + persisted (below) is what

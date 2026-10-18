@@ -1,35 +1,46 @@
-// PartyKit Y.Doc + Awareness provider.
+// The board's Y.Doc + Awareness provider, against the party Worker.
 //
-// y-partykit speaks the Yjs sync protocol natively, multiplexes Awareness
-// over the same socket, and reconnects automatically. Auth is enforced
-// at the WebSocket upgrade by the party server (see party/auth.ts).
+// y-partyserver's YProvider (PartyKit's y-partykit provider until the party
+// moved off PartyKit's hosted platform in October 2026) speaks the Yjs sync
+// protocol, multiplexes Awareness over the same socket, and reconnects
+// automatically. Auth is enforced at the WebSocket upgrade by the party
+// Worker (party/index.ts). The room is /parties/main/<boardId>, as before.
 //
 // TOKEN REFRESH — the access_token rides the WS URL query string. `params`
-// is an async FUNCTION: YPartyKitProvider.connect() re-evaluates it and
-// rebuilds the URL before every explicit (re)connect, so a Supabase JWT
-// rotation (default hourly) needs NO action while the socket is healthy —
-// the server validates the token at upgrade only. The one gap is the base
-// provider's AUTO-reconnect path (setTimeout(setupWS) reuses this.url), so
-// after the server closes a connection whose URL token went stale, native
-// backoff would retry 401 forever. The reconnector (partyTokenRefresh.js)
-// watches connection-close: when the current session token differs from the
-// one baked into the URL it runs a CHEAP refresh cycle — disconnect() +
+// is an async FUNCTION, re-evaluated before every connect — YProvider also
+// does it before its own AUTO-reconnects, which y-partykit did not. The
+// reconnector (partyTokenRefresh.js) stays as the belt to that braces: it
+// watches connection-close, and when the current session token differs from
+// the one baked into the URL it runs a CHEAP refresh cycle — disconnect() +
 // connect() on the SAME provider. Y.Doc, awareness and every handler stay
 // alive; the sync delta is whatever changed while offline.
+//
+// LIVENESS — y-partykit renewed this tab's presence every 15 s, and closed a
+// socket that had heard nothing for 30 s so it would reconnect. YProvider does
+// neither: it stops awareness renewals (so peers do not time out) and has no
+// watchdog, so a socket that died without a close — a laptop waking from
+// sleep, a network that changed under it — looked connected while every edit
+// stayed local. The keepalive below puts both back: a presence renewal every
+// KEEPALIVE_MS, which the room echoes to every socket including this one, and
+// a close when nothing at all has arrived for DEAD_AFTER_MS.
 //
 // The previous design destroyed + reconstructed the entire provider on
 // every TOKEN_REFRESHED/SIGNED_IN pair (URL-token limitation workaround):
 // a full state resync + render burst, observed in the field landing in the
 // middle of zoom gestures as multi-hundred-ms freezes.
 
-import YPartyKitProvider from 'y-partykit/provider';
-import { Awareness } from 'y-protocols/awareness';
+import YProvider from 'y-partyserver/provider';
+import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
+import * as encoding from 'lib0/encoding';
 import { supabase } from './supabase.js';
 import { createStaleTokenReconnector } from './partyTokenRefresh.js';
 import { getGestureActiveUntil } from './perfReport.js';
 import * as perf from './perf.js';
+import { PARTY_HOST } from './partyHost.js';
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
+const KEEPALIVE_MS = 15_000;
+const DEAD_AFTER_MS = 45_000;
+const MESSAGE_AWARENESS = 1;
 
 async function freshAccessToken() {
   try {
@@ -59,7 +70,8 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
 
   // ONE provider for the lifetime of this attach.
   const _tCtor0 = perf.isEnabled() ? performance.now() : 0;
-  const provider = new YPartyKitProvider(PARTYKIT_HOST, boardId, ydoc, {
+  const provider = new YProvider(PARTY_HOST, boardId, ydoc, {
+    party: 'main',
     params: async () => {
       const accessToken = await freshAccessToken();
       if (accessToken) lastUsedToken = accessToken;   // what the URL will carry
@@ -87,20 +99,40 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       perf.bump('partykit.refreshConnect');
       // Same provider object: disconnect() closes + clears shouldConnect;
       // connect() re-evaluates the async params (fresh URL) before the base
-      // class reconnects. Race-safe in both close-event orderings — the URL
-      // rebuild happens in YPartyKitProvider.connect() itself, and setupWS
-      // only runs once shouldConnect is true AND the old socket is nulled.
+      // class reconnects. Race-safe in both close-event orderings: if the old
+      // socket's close lands first, connect() opens the new one; if connect()
+      // wins, it finds the old socket still set and stands down, and the
+      // close handler reconnects (refreshing params again) because
+      // shouldConnect is true by then.
       try { provider.disconnect(); } catch (_) {}
-      try { provider.connect(); } catch (_) {}
+      // YProvider.connect() is async (it awaits params); a rejection must not
+      // surface as an unhandled one.
+      try { Promise.resolve(provider.connect()).catch(() => {}); } catch (_) {}
     },
   });
 
-  // Intercept text frames on the underlying WS. y-partykit's protocol is
-  // binary (Uint8Array) Yjs frames; the server uses TEXT frames for
-  // out-of-band control signals like "soleil-board-reset" that tell peers
-  // to remount their useYBoard so a restore propagates without a CRDT-merge
-  // race. y-partykit ignores text frames internally, so our handler is the
-  // only consumer. The socket OBJECT is replaced on every (re)connect, so
+  // Liveness (see the header).
+  const keepalive = setInterval(() => {
+    if (destroyed || !provider.wsconnected || !provider.ws) return;
+    if (Date.now() - (provider.wsLastMessageReceived || 0) > DEAD_AFTER_MS) {
+      console.warn('[partykit] board', boardId, 'socket silent for', DEAD_AFTER_MS / 1000, 's; reconnecting');
+      perf.bump('partykit.deadSocket');
+      try { provider.ws.close(); } catch (_) {}
+      return;
+    }
+    try {
+      const enc = encoding.createEncoder();
+      encoding.writeVarUint(enc, MESSAGE_AWARENESS);
+      encoding.writeVarUint8Array(enc, encodeAwarenessUpdate(awareness, [ydoc.clientID]));
+      provider.ws.send(encoding.toUint8Array(enc));
+    } catch (_) { /* the next tick tries again */ }
+  }, KEEPALIVE_MS);
+
+  // Intercept text frames on the underlying WS. The Yjs protocol is binary
+  // (Uint8Array) frames; the room uses a raw TEXT frame for the out-of-band
+  // "soleil-board-reset" signal that tells peers to remount their useYBoard so
+  // a restore propagates without a CRDT-merge race. YProvider ignores text
+  // frames without its __YPS: prefix, so our handler is the only consumer. The socket OBJECT is replaced on every (re)connect, so
   // the listener is wired per connection from the status handler
   // (WeakSet-deduped) — attaching once at construction left the signal dead
   // after the first auto-reconnect.
@@ -200,6 +232,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     },
     destroy() {
       destroyed = true;
+      clearInterval(keepalive);
       reconnector.dispose();
       try { provider.destroy(); } catch (_) {}
       try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}

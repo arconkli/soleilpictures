@@ -9,8 +9,8 @@
 
 import PartySocket from 'partysocket';
 import { supabase } from './supabase.js';
+import { PARTY_HOST as PARTYKIT_HOST } from './partyHost.js';
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 // Workspace presence (who's in the workspace / which board) tolerates a few
 // seconds of staleness — live board cursors are a separate 250ms-throttled
 // system (yPartyKit awareness). 15s matches the Supabase realtime workspace

@@ -11,7 +11,6 @@ import { isAbandonedUpload } from './abandonedUploads.js';
 import { fitByCost } from './demoCardCap.js';
 import { docPagesText, docSignature } from './docText.js';
 
-const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
 // ── Workspaces ──────────────────────────────────────────────────────────────
 
@@ -1875,9 +1874,10 @@ export function decodeSnapshotBytes(b64) {
 
 // Restore a board's Y.Doc from snapshot bytes (base64). Used by the
 // drag-into-board safety net to auto-roll-back when the source-delete
-// invariant is violated. Writes the bytes to board_state, wipes the
-// PartyKit room, records an audit version, and fires the reset event so
-// every mounted useYBoard tears down + re-cold-loads the restored state.
+// invariant is violated. Writes the bytes to board_state, marks the
+// restore, wipes the board's room, records an audit version, and fires the
+// reset event so every mounted useYBoard tears down + re-cold-loads the
+// restored state.
 //
 // Throws on any failure — UI should catch and surface a toast.
 export async function bulletproofRestore(boardId, b64) {
@@ -1911,17 +1911,24 @@ export async function bulletproofRestore(boardId, b64) {
   } finally {
     tmp.destroy();
   }
-  // Known gap until the room handles it: between step 1 and the wipe below,
-  // the room's own debounced board_state flush (party/board.ts, via
-  // boardStateSync.js) can still land with the PRE-restore doc, and a fresh
-  // mount would then load that.
-  // Closing it needs the room to drop its pending flush on /reset (or the
-  // wipe to run before step 1).
-  // 2) Wipe the PartyKit room + kick every client. Best-effort: if the
-  //    party isn't deployed yet (or this returns 4xx), proceed anyway.
-  //    Without the wipe, the room's DO storage will eventually re-merge
-  //    its stale state and undo the restore for live connections — so
-  //    surface the failure to the caller so they can warn the user.
+  // 1b) Say it was a restore (0414). The board room merges anything it finds
+  //     in board_state that it did not write, which is what keeps a second
+  //     writer's edits; a restore is the one write that must REPLACE. With
+  //     the version advanced, a room that sees this write treats it as a
+  //     restore and resets itself instead of merging it back, so the restore
+  //     holds even if the reset below is late or fails. It also tells every
+  //     other open copy of the board to reload (board_restore_events).
+  //     After the write, never before: a room that saw the marker first
+  //     would adopt the board as it was before the restore.
+  {
+    const { error } = await supabase.rpc('mark_board_restored', { p_board_id: boardId });
+    if (error) console.warn('[bulletproofRestore] restore marker failed (continuing)', error);
+  }
+  // 2) Wipe the room + kick every client. Best-effort: if this returns 4xx,
+  //    proceed anyway. Since the move off PartyKit the room waits a few
+  //    seconds before merging a write it did not make (lib/boardRoomState.js),
+  //    so the old gap — the room's own flush landing between step 1 and this
+  //    wipe — no longer undoes the restore.
   try {
     await forceResetBoardRoom(boardId);
   } catch (e) {

@@ -18,7 +18,8 @@ export function loadConfig() {
     SUPABASE_SERVICE_ROLE_KEY: need('SUPABASE_SERVICE_ROLE_KEY'),
 
     // PartyKit — the live Yjs peer, so cards land on an already-open canvas.
-    PARTYKIT_HOST: process.env.PARTYKIT_HOST || 'soleil-boards-party.arconkli.partykit.dev',
+    // The party Worker (boards/src/lib/partyHost.js); PartyKit until October 2026.
+    PARTY_HOST: process.env.PARTY_HOST || 'soleil-boards-party.arconkli.workers.dev',
 
     // Workers AI over REST. There's no `AI` binding outside a Worker, so
     // scoutIntent.js falls back to this. Absent → deterministic intent, which

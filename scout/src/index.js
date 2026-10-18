@@ -164,7 +164,7 @@ async function main() {
   });
 
   console.log('[scout] listening', {
-    partykit: cfg.PARTYKIT_HOST,
+    party: cfg.PARTY_HOST,
     burstMs: cfg.BURST_MS,
     ai: cfg.CF_AI_TOKEN ? 'workers-ai' : 'deterministic-only',
     invites: cfg.INVITES_ENABLED ? 'draining' : 'DISABLED',

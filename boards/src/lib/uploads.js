@@ -27,9 +27,8 @@ import { planParts } from './multipartPlan.js';
 import { presignAndPut, retryWait, keepResumeSession } from './uploadRetry.js';
 import { runGated } from './backfillGate.js';
 import { enqueueVariant, dequeueVariant } from './variantQueue.js';
+import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from './partyHost.js';
 
-const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
-const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
 
 // Tier-1 preview spec (progressive image loading). The canvas shows this
 // downscaled WebP instead of the multi-MB original; the original is reserved

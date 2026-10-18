@@ -100,11 +100,12 @@ test('holds nest, and each releases once', () => {
 
 test('the Worker reports the stamped host, not a hand-kept copy', () => {
   const worker = readFileSync(new URL('../worker.js', import.meta.url), 'utf8');
-  assert.match(worker, /import \{[^}]*\bPARTY_HOST\b[^}]*\} from '\.\/lib\/buildInfo\.js'/);
+  // partyHost.js answers with the stamp in any stamped build (partyHost.test.mjs).
+  assert.match(worker, /import \{ PARTY_HOST \} from '\.\/lib\/partyHost\.js';/);
   assert.match(worker, /party: PARTY_HOST \|\| null/);
   const stamp = readFileSync(new URL('../../scripts/stamp-build.mjs', import.meta.url), 'utf8');
-  // The stamp reads the variable the client modules read, with their fallback.
-  assert.match(stamp, /env\.VITE_PARTYKIT_HOST \|\| 'localhost:1999'/);
+  // The stamp computes what lib/partyHost.js computes for this build.
+  assert.match(stamp, /env\.VITE_PARTY_HOST \|\| DEFAULT_PARTY_HOST/);
   const info = readFileSync(new URL('./buildInfo.js', import.meta.url), 'utf8');
   assert.match(info, /export const PARTY_HOST = '/);
 });

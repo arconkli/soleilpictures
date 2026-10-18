@@ -70,7 +70,7 @@ import { buildPageModel, renderArticleHtml } from './lib/publicPageModel.js';
 // the deploy-drift detector compares this against an expected minimum, and
 // every open tab compares `party` and `minBuild` with its own build
 // (lib/buildWatch.js) to know when to reload.
-import { BUILD_DATE, BUILD_SHA, PARTY_HOST } from './lib/buildInfo.js';
+import { BUILD_DATE, BUILD_SHA } from './lib/buildInfo.js';
 
 // Tabs built before this date (YYYY-MM-DD) reload at the next safe moment.
 // null = no floor. Raise it only to pull every tab off a build that must not
@@ -78,10 +78,14 @@ import { BUILD_DATE, BUILD_SHA, PARTY_HOST } from './lib/buildInfo.js';
 const MIN_CLIENT_BUILD = null;
 // After this instant (ISO), a tab that must reload stops waiting for a dialog
 // to close or a field to empty, and reloads once it has been hidden two
-// minutes. null = no deadline.
-const RELOAD_BY = null;
+// minutes. null = no deadline. Set for the party's move off PartyKit, which
+// deletes the old host on 2026-10-23; reset it to null once that has passed.
+const RELOAD_BY = '2026-10-21T00:00:00Z';
 
-const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
+// The party Worker (lib/partyHost.js). Until 2026-10-23 a /reset also goes to
+// the PartyKit project it replaced, for tabs that have not reloaded off it.
+import { PARTY_HOST } from './lib/partyHost.js';
+import { OLD_PARTY_HOST, OLD_PARTY_GONE_AFTER } from './lib/partyDefaults.js';
 
 // ── Per-route SEO metadata ──────────────────────────────────────────────
 // The SPA serves ONE index.html for every path (single-page-application
@@ -244,7 +248,7 @@ function cspReportOnlyFor(nonce) {
     "font-src 'self' data: https://use.typekit.net",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.partykit.dev wss://*.partykit.dev https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.facebook.com",
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://${PARTY_HOST} wss://${PARTY_HOST} https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.facebook.com`,
     "frame-src https:",
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
@@ -404,14 +408,14 @@ const EXPLORE_PATH_RE = /^\/explore\/?$/;
 // match; any mismatch or rejection falls back to its normal fetch.
 // SAFETY: the string is fully static — token/?b are read from `location`
 // in-browser, never interpolated here (AppendHead html:true does not escape).
-// Only PARTYKIT_HOST (a build-time constant) is templated in.
+// Only PARTY_HOST (a build-time constant) is templated in.
 const SHARE_EARLY_FETCH = `<script>(function(){try{
 var m=location.pathname.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i);if(!m)return;
 var b=new URLSearchParams(location.search).get('b');
 var boardId=(b&&/^[0-9a-f-]{36}$/i.test(b))?b:null;
 var body={token:m[1]};if(boardId)body.boardId=boardId;
 window.__shareBundle={token:m[1],boardId:boardId,promise:fetch(
-'https://${PARTYKIT_HOST}/parties/upload/share/share-bundle',
+'https://${PARTY_HOST}/parties/upload/share/share-bundle',
 {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})};
 }catch(_){}})()<\/script>`;
 
@@ -419,14 +423,14 @@ window.__shareBundle={token:m[1],boardId:boardId,promise:fetch(
 // analog of SHARE_EARLY_FETCH. Overlaps the bundle POST with JS download so
 // PublicBoardView can consume window.__publicBundle instead of re-fetching.
 // SAFETY: fully static — slug/?b are read from `location` in-browser, never
-// interpolated here. Only PARTYKIT_HOST (build constant) is templated.
+// interpolated here. Only PARTY_HOST (build constant) is templated.
 const PUBLIC_EARLY_FETCH = `<script>(function(){try{
 var m=location.pathname.match(/^\\/c\\/([a-z0-9][a-z0-9-]{0,79})\\/?$/);if(!m)return;
 var b=new URLSearchParams(location.search).get('b');
 var boardId=(b&&/^[0-9a-f-]{36}$/i.test(b))?b:null;
 var body={slug:m[1]};if(boardId)body.boardId=boardId;
 window.__publicBundle={slug:m[1],boardId:boardId,promise:fetch(
-'https://${PARTYKIT_HOST}/parties/upload/share/public-bundle',
+'https://${PARTY_HOST}/parties/upload/share/public-bundle',
 {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})};
 }catch(_){}})()<\/script>`;
 
@@ -636,7 +640,7 @@ const worker = {
         return await handleApiRoute(url, request, env, ctx);
       }
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
-      if (resetMatch) return await handleBoardReset(resetMatch[1], request);
+      if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
       if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
       const emailThumbMatch = url.pathname.match(/^\/api\/email-thumb\/([0-9a-f-]{36})$/i);
@@ -2660,13 +2664,13 @@ async function handleEmailThumb(env, boardId, searchParams, request) {
   return new Response(obj.body, { status: 200, headers });
 }
 
-// Same-origin proxy for PartyKit's /reset endpoint. The browser would
+// Same-origin proxy for the board room's /reset endpoint. The browser would
 // otherwise CORS-block the cross-origin POST (PartyKit's CORS headers
-// work via curl but get flaky from real browsers — different deploy
+// worked via curl but got flaky from real browsers — different deploy
 // edges, cached preflight failures, etc.). Going through the worker
 // avoids CORS entirely since the call is same-origin from the client's
-// perspective and worker-to-PartyKit is server-to-server.
-async function handleBoardReset(boardId, request) {
+// perspective and worker-to-party is server-to-server.
+async function handleBoardReset(boardId, request, ctx) {
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -2674,7 +2678,20 @@ async function handleBoardReset(boardId, request) {
   const token = auth.replace(/^Bearer\s+/i, '');
   if (!token) return new Response('Missing token', { status: 401 });
 
-  const target = `https://${PARTYKIT_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`;
+  // A tab that has not reloaded since the party moved hosts is still in the
+  // board's room on PartyKit. Reset that room too, or it pushes the board as it
+  // was before the restore back into board_state. Best effort, after the
+  // response: the answer that matters is the new room's.
+  if (Date.now() < Date.parse(OLD_PARTY_GONE_AFTER)) {
+    const old = fetch(`https://${OLD_PARTY_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`, {
+      method: 'POST',
+      headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => null);
+    if (ctx?.waitUntil) ctx.waitUntil(old); else await old;
+  }
+
+  const target = `https://${PARTY_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`;
   try {
     const res = await fetch(target, {
       method: 'POST',
