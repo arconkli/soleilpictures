@@ -7,8 +7,9 @@
 // sorts), and every call lands in window.__sidebarQa.calls for the spec.
 // DEV-only: main.jsx mounts it behind the literal import.meta.env.DEV guard.
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles.css';
+import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
 import { SidebarResizer } from '../components/sidebar/SidebarResizer.jsx';
 import { SIDEBAR_W, clampSidebarWidth, isWideSidebar } from '../lib/sidebarWidth.js';
@@ -210,6 +211,12 @@ export function SidebarQaHarness() {
   const moveApi = useMemo(() => makeMoveApi(source.calls), [source]);
   const feedback = useMemo(() => ({ toast: (t) => setToast(t) }), []);
   const say = (msg) => setLog((l) => [...l.slice(-4), msg]);
+  // Share file… asks the app's FileShareHost through the bus; here it's a call.
+  useEffect(() => {
+    const onShare = (e) => source.calls.push({ fn: 'openFileShare', params: e.detail });
+    document.addEventListener(FILE_SHARE_EVENT, onShare);
+    return () => document.removeEventListener(FILE_SHARE_EVENT, onShare);
+  }, [source]);
 
   return (
     <>

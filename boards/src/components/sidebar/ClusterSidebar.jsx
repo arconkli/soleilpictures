@@ -42,6 +42,9 @@ import { downloadCardAsset, downloadCardAssets } from '../../lib/cardDownload.js
 import { FILES_DRAG_MIME, buildFilesPayload, parseFilesPayload } from '../../lib/filesDrag.js';
 import { moveFiles, appendCards, removeCards, failureMessage } from '../../lib/clustersApi.js';
 import { undoToast } from '../../lib/undoToast.js';
+import { fileSharesAllowed } from '../../lib/appHost.js';
+import { openFileShare } from '../../lib/fileShareBus.js';
+import { isShareableCard } from '../../lib/fileShares.js';
 import './clusterSidebar.css';
 
 const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
@@ -505,6 +508,11 @@ export function ClusterSidebar({
     const group = selected.has(m.item.key) ? selItems : [m.item];
     const many = group.length > 1;
     const starredNow = files.isStarred(m.item.boardId, m.item.cardId);
+    // One file at a time, by an editor of its cluster, as on the canvas and
+    // in the list (the server refuses anyone else anyway).
+    const card = many ? null : cardFromItem(m.item);
+    const shareable = !many && fileSharesAllowed() && isShareableCard(card)
+      && !!boardsSectionProps?.canEditBoard?.(m.item.boardId);
     return composeMenuSections([
       { items: [
         { id: 'quick', label: 'Quick look', run: () => openQuick(m.item, m.siblings, { detail: 0 }) },
@@ -517,6 +525,9 @@ export function ClusterSidebar({
           if (cards.length === 1) downloadCardAsset(cards[0], cards[0].kind, { surface: 'sidebar' });
           else downloadCardAssets(cards, { zipName: 'files.zip', surface: 'sidebar' });
         } },
+        ...(shareable ? [{ id: 'share', label: 'Share file…', run: () => openFileShare({
+          boardId: m.item.boardId, cardId: m.item.cardId, card, boardName: nameOf(m.item.boardId), surface: 'sidebar',
+        }) }] : []),
         ...(onPickCluster ? [{ id: 'move', label: many ? `Move ${group.length} to…` : 'Move to…', run: async () => {
           const to = pickedId(await onPickCluster({ placeholder: 'Move to…' }));
           if (!to) return;

@@ -412,6 +412,25 @@ test.describe('sidebar files: menus', () => {
     await expect(files(page).locator('.sbf-file', { hasText: 'film-take-2.mov' })).toBeVisible();
   });
 
+  test('a file’s menu shares that one file, and a selection’s menu doesn’t offer it', async ({ page }) => {
+    await open(page);
+    const file = page.locator('.sbf-file', { hasText: 'film-take-2.mov' }).first();
+    await file.click({ button: 'right' });
+    await page.locator('.ctx-menu').last().getByText('Share file…', { exact: true }).click();
+    await expect.poll(async () => (await calls(page, 'openFileShare')).map((c) => {
+      const p = c.params;
+      return [p.boardId, p.cardId, p.boardName, p.surface, p.card?.src];
+    })).toEqual([['film', 'film-vid-1', 'Feature film', 'sidebar', 'r2:qa']]);
+    // Two videos selected, each shareable alone: the menu acts on both, and
+    // sharing is one file at a time.
+    await files(page).locator('.sbf-file', { hasText: 'film-take-1.mov' }).first().click({ modifiers: ['ControlOrMeta'] });
+    await file.click({ modifiers: ['ControlOrMeta'] });
+    await file.click({ button: 'right' });
+    const menu = page.locator('.ctx-menu').last();
+    await expect(menu.getByText('Download 2', { exact: true })).toBeVisible();
+    await expect(menu.getByText('Share file…', { exact: true })).toHaveCount(0);
+  });
+
   test('a cluster’s menu stars it, and sets how it opens for everyone', async ({ page }) => {
     await open(page);
     await row(page, 'Casting').click({ button: 'right' });
