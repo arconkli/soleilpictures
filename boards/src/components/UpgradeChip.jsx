@@ -374,8 +374,10 @@ export function UpgradeChip() {
 
   const near = elig.pressure === 'urgent' || storageNear;
   const showCount = elig.pressure === 'urgent' || elig.pressure === 'count' || storageNear;
+  // The reader's own drive, from my_storage_usage — invites make it larger
+  // than the FREE_STORAGE_LABEL a new account starts with.
   const storageLine = storageNear
-    ? `${storageAmountLabel(storage.used) || '0 MB'} of ${FREE_STORAGE_LABEL}`
+    ? `${storageAmountLabel(storage.used) || '0 MB'} of ${storageAmountLabel(storage.quota) || FREE_STORAGE_LABEL}`
     : null;
   // Once the pill is a meter it also says what lifting the ceiling costs. A
   // label that just reads "Get Creator" sends the one number that decides

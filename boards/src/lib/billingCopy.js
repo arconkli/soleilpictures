@@ -134,6 +134,12 @@ export const TRIAL_STORAGE_LABEL = '100GB';
 // = 5368709120 (5 GiB), seeded in migration 0387 and read by
 // _storage_quota_free_bytes() whenever the owner is not on a paid plan.
 // gen-docs.mjs cross-checks this label against that migration literal too.
+//
+// It is what a NEW account gets, not what any given reader has: invites add
+// storage on top (0416), the way referral credits add cards. So, as with the
+// card cap, never state it as the reader's own drive — in-app copy about THEIR
+// storage says "your free storage" or shows the quota my_storage_usage
+// returns.
 export const FREE_STORAGE_LABEL = '5GB';
 
 // ── Each claim, and what it actually means ─────────────────────────────────
@@ -308,13 +314,13 @@ export const TRIAL_FROM_LABEL = `${CREATOR_TRIAL_DAYS} days free`;
 export function storageFullMessage({ own, paid } = {}) {
   if (!own) return "This cluster's owner is out of storage — nothing more can be uploaded here until they make room.";
   if (paid) return 'Your storage is full. Delete files or empty the trash to make room.';
-  return `You've used your free ${FREE_STORAGE_LABEL}. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}.`;
+  return `You've filled your free storage. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}.`;
 }
 
 // The storage wall's header in the offer modal (PricingModal 'storage').
 export const STORAGE_FULL_COPY = {
   title: 'Room for everything you make.',
-  sub: `You've used your free ${FREE_STORAGE_LABEL}. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL} and unlimited cards — any file, any size.`,
+  sub: `You've filled your free storage. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL} and unlimited cards — any file, any size.`,
 };
 
 // The first-value banner's body. Highest-dwell surface in the product (9.2 s

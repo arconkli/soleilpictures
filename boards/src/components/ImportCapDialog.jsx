@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Modal } from './Modal.jsx';
 import { rejectedNoun } from '../lib/demoCardCap.js';
-import { CTA, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, PLAN_NAME, storageAmountLabel } from '../lib/billingCopy.js';
+import { CTA, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, PLAN_NAME, storageAmountLabel } from '../lib/billingCopy.js';
 import './importCapDialog.css';
 
 // The over-cap folder drop, asked BEFORE anything uploads.
@@ -78,7 +78,7 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
       <div className="impcap-body">
         {storage ? (
           <p className="impcap-lede">
-            {canUpgrade ? `Your free ${FREE_STORAGE_LABEL} has ` : 'This drive has '}
+            {canUpgrade ? 'Your free storage has ' : 'This drive has '}
             <strong>{left}</strong> left
             {take > 0 ? <> — enough for the first <strong>{take}</strong>.</> : '.'}
           </p>
