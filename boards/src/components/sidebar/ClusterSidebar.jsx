@@ -1,16 +1,23 @@
 // The sidebar that holds every file (behind sidebarFilesAllowed until it ships).
 //
-// Clusters stay the folders and stay prominent: a cover, a name, a count of
-// everything inside. Unfold one and its sub-clusters come first, then its
-// contents on shelves (lib/sidebarShelves.js). Above the clusters, your Starred
-// things and what was added Recently; below them, Shared with me and Tags.
-// The header finds things: typing filters the tree in place, Enter with
-// nothing found (or ⌘K) hands the words to the command palette, the chips
-// narrow it to one kind of thing, ⇅ sorts and groups.
+// Two parts, the way file managers and Apple's guidelines split them: the
+// clusters, as a plain tree of names — the folders, prominent and easy to scan
+// — and the files of ONE of them, in a section of their own: the cluster
+// you're in, or Recent, or Starred. A tree that also holds files gets long and
+// unreadable fast (the first two versions of this did exactly that), so the
+// tree never does.
 //
-// Unfolding follows you (lib/sidebarExpand.js): the cluster you're in opens,
-// and folds again when you leave unless you opened it by hand. Clicking a file
-// opens Quick look; double-clicking goes to it on its board.
+// Narrow, the files sit under the clusters with a divider to share the height.
+// Dragged wider than SIDEBAR_W.SPLIT_AT (or with the expand button) they move
+// beside them, a column of their own. The layout itself is CSS
+// (clusterSidebar.css): this renders the parts.
+//
+// The files section reads like the Files page: a header naming the cluster,
+// a search scoped to it, chips for each kind of file it holds, its
+// sub-clusters as tiles, then photos as a grid and everything else as rows.
+// Clicking a file opens Quick look; double-clicking goes to it on its board.
+// Files drag onto any cluster in the tree to move there (⌥ copies), and files
+// from the desktop drop on a cluster or onto the section itself.
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -19,16 +26,16 @@ import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS } from '../primitives.jsx';
-import { Search, X, Star, Clock } from '../../lib/icons.js';
+import { Search, X, Star, Clock, Columns2, Maximize2 } from '../../lib/icons.js';
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
-import { ClusterShelves, SidebarItemRow, SidebarTile } from './ClusterShelves.jsx';
-import { mosaicPerLine } from '../../lib/sidebarRows.js';
+import { ClusterShelves } from './ClusterShelves.jsx';
 import { SidebarMeter } from './SidebarMeter.jsx';
 import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
-import { FILTER_CHIPS } from '../../lib/sidebarShelves.js';
-import { SORTS } from '../../lib/sidebarSort.js';
-import { initialExpandState, expandReducer, isExpanded, filesUnfolded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
+import { FILTER_CHIPS, SHELF_IDS } from '../../lib/sidebarShelves.js';
+import { SORTS, filterItems } from '../../lib/sidebarSort.js';
+import { isWideSidebar, toggledSidebarWidth } from '../../lib/sidebarWidth.js';
+import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
 import { downloadCardAsset, downloadCardAssets } from '../../lib/cardDownload.js';
@@ -40,9 +47,11 @@ import './clusterSidebar.css';
 const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
 
 const PREFS_KEY = 'soleil.sidebar.prefs';
-// A new key, not the old tree's soleil.boards.sb.expanded.<ws>: that set holds
-// every branch anyone ever opened, and here an open branch shows its files.
 const unfoldedKey = (ws) => `soleil.sidebar.unfolded.${ws}`;
+// How tall the clusters part is when the files sit under it (the divider).
+const NAV_H_KEY = 'soleil.sidebar.navH';
+// The last narrow width, for the expand button's way back.
+const NARROW_W_KEY = 'soleil.sidebar.narrowW';
 const SORT_LABELS = { newest: 'Newest first', name: 'Name', size: 'Size', canvas: 'Canvas order' };
 const GROUP_LABELS = { type: 'Type', canvas: 'Canvas groups' };
 
@@ -82,15 +91,69 @@ function ClusterThumb({ board }) {
   );
 }
 
-function SectionHead({ icon, label, count, open, onToggle }) {
+// The kinds of file a list holds, as one line of chips. Whatever doesn't fit
+// the line goes behind "More", so a cluster with every kind of file still
+// takes one line, not three.
+function ChipRow({ chips, counts, chip, setChip }) {
+  const rowRef = useRef(null);
+  const [hidden, setHidden] = useState([]);
+  const [open, setOpen] = useState(false);
+  const moreRef = useRef(null);
+  useDismissOnOutside(moreRef, open, () => setOpen(false));
+  const key = chips.map((c) => c.id).join(',');
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return undefined;
+    const measure = () => {
+      const top = row.getBoundingClientRect().top;
+      const out = [];
+      for (const el of row.querySelectorAll('[data-chip]')) {
+        if (el.getBoundingClientRect().top > top + 4) out.push(el.dataset.chip);
+      }
+      setHidden((h) => (h.join(',') === out.join(',') ? h : out));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [key]);
+  const overflow = chips.filter((c) => hidden.includes(c.id));
+  const chipButton = (c, extra = {}) => (
+    <button type="button" key={c.id} data-chip={c.id}
+            className={`sbf-chip${chip === c.id ? ' is-on' : ''}`}
+            aria-pressed={chip === c.id}
+            onClick={() => { setChip(c.id === chip ? 'all' : c.id); setOpen(false); }}
+            {...extra}>
+      {c.label}
+      {(counts[c.id] || 0) > 0 && <span className="sbf-chip-count">{counts[c.id]}</span>}
+    </button>
+  );
   return (
-    <div className="sb-eyebrow sbf-section-head" role="button" tabIndex={0} aria-expanded={open}
-         onClick={onToggle}
-         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}>
-      <span className={`sbf-section-chev${open ? ' is-open' : ''}`} aria-hidden="true">▸</span>
-      {icon && <Icon as={icon} size={11} />}
-      <span className="sbf-section-label">{label}</span>
-      {count > 0 && <span className="sbf-section-count">{count}</span>}
+    <div className="sbf-chipline">
+      <div className="sbf-chips" role="toolbar" aria-label="Show" ref={rowRef}>
+        {chips.map((c) => chipButton(c, hidden.includes(c.id) ? { tabIndex: -1, 'aria-hidden': 'true' } : {}))}
+      </div>
+      {overflow.length > 0 && (
+        <div className="sbf-chipmore" ref={moreRef}>
+          <button type="button" className={`sbf-chip${overflow.some((c) => c.id === chip) ? ' is-on' : ''}`}
+                  aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            More ▾
+          </button>
+          {open && (
+            <div className="sbf-menu" role="menu">
+              {overflow.map((c) => (
+                <button type="button" key={c.id} role="menuitemradio" aria-checked={chip === c.id}
+                        className={`sbf-menu-item${chip === c.id ? ' is-on' : ''}`}
+                        onClick={() => { setChip(c.id === chip ? 'all' : c.id); setOpen(false); }}>
+                  {c.label}
+                  {(counts[c.id] || 0) > 0 && <span className="sbf-chip-count">{counts[c.id]}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -104,8 +167,9 @@ export function ClusterSidebar({
   liveBoardId,            // the cluster whose doc is open (its cards are live)
   liveCards,
   liveGroupNames = null,  // Map groupId → name, the open cluster's canvas groups
-  width = 300,
+  width = 320,
   coarse = false,
+  onSetWidth = null,      // (px) => void — the expand button's jump between narrow and wide
   listRef,                // App's .sb-list ref (scroll edges)
   boardsSectionProps,     // everything SidebarBoardsSection already took from App
   sharedSection,          // <SidebarSharedBoards/>
@@ -170,37 +234,55 @@ export function ClusterSidebar({
   }, [activePath]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { writeJson(unfoldedKey(workspaceId), persistManual(expand)); }, [expand, workspaceId]);
 
-  // A search opens every cluster it touches, and the ones above them.
-  const searchVisible = useMemo(() => {
-    if (!files.searchClusterIds) return null;
-    const out = new Set();
-    for (const id of files.searchClusterIds) { out.add(id); for (const a of ancestorsOf(allBoards, id)) out.add(a); }
-    return out;
-  }, [files.searchClusterIds, allBoards]);
-  useEffect(() => {
-    if (searchVisible) dispatch({ type: 'search', ids: [...searchVisible] });
-    else dispatch({ type: 'clearSearch' });
-  }, [searchVisible]);
-
   const [shelves, setShelves] = useState({});
   const shelfState = useCallback((b, s) => shelves[shelfKey(b, s)] || {}, [shelves]);
   const onToggleShelf = useCallback((b, s, field) => setShelves((m) => toggleShelf(m, shelfKey(b, s), field)), []);
 
-  // Every unfolded cluster whose files show loads its shelves (asking twice is
-  // free). A cluster whose files are folded to their one line needs only the
-  // count on it, which every cluster already has.
-  const withKids = useMemo(() => {
-    const out = new Set();
-    for (const b of boardList) if (b.parent_board_id) out.add(b.parent_board_id);
-    return out;
-  }, [boardList]);
-  const unfolded = useMemo(
-    () => boardList
-      .filter((b) => isExpanded(expand, b.id) && (!withKids.has(b.id) || filesUnfolded(expand, b.id, rootId)))
-      .map((b) => b.id),
-    [boardList, expand, withKids, rootId],
-  );
-  useEffect(() => { for (const id of unfolded) files.ensure(id); }, [unfolded, files.ensure]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // ── What the files section shows ──────────────────────────────────────────
+  // The cluster you're in — or, off a board, the last one you were in — unless
+  // you've asked for Recent or Starred. Going somewhere puts it back on where
+  // you are, with a fresh search.
+  const [shown, setShown] = useState(null);   // null | 'recent' | 'starred'
+  const lastBoard = useRef(activeBoardId || null);
+  if (activeBoardId) lastBoard.current = activeBoardId;
+  useEffect(() => { setShown(null); setQuery(''); }, [activeBoardId]);
+  const shownId = shown ? null : (activeBoardId || lastBoard.current);
+  const view = shown || (shownId && allBoards?.[shownId] ? 'cluster' : 'recent');
+  useEffect(() => { if (view === 'cluster' && shownId) files.ensure(shownId); }, [view, shownId, files.ensure]);
+
+  // ── Narrow or wide ────────────────────────────────────────────────────────
+  const wide = !coarse && isWideSidebar(width);
+  useEffect(() => { if (!wide && !coarse) writeJson(NARROW_W_KEY, width); }, [wide, coarse, width]);
+  const toggleWide = () => onSetWidth?.(toggledSidebarWidth(width, readJson(NARROW_W_KEY, null)));
+  // The divider shares the height between the clusters and the files when
+  // they're stacked; dragged, it is remembered, double-clicked, it resets.
+  const [navH, setNavH] = useState(() => {
+    const v = Number(readJson(NAV_H_KEY, null));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  });
+  const setNavHeight = (h) => {
+    const v = h == null ? null : Math.round(Math.max(96, Math.min(h, (typeof window !== 'undefined' ? window.innerHeight : 900) - 260)));
+    setNavH(v);
+    writeJson(NAV_H_KEY, v);
+  };
+  const onDividerDown = (e) => {
+    if (e.button !== 0) return;
+    const nav = listRef?.current;
+    if (!nav) return;
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = nav.getBoundingClientRect().height;
+    const move = (ev) => setNavH(Math.round(Math.max(96, startH + ev.clientY - startY)));
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      document.body.classList.remove('sbf-resizing-v');
+      setNavHeight(startH + ev.clientY - startY);
+    };
+    document.body.classList.add('sbf-resizing-v');
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   // ── Quick look ────────────────────────────────────────────────────────────
   // A click opens Quick look, a double-click goes to the file. The click of a
@@ -436,16 +518,14 @@ export function ClusterSidebar({
   };
 
   // ── The tree's hook-in ────────────────────────────────────────────────────
+  // Clusters only: a row's chevron is for its sub-clusters, its count is
+  // everything inside it, and it takes files dropped on it.
   const filesView = useMemo(() => ({
     isExpanded: (id) => isExpanded(expand, id),
     toggle: (id) => dispatch({ type: 'toggle', id }),
-    hasContents: (id) => files.ownTotalOf(id) > 0 || (id === liveBoardId && (liveCards?.length || 0) > 0),
-    isHidden: (id) => {
-      if (id === rootId) return false;
-      if (searchVisible) return !searchVisible.has(id);
-      return chip !== 'all' && files.countOf(id) === 0;
-    },
-    countOf: (id) => files.countOf(id),
+    hasContents: () => false,
+    isHidden: () => false,
+    countOf: (id) => files.totalOf(id),
     statusOf: (id) => {
       const n = uploadsByBoard?.[id] || 0;
       return n > 0 ? `↑ ${n}` : null;
@@ -461,33 +541,11 @@ export function ClusterSidebar({
       }] : []),
     ],
     renderThumb: (board) => <ClusterThumb board={board} />,
-    renderContents: (board, depth, hasChildren) => (
-      <ClusterShelves
-        boardId={board.id} depth={depth} hasChildren={hasChildren}
-        own={hasChildren ? {
-          name: board.name, count: files.ownCountOf(board.id), open: filesUnfolded(expand, board.id, rootId),
-        } : null}
-        onToggleOwn={() => dispatch({ type: 'toggleFiles', id: board.id, rootId })}
-        contents={files.contentsOf(board.id)}
-        width={width} coarse={coarse}
-        shelfState={shelfState} onToggleShelf={onToggleShelf}
-        onLoadMore={files.loadMore} canLoadMore={files.canLoadMore}
-        onItem={onItem}
-        isSelected={isSelected}
-        onDragItem={onDragItem}
-        onItemMenu={onItemMenu}
-        onItemOpen={openItem}
-        onOpenShelf={onOpenShelf}
-        isStarred={files.isStarred}
-        scrollRef={listRef}
-      />
-    ),
-  }), [expand, files, liveBoardId, liveCards, rootId, searchVisible, chip, width, coarse, shelfState,
-    onToggleShelf, onItem, isSelected, onDragItem, onItemMenu, openItem, onOpenShelf, listRef, uploadsByBoard,
-    dropEffect, onDropOnCluster]);
+  }), [expand, files, uploadsByBoard, dropEffect, onDropOnCluster, onSetOpensAs]);
 
-  // ↑/↓ walk every item the tree shows, clusters and files alike, in the order
-  // they appear; the rows keep their own Enter, →/←, F2 and menu keys.
+  // ↑/↓ walk the rows of whichever part has focus (the clusters, or the
+  // files), in the order they appear; the rows keep their own Enter, →/←, F2
+  // and menu keys.
   const onListKeyDown = (e) => {
     // Typing in a box inside a row (renaming a cluster) is the box's business:
     // an arrow there moves the caret, and moving focus would commit the
@@ -507,174 +565,262 @@ export function ClusterSidebar({
     const next = all[i + (e.key === 'ArrowDown' ? 1 : -1)];
     if (!next) return;
     e.preventDefault();
-    // Cluster names stick to the top while you're inside them, one row per
-    // level from the second (clusterSidebar.css); a row scrolled to "nearest"
-    // must land below them, not under them.
-    const level = Number(next.getAttribute('aria-level')) || 1;
-    root.style.scrollPaddingTop = `${Math.max(0, Math.min(3, level - 2)) * (coarse ? 44 : 36)}px`;
     next.focus({ preventScroll: true });
     next.scrollIntoView?.({ block: 'nearest' });
   };
 
-  // Which cluster rows are stuck to the top right now (clusterSidebar.css
-  // gives a stuck row an opaque fill). A sticky row is stuck exactly when it
-  // has moved down from the top of its own node. A data attribute, not a
-  // class, so React re-rendering the row never wipes it.
-  useEffect(() => {
-    const list = listRef?.current;
-    if (!list) return undefined;
-    let raf = 0;
-    const measure = () => {
-      raf = 0;
-      for (const row of list.querySelectorAll('.sb-tree-row.is-files')) {
-        const level = Number(row.getAttribute('aria-level'));
-        const stuck = level >= 2 && level <= 4
-          && row.getBoundingClientRect().top > row.parentElement.getBoundingClientRect().top + 0.5;
-        if (stuck) row.dataset.stuck = '1'; else delete row.dataset.stuck;
-      }
-    };
-    const schedule = () => { if (!raf) raf = requestAnimationFrame(measure); };
-    const mo = new MutationObserver(schedule);
-    mo.observe(list, { childList: true, subtree: true });
-    list.addEventListener('scroll', schedule, { passive: true });
-    window.addEventListener('resize', schedule);
-    schedule();
-    return () => {
-      mo.disconnect();
-      list.removeEventListener('scroll', schedule);
-      window.removeEventListener('resize', schedule);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [listRef]);
-
-  const [starOpen, setStarOpen] = useState(true);
-  const [recentOpen, setRecentOpen] = useState(true);
-  const starCount = files.starred.clusters.length + files.starred.items.length;
-  const recentFit = mosaicPerLine(width, { thumb: coarse ? 52 : 40, gap: coarse ? 5 : 4, inset: 16 + 10 + 8 });
   const nameOf = (id) => allBoards?.[id]?.name || 'a cluster';
+
+  // ── The files section's subject ───────────────────────────────────────────
+  const starCount = files.starred.clusters.length + files.starred.items.length;
+  const shownBoard = view === 'cluster' ? allBoards?.[shownId] : null;
+  const listItems = view === 'recent' ? files.recent : view === 'starred' ? files.starred.items : null;
+  // Recent and Starred are short lists already in hand: filtered here. A
+  // cluster is searched on the server (its own hits come back per cluster).
+  const contents = view === 'cluster'
+    ? files.contentsOf(shownId)
+    : files.contentsOfItems(filterItems(listItems || [], { query }));
+  // What each chip would show, so a chip with nothing behind it isn't offered.
+  const chipCounts = useMemo(() => {
+    const out = { all: 0, unplaced: 0 };
+    if (view === 'cluster') {
+      const own = files.ownCountsOf(shownId);
+      for (const id of SHELF_IDS) out[id] = own?.byShelf?.[id] || 0;
+      out.all = own?.total || 0;
+      out.unplaced = own?.unplaced || 0;
+    } else {
+      for (const it of listItems || []) {
+        out[it.shelf] = (out[it.shelf] || 0) + 1;
+        out.all += 1;
+        if (it.unplaced) out.unplaced += 1;
+      }
+    }
+    return out;
+  }, [view, shownId, files, listItems]);
+  const chips = FILTER_CHIPS.filter((c) => c.id === 'all' || chip === c.id || (chipCounts[c.id] || 0) > 0);
+  // A cluster's own sub-clusters, as tiles above its files (Starred shows the
+  // starred clusters the same way).
+  const subs = useMemo(() => {
+    if (view === 'starred') return files.starred.clusters.map((c) => ({ id: c.boardId, board: allBoards?.[c.boardId], name: c.name }));
+    if (view !== 'cluster') return [];
+    return Object.values(allBoards || {})
+      .filter((b) => b && b.parent_board_id === shownId && !b.deleted_at)
+      .sort((x, y) => (x.name || '').localeCompare(y.name || ''))
+      .map((b) => ({ id: b.id, board: b, name: b.name || 'Untitled' }));
+  }, [view, shownId, allBoards, files.starred]);
+  const showSubs = subs.length > 0 && chip === 'all' && !query.trim();
+  const parentName = shownBoard?.parent_board_id ? allBoards?.[shownBoard.parent_board_id]?.name : null;
+  const title = view === 'recent' ? 'Recent' : view === 'starred' ? 'Starred' : (shownBoard?.name || 'Untitled');
+  const subtitle = view === 'recent'
+    ? 'Added lately, across your clusters'
+    : view === 'starred'
+      ? (starCount ? `${starCount} starred` : 'Nothing starred yet')
+      : [
+        `${chipCounts.all} ${chipCounts.all === 1 ? 'file' : 'files'}`,
+        subs.length ? `${subs.length} ${subs.length === 1 ? 'cluster' : 'clusters'}` : null,
+        parentName ? `in ${parentName}` : null,
+      ].filter(Boolean).join(' · ');
+  const nothing = !contents.loading && !(contents.shelves || []).some((sh) => sh.total > 0 || sh.items?.length);
+  const filesListRef = useRef(null);
+  // What scrolls the files, for a long list's windowing: their own list, or
+  // in the phone drawer (which scrolls as one) the drawer.
+  const filesScrollRef = useMemo(() => ({
+    get current() {
+      const list = filesListRef.current;
+      if (!list || typeof getComputedStyle === 'undefined') return list;
+      return getComputedStyle(list).overflowY === 'visible' ? (list.closest('.sb-mid') || list) : list;
+    },
+  }), []);
+  // Desktop files dropped anywhere on the section go into the cluster it shows.
+  const [dropping, setDropping] = useState(false);
+  const sectionDrop = view === 'cluster' && shownId ? {
+    onDragOver: (e) => {
+      if (!dropEffect(e, shownId)) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = dropEffect(e, shownId); } catch (_) { /* read-only in some browsers */ }
+      if (!dropping) setDropping(true);
+    },
+    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDropping(false); },
+    onDrop: (e) => {
+      setDropping(false);
+      if (!dropEffect(e, shownId)) return;
+      e.preventDefault();
+      onDropOnCluster(shownId, e);
+    },
+  } : {};
 
   return (
     <>
-      <div className="sbf-head">
-        <div className="sbf-search">
-          <Icon as={Search} size={13} />
-          <input type="search" value={query}
-                 placeholder="Find in your files"
-                 aria-label="Find in your files and clusters"
-                 onChange={(e) => setQuery(e.target.value)}
-                 onKeyDown={(e) => {
-                   if (e.key === 'Escape') { e.preventDefault(); setQuery(''); return; }
-                   if (e.key === 'Enter') {
-                     const nothing = !files.searchLoading && !(files.searchClusterIds?.size);
-                     if (nothing || e.metaKey || e.ctrlKey) { e.preventDefault(); onOpenPalette?.(query); }
-                   }
-                 }} />
-          {query
-            ? <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} /></button>
-            : <button type="button" className="sbf-search-kbd" title="Search everything (⌘K)" onClick={() => onOpenPalette?.('')}>⌘K</button>}
-          <div className="sbf-sort" ref={menuRef}>
-            <button type="button" className={`sbf-sort-btn${menuOpen ? ' is-on' : ''}`}
-                    aria-haspopup="menu" aria-expanded={menuOpen}
-                    aria-label="Sort and group"
-                    title={`Sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
-                    onClick={() => setMenuOpen((o) => !o)}>⇅</button>
-            {menuOpen && (
-              <div className="sbf-menu" role="menu">
-                <div className="sbf-menu-label">Sort</div>
-                {SORTS.map((s) => (
-                  <button type="button" key={s} role="menuitemradio" aria-checked={prefs.sort === s}
-                          className={`sbf-menu-item${prefs.sort === s ? ' is-on' : ''}`}
-                          onClick={() => { setPref('sort', s); setMenuOpen(false); }}>
-                    {SORT_LABELS[s]}
-                  </button>
-                ))}
-                <div className="sbf-menu-label">Group by</div>
-                {Object.keys(GROUP_LABELS).map((g) => (
-                  <button type="button" key={g} role="menuitemradio" aria-checked={prefs.groupBy === g}
-                          className={`sbf-menu-item${prefs.groupBy === g ? ' is-on' : ''}`}
-                          onClick={() => { setPref('groupBy', g); setMenuOpen(false); }}>
-                    {GROUP_LABELS[g]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      <div className="sb-list sbf-nav" ref={listRef} onKeyDown={onListKeyDown}
+           style={!wide && navH ? { maxHeight: navH } : undefined}>
+        <div className="sbf-navrows">
+          <button type="button" className={`sb-row sbf-navrow${view === 'recent' ? ' active' : ''}`}
+                  aria-pressed={view === 'recent'}
+                  onClick={() => setShown(view === 'recent' ? null : 'recent')}>
+            <Icon as={Clock} size={14} />
+            <span className="sb-row-label">Recent</span>
+          </button>
+          <button type="button" className={`sb-row sbf-navrow${view === 'starred' ? ' active' : ''}`}
+                  aria-pressed={view === 'starred'}
+                  onClick={() => setShown(view === 'starred' ? null : 'starred')}>
+            <Icon as={Star} size={14} />
+            <span className="sb-row-label">Starred</span>
+            {starCount > 0 && <span className="sbf-navrow-count">{starCount}</span>}
+          </button>
         </div>
-        {/* Every chip in view: they wrap rather than scroll out of sight. */}
-        <div className="sbf-chips" role="toolbar" aria-label="Show">
-          {FILTER_CHIPS.map((c) => (
-            <button type="button" key={c.id}
-                    className={`sbf-chip${chip === c.id ? ' is-on' : ''}`}
-                    aria-pressed={chip === c.id}
-                    onClick={() => setChip(c.id === chip ? 'all' : c.id)}>
-              {c.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="sb-list sbf-list" ref={listRef} onKeyDown={onListKeyDown}>
-        {!files.searching && starCount > 0 && (
-          <div className="sbf-section">
-            <SectionHead icon={Star} label="Starred" count={starCount} open={starOpen} onToggle={() => setStarOpen((v) => !v)} />
-            {starOpen && (
-              <div role="group">
-                {files.starred.clusters.map((c) => (
-                  <div key={`c:${c.boardId}`} className={`sb-row sbf-star-cluster${c.boardId === activeBoardId ? ' active' : ''}`}
-                       role="treeitem" tabIndex={0} aria-level={1}
-                       onClick={() => onOpenBoard?.(c.boardId)}
-                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onOpenBoard?.(c.boardId); } }}>
-                    <ClusterThumb board={allBoards?.[c.boardId]} />
-                    <span className="sb-row-label">{c.name}</span>
-                  </div>
-                ))}
-                {files.starred.items.map((item) => (
-                  <SidebarItemRow key={item.key} item={item} starred
-                                  where={nameOf(item.boardId)}
-                                  selected={isSelected(item)} onDragStart={onDragItem}
-                                  onMenu={(it, x, y) => onItemMenu(it, files.starred.items, x, y)}
-                                  onClick={(it, e) => onItem(it, files.starred.items, e)} onOpen={openItem} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {!files.searching && files.recent.length > 0 && (
-          <div className="sbf-section">
-            <SectionHead icon={Clock} label="Recent" open={recentOpen} onToggle={() => setRecentOpen((v) => !v)} />
-            {recentOpen && (
-              // One strip of tiles, not a row each: Recent is a glance at what
-              // just arrived, and the clusters below are the point.
-              <div className="sbf-mosaic sbf-recent" role="group" style={{ paddingLeft: 10 }}>
-                {files.recent.slice(0, recentFit).map((item) => (
-                  <SidebarTile key={item.key} item={item}
-                               starred={files.isStarred(item.boardId, item.cardId)}
-                               where={nameOf(item.boardId)}
-                               selected={isSelected(item)} onDragStart={onDragItem}
-                               onMenu={(it, x, y) => onItemMenu(it, files.recent, x, y)}
-                               onClick={(it, e) => onItem(it, files.recent, e)} onOpen={openItem} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         <SidebarBoardsSection {...boardsSectionProps} filesView={filesView} />
-
         {sharedSection}
         {tagsSection}
       </div>
 
-      {selected.size > 0 && (
-        <div className="sbf-bulk" role="toolbar" aria-label="Selected files">
-          <span className="sbf-bulk-count">{selected.size} selected</span>
-          {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
-          <button type="button" className="sbf-bulk-btn" onClick={downloadSelection}>Download</button>
-          <button type="button" className="sbf-bulk-btn is-danger" onClick={deleteSelection}>Delete</button>
-          <button type="button" className="sbf-bulk-btn" aria-label="Clear selection" onClick={clearSelection}>✕</button>
+      {!wide && (
+        <div className="sbf-divider" role="separator" aria-orientation="horizontal" tabIndex={0}
+             aria-label="Share the height between clusters and files"
+             title="Drag to share the height · double-click to reset"
+             onPointerDown={onDividerDown}
+             onDoubleClick={() => setNavHeight(null)}
+             onKeyDown={(e) => {
+               if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+               e.preventDefault();
+               const cur = listRef?.current?.getBoundingClientRect().height || 240;
+               setNavHeight(cur + (e.key === 'ArrowDown' ? 24 : -24));
+             }}>
+          <span className="sbf-divider-grip" aria-hidden="true" />
         </div>
       )}
+
+      <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}>
+        <header className="sbf-files-head">
+          {view === 'cluster'
+            ? <ClusterThumb board={shownBoard} />
+            : <span className="sbf-thumb is-icon" aria-hidden="true"><Icon as={view === 'recent' ? Clock : Star} size={13} /></span>}
+          <div className="sbf-files-title">
+            <span className="sbf-files-name" title={title}>{title}</span>
+            <span className="sbf-files-sub">{subtitle}</span>
+          </div>
+          {view !== 'cluster' && (
+            <button type="button" className="sbf-iconbtn" aria-label="Back to the cluster’s files" title="Back to the cluster’s files"
+                    onClick={() => setShown(null)}>
+              <Icon as={X} size={13} />
+            </button>
+          )}
+          {!coarse && onSetWidth && (
+            <button type="button" className={`sbf-iconbtn${wide ? ' is-on' : ''}`}
+                    aria-label={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
+                    title={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
+                    aria-pressed={wide}
+                    onClick={toggleWide}>
+              <Icon as={Columns2} size={14} />
+            </button>
+          )}
+          {view === 'cluster' && onOpenShelf && (
+            <button type="button" className="sbf-iconbtn" aria-label="Open in the full Files page" title="Open in the full Files page"
+                    onClick={() => onOpenShelf(shownId, null)}>
+              <Icon as={Maximize2} size={14} />
+            </button>
+          )}
+        </header>
+
+        <div className="sbf-files-tools">
+          <div className="sbf-search">
+            <Icon as={Search} size={13} />
+            <input type="search" value={query}
+                   placeholder={`Search ${view === 'cluster' ? title : title.toLowerCase()}`}
+                   aria-label={`Search ${title}`}
+                   onChange={(e) => setQuery(e.target.value)}
+                   onKeyDown={(e) => {
+                     if (e.key === 'Escape') { e.preventDefault(); setQuery(''); return; }
+                     // Nothing here matches, or ⌘↵: search everywhere instead.
+                     if (e.key === 'Enter' && (nothing || e.metaKey || e.ctrlKey)) { e.preventDefault(); onOpenPalette?.(query); }
+                   }} />
+            {query && (
+              <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} /></button>
+            )}
+            <div className="sbf-sort" ref={menuRef}>
+              <button type="button" className={`sbf-sort-btn${menuOpen ? ' is-on' : ''}`}
+                      aria-haspopup="menu" aria-expanded={menuOpen}
+                      aria-label="Sort and group"
+                      title={`Sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
+                      onClick={() => setMenuOpen((o) => !o)}>⇅</button>
+              {menuOpen && (
+                <div className="sbf-menu" role="menu">
+                  <div className="sbf-menu-label">Sort</div>
+                  {SORTS.map((so) => (
+                    <button type="button" key={so} role="menuitemradio" aria-checked={prefs.sort === so}
+                            className={`sbf-menu-item${prefs.sort === so ? ' is-on' : ''}`}
+                            onClick={() => { setPref('sort', so); setMenuOpen(false); }}>
+                      {SORT_LABELS[so]}
+                    </button>
+                  ))}
+                  <div className="sbf-menu-label">Group by</div>
+                  {Object.keys(GROUP_LABELS).map((g) => (
+                    <button type="button" key={g} role="menuitemradio" aria-checked={prefs.groupBy === g}
+                            className={`sbf-menu-item${prefs.groupBy === g ? ' is-on' : ''}`}
+                            onClick={() => { setPref('groupBy', g); setMenuOpen(false); }}>
+                      {GROUP_LABELS[g]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          {chips.length > 1 && (
+            <ChipRow chips={chips} counts={chipCounts} chip={chip} setChip={setChip} />
+          )}
+        </div>
+
+        <div className="sbf-files-list" ref={filesListRef} onKeyDown={onListKeyDown}>
+          {showSubs && (
+            <div className="sbf-subs" role="group" aria-label="Clusters">
+              {subs.map((c) => (
+                <button type="button" key={c.id} className="sbf-sub" onClick={() => onOpenBoard?.(c.id)}
+                        title={`Open ${c.name}`}>
+                  <ClusterThumb board={c.board} />
+                  <span className="sbf-sub-name">{c.name}</span>
+                  <span className="sbf-sub-count">{files.totalOf(c.id) || ''}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {nothing && view !== 'cluster' ? (
+            <div className="sbf-files-empty">
+              {query.trim() ? `Nothing in ${title.toLowerCase()} matches “${query.trim()}”. Press Enter to search everywhere.`
+                : view === 'recent' ? 'Nothing added lately.'
+                  : (showSubs ? '' : 'Star a file or a cluster from its menu and it stays here.')}
+            </div>
+          ) : nothing && query.trim() ? (
+            <div className="sbf-files-empty">Nothing in {title} matches “{query.trim()}”. Press Enter to search everywhere.</div>
+          ) : (
+            <ClusterShelves
+              boardId={view === 'cluster' ? shownId : view}
+              contents={contents}
+              hasChildren={showSubs}
+              coarse={coarse}
+              shelfState={shelfState} onToggleShelf={onToggleShelf}
+              onLoadMore={files.loadMore} canLoadMore={view === 'cluster' ? files.canLoadMore : () => false}
+              onItem={onItem}
+              isSelected={isSelected}
+              onDragItem={onDragItem}
+              onItemMenu={onItemMenu}
+              onItemOpen={openItem}
+              onOpenShelf={view === 'cluster' ? onOpenShelf : null}
+              isStarred={files.isStarred}
+              scrollRef={filesScrollRef}
+            />
+          )}
+        </div>
+
+        {selected.size > 0 && (
+          <div className="sbf-bulk" role="toolbar" aria-label="Selected files">
+            <span className="sbf-bulk-count">{selected.size} selected</span>
+            {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
+            <button type="button" className="sbf-bulk-btn" onClick={downloadSelection}>Download</button>
+            <button type="button" className="sbf-bulk-btn is-danger" onClick={deleteSelection}>Delete</button>
+            <button type="button" className="sbf-bulk-btn" aria-label="Clear selection" onClick={clearSelection}>✕</button>
+          </div>
+        )}
+      </section>
+
       <SidebarMeter {...meterProps} onOpenPlan={onOpenPlan} onUpload={onUpload} />
 
       {createPortal(

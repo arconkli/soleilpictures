@@ -422,10 +422,9 @@ export function SidebarBoardTree({
     const isDropTarget = dropTargetId === board.id;
     const isSelected = selectedTreeBoards.has(board.id);
     return (
-      <div key={board.id}
-           className={`sb-tree-node${filesView && isOpen && hasKids ? ' is-open' : ''}${filesView && (isActive || activeAncestors.has(board.id)) ? ' is-path' : ''}`}>
+      <div key={board.id} className="sb-tree-node">
         <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}${filesView ? ' is-files' : ''}`}
-             style={filesView ? { paddingLeft: 6 + depth * INDENT, '--d': depth } : { paddingLeft: 6 + depth * 14 }}
+             style={{ paddingLeft: 6 + depth * (filesView ? INDENT : 14) }}
              data-board-id={board.id}
              draggable={!isRenaming}
              onDragStart={(e) => {
@@ -597,8 +596,7 @@ export function SidebarBoardTree({
           )}
         </div>
         {hasKids && isOpen && (
-          <div className={`sb-tree-children${filesView ? ' has-rail' : ''}`} role="group"
-               style={filesView ? { '--d': depth } : undefined}>
+          <div className="sb-tree-children" role="group">
             {kids.map(c => renderRow(c, depth + 1))}
             {filesView?.renderContents?.(board, depth + 1, kids.length > 0)}
           </div>

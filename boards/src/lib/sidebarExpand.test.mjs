@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf, filesUnfolded } from './sidebarExpand.js';
+import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from './sidebarExpand.js';
 
 const run = (s, ...actions) => actions.reduce(expandReducer, s);
 
@@ -87,35 +87,4 @@ test('reset swaps in another workspace\'s saved state whole', () => {
   assert.deepEqual(b.manual, ['z']);
   assert.deepEqual(b.auto, []);
   assert.deepEqual(expandReducer(a, { type: 'reset' }), initialExpandState());
-});
-
-// ── A cluster's own files ────────────────────────────────────────────────────
-test('inside a sub-cluster, the clusters above fold their own files; yours and hand-opened ones show', () => {
-  let s = initialExpandState(['root', 'mv']);
-  s = expandReducer(s, { type: 'navigate', activeId: 'loc', ancestorIds: ['film', 'root'] });
-  assert.equal(filesUnfolded(s, 'loc', 'root'), true, 'the cluster you are in');
-  assert.equal(filesUnfolded(s, 'film', 'root'), false, 'a follow-me ancestor folds to one line');
-  assert.equal(filesUnfolded(s, 'root', 'root'), false, 'the root keeps its own folded');
-  assert.equal(filesUnfolded(s, 'mv', 'root'), true, 'unfolded by hand shows its files');
-});
-
-test('the files line opens and closes by hand, and navigating resets it', () => {
-  let s = initialExpandState(['root']);
-  s = expandReducer(s, { type: 'navigate', activeId: 'loc', ancestorIds: ['film', 'root'] });
-  s = expandReducer(s, { type: 'toggleFiles', id: 'film', rootId: 'root' });
-  assert.equal(filesUnfolded(s, 'film', 'root'), true);
-  s = expandReducer(s, { type: 'toggleFiles', id: 'loc', rootId: 'root' });
-  assert.equal(filesUnfolded(s, 'loc', 'root'), false, 'even your own cluster folds when you say so');
-  s = expandReducer(s, { type: 'navigate', activeId: 'cast', ancestorIds: ['film', 'root'] });
-  assert.equal(filesUnfolded(s, 'film', 'root'), false);
-  assert.equal(filesUnfolded(s, 'cast', 'root'), true);
-});
-
-test('the root shows its files when it is the cluster you are in, and a search shows hits', () => {
-  let s = initialExpandState(['root']);
-  s = expandReducer(s, { type: 'navigate', activeId: 'root', ancestorIds: [] });
-  assert.equal(filesUnfolded(s, 'root', 'root'), true);
-  s = expandReducer(s, { type: 'navigate', activeId: 'loc', ancestorIds: ['film', 'root'] });
-  s = expandReducer(s, { type: 'search', ids: ['film'] });
-  assert.equal(filesUnfolded(s, 'film', 'root'), true);
 });

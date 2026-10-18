@@ -1,16 +1,13 @@
-// One unfolded cluster's contents in the sidebar: shelf headers, the photo
-// mosaic, rows for everything else, the folded Links · More line, "Show N
-// more". They sit in a soft panel, indented under the cluster's name — files
-// live in panels and clusters never do, which is what tells them apart at a
-// glance — and when sub-clusters come between the name and the panel, the
-// panel opens with a line saying whose files these are (folded, it is only
-// that line).
+// The files of one cluster (or of Recent, or Starred), as the sidebar's files
+// section lists them: a section per kind — photos as a grid that fills the
+// width, everything else as rows — with "Show N more" and "Show less".
 //
 // lib/sidebarRows.js turns the shelves into fixed-height rows; this draws them.
-// A short block renders whole (most clusters, and every peek). A long one —
-// a shelf expanded in place to thousands — renders only the rows near the
-// sidebar's viewport, against a spacer as tall as the whole block, so the
-// sidebar scrolls the same either way.
+// A short list renders whole (most clusters, and every peek). A long one — a
+// shelf expanded in place to thousands — renders only the rows near the
+// section's viewport, against a spacer as tall as the whole list, so it
+// scrolls the same either way. Photo rows are as tall as the tiles the width
+// allows, measured, so that arithmetic stays exact.
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
@@ -18,17 +15,20 @@ import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
-import { contentRows, layoutRows, visibleRange, mosaicPerLine, INDENT } from '../../lib/sidebarRows.js';
+import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebarRows.js';
 
 const WINDOW_AFTER = 80;
-// Inside a panel every row starts here; the panel itself carries the indent.
-const PANEL_PAD = 8;
+// Rows start a little in from the list's edge, so a hover fill has room.
+const ROW_PAD = 6;
+// Row heights for the list (the photo row's comes from the measured width).
+const LIST_HEIGHTS = {
+  fine: { shelf: 34, file: 36, more: 30, loading: 32, empty: 44, fold: 30 },
+  coarse: { shelf: 40, file: 48, more: 44, loading: 44, empty: 52, fold: 44 },
+};
+const TILE_GAP = 6;
+// Photos are about this wide; the count per line follows from the width.
+const TILE_TARGET = { fine: 76, coarse: 88 };
 
-// "Feature film's files", "Locations' files".
-function possessive(name) {
-  const n = (name || 'Untitled').trim();
-  return /s$/i.test(n) ? `${n}’` : `${n}’s`;
-}
 
 function clock(sec) {
   const s = Math.round(Number(sec) || 0);
@@ -163,21 +163,8 @@ export function SidebarTile({ item, depth = 0, starred = false, where = '', onCl
 // Rows of the windowed block are positioned by offset; rows of a short block
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
-  const pad = { paddingLeft: PANEL_PAD };
-  const { onItem, onItemOpen, onMore, onLess, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu, onToggleOwn, tileGap } = ctx;
-
-  if (row.type === 'own') {
-    return (
-      <button type="button" className={`sbf-own${row.open ? ' is-open' : ''}`} style={pad}
-              role="treeitem" aria-level={depth + 1} aria-expanded={row.open}
-              title={row.open ? 'Fold these away' : 'Show these files'}
-              onClick={() => onToggleOwn?.()}>
-        <span className="sbf-own-chev" aria-hidden="true">▸</span>
-        <span className="sbf-own-name">{possessive(row.name)} files</span>
-        <span className="sbf-own-count">{row.count}</span>
-      </button>
-    );
-  }
+  const pad = { paddingLeft: ROW_PAD };
+  const { onItem, onItemOpen, onMore, onLess, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu, tileGap, tileSize } = ctx;
 
   if (row.type === 'shelf') {
     return (
@@ -196,7 +183,7 @@ function Row({ row, depth, ctx }) {
   }
   if (row.type === 'mosaic') {
     return (
-      <div className="sbf-mosaic" style={{ ...pad, gap: tileGap }}>
+      <div className="sbf-mosaic" style={{ ...pad, gap: tileGap, '--sbf-tile': `${tileSize}px` }}>
         {row.items.map((item) => (
           <SidebarTile key={item.key} item={item} depth={depth} starred={starred(item)}
                        selected={selected(item)} onDragStart={onDragItem}
@@ -208,7 +195,7 @@ function Row({ row, depth, ctx }) {
   }
   if (row.type === 'file') {
     return (
-      <SidebarItemRow item={row.item} depth={depth} indent={PANEL_PAD} starred={starred(row.item)}
+      <SidebarItemRow item={row.item} depth={depth} indent={ROW_PAD} starred={starred(row.item)}
                       selected={selected(row.item)} onDragStart={onDragItem}
                       onMenu={onItemMenu ? (it, x, y) => onItemMenu(it, row, x, y) : null}
                       onClick={(item, e) => onItem(item, row, e)} onOpen={onItemOpen} />
@@ -248,7 +235,7 @@ function Row({ row, depth, ctx }) {
     return <div className="sbf-note" style={pad} aria-busy="true">Loading…</div>;
   }
   if (row.type === 'empty') {
-    return <div className="sbf-note" style={pad}>No files yet — drop some here</div>;
+    return <div className="sbf-note is-empty" style={pad}>No files here yet. Drop some in, or press Upload.</div>;
   }
   return null;
 }
@@ -285,30 +272,36 @@ function useWindow(scrollRef, blockRef, layout, active) {
 }
 
 export function ClusterShelves({
-  boardId, depth, contents, hasChildren = false, width = 300, coarse = false,
-  own = null, onToggleOwn = null,
+  boardId, depth = 0, contents, hasChildren = false, coarse = false,
   shelfState, onToggleShelf, onLoadMore, canLoadMore,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
   isSelected = null, onDragItem = null, onItemMenu = null,
 }) {
-  // The panel sits under the cluster's name: indented a level past it, 6px
-  // short of the edge.
-  const panelLeft = 6 + depth * INDENT;
-  // As many tiles as fit inside the panel (the sidebar's own padding, the
-  // panel's indent and edges, the row's padding, room for the scrollbar).
-  const thumb = coarse ? 52 : 40;
-  const minGap = coarse ? 5 : 4;
-  const inset = 16 + panelLeft + 6 + 8 + PANEL_PAD + 6;
-  const perLine = mosaicPerLine(width, { thumb, gap: minGap, inset });
-  // The room left over spreads between the tiles (up to a point), so a line
-  // of photos spans the panel instead of bunching at its left.
-  const tileGap = perLine > 1
-    ? Math.max(minGap, Math.min(12, Math.floor((width - inset - perLine * thumb) / (perLine - 1))))
-    : minGap;
-  const ownKey = own ? `${own.name}|${own.count}|${own.open}` : '';
+  // The list's own width, measured: how many photos fit a line, and how tall
+  // that line is, follow from it.
+  const boxRef = useRef(null);
+  const [boxW, setBoxW] = useState(280);
+  useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el) return undefined;
+    const read = () => { const w = Math.floor(el.getBoundingClientRect().width); if (w > 0) setBoxW(w); };
+    read();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const inner = Math.max(120, boxW - ROW_PAD * 2);
+  const perLine = Math.max(3, Math.min(8, Math.round(inner / TILE_TARGET[coarse ? 'coarse' : 'fine'])));
+  const tileSize = Math.floor((inner - TILE_GAP * (perLine - 1)) / perLine);
+  const heights = useMemo(
+    () => ({ ...LIST_HEIGHTS[coarse ? 'coarse' : 'fine'], mosaic: tileSize + TILE_GAP }),
+    [coarse, tileSize],
+  );
   const rows = useMemo(() => contentRows(boardId, depth, {
-    contents, shelfState: (b, s) => shelfState?.(b, s) || {}, perLine, coarse, hasChildren, own,
-  }), [boardId, depth, contents, shelfState, perLine, coarse, hasChildren, ownKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+    contents, shelfState: (b, s) => shelfState?.(b, s) || {}, perLine, coarse, hasChildren,
+    heights, foldMinor: false,
+  }), [boardId, depth, contents, shelfState, perLine, coarse, hasChildren, heights]);
   const layout = useMemo(() => layoutRows(rows), [rows]);
   const windowed = rows.length > WINDOW_AFTER;
   const blockRef = useRef(null);
@@ -328,8 +321,8 @@ export function ClusterShelves({
       if (canLoadMore?.(boardId, row.shelfId)) onLoadMore?.(boardId, row.shelfId);
     },
     onLess: (row) => onToggleShelf?.(boardId, row.shelfId, 'expanded'),
-    onToggleOwn,
-    tileGap,
+    tileGap: TILE_GAP,
+    tileSize,
     onFold: (b, shelfId) => onToggleShelf?.(b, shelfId, 'open'),
     foldOpen: (b, shelfId) => !!shelfState?.(b, shelfId)?.open,
     onOpenShelf,
@@ -342,13 +335,9 @@ export function ClusterShelves({
     } : null,
   };
 
-  if (!rows.length) return null;
-  const folded = !!own && !own.open;
-  const panel = (block) => (
-    <div className={`sbf-panel${folded ? ' is-folded' : ''}`} style={{ marginLeft: panelLeft }}>{block}</div>
-  );
+  const box = (block) => <div className="sbf-listbox" ref={boxRef}>{block}</div>;
   if (!windowed) {
-    return panel(
+    return box(
       <div className="sbf-block" role="group">
         {rows.map((row) => <Row key={row.key} row={row} depth={row.depth} ctx={ctx} />)}
       </div>,
@@ -362,7 +351,7 @@ export function ClusterShelves({
     }
     shown.sort((a, b) => a - b);
   }
-  return panel(
+  return box(
     <div className="sbf-block is-windowed" role="group" ref={blockRef}
          style={{ height: layout.total }}
          aria-rowcount={rows.length}

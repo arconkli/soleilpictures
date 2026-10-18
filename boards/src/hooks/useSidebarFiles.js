@@ -433,12 +433,16 @@ export function useSidebarFiles({
   const ownTotalOf = useCallback((boardId) => (counts.own.get(boardId)?.total || 0), [counts]);
   // A cluster's own files only, as the chip sees them: the count on its files line.
   const ownCountOf = useCallback((boardId) => (counts.chipOwn.get(boardId)?.total || 0), [counts]);
+  // A cluster's own files by shelf, whatever chip is on: the chips' numbers.
+  const ownCountsOf = useCallback((boardId) => counts.own.get(boardId) || null, [counts]);
+  // Any list of items (Recent, Starred), shelved the way a cluster's are.
+  const contentsOfItems = useCallback((items) => ({ loading: false, shelves: shelve(items || [], null) }), [shelve]);
 
   return useMemo(() => ({
-    counts, countOf, totalOf, ownTotalOf, ownCountOf,
+    counts, countOf, totalOf, ownTotalOf, ownCountOf, ownCountsOf, contentsOfItems,
     contentsOf, ensure, loadMore, canLoadMore, refresh,
     searching: !!q, searchLoading: search.loading, searchClusterIds,
     recent, starred, isStarred, toggleStar,
-  }), [counts, countOf, totalOf, ownTotalOf, ownCountOf, contentsOf, ensure, loadMore, canLoadMore, refresh,
+  }), [counts, countOf, totalOf, ownTotalOf, ownCountOf, ownCountsOf, contentsOfItems, contentsOf, ensure, loadMore, canLoadMore, refresh,
     q, search.loading, searchClusterIds, recent, starred, isStarred, toggleStar]);
 }

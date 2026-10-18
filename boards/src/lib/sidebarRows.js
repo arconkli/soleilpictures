@@ -8,11 +8,10 @@
 // measured.
 
 // A shelf header's height includes the air above its label (it is what
-// separates one shelf from the next); `own` is the "Feature film's files" line
-// that opens a cluster's own files when sub-clusters sit above them.
+// separates one shelf from the next).
 export const ROW_HEIGHTS = {
-  fine: { cluster: 36, own: 30, shelf: 28, file: 28, mosaic: 46, fold: 28, more: 28, loading: 28, empty: 28 },
-  coarse: { cluster: 44, own: 44, shelf: 36, file: 44, mosaic: 58, fold: 44, more: 44, loading: 44, empty: 44 },
+  fine: { cluster: 36, shelf: 28, file: 28, mosaic: 46, fold: 28, more: 28, loading: 28, empty: 28 },
+  coarse: { cluster: 44, shelf: 36, file: 44, mosaic: 58, fold: 44, more: 44, loading: 44, empty: 44 },
 };
 
 // One level of the tree, in px: cluster rows step in by it (SidebarBoardTree),
@@ -32,14 +31,14 @@ export function mosaicPerLine(widthPx, { thumb = 40, gap = 4, inset = 0 } = {}) 
 // take; `hasChildren` says whether sub-clusters sit above them (a cluster with
 // sub-clusters and nothing of its own is not "empty").
 //
-// `own` — { name, count, open } — heads the rows with the cluster's own-files
-// line. The sidebar passes it when sub-clusters sit between the cluster's name
-// and its files, so the files say whose they are; folded (`open: false`), that
-// line is all there is.
+// `heights` overrides row heights by type (the files list sizes its photo rows
+// to its width); `foldMinor: false` lists Links and More as ordinary shelves
+// instead of folding them into one line.
 export function contentRows(b, depth, {
-  contents, shelfState = () => ({}), perLine = 6, coarse = false, hasChildren = false, own = null,
+  contents, shelfState = () => ({}), perLine = 6, coarse = false, hasChildren = false,
+  heights: heightOverrides = null, foldMinor = true,
 } = {}) {
-  const heights = ROW_HEIGHTS[coarse ? 'coarse' : 'fine'];
+  const heights = { ...ROW_HEIGHTS[coarse ? 'coarse' : 'fine'], ...(heightOverrides || {}) };
   const rows = [];
   const push = (type, key, extra) =>
     rows.push({ key, type, depth, height: heights[type], boardId: b, ...extra });
@@ -58,10 +57,6 @@ export function contentRows(b, depth, {
     }
   };
 
-  if (own) {
-    push('own', `h:${b}`, { name: own.name || '', count: own.count || 0, open: !!own.open });
-    if (!own.open) return rows;
-  }
   const c = contents;
   const shelves = (c && c.shelves) || [];
   if (!c || (c.loading && !shelves.length)) {
@@ -76,7 +71,7 @@ export function contentRows(b, depth, {
   }
   const folds = [];
   for (const shelf of shelves) {
-    if (shelf.layout === 'fold') { if (shelf.total > 0) folds.push(shelf); continue; }
+    if (shelf.layout === 'fold' && foldMinor) { if (shelf.total > 0) folds.push(shelf); continue; }
     if (!(shelf.total > 0)) continue;
     const st = shelfState(b, shelf.id) || {};
     push('shelf', `s:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total, label: shelf.label });

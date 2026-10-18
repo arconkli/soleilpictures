@@ -1,13 +1,30 @@
 // How wide the sidebar is, and how it is allowed to change.
 //
-// The sidebar now lists a cluster's whole contents, so one fixed width suits
-// nobody: filenames want room, a canvas wants it back. It resizes between MIN
-// and MAX and the choice is remembered per device (not per workspace — it is a
-// property of the screen, not of the work). Storage can be missing or throw
-// (private windows, blocked site data), so nothing here ever throws.
+// The sidebar holds the clusters and, below them, the files of the one you're
+// in, so one fixed width suits nobody: filenames want room, a canvas wants it
+// back. It resizes between MIN and MAX and the choice is remembered per device
+// (not per workspace — it is a property of the screen, not of the work).
+// Storage can be missing or throw (private windows, blocked site data), so
+// nothing here ever throws.
+//
+// Past SPLIT_AT it is wide enough for two columns, and the files move from
+// under the clusters to beside them (ClusterSidebar). Its expand button jumps
+// between the two: to WIDE, and back to the narrow width it came from.
 
-export const SIDEBAR_W = Object.freeze({ MIN: 240, MAX: 480, DEFAULT: 300, STEP: 16 });
+export const SIDEBAR_W = Object.freeze({ MIN: 240, MAX: 760, DEFAULT: 320, STEP: 16, SPLIT_AT: 540, WIDE: 640 });
 export const SIDEBAR_W_KEY = 'soleil.ui.sidebarW';
+
+export function isWideSidebar(width) {
+  return Number(width) >= SIDEBAR_W.SPLIT_AT;
+}
+
+// The width the expand button goes to: wide from narrow, and from wide back to
+// `narrow` (the last narrow width), or the default when there isn't one.
+export function toggledSidebarWidth(width, narrow = null) {
+  if (!isWideSidebar(width)) return Math.max(SIDEBAR_W.WIDE, clampSidebarWidth(width));
+  const back = clampSidebarWidth(narrow ?? SIDEBAR_W.DEFAULT);
+  return isWideSidebar(back) ? SIDEBAR_W.DEFAULT : back;
+}
 
 export function clampSidebarWidth(n) {
   const v = Number(n);

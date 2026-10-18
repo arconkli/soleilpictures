@@ -1,10 +1,11 @@
 // The sidebar that holds every file, driven through its dev-only QA harness
 // (?sidebarqa=1: the real ClusterSidebar over fixture clusters, the open one
 // live and the rest served by a fake of 0419's RPCs). What a person sees and
-// does: covers and counts, shelves under the cluster they're in, Quick look,
-// the finder, the chips, sorting, paging a long shelf in place, Recent and
-// Starred, the meter, and the resize handle. The App.jsx wiring behind the
-// hold is pinned by reading the source at the end.
+// does: a tree of clusters with covers and counts, and below it (or beside it,
+// wide) the files of the cluster they're in — Quick look, the search, the
+// chips, sorting, paging a long shelf in place, Recent and Starred — plus the
+// meter, the resize handle and the divider. The App.jsx wiring behind the
+// hold is pinned by reading the source.
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -17,50 +18,75 @@ async function open(page) {
 }
 const calls = (page, fn) => page.evaluate((f) => window.__sidebarQa.calls.filter((c) => c.fn === f), fn);
 const row = (page, name) => page.locator('.sb-tree-row', { hasText: name }).first();
+const files = (page) => page.locator('.sbf-files');
+const nav = (page) => page.locator('.sbf-nav');
 
 test.describe('sidebar files', () => {
-  test('clusters show a cover and everything inside them; the one you are in unfolds into shelves', async ({ page }) => {
+  test('the tree is clusters only; the files of the cluster you are in fill the section below it', async ({ page }) => {
     await open(page);
     await expect(row(page, 'Feature film')).toHaveClass(/is-files/);
     await expect(row(page, 'Feature film').locator('.sbf-thumb')).toBeVisible();
     // 48 of its own, 43 in Locations, 17 in Casting.
     await expect(row(page, 'Feature film').locator('.sbf-count')).toHaveText('108');
     await expect(row(page, 'Studio').locator('.sbf-count')).toHaveText('295');
+    await expect(nav(page).locator('.sbf-file, .sbf-tile')).toHaveCount(0);
 
-    const block = page.locator('.sbf-block').first();
-    const shelves = await block.locator('.sbf-shelf-label').allTextContents();
-    expect(shelves.map((s) => s.toLowerCase())).toEqual(['photos', 'video', 'audio', 'files', 'writing']);
-    await expect(block.locator('.sbf-mosaic')).toHaveCount(2, { timeout: 5000 });
-    await expect(block.locator('.sbf-more-btn').first()).toHaveText('Show 20 more');
-    await expect(block.locator('.sbf-fold')).toContainText('Links 4');
-    await expect(block.locator('.sbf-fold')).toContainText('More 2');
+    const f = files(page);
+    await expect(f.locator('.sbf-files-name')).toHaveText('Feature film');
+    await expect(f.locator('.sbf-files-sub')).toHaveText('48 files · 2 clusters · in Studio');
+    await expect(f.locator('.sbf-sub-name')).toHaveText(['Casting', 'Locations']);
+    expect(await f.locator('.sbf-shelf-label').allTextContents())
+      .toEqual(['Photos', 'Video', 'Audio', 'Files', 'Writing', 'Links', 'More']);
+    await expect(f.locator('.sbf-mosaic')).toHaveCount(2);
+    await expect(f.locator('.sbf-more-btn').first()).toHaveText(/^Show \d+ more$/);
     // A file stored off the board says so.
-    await expect(block.locator('.sbf-file', { hasText: 'film-selects.zip' }).locator('.sbf-stored-dot')).toBeVisible();
+    await expect(f.locator('.sbf-file', { hasText: 'film-selects.zip' }).locator('.sbf-stored-dot')).toBeVisible();
   });
 
-  test('a long shelf expands in place, and a closed cluster pages from the server', async ({ page }) => {
+  test('opening another cluster shows its files; Recent and Starred show theirs, and the cluster comes back', async ({ page }) => {
     await open(page);
-    const block = page.locator('.sbf-block').first();
-    await block.locator('.sbf-more-btn').first().click();
-    await expect(block.locator('.sbf-mosaic')).toHaveCount(6);   // 30 photos, 5 a line
-    await block.locator('.sbf-more-btn', { hasText: 'Show less' }).click();
-    await expect(block.locator('.sbf-mosaic')).toHaveCount(2);   // back to the peek
+    const f = files(page);
+    await row(page, 'Locations').click();
+    await expect(f.locator('.sbf-files-name')).toHaveText('Locations');
+    await expect(f.locator('.sbf-files-sub')).toHaveText('43 files · in Feature film');
 
-    await row(page, 'Music video').locator('.sb-tree-chev').click();
-    const mv = page.locator('.sbf-block').filter({ has: page.locator('[data-sb-item^="mv:"]') });
-    await expect(mv.locator('.sbf-shelf-label').first()).toHaveText(/photos/i);
-    const peek = await calls(page, 'sidebar_cluster_items');
-    expect(peek.some((c) => c.params.p_board_id === 'mv' && c.params.p_shelf === null)).toBe(true);
-    await expect(mv.locator('.sbf-more-btn').first()).toHaveText('Show 110 more');
-    await mv.locator('.sbf-more-btn').first().click();         // expand the peek in place
-    await mv.locator('.sbf-more-btn').first().click();         // then fetch the next page
+    await page.locator('.sbf-navrow', { hasText: 'Recent' }).click();
+    await expect(f.locator('.sbf-files-name')).toHaveText('Recent');
+    await expect(f.locator('[data-sb-item]').first()).toBeVisible();
+
+    await page.locator('.sbf-navrow', { hasText: 'Starred' }).click();
+    await expect(f.locator('.sbf-files-name')).toHaveText('Starred');
+    await expect(f.locator('.sbf-sub', { hasText: 'Moodboards' })).toBeVisible();      // a starred cluster
+    await expect(f.locator('[data-sb-item="loc:loc-img-0"]')).toBeVisible();          // a starred file
+
+    await f.getByRole('button', { name: 'Back to the cluster’s files' }).click();
+    await expect(f.locator('.sbf-files-name')).toHaveText('Locations');
+  });
+
+  test('a long shelf expands in place, and a cluster read from the server pages', async ({ page }) => {
+    await open(page);
+    const f = files(page);
+    const perLine = await f.locator('.sbf-mosaic').first().locator('.sbf-tile').count();
+    await f.locator('.sbf-more-btn').first().click();
+    await expect(f.locator('.sbf-mosaic')).toHaveCount(Math.ceil(30 / perLine));
+    await f.locator('.sbf-more-btn', { hasText: 'Show less' }).click();
+    await expect(f.locator('.sbf-mosaic')).toHaveCount(2);
+
+    // A cluster whose doc isn't open is read from the server: a peek, then pages.
+    await page.evaluate(() => { window.__sidebarQa.setLive(false); window.__sidebarQa.setActive('mv'); });
+    await expect(f.locator('.sbf-files-name')).toHaveText('Music video');
+    await expect.poll(async () => (await calls(page, 'sidebar_cluster_items'))
+      .some((c) => c.params.p_board_id === 'mv' && c.params.p_shelf === null)).toBe(true);
+    await expect(f.locator('.sbf-more-btn').first()).toHaveText(`Show ${120 - 2 * perLine} more`);
+    await f.locator('.sbf-more-btn').first().click();         // expand the peek in place
+    await f.locator('.sbf-more-btn').first().click();         // then fetch the next page
     await expect.poll(async () => (await calls(page, 'sidebar_cluster_items'))
       .some((c) => c.params.p_board_id === 'mv' && c.params.p_shelf === 'photos' && c.params.p_offset === 12)).toBe(true);
   });
 
   test('clicking a file opens Quick look, which steps through the whole shelf', async ({ page }) => {
     await open(page);
-    await page.locator('.sbf-block .sbf-tile').nth(2).click();
+    await files(page).locator('.sbf-tile').nth(2).click();
     await expect(page.getByText(/3 of 30/)).toBeVisible();
     await page.keyboard.press('ArrowRight');
     await expect(page.getByText(/4 of 30/)).toBeVisible();
@@ -70,58 +96,50 @@ test.describe('sidebar files', () => {
 
   test('double-clicking a file goes to it: on its board, or in Files when it is stored off the board', async ({ page }) => {
     await open(page);
-    await page.locator('.sbf-file', { hasText: 'film-take-1.mov' }).dblclick();
+    await files(page).locator('.sbf-file', { hasText: 'film-take-1.mov' }).dblclick();
     await expect(page.getByTestId('sbqa-log')).toContainText('show film/film-vid-0');
-    await page.locator('.sbf-file', { hasText: 'film-selects.zip' }).dblclick();
+    await files(page).locator('.sbf-file', { hasText: 'film-selects.zip' }).dblclick();
     await expect(page.getByTestId('sbqa-log')).toContainText('show film/film-file-0 stored');
   });
 
-  test('the finder narrows the tree to what matches; Enter on nothing hands the words to the palette', async ({ page }) => {
+  test('the search narrows the files to what matches; Enter on nothing searches everywhere', async ({ page }) => {
     await open(page);
-    await page.fill('.sbf-search input', 'permit');
-    await expect(row(page, 'Locations')).toBeVisible();
-    await expect(row(page, 'Music video')).toHaveCount(0);
-    await expect(page.locator('.sbf-file', { hasText: 'loc-permit-1.pdf' })).toBeVisible();
-    await expect(page.locator('.sbf-file', { hasText: 'film-permit-1.pdf' })).toBeVisible();
-    await expect(page.locator('.sbf-section-head', { hasText: 'Recent' })).toHaveCount(0);
-
-    await page.fill('.sbf-search input', 'zzz nothing');
-    await expect.poll(async () => (await calls(page, 'search')).some((c) => c.params.query === 'zzz nothing')).toBe(true);
-    await page.locator('.sbf-search input').press('Enter');
+    await page.evaluate(() => window.__sidebarQa.setActive('loc'));
+    const f = files(page);
+    await f.locator('.sbf-search input').fill('permit');
+    await expect(f.locator('.sbf-file', { hasText: 'loc-permit-1.pdf' })).toBeVisible();
+    await expect(f.locator('.sbf-tile')).toHaveCount(0);
+    await f.locator('.sbf-search input').fill('zzz nothing');
+    await expect(f.locator('.sbf-files-empty')).toContainText('Nothing in Locations matches');
+    await f.locator('.sbf-search input').press('Enter');
     await expect(page.getByTestId('sbqa-log')).toContainText('palette "zzz nothing"');
   });
 
-  test('a chip shows one kind of thing, and hides clusters with none of it', async ({ page }) => {
+  test('a chip narrows the files to one kind; what does not fit its line is behind More', async ({ page }) => {
     await open(page);
-    await page.locator('.sbf-chip', { hasText: 'Audio' }).click();
-    await expect(page.locator('.sbf-chip', { hasText: 'Audio' })).toHaveAttribute('aria-pressed', 'true');
-    const labels = await page.locator('.sbf-block').first().locator('.sbf-shelf-label').allTextContents();
-    expect(labels.map((s) => s.toLowerCase())).toEqual(['audio']);
-    await expect(row(page, 'Moodboards')).toHaveCount(0);        // photos only, no audio
-    await expect(row(page, 'Music video')).toBeVisible();        // 18 loops
-    await page.locator('.sbf-chip', { hasText: 'Audio' }).click();
-    await expect(row(page, 'Moodboards')).toBeVisible();
+    const f = files(page);
+    await f.locator('.sbf-chip', { hasText: 'Photos' }).click();
+    await expect(f.locator('.sbf-shelf-label')).toHaveText(['Photos']);
+    await f.locator('.sbf-chip', { hasText: 'Photos' }).click();
+    // Feature film holds every kind: still one line of chips.
+    expect(await f.locator('.sbf-chips').evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(26);
+    await f.locator('.sbf-chipmore .sbf-chip').click();
+    await f.getByRole('menuitemradio', { name: /Audio/ }).click();
+    await expect(f.locator('.sbf-shelf-label')).toHaveText(['Audio']);
+    await expect(f.locator('.sbf-chipmore .sbf-chip')).toHaveClass(/is-on/);
   });
 
   test('sorting asks the server for that order and remembers it', async ({ page }) => {
     await open(page);
-    await row(page, 'Locations').locator('.sb-tree-chev').click();
-    await page.locator('.sbf-sort-btn').click();
+    await page.evaluate(() => { window.__sidebarQa.setLive(false); window.__sidebarQa.setActive('loc'); });
+    await files(page).locator('.sbf-sort-btn').click();
     await page.getByRole('menuitemradio', { name: 'Name' }).click();
     await expect.poll(async () => (await calls(page, 'sidebar_cluster_items'))
       .some((c) => c.params.p_board_id === 'loc' && c.params.p_sort === 'name')).toBe(true);
     await page.reload();
     await page.waitForSelector('[data-sidebarqa-ready]');
-    await page.locator('.sbf-sort-btn').click();
+    await files(page).locator('.sbf-sort-btn').click();
     await expect(page.getByRole('menuitemradio', { name: 'Name' })).toHaveAttribute('aria-checked', 'true');
-  });
-
-  test('Starred and Recent sit above the clusters, Recent as one strip', async ({ page }) => {
-    await open(page);
-    await expect(page.locator('.sbf-star-cluster', { hasText: 'Moodboards' })).toBeVisible();
-    await expect(page.locator('.sbf-file', { hasText: 'loc-still-001.jpg' })).toBeVisible();
-    await expect(page.locator('.sbf-recent .sbf-tile').first()).toBeVisible();
-    expect(await page.locator('.sbf-recent').evaluate((el) => el.getBoundingClientRect().height)).toBeLessThan(60);
   });
 
   test('the free plan shows cards and storage, and Upload is right there', async ({ page }) => {
@@ -132,32 +150,60 @@ test.describe('sidebar files', () => {
     await expect(page.locator('.sbf-upload')).toBeVisible();
   });
 
-  test('the sidebar resizes between 240 and 480, and double-click puts it back', async ({ page }, info) => {
+  test('the sidebar resizes between 240 and 760, and double-click puts it back', async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop-chrome', 'the handle is a desktop control');
     await open(page);
     const width = () => page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().width);
-    expect(Math.round(await width())).toBe(300);
+    expect(Math.round(await width())).toBe(320);
     const h = page.locator('.sbf-resizer');
     const box = await h.boundingBox();
     await page.mouse.move(box.x + 3, box.y + 200);
     await page.mouse.down();
-    await page.mouse.move(box.x + 3 + 400, box.y + 200, { steps: 4 });
+    await page.mouse.move(box.x + 3 + 600, box.y + 200, { steps: 4 });
     await page.mouse.up();
-    await expect.poll(async () => Math.round(await width())).toBe(480);
+    await expect.poll(async () => Math.round(await width())).toBe(760);
+    await expect(page.locator('.sidebar')).toHaveClass(/is-wide/);
     await h.dblclick();
-    await expect.poll(async () => Math.round(await width())).toBe(300);   // the reset eases back
+    await expect.poll(async () => Math.round(await width())).toBe(320);   // the reset eases back
   });
 
-  test('↑/↓ walk clusters and files alike', async ({ page }) => {
+  test('narrow, the files sit under the clusters; wide, beside them; the button switches', async ({ page }) => {
     await open(page);
-    await row(page, 'Casting').focus();
-    // Past the last sub-cluster: the line that opens Feature film's own files,
-    // then the files.
+    const n = await nav(page).boundingBox();
+    const f = await files(page).boundingBox();
+    expect(f.y).toBeGreaterThanOrEqual(n.y + n.height - 1);
+    await files(page).getByRole('button', { name: 'Show files beside the clusters' }).click();
+    await expect(page.locator('.sidebar')).toHaveClass(/is-wide/);
+    await expect.poll(async () => {
+      const [n2, f2] = [await nav(page).boundingBox(), await files(page).boundingBox()];
+      return f2.x >= n2.x + n2.width - 1 && f2.y < n2.y;
+    }).toBe(true);
+    await files(page).getByRole('button', { name: 'Show files under the clusters' }).click();
+    await expect(page.locator('.sidebar')).not.toHaveClass(/is-wide/);
+    await expect.poll(async () => Math.round(await page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().width))).toBe(320);
+  });
+
+  test('the divider shares the height between clusters and files', async ({ page }) => {
+    await open(page);
+    const before = Math.round((await nav(page).boundingBox()).height);
+    const d = await page.locator('.sbf-divider').boundingBox();
+    await page.mouse.move(d.x + d.width / 2, d.y + 4);
+    await page.mouse.down();
+    await page.mouse.move(d.x + d.width / 2, d.y - 120, { steps: 4 });
+    await page.mouse.up();
+    await expect.poll(async () => Math.round((await nav(page).boundingBox()).height)).toBeLessThan(before - 80);
+    await page.locator('.sbf-divider').dblclick();
+    await expect.poll(async () => Math.round((await nav(page).boundingBox()).height)).toBe(before);
+  });
+
+  test('↑/↓ walk the rows of whichever part has focus', async ({ page }) => {
+    await open(page);
+    await files(page).locator('.sbf-file', { hasText: 'film-take-1.mov' }).focus();
     await page.keyboard.press('ArrowDown');
-    await expect(page.locator('.sbf-own', { hasText: 'Feature film’s files' })).toBeFocused();
+    await expect(files(page).locator('.sbf-file', { hasText: 'film-take-2.mov' })).toBeFocused();
+    await row(page, 'Moodboards').focus();
     await page.keyboard.press('ArrowDown');
-    const focused = await page.evaluate(() => document.activeElement?.getAttribute('data-sb-item'));
-    expect(focused).toMatch(/^film:film-img-/);
+    await expect(row(page, 'Music video')).toBeFocused();
   });
 });
 
@@ -234,58 +280,6 @@ test.describe('the top bar as floating islands', () => {
   });
 });
 
-test.describe('sidebar files: telling clusters apart', () => {
-  test('inside a sub-cluster, the clusters above fold their own files to one labeled line', async ({ page }) => {
-    await open(page);
-    await page.evaluate(() => window.__sidebarQa.setActive('loc'));
-    const film = page.locator('.sbf-own', { hasText: 'Feature film’s files' });
-    const studio = page.locator('.sbf-own', { hasText: 'Studio’s files' });
-    await expect(film).toHaveAttribute('aria-expanded', 'false');
-    await expect(film).toContainText('48');
-    await expect(studio).toHaveAttribute('aria-expanded', 'false');
-    // Locations' own files show in full, in their own panel, with no line:
-    // nothing sits between its name and them.
-    const loc = page.locator('.sbf-panel').filter({ has: page.locator('[data-sb-item^="loc:"]') });
-    await expect(loc.locator('.sbf-own')).toHaveCount(0);
-    await expect(loc.locator('.sbf-shelf-label').first()).toHaveText('Photos');
-    // Feature film's own files are only that line until asked for (Recent
-    // and Starred above the clusters may hold some of them; panels don't).
-    await expect(page.locator('.sbf-panel [data-sb-item^="film:"]')).toHaveCount(0);
-    await film.click();
-    await expect(film).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('.sbf-panel').filter({ has: film }).locator('[data-sb-item^="film:"]').first()).toBeVisible();
-  });
-
-  test('a cluster name stays at the top while you scroll through its files', async ({ page }) => {
-    await page.setViewportSize({ width: 1100, height: 640 });
-    await open(page);
-    await page.evaluate(() => window.__sidebarQa.setActive('loc'));
-    const loc = page.locator('.sbf-panel').filter({ has: page.locator('[data-sb-item^="loc:"]') });
-    await loc.locator('.sbf-more-btn').first().click();
-    const list = page.locator('.sb-list');
-    await list.evaluate((el) => { el.scrollTop = el.scrollHeight / 2; });
-    const locRow = row(page, 'Locations');
-    await expect(locRow).toHaveAttribute('data-stuck', '1');
-    const [listTop, rowTop] = await Promise.all([
-      list.evaluate((el) => el.getBoundingClientRect().top),
-      locRow.evaluate((el) => el.getBoundingClientRect().top),
-    ]);
-    expect(Math.round(rowTop - listTop)).toBe(36);   // under Feature film, which sticks at the top
-    await expect(row(page, 'Feature film')).toHaveAttribute('data-stuck', '1');
-  });
-
-  test('every filter chip is in view: they wrap instead of scrolling', async ({ page }) => {
-    await open(page);
-    const chips = page.locator('.sbf-chips');
-    const [scroll, client] = await chips.evaluate((el) => [el.scrollWidth, el.clientWidth]);
-    expect(scroll).toBeLessThanOrEqual(client);
-    const right = await page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().right);
-    for (const r of await chips.locator('.sbf-chip').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right))) {
-      expect(r).toBeLessThanOrEqual(right);
-    }
-  });
-});
-
 test.describe('sidebar files: keys and folding', () => {
   test('renaming a cluster keeps its keys: an arrow moves the caret, not the focus', async ({ page }) => {
     await open(page);
@@ -356,9 +350,9 @@ test.describe('sidebar files: organizing', () => {
 
   test('deleting a selection from a closed cluster removes it through the route, and Undo puts it back', async ({ page }) => {
     await open(page);
-    await row(page, 'Locations').locator('.sb-tree-chev').click();
-    const loc = page.locator('.sbf-block').filter({ has: page.locator('[data-sb-item^="loc:"]') });
-    await loc.locator('.sbf-tile').first().click({ modifiers: ['ControlOrMeta'] });
+    await page.evaluate(() => { window.__sidebarQa.setLive(false); window.__sidebarQa.setActive('loc'); });
+    await expect(files(page).locator('.sbf-files-name')).toHaveText('Locations');
+    await files(page).locator('.sbf-tile').first().click({ modifiers: ['ControlOrMeta'] });
     await page.locator('.sbf-bulk-btn', { hasText: 'Delete' }).click();
     await expect.poll(async () => (await calls(page, 'removeCards')).length).toBe(1);
     await expect(page.getByTestId('sbqa-toast')).toContainText('Deleted 1 file from Locations');
@@ -384,9 +378,10 @@ test.describe('sidebar files: menus', () => {
     await menu.getByText('Star', { exact: true }).click();
     await expect.poll(async () => (await calls(page, 'toggleStar'))
       .some((c) => c.params.boardId === 'film' && c.params.cardId === 'film-vid-1' && c.params.on)).toBe(true);
-    // Now in Starred as well as on its shelf, marked in both places.
-    await expect(file).toHaveCount(2);
-    await expect(page.locator('.sbf-block .sbf-file', { hasText: 'film-take-2.mov' }).locator('.sbf-star-mark')).toBeVisible();
+    // Marked on its row, and listed under Starred.
+    await expect(file.locator('.sbf-star-mark')).toBeVisible();
+    await page.locator('.sbf-navrow', { hasText: 'Starred' }).click();
+    await expect(files(page).locator('.sbf-file', { hasText: 'film-take-2.mov' })).toBeVisible();
   });
 
   test('a cluster’s menu stars it, and sets how it opens for everyone', async ({ page }) => {

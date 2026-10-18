@@ -11,12 +11,12 @@ import { useMemo, useRef, useState } from 'react';
 import '../styles.css';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
 import { SidebarResizer } from '../components/sidebar/SidebarResizer.jsx';
-import { SIDEBAR_W, clampSidebarWidth } from '../lib/sidebarWidth.js';
+import { SIDEBAR_W, clampSidebarWidth, isWideSidebar } from '../lib/sidebarWidth.js';
 import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { ChevronLeft, ChevronRight, PanelLeftOpen, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question } from '../lib/icons.js';
+import { ChevronLeft, ChevronRight, PanelLeftOpen, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Home, MessageSquare } from '../lib/icons.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -190,6 +190,9 @@ export function SidebarQaHarness() {
   const [width, setWidth] = useState(phone ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : SIDEBAR_W.DEFAULT);
   const [log, setLog] = useState([]);
   const [collapsed, setCollapsed] = useState(false);
+  // Whether the open cluster's doc is live; off, its files come from the fake
+  // server like any other cluster's (the RPC path: peeks, pages, sorts).
+  const [live, setLive] = useState(true);
   const [toast, setToast] = useState(null);
   const listRef = useRef(null);
   const source = useMemo(() => {
@@ -199,6 +202,8 @@ export function SidebarQaHarness() {
       setActive: (id) => setActive(id),
       bumpBoards: () => setBoardsVersion((v) => v + 1),
       setCollapsed: (v) => setCollapsed(!!v),
+      setWidth: (w) => setWidth(clampSidebarWidth(w)),
+      setLive: (v) => setLive(!!v),
     };
     return s;
   }, []);
@@ -211,11 +216,17 @@ export function SidebarQaHarness() {
     <style>{QA_STYLE}</style>
     <div className={`app sb-files${phone ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}`}
          style={{ '--sb-w': `${collapsed ? 0 : width}px`, height: '100vh' }} data-sidebarqa-ready="1">
-      <aside className={`sidebar${phone ? ' is-mobile-open' : ''}`}>
+      <aside className={`sidebar${phone ? ' is-mobile-open' : ''}${!phone && isWideSidebar(width) ? ' is-wide' : ''}`}>
         {!phone && <SidebarResizer width={width} onChange={(w) => setWidth(clampSidebarWidth(w))} />}
         <div className="sb-mid">
+          {/* The real top rows' classes, so the parts below sit as they do in App. */}
           <div className="sb-top">
             <div className="sb-mid-head"><span className="sb-ws-name">Sidebar QA</span></div>
+            <button type="button" className="sb-search" onClick={() => say('palette ""')}>
+              <Icon as={Search} size={13} /><span>Search…</span><span className="sb-search-kbd">⌘K</span>
+            </button>
+            <div className="sb-row" role="button" tabIndex={0} onClick={() => say('home')}><Icon as={Home} size={15} /><span className="sb-row-label">Home</span></div>
+            <div className="sb-row" role="button" tabIndex={0} onClick={() => say('messages')}><Icon as={MessageSquare} size={15} /><span className="sb-row-label">Messages</span></div>
           </div>
           <ClusterSidebar
             workspaceId={WS}
@@ -223,10 +234,11 @@ export function SidebarQaHarness() {
             allBoards={allBoards}
             rootId="root"
             activeBoardId={active}
-            liveBoardId={active}
-            liveCards={CARDS[active] || []}
+            liveBoardId={live ? active : null}
+            liveCards={live ? (CARDS[active] || []) : null}
             width={width}
             coarse={phone}
+            onSetWidth={phone ? null : (w) => setWidth(clampSidebarWidth(w))}
             listRef={listRef}
             source={source}
             boardsSectionProps={{

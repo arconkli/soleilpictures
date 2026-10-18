@@ -205,7 +205,7 @@ import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
 import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
-import { readSidebarWidth, writeSidebarWidth } from './lib/sidebarWidth.js';
+import { readSidebarWidth, writeSidebarWidth, clampSidebarWidth, isWideSidebar } from './lib/sidebarWidth.js';
 import { moveFiles, failureMessage } from './lib/clustersApi.js';
 import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
 import { useStorageUsage } from './hooks/useStorageUsage.js';
@@ -9320,7 +9320,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           not true: React 18 passes unknown attributes through only as
           strings. */}
       <aside ref={sidebarRef}
-             className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}`}
+             className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}${filesSidebar && !mobileShell && isWideSidebar(sidebarW) ? ' is-wide' : ''}`}
              inert={mobileShell && !mobileNavOpen ? '' : undefined}
              aria-hidden={mobileShell && !mobileNavOpen ? 'true' : undefined}
              role={mobileShell && mobileNavOpen ? 'dialog' : undefined}
@@ -9428,13 +9428,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             );
           })()}
 
-          {!filesSidebar && (
           <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
             <Icon as={Search} size={13} />
             <span>Search…</span>
             <span className="sb-search-kbd">⌘K</span>
           </button>
-          )}
 
           <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
                {...rowButtonProps(() => setCurrentSurface('home'))}>
@@ -9515,6 +9513,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // In the drawer the width is the drawer's: min(86vw, 320px).
               width={mobileShell ? Math.round(Math.min((typeof window !== 'undefined' ? window.innerWidth : 375) * 0.86, 320)) : sidebarW}
               coarse={isTouch}
+              // The files section's expand button: files beside the clusters, or under them.
+              onSetWidth={mobileShell ? null : (w) => { const v = clampSidebarWidth(w); setSidebarW(v); writeSidebarWidth(v); }}
               listRef={sidebarScrollRef}
               boardsSectionProps={{
                 boards: ownedBoards,

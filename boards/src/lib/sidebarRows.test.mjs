@@ -69,17 +69,6 @@ test('mosaic with 20 photos: more counts the rest; expanded shows all lines', ()
   assert.equal(r[6].expanded, true);
 });
 
-test('own files under sub-clusters open with a line that says whose they are; folded, it is all there is', () => {
-  const contents = { loading: false, shelves: [photos('F', 3)] };
-  const open = contentRows('F', 1, { contents, hasChildren: true, own: { name: 'Feature film', count: 48, open: true } });
-  assert.deepEqual(open.map((x) => x.type), ['own', 'shelf', 'mosaic']);
-  assert.deepEqual([open[0].name, open[0].count, open[0].open, open[0].height], ['Feature film', 48, true, ROW_HEIGHTS.fine.own]);
-  const folded = contentRows('F', 1, { contents, hasChildren: true, own: { name: 'Feature film', count: 48, open: false } });
-  assert.deepEqual(folded.map((x) => x.type), ['own']);
-  assert.equal(contentRows('F', 1, { contents: null, own: { name: 'F', count: 2, open: false } }).length, 1,
-    'a folded line needs nothing loaded');
-});
-
 test('a search that only matched the cluster name shows no "nothing here" row', () => {
   const r = contentRows('F', 1, { contents: { loading: false, shelves: [], searching: true } });
   assert.deepEqual(r, []);
@@ -169,4 +158,16 @@ test('visibleRange on a 5,000-row list: top, middle, end, empty', () => {
   assert.equal(e.start, Math.floor((layout.total - 900) / 26));
   assert.deepEqual(visibleRange(layout, layout.total + 5000, 600), { start: 5000, end: 5000 });
   assert.deepEqual(visibleRange(layoutRows([]), 0, 600), { start: 0, end: 0 });
+});
+
+test('the files list: minor shelves as plain shelves, and photo rows as tall as asked', () => {
+  const contents = { loading: false, shelves: [
+    { id: 'photos', label: 'Photos', layout: 'mosaic', total: 8, items: Array.from({ length: 8 }, (_, i) => ({ cardId: `p${i}` })) },
+    { id: 'links', label: 'Links', layout: 'fold', total: 2, items: [{ cardId: 'l1' }, { cardId: 'l2' }] },
+  ] };
+  const rows = contentRows('B', 0, { contents, perLine: 4, foldMinor: false, heights: { mosaic: 80, file: 36 } });
+  assert.deepEqual(rows.map((r) => r.type), ['shelf', 'mosaic', 'mosaic', 'shelf', 'file', 'file']);
+  assert.equal(rows[1].height, 80);
+  assert.equal(rows[4].height, 36);
+  assert.deepEqual(contentRows('B', 0, { contents, perLine: 4 }).map((r) => r.type).slice(-1), ['fold'], 'folded by default');
 });
