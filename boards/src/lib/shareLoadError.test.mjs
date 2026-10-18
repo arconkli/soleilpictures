@@ -25,7 +25,7 @@ test('the party passes a Supabase 5xx through instead of calling it a 404', () =
   // P0002 that PostgREST sends as HTTP 500) from an outage; see its tests.
   const party = readFileSync(join(here, '..', '..', 'party', 'upload.ts'), 'utf8');
   const n = (party.match(/bundleRefusalStatus\(rpcRes\.status, msg\)/g) || []).length;
-  assert.equal(n, 2, 'both /share-bundle and /public-bundle');
+  assert.equal(n, 3, '/share-bundle, /public-bundle and /file-share');
 });
 
 test('the viewer keeps a retry state apart from the invalid one', () => {

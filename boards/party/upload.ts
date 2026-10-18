@@ -54,6 +54,9 @@
 import { AwsClient } from "aws4fetch";
 import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
 import { bundleRefusalStatus } from "../src/lib/bundleRefusal.js";
+import {
+  FILE_SHARE_CACHE_CONTROL, FILE_SHARE_URL_TTL_SECONDS, FILE_TOKEN_RE, fileShareResponse,
+} from "../src/lib/fileShareBundle.js";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
@@ -203,16 +206,21 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
 // is a SIGNED query param — it must be on the URL before signing, or R2 rejects
 // the signature. Shared by /sign-reads and /share-bundle so both paths produce
 // identical, cacheable, persistable URLs.
-async function signReadUrl(r2: AwsClient, env: R2Env, key: string, disposition: string | null = null): Promise<string> {
+// `opts` lets a caller shorten the URL's life and swap the cache header; the
+// defaults are the long-lived immutable pair every existing caller wants.
+async function signReadUrl(
+  r2: AwsClient, env: R2Env, key: string, disposition: string | null = null,
+  opts: { ttl?: number; cacheControl?: string } = {},
+): Promise<string> {
   const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
   // X-Amz-Expires MUST be a signed query param ON THE URL before signing.
   // aws4fetch has no `expiresIn` option — if X-Amz-Expires is absent it forces
   // its own 86400 (24h) default, so a URL we believe is good for 7 days actually
   // dies in a day (the client then serves a dead URL → 403 → the "locked" image).
   // Setting it here makes aws4fetch sign + keep our 7-day value.
-  const r2Url = `${base}?response-cache-control=${encodeURIComponent(READ_RESPONSE_CACHE_CONTROL)}`
+  const r2Url = `${base}?response-cache-control=${encodeURIComponent(opts.cacheControl ?? READ_RESPONSE_CACHE_CONTROL)}`
     + (disposition ? `&response-content-disposition=${encodeURIComponent(disposition)}` : "")
-    + `&X-Amz-Expires=${READ_URL_TTL_SECONDS}`;
+    + `&X-Amz-Expires=${opts.ttl ?? READ_URL_TTL_SECONDS}`;
   const signed = await r2.sign(
     new Request(r2Url, { method: "GET" }),
     { aws: { signQuery: true } },
@@ -250,6 +258,12 @@ export class UploadParty {
     // /public-bundle is also anon-callable (slug-keyed marketing boards).
     if (url.pathname.endsWith("/public-bundle")) {
       return this.handlePublicBundle(req, env, origin);
+    }
+
+    // /file-share is anon-callable too: get_file_share decides access as the
+    // caller (their bearer, else the anon key), so signed-out link viewers work.
+    if (url.pathname.endsWith("/file-share")) {
+      return this.handleFileShare(req, env, origin);
     }
 
     const accessToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
@@ -326,6 +340,57 @@ export class UploadParty {
       });
     }
     return this.respondWithBundle(bundle, env, origin);
+  }
+
+  // POST /file-share — anon-callable. Body: { token }. Runs get_file_share AS
+  // THE CALLER (their bearer when sent, else the anon key), which decides
+  // access (link, person, team) and returns the storage keys; only then are
+  // the one file's keys presigned (6h, private cache). See lib/fileShareBundle.js.
+  async handleFileShare(
+    req: Request, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const cors = corsHeaders(origin);
+    let body: { token?: string } = {};
+    try { body = (await req.json()) as { token?: string }; } catch (_) {}
+    const token = (body.token || "").trim();
+    if (!FILE_TOKEN_RE.test(token)) {
+      return Response.json({ status: "gone" }, { headers: cors });
+    }
+    const userBearer = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${userBearer || SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_token: token }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401 && userBearer) {
+        return Response.json({ status: "auth_expired" }, { headers: cors });
+      }
+      const msg = await rpcRes.text().catch(() => "");
+      const status = bundleRefusalStatus(rpcRes.status, msg);
+      if (status === 404) return Response.json({ status: "gone" }, { headers: cors });
+      return new Response("File link temporarily unavailable", { status, headers: cors });
+    }
+    const result: any = await rpcRes.json();
+    const r2 = new AwsClient({
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+    const out = await fileShareResponse(
+      result,
+      (key: string, disp: string | null) => signReadUrl(r2, env, key, disp, {
+        ttl: FILE_SHARE_URL_TTL_SECONDS, cacheControl: FILE_SHARE_CACHE_CONTROL,
+      }),
+      attachmentDisposition,
+    );
+    return Response.json(out, { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
   }
 
   // POST /public-bundle — anon-callable. Body: { slug, boardId? }. Identical to

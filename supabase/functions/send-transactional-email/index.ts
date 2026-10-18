@@ -120,7 +120,7 @@ function fromAddress(template: string): string {
 //
 // mention_email and comment_reply_email joined in 0369: one person can cause
 // them, so the person receiving them gets the same one-click way out.
-const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board", "board_waiting", "nudge_dormant_early", "whats_new", "schedule_update", "share_activity", "mention_email", "comment_reply_email"]);
+const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board", "board_waiting", "nudge_dormant_early", "whats_new", "schedule_update", "share_activity", "mention_email", "comment_reply_email", "file_commented"]);
 
 // WHICH preference the one-click link turns off. This used to be hardcoded to
 // email_lifecycle, so the moment a second unsubscribable template existed the
@@ -132,6 +132,7 @@ const UNSUB_KEY_BY_TEMPLATE: Record<string, string> = {
   share_activity:      "email_share_activity",
   mention_email:       "email_mentions",
   comment_reply_email: "email_comment_replies",
+  file_commented:      "email_comment_replies",
 };
 
 function listUnsubHeaders(template: string, data: Record<string, unknown> = {}): Record<string, string> {
@@ -166,7 +167,7 @@ interface Body {
 // hour, something got past the gate, so refuse and page instead of sending.
 // Far above any real hour, far below a blast.
 const USER_TRIGGERED = ["pending_invite", "board_shared", "workspace_invite", "mention_email",
-                        "comment_reply_email", "schedule_update", "invite_accepted"];
+                        "comment_reply_email", "schedule_update", "invite_accepted", "file_shared", "file_commented"];
 const USER_TRIGGERED_HOURLY_CEILING = 200;
 
 async function overHourlyCeiling(template: string): Promise<boolean> {

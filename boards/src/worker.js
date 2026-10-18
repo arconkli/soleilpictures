@@ -382,6 +382,8 @@ function injectRouteMeta(res, meta, canonical) {
 // share page itself must never break on a metadata miss.
 const SHARE_PATH_RE = /^\/share\/([0-9a-f-]{36})\/?$/i;
 const UUID_RE = /^[0-9a-f-]{36}$/i;
+// /f/<uuid> — a single shared file. keep in lockstep with fileShareMatch in main.jsx
+const FILE_SHARE_PATH_RE = /^\/f\/([0-9a-f-]{36})\/?$/i;
 
 // Admin-curated public marketing boards (migration 0136): clean keyword slugs at
 // /c/<slug>, plus the /explore index. The slug charset is a deliberate superset
@@ -498,6 +500,34 @@ function injectShareMeta(res, meta, token) {
       .on('meta[property="og:image:alt"]',    new SetContent(name))
       .on('meta[name="twitter:image"]',       new SetContent(img))
       .on('meta[name="twitter:image:alt"]',   new SetContent(name));
+  }
+  return rw.transform(res);
+}
+
+// /f/<token> link previews. Always noindex; dynamic text only ever flows
+// through the escaping setters (SetText/SetContent/SetHref), never AppendHead.
+function injectFileShareMeta(res, meta, token) {
+  const rw = new HTMLRewriter();
+  rw.on('head', new AppendHead('<meta name="robots" content="noindex">'));
+  const ok = meta?.status === 'ok';
+  const title = ok ? `${meta.file?.name || 'File'} · Clusters` : 'A file shared on Clusters';
+  const description = ok
+    ? `Shared on Clusters by ${meta.shared_by?.name || 'someone'}`
+    : 'Open it on Clusters.';
+  rw.on('title',                            new SetText(title))
+    .on('meta[name="description"]',         new SetContent(description))
+    .on('meta[property="og:title"]',        new SetContent(title))
+    .on('meta[property="og:description"]',  new SetContent(description))
+    .on('meta[name="twitter:title"]',       new SetContent(title))
+    .on('meta[name="twitter:description"]', new SetContent(description));
+  if (ok) {
+    rw.on('meta[property="og:url"]', new SetContent(`${SITE_ORIGIN}/f/${token}`));
+    if (meta.keys?.poster) {
+      const img = `${SITE_ORIGIN}/api/file-thumb/${token}`;
+      rw.on('meta[property="og:image"]',  new SetContent(img))
+        .on('meta[name="twitter:image"]', new SetContent(img))
+        .on('meta[name="twitter:card"]',  new SetContent('summary_large_image'));
+    }
   }
   return rw.transform(res);
 }
@@ -648,6 +678,8 @@ const worker = {
       if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
       if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
+      const fileThumbMatch = url.pathname.match(/^\/api\/file-thumb\/([0-9a-f-]{36})$/i);
+      if (fileThumbMatch) return await handleFileThumb(env, fileThumbMatch[1], request);
       const emailThumbMatch = url.pathname.match(/^\/api\/email-thumb\/([0-9a-f-]{36})$/i);
       if (emailThumbMatch) return await handleEmailThumb(env, emailThumbMatch[1], url.searchParams, request);
       if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
@@ -695,6 +727,11 @@ const worker = {
     const shareMatch = isPageReq ? url.pathname.match(SHARE_PATH_RE) : null;
     const shareMetaPromise = shareMatch
       ? fetchShareMeta(env, shareMatch[1], url.searchParams.get('b')).catch(() => null)
+      : null;
+
+    const fileShareMatch = isPageReq ? url.pathname.match(FILE_SHARE_PATH_RE) : null;
+    const fileShareMetaPromise = fileShareMatch
+      ? anonRpc(env, 'get_file_share', { p_token: fileShareMatch[1] }).catch(() => null)
       : null;
 
     // Same overlap trick for /c/<slug> marketing pages + the /explore index:
@@ -896,6 +933,13 @@ const worker = {
     // Shared-board link previews: rewrite OG/Twitter meta on /share/<token>
     // HTML to the board's name + stored thumbnail so pasted links unfurl as
     // the board itself (and noindex the tokened URL either way).
+    if (fileShareMatch && contentType.includes('text/html')) {
+      const meta = await fileShareMetaPromise;
+      const out = withRevalidate(injectFileShareMeta(res, meta, fileShareMatch[1]));
+      out.headers.set('x-robots-tag', 'noindex');
+      return out;
+    }
+
     if (shareMatch && contentType.includes('text/html')) {
       const meta = await shareMetaPromise;
       const out = withRevalidate(injectShareMeta(res, meta, shareMatch[1]));
@@ -2555,6 +2599,37 @@ async function handleShareThumb(env, token, searchParams, request) {
     'content-type': 'image/webp',
     // 1h browser cache: the URL carries a v= cache-buster for freshness, and
     // a short TTL bounds how long a just-revoked link keeps serving bytes.
+    'cache-control': 'public, max-age=3600',
+    'etag': obj.httpEtag,
+    'x-robots-tag': 'noindex',
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
+// og:image behind /f/<token> unfurls: the shared file's poster (webp only),
+// token-gated by get_file_share. Mirrors handleShareThumb; the 302→logo is the
+// fallback for revoked links and files without a webp poster.
+async function handleFileThumb(env, token, request) {
+  const fallback = () =>
+    new Response(null, {
+      status: 302,
+      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store' },
+    });
+
+  const meta = await anonRpc(env, 'get_file_share', { p_token: token }).catch(() => null);
+  const poster = meta?.keys?.poster || '';
+  if (meta?.status !== 'ok' || !/\.webp$/i.test(poster) || !env.IMAGES) return fallback();
+
+  const obj = await env.IMAGES.get(poster.replace(/^r2:/, ''));
+  if (!obj) return fallback();
+
+  const headers = {
+    'content-type': 'image/webp',
+    'x-content-type-options': 'nosniff',
+    // 1h TTL bounds how long a just-revoked link keeps serving bytes.
     'cache-control': 'public, max-age=3600',
     'etag': obj.httpEtag,
     'x-robots-tag': 'noindex',

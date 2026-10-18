@@ -189,8 +189,8 @@ test('a typed link can never become a script URL in an href', async () => {
 
 // ── 0369 + 0370: the outbound breaker ───────────────────────────────────────
 
-const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite'];
-const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted'];
+const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite', 'file_shared'];
+const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented'];
 
 // Functions whose live (latest, not since dropped) definition matches `re`,
 // with what each match captured.
@@ -228,7 +228,8 @@ test('every database email asks the outbound gate first, and only the known trig
 
   const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
   assert.deepEqual([...senders.keys()].sort(), [
-    '_tg_comment_reply_email', '_tg_mention_notification_email', '_tg_pending_invite_email',
+    '_tg_comment_reply_email', '_tg_file_comment_notify', '_tg_file_share_person_email',
+    '_tg_mention_notification_email', '_tg_pending_invite_email',
     '_tg_schedule_notification_email', '_tg_share_notification_email', '_tg_workspace_member_email',
   ], 'a new email path must be classified in _outbound_gate and added here on purpose');
   const gateBody = latestDefinition('_outbound_gate').body;
@@ -1042,4 +1043,16 @@ test('the sidebar\'s cluster writes verify the user and ask can_write_board befo
   assert.match(src, /requireLive: true,/, 'a move never half-happens');
   assert.match(src, /src\.workspace_id !== dst\.workspace_id/, 'one workspace');
   assert.match(read('../worker.js'), /startsWith\('\/api\/clusters\/'\)\) return await handleClustersRoute/);
+});
+
+test('the party /file-share route is dispatched before the auth check and never uses the immutable cache header', () => {
+  const party = read('../../party/upload.ts');
+  const dispatch = party.indexOf('endsWith("/file-share")');
+  assert.ok(dispatch > 0, '/file-share is dispatched');
+  assert.ok(dispatch < party.indexOf('const accessToken'), 'before the accessToken check (it is anon-callable)');
+  const start = party.indexOf('async handleFileShare');
+  const body = party.slice(start, party.indexOf('\n  }\n', start));
+  assert.ok(start > 0 && body.includes('FILE_SHARE_CACHE_CONTROL'), 'presigns with the private cache header');
+  assert.ok(!body.includes('READ_RESPONSE_CACHE_CONTROL'), 'never the public/immutable one');
+  assert.match(body, /get_file_share/, 'access is decided by the RPC as the caller');
 });

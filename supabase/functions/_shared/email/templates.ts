@@ -30,6 +30,8 @@ export type TemplateName =
   | "whats_new"
   | "schedule_update"
   | "share_activity"
+  | "file_shared"
+  | "file_commented"
   | "ops_alert";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
@@ -50,6 +52,8 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "whats_new",
   "schedule_update",
   "share_activity",
+  "file_shared",
+  "file_commented",
   "ops_alert",
 ];
 
@@ -576,6 +580,91 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       d.replyPreview ? `\n  "${d.replyPreview}"` : "",
       "",
       "Open comment: " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+      unsub ? "Turn these emails off: " + unsub : "",
+    ]),
+  };
+}
+
+// Single-file sharing (0421). The link is /f/<token>; the token is a uuid the
+// render switch has already checked, so it is safe to put in a path.
+const FILE_URL_BASE = "https://clusters.soleilpictures.com/f/";
+
+// A file's name, for an email line. safeLabel strips anything domain-shaped,
+// and most extensions are also top-level domains (.mov, .zip, .app), so the
+// extension moves out of the name: "Cut v3.mov" reads "Cut v3 (mov)".
+function fileLabel(raw: unknown): string {
+  const s = String(raw ?? "").trim();
+  const m = s.match(/^(.+)\.([A-Za-z0-9]{1,8})$/);
+  if (!m) return safeLabel(s, 60, "a file");
+  return `${safeLabel(m[1], 52, "a file")} (${m[2].toLowerCase()})`;
+}
+
+interface FileSharedData {
+  sharerName: string;
+  fileName: string;
+  role: string;
+  token: string;
+}
+
+function fileShared(d: FileSharedData): RenderedEmail {
+  const headline = `${d.sharerName} shared a file with you.`;
+  const subtitle = `You can view${d.role === "comment" ? " and comment on" : ""} "${d.fileName}".`;
+  const url = FILE_URL_BASE + d.token;
+  return {
+    subject: `${d.sharerName} shared "${d.fileName}" with you`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "File shared",
+      headline,
+      subtitle,
+      cta: { label: "Open file", url },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      "Open file: " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+interface FileCommentedData {
+  commenterName: string;
+  fileName: string;
+  commentPreview: string;
+  token: string;
+  unsubscribeToken?: string;
+}
+
+function fileCommented(d: FileCommentedData): RenderedEmail {
+  const subtitle = `On "${d.fileName}".`;
+  const url = FILE_URL_BASE + d.token;
+  const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_comment_replies") : undefined;
+  return {
+    subject: `${d.commenterName} commented on "${d.fileName}"`,
+    html: renderEmail({
+      preheader: `${d.commenterName}: ${d.commentPreview || "left a comment"}`,
+      eyebrow: "Comment",
+      headline: `${d.commenterName} commented.`,
+      subtitle,
+      bodyHtml: quoteBlock(d.commentPreview),
+      cta: { label: "Open file", url },
+      unsubscribeUrl: unsub,
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      `${d.commenterName} commented.`,
+      subtitle,
+      d.commentPreview ? `\n  "${d.commentPreview}"` : "",
+      "",
+      "Open file: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
       unsub ? "Turn these emails off: " + unsub : "",
@@ -1577,6 +1666,27 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
       });
+    case "file_shared": {
+      const token = String(data.token ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("file_shared needs a token");
+      return fileShared({
+        sharerName: safePerson(data.sharerName),
+        fileName:   fileLabel(data.fileName),
+        role:       data.role === "comment" ? "comment" : "view",
+        token,
+      });
+    }
+    case "file_commented": {
+      const token = String(data.token ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("file_commented needs a token");
+      return fileCommented({
+        commenterName:  safePerson(data.commenterName),
+        fileName:       fileLabel(data.fileName),
+        commentPreview: safeLabel(data.commentPreview, 280),
+        token,
+        unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
+      });
+    }
     case "activate_nudge_1":
     case "activate_nudge_2": {
       const nudgeBoardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
