@@ -229,3 +229,24 @@ body.sbf-resizing .app { transition: none !important; }
   .sbf-search input { font-size: 16px; }   /* under 16px, iOS zooms the page on focus */
   .sbf-shelf-open { opacity: 1; }
 }
+
+/* ── Selection (⌘/⇧-click) and the bar that acts on it ───────────────────── */
+.sbf-file.is-selected { background: var(--soleil-soft); color: var(--ink-0); }
+.sbf-tile.is-selected { border-color: var(--soleil); box-shadow: 0 0 0 1px var(--soleil); }
+.sb-tree-row.is-files.is-drop-target { box-shadow: inset 0 0 0 1.5px var(--soleil); }
+.sbf-status { margin-left: auto; padding-left: 6px; color: var(--ink-2); font-weight: 500; font-size: 11px; white-space: nowrap; }
+.sbf-bulk {
+  flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 6px 4px;
+  border-top: 1px solid var(--line-1); background: var(--bg-1);
+}
+.sbf-bulk-count { flex: 1; min-width: 0; color: var(--ink-1); font: 500 11.5px/1 var(--font-sans); white-space: nowrap; }
+.sbf-bulk-btn {
+  height: 24px; padding: 0 8px; border-radius: var(--radius-sm); cursor: pointer;
+  border: 1px solid var(--line-2); background: transparent; color: var(--ink-1); font: 500 11.5px/1 var(--font-sans);
+}
+.sbf-bulk-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
+.sbf-bulk-btn.is-danger:hover { color: #ef4444; border-color: rgba(239,68,68,.5); }
+.sbf-bulk-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+@media (hover: none) and (pointer: coarse) {
+  .sbf-bulk-btn { height: 36px; padding: 0 12px; font-size: 13px; }
+}

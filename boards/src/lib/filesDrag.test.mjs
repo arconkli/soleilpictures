@@ -162,3 +162,14 @@ test('a linked copy is always on the board, whatever the original was', () => {
   const { copies } = planCrossDrop([img('src', 'r2:5', { unplaced: true })], { x: 0, y: 0 }, { sourceBoardId: 'S' });
   assert.equal('unplaced' in copies[0], false);
 });
+
+test('a sidebar drag says it means to move; a drag out of Files says nothing', () => {
+  const cards = [{ id: 'p1', kind: 'image', src: 'r2:a', w: 10, h: 10 }];
+  const moving = parseFilesPayload(buildFilesPayload({ sourceBoardId: 'b1', cards, intent: 'move' }));
+  assert.equal(moving.intent, 'move');
+  const plain = parseFilesPayload(buildFilesPayload({ sourceBoardId: 'b1', cards }));
+  assert.equal(plain.intent, null);
+  assert.equal(JSON.parse(buildFilesPayload({ sourceBoardId: 'b1', cards })).intent, undefined, 'old payloads unchanged');
+  const forged = parseFilesPayload(JSON.stringify({ v: 1, sourceBoardId: 'b', cards, intent: 'delete-everything' }));
+  assert.equal(forged.intent, null);
+});

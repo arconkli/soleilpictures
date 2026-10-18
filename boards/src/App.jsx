@@ -154,7 +154,7 @@ import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
@@ -203,6 +203,7 @@ import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed } fr
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
 import { readSidebarWidth, writeSidebarWidth } from './lib/sidebarWidth.js';
+import { moveFiles, failureMessage } from './lib/clustersApi.js';
 import { useStorageUsage } from './hooks/useStorageUsage.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
@@ -4095,6 +4096,93 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [splitYDoc, splitId, splitYb.undoManager]
   );
+
+  // Desktop files dropped on a cluster row in the sidebar. The open cluster (or
+  // the split pane's) takes them through its own mutators. Any other cluster's
+  // doc opens here, in the background — never a second handle on a room this
+  // tab already holds (see splitNeedsOwnDoc) — so the files go in through the
+  // very same ingestFilesArranged as a drop into Files (the cap dialog, held
+  // uploads, scripts and all) while you stay where you are. One cluster at a
+  // time; its doc lets go once nothing it took is still uploading.
+  const [bgDrops, setBgDrops] = useState([]);       // queue of { boardId, files, token }
+  const [sidebarRefresh, setSidebarRefresh] = useState(0);
+  const bgDrop = bgDrops[0] || null;
+  const bgId = bgDrop && bgDrop.boardId !== currentId && bgDrop.boardId !== splitId ? bgDrop.boardId : null;
+  const bgYb = useYBoard(bgId, user.id, userInfo, workspace.id, true);
+  const bgYDoc = bgYb.ready && bgYb.boardId === bgId ? bgYb.ydoc : null;
+  const bgMutators = useMemo(
+    () => buildMutators({ ydoc: bgYDoc, boardId: bgId, undoManager: bgYb.undoManager }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bgYDoc, bgId, bgYb.undoManager]
+  );
+  const bgStarted = useRef(null);                    // { token, at }
+  useEffect(() => {
+    if (!bgDrop) return;
+    // The cluster opened meanwhile (or is the split's): no background doc needed.
+    if (!bgId) {
+      const muts = bgDrop.boardId === currentId ? mainMutators : splitMutators;
+      muts.ingestFilesArranged?.(bgDrop.files);
+      setBgDrops((q) => q.slice(1));
+      return;
+    }
+    if (!bgYDoc || bgStarted.current?.token === bgDrop.token) return;
+    bgStarted.current = { token: bgDrop.token, at: Date.now() };
+    bgMutators.ingestFilesArranged?.(bgDrop.files);
+  }, [bgDrop, bgId, bgYDoc]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const started = bgStarted.current;
+    if (!bgDrop || !bgId || !bgYDoc || started?.token !== bgDrop.token) return undefined;
+    const settle = () => {
+      const pending = (bgYb.cards || []).some((c) => c?.pending === true);
+      const age = Date.now() - started.at;
+      if (pending && age < 15 * 60_000) return false;
+      // card_index is what the sidebar reads for a cluster nobody has open.
+      syncCardIndex({ boardId: bgId, ydoc: bgYDoc });
+      setBgDrops((q) => q.slice(1));
+      setSidebarRefresh((n) => n + 1);
+      return true;
+    };
+    if (Date.now() - started.at > 1500 && settle()) return undefined;
+    const t = setTimeout(settle, 1600);
+    return () => clearTimeout(t);
+  }, [bgYb.cards, bgDrop, bgId, bgYDoc]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const dropFilesOnCluster = (boardId, files) => {
+    if (!boardId || !files?.length || !boards[boardId]) return;
+    if (boardId === currentId) { mainMutators.ingestFilesArranged?.(files); return; }
+    if (boardId === splitId) { splitMutators.ingestFilesArranged?.(files); return; }
+    setBgDrops((q) => [...q, { boardId, files, token: `${boardId}:${Date.now()}:${q.length}` }]);
+  };
+  const sidebarUploads = useMemo(() => {
+    const out = {};
+    for (const d of bgDrops) out[d.boardId] = (out[d.boardId] || 0) + d.files.length;
+    return out;
+  }, [bgDrops]);
+
+  // Files dragged from the sidebar out of ANOTHER cluster onto this board move
+  // here, at the drop point (⌥ still makes the linked copy, in CanvasSurface).
+  const moveFilesHere = async (targetId, payload, at) => {
+    const from = payload?.sourceBoardId;
+    const cardIds = (payload?.cards || []).map((c) => c.id);
+    const r = await moveFiles({ from, to: targetId, cardIds, mode: 'move', at });
+    if (!r.ok) { feedback.toast({ type: 'error', message: failureMessage(r, 'move') }); return; }
+    setSidebarRefresh((n) => n + 1);
+    if (!r.moved) {
+      feedback.toast({ type: 'info', message: r.kept?.length ? 'Those files are still uploading. Try again when they finish.' : 'Nothing moved.' });
+      return;
+    }
+    undoToast(feedback, {
+      message: `Moved ${r.moved === 1 ? '1 file' : `${r.moved} files`} here from ${boards[from]?.name || 'another cluster'}`,
+      onUndo: async () => {
+        const u = await moveFiles({
+          from: targetId, to: from, mode: 'move',
+          cardIds: (r.pairs || []).map((p) => p.to),
+          restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
+        });
+        if (!u.ok) feedback.toast({ type: 'error', message: failureMessage(u, 'move') });
+        setSidebarRefresh((n) => n + 1);
+      },
+    });
+  };
 
   // ── Postgres board rename ─────────────────────────────────────────────────
   const renameBoardById = async (boardId, name) => {
@@ -9002,6 +9090,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
             <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={canvasCards} allCards={cards} arrows={arrows} strokes={strokes} groups={groups}
                            onRevealUnplaced={(ids) => revealInFiles(board.id, ids, isMain)}
+                           onMoveFilesHere={filesSidebar ? (payload, at) => moveFilesHere(board.id, payload, at) : null}
                            /* The empty panel waits for the Y.Doc (boardReady) and takes its
                               first-board shape from the server card count: no cards anywhere
                               means this is the first board (lib/firstBoardCopy). */
@@ -9454,6 +9543,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               onShowFile={showSidebarFile}
               onOpenShelf={(boardId) => { if (mobileShell) setMobileNavOpen(false); setCurrentSurface('board'); openInFiles(boardId); }}
               onOpenPalette={(q) => { setPaletteQuery(q || ''); setPaletteOpen(true); }}
+              feedback={feedback}
+              onPickCluster={requestClusterPick}
+              onDropFilesOnCluster={dropFilesOnCluster}
+              uploadsByBoard={sidebarUploads}
+              liveMutators={mainMutators}
+              refreshToken={sidebarRefresh}
             />
           ) : (
           <div className="sb-list" ref={sidebarScrollRef}>

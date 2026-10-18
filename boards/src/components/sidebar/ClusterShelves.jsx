@@ -55,11 +55,14 @@ function ItemGlyph({ item }) {
 // One item as a row: its thumbnail or icon, its name, the stored-off-the-board
 // mark, a star, and its length or size. Shelves, Starred and Recent all draw
 // items with it, so an item looks the same wherever the sidebar lists it.
-export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = false, where = '' }) {
+export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null }) {
   const meta = rowMeta(item);
   return (
     <button type="button"
-            className={`sbf-file${item.unplaced ? ' is-stored' : ''}`}
+            className={`sbf-file${item.unplaced ? ' is-stored' : ''}${selected ? ' is-selected' : ''}`}
+            aria-selected={selected || undefined}
+            draggable={!!onDragStart}
+            onDragStart={onDragStart ? (e) => onDragStart(item, e) : undefined}
             style={{ paddingLeft: 10 + depth * INDENT }}
             role="treeitem" aria-level={depth + 1}
             data-sb-item={item.key}
@@ -78,11 +81,14 @@ export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = fal
 }
 
 // One item as a tile: the photo mosaic's square, used by Recent too.
-export function SidebarTile({ item, depth = 0, starred = false, where = '', onClick, onOpen }) {
+export function SidebarTile({ item, depth = 0, starred = false, where = '', onClick, onOpen, selected = false, onDragStart = null }) {
   const src = thumbSrc(item);
   return (
     <button type="button"
-            className={`sbf-tile${item.unplaced ? ' is-stored' : ''}${starred ? ' is-starred' : ''}`}
+            className={`sbf-tile${item.unplaced ? ' is-stored' : ''}${starred ? ' is-starred' : ''}${selected ? ' is-selected' : ''}`}
+            aria-selected={selected || undefined}
+            draggable={!!onDragStart}
+            onDragStart={onDragStart ? (e) => onDragStart(item, e) : undefined}
             role="treeitem" aria-level={depth + 1} aria-label={item.name}
             title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
             data-sb-item={item.key}
@@ -101,7 +107,7 @@ export function SidebarTile({ item, depth = 0, starred = false, where = '', onCl
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
   const pad = { paddingLeft: 10 + depth * INDENT };
-  const { onItem, onItemOpen, onMore, onFold, onOpenShelf, foldOpen, starred } = ctx;
+  const { onItem, onItemOpen, onMore, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem } = ctx;
 
   if (row.type === 'shelf') {
     return (
@@ -123,6 +129,7 @@ function Row({ row, depth, ctx }) {
       <div className="sbf-mosaic" style={pad}>
         {row.items.map((item) => (
           <SidebarTile key={item.key} item={item} depth={depth} starred={starred(item)}
+                       selected={selected(item)} onDragStart={onDragItem}
                        onClick={(it, e) => onItem(it, row, e)} onOpen={onItemOpen} />
         ))}
       </div>
@@ -131,6 +138,7 @@ function Row({ row, depth, ctx }) {
   if (row.type === 'file') {
     return (
       <SidebarItemRow item={row.item} depth={depth} starred={starred(row.item)}
+                      selected={selected(row.item)} onDragStart={onDragItem}
                       onClick={(item, e) => onItem(item, row, e)} onOpen={onItemOpen} />
     );
   }
@@ -201,6 +209,7 @@ export function ClusterShelves({
   boardId, depth, contents, hasChildren = false, width = 300, coarse = false,
   shelfState, onToggleShelf, onLoadMore, canLoadMore,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
+  isSelected = null, onDragItem = null,
 }) {
   // As many tiles as fit beside this block's own indent (the sidebar's
   // padding, the row's 10px, 14px a level, and room for the scrollbar).
@@ -231,6 +240,8 @@ export function ClusterShelves({
     foldOpen: (b, shelfId) => !!shelfState?.(b, shelfId)?.open,
     onOpenShelf,
     starred: (item) => !!isStarred?.(item.boardId, item.cardId),
+    selected: (item) => !!isSelected?.(item),
+    onDragItem,
   };
 
   if (!windowed) {

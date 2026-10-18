@@ -83,10 +83,13 @@ export function onBoardIndex(cards) {
 // ── payload ──────────────────────────────────────────────────────────────
 // Cards are carried whole: the board they land on may never have loaded the
 // cluster they came from.
-export function buildFilesPayload({ sourceBoardId, sourceName = '', cards }) {
+// `intent: 'move'` is the sidebar's: dropped on a board that isn't theirs,
+// the files MOVE there (⌥ still copies), where a drag out of Files makes a
+// linked copy. Absent, a drop does what it always did.
+export function buildFilesPayload({ sourceBoardId, sourceName = '', cards, intent = null }) {
   const list = (cards || []).filter(canDragFromFiles).map((c) => ({ ...plainCardForCopy(c), id: c.id }));
   if (!sourceBoardId || !list.length) return null;
-  return JSON.stringify({ v: 1, sourceBoardId, sourceName, cards: list });
+  return JSON.stringify({ v: 1, sourceBoardId, sourceName, cards: list, ...(intent === 'move' ? { intent } : {}) });
 }
 
 export function parseFilesPayload(raw) {
@@ -96,7 +99,12 @@ export function parseFilesPayload(raw) {
   if (!p || p.v !== 1 || typeof p.sourceBoardId !== 'string' || !Array.isArray(p.cards)) return null;
   const cards = p.cards.filter((c) => c && typeof c.id === 'string' && typeof c.kind === 'string' && !NEVER_DRAGGED.has(c.kind));
   if (!cards.length) return null;
-  return { sourceBoardId: p.sourceBoardId, sourceName: typeof p.sourceName === 'string' ? p.sourceName : '', cards };
+  return {
+    sourceBoardId: p.sourceBoardId,
+    sourceName: typeof p.sourceName === 'string' ? p.sourceName : '',
+    cards,
+    intent: p.intent === 'move' ? 'move' : null,
+  };
 }
 
 // ── what a drop does ─────────────────────────────────────────────────────

@@ -649,12 +649,17 @@ export function CanvasSurface({
   // `cards` for callers that don't split them.
   allCards = null,
   onRevealUnplaced = null, // (ids) => void — show files that aren't on the board in Files
+  // (payload, { x, y }) => void — files dragged from the sidebar out of ANOTHER
+  // cluster move here, at the drop point (App runs the move; ⌥ still copies).
+  onMoveFilesHere = null,
 }) {
   const everyCard = allCards || cards;
   const allCardsRef = useRef(everyCard);
   allCardsRef.current = everyCard;
   const onRevealUnplacedRef = useRef(onRevealUnplaced);
   onRevealUnplacedRef.current = onRevealUnplaced;
+  const onMoveFilesHereRef = useRef(onMoveFilesHere);
+  onMoveFilesHereRef.current = onMoveFilesHere;
   const unplacedCount = useMemo(() => countUnplaced(everyCard), [everyCard]);
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
@@ -10488,6 +10493,10 @@ export function CanvasSurface({
       e.preventDefault();
       try { window.__soleilFilesDrag = null; } catch (_) {}
       const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
+      if (payload?.intent === 'move' && payload.sourceBoardId !== board?.id && !e.altKey && onMoveFilesHereRef.current) {
+        onMoveFilesHereRef.current(payload, { x: cx, y: cy });
+        return;
+      }
       if (payload) dropFromFiles(payload, { x: cx, y: cy }, { extraCopy: e.altKey });
       return;
     }

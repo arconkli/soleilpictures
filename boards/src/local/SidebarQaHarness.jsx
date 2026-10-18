@@ -145,16 +145,38 @@ function makeSource(stars) {
   return { rpc, search, toggleStar, calls };
 }
 
+// The move route's fakes: record what was asked and answer the way the route
+// does, so the sidebar's toasts and Undo can be driven.
+function makeMoveApi(calls) {
+  return {
+    moveFiles: async (body) => {
+      calls.push({ fn: 'moveFiles', params: body });
+      const pairs = body.cardIds.map((id) => ({ from: id, to: id }));
+      return body.mode === 'copy'
+        ? { ok: true, mode: 'copy', copied: body.cardIds.length, cards: body.cardIds.map((id) => ({ id: `${id}-copy` })), skipped: [] }
+        : { ok: true, mode: 'move', moved: body.cardIds.length, pairs, originals: body.cardIds.map((id) => ({ id, x: 0, y: 0, unplaced: false })), kept: [] };
+    },
+    appendCards: async (body) => { calls.push({ fn: 'appendCards', params: body }); return { ok: true, cards: body.cards }; },
+    removeCards: async (body) => {
+      calls.push({ fn: 'removeCards', params: body });
+      return { ok: true, removed: body.cardIds.map((id) => ({ id, kind: 'image' })) };
+    },
+  };
+}
+
 export function SidebarQaHarness() {
   const [active, setActive] = useState('film');
   const [width, setWidth] = useState(SIDEBAR_W.DEFAULT);
   const [log, setLog] = useState([]);
+  const [toast, setToast] = useState(null);
   const listRef = useRef(null);
   const source = useMemo(() => {
     const s = makeSource(new Set(['mood:', 'loc:loc-img-0']));
     window.__sidebarQa = { calls: s.calls, setActive: (id) => setActive(id) };
     return s;
   }, []);
+  const moveApi = useMemo(() => makeMoveApi(source.calls), [source]);
+  const feedback = useMemo(() => ({ toast: (t) => setToast(t) }), []);
   const say = (msg) => setLog((l) => [...l.slice(-4), msg]);
 
   return (
@@ -188,12 +210,27 @@ export function SidebarQaHarness() {
             onShowFile={(b, c, o) => say(`show ${b}/${c}${o?.unplaced ? ' stored' : ''}`)}
             onOpenShelf={(b) => say(`files ${b}`)}
             onOpenPalette={(q) => say(`palette "${q}"`)}
+            feedback={feedback}
+            moveApi={moveApi}
+            onPickCluster={async () => 'mood'}
+            onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
+            uploadsByBoard={{ cast: 3 }}
           />
         </div>
       </aside>
       <main style={{ padding: 24, color: 'var(--ink-2)', font: '13px var(--font-sans)' }}>
         <div data-testid="sbqa-active">open: {active}</div>
         <div data-testid="sbqa-log">{log.join(' | ')}</div>
+        {toast && (
+          <div data-testid="sbqa-toast" style={{ marginTop: 12 }}>
+            <span>{toast.message}</span>
+            {toast.action && (
+              <button type="button" style={{ marginLeft: 8 }} onClick={() => { toast.action.onClick(); setToast(null); }}>
+                {toast.action.label}
+              </button>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

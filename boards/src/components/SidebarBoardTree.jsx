@@ -66,7 +66,10 @@ export function SidebarBoardTree({
   // draws each row's cover and count, hides rows a search or filter rules
   // out, and renders an unfolded cluster's shelves after its sub-clusters:
   //   { isExpanded(id), toggle(id), hasContents(id), isHidden(id),
-  //     countOf(id), renderThumb(board, isActive), renderContents(board, depth, hasChildren) }
+  //     countOf(id), renderThumb(board, isActive), renderContents(board, depth, hasChildren),
+  //     dropEffect(event, boardId) → 'move' | 'copy' | null, onDrop(boardId, event) }
+  // dropEffect says whether a drag of FILES (not clusters) may land on a row;
+  // cluster drags still reparent exactly as before.
   // Without it the tree is exactly what it was.
   filesView = null,
 }) {
@@ -442,6 +445,13 @@ export function SidebarBoardTree({
              }}
              onDragOver={(e) => {
                const t = e.dataTransfer.types;
+               const fileEffect = filesView?.dropEffect?.(e, board.id);
+               if (fileEffect) {
+                 e.preventDefault();
+                 try { e.dataTransfer.dropEffect = fileEffect; } catch (_) {}
+                 if (dropTargetId !== board.id) setDropTargetId(board.id);
+                 return;
+               }
                if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
                // Read the dragged ids from the side-channel (dataTransfer.getData
                // isn't readable during dragover) to reject self / descendant /
@@ -460,6 +470,12 @@ export function SidebarBoardTree({
              }}
              onDrop={(e) => {
                setDropTargetId(null);
+               if (filesView?.dropEffect?.(e, board.id)) {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 filesView.onDrop(board.id, e);
+                 return;
+               }
                const childIds = readBoardRefIds(e.dataTransfer);
                if (!childIds.length) return;
                e.preventDefault();
@@ -552,6 +568,8 @@ export function SidebarBoardTree({
             <span className="sb-row-label">{board.name || 'Untitled'}</span>
           )}
           {filesView && !isRenaming && (() => {
+            const status = filesView.statusOf?.(board.id);
+            if (status) return <span className="sbf-status">{status}</span>;
             const n = filesView.countOf(board.id);
             return n > 0 ? <span className="sb-row-count sbf-count">{n}</span> : null;
           })()}

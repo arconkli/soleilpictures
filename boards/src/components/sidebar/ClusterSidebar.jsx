@@ -28,7 +28,10 @@ import { SORTS } from '../../lib/sidebarSort.js';
 import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
-import { downloadCardAsset } from '../../lib/cardDownload.js';
+import { downloadCardAsset, downloadCardAssets } from '../../lib/cardDownload.js';
+import { FILES_DRAG_MIME, buildFilesPayload, parseFilesPayload } from '../../lib/filesDrag.js';
+import { moveFiles, appendCards, removeCards, failureMessage } from '../../lib/clustersApi.js';
+import { undoToast } from '../../lib/undoToast.js';
 import './clusterSidebar.css';
 
 const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
@@ -107,8 +110,17 @@ export function ClusterSidebar({
   onShowFile,             // (boardId, cardId, { unplaced }) => void
   onOpenShelf,            // (boardId, shelfId) => void — the shelf in the full-page Files view
   onOpenPalette,          // (query) => void
+  feedback = null,        // the app's toasts (useFeedback)
+  onPickCluster = null,   // ({ placeholder, excludeIds }) => Promise<boardId|null>
+  onDropFilesOnCluster = null,  // (boardId, File[]) => void — desktop files dropped on a row
+  uploadsByBoard = null,  // { boardId: n } — files still going up into a cluster
+  liveMutators = null,    // the open cluster's mutators (deleteCards, undo, undoManager)
+  moveApi = null,         // { moveFiles, appendCards, removeCards } — the QA harness's fakes
+  refreshToken = 0,       // bumped by App after it moves files itself (a canvas drop)
   source = null,          // dev-only fixture data (local/SidebarQaHarness.jsx)
 }) {
+  const api = moveApi || { moveFiles, appendCards, removeCards };
+  const toast = (t) => feedback?.toast?.(t);
   // ── Finding ───────────────────────────────────────────────────────────────
   const [query, setQuery] = useState('');
   const [chip, setChip] = useState('all');
@@ -129,6 +141,8 @@ export function ClusterSidebar({
     enabled: true, workspaceId, boards: boardList, allBoards,
     liveBoardId, liveCards, sort: prefs.sort, groupBy: prefs.groupBy, chip, query, source,
   });
+
+  useEffect(() => { if (refreshToken) files.refresh(); }, [refreshToken]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Unfolding ─────────────────────────────────────────────────────────────
   const [expand, dispatch] = useReducer(expandReducer, null,
@@ -189,6 +203,150 @@ export function ClusterSidebar({
     onShowFile?.(item.boardId, item.cardId, { unplaced: item.unplaced });
   }, [onShowFile]);
 
+  // ── Selection: ⌘/Ctrl-click adds one, ⇧-click a run along the shelf ──────
+  const [selected, setSelected] = useState(() => new Map());   // key → item
+  const anchorRef = useRef(null);
+  const clearSelection = useCallback(() => { setSelected(new Map()); anchorRef.current = null; }, []);
+  useEffect(() => { clearSelection(); }, [workspaceId, clearSelection]);
+  const isSelected = useCallback((item) => selected.has(item.key), [selected]);
+  const onItem = useCallback((item, siblings, e) => {
+    if (e && (e.metaKey || e.ctrlKey)) {
+      setSelected((m) => { const n = new Map(m); if (n.has(item.key)) n.delete(item.key); else n.set(item.key, item); return n; });
+      anchorRef.current = item;
+      return;
+    }
+    if (e && e.shiftKey && anchorRef.current) {
+      const list = siblings || [];
+      const a = list.findIndex((x) => x.key === anchorRef.current.key);
+      const b = list.findIndex((x) => x.key === item.key);
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a <= b ? [a, b] : [b, a];
+        setSelected((m) => { const n = new Map(m); for (const x of list.slice(lo, hi + 1)) n.set(x.key, x); return n; });
+        return;
+      }
+    }
+    clearSelection();
+    anchorRef.current = item;
+    openQuick(item, siblings, e);
+  }, [openQuick, clearSelection]);
+
+  // ── Moving files between clusters ─────────────────────────────────────────
+  // Plain drop moves, ⌥ copies (a linked copy: same stored file, one more
+  // card). Both go through /api/clusters, so neither cluster has to be open,
+  // and both offer Undo.
+  const runMove = useCallback(async ({ from, to, cardIds, copy = false }) => {
+    if (!from || !to || from === to || !cardIds?.length) return;
+    const r = await api.moveFiles({ from, to, cardIds, mode: copy ? 'copy' : 'move' });
+    if (!r.ok) { toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') }); return; }
+    files.refresh();
+    const n = copy ? (r.copied || 0) : (r.moved || 0);
+    const kept = r.kept?.length || 0;
+    const skipped = r.skipped?.length || 0;
+    if (!n) {
+      toast({ type: 'info', message: kept ? 'Those files are still uploading. Try again when they finish.' : 'Those can’t be copied, only moved.' });
+      return;
+    }
+    const what = n === 1 ? '1 file' : `${n} files`;
+    const extra = `${kept ? ` · ${kept} still uploading stayed put` : ''}${skipped ? ` · ${skipped} can’t be copied` : ''}`;
+    undoToast(feedback, {
+      message: `${copy ? 'Copied' : 'Moved'} ${what} to ${nameOf(to)}${extra}`,
+      onUndo: async () => {
+        const u = copy
+          ? await api.removeCards({ boardId: to, cardIds: (r.cards || []).map((c) => c.id) })
+          : await api.moveFiles({
+            from: to, to: from, mode: 'move',
+            cardIds: (r.pairs || []).map((p) => p.to),
+            restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
+          });
+        if (!u.ok) toast({ type: 'error', message: failureMessage(u, 'move') });
+        files.refresh();
+      },
+    });
+  }, [api, files, feedback]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const groupByCluster = (items) => {
+    const out = new Map();
+    for (const it of items) { if (!out.has(it.boardId)) out.set(it.boardId, []); out.get(it.boardId).push(it); }
+    return out;
+  };
+
+  const onDragItem = useCallback((item, e) => {
+    const group = selected.has(item.key)
+      ? [...selected.values()].filter((x) => x.boardId === item.boardId)
+      : [item];
+    const payload = buildFilesPayload({
+      sourceBoardId: item.boardId, sourceName: nameOf(item.boardId),
+      cards: group.map((x) => cardFromItem(x)), intent: 'move',
+    });
+    if (!payload) { e.preventDefault(); return; }
+    try {
+      e.dataTransfer.setData(FILES_DRAG_MIME, payload);
+      e.dataTransfer.effectAllowed = 'copyMove';
+    } catch (_) { /* a drag the browser won't carry */ }
+  }, [selected]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dropEffect = useCallback((e, boardId) => {
+    const t = e.dataTransfer?.types || [];
+    if (t.includes(FILES_DRAG_MIME)) return e.altKey ? 'copy' : 'move';
+    if (t.includes('Files') && onDropFilesOnCluster) return 'copy';
+    return null;
+  }, [onDropFilesOnCluster]);
+  const onDropOnCluster = useCallback((boardId, e) => {
+    const t = e.dataTransfer?.types || [];
+    if (t.includes(FILES_DRAG_MIME)) {
+      const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
+      if (payload && payload.sourceBoardId !== boardId) {
+        runMove({ from: payload.sourceBoardId, to: boardId, cardIds: payload.cards.map((c) => c.id), copy: e.altKey });
+      }
+      return;
+    }
+    const dropped = [...(e.dataTransfer?.files || [])];
+    if (dropped.length) onDropFilesOnCluster?.(boardId, dropped);
+  }, [runMove, onDropFilesOnCluster]);
+
+  // ── The bar under a selection ─────────────────────────────────────────────
+  const selItems = useMemo(() => [...selected.values()], [selected]);
+  const moveSelection = async () => {
+    const to = await onPickCluster?.({ placeholder: 'Move to…' });
+    if (!to) return;
+    for (const [from, items] of groupByCluster(selItems)) {
+      if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId) });
+    }
+    clearSelection();
+  };
+  const downloadSelection = () => {
+    const cards = selItems.map((x) => cardFromItem(x));
+    if (cards.length === 1) downloadCardAsset(cards[0], cards[0].kind, { surface: 'sidebar' });
+    else downloadCardAssets(cards, { zipName: 'files.zip', surface: 'sidebar' });
+  };
+  const deleteSelection = async () => {
+    for (const [boardId, items] of groupByCluster(selItems)) {
+      const ids = items.map((x) => x.cardId);
+      const what = ids.length === 1 ? '1 file' : `${ids.length} files`;
+      if (boardId === liveBoardId && liveMutators?.deleteCards) {
+        const deleted = await liveMutators.deleteCards(ids);
+        if (deleted !== null) undoToast(feedback, {
+          message: `Deleted ${what}`,
+          undoManager: liveMutators.undoManager, stackItem: deleted?.stackItem || null,
+          onUndo: () => liveMutators.undo?.(),
+        });
+        continue;
+      }
+      const r = await api.removeCards({ boardId, cardIds: ids });
+      if (!r.ok) { toast({ type: 'error', message: failureMessage(r, 'remove') }); continue; }
+      undoToast(feedback, {
+        message: `Deleted ${what} from ${nameOf(boardId)}`,
+        onUndo: async () => {
+          const u = await api.appendCards({ boardId, cards: r.removed || [] });
+          if (!u.ok) toast({ type: 'error', message: failureMessage(u, 'move') });
+          files.refresh();
+        },
+      });
+    }
+    clearSelection();
+    files.refresh();
+  };
+
   // ── The tree's hook-in ────────────────────────────────────────────────────
   const filesView = useMemo(() => ({
     isExpanded: (id) => isExpanded(expand, id),
@@ -200,6 +358,12 @@ export function ClusterSidebar({
       return chip !== 'all' && files.countOf(id) === 0;
     },
     countOf: (id) => files.countOf(id),
+    statusOf: (id) => {
+      const n = uploadsByBoard?.[id] || 0;
+      return n > 0 ? `↑ ${n}` : null;
+    },
+    dropEffect,
+    onDrop: onDropOnCluster,
     renderThumb: (board) => <ClusterThumb board={board} />,
     renderContents: (board, depth, hasChildren) => (
       <ClusterShelves
@@ -208,7 +372,9 @@ export function ClusterSidebar({
         width={width} coarse={coarse}
         shelfState={shelfState} onToggleShelf={onToggleShelf}
         onLoadMore={files.loadMore} canLoadMore={files.canLoadMore}
-        onItem={(item, siblings, e) => openQuick(item, siblings, e)}
+        onItem={onItem}
+        isSelected={isSelected}
+        onDragItem={onDragItem}
         onItemOpen={openItem}
         onOpenShelf={onOpenShelf}
         isStarred={files.isStarred}
@@ -216,11 +382,16 @@ export function ClusterSidebar({
       />
     ),
   }), [expand, files, liveBoardId, liveCards, rootId, searchVisible, chip, width, coarse, shelfState,
-    onToggleShelf, openQuick, openItem, onOpenShelf, listRef]);
+    onToggleShelf, onItem, isSelected, onDragItem, openItem, onOpenShelf, listRef, uploadsByBoard,
+    dropEffect, onDropOnCluster]);
 
   // ↑/↓ walk every item the tree shows, clusters and files alike, in the order
   // they appear; the rows keep their own Enter, →/←, F2 and menu keys.
   const onListKeyDown = (e) => {
+    if (selected.size && e.key === 'Escape') { e.preventDefault(); clearSelection(); return; }
+    if (selected.size && (e.key === 'Backspace' || e.key === 'Delete') && e.target.closest?.('[data-sb-item]')) {
+      e.preventDefault(); deleteSelection(); return;
+    }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     const root = e.currentTarget;
     const here = e.target.closest?.('[role="treeitem"]');
@@ -318,7 +489,8 @@ export function ClusterSidebar({
                 {files.starred.items.map((item) => (
                   <SidebarItemRow key={item.key} item={item} starred
                                   where={nameOf(item.boardId)}
-                                  onClick={(it, e) => openQuick(it, files.starred.items, e)} onOpen={openItem} />
+                                  selected={isSelected(item)} onDragStart={onDragItem}
+                                  onClick={(it, e) => onItem(it, files.starred.items, e)} onOpen={openItem} />
                 ))}
               </div>
             )}
@@ -336,7 +508,8 @@ export function ClusterSidebar({
                   <SidebarTile key={item.key} item={item}
                                starred={files.isStarred(item.boardId, item.cardId)}
                                where={nameOf(item.boardId)}
-                               onClick={(it, e) => openQuick(it, files.recent, e)} onOpen={openItem} />
+                               selected={isSelected(item)} onDragStart={onDragItem}
+                               onClick={(it, e) => onItem(it, files.recent, e)} onOpen={openItem} />
                 ))}
               </div>
             )}
@@ -349,6 +522,15 @@ export function ClusterSidebar({
         {tagsSection}
       </div>
 
+      {selected.size > 0 && (
+        <div className="sbf-bulk" role="toolbar" aria-label="Selected files">
+          <span className="sbf-bulk-count">{selected.size} selected</span>
+          {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
+          <button type="button" className="sbf-bulk-btn" onClick={downloadSelection}>Download</button>
+          <button type="button" className="sbf-bulk-btn is-danger" onClick={deleteSelection}>Delete</button>
+          <button type="button" className="sbf-bulk-btn" aria-label="Clear selection" onClick={clearSelection}>✕</button>
+        </div>
+      )}
       <SidebarMeter {...meterProps} onOpenPlan={onOpenPlan} onUpload={onUpload} />
 
       {ql && (

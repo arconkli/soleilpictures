@@ -165,3 +165,63 @@ test.describe('sidebar files wiring (App.jsx)', () => {
     expect(host).toMatch(/export function sidebarFilesAllowed\(\) \{\s*if \(onPreviewHost\(\)\) return true;\s*if \(!import\.meta\.env\.DEV\) return false;/);
   });
 });
+
+test.describe('sidebar files: organizing', () => {
+  test('⌘-click builds a selection; the bar moves it, with Undo', async ({ page }) => {
+    await open(page);
+    const tiles = page.locator('.sbf-block').first().locator('.sbf-tile');
+    await tiles.nth(0).click({ modifiers: ['ControlOrMeta'] });
+    await tiles.nth(1).click({ modifiers: ['ControlOrMeta'] });
+    await expect(page.locator('.sbf-bulk')).toContainText('2 selected');
+    await expect(tiles.nth(0)).toHaveClass(/is-selected/);
+    await page.locator('.sbf-bulk-btn', { hasText: 'Move…' }).click();
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(1);
+    const [mv] = await calls(page, 'moveFiles');
+    expect(mv.params).toMatchObject({ from: 'film', to: 'mood', mode: 'move' });
+    expect(mv.params.cardIds).toHaveLength(2);
+    await expect(page.getByTestId('sbqa-toast')).toContainText('Moved 2 files to Moodboards');
+    await page.getByTestId('sbqa-toast').getByRole('button', { name: 'Undo' }).click();
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(2);
+    const undo = (await calls(page, 'moveFiles'))[1];
+    expect(undo.params).toMatchObject({ from: 'mood', to: 'film', mode: 'move' });
+    expect(undo.params.restore).toHaveLength(2);
+    await expect(page.locator('.sbf-bulk')).toHaveCount(0);
+  });
+
+  test('⇧-click selects a run along the shelf; Escape lets go', async ({ page }) => {
+    await open(page);
+    const tiles = page.locator('.sbf-block').first().locator('.sbf-tile');
+    await tiles.nth(1).click({ modifiers: ['ControlOrMeta'] });
+    await tiles.nth(4).click({ modifiers: ['Shift'] });
+    await expect(page.locator('.sbf-bulk')).toContainText('4 selected');
+    await tiles.nth(4).press('Escape');
+    await expect(page.locator('.sbf-bulk')).toHaveCount(0);
+  });
+
+  test('dragging a file onto another cluster moves it there; ⌥ would copy', async ({ page }) => {
+    await open(page);
+    // Both ends on screen: a drag that has to scroll the list loses its target.
+    const tile = page.locator('.sbf-block').first().locator('.sbf-tile').first();
+    await tile.dragTo(row(page, 'Moodboards'));
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(1);
+    const [mv] = await calls(page, 'moveFiles');
+    expect(mv.params).toMatchObject({ from: 'film', to: 'mood', mode: 'move', cardIds: ['film-img-0'] });
+  });
+
+  test('deleting a selection from a closed cluster removes it through the route, and Undo puts it back', async ({ page }) => {
+    await open(page);
+    await row(page, 'Locations').locator('.sb-tree-chev').click();
+    const loc = page.locator('.sbf-block').filter({ has: page.locator('[data-sb-item^="loc:"]') });
+    await loc.locator('.sbf-tile').first().click({ modifiers: ['ControlOrMeta'] });
+    await page.locator('.sbf-bulk-btn', { hasText: 'Delete' }).click();
+    await expect.poll(async () => (await calls(page, 'removeCards')).length).toBe(1);
+    await expect(page.getByTestId('sbqa-toast')).toContainText('Deleted 1 file from Locations');
+    await page.getByTestId('sbqa-toast').getByRole('button', { name: 'Undo' }).click();
+    await expect.poll(async () => (await calls(page, 'appendCards')).length).toBe(1);
+  });
+
+  test('a cluster taking an upload says so where its count was', async ({ page }) => {
+    await open(page);
+    await expect(row(page, 'Casting').locator('.sbf-status')).toHaveText('↑ 3');
+  });
+});
