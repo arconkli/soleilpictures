@@ -177,6 +177,10 @@ import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial
 import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
+import { storageRoom } from './lib/storageRoom.js';
+import { holdDrop, claimReady, setHeldBaseline, subscribeHeld, announceBillingChange } from './lib/heldUploads.js';
+import { useHeldUploads } from './hooks/useHeldUploads.js';
+import { HeldUploadsBar } from './components/HeldUploadsBar.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { publishOwnWork } from './lib/ownWork.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
@@ -1784,24 +1788,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const addon = own && paid ? storageAddonAction(surface) : null;
       feedback.toast({ type: 'warning', message: storageFullMessage({ own, paid }), ...(addon ? { action: addon } : {}) });
     };
-    // What is left on the drive this board's uploads count against — the
-    // board OWNER's, exactly what authorize_image_upload will decide on. A dry
-    // run: p_bytes 0, and the function writes nothing (STABLE). Null when it
-    // cannot be read (offline, local mode, no longer a writer): the server
-    // still decides each file, so not knowing never blocks a drop.
-    const storageRoom = async (bid) => {
-      if (!bid || !supabase) return null;
-      try {
-        const { data, error } = await supabase.rpc('authorize_image_upload', { p_board_id: bid, p_bytes: 0 });
-        if (error) return null;
-        const row = Array.isArray(data) ? data[0] : data;
-        if (!row || row.reason === 'not_writer' || row.reason === 'no_workspace') return null;
-        const quota = Number(row.quota);
-        const used = Number(row.used);
-        if (!Number.isFinite(quota) || !Number.isFinite(used) || quota <= 0) return null;
-        return { used, quota, remaining: Math.max(0, quota - used) };
-      } catch (_) { return null; }
-    };
     const surfaceCapHit = (cs) => {
       if (cs.own) { pitchCapWall(cs); return; }
       feedback.toast({
@@ -1868,12 +1854,37 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // (a folder's whole weight) lets it ask the DRIVE too (0413): the free
     // plan's other wall and the only byte limit on any plan. Without it an
     // over-full drop places optimistic cards and rolls each back on its 402.
-    const preflightImport = async ({ n, kinds = null, source = 'drop', folder = null, items = null, bytes = null } = {}) => {
+    //
+    // `hold` rides along whenever the part that does not fit could go on
+    // later without being dropped again (lib/heldUploads.js): only on the
+    // person's OWN plan — nothing they can buy makes room in someone else's
+    // cluster — and never after Cancel. It names what stopped the drop and the
+    // plan and drive at that moment, which is what a release waits to see
+    // change. The caller keeps whatever `take` leaves out.
+    //
+    // One at a time, app-wide (importAskQueueRef). Two drops asked at once —
+    // a held drop released beside another, or "Upload now" on held drops of
+    // two kinds — each set the one dialog, the second replaced the first, and
+    // the first's promise was never answered: its files were neither placed
+    // nor held. Queued whole, so each plans on the count the one before left.
+    const preflightImport = async (args = {}) => {
+      const before = importAskQueueRef.current;
+      let done;
+      importAskQueueRef.current = new Promise((r) => { done = r; });
+      try {
+        await before;
+        return await preflightImportOnce(args);
+      } finally { done(); }
+    };
+    const preflightImportOnce = async ({ n, kinds = null, source = 'drop', folder = null, items = null, bytes = null } = {}) => {
       const requested = Math.max(0, Number(n) | 0);
       if (requested <= 0) return { take: 0 };
 
       let cs = capSource();
       let plan = planImport({ ...cs, requested });
+      const holdFor = (limit, quota = null) => (cs.own
+        ? { limit, tier: (myTierRef.current || myTier).tier || null, quota: quota ?? null }
+        : null);
 
       // Unknown cap: pay for one round trip rather than gamble a whole folder
       // on it. This is the only place in the app that waits on the tier before
@@ -1922,7 +1933,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
         if (byteTake <= 0) {
           surfaceStorageFull({ own: cs.own, paid: paidNow, surface: 'preflight' });
-          return { take: 0 };
+          return { take: 0, hold: holdFor('storage', drive.quota) };
         }
         return await new Promise((resolve) => {
           setImportAsk({
@@ -1930,6 +1941,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             count: plan.count, limit: plan.limit,
             kinds, source, boardId, own: cs.own, resolve, folder,
             limitKind: 'storage', bytesNeeded, bytesLeft: drive.remaining, paid: paidNow,
+            hold: holdFor('storage', drive.quota),
           });
         });
       }
@@ -1943,7 +1955,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           count: plan.count, limit: plan.limit, source, board_id: boardId,
         });
         surfaceCapHit({ ...cs, rejected: requested, kinds });
-        return { take: 0 };
+        return { take: 0, hold: holdFor('cards', drive?.quota) };
       }
 
       // 'partial' — ask. Nothing is read, uploaded or placed until this settles.
@@ -1958,6 +1970,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           n: requested, take: plan.take, over: plan.over,
           count: plan.count, limit: plan.limit,
           kinds, source, boardId, own: cs.own, resolve, folder, limitKind: 'cards',
+          hold: holdFor('cards', drive?.quota),
         });
       });
     };
@@ -3019,12 +3032,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       //     legible in the data as one dropped on the canvas.
       let over = 0;
       if (accepted.length) {
-        const { take } = await preflightImport({
+        const { take, hold } = await preflightImport({
           n: nClassified, kinds: classifiedKinds, source: 'list_drop',
           items: accepted.map((it) => ({ bytes: it.file?.size || 0, kind: it.kind })),
         }) || {};
         const keep = Math.max(0, Math.min(nClassified, Number(take) || 0));
         over = nClassified - keep;
+        // What did not fit waits in this tab for room (lib/heldUploads.js).
+        if (keep < nClassified && hold) {
+          holdDrop({ boardId, via: 'list', limit: hold.limit, files: accepted.slice(keep).map((it) => it.file), tier: hold.tier, quota: hold.quota });
+        }
         if (keep < nClassified) accepted = accepted.slice(0, keep);
       }
       if (blocked.length) {
@@ -3241,6 +3258,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             });
             if (err.code === 402) {
               try { logEventOnce(`storage_wall:list:${csFiles.own ? (paidNow ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, { surface: 'list', own: !!csFiles.own, paid: paidNow, offered: false }); } catch (_) {}
+              // The drive filled while this file was on its way (the preflight
+              // could not read it, or another tab used the room). On their own
+              // plan it waits for room like a preflight refusal does; the
+              // drive is read now, so growth from here releases it.
+              if (csFiles.own && it.file) {
+                const held = holdDrop({ boardId, via: 'list', limit: 'storage', files: [it.file], tier: (myTierRef.current || myTier).tier || null });
+                if (held) storageRoom(boardId).then((r) => setHeldBaseline(held, r?.quota));
+              }
             }
             logEvent(EV.UPLOAD_BLOCKED, {
               reason: err.code === 402 ? 'server_quota' : 'server_403', surface: 'list', n: 1,
@@ -5275,6 +5300,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try { canceled = new URLSearchParams(window.location.search).get('checkout') === 'canceled'; } catch (_) {}
     if (!canceled) return;
     feedback.toast({ type: 'info', message: 'Checkout canceled. Nothing was charged.' });
+    // A checkout opened beside a tab holding dropped files (lib/heldUploads.js)
+    // lands here when backed out of: that tab stops waiting on a payment.
+    announceBillingChange('canceled');
     try {
       const u = new URL(window.location.href);
       u.searchParams.delete('checkout');
@@ -5342,6 +5370,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // it. That suspension is the feature: the old path had already spent the
   // bytes by the time it discovered it couldn't keep them.
   const [importAsk, setImportAsk] = useState(null);
+  // The tail of the preflight queue (buildMutators preflightImport): resolves
+  // when the last question asked has been answered.
+  const importAskQueueRef = useRef(Promise.resolve());
   // Extra storage (0415), held: a paying owner's "drive full" toast carries an
   // Add 1TB action (lib/storageAddon storageAddonAction), which lands here.
   const [storageAddonSurface, setStorageAddonSurface] = useState(null);
@@ -5362,10 +5393,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           count: ask.count, limit: ask.limit, source: ask.source, board_id: ask.boardId,
         });
       } catch (_) {}
-      // Upgrading does NOT continue the import: Stripe checkout navigates away,
-      // so there is no honest way to hold a FileList across it. The folder is
-      // untouched on disk and the dialog says so — which is the whole point of
-      // asking before the upload rather than after the withdrawal.
+      // Upgrading continues the import when it can: the files are held in this
+      // tab (lib/heldUploads.js, `ask.hold`) and Checkout opens in a new one,
+      // so they upload when the plan lands. Where they cannot be held, the
+      // folder is untouched on disk and the return says to drop it again.
       //
       // Claim the slot, exactly as pitchCapWall does, and for a reason the
       // production trace spells out. On 2026-09-17 someone chose Upgrade here
@@ -5376,9 +5407,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // button. The ambient guard cannot help unless the wall takes the moment
       // it is owed, and this path set the reason without ever claiming it.
       if (action === 'upgrade') {
-        // Remember the folder: checkout can't carry it, and the return should
-        // say so (checkoutReturn.js).
-        notePendingImport({ n: ask.n });
+        // Remember the folder when nothing holds it: the return says so.
+        if (!ask.hold) notePendingImport({ n: ask.n });
         // A drop the DRIVE stopped opens the storage wall, not the card wall.
         if (ask.limitKind === 'storage') pitchStorageGate({ force: true });
         else openCapWall();
@@ -5396,7 +5426,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }));
         } catch (_) {}
       }
-      try { ask.resolve?.({ take }); } catch (_) {}
+      // Whatever was left out waits for room, unless they said Cancel.
+      try { ask.resolve?.({ take, hold: action === 'cancel' ? null : (ask.hold || null) }); } catch (_) {}
       return null;
     });
   }, []);
@@ -5715,21 +5746,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // openBoard is rebuilt every render; read the live one when the import ends.
   const openBoardRef = useRef(openBoard);
   openBoardRef.current = openBoard;
+  // `walked` is a folder already read, handed back by a release of a held one
+  // (lib/heldUploads.js): its files are File handles, which outlive the drop
+  // event that the entries they came from belong to.
   const importFolderOnce = useCallback(async ({
-    entries = null, pickedFiles = null, at = null, boardId: targetBoardId, mutators: muts,
+    entries = null, pickedFiles = null, walked: walkedBefore = null, at = null, boardId: targetBoardId, mutators: muts,
     canAttemptFiles = false, source = 'drop', boardWasEmpty = false,
   } = {}) => {
     if (!targetBoardId || !muts) return { loose: [] };
     const started = Date.now();
-    const walked = entries ? await walkEntries(entries) : treeFromRelativePaths(pickedFiles || []);
+    const walked = walkedBefore || (entries ? await walkEntries(entries) : treeFromRelativePaths(pickedFiles || []));
     const plan = planFolderImport(walked.root, { canAttemptFiles });
     if (!plan.nodes.length) return { loose: plan.loose, walked, plan };
 
-    const { take } = await muts.preflightImport?.({
+    const { take, hold } = await muts.preflightImport?.({
       n: plan.cost, kinds: plan.kinds, source: 'folder',
       folder: { files: plan.files, clusters: plan.clusters },
       bytes: plan.bytes,
     }) || { take: plan.cost };
+    // A folder that does not go on at all waits whole for room. One cut down
+    // to what fits does not: its remainder is folders and files from the
+    // middle of a tree, not a drop anyone could make, and it is on their disk.
+    if (!(Number(take) > 0) && hold) {
+      holdDrop({
+        boardId: targetBoardId, via: 'folder', limit: hold.limit, at, tier: hold.tier, quota: hold.quota,
+        folder: { walked, at, boardWasEmpty, count: plan.files, bytes: plan.bytes },
+      });
+    }
     const nodes = slicePlan(plan.nodes, Math.min(plan.cost, Number(take) || 0));
     const total = countFiles(nodes);
     try {
@@ -5897,15 +5940,74 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Cancel) away while it was still uploading. Held from the moment the drop
   // is read, so a second drop during the preflight question waits too.
   const folderImportBusyRef = useRef(false);
+  // Resolves when the running import ends. A released held folder
+  // (lib/heldUploads.js) has already left the store, so refused here it would
+  // be lost: it waits its turn instead.
+  const folderImportIdleRef = useRef(Promise.resolve());
   const importFolder = useCallback(async (args = {}) => {
+    while (folderImportBusyRef.current && args.source === 'held') await folderImportIdleRef.current;
     if (folderImportBusyRef.current) {
       feedback.toast({ type: 'info', message: 'A folder is still importing. Drop this one again when it has finished.', ttl: 6000 });
       return { loose: [] };
     }
     folderImportBusyRef.current = true;
+    let idle;
+    folderImportIdleRef.current = new Promise((r) => { idle = r; });
     try { return await importFolderOnce(args); }
-    finally { folderImportBusyRef.current = false; }
+    finally { folderImportBusyRef.current = false; idle(); }
   }, [importFolderOnce, feedback]);
+
+  // Held drops (lib/heldUploads.js): the release watcher, and the claimers App
+  // owns. Each CanvasSurface claims its own cluster's canvas drops and
+  // folders. App claims list-view drops for the cluster each pane shows, and
+  // the canvas drops and folders of a cluster shown in full Files, whose
+  // canvas is not mounted to claim them — those land in Files, off the board,
+  // as a list drop does.
+  useHeldUploads({ tier: myTier.tier, refetchTier: myTier.refetch, userId: user?.id });
+  useEffect(() => {
+    // Only while the panes are what is on screen: Home shows neither, and
+    // the bar then offers to open the cluster instead.
+    if (currentSurface !== 'board') return undefined;
+    const panes = [
+      [currentId, mainMutators, mainFilesMode === 'full'],
+      [splitId, splitMutators, splitView === 'list'],
+    ];
+    const take = () => {
+      for (const [bid, muts, filesOnly] of panes) {
+        if (!bid || !muts?.ingestFilesArranged) continue;
+        const files = [
+          ...claimReady({ boardId: bid, via: 'list' }),
+          ...(filesOnly ? claimReady({ boardId: bid, via: 'canvas' }) : []),
+        ].flatMap((e) => e.files);
+        if (files.length) muts.ingestFilesArranged(files);
+        const folders = filesOnly ? claimReady({ boardId: bid, via: 'folder' }) : [];
+        if (!folders.length) continue;
+        const paid = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
+        (async () => {
+          for (const e of folders) {
+            await importFolder({
+              walked: e.folder.walked, at: e.folder.at, boardId: bid, mutators: muts,
+              canAttemptFiles: paid, source: 'held', boardWasEmpty: false,
+            });
+          }
+        })();
+      }
+    };
+    // A claim changes the store, which calls this again: on the next
+    // microtask, not inside the claim, so one pass sees one consistent list.
+    let queued = false;
+    let live = true;
+    const later = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => { queued = false; if (live) take(); });
+    };
+    take();
+    const off = subscribeHeld(later);
+    return () => { live = false; off(); };
+    // myTier is read through its ref at claim time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSurface, currentId, splitId, mainMutators, splitMutators, mainFilesMode, splitView, importFolder]);
 
   // Should this demo user be pitched at all? Shared by every always-on upsell
   // surface so the chip, the first-value banner and the list-toolbar chip agree
@@ -8875,6 +8977,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            onRequestStorageUpgrade={pitchStorageGate}
                            onImportFolder={importFolder}
                            isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
+                           planTier={myTier.tier || null}
                            ownsWorkspace={workspace?.created_by === user?.id}
                            currentUser={currentUser}
                            onOpenBoard={openInPane} tweak={tweak}
@@ -9932,6 +10035,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         </div>
       )}
 
+      {/* Files a drop kept in this tab until there is room (lib/heldUploads.js). */}
+      <HeldUploadsBar
+        openBoardIds={currentSurface === 'board' ? [currentId, splitId] : []}
+        boardName={(id) => boards?.[id]?.name || null}
+        onOpenBoard={(id) => openBoardRef.current?.(id)}
+        toast={feedback.toast}
+        raised={Boolean(folderImport)}
+        aboveNav={mobileShell}
+      />
+
       {importAsk && (
         <ImportCapDialog
           open
@@ -9946,11 +10059,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           bytesNeeded={importAsk.bytesNeeded ?? null}
           bytesLeft={importAsk.bytesLeft ?? null}
           canUpgrade={importAsk.limitKind === 'storage' ? (importAsk.own && !importAsk.paid) : true}
+          holds={Boolean(importAsk.hold)}
           // A paying owner's full drive: close the question (nothing has
-          // uploaded) and open the extra-storage sheet; they drop again after.
+          // uploaded) and open the extra-storage sheet. The whole drop is
+          // held and goes on once the block is added (lib/heldUploads.js).
           onAddStorage={!STORAGE_ADDON_HELD && importAsk.limitKind === 'storage' && importAsk.own && importAsk.paid
             ? () => {
-                answerImportAsk('cancel', 0);
+                answerImportAsk('add_storage', 0);
                 window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'preflight' } }));
               }
             : null}

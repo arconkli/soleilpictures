@@ -174,7 +174,10 @@ import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading, stashLateUpload, takeLateUploads } from '../lib/abandonedUploads.js';
-import { isUnplaced, countUnplaced, canUnplace } from '../lib/placement.js';
+import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent } from '../lib/placement.js';
+import { withGeometry } from '../lib/moodboard.js';
+import { holdDrop, claimReady, restoreHeld, setHeldBaseline, subscribeHeld } from '../lib/heldUploads.js';
+import { storageRoom } from '../lib/storageRoom.js';
 import { setViewCenter, trackViewCenter } from '../lib/viewCenter.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
@@ -588,6 +591,7 @@ export function CanvasSurface({
   onRequestUpgrade = null, // () => void — opens App's UpgradeModal (fallback for storage upsell)
   onRequestStorageUpgrade = null, // () => void — opens the storage/files upgrade prompt
   isPaidPlan = false,      // current user on a paid/admin plan (best-effort client gate)
+  planTier = null,         // the same plan as a tier, or null while it loads (held drops)
   ownsWorkspace = false,   // current user owns the active workspace (created_by)
   autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
   autotagReady = false,    // worker hydration finished
@@ -3589,6 +3593,19 @@ export function CanvasSurface({
           : {}),
         ...(addon ? { action: addon } : {}),
       });
+      // The drive filled while this file was on its way (the preflight could
+      // not read it, or another tab used the room). On their own plan it waits
+      // for room like a drop the preflight held (lib/heldUploads.js); the drive
+      // is read now, so growth from here releases it.
+      if (ownsWorkspace && retry?.file && dropBoardId) {
+        // The plan as known, null while it loads: an unknown plan cannot later
+        // read as an upgrade (heldUploads readyFor).
+        const held = holdDrop({
+          boardId: dropBoardId, via: 'canvas', limit: 'storage', files: [retry.file],
+          at: { x: retry.cx, y: retry.cy }, tier: planTier,
+        });
+        if (held) storageRoom(dropBoardId).then((r) => setHeldBaseline(held, r?.quota));
+      }
     } else if (err?.code === 403) {
       // Since 0413 no plan refuses a file for its size, so a 403 from the
       // upload party means the write itself was refused — edit access ended.
@@ -3644,7 +3661,7 @@ export function CanvasSurface({
         onDismiss: () => { failed.items = []; },
       });
     }
-  }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, isPaidPlan, cardIsLive]);
+  }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, isPaidPlan, planTier, cardIsLive]);
 
   // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
   //
@@ -4290,7 +4307,7 @@ export function CanvasSurface({
     // toast below.
     let over = 0;
     if (classified && mutators.preflightImport) {
-      const { take } = await mutators.preflightImport({
+      const { take, hold } = await mutators.preflightImport({
         n: classified, kinds, source,
         // The drive half of the question (0413): every accepted file, as it
         // will be placed, with what it weighs.
@@ -4298,6 +4315,14 @@ export function CanvasSurface({
       }) || {};
       const keep = Math.max(0, Math.min(classified, Number(take) || 0));
       over = classified - keep;
+      // What did not fit waits in this tab for room and comes back through
+      // this drop when there is some (lib/heldUploads.js).
+      if (keep < classified && hold && board?.id) {
+        holdDrop({
+          boardId: board.id, via: 'canvas', limit: hold.limit, files: accepted.slice(keep).map((it) => it.file),
+          at: { x: cx, y: cy }, partial: keep > 0, tier: hold.tier, quota: hold.quota,
+        });
+      }
       if (keep < classified) accepted.splice(keep);
     }
 
@@ -4351,10 +4376,23 @@ export function CanvasSurface({
       // A mixed drop keeps the uniform grid — an image beside a PDF beside an
       // audio clip reads as a matrix. All photographs get justified rows.
       const allImages = accepted.every((it) => it.route === 'image');
-      const rects = layoutDrop(accepted, {
+      let rects = layoutDrop(accepted, {
         at: { x: cx, y: cy },
         layout: allImages ? 'justified' : 'grid',
       });
+      // A released held drop (lib/heldUploads.js): nobody is pointing at a
+      // spot any more, and the part of it that fit is already where it was
+      // dropped, so the block goes in the free space nearest that point
+      // instead of on top of anything — the planPutOnBoard rule.
+      if (source === 'held' && rects.length) {
+        const left = Math.min(...rects.map((r) => r.x));
+        const top = Math.min(...rects.map((r) => r.y));
+        const w = Math.max(...rects.map((r) => r.x + r.w)) - left;
+        const h = Math.max(...rects.map((r) => r.y + r.h)) - top;
+        const solid = withGeometry(cardsRef.current);
+        const spot = nearestFreeSpot(solid, { x: left, y: top }, w, h) || besideContent(solid);
+        rects = rects.map((r) => ({ ...r, x: r.x + spot.x - left, y: r.y + spot.y - top }));
+      }
 
       for (let i = 0; i < accepted.length; i++) {
         const rect = rects[i];
@@ -4398,6 +4436,80 @@ export function CanvasSurface({
   }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators, markViewSettled]);
   ingestFilesRef.current = ingestFiles;
+
+  // Held drops for this cluster (lib/heldUploads.js), the moment App's release
+  // watcher says there may be room: back through the drop, so the card cap,
+  // the drive and the layout are all asked again — a release that still does
+  // not fit is simply asked about, and held, again. Every canvas entry goes
+  // in one drop, where the first was dropped; folders one after another, as
+  // the folder importer takes one at a time.
+  //
+  // Only once this cluster's doc is live: on a switch, CanvasSurface renders
+  // the new board a beat before its mutators exist, and a claim then would
+  // upload the files with no card to put them on.
+  const heldEnvRef = useRef(null);
+  heldEnvRef.current = { mutators, canAttemptFiles, onImportFolder, cards };
+  // Not through Capture Mode's guarded mutators either: they refuse every
+  // add, quietly, and the files would be claimed into nothing. The claim
+  // waits for the reframe to end.
+  const heldReady = Boolean(boardReady && mutators?.addCard && mutators?.preflightImport && !mutators?.captureGuarded);
+  useEffect(() => {
+    const boardId = board?.id;
+    if (!boardId || useLocalImages || !heldReady) return undefined;
+    const take = () => {
+      if (boardIdRef.current !== boardId) return;
+      const drops = claimReady({ boardId, via: 'canvas' });
+      const files = drops.flatMap((e) => e.files);
+      if (files.length) {
+        const at = drops.find((e) => e.at)?.at || null;
+        let p = at;
+        // Where it was dropped, if that is still in view; else the middle of it.
+        const r = wrapRef.current?.getBoundingClientRect?.();
+        if (r) {
+          const tl = clientToCanvas(r.left, r.top);
+          const br = clientToCanvas(r.right, r.bottom);
+          const inView = p && p.x >= tl.x && p.x <= br.x && p.y >= tl.y && p.y <= br.y;
+          if (!inView) p = clientToCanvas(r.left + r.width / 2, r.top + r.height / 2);
+        }
+        ingestFilesRef.current?.(files, p?.x ?? 200, p?.y ?? 200, 'held');
+      }
+      const folders = claimReady({ boardId, via: 'folder' });
+      if (folders.length) {
+        // This cluster's mutators, as of the claim: an import takes minutes,
+        // and the canvas may be showing another cluster by the next one.
+        const env = heldEnvRef.current;
+        (async () => {
+          for (let i = 0; i < folders.length; i++) {
+            if (boardIdRef.current !== boardId || !env?.onImportFolder) {
+              // Moved on: the rest wait, released, for this cluster to be open.
+              restoreHeld(folders.slice(i));
+              return;
+            }
+            const e = folders[i];
+            // Not its loose files: those went the ordinary way when it was
+            // dropped, and are on the board or held as a drop of their own.
+            await env.onImportFolder({
+              walked: e.folder?.walked, at: e.folder?.at || e.at, boardId, mutators: env.mutators,
+              canAttemptFiles: env.canAttemptFiles, source: 'held',
+              boardWasEmpty: !(env.cards || []).length,
+            });
+          }
+        })();
+      }
+    };
+    // A claim changes the store, which calls this again: on the next
+    // microtask, not inside the claim, so one pass sees one consistent list.
+    let queued = false;
+    let live = true;
+    const later = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => { queued = false; if (live) take(); });
+    };
+    take();
+    const off = subscribeHeld(later);
+    return () => { live = false; off(); };
+  }, [board?.id, useLocalImages, clientToCanvas, heldReady, mutators]);
 
   // Unified "Add → File" picker: opens a native file chooser with NO accept
   // filter (any type) and routes the chosen file(s) through ingestFiles — the

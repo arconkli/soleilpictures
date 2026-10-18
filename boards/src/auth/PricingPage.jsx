@@ -94,7 +94,7 @@ export function PricingPage() {
     });
     try {
       if (alreadyPaid) await startPortal({ surface: 'page' });
-      else             await startCheckout({ plan, surface: 'page' });
+      else if ((await startCheckout({ plan, surface: 'page' }))?.tab) setBusy(false);
     } catch (err) {
       up.noteError();
       setError(checkoutErrorMessage(err));

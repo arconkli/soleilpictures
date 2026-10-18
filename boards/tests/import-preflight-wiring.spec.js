@@ -14,7 +14,7 @@ const canvas = () => read('src/components/CanvasSurface.jsx');
 test.describe('import preflight wiring', () => {
   test('the canvas drop and picker path preflight through the mutator', () => {
     const s = canvas();
-    expect(s).toMatch(/await mutators\.preflightImport\(\{ n: classified, kinds, source \}\)/);
+    expect(s).toMatch(/await mutators\.preflightImport\(\{\s*n: classified, kinds, source,/);
     // The answer is authoritative: the accepted list is trimmed to `take`.
     expect(s).toMatch(/if \(keep < classified\) accepted\.splice\(keep\)/);
   });
@@ -22,7 +22,7 @@ test.describe('import preflight wiring', () => {
   test('the list-view drop path preflights too, instead of slicing silently', () => {
     const s = app();
     const fn = s.slice(s.indexOf('const ingestFilesArranged = async'), s.indexOf('// 2)', s.indexOf('const ingestFilesArranged = async')));
-    expect(fn).toMatch(/await preflightImport\(\{ n: nClassified, kinds: classifiedKinds, source: 'list_drop' \}\)/);
+    expect(fn).toMatch(/await preflightImport\(\{\s*n: nClassified, kinds: classifiedKinds, source: 'list_drop',/);
     expect(fn).toMatch(/accepted = accepted\.slice\(0, keep\)/);
     // The classification totals are captured BEFORE the cap can trim them, so
     // n_accepted keeps meaning "passed the file-type gate" on both paths.

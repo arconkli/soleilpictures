@@ -31,6 +31,12 @@ The Share panel opens on inviting people and says exactly how far an invitation 
   join; yours as soon as they have opened the app and placed their first card,
   with no three-day wait. See [referrals](/docs/account/referrals).
 
+### Uploads
+
+- Files that don't fit when you drop them wait in the tab. Upgrade or add
+  storage and they upload by themselves, without being dropped again — however
+  big they are. See [hitting a limit](/docs/account/plans#hitting-a-limit).
+
 ## 2026-10-17 — Any file at any size on every plan, a 1TB Creator drive, and deleting frees space
 
 The free plan stops at its cards or its drive, whichever comes first, and takes any file at any size. The Creator drive grows to 1TB, and you can add more a terabyte at a time. Deleting a file now gives its space back.

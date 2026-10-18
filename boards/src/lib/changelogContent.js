@@ -198,6 +198,45 @@ export const CHANGELOG_CONTENT = {
      }
     ]
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Uploads",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Uploads"
+    }
+   ],
+   "id": "2026-10-18-uploads"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Files that don't fit when you drop them wait in the tab. Upgrade or add storage and they upload by themselves, without being dropped again — however big they are. See "
+     },
+     {
+      "t": "link",
+      "v": "hitting a limit",
+      "href": "/docs/account/plans#hitting-a-limit",
+      "children": [
+       {
+        "t": "text",
+        "v": "hitting a limit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
   }
  ],
  "2026-10-17": [

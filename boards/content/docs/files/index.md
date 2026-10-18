@@ -54,7 +54,9 @@ size. There is no per-file limit on any plan.
 
 **Storage.** The only limit is the drive: {{fact:freeStorage}} on the free
 plan, {{fact:creatorStorage}} on {{fact:planName}}. A drop that would not fit is
-caught before anything uploads, and you can add the part that fits. Inviting
+caught before anything uploads, and you can add the part that fits; the rest
+waits in the tab and goes on by itself when you upgrade or add storage
+([Hitting a limit](/docs/account/plans#hitting-a-limit)). Inviting
 someone new adds {{fact:referralBonusStorage}} to your drive once they get
 started, and to theirs when they join ([Referrals](/docs/account/referrals)).
 
@@ -77,7 +79,9 @@ behind it.
 Uploads count against your account's storage quota: {{fact:freeStorage}} on the
 free plan, {{fact:creatorStorage}} on {{fact:planName}}. The meter is in
 **Settings → Plan & billing**. When it is full, new uploads stop until you
-delete files or upgrade — nothing already there is touched. On {{fact:planName}}
+delete files or upgrade — nothing already there is touched. Files you drop in
+the meantime wait in the tab: they go on by themselves when you upgrade or add
+storage, or when you press **Upload now** after deleting. On {{fact:planName}}
 you can also add [more storage](/docs/account/plans#more-storage),
 {{fact:storageAddonSize}} at a time.
 

@@ -122,6 +122,21 @@ You are told when you reach either one, and offered the upgrade — or, when a
 have already made is removed, locked, or hidden. A drop that would not fit is
 caught before anything uploads, so you can add the part that fits instead.
 
+Unless you cancel, the files that did not go on wait in that browser tab.
+Upgrade, or add storage, and they upload by themselves, so you never drop the
+same files twice. A bar at the bottom of the screen says how many are waiting,
+with **Upload now** to try again after you make room by deleting, and
+**Discard** to let them go. A folder waits whole when none of it fit; if you
+add part of a folder, or one runs out of room partway through, the rest stays
+on your computer.
+
+While files are waiting, checkout opens in a new tab so this one can keep
+them. If the browser won't open one, checkout takes this tab, the files are
+let go, and you are asked to drop them again when you come back. Closing or
+reloading the tab also lets them go, and the browser asks first; the files
+are still on your computer either way. This applies in your own clusters: in
+someone else's, only their plan can make room.
+
 Deleting a file gives its space back within a few minutes — unless another
 cluster still uses it — and emptying the trash gives back everything in it at
 once.

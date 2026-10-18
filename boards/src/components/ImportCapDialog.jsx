@@ -44,8 +44,11 @@ import './importCapDialog.css';
 // drive is full, or someone dropping into another person's cluster.
 // `onAddStorage` (0415): for a paying owner whose drive is what overflows, the
 // way to extra storage. Null hides it — anyone else, or while it is held.
+// `holds`: whatever this answer leaves out waits in the tab and uploads once
+// there is room (lib/heldUploads.js) — true on the person's own plan, so the
+// note can say they will not have to drop the files again.
 export function ImportCapDialog({ open, n, take, over, count, limit, kinds, folder = null, trialOffer = false,
-  limitKind = 'cards', bytesNeeded = null, bytesLeft = null, canUpgrade = true, onAddStorage = null,
+  limitKind = 'cards', bytesNeeded = null, bytesLeft = null, canUpgrade = true, onAddStorage = null, holds = false,
   onTakePartial, onUpgrade, onCancel }) {
   const primaryRef = useRef(null);
   if (!open) return null;
@@ -58,6 +61,18 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
   const storage = limitKind === 'storage';
   const weighs = storageAmountLabel(bytesNeeded);
   const left = storageAmountLabel(bytesLeft) || 'no room';
+  // What releases a held drop by itself is the plan or the drive growing
+  // (lib/heldUploads readyFor), never a delete: room made that way is the
+  // bar's Upload now. A folder cut down to what fits is not held at all (App
+  // importFolderOnce): only the whole of one waits.
+  const unlock = canUpgrade ? 'upgrade' : onAddStorage ? `add ${STORAGE_ADDON_BLOCK_LABEL}` : null;
+  const goesOn = unlock
+    ? `goes on by itself when you ${unlock} \u2014 no dropping it again`
+    : 'goes on when you make room and press Upload now';
+  const waits = !holds ? ''
+    : folder && take > 0
+      ? ` Add what fits and the rest stays on your computer. Otherwise, unless you cancel, the folder waits in this tab and ${goesOn}.`
+      : ` Unless you cancel, whatever doesn\u2019t go on now waits in this tab and ${goesOn}.`;
 
   return (
     <Modal
@@ -104,9 +119,10 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
             ? (canUpgrade
               ? `Nothing has been uploaded yet. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`
               : onAddStorage
-                ? `Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more and drop them again, or delete files or empty the trash to make room.`
+                ? `Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more${holds ? '' : ' and drop them again'}, or delete files or empty the trash to make room.`
                 : 'Nothing has been uploaded yet. Deleting files or emptying the trash makes room.')
             : `Nothing has been uploaded yet. Creator removes the limit entirely${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`}
+          {waits}
         </p>
       </div>
 

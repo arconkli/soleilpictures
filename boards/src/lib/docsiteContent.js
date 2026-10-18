@@ -14424,7 +14424,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits. Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join ("
+     "v": " The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits; the rest waits in the tab and goes on by itself when you upgrade or add storage ("
+    },
+    {
+     "t": "link",
+     "v": "Hitting a limit",
+     "href": "/docs/account/plans#hitting-a-limit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Hitting a limit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join ("
     },
     {
      "t": "link",
@@ -14529,7 +14544,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. On Creator you can also add "
+     "v": ". When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. Files you drop in the meantime wait in the tab: they go on by themselves when you upgrade or add storage, or when you press "
+    },
+    {
+     "t": "strong",
+     "v": "Upload now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " after deleting. On Creator you can also add "
     },
     {
      "t": "link",
@@ -34769,6 +34798,52 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Unless you cancel, the files that did not go on wait in that browser tab. Upgrade, or add storage, and they upload by themselves, so you never drop the same files twice. A bar at the bottom of the screen says how many are waiting, with "
+    },
+    {
+     "t": "strong",
+     "v": "Upload now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to try again after you make room by deleting, and "
+    },
+    {
+     "t": "strong",
+     "v": "Discard",
+     "children": [
+      {
+       "t": "text",
+       "v": "Discard"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to let them go. A folder waits whole when none of it fit; if you add part of a folder, or one runs out of room partway through, the rest stays on your computer."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While files are waiting, checkout opens in a new tab so this one can keep them. If the browser won't open one, checkout takes this tab, the files are let go, and you are asked to drop them again when you come back. Closing or reloading the tab also lets them go, and the browser asks first; the files are still on your computer either way. This applies in your own clusters: in someone else's, only their plan can make room."
     }
    ]
   },
