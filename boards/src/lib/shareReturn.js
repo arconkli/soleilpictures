@@ -52,3 +52,37 @@ export function readShareReturn(storage = defaultStorage()) {
 export function clearShareReturn(storage = defaultStorage()) {
   try { storage?.removeItem(KEY); } catch (_) {}
 }
+
+// The same contract for a single shared file (/f/<token>): the sign-in link
+// carries back=file&file_token=<uuid>, AuthGate stashes it across the OTP hop
+// and, once a session exists, goes back to /f/<token>. Its own key, so a
+// cluster share return and a file return never overwrite each other.
+const FILE_KEY = 'soleil.boards.pending.file.return';
+const FILE_MARK = 'file';
+
+export function parseFileReturn(url) {
+  if (!url || typeof url.searchParams?.get !== 'function') return null;
+  if (url.searchParams.get(PARAM) !== FILE_MARK) return null;
+  const t = (url.searchParams.get('file_token') || '').trim();
+  return UUID_RE.test(t) ? t : null;
+}
+
+export function fileReturnHref(token) {
+  return UUID_RE.test(String(token || '')) ? `/f/${token}` : '/';
+}
+
+export function stashFileReturn(token, storage = defaultStorage()) {
+  if (!UUID_RE.test(String(token || ''))) return;
+  try { storage?.setItem(FILE_KEY, token); } catch (_) {}
+}
+
+export function readFileReturn(storage = defaultStorage()) {
+  try {
+    const v = storage?.getItem(FILE_KEY);
+    return UUID_RE.test(String(v || '')) ? v : null;
+  } catch (_) { return null; }
+}
+
+export function clearFileReturn(storage = defaultStorage()) {
+  try { storage?.removeItem(FILE_KEY); } catch (_) {}
+}

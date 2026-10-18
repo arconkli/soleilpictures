@@ -117,6 +117,10 @@ export function NotificationsPanel({
                       });
                     } catch (_) {}
                     onMarkRead?.([n.id]);
+                    if (String(n.kind || '').startsWith('file.') && n.data?.token) {
+                      window.open('/f/' + encodeURIComponent(n.data.token), '_blank', 'noopener');
+                      return;
+                    }
                     if (n.board_id) onOpenBoard?.(n.board_id);
                   }}>
                   <span className={`ntf-kind ntf-kind-${String(n.kind || '').split('.')[1] || 'other'}`}

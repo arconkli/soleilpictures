@@ -21,7 +21,7 @@ import { EV } from './analyticsEvents.js';
 function isPublicSurface() {
   try {
     const p = window.location.pathname;
-    return p.startsWith('/share/') || p.startsWith('/c/');
+    return p.startsWith('/share/') || p.startsWith('/c/') || p.startsWith('/f/');
   } catch (_) { return false; }
 }
 import { loadCorsCleanImage } from './corsImage.js';

@@ -26,7 +26,7 @@ import { recordSeen } from '../lib/returnVisit.js';
 import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
-import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref } from '../lib/shareReturn.js';
+import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
 import { getFbCookies } from '../lib/metaPixel.js';
@@ -198,6 +198,27 @@ function consumeShareReturn() {
   clearShareReturn();
   try { logEventNow(EV.SHARE_RETURN_LANDED, { share_token: token }); } catch (_) {}
   window.location.replace(shareReturnHref(token));
+  return true;
+}
+
+// The same round trip for a single shared file: /f/<token>'s sign-in link
+// carries back=file&file_token=<uuid> (shareReturn.js).
+function captureFileReturn() {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  const token = parseFileReturn(url);
+  if (!token) return;
+  stashFileReturn(token);
+  url.searchParams.delete('back');
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+}
+
+function consumeFileReturn() {
+  const token = readFileReturn();
+  if (!token) return false;
+  clearFileReturn();
+  try { logEventNow(EV.FILE_SHARE_RETURN_LANDED, { file_token: token }); } catch (_) {}
+  window.location.replace(fileReturnHref(token));
   return true;
 }
 
@@ -464,6 +485,7 @@ export function AuthGate({ children, signedOut = null }) {
     captureJoinToken();
     captureRemixSource();
     captureShareReturn();
+    captureFileReturn();
     let cancelled = false;
     (async () => {
       try {
@@ -483,6 +505,7 @@ export function AuthGate({ children, signedOut = null }) {
           await consumePendingJoin(data.session.user.id);
           await consumeScoutClaim(data.session.user.id);
           if (consumeShareReturn()) return;
+          if (consumeFileReturn()) return;
         }
         if (data.session) hadSession.current = true;
         if (!cancelled) setSession(data.session);
@@ -521,6 +544,7 @@ export function AuthGate({ children, signedOut = null }) {
           await consumePendingJoin(sess.user.id);
           await consumeScoutClaim(sess.user.id);
           if (consumeShareReturn()) return;
+          if (consumeFileReturn()) return;
         }
         if (sess) hadSession.current = true;
         if (!cancelled) setSession(sess);

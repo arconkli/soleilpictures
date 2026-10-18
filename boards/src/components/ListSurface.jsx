@@ -54,6 +54,9 @@ function writeInfoPref(on) {
 }
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
+import { fileSharesAllowed } from '../lib/appHost.js';
+import { openFileShare } from '../lib/fileShareBus.js';
+import { isShareableCard } from '../lib/fileShares.js';
 import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
 import { canVersion, liveVersions } from '../lib/cardVersions.js';
 import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
@@ -1872,6 +1875,7 @@ export function ListSurface({
           renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
           canVersionHere && canVersion(card) && { id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), card.id) },
           DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: 'Download', run: () => downloadOne(item) },
+          fileSharesAllowed() && canEdit && isShareableCard(card) && { id: 'share', label: 'Share file…', run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
           // An app action: a signed-out visitor's link wouldn't resolve.
           onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
           canMove && { id: 'move', label: 'Move to…', run: moveSelection },

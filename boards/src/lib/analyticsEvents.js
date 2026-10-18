@@ -358,7 +358,17 @@ export const EV = Object.freeze({
   SHARE_VIEW:              'share_view',                  // public viewer mounted {share_token,board_id,root_id,include_subboards,valid}
   SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {share_token,board_id,from_board_id,depth,cached}
   SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin'|'remix',share_token} (must-land)
+  FILE_SHARE_OPEN:         'file_share_open',             // the owner's Share file dialog opened {kind,surface:'canvas'|'list'|'player'|'quicklook'}
+  FILE_SHARE_ACCESS_SET:   'file_share_access_set',       // a file share's general access or download switch changed {link_access:'none'|'view'|'comment',allow_download}
+  FILE_SHARE_PEOPLE_ADD:   'file_share_people_add',       // people added to a file share by email {n,role:'view'|'comment',skipped}
+  FILE_SHARE_LINK_COPY:    'file_share_link_copy',        // a file share's /f/ link was put on the clipboard {link_access}
   SHARE_RETURN_LANDED:     'share_return_landed',         // {share_token} — a sign-up/sign-in that began on a /share page was sent back to that page once a session existed, instead of to the root of an empty workspace. Before this, no share-token signup ever first-opened the board they came for
+  FILE_SHARE_VIEW:         'file_share_view',             // the /f/<token> page loaded a state {status:'ok'|'gone'|'sign_in'|'no_access'|'error',access,kind,signed_in,risky} — once per load
+  FILE_SHARE_DOWNLOAD:     'file_share_download',         // Download clicked on /f/<token> {kind,access}
+  FILE_SHARE_SIGNIN_CLICK: 'file_share_signin_click',     // a sign-in link on /f/<token> {surface:'gate'|'comments'|'switch_account'} (must-land)
+  FILE_SHARE_CTA_CLICK:    'file_share_cta_click',        // the signed-out "Try Clusters free" footer on /f/<token> {surface:'footer'} (must-land)
+  FILE_SHARE_RETURN_LANDED: 'file_share_return_landed',   // {file_token} — a sign-in that began on /f/<token> was sent back to that file once a session existed
+  FILE_COMMENT_ADD:        'file_comment_add',            // a comment posted on a shared file {kind,pinned:'time'|'page'|null,reply}
   SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,share_token,board_id,boards_opened}
   SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}
   SHARE_PROMPT_DISMISS:    'share_prompt_dismiss',        // prompt dismissed {trigger,visible_ms}

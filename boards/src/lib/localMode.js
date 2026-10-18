@@ -165,6 +165,14 @@ export function isSidebarQaMode() {
   return new URLSearchParams(window.location.search).get('sidebarqa') === '1';
 }
 
+// Dev-only single-file share QA (?fileshareqa=<fixture>): the real
+// <FileSharePage> over a fake api (local/FileShareQaHarness.jsx). Returns the
+// fixture name, or '' when off.
+export function isFileShareQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('fileshareqa') || '';
+}
+
 // Dev-only photo-adjustment QA bridge. Active ONLY in a DEV build with
 // ?imgeditqa=1 (same trust boundary as isDndQaMode). Publishes the PURE
 // imageAdjust helpers (buildFilterCss / buildTransform / isAdjusted / …) on
@@ -228,7 +236,7 @@ export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   try {
     const q = new URLSearchParams(window.location.search);
-    return QA_MODE_PARAMS.some((k) => q.get(k) === '1');
+    return QA_MODE_PARAMS.some((k) => q.get(k) === '1') || !!q.get('fileshareqa');
   } catch (_) { return false; }
 }
 

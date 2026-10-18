@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startBuildWatch } from './lib/buildWatch.js';
@@ -418,6 +418,18 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <SidebarQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isFileShareQaMode()) {
+  // Single-file share QA (?fileshareqa=<fixture>). The real <FileSharePage>
+  // over a fake of 0421's RPCs and the party's /file-share response, so the
+  // spec can drive every state, the viewers, the comment rail and the undo.
+  // DEV guard drops it from production builds.
+  import('./local/FileShareQaHarness.jsx').then(({ FileShareQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <FileShareQaHarness />
       </StrictMode>
     );
   });

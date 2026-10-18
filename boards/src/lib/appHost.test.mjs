@@ -49,3 +49,7 @@ test('a workers.dev lookalike does not open the hold', () => {
   assert.equal(onPreviewHost('clusters.soleilpictures.com/workers.dev'), false);
   assert.equal(onPreviewHost('x.WORKERS.DEV'), true, 'hostnames are case-insensitive');
 });
+
+test('file sharing is held by the same allowlist shape', () => {
+  assert.match(SRC, /export function fileSharesAllowed\(\) \{\s*return import\.meta\.env\.DEV \|\| onPreviewHost\(\);\s*\}/);
+});

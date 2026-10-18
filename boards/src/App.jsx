@@ -119,6 +119,7 @@ import { probeFile } from './lib/mediaProbe.js';
 import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 import { PlayerHost } from './components/film/PlayerHost.jsx';
+import { FileShareHost } from './components/fileShare/FileShareHost.jsx';
 import { openPlayer } from './lib/playerBus.js';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -199,7 +200,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed } from './lib/appHost.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
@@ -10378,6 +10379,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           return pane ? { cards: pane.cards } : null;
         }}
       />
+      {fileSharesAllowed() && <FileShareHost />}
 
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
           and choosing the partial keeps the cards they're entitled to. Rendered

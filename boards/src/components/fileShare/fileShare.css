@@ -1,0 +1,235 @@
+/* /f/<token> — one shared file (FileSharePage.jsx, FileComments.jsx).
+   A screening room: dark in both themes, so the file is judged against
+   black. Neutral ink at rest; gold (--soleil) only for focus rings, a pinned
+   (on) toggle and the active comment. */
+
+.fsp {
+  --fsp-room: #000;
+  --fsp-bg: #0b0b0d;
+  --fsp-panel: #111114;
+  --fsp-raise: #1b1b1f;
+  --fsp-hover: rgba(255, 255, 255, 0.08);
+  --fsp-line: rgba(255, 255, 255, 0.08);
+  --fsp-line-2: rgba(255, 255, 255, 0.14);
+  --fsp-ink-0: #f5f5f7;
+  --fsp-ink-1: #c7c7cc;
+  --fsp-ink-2: #8e8e93;
+  --fsp-danger: #ff8a80;
+  --fsp-top-h: 52px;
+  position: fixed; inset: 0;
+  overflow-y: auto; overflow-x: hidden;
+  background: var(--fsp-bg); color: var(--fsp-ink-1);
+  font: 400 14px/1.45 var(--font-sans);
+  color-scheme: dark;
+}
+.fsp *, .fsp *::before, .fsp *::after { box-sizing: border-box; }
+.fsp :focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.fsp--splash { display: grid; place-items: center; }
+.fsp-spinner {
+  display: inline-block; width: 36px; height: 36px; border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.16); border-top-color: var(--fsp-ink-0);
+  animation: fsp-spin 0.9s linear infinite;
+}
+@keyframes fsp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fsp-spinner { animation-duration: 2.4s; } }
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
+.fsp-top {
+  position: sticky; top: 0; z-index: 5;
+  height: var(--fsp-top-h);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 16px;
+  background: color-mix(in srgb, var(--fsp-bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--fsp-line);
+}
+.fsp-brand {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--fsp-ink-0); text-decoration: none;
+  font: 700 13px/1 var(--font-display, var(--font-sans)); letter-spacing: 0.08em; text-transform: uppercase;
+  border-radius: 6px;
+}
+.fsp-top-link { color: var(--fsp-ink-1); text-decoration: none; font-weight: 500; padding: 6px 10px; border-radius: 8px; }
+.fsp-top-link:hover { color: var(--fsp-ink-0); background: var(--fsp-hover); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.fsp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; padding: 0 16px; border-radius: 9px;
+  border: 1px solid var(--fsp-line-2); background: var(--fsp-raise); color: var(--fsp-ink-0);
+  font: 600 13px/1 var(--font-sans); text-decoration: none; cursor: pointer;
+}
+.fsp-btn:hover { background: color-mix(in srgb, #fff 10%, var(--fsp-raise)); }
+.fsp-btn--primary { background: var(--fsp-ink-0); color: #0b0b0d; border-color: transparent; }
+.fsp-btn--primary:hover { background: #fff; }
+
+/* ── States ──────────────────────────────────────────────────────────── */
+.fsp-main { min-height: calc(100vh - var(--fsp-top-h)); }
+.fsp-state {
+  max-width: 440px; margin: 0 auto; padding: 18vh 16px 48px;
+  text-align: center;
+}
+.fsp-state-title { margin: 0 0 8px; color: var(--fsp-ink-0); font: 600 22px/1.25 var(--font-sans); letter-spacing: -0.01em; }
+.fsp-state-body { margin: 0; color: var(--fsp-ink-2); overflow-wrap: anywhere; }
+.fsp-state-actions { margin-top: 22px; display: flex; justify-content: center; gap: 8px; }
+
+/* ── The file ────────────────────────────────────────────────────────── */
+.fsp-layout { display: grid; grid-template-columns: minmax(0, 1fr); }
+.fsp-layout.has-rail { grid-template-columns: minmax(0, 1fr) 360px; }
+.fsp-col { min-width: 0; display: flex; flex-direction: column; }
+.fsp-stage {
+  position: relative;
+  height: clamp(300px, calc(100vh - var(--fsp-top-h) - 150px), 82vh);
+  display: flex; align-items: stretch; justify-content: center;
+  background: var(--fsp-room);
+  border-bottom: 1px solid var(--fsp-line);
+  min-width: 0;
+}
+.fsp-stage > .fsp-spinner { align-self: center; }
+.fsp-stage > .film { flex: 1 1 auto; min-width: 0; }
+.fsp-stage > .lightbox-stage { height: 100%; padding: 16px; }
+.fsp-stage .pdfv.pdfv--embedded {
+  position: static; inset: auto; z-index: auto; flex: 1; min-width: 0;
+  background: none; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; border-radius: 0;
+}
+.fsp-stage--file, .fsp-stage--audio { align-items: center; height: auto; min-height: 320px; padding: 32px 16px; }
+
+.fsp-audio { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.fsp-audio-art { width: min(360px, 70vw); aspect-ratio: 3 / 2; object-fit: cover; border-radius: 10px; }
+.fsp-audio-el { width: min(560px, 100%); }
+
+.fsp-filecard {
+  width: min(420px, 100%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  padding: 32px 24px; border-radius: 14px;
+  background: var(--fsp-panel); border: 1px solid var(--fsp-line);
+}
+.fsp-ext {
+  min-width: 64px; height: 76px; padding: 0 10px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--fsp-raise); border: 1px solid var(--fsp-line-2);
+  color: var(--fsp-ink-0); font: 700 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em;
+}
+.fsp-filecard-name { color: var(--fsp-ink-0); font: 600 16px/1.3 var(--font-sans); overflow-wrap: anywhere; }
+.fsp-filecard-sub { color: var(--fsp-ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
+
+.fsp-info { padding: 20px 24px 8px; display: flex; flex-direction: column; gap: 6px; max-width: 880px; }
+.fsp-name { margin: 0; color: var(--fsp-ink-0); font: 600 20px/1.3 var(--font-sans); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.fsp-facts { margin: 0; color: var(--fsp-ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.fsp-byline { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: var(--fsp-ink-2); font-size: 13px; min-width: 0; }
+.fsp-by { color: var(--fsp-ink-1); overflow-wrap: anywhere; }
+.fsp-warn {
+  margin: 10px 0 0; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--fsp-danger) 40%, transparent);
+  background: color-mix(in srgb, var(--fsp-danger) 8%, transparent);
+  color: var(--fsp-ink-0); font-size: 13px;
+}
+.fsp-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.fsp-cta {
+  margin: 24px 24px 32px; padding: 14px 16px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--fsp-panel); border: 1px solid var(--fsp-line);
+  color: var(--fsp-ink-1); font-size: 13.5px;
+}
+
+/* ── The comment rail ───────────────────────────────────────────────── */
+.fsp-rail {
+  min-width: 0;
+  position: sticky; top: var(--fsp-top-h);
+  height: calc(100vh - var(--fsp-top-h));
+  border-left: 1px solid var(--fsp-line);
+  background: var(--fsp-panel);
+  display: flex; flex-direction: column;
+}
+.fsc { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.fsc-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid var(--fsp-line); }
+.fsc-title { margin: 0; color: var(--fsp-ink-0); font: 600 14px/1.2 var(--font-sans); }
+.fsc-total { color: var(--fsp-ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fsc-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 8px 12px; }
+.fsc-empty { margin: 0; padding: 16px 8px; color: var(--fsp-ink-2); font-size: 13px; }
+.fsc-threads, .fsc-replies { list-style: none; margin: 0; padding: 0; }
+.fsc-thread + .fsc-thread { border-top: 1px solid var(--fsp-line); }
+.fsc-replies { margin-left: 28px; }
+.fsc-row { padding: 10px 8px; border-radius: 10px; border-left: 2px solid transparent; }
+.fsc-row.is-active { background: var(--fsp-hover); border-left-color: var(--soleil); }
+.fsc-row-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fsc-avatar {
+  flex: none; display: inline-grid; place-items: center; overflow: hidden; border-radius: 999px;
+  background: var(--fsp-raise); color: var(--fsp-ink-0); font: 600 11px/1 var(--font-sans);
+}
+.fsc-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fsc-name { min-width: 0; color: var(--fsp-ink-0); font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fsc-time { margin-left: auto; flex: none; color: var(--fsp-ink-2); font-size: 11.5px; }
+.fsc-meta { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 32px; }
+.fsc-row.is-reply .fsc-meta, .fsc-row.is-reply .fsc-body, .fsc-row.is-reply .fsc-actions { margin-left: 28px; }
+.fsc-chip {
+  height: 22px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--fsp-line-2);
+  background: var(--fsp-raise); color: var(--fsp-ink-0); cursor: pointer;
+  font: 600 11.5px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums;
+}
+.fsc-chip:hover { background: color-mix(in srgb, #fff 10%, var(--fsp-raise)); }
+.fsc-old { color: var(--fsp-ink-2); font-size: 11.5px; }
+.fsc-body {
+  margin: 4px 0 0 32px; color: var(--fsp-ink-1); font-size: 13.5px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.fsc-body--deleted { color: var(--fsp-ink-2); font-style: italic; }
+.fsc-actions { display: flex; gap: 12px; margin: 4px 0 0 32px; }
+.fsc-actions:empty { display: none; }
+.fsc-link {
+  border: 0; background: none; padding: 2px 0; cursor: pointer;
+  color: var(--fsp-ink-2); font: 500 12px/1.2 var(--font-sans); border-radius: 4px;
+}
+.fsc-link:hover { color: var(--fsp-ink-0); }
+.fsc-resolved { padding: 8px; border-top: 1px solid var(--fsp-line); }
+.fsc-threads.is-resolved { opacity: 0.75; margin-top: 6px; }
+
+.fsc-foot { flex: none; padding: 10px 12px 12px; border-top: 1px solid var(--fsp-line); }
+.fsc-composer { display: flex; flex-direction: column; gap: 8px; }
+.fsc-composer.is-reply { margin: 0 8px 10px 36px; }
+.fsc-input {
+  width: 100%; resize: vertical; min-height: 44px; max-height: 40vh;
+  padding: 9px 11px; border-radius: 10px;
+  border: 1px solid var(--fsp-line-2); background: var(--fsp-bg); color: var(--fsp-ink-0);
+  font: 400 13.5px/1.45 var(--font-sans);
+}
+.fsc-input::placeholder { color: var(--fsp-ink-2); }
+.fsc-input:focus-visible { outline: 2px solid var(--soleil); outline-offset: 0; border-color: transparent; }
+.fsc-composer-row { display: flex; align-items: center; gap: 8px; }
+.fsc-spacer { flex: 1; }
+.fsc-count { color: var(--fsp-ink-2); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.fsc-pin {
+  height: 26px; padding: 0 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--fsp-line-2); background: transparent; color: var(--fsp-ink-2);
+  font: 600 11.5px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+/* A pressed toggle, not focus: neutral, not gold (the house rule). */
+.fsc-pin.is-on { color: var(--fsp-ink-0); border-color: transparent; background: var(--fsp-raise); }
+.fsc-pin:hover { color: var(--fsp-ink-0); }
+.fsc-btn {
+  height: 30px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--fsp-line-2); background: transparent; color: var(--fsp-ink-1);
+  font: 600 12.5px/1 var(--font-sans);
+}
+.fsc-btn:hover { color: var(--fsp-ink-0); background: var(--fsp-hover); }
+.fsc-btn--send { background: var(--fsp-ink-0); color: #0b0b0d; border-color: transparent; }
+.fsc-btn--send:hover { background: #fff; color: #0b0b0d; }
+.fsc-btn:disabled { opacity: 0.4; cursor: default; }
+.fsc-err { margin: 0; color: var(--fsp-danger); font-size: 12.5px; }
+.fsc-signin {
+  display: flex; align-items: center; justify-content: center; height: 38px; border-radius: 10px;
+  border: 1px solid var(--fsp-line-2); background: var(--fsp-raise);
+  color: var(--fsp-ink-0); text-decoration: none; font-weight: 600; font-size: 13px;
+}
+.fsc-signin:hover { background: color-mix(in srgb, #fff 10%, var(--fsp-raise)); }
+
+/* ── Narrow: the rail stacks under the file ──────────────────────────── */
+@media (max-width: 899px) {
+  .fsp-layout.has-rail { grid-template-columns: minmax(0, 1fr); }
+  .fsp-rail { position: static; height: auto; border-left: 0; border-top: 1px solid var(--fsp-line); }
+  .fsc-list { overflow: visible; }
+  .fsp-stage { height: clamp(240px, 62vh, 560px); }
+  .fsp-info { padding: 16px 16px 4px; }
+  .fsp-cta { margin: 20px 16px 24px; }
+}

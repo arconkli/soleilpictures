@@ -5,7 +5,9 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed } from '../lib/appHost.js';
+import { openFileShare } from '../lib/fileShareBus.js';
+import { isShareableCard } from '../lib/fileShares.js';
 
 // Live expand map for a schedule card — Yjs gridMeta when present, else the
 // local shell's plain card.gridMeta.
@@ -7955,6 +7957,10 @@ export function CanvasSurface({
     if (!mutators.captureGuarded && offIds.length && offIds.length === (multi ? selected.size : 1)) {
       metaItems.push({ id: 'unplace', label: offIds.length > 1 ? `Remove ${offIds.length} from board` : 'Remove from board',
         run: () => removeFromBoard(offIds) });
+    }
+    if (!multi && canEdit && !isPublic && fileSharesAllowed() && isShareableCard(c)) {
+      items.push({ id: 'share-file', label: 'Share file…',
+        run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
     }
     metaItems.push({ backlinks: true });
     metaItems.push({ id: 'delete', label: multi ? `Delete (${selected.size})` : 'Delete',

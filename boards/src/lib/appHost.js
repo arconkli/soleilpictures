@@ -85,6 +85,17 @@ export function sidebarFilesAllowed() {
 }
 
 // ---------------------------------------------------------------------------
+// The file-sharing hold
+//
+// Sharing one file on its own (/f/<token>): the share dialog's entry points
+// and the notification rows ask this first. Same allowlist shape as the holds
+// above: dev and the preview deploy see it, every other origin is closed until
+// the release flips it with the docs that describe it.
+export function fileSharesAllowed() {
+  return import.meta.env.DEV || onPreviewHost();
+}
+
+// ---------------------------------------------------------------------------
 // The template store hold
 //
 // The rule itself, and what "the store" covers, is in lib/templatePaths.js,

@@ -55,12 +55,15 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null }
         return [{ ...payload, read_at: null }, ...prev].slice(0, 50);
       });
       const openIt = () => { try { onOpenRef.current?.(payload.board_id); } catch (_) {} };
+      const fileToken = String(payload.kind || '').startsWith('file.') ? payload.data?.token : null;
       try {
         feedbackRef.current?.toast({
           type: 'info',
           message: `${payload.title}${payload.body ? ` — ${payload.body}` : ''}`,
           ttl: 8000,
-          action: payload.board_id ? { label: 'Open', onClick: openIt } : undefined,
+          action: fileToken
+            ? { label: 'Open', onClick: () => window.open('/f/' + encodeURIComponent(fileToken), '_blank', 'noopener') }
+            : (payload.board_id ? { label: 'Open', onClick: openIt } : undefined),
         });
       } catch (_) {}
       // Only fires when the tab is hidden/unfocused and permission was granted.

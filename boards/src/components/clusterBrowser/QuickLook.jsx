@@ -22,7 +22,10 @@ import { CardPreview } from './CardPreview.jsx';
 import { LinkMark } from './marks.jsx';
 import { DetailPanel } from './DetailPanel.jsx';
 import { Icon } from '../Icon.jsx';
-import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareOut, ArrowsOutSimple } from '../../lib/icons.js';
+import { fileSharesAllowed } from '../../lib/appHost.js';
+import { openFileShare } from '../../lib/fileShareBus.js';
+import { isShareableCard } from '../../lib/fileShares.js';
+import { X, Share2, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareOut, ArrowsOutSimple } from '../../lib/icons.js';
 import { FilmPlayer } from '../film/FilmPlayer.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
@@ -246,6 +249,12 @@ export default function QuickLook({
                     openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
                   }}>
             <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
+          </button>
+        )}
+        {canEdit && item.boardId && !isPublicSurface() && fileSharesAllowed() && isShareableCard(item.card) && (
+          <button type="button" className="ql-btn" title="Share file"
+                  onClick={() => openFileShare({ boardId: item.boardId, cardId: item.id, card: item.card, boardName: null, surface: 'quicklook' })}>
+            <Icon as={Share2} size={14} weight="light" /><span>Share</span>
           </button>
         )}
         {canDownload && (
