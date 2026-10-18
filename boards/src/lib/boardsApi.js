@@ -10,6 +10,7 @@ import { createPlacementLedger } from './capRefusal.js';
 import { isAbandonedUpload } from './abandonedUploads.js';
 import { fitByCost } from './demoCardCap.js';
 import { docPagesText, docSignature } from './docText.js';
+import { createStateWriteGate } from './boardStateGate.js';
 
 
 // ── Workspaces ──────────────────────────────────────────────────────────────
@@ -1113,29 +1114,32 @@ export async function loadBoardSnapshot(boardId) {
 //     card_index rows and search reads both.
 //
 // So the hot path asks for 'backstop': under PartyKit it writes at most once a
-// minute, and every other path (pagehide, flushNow, destroy, detached docs)
-// keeps writing every time.
-const STATE_BACKSTOP_MS = 60_000;
-const _lastStateWrite = new Map();   // boardId → timestamp of last confirmed write
+// minute, never while another write of the board is on the wire, and not for
+// 15 seconds after one failed (boardStateGate.js says why). Every other path
+// (pagehide, flushNow, destroy, detached docs) keeps writing every time.
+const stateGate = createStateWriteGate();
 
 export async function saveBoardSnapshot(boardId, ydoc, { stateWrite = 'always' } = {}) {
   const partyOwnsState = import.meta.env.VITE_USE_PARTYKIT === 'true';
-  const now = Date.now();
-  const due = stateWrite === 'always'
-    || !partyOwnsState
-    || (now - (_lastStateWrite.get(boardId) || 0)) >= STATE_BACKSTOP_MS;
+  const startedAt = Date.now();
+  const due = stateGate.due(boardId, { backstop: stateWrite !== 'always' && partyOwnsState }, startedAt);
 
   if (due) {
     const update = Y.encodeStateAsUpdate(ydoc);
     const b64 = bytesToB64(update);
-    const { error } = await supabase
-      .from('board_state')
-      .upsert({ board_id: boardId, doc: b64, updated_at: new Date().toISOString() },
-              { onConflict: 'board_id' });
+    stateGate.start(boardId);
+    let error = null;
+    try {
+      ({ error } = await supabase
+        .from('board_state')
+        .upsert({ board_id: boardId, doc: b64, updated_at: new Date().toISOString() },
+                { onConflict: 'board_id' }));
+    } catch (e) {
+      error = e;
+    } finally {
+      stateGate.settle(boardId, { ok: !error, startedAt });
+    }
     if (error) throw error;
-    // Only after a confirmed write, so a failure retries on the next tick
-    // instead of starting a fresh minute of silence.
-    _lastStateWrite.set(boardId, now);
   }
   // Mirror the board's cards into card_index so the home graph can render
   // every card as a node (not just boards). Best-effort — failures don't
