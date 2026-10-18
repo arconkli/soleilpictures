@@ -12,6 +12,7 @@ import { inviteRewardCopy, REFERRAL_REWARDS_PER_30_DAYS } from '../src/lib/invit
 
 const ME = '00000000-0000-4000-8000-0000000000aa';
 const OWNER = '00000000-0000-4000-8000-0000000000bb';
+const OTHER_EDITOR = '00000000-0000-4000-8000-0000000000cc';
 
 async function boot(page) {
   await page.goto('/?local=1&reset=1&blank=1');
@@ -21,14 +22,14 @@ async function boot(page) {
 // Mounts the panel as an editor of someone else's workspace (or a viewer, when
 // canManage is false). The props are built inside the page: functions cannot
 // cross the evaluate boundary.
-async function mountPanel(page, { tier = 'demo', canManage = true, stats = null } = {}) {
-  await page.evaluate(async ({ me, owner, tier, canManage, stats }) => {
+async function mountPanel(page, { tier = 'demo', canManage = true, stats = null, members = [] } = {}) {
+  await page.evaluate(async ({ me, owner, tier, canManage, stats, members }) => {
     window.__sharePanel = { closed: 0, invites: 0 };
     const { mountShareModal } = await import('/src/local/shareWorkspaceProbe.js');
     mountShareModal({
       board: { id: '00000000-0000-4000-8000-00000000b0a4', name: 'Lookbook final picks', workspace_id: 'ws-x' },
       workspace: { id: 'ws-x', name: 'Team space', created_by: owner },
-      workspaceMembers: [{ user_id: owner, role: 'owner' }],
+      workspaceMembers: [{ user_id: owner, role: 'owner' }, ...members],
       selfUserId: me,
       canManage,
       rewardTier: tier,
@@ -36,7 +37,7 @@ async function mountPanel(page, { tier = 'demo', canManage = true, stats = null 
       onOpenInvites: () => { window.__sharePanel.invites += 1; },
       onClose: () => { window.__sharePanel.closed += 1; },
     });
-  }, { me: ME, owner: OWNER, tier, canManage, stats });
+  }, { me: ME, owner: OWNER, tier, canManage, stats, members });
   const panel = page.locator('.share-modal');
   await expect(panel).toBeVisible();
   return panel;
@@ -50,15 +51,20 @@ test('an editor lands on Copy link, the one gold control, under a panel that lea
   await expect(panel.locator('.share-btn-gold')).toHaveCount(1);
   await expect(copy).toHaveClass(/share-btn-gold/);
 
-  // Invite people, then who has access, then link access.
-  const titles = await panel.locator('.share-body .share-section-title').allTextContents();
-  expect(titles[0]).toBe('Invite people');
-  expect(titles[1]).toMatch(/^People with access · \d+$/);
-  expect(titles[2]).toBe('Link access');
+  // The invite row, then everyone with access in one list, the link last.
+  const invite = await panel.locator('.share-invite').boundingBox();
+  const list = await panel.locator('.share-section-title', { hasText: 'Who has access' }).boundingBox();
+  expect(invite.y).toBeLessThan(list.y);
+  const lastRow = panel.locator('.share-list > .share-row').last();
+  await expect(lastRow).toContainText('Anyone with the link');
+  await expect(lastRow.locator('select')).toHaveValue('view');
 
-  // The role line explains the picker, and follows it.
+  // The role line explains the picker by name, and follows it. An editor of
+  // someone else's workspace can only invite to this cluster, and is told so.
   const hint = panel.locator('.share-role-hint');
-  await expect(hint).toContainText('Can add, move and delete cards');
+  await expect(hint).toContainText('They can add, move and delete cards in “Lookbook final picks”');
+  await expect(panel.locator('.share-invite-scope')).toHaveText('this cluster');
+  await expect(panel.getByRole('button', { name: 'Whole workspace' })).toHaveCount(0);
   await panel.locator('select[aria-label="Access level for invitees"]').selectOption('viewer');
   await expect(hint).toContainText('can’t change anything');
 
@@ -77,15 +83,17 @@ test('a free account is told what inviting someone new earns, with progress once
   const copy = inviteRewardCopy({ tier: 'demo' });
   const note = panel.locator('.share-reward');
   await expect(note.locator('.share-reward-lead')).toHaveText(copy.lead);
+  // The cards are the headline, and at rest the headline is all there is.
+  await expect(note.locator('.share-reward-lead')).not.toContainText('GB');
+  await expect(note.locator('.share-reward-more')).toHaveCount(0);
+
+  // The rest is one press away: the storage, progress, the fine print, and
+  // the way to the full invite page.
+  await note.locator('.share-reward-toggle').click();
+  await expect(note.locator('.share-reward-toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(note.locator('.share-reward-detail')).toHaveText(copy.detail);
   await expect(note.locator('.share-reward-progress')).toHaveText('3 joined through you · 50 free cards earned · 1 on the way');
-  // The cards are the headline; the storage rides in the second line.
-  await expect(note.locator('.share-reward-lead')).not.toContainText('GB');
-
-  // The fine print is one press away, and leads to the full invite page.
-  await expect(note.locator('.share-reward-how li').first()).toBeHidden();
-  await note.locator('.share-reward-how summary').click();
-  await expect(note.locator('.share-reward-how')).toContainText(`Up to ${REFERRAL_REWARDS_PER_30_DAYS} rewards in any 30 days`);
+  await expect(note.locator('.share-reward-more')).toContainText(`Up to ${REFERRAL_REWARDS_PER_30_DAYS} rewards in any 30 days`);
   await note.getByRole('button', { name: /Your invites/ }).click();
   expect(await page.evaluate(() => window.__sharePanel.invites)).toBe(1);
 });
@@ -97,6 +105,7 @@ test("a Creator's headline is the friend's free cards, and the storage comes sec
   await expect(panel.locator('.share-reward-lead')).toHaveText(copy.lead);
   await expect(panel.locator('.share-reward-lead')).toContainText('they get');
   await expect(panel.locator('.share-reward-lead')).not.toContainText('GB');
+  await panel.locator('.share-reward-toggle').click();
   await expect(panel.locator('.share-reward-detail')).toContainText('more storage');
   // No stats loader, no progress line.
   await expect(panel.locator('.share-reward-progress')).toHaveCount(0);
@@ -104,13 +113,47 @@ test("a Creator's headline is the friend's free cards, and the storage comes sec
 
 test('a viewer sees who has access and a Done button, and nothing to invite or copy', async ({ page }) => {
   await boot(page);
-  const panel = await mountPanel(page, { canManage: false });
+  const panel = await mountPanel(page, { canManage: false, members: [{ user_id: OTHER_EDITOR, role: 'editor' }] });
+  // A member a manager could change shows a viewer only what they can do.
+  const editorRow = panel.locator('.share-row', { hasText: 'Workspace · can edit' });
+  await expect(editorRow).toHaveCount(1);
+  await expect(editorRow.locator('select')).toHaveCount(0);
   await expect(panel.locator('.share-foot-done')).toBeFocused();
   await expect(panel.locator('.share-reward')).toHaveCount(0);
   await expect(panel.locator('input[aria-label="Email addresses to invite"]')).toHaveCount(0);
   await expect(panel.locator('.share-foot-btn')).toHaveCount(1);   // Done alone
   await expect(panel.locator('.share-btn-gold')).toHaveCount(0);
-  await expect(panel.locator('.share-section-title').first()).toHaveText(/^People with access · \d+$/);
+  await expect(panel.locator('.share-section-title').first()).toHaveText(/^Who has access · \d+$/);
+  // Read-only rows: labels, never dropdowns, and no link row.
+  await expect(panel.locator('.share-list select')).toHaveCount(0);
+  await expect(panel.locator('.share-row-link')).toHaveCount(0);
+});
+
+test('the reach of an invitation is one click, and the line under it says what it means', async ({ page }) => {
+  await boot(page);
+  // As the owner, who may hand out the whole workspace.
+  await page.evaluate(async ({ me }) => {
+    window.__sharePanel = { closed: 0, invites: 0 };
+    const { mountShareModal } = await import('/src/local/shareWorkspaceProbe.js');
+    mountShareModal({
+      board: { id: '00000000-0000-4000-8000-00000000b0a4', name: 'Lookbook final picks', workspace_id: 'ws-x' },
+      workspace: { id: 'ws-x', name: 'Team space', created_by: me },
+      workspaceMembers: [{ user_id: me, role: 'owner' }],
+      selfUserId: me, canManage: true, rewardTier: 'demo',
+    });
+  }, { me: ME });
+  const panel = page.locator('.share-modal');
+  const thisCluster = panel.getByRole('button', { name: 'This cluster' });
+  const whole = panel.getByRole('button', { name: 'Whole workspace' });
+  const hint = panel.locator('.share-role-hint');
+  await expect(thisCluster).toHaveAttribute('aria-pressed', 'true');
+  await expect(hint).toContainText('in “Lookbook final picks” and its sub-clusters');
+  await whole.click();
+  await expect(whole).toHaveAttribute('aria-pressed', 'true');
+  await expect(thisCluster).toHaveAttribute('aria-pressed', 'false');
+  await expect(hint).toContainText('every cluster in “Team space”');
+  await panel.locator('select[aria-label="Access level for invitees"]').selectOption('viewer');
+  await expect(hint).toContainText('can open every cluster in “Team space”');
 });
 
 test('Escape closes the panel', async ({ page }) => {
@@ -140,4 +183,52 @@ test.describe('on a phone', () => {
     // The body above it is the one scroller; the footer is not inside it.
     expect(await panel.locator('.share-body .share-foot').count()).toBe(0);
   });
+});
+
+test("each row's one dropdown reaches that row's actions", async ({ page }) => {
+  // Shares and invitations come from RPCs; answer them with fixtures.
+  const U2 = '00000000-0000-4000-8000-0000000000b2';
+  await page.route('https://example.supabase.co/rest/v1/rpc/**', (route) => {
+    const name = route.request().url().split('/rpc/')[1].split('?')[0];
+    const rows = {
+      list_board_shares: [{ user_id: U2, email: 'maria@studio.com', role: 'editor', invited_by: ME }],
+      list_pending_invites_for_board: [
+        { id: 'p1', email: 'dana@freelance.net', role: 'viewer', invited_by: ME, created_at: '2026-10-15T00:00:00Z' },
+      ],
+    }[name] ?? [];
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) });
+  });
+  await boot(page);
+  await page.evaluate(async ({ me }) => {
+    const { mountShareModal } = await import('/src/local/shareWorkspaceProbe.js');
+    mountShareModal({
+      board: { id: '00000000-0000-4000-8000-00000000b0a4', name: 'Lookbook final picks', workspace_id: 'ws-x' },
+      workspace: { id: 'ws-x', name: 'Team space', created_by: me },
+      workspaceMembers: [{ user_id: me, role: 'owner' }],
+      selfUserId: me, canManage: true, rewardTier: 'demo',
+    });
+  }, { me: ME });
+  const panel = page.locator('.share-modal');
+  const maria = panel.locator('.share-row', { hasText: 'maria@studio.com' });
+  await expect(maria.locator('.share-row-sub')).toContainText('this cluster');
+  const pick = maria.locator('select');
+  await expect(pick).toHaveValue('editor');
+
+  // Widening to the whole workspace asks first, in plain words.
+  await pick.selectOption('workspace');
+  await expect(page.locator('.feedback-actions').locator('..')).toContainText('every cluster in "Team space"');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(pick).toHaveValue('editor');   // a cancelled choice leaves the row as it was
+
+  // Removing asks first, and says it can be undone.
+  await pick.selectOption('__remove');
+  await expect(page.locator('.feedback-actions').locator('..')).toContainText("Remove maria@studio.com's access?");
+  await page.getByRole('button', { name: 'Cancel' }).click();
+
+  // A pending invitation's row revokes from the same place.
+  const dana = panel.locator('.share-row', { hasText: 'dana@freelance.net' });
+  await expect(dana.locator('select')).toHaveValue('invited');
+  await expect(dana.locator('option[value="invited"]')).toHaveText('Invited · can view');
+  await dana.locator('select').selectOption('__revoke');
+  await expect(page.locator('.feedback-actions').locator('..')).toContainText('Revoke invite to dana@freelance.net?');
 });
