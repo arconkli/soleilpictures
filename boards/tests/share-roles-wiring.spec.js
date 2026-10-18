@@ -66,9 +66,11 @@ test.describe('workspace roles wiring', () => {
   });
 
   test('the workspace party refuses a presence claim for another user', () => {
-    const s = read('party/workspace.ts');
-    expect(s).toContain('req.headers.set("x-user-id", auth.userId ?? "");');
-    expect(s).toContain('String(msg.user.id) !== owner');
+    // Since the move off PartyKit the JWT's subject is stamped by the party
+    // Worker's onBeforeConnect (party/index.ts), and the room compares it.
+    const entry = read('party/index.ts');
+    expect(entry).toMatch(/if \(lobby\.className === "Workspace"\) \{[\s\S]*?req\.headers\.set\("x-user-id", auth\.userId \?\? ""\);/);
+    expect(read('party/workspace.ts')).toContain('String(msg.user.id) !== owner');
   });
 
   test('the upload party reports the object size it measured', () => {
