@@ -972,8 +972,23 @@ const PAGES = [
     //     the "What it costs" block, so a before/after cannot be pinned on the
     //     description. It shipped for truth; read any movement as the release.
     //     The baseline lives in the project notes, not in this public file.
+    // META PRE-REGISTERED 2026-10-17 (CLAUDE.md ritual). "100GB storage" went
+    // false when Creator's drive grew to 1TB (0413), and it never described
+    // the free plan the sentence opens with. Swapped for the paid drive, named
+    // as the paid plan's, with the label interpolated so it cannot go stale
+    // again. One surface, this commit only.
+    //   Predicate: path = '/vs/milanote', query = '' (page level),
+    //     search_type = 'web'; CTR and impression-weighted position.
+    //   Window: ±7 and ±14 days around the PRODUCTION deploy, never inside 3
+    //     days of it. Floor: 200 post-change web impressions before reading.
+    //   Expectation: no material change — the queries this page carries are
+    //     about alternatives and price, not storage.
+    //   READ IS CONFOUNDED. The same release rewrites this page's answer for
+    //     the new limits (free is cards OR storage, Creator a 1TB drive), so a
+    //     before/after cannot be pinned on the description. It ships for
+    //     truth; read any movement as the release.
     metaDescription:
-      'The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with screenplay mode, 100GB storage and link sharing.',
+      `The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with screenplay mode, link sharing and ${CREATOR_STORAGE_LABEL} on the paid plan.`,
     h1: 'A Milanote Alternative Built for Production Teams',
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
