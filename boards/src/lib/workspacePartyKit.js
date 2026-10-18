@@ -1,4 +1,4 @@
-// PartyKit-backed workspace presence.
+// Workspace presence on the party (PartyKit until October 2026).
 //
 // Drop-in replacement for `workspaceRealtime.js#attachWorkspacePresence`.
 // Same return shape so useWorkspacePresence works unchanged.
@@ -10,6 +10,7 @@
 import PartySocket from 'partysocket';
 import { supabase } from './supabase.js';
 import { PARTY_HOST as PARTYKIT_HOST } from './partyHost.js';
+import { parkWhileHidden } from './partyPark.js';
 
 // Workspace presence (who's in the workspace / which board) tolerates a few
 // seconds of staleness — live board cursors are a separate 250ms-throttled
@@ -119,13 +120,30 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     }
   });
 
+  // A tab hidden for five minutes leaves the workspace's presence room
+  // (lib/partyPark.js): the room is billed for every second this socket is
+  // open, and a tab nobody is looking at is not present. Shown again, it
+  // rejoins and says where it is.
+  const parking = parkWhileHidden({
+    park: () => {
+      console.log('[partykit] workspace', workspaceId, 'parked (tab hidden)');
+      try { socket.send(JSON.stringify({ type: 'leave', tabId: TAB_ID })); } catch (_) {}
+      try { socket.close(); } catch (_) {}
+    },
+    unpark: () => {
+      if (destroyed) return;
+      console.log('[partykit] workspace', workspaceId, 'unparked');
+      try { socket.reconnect(); } catch (_) {}
+    },
+  });
+
   // Token rotations need no handling (see the query function above). Only
   // sign-out/in flips the socket off and back on.
   const authSub = supabase.auth.onAuthStateChange((event) => {
     if (destroyed) return;
     if (event === 'SIGNED_OUT') {
       try { socket.close(); } catch (_) {}
-    } else if (event === 'SIGNED_IN' && socket.readyState === WebSocket.CLOSED) {
+    } else if (event === 'SIGNED_IN' && !parking.isParked() && socket.readyState === WebSocket.CLOSED) {
       try { socket.reconnect(); } catch (_) {}
     }
   });
@@ -133,6 +151,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   return {
     destroy() {
       destroyed = true;
+      parking.dispose();
       if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       try { socket.send(JSON.stringify({ type: 'leave', tabId: TAB_ID })); } catch (_) {}
       try { socket.close(); } catch (_) {}
