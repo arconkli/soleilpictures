@@ -21,8 +21,10 @@ test('a dropped connection, a timeout or a 5xx is retryable', () => {
 });
 
 test('the party passes a Supabase 5xx through instead of calling it a 404', () => {
+  // Through lib/bundleRefusal.js, which also tells the RPCs' own refusal (a
+  // P0002 that PostgREST sends as HTTP 500) from an outage; see its tests.
   const party = readFileSync(join(here, '..', '..', 'party', 'upload.ts'), 'utf8');
-  const n = (party.match(/rpcRes\.status >= 500 \? rpcRes\.status : 404/g) || []).length;
+  const n = (party.match(/bundleRefusalStatus\(rpcRes\.status, msg\)/g) || []).length;
   assert.equal(n, 2, 'both /share-bundle and /public-bundle');
 });
 
