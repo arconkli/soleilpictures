@@ -29,9 +29,10 @@
 //
 // One alarm per object (a Durable Object has one): every minute while anyone
 // is connected it closes sockets of accounts suspended since they connected
-// (4403), retries a failed flush, and probes board_state for writes made some
-// other way; for 15 minutes after the room empties it keeps probing, so a
-// write from a tab still on the old host is merged even with nobody here.
+// (4403) and sockets that have gone silent (SILENT_CLOSE_MS), retries a failed
+// flush, and probes board_state for writes made some other way; for 15 minutes
+// after the room empties it keeps probing, so a write from a tab still on the
+// old host is merged even with nobody here.
 
 import { YServer } from "y-partyserver";
 import type { Connection, ConnectionContext } from "partyserver";
@@ -52,6 +53,15 @@ const FENCE_KEY = "resetFenceUntil";
 const ACTIVE_KEY = "lastActiveAt";
 // Close code the client treats as "this room was reset; reload from board_state".
 const RESET_CLOSE = 4030;
+// A socket that has said nothing for this long is dead or frozen: a live tab
+// sends its keepalive every 15 s (lib/yPartyKit.js), and a hidden one, however
+// hard the browser throttles its timers, at least once a minute until it parks
+// (lib/partyPark.js). This room is billed for every second a socket is open, so
+// a frozen tab's socket held it for hours (2026-10-18: one sent 6 frames in
+// 1.8 h). Closing costs a live client one ordinary reconnect: YProvider
+// reconnects on any close, and SILENT_CLOSE means nothing more to it.
+const SILENT_CLOSE_MS = 5 * 60_000;
+const SILENT_CLOSE = 4000;
 
 type ConnState = { userId?: string; canWrite?: boolean } | null;
 const stateOf = (c: Connection) => (c.state as ConnState) || {};
@@ -70,6 +80,9 @@ export class BoardParty extends YServer<Env> {
   private resetting = false;
   private opLogWired = false;
   private localHeldContent = false;
+  // When each socket last sent anything. Keyed by the connection OBJECT:
+  // connection.id is stable across a tab's reconnects.
+  private lastHeard = new WeakMap<Connection, number>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -153,6 +166,7 @@ export class BoardParty extends YServer<Env> {
       try { conn.close(RESET_CLOSE, "room reset"); } catch (_) { /* already gone */ }
       return;
     }
+    this.lastHeard.set(conn, Date.now());
     const h = ctx.request.headers;
     conn.setState((prev: unknown) => ({
       ...((prev as object) || {}),
@@ -181,6 +195,11 @@ export class BoardParty extends YServer<Env> {
     await this.armAlarm();
   }
 
+  onMessage(conn: Connection, message: string | ArrayBuffer | ArrayBufferView) {
+    this.lastHeard.set(conn, Date.now());
+    super.onMessage(conn, message);
+  }
+
   private async armAlarm() {
     try {
       await this.ctx.storage.put(ACTIVE_KEY, Date.now());
@@ -201,10 +220,17 @@ export class BoardParty extends YServer<Env> {
       // Audit AC-2: an account banned mid-session stops editing within a minute.
       const ids = conns.map((c) => stateOf(c).userId || "");
       const banned = await bannedAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, ids);
+      const now = Date.now();
       for (const c of conns) {
         const uid = stateOf(c).userId;
         if (uid && banned.has(uid)) {
           try { c.close(4403, "account suspended"); } catch (_) { /* already gone */ }
+          continue;
+        }
+        const heard = this.lastHeard.get(c);
+        if (heard == null) { this.lastHeard.set(c, now); continue; }
+        if (now - heard > SILENT_CLOSE_MS) {
+          try { c.close(SILENT_CLOSE, "silent"); } catch (_) { /* already gone */ }
         }
       }
     } else {
