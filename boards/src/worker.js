@@ -75,7 +75,11 @@ import { BUILD_DATE, BUILD_SHA } from './lib/buildInfo.js';
 // Tabs built before this date (YYYY-MM-DD) reload at the next safe moment.
 // null = no floor. Raise it only to pull every tab off a build that must not
 // keep running; a party host change needs nothing here (`party` does that).
-const MIN_CLIENT_BUILD = null;
+// The date is the build commit's own committer date (stamp-build.mjs, `%cs`),
+// so check what the builds you mean to keep are stamped before raising it.
+// 2026-10-18: builds stamped 10-17 and earlier never park a hidden tab
+// (lib/partyPark.js), and each one left open held two party rooms all day.
+const MIN_CLIENT_BUILD = '2026-10-18';
 // After this instant (ISO), a tab that must reload stops waiting for a dialog
 // to close or a field to empty, and reloads once it has been hidden two
 // minutes. null = no deadline. Set for the party's move off PartyKit, which
