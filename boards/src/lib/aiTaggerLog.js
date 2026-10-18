@@ -5,10 +5,12 @@
 //      `window.aiTagger`: total calls, total tokens (embed + apply),
 //      total cost estimate, latency histogram, and per-decision counts.
 //
-// Cost numbers are OpenAI list prices as of 2026-04 — keep them roughly
-// honest, not penny-accurate. We round to 4 sig figs in the report.
+// Cost numbers are rough list prices — embeddings at Workers AI's rate beyond
+// the free daily allowance, completions at the gpt-4o-mini rates they were
+// sized against before they moved to Workers AI. Keep them roughly honest,
+// not penny-accurate. We round to 4 sig figs in the report.
 const PRICE = {
-  embed_in:        0.02 / 1_000_000,  // text-embedding-3-small
+  embed_in:        0.012 / 1_000_000, // Workers AI bge-m3, beyond the free daily allowance
   completion_in:   0.15 / 1_000_000,  // gpt-4o-mini cached or fresh, roughly
   completion_out:  0.60 / 1_000_000,  // gpt-4o-mini output
 };

@@ -8,7 +8,7 @@
 //
 // Pipeline:
 //   1. Load every card_embedding in the workspace.
-//   2. Filter to orphans — cards whose nearest tag centroid is > 0.35 cosine.
+//   2. Filter to orphans — cards farther than ORPHAN_TAG_DIST from every tag centroid.
 //   3. Build a connected-components graph over orphan pairs with
 //      similarity > 0.82 (CLUSTER_JOIN).
 //   4. For each component of ≥ 3 cards: compute a stable fingerprint
@@ -40,9 +40,10 @@ function clusterFingerprint(memberCardIds) {
   return [...memberCardIds].sort().join(',');
 }
 
-// Re-claim after 15 minutes. Discovery itself is cheap, but it's the only
-// path that still calls OpenAI in the embeddings-only design (cluster
-// naming via gpt-4o-mini). Slowing the cadence caps that spend hard.
+// Re-claim after 15 minutes. Discovery itself is cheap, but every pass can
+// end in model calls (cluster naming, /api/tags/cluster-name on Workers AI),
+// which count against the account's daily allowance. Slowing the cadence
+// caps that spend hard.
 const DISCOVERY_LOCK_STALE_MS = 15 * 60 * 1000;
 
 // Workspace-wide single-flight. First connected client to claim the

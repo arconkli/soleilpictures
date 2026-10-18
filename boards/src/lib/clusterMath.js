@@ -1,13 +1,17 @@
 // Pure helpers for the embedding-based tagging pipeline. No imports from
 // React, Supabase, or the worker — these run in the browser and stay easy
-// to unit-test. Vector ops assume normalized 1536-dim float arrays from
-// OpenAI text-embedding-3-small.
+// to unit-test. Vectors are 1024-dim unit-length floats from Workers AI's
+// bge-m3 (worker-tags.js; OpenAI's 1536-dim text-embedding-3-small before
+// 0418). Every threshold below is a cosine distance or similarity, so it is
+// tied to the model: they were recalibrated for bge-m3 on 2026-10-18 by
+// re-embedding the stored cards and keeping the same share of card pairs on
+// each side of every line as under OpenAI.
 
 // ─── Vector ops ─────────────────────────────────────────────────────────
 
 // Cosine similarity ∈ [-1, 1]. Higher = more similar. Both vectors must be
 // non-empty and the same length; we don't guard for that — the caller is
-// always passing OpenAI-shaped 1536-dim vectors.
+// always passing vectors from the one embedding model.
 export function cosineSim(a, b) {
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < a.length; i++) {
@@ -61,13 +65,15 @@ export function embeddingChangedMeaningfully(prev, next, threshold = 0.05) {
 //   }
 //
 // `tagCentroids` shape: [{tag, centroid}] where `tag` carries id+name+description.
-export const SILENT_APPLY_DIST = 0.20;
-export const NO_MATCH_DIST     = 0.55;
+// bge-m3 (0418). Under OpenAI these were 0.20 / 0.55; bge-m3 scores pairs
+// closer together, so the same lines sit nearer zero.
+export const SILENT_APPLY_DIST = 0.18;
+export const NO_MATCH_DIST     = 0.38;
 // Upper bound for tag_suggestions writes — tighter than NO_MATCH_DIST so
 // the per-tag inbox doesn't fill up with weak matches. The partitioner
 // still returns the full middle band; callers writing to tag_suggestions
 // clip at SUGGEST_DIST.
-export const SUGGEST_DIST      = 0.35;
+export const SUGGEST_DIST      = 0.27;   // 0.35 under OpenAI
 
 export function partitionTagsByEmbedding(cardEmbedding, tagCentroids) {
   const silentApply = [];
@@ -91,9 +97,9 @@ export function partitionTagsByEmbedding(cardEmbedding, tagCentroids) {
 // a cluster when its similarity to a member exceeds CLUSTER_JOIN; it stays a
 // member until similarity drops below CLUSTER_LEAVE. Hysteresis prevents
 // cards bouncing in and out as they're edited.
-export const CLUSTER_JOIN = 0.82;   // similarity required to enter a cluster
-export const CLUSTER_LEAVE = 0.74;  // similarity at which a card falls out
-export const ORPHAN_TAG_DIST = 0.35; // distance from nearest tag at which a card is "orphaned"
+export const CLUSTER_JOIN = 0.85;   // similarity required to enter a cluster (0.82 under OpenAI)
+export const CLUSTER_LEAVE = 0.81;  // similarity at which a card falls out (0.74 under OpenAI)
+export const ORPHAN_TAG_DIST = 0.27; // distance from nearest tag at which a card is "orphaned" (0.35 under OpenAI)
 export const MIN_CLUSTER_SIZE = 3;
 
 // Standard union-find with path compression + union by rank. Operates over

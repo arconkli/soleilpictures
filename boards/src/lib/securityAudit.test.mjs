@@ -656,7 +656,10 @@ test('every embedding call asks the daily budget first, and spends only on a yes
   const src = read('../worker-tags.js');
   const handler = src.slice(src.indexOf('async function handleEmbed'), src.indexOf('// ───', src.indexOf('async function handleEmbed')));
   const ask = handler.indexOf('if (!await embedBudgetOk(env, request, chars))');
-  assert.ok(ask > 0 && ask < handler.indexOf('api.openai.com/v1/embeddings'), 'the budget is asked before OpenAI is called');
+  // Since 0418 the model is Workers AI (env.AI.run); beyond the free daily
+  // allowance it is still spend.
+  const call = handler.indexOf('await env.AI.run(EMBEDDING_MODEL');
+  assert.ok(ask > 0 && call > ask, 'the budget is asked before the model is called');
   assert.match(src, /if \(!r\.ok\) return false;\s+return \(await r\.json\(\)\.catch\(\(\) => false\)\) === true;/, 'anything but a yes is a no');
 
   const fn = latestDefinition('tags_embed_budget_take').body;

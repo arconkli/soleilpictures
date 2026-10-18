@@ -217,7 +217,7 @@ export function useAiTagger(workspaceId) {
   // workspace change. Also check the workspace-level ai_tagger_enabled
   // toggle — if a workspace owner has flipped it off (privacy / cost
   // reasons), the hook stays in the not-ready state and never sends
-  // card content to OpenAI for this workspace.
+  // card content to the tagging models (Workers AI) for this workspace.
   useEffect(() => {
     if (!workspaceId || !supabase) { setReady(false); return; }
     let cancelled = false;
@@ -387,7 +387,7 @@ export function useAiTagger(workspaceId) {
   // Round 19: defer the seed pass until idle time. Pre-Round-19 this
   // dogpiled the main thread immediately after `ready=true`, producing
   // 300-600ms longtasks during the boot window — each recompute parses
-  // ~31 cards × 1536 floats from pgvector strings on the main thread.
+  // ~31 cards × 1024 floats from pgvector strings on the main thread.
   // The 200ms stagger between tags helped but didn't help the FIRST tag
   // (which fired synchronously). With requestIdleCallback the whole
   // storm waits for the user to stop interacting.
@@ -399,7 +399,7 @@ export function useAiTagger(workspaceId) {
     const timeouts = [];
     // Round 20: use _scheduleWhenIdle so the storm pauses while the
     // user is actively interacting. Each tag's recompute parses 31×
-    // 1536-float pgvector blobs on the main thread (~47k parseFloats)
+    // 1024-float pgvector blobs on the main thread (~32k parseFloats)
     // — exactly the kind of work that mustn't compete with pan/zoom.
     const cancelIdle = _scheduleWhenIdle(() => {
       if (cancelled) return;
