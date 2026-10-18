@@ -82,3 +82,11 @@ test('shelf keys and toggleShelf', () => {
   assert.notEqual(m3, m2);
   assert.deepEqual(m2['b1:photos'], { open: true, expanded: true });
 });
+
+test('reset swaps in another workspace\'s saved state whole', () => {
+  const a = expandReducer(initialExpandState(['x']), { type: 'navigate', activeId: 'y' });
+  const b = expandReducer(a, { type: 'reset', state: initialExpandState(['z']) });
+  assert.deepEqual(b.manual, ['z']);
+  assert.deepEqual(b.auto, []);
+  assert.deepEqual(expandReducer(a, { type: 'reset' }), initialExpandState());
+});

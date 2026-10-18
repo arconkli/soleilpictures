@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startBuildWatch } from './lib/buildWatch.js';
@@ -405,6 +405,19 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <TourQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isSidebarQaMode()) {
+  // Sidebar-files QA (?sidebarqa=1). The real <ClusterSidebar> in the real
+  // sidebar shell over fixture clusters and a fake of 0419's RPCs (the open
+  // cluster live, the rest paged), so the spec can drive shelves, Quick look,
+  // the finder, chips, sort, paging and resize. DEV guard drops it from
+  // production builds.
+  import('./local/SidebarQaHarness.jsx').then(({ SidebarQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <SidebarQaHarness />
       </StrictMode>
     );
   });

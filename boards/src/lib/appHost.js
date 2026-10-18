@@ -64,6 +64,27 @@ export function scoutConnectAllowed() {
 }
 
 // ---------------------------------------------------------------------------
+// The sidebar-files hold
+//
+// The sidebar is becoming the home of every file: clusters unfold into shelves
+// of everything in them, and the Board · Files pill goes away. It is built on
+// main in slices, and other sessions promote all of main to production, so
+// every piece of it asks this first. Same allowlist shape as the holds above:
+// the preview deploy sees it, and every other origin, the native shells
+// included, is closed until the release flips it — in the same commit as the
+// docs that describe it. Unlike them it REPLACES what's there (the Search
+// button, the old tree), and other sessions run the real app's specs on the
+// dev server, so on dev it is opt-in: localStorage soleil.dev.sidebarFiles = '1'
+// (the sidebar's own specs set it). DEV is a build-time constant, so the
+// production bundle never reads the flag.
+export const SIDEBAR_FILES_DEV_FLAG = 'soleil.dev.sidebarFiles';
+export function sidebarFilesAllowed() {
+  if (onPreviewHost()) return true;
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(SIDEBAR_FILES_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
+// ---------------------------------------------------------------------------
 // The template store hold
 //
 // The rule itself, and what "the store" covers, is in lib/templatePaths.js,

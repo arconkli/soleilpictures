@@ -103,7 +103,7 @@ test('fold row lists fold shelves in order; open fold shelf shows its rows', () 
   const shelves = [fold('links', 2), fold('more', 1), fold('other', 0)];
   let r = build({ contentsOf: () => ({ loading: false, shelves }) });
   assert.deepEqual(types(r), ['cluster', 'fold']);
-  assert.deepEqual(r[1].parts, [{ shelfId: 'links', count: 2 }, { shelfId: 'more', count: 1 }]);
+  assert.deepEqual(r[1].parts, [{ shelfId: 'links', count: 2, label: 'links' }, { shelfId: 'more', count: 1, label: 'more' }]);
   assert.equal(r[1].key, 'o:A');
   r = build({
     contentsOf: () => ({ loading: false, shelves }),

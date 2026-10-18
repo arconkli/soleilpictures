@@ -50,6 +50,9 @@ export function expandReducer(state, action) {
       return { ...state, search: [] };
     case 'collapseAll':
       return { ...state, manual: [], search: [], closed: [...state.auto] };
+    // Another workspace's saved state, loaded whole when the workspace changes.
+    case 'reset':
+      return action.state || initialExpandState();
     default:
       return state;
   }

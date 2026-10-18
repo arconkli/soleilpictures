@@ -159,6 +159,12 @@ export function isRevealQaMode() {
   return new URLSearchParams(window.location.search).get('revealqa') === '1';
 }
 
+// Sidebar-files QA (?sidebarqa=1): the real ClusterSidebar over fixtures.
+export function isSidebarQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('sidebarqa') === '1';
+}
+
 // Dev-only photo-adjustment QA bridge. Active ONLY in a DEV build with
 // ?imgeditqa=1 (same trust boundary as isDndQaMode). Publishes the PURE
 // imageAdjust helpers (buildFilterCss / buildTransform / isAdjusted / …) on

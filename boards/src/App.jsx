@@ -199,7 +199,11 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed } from './lib/appHost.js';
+import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
+import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
+import { readSidebarWidth, writeSidebarWidth } from './lib/sidebarWidth.js';
+import { useStorageUsage } from './hooks/useStorageUsage.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
@@ -5245,6 +5249,49 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
+
+  // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx),
+  // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
+  const filesSidebar = sidebarFilesAllowed();
+  const [sidebarW, setSidebarW] = useState(() => readSidebarWidth());
+  const sidebarStorage = useStorageUsage({ enabled: filesSidebar });
+  const [paletteQuery, setPaletteQuery] = useState('');
+  // Upload pressed off the board: the files wait here while the picked cluster
+  // opens, then go in the way any drop into Files does (stored off the board).
+  const pendingSidebarUpload = useRef(null);
+  const openSidebarCluster = (id) => {
+    if (!id || !boards[id]) return;
+    setStack(ancestorPath(boards, id));
+    setCurrentSurface('board');
+    if (mobileShell) setMobileNavOpen(false);
+  };
+  // Double-click (or Show on board) on a file in the sidebar: a placed file is
+  // shown on its board; one stored off the board has no spot on a canvas, so
+  // its cluster opens in Files with it picked out.
+  const showSidebarFile = (boardId, cardId, { unplaced = false } = {}) => {
+    if (!boardId || !boards[boardId]) return;
+    if (mobileShell) setMobileNavOpen(false);
+    setCurrentSurface('board');
+    if (!unplaced) { showInCluster(boardId, [cardId]); return; }
+    openInFiles(boardId);
+    setFilesReveal({ boardId, ids: [cardId], token: Date.now(), pane: 'main' });
+  };
+  const uploadFromSidebar = async (files) => {
+    if (!files?.length) return;
+    const here = currentSurface === 'board' ? currentBoard?.id : null;
+    if (here && canEditBoard(here)) { mainMutators.ingestFilesArranged?.(files); return; }
+    const picked = await requestClusterPick({ placeholder: 'Upload to…' });
+    if (!picked || !boards[picked]) return;
+    pendingSidebarUpload.current = { boardId: picked, files };
+    setStack(ancestorPath(boards, picked));
+    setCurrentSurface('board');
+  };
+  useEffect(() => {
+    const p = pendingSidebarUpload.current;
+    if (!p || !yb.ready || yb.boardId !== p.boardId || currentBoard.id !== p.boardId) return;
+    pendingSidebarUpload.current = null;
+    mainMutators.ingestFilesArranged?.(p.files);
+  }, [yb.ready, yb.boardId, currentBoard.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Live mirror so stable callbacks (e.g. the guided-tour persist fn) read fresh
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
@@ -9127,7 +9174,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         shell the sidebar IS the drawer, and .sb-collapsed hides every row in
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
-    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}`}
+    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}`}
+         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarW}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -9165,6 +9213,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
              role={mobileShell && mobileNavOpen ? 'dialog' : undefined}
              aria-modal={mobileShell && mobileNavOpen ? 'true' : undefined}
              aria-label={mobileShell && mobileNavOpen ? 'Menu' : undefined}>
+        {filesSidebar && !mobileShell && sidebarOpen && (
+          <SidebarResizer width={sidebarW} onChange={setSidebarW} onCommit={(w) => writeSidebarWidth(w)} />
+        )}
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
@@ -9264,11 +9315,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             );
           })()}
 
+          {!filesSidebar && (
           <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
             <Icon as={Search} size={13} />
             <span>Search…</span>
             <span className="sb-search-kbd">⌘K</span>
           </button>
+          )}
 
           <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
                {...rowButtonProps(() => setCurrentSurface('home'))}>
@@ -9336,6 +9389,73 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               BOARDS tree, and tags. Pinned nav above, pinned footer below.
               Class is .sb-list (NOT .sb-scroll) — SignInBackdrop's global
               .sb-scroll rule would otherwise hijack this element's layout. */}
+          {filesSidebar ? (
+            <ClusterSidebar
+              workspaceId={workspace.id}
+              boards={ownedBoards}
+              allBoards={boards}
+              rootId={rootBoard.id}
+              activeBoardId={currentSurface === 'board' ? activeBoardId : null}
+              liveBoardId={yb.ready && yb.boardId === currentBoard.id ? currentBoard.id : null}
+              liveCards={yb.ready && yb.boardId === currentBoard.id ? yb.cards : null}
+              width={mobileShell ? 320 : sidebarW}
+              coarse={isTouch}
+              listRef={sidebarScrollRef}
+              boardsSectionProps={{
+                boards: ownedBoards,
+                workspaceId: workspace.id,
+                rootId: rootBoard.id,
+                activeBoardId: currentSurface === 'board' ? activeBoardId : null,
+                onOpenBoard: openSidebarCluster,
+                onShareBoard: openShareForBoard,
+                onRenameBoard: renameBoardById,
+                onCreateBoard: canEditBoard(rootBoard.id) ? () => { mainMutators.addNewProject?.({ via: 'sidebar' }); } : null,
+                renameRequest: projectRenameRequest,
+                onCreateBoardInside: createBoardInside,
+                onSetBoardCover: mainMutators.setBoardCover,
+                onSetBoardBgColor: setBoardBgColorById,
+                onSetBoardThumb: setBoardCustomThumbById,
+                onResetBoardThumb: resetBoardThumbById,
+                onCopyBoard: copyBoard,
+                onPasteBoardInto: pasteBoardInto,
+                onDeleteBoard: (id) => deleteBoardsById([id]),
+                canEditBoard,
+                onOpenPicker: () => setBrowsePickerOpen(true),
+                peersHereByBoard,
+                peersBelowByBoard,
+                onJumpToPeer: jumpToPeer,
+              }}
+              sharedSection={(
+                <SidebarSharedBoards
+                  shared={sharedRoots}
+                  activeBoardId={currentSurface === 'board' ? activeBoardId : null}
+                  onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); if (mobileShell) setMobileNavOpen(false); }}
+                />
+              )}
+              tagsSection={(
+                <SidebarTags
+                  workspaceId={workspace.id}
+                  userId={user.id}
+                  tags={wsTagsForSidebar.tags}
+                  activeTagId={currentSurface === 'tag' ? activeTag?.id : null}
+                  onOpenTag={openTagSurface}
+                  onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
+                />
+              )}
+              meterProps={{
+                isPaid: myTier.tier === 'paid' || myTier.tier === 'admin',
+                cardsUsed: myTier.demoCardCount,
+                cardLimit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
+                storage: sidebarStorage,
+              }}
+              onOpenPlan={() => openSettings('billing')}
+              onUpload={uploadFromSidebar}
+              onOpenBoard={openSidebarCluster}
+              onShowFile={showSidebarFile}
+              onOpenShelf={(boardId) => { if (mobileShell) setMobileNavOpen(false); setCurrentSurface('board'); openInFiles(boardId); }}
+              onOpenPalette={(q) => { setPaletteQuery(q || ''); setPaletteOpen(true); }}
+            />
+          ) : (
           <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
             shared={sharedRoots}
@@ -9379,7 +9499,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenTag={openTagSurface}
             onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
           />
-          </div>{/* /.sb-list */}
+          </div>
+          )}{/* /.sb-list */}
 
           {/* Footer — settings cog + avatar. Both open the SAME panel; they
               differ only in which tab it lands on. The cog is about the
@@ -9811,7 +9932,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       <CommandPalette
         open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
+        onClose={() => { setPaletteOpen(false); setPaletteQuery(''); }}
+        initialQuery={paletteQuery}
         workspaceId={workspace.id}
         boards={boards}
         rootId={rootBoard.id}

@@ -19,78 +19,90 @@ export function mosaicPerLine(widthPx, { thumb = 40, gap = 4, inset = 0 } = {}) 
   return Math.max(3, Math.floor((widthPx - inset + gap) / (thumb + gap)));
 }
 
+// One cluster's contents as rows: its shelves (header, mosaic lines or file
+// rows, "+N more"), the folded Links · More line and any fold shelf opened
+// under it, or a single loading / empty row. `depth` is the indent the rows
+// take; `hasChildren` says whether sub-clusters sit above them (a cluster with
+// sub-clusters and nothing of its own is not "empty").
+export function contentRows(b, depth, {
+  contents, shelfState = () => ({}), perLine = 6, coarse = false, hasChildren = false,
+} = {}) {
+  const heights = ROW_HEIGHTS[coarse ? 'coarse' : 'fine'];
+  const rows = [];
+  const push = (type, key, extra) =>
+    rows.push({ key, type, depth, height: heights[type], boardId: b, ...extra });
+
+  const pushItems = (shelf, st) => {
+    const items = shelf.items || [];
+    const shown = st.expanded ? items : items.slice(0, PEEK.rows);
+    for (const item of shown) push('file', `f:${b}:${item.cardId}`, { shelfId: shelf.id, item });
+    return shown.length;
+  };
+  const pushMore = (shelf, shown, st) => {
+    if (shelf.total > shown) {
+      push('more', `x:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total - shown, expanded: !!st.expanded });
+    }
+  };
+
+  const c = contents;
+  const shelves = (c && c.shelves) || [];
+  if (!c || (c.loading && !shelves.length)) {
+    push('loading', `l:${b}`, {});
+    return rows;
+  }
+  if (!hasChildren && !shelves.some((s) => s.total > 0 || (s.items && s.items.length))) {
+    push('empty', `e:${b}`, {});
+    return rows;
+  }
+  const folds = [];
+  for (const shelf of shelves) {
+    if (shelf.layout === 'fold') { if (shelf.total > 0) folds.push(shelf); continue; }
+    if (!(shelf.total > 0)) continue;
+    const st = shelfState(b, shelf.id) || {};
+    push('shelf', `s:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total, label: shelf.label });
+    let shown;
+    if (shelf.layout === 'mosaic') {
+      const items = shelf.items || [];
+      const lines = [];
+      for (let i = 0; i < items.length; i += perLine) lines.push(items.slice(i, i + perLine));
+      const showLines = st.expanded ? lines : lines.slice(0, PEEK.mosaicLines);
+      showLines.forEach((chunk, i) =>
+        push('mosaic', `m:${b}:${shelf.id}:${i}`, { shelfId: shelf.id, items: chunk, line: i }));
+      shown = showLines.reduce((n, l) => n + l.length, 0);
+    } else {
+      shown = pushItems(shelf, st);
+    }
+    pushMore(shelf, shown, st);
+  }
+  if (folds.length) {
+    push('fold', `o:${b}`, { parts: folds.map((s) => ({ shelfId: s.id, count: s.total, label: s.label })) });
+    for (const shelf of folds) {
+      const st = shelfState(b, shelf.id) || {};
+      if (!st.open) continue;
+      const shown = pushItems(shelf, st);
+      pushMore(shelf, shown, st);
+    }
+  }
+  return rows;
+}
+
 export function flattenTree({
   rootIds, childrenOf, isExpanded, contentsOf, shelfState, perLine = 6, coarse = false,
 }) {
   const heights = ROW_HEIGHTS[coarse ? 'coarse' : 'fine'];
   const rows = [];
   const seen = new Set();
-  const push = (type, depth, boardId, key, extra) =>
-    rows.push({ key, type, depth, height: heights[type], boardId, ...extra });
-
-  function pushItems(b, depth, shelf, st) {
-    const items = shelf.items || [];
-    const shown = st.expanded ? items : items.slice(0, PEEK.rows);
-    for (const item of shown) push('file', depth, b, `f:${b}:${item.cardId}`, { shelfId: shelf.id, item });
-    return shown.length;
-  }
-
-  function pushMore(b, depth, shelf, shown, st) {
-    if (shelf.total > shown) {
-      push('more', depth, b, `x:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total - shown, expanded: !!st.expanded });
-    }
-  }
-
-  function pushContents(b, depth, kids) {
-    const c = contentsOf(b);
-    const shelves = (c && c.shelves) || [];
-    if (!c || (c.loading && !shelves.length)) {
-      push('loading', depth, b, `l:${b}`, {});
-      return;
-    }
-    if (!kids.length && !shelves.some((s) => s.total > 0 || (s.items && s.items.length))) {
-      push('empty', depth, b, `e:${b}`, {});
-      return;
-    }
-    const folds = [];
-    for (const shelf of shelves) {
-      if (shelf.layout === 'fold') { if (shelf.total > 0) folds.push(shelf); continue; }
-      if (!(shelf.total > 0)) continue;
-      const st = shelfState(b, shelf.id) || {};
-      push('shelf', depth, b, `s:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total });
-      let shown;
-      if (shelf.layout === 'mosaic') {
-        const items = shelf.items || [];
-        const lines = [];
-        for (let i = 0; i < items.length; i += perLine) lines.push(items.slice(i, i + perLine));
-        const showLines = st.expanded ? lines : lines.slice(0, PEEK.mosaicLines);
-        showLines.forEach((chunk, i) =>
-          push('mosaic', depth, b, `m:${b}:${shelf.id}:${i}`, { shelfId: shelf.id, items: chunk, line: i }));
-        shown = showLines.reduce((n, l) => n + l.length, 0);
-      } else {
-        shown = pushItems(b, depth, shelf, st);
-      }
-      pushMore(b, depth, shelf, shown, st);
-    }
-    if (folds.length) {
-      push('fold', depth, b, `o:${b}`, { parts: folds.map((s) => ({ shelfId: s.id, count: s.total })) });
-      for (const shelf of folds) {
-        const st = shelfState(b, shelf.id) || {};
-        if (!st.open) continue;
-        const shown = pushItems(b, depth, shelf, st);
-        pushMore(b, depth, shelf, shown, st);
-      }
-    }
-  }
 
   function walk(id, depth) {
     if (seen.has(id)) return;
     seen.add(id);
-    push('cluster', depth, id, `c:${id}`, {});
+    rows.push({ key: `c:${id}`, type: 'cluster', depth, height: heights.cluster, boardId: id });
     if (!isExpanded(id)) return;
     const kids = childrenOf(id) || [];
     for (const k of kids) walk(k, depth + 1);
-    pushContents(id, depth + 1, kids);
+    rows.push(...contentRows(id, depth + 1, {
+      contents: contentsOf(id), shelfState, perLine, coarse, hasChildren: kids.length > 0,
+    }));
   }
 
   for (const id of rootIds || []) walk(id, 0);

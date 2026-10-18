@@ -134,6 +134,9 @@ export function CommandPalette({
   onPickBoard,
   excludeIds = [],
   placeholder,
+  // Words to open with — the sidebar's finder hands over what it couldn't
+  // find, so the search carries on here instead of starting again.
+  initialQuery = '',
 }) {
   const isPick = mode === 'pick';
   const [query, setQuery] = useState('');
@@ -147,7 +150,7 @@ export function CommandPalette({
   // Fresh query + focus on each open.
   useEffect(() => {
     if (!open) return;
-    setQuery('');
+    setQuery(initialQuery || '');
     setAsyncRows([]);
     setPageHits([]);
     setLoading(false);

@@ -45,6 +45,7 @@ export function SidebarBoardsSection({
   peersHereByBoard,
   peersBelowByBoard,
   onJumpToPeer,
+  filesView = null,         // the files sidebar's hook-in (SidebarBoardTree's `filesView`)
 }) {
   const [open, setOpen] = useState(() => loadOpen(workspaceId));
   const toggle = () => setOpen(v => { const next = !v; saveOpen(workspaceId, next); return next; });
@@ -94,6 +95,7 @@ export function SidebarBoardsSection({
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={onJumpToPeer}
+            filesView={filesView}
           />
           <div className="sb-row sb-row-all" onClick={onOpenPicker}>
             <Icon as={MoreHorizontal} size={14} />

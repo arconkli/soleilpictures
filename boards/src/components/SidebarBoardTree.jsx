@@ -61,6 +61,14 @@ export function SidebarBoardTree({
   peersHereByBoard,
   peersBelowByBoard,
   onJumpToPeer,
+  // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx,
+  // behind sidebarFilesAllowed). When set it owns unfolding ("follow me"),
+  // draws each row's cover and count, hides rows a search or filter rules
+  // out, and renders an unfolded cluster's shelves after its sub-clusters:
+  //   { isExpanded(id), toggle(id), hasContents(id), isHidden(id),
+  //     countOf(id), renderThumb(board, isActive), renderContents(board, depth, hasChildren) }
+  // Without it the tree is exactly what it was.
+  filesView = null,
 }) {
   const [expanded, setExpanded] = useState(() => loadExpanded(workspaceId, rootId));
   // Inline rename: { boardId, draft }. Double-click a row to enter,
@@ -277,6 +285,7 @@ export function SidebarBoardTree({
   }, [workspaceId]);
 
   const toggle = (id) => {
+    if (filesView) { filesView.toggle(id); return; }
     setExpanded(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -296,7 +305,7 @@ export function SidebarBoardTree({
     return set;
   }, [boards, activeBoardId]);
   useEffect(() => {
-    if (activeAncestors.size === 0) return;
+    if (filesView || activeAncestors.size === 0) return;
     setExpanded(prev => {
       let changed = false;
       const next = new Set(prev);
@@ -336,8 +345,9 @@ export function SidebarBoardTree({
     const out = [];
     const walk = (arr) => {
       for (const b of arr) {
+        if (filesView?.isHidden?.(b.id)) continue;
         out.push(b.id);
-        if (expanded.has(b.id)) walk(childrenByParent.get(b.id) || []);
+        if (filesView ? filesView.isExpanded(b.id) : expanded.has(b.id)) walk(childrenByParent.get(b.id) || []);
       }
     };
     walk(roots);
@@ -377,9 +387,10 @@ export function SidebarBoardTree({
   };
 
   const renderRow = (board, depth) => {
+    if (filesView?.isHidden?.(board.id)) return null;
     const kids = childrenByParent.get(board.id) || [];
-    const hasKids = kids.length > 0;
-    const isOpen = expanded.has(board.id);
+    const hasKids = kids.length > 0 || !!filesView?.hasContents?.(board.id);
+    const isOpen = filesView ? filesView.isExpanded(board.id) : expanded.has(board.id);
     const isActive = board.id === activeBoardId;
     const tint = COVER_TINTS[board.cover || 'neutral'] || COVER_TINTS.neutral;
     // Dedup peers by user.id with "exact" preferred over "nested" so the
@@ -405,7 +416,7 @@ export function SidebarBoardTree({
     const isSelected = selectedTreeBoards.has(board.id);
     return (
       <div key={board.id} className="sb-tree-node">
-        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}`}
+        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}${filesView ? ' is-files' : ''}`}
              style={{ paddingLeft: 6 + depth * 14 }}
              data-board-id={board.id}
              draggable={!isRenaming}
@@ -522,7 +533,9 @@ export function SidebarBoardTree({
                   aria-hidden="true">
             {isOpen ? '▾' : '▸'}
           </button>
-          <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />
+          {filesView
+            ? filesView.renderThumb(board, isActive)
+            : <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />}
           {isRenaming ? (
             <input ref={renameInputRef}
                    className="sb-tree-rename-input"
@@ -538,6 +551,10 @@ export function SidebarBoardTree({
           ) : (
             <span className="sb-row-label">{board.name || 'Untitled'}</span>
           )}
+          {filesView && !isRenaming && (() => {
+            const n = filesView.countOf(board.id);
+            return n > 0 ? <span className="sb-row-count sbf-count">{n}</span> : null;
+          })()}
           {presence.length > 0 && (
             <span className="bc-toc-peers">
               {presence.slice(0, 3).map(p => (
@@ -559,6 +576,7 @@ export function SidebarBoardTree({
         {hasKids && isOpen && (
           <div className="sb-tree-children" role="group">
             {kids.map(c => renderRow(c, depth + 1))}
+            {filesView?.renderContents?.(board, depth + 1, kids.length > 0)}
           </div>
         )}
       </div>
