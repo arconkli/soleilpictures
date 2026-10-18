@@ -9756,6 +9756,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
             right={(
               <>
+                {/* Admins keep their pill in view, as in the bar. */}
+                {myTier.tier === 'admin' && (
+                  <button className="tb-admin-btn" title="Admin dashboard"
+                          onClick={() => window.location.assign('/admin')}>
+                    Admin
+                  </button>
+                )}
                 <button className="tb-icon" title="Undo (⌘Z)" aria-label="Undo" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
                   <Icon as={Undo} size={16} />
                 </button>
@@ -9786,7 +9793,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               ...(isTouch ? [{ id: 'focus', label: 'Focus view', icon: Maximize2, run: () => setFocusMode(true) }] : []),
               { sep: true },
               { id: 'help', label: 'Help & feedback', icon: Question, run: () => openHelpHub('topbar') },
-              ...(myTier.tier === 'admin' ? [{ id: 'admin', label: 'Admin dashboard', run: () => window.location.assign('/admin') }] : []),
             ]}
           />
         ) : (

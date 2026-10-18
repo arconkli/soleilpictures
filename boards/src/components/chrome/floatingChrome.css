@@ -29,6 +29,7 @@
 .chrome-island .tb-brand { height: 30px; padding: 0 6px; border-radius: 7px; }
 .chrome-island .tb-btn.tb-share { height: 28px; margin-left: 4px; }
 .chrome-island .tb-viewonly { margin: 0 4px 0 2px; flex-shrink: 0; }
+.chrome-island .tb-admin-btn { margin: 0 4px 0 2px; flex-shrink: 0; }
 .chrome-island .crumbs { flex: 1 1 auto; }
 .chrome-island .crumb { padding: 5px 7px; }
 .chrome-island .tb-icon:focus-visible,

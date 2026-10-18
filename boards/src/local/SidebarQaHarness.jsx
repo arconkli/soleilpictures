@@ -277,6 +277,7 @@ export function SidebarQaHarness() {
             )}
             right={(
               <>
+                <button className="tb-admin-btn" onClick={() => say('admin')}>Admin</button>
                 <button className="tb-icon" aria-label="Undo"><Icon as={Undo} size={16} /></button>
                 <button className="tb-icon" aria-label="Redo" disabled><Icon as={Redo} size={16} /></button>
                 <button className="tb-icon" aria-label="Search"><Icon as={Search} size={16} /></button>

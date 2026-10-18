@@ -177,6 +177,9 @@ test.describe('sidebar files wiring (App.jsx)', () => {
     expect(app).toMatch(/\{floatingChrome \? \(\s*<FloatingChrome/);
     expect(app).toMatch(/\) : \(\s*<div className="topbar">/);   // the bar everyone else gets, intact
     expect(app).toContain("${floatingChrome ? ' is-floating-chrome' : ''}");
+    // Admins keep the Admin pill in view, in the right island.
+    const right = app.slice(app.indexOf('right={('), app.indexOf('menuItems={['));
+    expect(right).toMatch(/myTier\.tier === 'admin' && \(\s*<button className="tb-admin-btn"/);
   });
 });
 
