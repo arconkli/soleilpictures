@@ -36,22 +36,19 @@ export function formatBonusBytes(bytes) {
 
 export const INVITE_BONUS_STORAGE_LABEL = formatBonusBytes(INVITE_BONUS_STORAGE_BYTES);
 
-// Only a free plan has a card limit for bonus cards to raise. On Creator the
-// inviter's own cards change nothing, so the headline is the friend's cards.
-const earnsCards = (tier) => tier === 'demo';
-
 // The share panel's note. `lead` is the sentence that has to land, and it is
-// about cards (owner, 2026-10-17: the 25 cards come first, not the storage);
-// `detail` adds the storage and says when; `how` is the fine print behind
-// "How it works".
-export function inviteRewardCopy({ tier } = {}) {
+// about cards, and about both people (owner, 2026-10-17: "you BOTH get 25
+// extra free cards"; the storage comes second). That is only true while the
+// friend's bonus and the inviter's reward are the same number, so the sentence
+// falls back to naming each when they are not. `detail` adds the storage and
+// says when; `how` is the fine print behind "Details". `tier` is accepted for
+// callers that still pass it; the wording is the same on every plan.
+export function inviteRewardCopy() {
   const storage = INVITE_BONUS_STORAGE_LABEL;
-  const lead = earnsCards(tier)
-    ? `Invite someone new and get ${REFERRAL_REWARD_CARDS} free cards.`
-    : `Invite someone new and they get ${REFERRAL_BONUS_CARDS} free cards.`;
-  const detail = earnsCards(tier)
-    ? `They get ${REFERRAL_BONUS_CARDS} extra cards too, and you both get ${storage} more storage. Yours arrive when they add their first card.`
-    : `You both get ${storage} more storage too. Yours arrives when they add their first card.`;
+  const lead = REFERRAL_BONUS_CARDS === REFERRAL_REWARD_CARDS
+    ? `Invite someone new and you both get ${REFERRAL_REWARD_CARDS} extra free cards.`
+    : `Invite someone new: they get ${REFERRAL_BONUS_CARDS} extra free cards, and you get ${REFERRAL_REWARD_CARDS}.`;
+  const detail = `You both get ${storage} more storage too. Theirs arrives when they join; yours when they add their first card.`;
   return {
     lead,
     detail,
