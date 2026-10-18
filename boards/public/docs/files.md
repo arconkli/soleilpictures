@@ -30,7 +30,9 @@ size. There is no per-file limit on any plan.
 
 **Storage.** The only limit is the drive: 5GB on the free
 plan, 1TB on Creator. A drop that would not fit is
-caught before anything uploads, and you can add the part that fits. Inviting
+caught before anything uploads, and you can add the part that fits; the rest
+waits in the tab and goes on by itself when you upgrade or add storage
+([Hitting a limit](/docs/account/plans#hitting-a-limit)). Inviting
 someone new adds 0.5GB to your drive once they get
 started, and to theirs when they join ([Referrals](/docs/account/referrals)).
 
@@ -53,7 +55,9 @@ behind it.
 Uploads count against your account's storage quota: 5GB on the
 free plan, 1TB on Creator. The meter is in
 **Settings → Plan & billing**. When it is full, new uploads stop until you
-delete files or upgrade — nothing already there is touched. On Creator
+delete files or upgrade — nothing already there is touched. Files you drop in
+the meantime wait in the tab: they go on by themselves when you upgrade or add
+storage, or when you press **Upload now** after deleting. On Creator
 you can also add [more storage](/docs/account/plans#more-storage),
 1TB at a time.
 

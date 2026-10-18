@@ -240,5 +240,6 @@ test('one folder import runs at a time — a second drop is told to wait, not me
   const busy = fn.indexOf('if (folderImportBusyRef.current) {');
   const run = fn.indexOf('try { return await importFolderOnce(args); }');
   assert.ok(busy > 0 && run > busy, 'the guard comes before the run');
-  assert.match(fn, /finally \{ folderImportBusyRef\.current = false; \}/, 'released however the run ends');
+  // …and a released held folder waiting its turn is woken the same way.
+  assert.match(fn, /finally \{ folderImportBusyRef\.current = false; idle\(\); \}/, 'released however the run ends');
 });

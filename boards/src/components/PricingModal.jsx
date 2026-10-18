@@ -212,7 +212,13 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     });
     try {
       if (alreadyPaid) await startPortal({ surface });
-      else             await startCheckout({ plan, surface, header, via, trial: trialOffer });
+      else {
+        const out = await startCheckout({ plan, surface, header, via, trial: trialOffer });
+        // Checkout opened in a new tab, because this one is holding dropped
+        // files (lib/heldUploads.js): the offer has been taken up, so this
+        // closes as a CTA — redirectingRef keeps it from reading as a dismiss.
+        if (out?.tab) { setBusy(false); handleClose('checkout_tab'); redirectingRef.current = false; }
+      }
     } catch (err) {
       redirectingRef.current = false;
       up.noteError();

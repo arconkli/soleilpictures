@@ -5,6 +5,7 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { storageAddonCopy } from '../lib/billingCopy.js';
 import { applyStorageAddon, newAddonRequestId, previewStorageAddon, storageAddonErrorMessage } from '../lib/storageAddon.js';
+import { announceBillingChange, noteAwaitingPayment } from '../lib/heldUploads.js';
 import './importCapDialog.css';
 
 // Add (or remove) 1TB of extra storage in one click, on the card the Creator
@@ -93,6 +94,9 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
       setPayUrl(answer.hosted_invoice_url);
       setPhase('pay');
       window.open(answer.hosted_invoice_url, '_blank', 'noopener');
+      // Files held for room (lib/heldUploads.js) wait on this payment: the
+      // block lands when the bank says yes, and nothing here hears that.
+      noteAwaitingPayment();
       return;
     }
     if (!answer?.ok) {
@@ -105,6 +109,8 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
       return;
     }
     if (removing) logEvent(EV.STORAGE_ADDON_REMOVE, { surface, blocks: answer.blocks ?? preview.target_blocks });
+    // The drive grew: files held for room go on now, in this tab or another.
+    else announceBillingChange('storage');
     onDone?.({ blocks: answer.blocks ?? preview.target_blocks, quotaBytes: answer.quota_bytes ?? null });
     onClose?.();
   };

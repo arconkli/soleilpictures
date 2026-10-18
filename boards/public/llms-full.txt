@@ -1585,7 +1585,7 @@ Limits
 
 File type and size. Any, on every plan. .psd, .fig, .zip, project files, archives, a 4K clip, a WAV stem — each lands as its own card, at any size. There is no per-file limit on any plan.
 
-Storage. The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits. Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join (Referrals).
+Storage. The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits; the rest waits in the tab and goes on by itself when you upgrade or add storage (Hitting a limit). Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join (Referrals).
 
 The drive and the card cap are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters, collaborators and editing are not limited on any plan.
 
@@ -1597,7 +1597,7 @@ Batches upload a few at a time so one huge file does not block eleven small ones
 
 Storage
 
-Uploads count against your account's storage quota: 5GB on the free plan, 1TB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. On Creator you can also add more storage, 1TB at a time.
+Uploads count against your account's storage quota: 5GB on the free plan, 1TB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. Files you drop in the meantime wait in the tab: they go on by themselves when you upgrade or add storage, or when you press Upload now after deleting. On Creator you can also add more storage, 1TB at a time.
 
 Storage is counted against the owner of the cluster, not the person who uploaded. If you are an editor on someone else's board, your uploads use their quota — which is the same rule that governs the card cap.
 
@@ -3777,6 +3777,10 @@ Cards and files added to someone else's cluster count against them, not you. Thi
 Hitting a limit
 
 You are told when you reach either one, and offered the upgrade — or, when a Creator drive is full, more storage. Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead.
+
+Unless you cancel, the files that did not go on wait in that browser tab. Upgrade, or add storage, and they upload by themselves, so you never drop the same files twice. A bar at the bottom of the screen says how many are waiting, with Upload now to try again after you make room by deleting, and Discard to let them go. A folder waits whole when none of it fit; if you add part of a folder, or one runs out of room partway through, the rest stays on your computer.
+
+While files are waiting, checkout opens in a new tab so this one can keep them. If the browser won't open one, checkout takes this tab, the files are let go, and you are asked to drop them again when you come back. Closing or reloading the tab also lets them go, and the browser asks first; the files are still on your computer either way. This applies in your own clusters: in someone else's, only their plan can make room.
 
 Deleting a file gives its space back within a few minutes — unless another cluster still uses it — and emptying the trash gives back everything in it at once.
 
@@ -10298,6 +10302,12 @@ The Share panel opens on inviting people and says exactly how far an invitation 
   0.5GB more storage each. Theirs arrives when they
   join; yours as soon as they have opened the app and placed their first card,
   with no three-day wait. See [referrals](/docs/account/referrals).
+
+### Uploads
+
+- Files that don't fit when you drop them wait in the tab. Upgrade or add
+  storage and they upload by themselves, without being dropped again — however
+  big they are. See [hitting a limit](/docs/account/plans#hitting-a-limit).
 
 ## 2026-10-17 — Any file at any size on every plan, a 1TB Creator drive, and deleting frees space
 

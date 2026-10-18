@@ -39,6 +39,7 @@ import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
 import { PLAN_NAME, CREATOR_TRIAL_DAYS, formatPeriodEnd } from '../lib/billingCopy.js';
 import { readCheckoutReturn, clearCheckoutReturn } from '../lib/checkoutReturn.js';
+import { askForHolder } from '../lib/heldUploads.js';
 import { trackPurchase } from '../lib/metaPixel.js';
 
 const VERIFY_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/verify-checkout-session';
@@ -93,6 +94,11 @@ export function PricingSuccess() {
   const [verifying, setVerifying] = useState(false);
   const [verifyErr, setVerifyErr] = useState(null);
   const [celebrating, setCelebrating] = useState(false);
+  // Files the tab this checkout was opened from is holding for room, which go
+  // on there now that the plan has landed (lib/heldUploads.js). Then this tab
+  // is a spare: it says where the files are instead of loading a second copy
+  // of the app.
+  const [heldElsewhere, setHeldElsewhere] = useState(0);
   const [pollingStopped, setPollingStopped] = useState(false);
   const celebrated = useRef(false);
   const purchaseTracked = useRef(false);   // deduped browser Purchase fires once
@@ -197,9 +203,16 @@ export function PricingSuccess() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tier]);
   useEffect(() => {
-    if (!celebrating) return;
-    const t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
-    return () => clearTimeout(t);
+    if (!celebrating) return undefined;
+    let cancelled = false;
+    let t = null;
+    // Ask first: the answer is also what tells that tab to look now.
+    askForHolder().then((n) => {
+      if (cancelled) return;
+      if (n > 0) { setHeldElsewhere(n); return; }
+      t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
+    });
+    return () => { cancelled = true; if (t) clearTimeout(t); };
   }, [celebrating]);
 
   // Polling: tier RPC (fast pre-stall, slow after, so a late webhook still
@@ -278,15 +291,37 @@ export function PricingSuccess() {
                 : `Your trial has started. Nothing is charged for ${CREATOR_TRIAL_DAYS} days.`}
             </p>
           )}
-          {waitingFolder > 0 && (
+          {waitingFolder > 0 && !heldElsewhere && (
             <p className="welcome-copy t-body">
               Drop those files again — all {waitingFolder} will fit.
             </p>
           )}
-          <p className="welcome-copy t-body">
-            You're all set. Taking you into Clusters…
-          </p>
-          <div className="payment-spinner" aria-label="Entering" />
+          {heldElsewhere > 0 ? (
+            <>
+              {/* What the answer proves, and no more: that tab has them. Whether
+                  they all fit the new plan is decided there, when it looks. */}
+              <p className="welcome-copy t-body">
+                {heldElsewhere === 1 ? 'The file you dropped is' : `The ${heldElsewhere} files you dropped are`} in
+                your other Clusters tab. Switch back to it to see {heldElsewhere === 1 ? 'it' : 'them'} go on —
+                you can close this one.
+              </p>
+              <div className="welcome-cta-row">
+                <button
+                  className="welcome-cta welcome-cta-primary"
+                  onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'app', from: 'checkout_held' }); window.location.assign('/'); }}
+                >
+                  Open Clusters here
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="welcome-copy t-body">
+                You're all set. Taking you into Clusters…
+              </p>
+              <div className="payment-spinner" aria-label="Entering" />
+            </>
+          )}
         </div>
       </div>
     );

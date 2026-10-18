@@ -1,0 +1,49 @@
+/* HeldUploadsBar (components/HeldUploadsBar.jsx): files a drop kept in this
+   tab until there is room. Bottom-centre like the folder import strip, and
+   lifted above it when both are showing. Neutral ink throughout: gold is for
+   active/selection/focus, and a waiting state is neither. */
+.held-uploads {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1200;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 10px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(620px, calc(100vw - 32px));
+  padding: 8px 10px 8px 16px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--bg-3) 92%, transparent);
+  border: 1px solid var(--line-2, rgba(255, 255, 255, 0.1));
+  box-shadow: var(--shadow-2);
+  color: var(--ink-1);
+  font: 500 13px/1.35 var(--font-sans);
+}
+.held-uploads-raised { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+/* The phone shell's bottom nav (MobileBottomNav, 56px tall) sits under it. */
+.held-uploads-above-nav { bottom: calc(68px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); }
+.held-uploads-label { min-width: 0; flex: 1 1 220px; }
+.held-uploads-btn {
+  flex: none;
+  /* "Open <cluster name>" can be long: it shortens, the bar never widens. */
+  max-width: min(240px, 60vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--bg-hov);
+  color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.held-uploads-btn:hover { background: var(--bg-act); }
+.held-uploads-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.held-uploads-quiet { background: transparent; color: var(--ink-2); }
+.held-uploads-quiet:hover { background: var(--bg-hov); color: var(--ink-1); }
