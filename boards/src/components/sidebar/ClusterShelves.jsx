@@ -8,6 +8,7 @@
 // sidebar scrolls the same either way.
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLongPress } from '../../hooks/useLongPress.js';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
@@ -52,13 +53,32 @@ function ItemGlyph({ item }) {
   return <span className="sbf-file-icon"><KindIcon kind={item.kind} size={13} /></span>;
 }
 
+// Touch has no right-click: holding a file opens its menu, and the tap that
+// ends the hold is swallowed so Quick look doesn't open under the menu.
+function useHoldForMenu(item, onMenu) {
+  const ref = useRef(null);
+  const held = useRef(false);
+  useLongPress(ref, (x, y) => {
+    if (!onMenu) return;
+    held.current = true;
+    onMenu(item, x, y);
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  const swallow = () => {
+    if (!held.current) return false;
+    held.current = false;
+    return true;
+  };
+  return { ref, swallow };
+}
+
 // One item as a row: its thumbnail or icon, its name, the stored-off-the-board
 // mark, a star, and its length or size. Shelves, Starred and Recent all draw
 // items with it, so an item looks the same wherever the sidebar lists it.
 export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null, onMenu = null }) {
   const meta = rowMeta(item);
+  const hold = useHoldForMenu(item, onMenu);
   return (
-    <button type="button"
+    <button type="button" ref={hold.ref}
             className={`sbf-file${item.unplaced ? ' is-stored' : ''}${selected ? ' is-selected' : ''}`}
             aria-selected={selected || undefined}
             draggable={!!onDragStart}
@@ -67,7 +87,7 @@ export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = fal
             role="treeitem" aria-level={depth + 1}
             data-sb-item={item.key}
             title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
-            onClick={(e) => onClick?.(item, e)}
+            onClick={(e) => { if (!hold.swallow()) onClick?.(item, e); }}
             onDoubleClick={() => onOpen?.(item)}
             onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(item, e.clientX, e.clientY); } : undefined}
             onKeyDown={(e) => {
@@ -91,8 +111,9 @@ export function SidebarItemRow({ item, depth = 0, onClick, onOpen, starred = fal
 // One item as a tile: the photo mosaic's square, used by Recent too.
 export function SidebarTile({ item, depth = 0, starred = false, where = '', onClick, onOpen, selected = false, onDragStart = null, onMenu = null }) {
   const src = thumbSrc(item);
+  const hold = useHoldForMenu(item, onMenu);
   return (
-    <button type="button"
+    <button type="button" ref={hold.ref}
             className={`sbf-tile${item.unplaced ? ' is-stored' : ''}${starred ? ' is-starred' : ''}${selected ? ' is-selected' : ''}`}
             aria-selected={selected || undefined}
             draggable={!!onDragStart}
@@ -100,7 +121,7 @@ export function SidebarTile({ item, depth = 0, starred = false, where = '', onCl
             role="treeitem" aria-level={depth + 1} aria-label={item.name}
             title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
             data-sb-item={item.key}
-            onClick={(e) => onClick?.(item, e)}
+            onClick={(e) => { if (!hold.swallow()) onClick?.(item, e); }}
             onDoubleClick={() => onOpen?.(item)}
             onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(item, e.clientX, e.clientY); } : undefined}
             onKeyDown={(e) => {

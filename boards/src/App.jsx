@@ -9508,7 +9508,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               activeBoardId={currentSurface === 'board' ? activeBoardId : null}
               liveBoardId={yb.ready && yb.boardId === currentBoard.id ? currentBoard.id : null}
               liveCards={yb.ready && yb.boardId === currentBoard.id ? yb.cards : null}
-              width={mobileShell ? 320 : sidebarW}
+              // In the drawer the width is the drawer's: min(86vw, 320px).
+              width={mobileShell ? Math.round(Math.min((typeof window !== 'undefined' ? window.innerWidth : 375) * 0.86, 320)) : sidebarW}
               coarse={isTouch}
               listRef={sidebarScrollRef}
               boardsSectionProps={{

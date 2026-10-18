@@ -166,7 +166,10 @@ function makeMoveApi(calls) {
 
 export function SidebarQaHarness() {
   const [active, setActive] = useState('film');
-  const [width, setWidth] = useState(SIDEBAR_W.DEFAULT);
+  // A phone shows the sidebar as the app's drawer, open — as the menu button
+  // would leave it — at the drawer's width.
+  const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
+  const [width, setWidth] = useState(phone ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : SIDEBAR_W.DEFAULT);
   const [log, setLog] = useState([]);
   const [toast, setToast] = useState(null);
   const listRef = useRef(null);
@@ -181,8 +184,8 @@ export function SidebarQaHarness() {
 
   return (
     <div className="app sb-files" style={{ '--sb-w': `${width}px`, height: '100vh' }} data-sidebarqa-ready="1">
-      <aside className="sidebar">
-        <SidebarResizer width={width} onChange={(w) => setWidth(clampSidebarWidth(w))} />
+      <aside className={`sidebar${phone ? ' is-mobile-open' : ''}`}>
+        {!phone && <SidebarResizer width={width} onChange={(w) => setWidth(clampSidebarWidth(w))} />}
         <div className="sb-mid">
           <div className="sb-top">
             <div className="sb-mid-head"><span className="sb-ws-name">Sidebar QA</span></div>
@@ -196,6 +199,7 @@ export function SidebarQaHarness() {
             liveBoardId={active}
             liveCards={CARDS[active] || []}
             width={width}
+            coarse={phone}
             listRef={listRef}
             source={source}
             boardsSectionProps={{
