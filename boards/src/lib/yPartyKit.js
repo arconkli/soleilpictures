@@ -39,6 +39,7 @@ import { getGestureActiveUntil } from './perfReport.js';
 import * as perf from './perf.js';
 import { PARTY_HOST } from './partyHost.js';
 import { socketLooksDead } from './partyKeepalive.js';
+import { parkWhileHidden } from './partyPark.js';
 
 const KEEPALIVE_MS = 15_000;
 const MESSAGE_AWARENESS = 1;
@@ -95,7 +96,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       try { return performance.now() < getGestureActiveUntil(); } catch (_) { return false; }
     },
     refresh: () => {
-      if (destroyed) return;
+      if (destroyed || parking.isParked()) return;
       console.log('[partykit] board', boardId, 'refresh-connect (rotated token)');
       perf.bump('partykit.refreshConnect');
       // Same provider object: disconnect() closes + clears shouldConnect;
@@ -108,6 +109,22 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       try { provider.disconnect(); } catch (_) {}
       // YProvider.connect() is async (it awaits params); a rejection must not
       // surface as an unhandled one.
+      try { Promise.resolve(provider.connect()).catch(() => {}); } catch (_) {}
+    },
+  });
+
+  // A tab hidden for five minutes lets go of the room (lib/partyPark.js): the
+  // room is billed for every second this socket is open. The doc stays here,
+  // so taking it back is the usual reconnect sync.
+  const parking = parkWhileHidden({
+    park: () => {
+      console.log('[partykit] board', boardId, 'parked (tab hidden)');
+      perf.bump('partykit.park');
+      try { provider.disconnect(); } catch (_) {}
+    },
+    unpark: () => {
+      if (destroyed) return;
+      console.log('[partykit] board', boardId, 'unparked');
       try { Promise.resolve(provider.connect()).catch(() => {}); } catch (_) {}
     },
   });
@@ -237,6 +254,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     destroy() {
       destroyed = true;
       clearInterval(keepalive);
+      parking.dispose();
       reconnector.dispose();
       try { provider.destroy(); } catch (_) {}
       try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
