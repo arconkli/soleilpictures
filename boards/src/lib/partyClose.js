@@ -11,6 +11,12 @@
 // tab and every switch to another board. Measured 2026-10-18 on the live party:
 // close() had not completed on a board room after 70 s, and took 10 s and an
 // abnormal 1006 on a workspace room; close(1000) took 16 ms and 39 ms.
+//
+// With this answer deployed, the workspace room's close() took 40 ms. The board
+// room's still did not complete, though locally it took 5 ms; its sockets are
+// the ones partyserver accepts half-open (no hibernation), and why the live
+// runtime never gets this answer to the browser is not known. So the client
+// closes its board socket with a code itself (lib/yPartyKit.js closeSocket).
 
 const NO_STATUS = 1005;
 

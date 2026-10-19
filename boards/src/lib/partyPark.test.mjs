@@ -237,3 +237,10 @@ test('idleParkDue counts from the later of the last input and the last remote ac
   assert.equal(IDLE_PARK_MS, 15 * 60_000);
   assert.equal(IDLE_CHECK_MS, 60_000);
 });
+
+test('the board socket closes with a status code before disconnect() and destroy() close it without one', () => {
+  const y = readFileSync(new URL('./yPartyKit.js', import.meta.url), 'utf8');
+  assert.match(y, /provider\.ws\.close\(1000, why\)/);
+  assert.match(y, /closeSocket\('parked'\);\s*try \{ provider\.disconnect\(\); \}/);
+  assert.match(y, /closeSocket\('left'\);\s*try \{ provider\.destroy\(\); \}/);
+});
