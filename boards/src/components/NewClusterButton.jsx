@@ -19,8 +19,9 @@
 // this same popover ('soleil-new-cluster-open'), so one field names a cluster
 // wherever the offer was made, and the create carries that door's `via`.
 //
-// Raised like Share, so the two things to press in the bar look alike, and
-// like Share never gold — gold marks active, selection and focus. The popover
+// Raised like Share, so the two things to press in the bar look alike — a step
+// quieter, its label at the trail's weight — and like Share never gold: gold
+// marks active, selection and focus. The popover
 // is portaled: the bar is its own stacking context (isolation), so anything
 // hanging below it would sit under the canvas.
 

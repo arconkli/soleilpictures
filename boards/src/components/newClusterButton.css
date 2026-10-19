@@ -1,6 +1,8 @@
 /* "+ New cluster" after the breadcrumb (NewClusterButton.jsx, behind
    clusterNudgesAllowed). The raised pill Share wears (.tb-btn.tb-share), so
-   the bar's two things to press look alike; never gold. */
+   the bar's two things to press look alike, a step quieter: its label keeps
+   the trail's weight, where Share's is bolder — bold, it outweighed the name
+   of the cluster you are in. Never gold. */
 .ncl-wrap { position: relative; display: inline-flex; flex-shrink: 0; margin-left: 2px; }
 .tb-btn.tb-newcluster {
   background: var(--bg-3);
@@ -11,7 +13,6 @@
   gap: 6px;
   white-space: nowrap;
 }
-.tb-btn.tb-newcluster .tb-btn-label { font-weight: 600; }
 .tb-btn.tb-newcluster:hover:not(:disabled),
 .tb-btn.tb-newcluster[aria-expanded="true"] {
   background: var(--bg-4);
@@ -91,6 +92,8 @@
 }
 .topbar.topbar-centered .tb-right { justify-self: end; }
 
-/* In the floating islands (FloatingChrome): Share's height there. */
-.chrome-island .ncl-wrap { margin-left: 4px; }
-.chrome-island .tb-btn.tb-newcluster { height: 28px; }
+/* In the floating islands (FloatingChrome) it ends the left island, so it
+   sits 4px inside the island's edge on all three sides (26px of its 34px):
+   at Share's 28px it all but touched the top and bottom. */
+.chrome-island .ncl-wrap { margin-left: 6px; }
+.chrome-island .tb-btn.tb-newcluster { height: 26px; padding: 0 12px 0 10px; }
