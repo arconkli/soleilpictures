@@ -536,17 +536,19 @@ export class UploadParty {
       p_key: dstKey, p_bytes: bytes, p_kind: plan.mode === "single" ? "put" : "multipart", p_board_id: boardId,
     }, accessToken);
     if (held !== true) return new Response("Could not reserve this copy", { status: 503, headers: cors });
-    if (dstPoster) {
-      await supabaseRpc("record_upload_intent",
-        { p_key: dstPoster, p_bytes: posterBytes, p_kind: "put", p_board_id: boardId }, accessToken);
-    }
+    // The poster is copied only once its bytes are held too; without it the
+    // card still works and makes its own.
+    const posterHeld = dstPoster
+      ? (await supabaseRpc("record_upload_intent",
+          { p_key: dstPoster, p_bytes: posterBytes, p_kind: "put", p_board_id: boardId }, accessToken)) === true
+      : false;
 
     // 4. The bytes.
     if (!(await this.copyObject(r2, env, srcKey, dstKey, plan, contentType))) {
       return new Response("Could not copy the file", { status: 502, headers: cors });
     }
     let posterKey: string | null = null;
-    if (dstPoster && posterSrc) {
+    if (dstPoster && posterSrc && posterHeld) {
       const pplan = copyPlan(posterBytes);
       if (pplan && await this.copyObject(r2, env, posterSrc, dstPoster, pplan, "image/jpeg")) posterKey = dstPoster;
     }
