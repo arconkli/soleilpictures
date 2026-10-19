@@ -74,8 +74,11 @@ function sortTree(node) {
   node.dirs.forEach(sortTree);
 }
 
+// origins: File → its own path, for a file kept in a folder above its own
+// (its folder merged upward). Two IMG_0001.JPGs from two merged camera
+// folders share one cluster; their paths are what keeps them two things.
 function newState() {
-  return { files: 0, clusters: 0, truncated: false, flattened: false, skipped: { junk: 0, packages: 0, icloud: 0 } };
+  return { files: 0, clusters: 0, truncated: false, flattened: false, skipped: { junk: 0, packages: 0, icloud: 0 }, origins: new Map() };
 }
 
 function readBatch(reader) {
@@ -91,17 +94,32 @@ function fileOf(entry) {
   });
 }
 
-async function visit(entry, node, depth, state, limits, signal) {
+// Tells a caller how far a big walk has got: every PROGRESS_EVERY files, and
+// once more at the end. Only ever called when the caller passed onProgress.
+const PROGRESS_EVERY = 250;
+const tick = (state, onProgress) => {
+  if (onProgress && state.files > 0 && state.files % PROGRESS_EVERY === 0) onProgress({ files: state.files, clusters: state.clusters });
+};
+
+// at: the path of the folder holding `entry` ('' for a dropped item).
+// merged: `node` is not that folder but one above it.
+async function visit(entry, node, depth, state, limits, signal, onProgress, at = '', merged = false) {
   if (!entry || signal?.aborted) return;
   const verdict = classifyEntryName(entry.name, !!entry.isDirectory);
   if (verdict === 'junk') { state.skipped.junk++; return; }
   if (verdict === 'package') { state.skipped.packages++; return; }
   if (verdict === 'icloud') { state.skipped.icloud++; return; }
+  const path = at ? `${at}/${entry.name}` : String(entry.name);
 
   if (entry.isFile) {
     if (state.files >= limits.maxFiles) { state.truncated = true; return; }
     const file = await fileOf(entry);
-    if (file) { node.files.push(file); state.files++; }
+    if (file) {
+      node.files.push(file);
+      if (merged) state.origins.set(file, path);
+      state.files++;
+      tick(state, onProgress);
+    }
     return;
   }
   if (!entry.isDirectory) return;
@@ -125,24 +143,28 @@ async function visit(entry, node, depth, state, limits, signal) {
     if (!batch || !batch.length) break;
     for (const child of batch) {
       if (state.files >= limits.maxFiles && child.isFile) { state.truncated = true; continue; }
-      await visit(child, into, into === node ? depth : depth + 1, state, limits, signal);
+      await visit(child, into, into === node ? depth : depth + 1, state, limits, signal, onProgress, path, merged || into === node);
     }
   }
 }
 
 // A drop: FileSystemEntry objects from captureDropEntries.
-export async function walkEntries(entries, { limits = FOLDER_LIMITS, signal = null } = {}) {
+export async function walkEntries(entries, { limits = FOLDER_LIMITS, signal = null, onProgress = null } = {}) {
   const state = newState();
   const root = { name: null, files: [], dirs: [] };
-  for (const e of entries || []) await visit(e, root, 0, state, limits, signal);
+  for (const e of entries || []) await visit(e, root, 0, state, limits, signal, onProgress);
   sortTree(root);
+  if (onProgress) onProgress({ files: state.files, clusters: state.clusters });
   return { root, ...state };
 }
 
 // A picker: Files with webkitRelativePath. Same rules, same shape.
-export function treeFromRelativePaths(files, { limits = FOLDER_LIMITS } = {}) {
+export function treeFromRelativePaths(files, { limits = FOLDER_LIMITS, onProgress = null } = {}) {
   const state = newState();
   const root = { name: null, files: [], dirs: [] };
+  // 'Shoot/Day 2' → its node: a lookup, not a scan of every sibling, so a
+  // pick of 50,000 files across thousands of folders stays linear.
+  const nodes = new Map();
   for (const file of Array.from(files || [])) {
     const parts = String(file?.webkitRelativePath || file?.name || '').split('/').filter(Boolean);
     if (!parts.length) continue;
@@ -155,19 +177,26 @@ export function treeFromRelativePaths(files, { limits = FOLDER_LIMITS } = {}) {
     if (verdictFile !== 'keep') { state.skipped[verdictFile === 'icloud' ? 'icloud' : 'junk']++; continue; }
     if (state.files >= limits.maxFiles) { state.truncated = true; continue; }
     let node = root;
+    let key = '';
+    let merged = false;
     for (let i = 0; i < dirs.length; i++) {
-      let next = node.dirs.find((d) => d.name === dirs[i]);
+      key = key ? `${key}/${dirs[i]}` : dirs[i];
+      let next = nodes.get(key);
       if (!next) {
-        if (i + 1 > limits.maxDepth || state.clusters >= limits.maxClusters) { state.flattened = true; break; }
+        if (i + 1 > limits.maxDepth || state.clusters >= limits.maxClusters) { state.flattened = true; merged = true; break; }
         next = { name: dirs[i], files: [], dirs: [] };
         node.dirs.push(next);
+        nodes.set(key, next);
         state.clusters++;
       }
       node = next;
     }
     node.files.push(file);
+    if (merged) state.origins.set(file, parts.join('/'));
     state.files++;
+    tick(state, onProgress);
   }
   sortTree(root);
+  if (onProgress) onProgress({ files: state.files, clusters: state.clusters });
   return { root, ...state };
 }

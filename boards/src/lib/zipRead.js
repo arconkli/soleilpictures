@@ -382,6 +382,23 @@ function compareSegments(a, b) {
   return as.length - bs.length;
 }
 
+// Which dropped zips are parts of one export. Google Takeout and Google
+// Drive's Download split a big export into <name>-<UTC stamp>-001.zip,
+// -002.zip…, each holding a slice of one tree, so those merge. Any other zip
+// stands alone: merged with an unrelated one it would nest inside the other's
+// name, and two IMG_0001.JPGs at their roots would meet as duplicates and one
+// would be dropped. → arrays of indexes into `names`, each in part order.
+export function groupArchives(names) {
+  const groups = new Map();
+  Array.from(names || []).forEach((name, i) => {
+    const m = /^(.*-\d{8}T\d{6}Z)-(\d{3})\.zip$/i.exec(String(name || ''));
+    const key = m ? m[1].toLowerCase() : `\0${i}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({ i, part: m ? Number(m[2]) : 0 });
+  });
+  return [...groups.values()].map((g) => g.sort((a, b) => a.part - b.part).map((x) => x.i));
+}
+
 // Merge the listings of several parts of one export into a single tree.
 // listings: [{ name, entries }] (entries from readZipDirectory).
 export function mergeArchives(listings) {

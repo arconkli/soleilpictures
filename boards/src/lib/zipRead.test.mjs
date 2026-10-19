@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 import { createStoreZip, crc32 } from './zipStore.js';
 import {
-  ZipReadError, canInflate, readZipDirectory, openEntry, mergeArchives,
+  ZipReadError, canInflate, readZipDirectory, openEntry, mergeArchives, groupArchives,
 } from './zipRead.js';
 
 // ---- fixture builder: local headers, central directory and EOCD by hand ----
@@ -296,4 +296,12 @@ test('mergeArchives: Dropbox single root; Drive fallback; zip-name fallback', ()
 
   const named = mergeArchives([{ name: 'Archive-002.zip', entries: [ent('x.txt'), ent('A/y.txt')] }]);
   assert.equal(named.rootName, 'Archive');
+});
+
+test('groupArchives: Takeout and Drive parts group in part order; any other zip stands alone', () => {
+  assert.deepEqual(groupArchives([
+    'takeout-20261019T091522Z-002.zip', 'Casting.zip', 'takeout-20261019T091522Z-001.zip',
+    'Night Shift-20261019T101010Z-001.zip', 'Roll-001.zip', 'Roll-002.zip', 'Night Shift-20261019T101010Z-002.ZIP',
+  ]), [[2, 0], [1], [3, 6], [4], [5]]);
+  assert.deepEqual(groupArchives([]), []);
 });

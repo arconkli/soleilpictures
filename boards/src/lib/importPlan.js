@@ -1,0 +1,134 @@
+// importPlan — what a bulk import fits now, what waits, and the clusters.
+//
+// importTree gives one tree for every source (folder, picker, zip). This turns
+// it into a flat, ordered plan: the clusters to make, and every file in
+// READING order — a cluster's own files, then its child clusters — split at the
+// point the user's remaining room (cards, bytes) runs out. Pure, like
+// folderPlan, whose classification handling it copies.
+//
+// BUDGET FILL is strictly in reading order. The first file that doesn't fit
+// stops the fill and everything after it waits, even a smaller file that would
+// have fitted: the import then resumes exactly where it stopped rather than
+// leaving holes scattered through the folders.
+//   · cards: a file costs 1; the first fitted file in a cluster also pays
+//     `clusterCost` for that cluster and each ancestor not yet paid for, so
+//     every cluster is charged once, and never when nothing in it fits.
+//   · bytes: the file's size, plus importPreflight.MEDIA_SLACK_BYTES for video
+//     and audio (the planBytes rule).
+//   · an unknown budget (null, undefined, NaN) is unlimited — fail open, as
+//     planBytes does and the card preflight does when its RPC is down.
+//
+// CEILING: a folder with more than `ceiling` planned files keeps its cluster
+// (holding none itself) and its files go into ceil(n / ceiling) "part"
+// clusters, split in order as evenly as possible, earlier parts taking the
+// extra file. Parts come BEFORE the folder's subfolders, because a folder's
+// files read before its subfolders.
+
+import { classifyDropFile } from './fileIngest.js';
+import { CLUSTER_CARD_COST } from './gridCount.js';
+import { MEDIA_SLACK_BYTES } from './importPreflight.js';
+
+export const CLUSTER_FILE_CEILING = 2000;
+
+// null / undefined / NaN / Infinity / non-numbers → unlimited; negatives → 0.
+const budget = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : Infinity);
+
+export function planBulk(root, {
+  clusterCost = CLUSTER_CARD_COST, cardsLeft = Infinity, bytesLeft = Infinity,
+  ceiling = CLUSTER_FILE_CEILING, classify = classifyDropFile, canAttemptFiles = true,
+} = {}) {
+  const skipped = { partial: 0, pureref: 0, scripts: 0 };
+  const blocked = [];
+
+  // 1. Classify, folder by folder. Returns { node, items, children } or null
+  // for a folder left with nothing in it and nothing below it.
+  const planDir = (node) => {
+    const items = [];
+    for (const file of node.files || []) {
+      const c = classify(file, { canAttemptFiles });
+      if (c.route === 'partial') { skipped.partial++; continue; }
+      if (c.route === 'pureref') { skipped.pureref++; continue; }
+      if (c.route === 'screenplay') { skipped.scripts++; continue; }
+      if (c.route === 'blocked') { blocked.push(file); continue; }
+      items.push({ file, kind: c.kind, route: c.route, w: c.w, h: c.h, bytes: Math.max(0, Number(file.size) || 0) });
+    }
+    const children = (node.dirs || []).map(planDir).filter(Boolean);
+    if (!items.length && !children.length) return null;
+    return { node, items, children };
+  };
+
+  // 2. Emit clusters pre-order, and the planned files in reading order.
+  const clusters = [];
+  const planned = [];   // { clusterKey, ...item }
+  const emit = (p, parentKey, depth) => {
+    const { node, items, children } = p;
+    const key = node.relPath;
+    const name = String(node.name || 'Folder').slice(0, 200);
+    const cluster = { key, name, parentKey, depth, part: null, files: items.length };
+    clusters.push(cluster);
+    if (items.length > ceiling) {
+      cluster.files = 0;
+      const of = Math.ceil(items.length / ceiling);
+      const base = Math.floor(items.length / of);
+      const extra = items.length % of;
+      let at = 0;
+      for (let i = 1; i <= of; i++) {
+        const n = base + (i <= extra ? 1 : 0);
+        const part = items.slice(at, at + n);
+        at += n;
+        const partKey = `${key}#${i}`;
+        clusters.push({ key: partKey, name: `${name} · ${i} of ${of}`, parentKey: key, depth: depth + 1, part: { index: i, of }, files: part.length });
+        for (const it of part) planned.push({ clusterKey: partKey, ...it });
+      }
+    } else {
+      for (const it of items) planned.push({ clusterKey: key, ...it });
+    }
+    for (const c of children) emit(c, key, depth + 1);
+  };
+  for (const d of root?.dirs || []) {
+    const p = planDir(d);
+    if (p) emit(p, null, 1);
+  }
+
+  // 3. Fill the budget in reading order.
+  const parentOf = new Map(clusters.map((c) => [c.key, c.parentKey]));
+  const paid = new Set();
+  let cards = budget(cardsLeft);
+  let bytes = budget(bytesLeft);
+  const fit = [];
+  const waiting = [];
+  let stoppedBy = null;
+  let fitBytes = 0;
+  for (let i = 0; i < planned.length; i++) {
+    const it = planned[i];
+    const unpaid = [];
+    if (clusterCost > 0) {
+      for (let k = it.clusterKey; k != null && !paid.has(k); k = parentOf.get(k)) unpaid.push(k);
+    }
+    const cardCost = 1 + unpaid.length * clusterCost;
+    const byteCost = it.bytes + (it.kind === 'video' || it.kind === 'audio' ? MEDIA_SLACK_BYTES : 0);
+    if (cardCost > cards || byteCost > bytes) {
+      stoppedBy = cardCost > cards ? 'cards' : 'storage';
+      for (let j = i; j < planned.length; j++) waiting.push(planned[j]);
+      break;
+    }
+    cards -= cardCost;
+    bytes -= byteCost;
+    fitBytes += it.bytes;
+    for (const k of unpaid) paid.add(k);
+    fit.push(it);
+  }
+
+  let totalBytes = 0;
+  for (const it of planned) totalBytes += it.bytes;
+  return {
+    clusters,
+    fit,
+    waiting,
+    totals: { files: planned.length, bytes: totalBytes, clusters: clusters.length },
+    fitTotals: { files: fit.length, bytes: fitBytes, clustersNow: clusterCost === 0 ? clusters.length : paid.size },
+    stoppedBy,
+    skipped,
+    blocked,
+  };
+}
