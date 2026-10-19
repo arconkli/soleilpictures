@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runWorkersAiChat, parseJsonLoose, parseJsonArrayLoose } from '../worker-llm.js';
+import { handleTagsRoute } from '../worker-tags.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(here, p), 'utf8');
@@ -45,4 +46,73 @@ test('the canvas scorer never suggests a tag the card already carries', () => {
   const src = read('../hooks/useAiTagger.js');
   assert.match(src, /const toInbox = suggestable\.filter\(c => !alreadyApplied\.has\(c\.tag\.id\)\);/);
   assert.match(src, /if \(toInbox\.length > 0 && target\?\.kind && target\?\.id\) \{\s*const rows = toInbox\.map\(/);
+});
+
+// The tag routes against a stand-in Supabase: the token is always good, and the
+// daily budget answers `budget`. Records what each call was charged and what
+// reached the model.
+async function withRoutes(budget, fn) {
+  const charged = [];
+  const runs = [];
+  const env = {
+    SUPABASE_URL: 'https://sb.test', SUPABASE_ANON_KEY: 'anon',
+    AI: { run: async (model, input) => {
+      runs.push({ model, input });
+      return { response: { name: 'Scene Coverage', description: 'Shots', verdicts: [] } };
+    } },
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).endsWith('/auth/v1/user')) return new Response(JSON.stringify({ id: 'u1' }));
+    if (String(url).includes('/rpc/tags_embed_budget_take')) {
+      charged.push(JSON.parse(init.body).p_chars);
+      return new Response(JSON.stringify(budget));
+    }
+    throw new Error('unexpected fetch ' + url);
+  };
+  const call = (path, body) => handleTagsRoute(new URL('https://x.test' + path),
+    new Request('https://x.test' + path, {
+      method: 'POST', headers: { authorization: 'Bearer t' }, body: JSON.stringify(body),
+    }), env);
+  try { await fn({ call, charged, runs }); } finally { globalThis.fetch = realFetch; }
+}
+const applyBody = { cards: [{ id: 'p1', text: 'MARA steps onto the porch.', candidate_tags: [{ id: 'mara', name: 'Mara' }] }] };
+const clusterBody = { member_cards: [{ id: '1', text: 'a' }, { id: '2', text: 'b' }, { id: '3', text: 'c' }] };
+
+test('doc word-tagging and cluster naming reach the model only on a budget yes', async () => {
+  await withRoutes(false, async ({ call, runs }) => {
+    assert.equal((await call('/api/tags/apply', applyBody)).status, 429);
+    assert.equal((await call('/api/tags/cluster-name', clusterBody)).status, 429);
+    assert.equal(runs.length, 0, 'a no never reaches the model');
+  });
+  await withRoutes(true, async ({ call, charged, runs }) => {
+    assert.equal((await call('/api/tags/apply', applyBody)).status, 200);
+    assert.equal((await call('/api/tags/cluster-name', clusterBody)).status, 200);
+    assert.equal(runs.length, 2);
+    // Each call is charged everything it sends, the instructions included.
+    runs.forEach(({ input }, i) => {
+      const [system, user] = input.messages;
+      assert.equal(charged[i], system.content.length + user.content.length);
+      assert.ok(system.content.length > 1000, 'the instructions are counted');
+    });
+  });
+});
+
+test('one doc word-tagging call is capped however much a client sends', async () => {
+  const many = Array.from({ length: 100 }, (_, i) => ({ id: `tag-${i}`, name: 'N'.repeat(500), description: 'D'.repeat(900) }));
+  await withRoutes(true, async ({ call, runs }) => {
+    const res = await call('/api/tags/apply', { cards: [{ id: 'x'.repeat(900), text: 'T'.repeat(20000), candidate_tags: many }] });
+    assert.equal(res.status, 200);
+    const sent = JSON.parse(runs[0].input.messages[1].content.split('\n\nReturn ONLY')[0]);
+    const card = sent.cards[0];
+    assert.equal(card.candidate_tags.length, 30);
+    assert.ok(card.candidate_tags.every(t => t.name.length === 80 && t.description.length === 200 && t.id.length <= 200));
+    assert.equal(card.text.length, 4000);
+    assert.equal(card.id.length, 200);
+  });
+  // A malformed tag list is no tags, not a crash.
+  await withRoutes(true, async ({ call, runs }) => {
+    assert.equal((await call('/api/tags/apply', { cards: [{ id: 'p', text: 't', candidate_tags: 'oops' }] })).status, 200);
+    assert.deepEqual(JSON.parse(runs[0].input.messages[1].content.split('\n\nReturn ONLY')[0]).cards[0].candidate_tags, []);
+  });
 });

@@ -25774,7 +25774,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "It reads up to 2,000,000 characters of text per account a day, far more than a day's work produces. Past that, it pauses until the next day."
+     "v": "It reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day."
     }
    ]
   },

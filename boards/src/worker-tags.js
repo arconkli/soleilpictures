@@ -50,6 +50,7 @@ const EMBEDDING_DIM = 1024;   // pgvector columns are vector(1024) since 0418
 // Hard caps so a misbehaving client can't run up the bill in one call.
 const MAX_EMBED_CARDS_PER_CALL = 64;
 const MAX_APPLY_CARDS_PER_CALL = 16;
+const MAX_APPLY_TAGS_PER_CARD = 30;
 const MAX_CLUSTER_MEMBERS = 8;
 
 export async function handleTagsRoute(url, request, env) {
@@ -87,7 +88,10 @@ export async function handleTagsRoute(url, request, env) {
 // Returns: { embeddings: [{ id, vector }] }
 
 // Asks tags_embed_budget_take, as the caller, whether these characters fit
-// today's budget. Anything but an explicit yes is a no.
+// today's budget. Anything but an explicit yes is a no. /apply and
+// /cluster-name spend from the same budget, charged with everything sent to
+// the model: the instructions cost the same on every call, whatever the
+// user's own text adds.
 async function embedBudgetOk(env, request, chars) {
   try {
     const r = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/tags_embed_budget_take`, {
@@ -190,27 +194,33 @@ async function handleApply(request, env) {
     return json({ error: `max ${MAX_APPLY_CARDS_PER_CALL} cards per call` }, 400);
   }
 
+  // Every field is capped, so one call's prompt is bounded by these numbers
+  // rather than by the model's context window.
   const userPayload = {
     cards: body.cards.map(c => ({
-      id: String(c.id),
-      text: String(c.text || '').slice(0, 4000),
-      candidate_tags: (c.candidate_tags || []).map(t => ({
-        id: String(t.id),
-        name: String(t.name || ''),
-        description: t.description ? String(t.description).slice(0, 200) : null,
-      })),
+      id: String(c?.id ?? '').slice(0, 200),
+      text: String(c?.text || '').slice(0, 4000),
+      candidate_tags: (Array.isArray(c?.candidate_tags) ? c.candidate_tags : [])
+        .slice(0, MAX_APPLY_TAGS_PER_CARD).map(t => ({
+          id: String(t?.id ?? '').slice(0, 200),
+          name: String(t?.name || '').slice(0, 80),
+          description: t?.description ? String(t.description).slice(0, 200) : null,
+        })),
     })),
   };
 
   // Workers AI doesn't support OpenAI strict json_schema, so we ask for the
   // shape in the prompt and parse it tolerantly. APPLY_RESPONSE_SCHEMA below
   // still documents the contract the client (aiParagraphCascade.js) expects.
+  const userMsg = JSON.stringify(userPayload)
+    + '\n\nReturn ONLY a JSON object of this shape (no markdown, no prose):\n'
+    + '{"verdicts":[{"card_id": string, "tags":[{"tag_id": string, "confidence":"high"|"medium"|"low", "words":[{"text": string, "start_offset": number, "length": number}], "evidence_sentence": string|null}]}]}';
+  if (!await embedBudgetOk(env, request, APPLY_SYSTEM_PROMPT.length + userMsg.length)) {
+    return json({ error: 'daily tagging budget reached' }, 429);
+  }
   let resp;
   try {
-    resp = await runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT,
-      JSON.stringify(userPayload)
-      + '\n\nReturn ONLY a JSON object of this shape (no markdown, no prose):\n'
-      + '{"verdicts":[{"card_id": string, "tags":[{"tag_id": string, "confidence":"high"|"medium"|"low", "words":[{"text": string, "start_offset": number, "length": number}], "evidence_sentence": string|null}]}]}',
+    resp = await runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT, userMsg,
       { max_tokens: 2000, temperature: 0.1 });
   } catch (e) {
     return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
@@ -246,18 +256,21 @@ async function handleClusterName(request, env) {
     return json({ error: 'need ≥3 member_cards' }, 400);
   }
   const members = body.member_cards.slice(0, MAX_CLUSTER_MEMBERS).map(c => ({
-    id: String(c.id),
-    text: String(c.text || '').slice(0, 1500),
+    id: String(c?.id ?? '').slice(0, 200),
+    text: String(c?.text || '').slice(0, 1500),
   }));
   const existingNames = Array.isArray(body?.existing_names)
     ? body.existing_names.slice(0, 100).map(n => String(n || '').slice(0, 80)).filter(Boolean)
     : [];
 
+  const userMsg = JSON.stringify({ cards: members, existing_names: existingNames })
+    + '\n\nReturn ONLY a JSON object: {"name": string|null, "description": string|null}. No markdown, no prose.';
+  if (!await embedBudgetOk(env, request, CLUSTER_NAME_SYSTEM_PROMPT.length + userMsg.length)) {
+    return json({ error: 'daily tagging budget reached' }, 429);
+  }
   let resp;
   try {
-    resp = await runWorkersAiChat(env, CLUSTER_NAME_MODEL, CLUSTER_NAME_SYSTEM_PROMPT,
-      JSON.stringify({ cards: members, existing_names: existingNames })
-      + '\n\nReturn ONLY a JSON object: {"name": string|null, "description": string|null}. No markdown, no prose.',
+    resp = await runWorkersAiChat(env, CLUSTER_NAME_MODEL, CLUSTER_NAME_SYSTEM_PROMPT, userMsg,
       { max_tokens: 300, temperature: 0.3 });
   } catch (e) {
     return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
