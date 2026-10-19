@@ -28,12 +28,13 @@ export const NAME_MAX = 60;
 const isClusterRef = (c) => c?.kind === 'board' || c?.kind === 'boardlink';
 const isSeed = (c) => c?.seed === true || String(c?.id ?? '').startsWith('onb-');
 
-export function planClusterFromSelection({ cards, ids, clusters = 'refuse', skipSeeds = false } = {}) {
+export function planClusterFromSelection({ cards, ids, clusters = 'refuse', skipSeeds = false, wholeGroups = true } = {}) {
   const list = Array.isArray(cards) ? cards.filter(Boolean) : [];
   const byId = new Map(list.map((c) => [c.id, c]));
   const picked = (ids || []).map((id) => byId.get(id)).filter(Boolean);
   const out = new Map(picked.map((c) => [c.id, c]));
-  const groupIds = new Set(picked.map((c) => c.groupId).filter(Boolean));
+  // The list view moves exactly what is selected, as its own Move to… does.
+  const groupIds = new Set(wholeGroups ? picked.map((c) => c.groupId).filter(Boolean) : []);
   if (groupIds.size) {
     const members = new Map();
     for (const c of list) {
@@ -45,7 +46,7 @@ export function planClusterFromSelection({ cards, ids, clusters = 'refuse', skip
   }
   let all = [...out.values()];
   if (all.some(isClusterRef)) {
-    if (clusters !== 'skip') return { ids: [], cards: [], refused: 'cluster', held: 0, center: null, groupId: null };
+    if (clusters !== 'skip') return { ids: [], cards: [], refused: 'cluster', held: [], center: null, groupId: null };
     all = all.filter((c) => !isClusterRef(c));
   }
   if (skipSeeds) all = all.filter((c) => !isSeed(c));
@@ -55,7 +56,7 @@ export function planClusterFromSelection({ cards, ids, clusters = 'refuse', skip
     ids: moving.map((c) => c.id),
     cards: moving,
     refused: null,
-    held: all.length - moving.length,
+    held: all.filter((c) => isStillUploading(c)),   // the caller says why they stayed
     center: centerOf(moving),
     // The one group every moving card belongs to, when there is one — its name
     // is the best suggestion there is.

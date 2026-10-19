@@ -5,7 +5,8 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
+import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { openFileShare } from '../lib/fileShareBus.js';
 import { openableUrl } from '../lib/openableUrl.js';
 import { isShareableCard } from '../lib/fileShares.js';
@@ -5619,6 +5620,9 @@ export function CanvasSurface({
         if (e.key === 'g' || e.key === 'G') { e.preventDefault(); setSelectedTool('grid'); return; }
         if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setSelectedTool('draw'); return; }
         if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setSelectedTool('arrow'); return; }
+        // C picks the Cluster tool — the one tool that had no key. Free here:
+        // Cmd+C is copy (above), and the player's C stays in the player.
+        if ((e.key === 'c' || e.key === 'C') && clusterNudgesAllowed()) { e.preventDefault(); setSelectedTool('board'); return; }
         if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
         if (e.key === ']') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('forward'); return; }
 
@@ -5971,7 +5975,7 @@ export function CanvasSurface({
   // sides. Run as an async transaction so we can capture before/after state
   // around the source delete and roll back via bulletproofRestore if the
   // invariant fails. Cluster cards never come through here — they nest.
-  const moveCardsIntoBoard = async (dragIds, targetBoardId, movedCards, { via = 'drag' } = {}) => {
+  const moveCardsIntoBoard = async (dragIds, targetBoardId, movedCards, { via = 'drag', createdBoardId = null, createdBoardName = null } = {}) => {
     // A card still uploading stays where it is: its upload writes the file into
     // THIS card, by id, when it lands. A moved copy has a new id on another
     // cluster and would never be told — it would spin, and in a day be swept
@@ -6044,6 +6048,8 @@ export function CanvasSurface({
         onTargetSaved: resolveTargetSaved,
         onTargetFailed: rejectTargetSaved,
         via,
+        createdBoardId,
+        createdBoardName,
       },
     }));
     try {
@@ -6144,6 +6150,38 @@ export function CanvasSurface({
         },
       });
     }
+  };
+
+  // "New cluster from N cards": make the cluster where the cards are, then move
+  // them in through moveCardsIntoBoard — the same pre-move snapshot, handshake,
+  // rollback and one-toast undo as dropping them on a cluster card. The toast's
+  // undo also trashes the cluster (App's listener, createdBoardId), so its card
+  // goes on untracked: that toast is its undo, not Cmd+Z. Named at birth: the
+  // field opens on a suggestion (the group's name, what the files share, the
+  // first note), because most clusters left "Untitled" stayed that way.
+  const createClusterFrom = async (ids, { via } = {}) => {
+    if (!board?.id || !mutators.addNewBoard) return null;
+    const plan = planClusterFromSelection({ cards, ids });
+    keepUploadsInPlace(plan.held);
+    if (plan.refused || !plan.ids.length) return null;
+    const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+    const n = plan.ids.length;
+    const typed = await feedback.prompt({
+      title: 'Name this cluster',
+      message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
+      label: 'Name',
+      placeholder: 'e.g. Kitchen refs',
+      defaultValue: suggestClusterName({ groupName, cards: plan.cards }) || '',
+      confirmLabel: 'Create cluster',
+    });
+    if (typed == null) return null;
+    const name = String(typed).trim().slice(0, 200) || null;
+    const newId = await mutators.addNewBoard(plan.center, { via, ...(name ? { name } : {}), untracked: true });
+    if (!newId) return null;
+    await moveCardsIntoBoard(plan.ids, newId, plan.cards, {
+      via: 'menu', createdBoardId: newId, createdBoardName: name || 'Untitled cluster',
+    });
+    return newId;
   };
 
   const onCardPointerDown = (e, c) => {
@@ -7488,17 +7526,29 @@ export function CanvasSurface({
       const anyClusterRef = moving.some(cc => cc.kind === 'board' || cc.kind === 'boardlink');
       if (moving.length > 0 && !anyClusterRef) {
         const targets = cardMoveTargets(boards, { workspaceId, fromId: board.id });
+        const ids = moving.map(cc => cc.id);
+        // "New cluster…" heads the list, and stays when there is no other
+        // cluster to offer — a first project gathered on Studio is exactly
+        // the pile that has nowhere to go yet. A multi-selection with no
+        // targets already has "New cluster from N cards" beside Group.
+        const toNew = clusterNudgesAllowed()
+          ? { id: 'mcb-new', label: 'New cluster…', run: () => createClusterFrom(ids, { via: 'move_to_new' }) }
+          : null;
         if (targets.length) {
-          const ids = moving.map(cc => cc.id);
           arrangeItems.push({
             id: 'move-cards-to-board',
             label: ids.length > 1 ? `Move ${ids.length} cards to…` : 'Move to cluster…',
-            submenu: targets.map(t => ({
-              id: 'mcb-' + t.id,
-              label: t.label,
-              run: () => moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' }),
-            })),
+            submenu: [
+              ...(toNew ? [toNew, { divider: true }] : []),
+              ...targets.map(t => ({
+                id: 'mcb-' + t.id,
+                label: t.label,
+                run: () => moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' }),
+              })),
+            ],
           });
+        } else if (toNew && !multi) {
+          arrangeItems.push({ id: 'move-cards-to-new', label: 'Move to a new cluster…', run: toNew.run });
         }
       }
     }
@@ -7886,6 +7936,15 @@ export function CanvasSurface({
       ]});
     }
 
+    // A cluster from the selection sits beside Group: both gather cards, and
+    // only one of them gives the gathering a place of its own.
+    if (multi && selected.size >= 2 && clusterNudgesAllowed()) {
+      const plan = planClusterFromSelection({ cards, ids: [...selected] });
+      if (!plan.refused && plan.ids.length) {
+        arrangeItems.push({ id: 'new-cluster-from', label: `New cluster from ${plan.ids.length} cards`,
+          run: () => createClusterFrom([...selected], { via: 'from_selection' }) });
+      }
+    }
     // Grouping (stays in the ARRANGE group) ──
     if (multi && selected.size >= 2) {
       // Selection of 2+ → "Group together"
@@ -7953,6 +8012,10 @@ export function CanvasSurface({
           });
         }},
         { id: 'group-info', label: 'Group info', run: () => openInfo({ boardId: board.id, groupId: g.id }) },
+        // A group that has become a project gets a place of its own: the
+        // group moves in whole and keeps its name (clusterFromSelection).
+        ...(clusterNudgesAllowed() ? [{ id: 'group-to-cluster', label: 'Turn into cluster…',
+          run: () => createClusterFrom((cardsByGroup.get(g.id) || []).map(m => m.id), { via: 'from_group' }) }] : []),
         { divider: true },
         { id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) },
       ]});
@@ -8770,6 +8833,10 @@ export function CanvasSurface({
           run: () => mutators.setGroupOutline?.(gid, {
             options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
           }) });
+        if (clusterNudgesAllowed()) {
+          items.push({ id: 'group-to-cluster', label: 'Turn into cluster…',
+            run: () => createClusterFrom((cardsByGroup.get(gid) || []).map(m => m.id), { via: 'from_group' }) });
+        }
         items.push({ divider: true });
         items.push({ id: 'group-ungroup', label: 'Ungroup', danger: true,
           run: () => mutators.ungroup?.(gid) });
@@ -12731,7 +12798,10 @@ export function CanvasSurface({
       )}
       {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'doc' || selectedTool === 'shape' || selectedTool === 'palette') && (
         <div className="cnv-hint">
-          Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}
+          {selectedTool === 'board' && clusterNudgesAllowed()
+            // The tool explains itself once picked, instead of standing out.
+            ? 'Click to place a cluster: a canvas inside this one. Drop cards onto it to file them.'
+            : <>Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}</>}
           <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
         </div>
       )}
@@ -12907,6 +12977,8 @@ export function CanvasSurface({
           { id: 'note', label: 'Note', icon: NotePencil },
           { id: 'file', label: 'Upload', icon: Upload },
           { id: 'doc', label: 'Doc', icon: FileText },
+          // "Add something here" includes a place for a project.
+          ...(clusterNudgesAllowed() ? [{ id: 'board', label: 'Cluster', icon: Folder }] : []),
         ].map((t) => ({ ...byId[t.id], ...t })).filter((t) => t.run);
         const hEst = items.length * 40 + 12;
         const left = Math.min(quickAdd.x, window.innerWidth - W - 8);

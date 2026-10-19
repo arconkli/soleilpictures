@@ -20,6 +20,7 @@ test('a group travels whole, the way a drag takes it', () => {
   assert.deepEqual(lone.ids, ['solo'], 'a group of one is just a card');
   const one = planClusterFromSelection({ cards, ids: ['b'] });
   assert.equal(one.groupId, 'g1', 'the whole selection is one group');
+  assert.deepEqual(planClusterFromSelection({ cards, ids: ['a', 'd'], wholeGroups: false }).ids, ['a', 'd'], 'the list view moves exactly what is selected');
 });
 
 test('a selection holding a cluster is refused, a sweep leaves the cluster where it is', () => {
@@ -36,7 +37,7 @@ test('a card still uploading stays put and is counted as held', () => {
   const cards = [card('a'), card('up', { src: null, pending: true })];
   const plan = planClusterFromSelection({ cards, ids: ['a', 'up'] });
   assert.deepEqual(plan.ids, ['a']);
-  assert.equal(plan.held, 1);
+  assert.deepEqual(plan.held.map((c) => c.id), ['up']);
   const only = planClusterFromSelection({ cards, ids: ['up'] });
   assert.deepEqual(only.ids, [], 'nothing left to move means no cluster');
 });

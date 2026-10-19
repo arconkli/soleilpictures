@@ -32,9 +32,11 @@ and invitees are the strongest return signal on record.
 ## Decisions (owner, 2026-10-18)
 
 1. Nudge by default and never block. People keep landing on Studio.
-2. A labeled "+ New cluster" button after the breadcrumb on every board. The
-   rail's Cluster tool moves to the top in its own section, bigger, with its
-   name under the icon.
+2. A labeled "+ New cluster" button after the breadcrumb on every board, in the
+   same raised pill as Share (direction A of the mockups). The rail's Cluster
+   tool keeps its place and its size: it teaches instead of standing out, with
+   the folder icon a cluster already wears in Files and the lists, a card on
+   hover that says what a cluster is, and a hint once it is picked.
 3. An empty Studio adds "Working on more than one thing? Start a cluster for
    each" under the drop area. Dropping images stays the primary first act.
 4. Clusters stop counting toward the free card cap (card weight 0). The cap
@@ -57,7 +59,7 @@ and invitees are the strongest return signal on record.
   come from the canvas group name, then a shared filename stem, then the first
   note's title.
 - **Reach.** Cluster appears in the double-click quick-add menu. **C** arms the
-  rail tool.
+  rail tool. A project made from cmd-K asks for its name first.
 - **Studio bar.** On a return visit, when Studio holds six or more loose cards,
   a bar offers once per device: "N cards on Studio aren't in a cluster · Move
   them into one". It replaces the one-shot `group` power reveal.

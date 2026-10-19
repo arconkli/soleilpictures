@@ -132,7 +132,7 @@ test.describe('move to cluster wiring (source guard)', () => {
 
   test('App.jsx logs the move once the destination has saved, saying which door', () => {
     const app = read('src/App.jsx');
-    expect(app).toMatch(/onTargetSaved, onTargetFailed, via \} = e\.detail/);
+    expect(app).toMatch(/onTargetSaved, onTargetFailed, via(, [^}]*)? \} = e\.detail/);
     expect(app).toMatch(/ack\(\);\s*logEvent\(EV\.CARDS_MOVE, \{\s*via: via === 'menu' \? 'menu' : 'drag',/);
   });
 });

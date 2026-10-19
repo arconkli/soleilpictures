@@ -208,7 +208,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed } from './lib/appHost.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
@@ -8845,7 +8845,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const appCommands = useMemo(() => [
     { id: 'new-board', label: 'New project', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board', 'project'],
       available: canEditBoard(rootBoard.id),
-      run: () => { mainMutators.addNewProject?.({ via: 'palette' }); } },
+      run: async () => {
+        // Named at birth: a project made from cmd-K landed as "Untitled
+        // cluster", and most of those never got a name.
+        if (!clusterNudgesAllowed()) { mainMutators.addNewProject?.({ via: 'palette' }); return; }
+        const typed = await feedback.prompt({
+          title: 'New project',
+          message: 'A cluster of its own, at the top level. You land inside it.',
+          label: 'Name', placeholder: 'e.g. Kitchen refs', confirmLabel: 'Create cluster',
+        });
+        if (typed == null) return;
+        const name = String(typed).trim().slice(0, 200);
+        mainMutators.addNewProject?.({ via: 'palette', ...(name ? { name } : {}) });
+      } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: canEditCurrent && view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
@@ -8923,7 +8935,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
       captureAllowed, capture.on, switchMode, switchInSplit, switchView, switchBoardId,
-      setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
+      setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut, feedback]);
 
 
   // ── Production schedule ───────────────────────────────────────────────────

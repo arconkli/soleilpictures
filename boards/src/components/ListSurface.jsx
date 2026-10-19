@@ -54,7 +54,8 @@ function writeInfoPref(on) {
 }
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
-import { fileSharesAllowed } from '../lib/appHost.js';
+import { fileSharesAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
+import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { openFileShare } from '../lib/fileShareBus.js';
 import { isShareableCard } from '../lib/fileShares.js';
 import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
@@ -64,7 +65,7 @@ import { uploadContext } from '../lib/uploadContext.js';
 import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
+import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError, isPublicSurface,
@@ -993,7 +994,9 @@ export function ListSurface({
   // Moves cards into another cluster. `src` is where they come from — this
   // board, or (after a drag has sprung into another cluster) the home board.
   // Resolves whether anything moved.
-  const moveCardsTo = useCallback(async (ids, targetId, src = null) => {
+  // `extra` rides on the event: a cluster made for this move (createdBoardId,
+  // createdBoardName) is named by the toast and trashed by its undo.
+  const moveCardsTo = useCallback(async (ids, targetId, src = null, extra = null) => {
     const from = src || { boardId: board.id, cards, mutators, canEdit };
     if (!from.canEdit || !targetId || targetId === from.boardId) return false;
     const idSet = new Set(ids || []);
@@ -1006,7 +1009,7 @@ export function ListSurface({
     try {
       await new Promise((resolve, reject) => {
         document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
-          detail: { sourceBoardId: from.boardId, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu' },
+          detail: { sourceBoardId: from.boardId, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu', ...(extra || {}) },
         }));
       });
     } catch (_) { return false; } // App said why; nothing left this cluster
@@ -1016,6 +1019,33 @@ export function ListSurface({
     try { invalidateBoardPreview(targetId); } catch (_) {}
     return true;
   }, [canEdit, board.id, cards, feedback, mutators]);
+
+  // New cluster from the selected cards: named at birth, made where they sit
+  // on the board, filled through moveCardsTo, and undone by its toast — which
+  // also trashes the cluster. The canvas does the same from its menu
+  // (CanvasSurface createClusterFrom); clusterFromSelection plans both.
+  const newClusterFromSelection = useCallback(async () => {
+    if (!canEdit || !mutators.addNewBoard) return;
+    const plan = planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false });
+    if (plan.held.length) {
+      feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
+    }
+    if (plan.refused || !plan.ids.length) return;
+    const n = plan.ids.length;
+    const typed = await feedback.prompt({
+      title: 'Name this cluster',
+      message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
+      label: 'Name',
+      placeholder: 'e.g. Kitchen refs',
+      defaultValue: suggestClusterName({ cards: plan.cards }) || '',
+      confirmLabel: 'Create cluster',
+    });
+    if (typed == null) return;
+    const name = String(typed).trim().slice(0, 200) || null;
+    const newId = await mutators.addNewBoard(plan.center, { via: 'from_list_selection', ...(name ? { name } : {}), untracked: true });
+    if (!newId) return;
+    await moveCardsTo(plan.ids, newId, null, { createdBoardId: newId, createdBoardName: name || 'Untitled cluster' });
+  }, [canEdit, mutators, cards, selectedCards, feedback, moveCardsTo]);
 
   // Put on board: files waiting in Files go onto the board as one block where
   // its canvas was last looking (lib/viewCenter.js), or beside its content.
@@ -2167,6 +2197,12 @@ export function ListSurface({
             {canEdit && onPickCluster && movableSel > 0 && (
               <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
                 <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
+              </button>
+            )}
+            {canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
+              <button type="button" className="list-selbar-act" onClick={newClusterFromSelection}
+                      title="Move them into a new cluster" aria-label="New cluster">
+                <Icon as={Folder} size={14} weight="light" /><span>New cluster</span>
               </button>
             )}
             {canEdit && (
