@@ -168,6 +168,12 @@ body.sbf-resizing .sbf-resizer,
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl { overflow: visible; }
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap {
   overflow: visible; clip-path: inset(0 0 0 -100vw);
+  /* The ground drawn on a canvas (CanvasSurface measureGround) widens itself
+     under the sidebar when this says so; then the CSS strip below stands down. */
+  --cnv-ground-bleed: 1;
+}
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap.has-ground::before {
+  content: none;
 }
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw;

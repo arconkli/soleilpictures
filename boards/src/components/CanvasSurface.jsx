@@ -5,7 +5,8 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, boardGroundAllowed } from '../lib/appHost.js';
+import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { openFileShare, docShareLabel } from '../lib/fileShareBus.js';
 import { openableUrl } from '../lib/openableUrl.js';
@@ -833,7 +834,90 @@ export function CanvasSurface({
     if (!from && z >= CANVAS_PROMOTE_ON_ABOVE) return true;
     return from;
   };
-  const applyCanvasTransform = () => {
+  // ── The ground (lib/canvasGround.js) ──────────────────────────────────────
+  // Dots and very faint lines on a canvas under everything, redrawn in the
+  // frame the camera moves, from the same refs the transform reads, so they
+  // move with the cards instead of waiting for the camera to be committed.
+  // Held (boardGroundAllowed); without the hold the CSS ground in wrapStyle
+  // stands. Two cases take the camera from elsewhere: an empty board's ground
+  // stays put under its panel, as the CSS one did; and while a programmatic
+  // move eases on .is-smooth the refs already hold where it will end, so the
+  // ground reads the transform the transition is showing, frame by frame.
+  const groundOn = useMemo(() => boardGroundAllowed(), []);
+  const groundRef = useRef(null);
+  const groundRafRef = useRef(0);
+  const groundSmoothUntilRef = useRef(0);
+  const groundSizeRef = useRef({ w: 0, h: 0, dpr: 1, bleed: 0 });
+  const groundInkRef = useRef({ dot: null, line: null });
+  const groundPainterRef = useRef(null);
+  // A mouse wheel click's zoom target while it glides there (the wheel effect).
+  const glideRef = useRef(null);
+  const reduceMotionMq = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null, []);
+  const drawGround = () => {
+    const cv = groundRef.current;
+    const ctx = cv?.getContext('2d');
+    if (!ctx) return;
+    let x = panRef.current.x, y = panRef.current.y, z = zoomRef.current;
+    if (boardIsEmptyRef.current) { x = 0; y = 0; z = 1; }
+    else if (performance.now() < groundSmoothUntilRef.current && canvasRef.current) {
+      const live = cameraFromTransform(getComputedStyle(canvasRef.current).transform);
+      if (live) ({ x, y, z } = live);
+    }
+    const { w, h, dpr, bleed } = groundSizeRef.current;
+    if (!groundPainterRef.current) groundPainterRef.current = createGroundPainter();
+    groundPainterRef.current.draw(ctx, { width: w + bleed, height: h, dpr, x: x + bleed, y, z, ...groundInkRef.current });
+    if (import.meta.env.DEV) cv.dataset.camera = `${x},${y},${z}`;
+  };
+  // From inside an animation frame (a glide, a camera tween), a frame
+  // requested now would draw a frame late: draw at once instead.
+  const drawGroundNow = () => {
+    if (!groundOn) return;
+    if (groundRafRef.current) { cancelAnimationFrame(groundRafRef.current); groundRafRef.current = 0; }
+    drawGround();
+    if (performance.now() < groundSmoothUntilRef.current) scheduleGroundDraw();
+  };
+  const scheduleGroundDraw = () => {
+    if (!groundOn || groundRafRef.current) return;
+    groundRafRef.current = requestAnimationFrame(() => {
+      groundRafRef.current = 0;
+      drawGround();
+      // An eased move keeps the ground drawing until its transition is over.
+      if (performance.now() < groundSmoothUntilRef.current) scheduleGroundDraw();
+    });
+  };
+  // The canvas's size, plus the strip under a floating sidebar when
+  // clusterSidebar.css says the board runs on under it (--cnv-ground-bleed).
+  const measureGround = () => {
+    const cv = groundRef.current, wrap = wrapRef.current;
+    if (!cv || !wrap) return;
+    const r = wrap.getBoundingClientRect();
+    const bleed = getComputedStyle(wrap).getPropertyValue('--cnv-ground-bleed').trim() === '1'
+      ? Math.max(0, Math.round(r.left)) : 0;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    groundSizeRef.current = { w: r.width, h: r.height, dpr, bleed };
+    cv.style.left = `${-bleed}px`;
+    cv.style.width = `${r.width + bleed}px`;
+    cv.style.height = `${r.height}px`;
+    const W = Math.max(1, Math.round((r.width + bleed) * dpr));
+    const H = Math.max(1, Math.round(r.height * dpr));
+    // A new size clears the canvas: redraw before this frame paints (a
+    // ResizeObserver runs before paint), or a drag-resize shows no ground.
+    if (cv.width !== W || cv.height !== H) {
+      cv.width = W;
+      cv.height = H;
+      drawGroundNow();
+    } else scheduleGroundDraw();
+  };
+  // The theme's --grid-dot / --grid-line, as numbers for the canvas.
+  const readGroundInk = () => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const cs = getComputedStyle(wrap);
+    groundInkRef.current = { dot: parseColor(cs.getPropertyValue('--grid-dot')), line: parseColor(cs.getPropertyValue('--grid-line')) };
+    scheduleGroundDraw();
+  };
+  // `inFrame`: the caller is an animation frame's callback (see drawGroundNow).
+  const applyCanvasTransform = (inFrame = false) => {
     const el = canvasRef.current;
     if (!el) return;
     const z = zoomRef.current;
@@ -858,6 +942,7 @@ export function CanvasSurface({
       setTransform(el, `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`);
       if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
     }
+    if (inFrame) drawGroundNow(); else scheduleGroundDraw();
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
   // visibleIds = Set of mounted card ids: everything inside the ADD band
@@ -1023,10 +1108,41 @@ export function CanvasSurface({
         wrapWHRef.current = { w: r.width, h: r.height };
       }
       scheduleVisibleRecompute();
+      measureGround();
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [scheduleVisibleRecompute]);
+  // The ground's colours follow the theme (<html data-theme>, or the system's
+  // when it has none), and a window moved to another screen redraws it sharp.
+  useEffect(() => {
+    if (!groundOn) return undefined;
+    readGroundInk();
+    measureGround();
+    const mo = new MutationObserver(readGroundInk);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    mq?.addEventListener?.('change', readGroundInk);
+    window.addEventListener('resize', measureGround);
+    // A window moved to a screen of another density changes devicePixelRatio
+    // without resizing anything: a query on the current density hears it.
+    let dprMq = null;
+    const onDpr = () => { measureGround(); armDpr(); };
+    const armDpr = () => {
+      dprMq?.removeEventListener?.('change', onDpr);
+      dprMq = window.matchMedia?.(`(resolution: ${window.devicePixelRatio || 1}dppx)`) ?? null;
+      dprMq?.addEventListener?.('change', onDpr);
+    };
+    armDpr();
+    return () => {
+      mo.disconnect();
+      mq?.removeEventListener?.('change', readGroundInk);
+      dprMq?.removeEventListener?.('change', onDpr);
+      window.removeEventListener('resize', measureGround);
+      if (groundRafRef.current) cancelAnimationFrame(groundRafRef.current);
+      groundRafRef.current = 0;
+    };
+  }, []);
   const [smoothXform, setSmoothXform] = useState(false); // true → CSS transition on canvas transform
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
@@ -2165,6 +2281,9 @@ export function CanvasSurface({
   const enableSmoothTransform = useCallback(() => {
     setSmoothXform(true);
     setTimeout(() => setSmoothXform(false), 220);
+    // The ground reads the eased transform frame by frame until it lands.
+    groundSmoothUntilRef.current = performance.now() + 260;
+    scheduleGroundDraw();
   }, []);
 
   useEffect(() => {
@@ -2360,6 +2479,7 @@ export function CanvasSurface({
   // together, so they can never land on different frames.
   const applyCamera = useCallback((cam) => {
     if (!cam || !Number.isFinite(cam.zoom)) return;
+    glideRef.current = null;
     setZoom(cam.zoom);
     setPan({ x: cam.pan.x, y: cam.pan.y });
   }, []);
@@ -2384,6 +2504,7 @@ export function CanvasSurface({
   // token, which is what makes a manual press cancel a running take.
   const tweenCameraTo = useCallback((cam, ms = CAMERA_MS, ease = 'smooth', runToken) => {
     if (!cam || !Number.isFinite(cam.zoom)) return Promise.resolve();
+    glideRef.current = null;
     cancelAnimationFrame(cameraRafRef.current);
     const run = runToken ?? ++cameraRunRef.current;
     const fn = easingFor(ease);
@@ -2429,7 +2550,7 @@ export function CanvasSurface({
         // cards would not appear until the move had already finished.
         gestureUntilRef.current = performance.now() + 200;
         markGestureActiveUntil(gestureUntilRef.current);
-        applyCanvasTransform();
+        applyCanvasTransform(true);
         scheduleVisibleRecompute?.();
         if (t < 1) {
           cameraRafRef.current = requestAnimationFrame(step);
@@ -4820,6 +4941,36 @@ export function CanvasSurface({
         emitCanvasSettle();
       }, 140);
     };
+    // A wheel click's glide: a frame at a time toward glideRef's target,
+    // anchored at the pointer, through the same steps as a wheel event
+    // (transform, cull, commit), so nothing downstream can tell a glide from a
+    // quick stream of small wheel events. Another camera move clears glideRef
+    // and the next frame stops.
+    let glideRaf = 0;
+    const glideFrame = (now) => {
+      glideRaf = 0;
+      const g = glideRef.current;
+      if (!g) return;
+      // Anything else that set the zoom since the last frame (⌘0, the zoom
+      // buttons or slider, a fit, a restored view) wins: the glide stands down.
+      if (zoomRef.current !== g.lastZ) { glideRef.current = null; return; }
+      const z0 = zoomRef.current;
+      const z1 = g.from === g.z ? g.z : glideZoom(g.from, g.z, now - g.t0);
+      const rect = el.getBoundingClientRect();
+      const sx = g.cx - rect.left, sy = g.cy - rect.top;
+      const p = panRef.current;
+      panRef.current = { x: sx - ((sx - p.x) / z0) * z1, y: sy - ((sy - p.y) / z0) * z1 };
+      zoomRef.current = z1;
+      g.lastZ = z1;
+      gestureUntilRef.current = performance.now() + 200;
+      markGestureActiveUntil(gestureUntilRef.current);
+      applyCanvasTransform(true);
+      scheduleVisibleRecompute();
+      scheduleCommit();
+      if (z1 === g.z) { glideRef.current = null; return; }
+      glideRaf = requestAnimationFrame(glideFrame);
+    };
+    const startGlide = () => { if (!glideRaf) glideRaf = requestAnimationFrame(glideFrame); };
     const onWheel = (e) => {
       if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
       // The full-screen PDF viewer and image lightbox render inside this wrap:
@@ -4929,6 +5080,22 @@ export function CanvasSurface({
         const isLine = e.deltaMode === 1; // WheelEvent.DOM_DELTA_LINE
         const sensitivity = isLine ? 0.05 : 0.0025;
         const factor = Math.exp(-e.deltaY * sensitivity);
+        // A mouse wheel's click glides to its zoom (glideFrame below) instead
+        // of landing in one jump; a trackpad's stream is smooth already. Held
+        // with the ground; Reduce Motion keeps the jump.
+        if (groundOn && (isWheelClick(e) || glideRef.current) && !reduceMotionMq?.matches) {
+          // A smaller step arriving mid-glide (a stream that mixes both kinds)
+          // joins it rather than fight it frame by frame.
+          const base = glideRef.current ? glideRef.current.z : curZoom;
+          const target = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, base * factor));
+          if (!glideRef.current && target === curZoom) return;   // at a limit already
+          glideRef.current = {
+            from: curZoom, z: target, lastZ: curZoom,
+            t0: performance.now(), cx: e.clientX, cy: e.clientY,
+          };
+          startGlide();
+          return;
+        }
         const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, curZoom * factor));
         if (newZoom === curZoom) return;
         const cx = (e.clientX - rect.left - curPan.x) / curZoom;
@@ -4939,6 +5106,7 @@ export function CanvasSurface({
         };
         zoomRef.current = newZoom;
       } else {
+        glideRef.current = null;
         panRef.current = { x: curPan.x - e.deltaX, y: curPan.y - e.deltaY };
       }
       gestureUntilRef.current = performance.now() + 200; // ADD-only cull while zoom/scroll is live
@@ -4957,6 +5125,8 @@ export function CanvasSurface({
     return () => {
       el.removeEventListener('wheel', onWheel);
       if (commitTimer) clearTimeout(commitTimer);
+      if (glideRaf) cancelAnimationFrame(glideRaf);
+      glideRef.current = null;
     };
   }, []);
 
@@ -4988,6 +5158,7 @@ export function CanvasSurface({
     {
       onPinch: ({ event, origin: [ox, oy], movement: [ms], memo }) => {
         if (event?.cancelable) event.preventDefault();
+        glideRef.current = null;
         const el = wrapRef.current;
         if (!el) return memo;
         // Round 17: time the JS-side cost of pinch-zoom handling.
@@ -5027,6 +5198,7 @@ export function CanvasSurface({
         if (pointerType !== 'touch') return;
         if (touches < 2) return;
         if (event?.cancelable) event.preventDefault();
+        glideRef.current = null;
         const p = panRef.current;
         panRef.current = { x: p.x + dx, y: p.y + dy };
         gestureUntilRef.current = performance.now() + 200; // ADD-only cull while two-finger panning
@@ -5877,6 +6049,7 @@ export function CanvasSurface({
 
   const startPan = (e) => {
     e.preventDefault();
+    glideRef.current = null;
     const startClient = { x: e.clientX, y: e.clientY };
     const startPanXY = { x: panRef.current.x, y: panRef.current.y };
     const initialPointerId = e.pointerId;
@@ -11773,16 +11946,21 @@ export function CanvasSurface({
     '--lift-ms': `${TOUCH_LIFT_MS}ms`,
     ...(eraserCursor ? { cursor: eraserCursor } : null),
     backgroundColor: board.bg_color || undefined,
-    backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
-    backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
-    backgroundPosition: boardIsEmpty
-      ? '0 0, 0 0, 0 0'
-      : `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
-    // The same offset on its own, for ground drawn past this box's edge: the
-    // files sidebar lets the board run on under it (clusterSidebar.css).
-    '--cnv-bg-x': boardIsEmpty ? '0px' : `${pan.x}px`,
-    '--cnv-bg-y': boardIsEmpty ? '0px' : `${pan.y}px`,
+    // With the ground on a canvas (groundOn), the box paints only its colour.
+    ...(groundOn ? { backgroundImage: 'none' } : {
+      backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
+      backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
+      backgroundPosition: boardIsEmpty
+        ? '0 0, 0 0, 0 0'
+        : `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+      // The same offset on its own, for ground drawn past this box's edge: the
+      // files sidebar lets the board run on under it (clusterSidebar.css).
+      '--cnv-bg-x': boardIsEmpty ? '0px' : `${pan.x}px`,
+      '--cnv-bg-y': boardIsEmpty ? '0px' : `${pan.y}px`,
+    }),
   };
+  // The first card on an empty board sets its ground following the camera.
+  useEffect(() => { scheduleGroundDraw(); }, [boardIsEmpty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Viewport-centre canvas point — where the empty-state tiles drop their card
   // (same calc the old single CTA used inline).
@@ -11794,7 +11972,7 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''} ${canEdit ? '' : 'is-readonly'}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''} ${canEdit ? '' : 'is-readonly'}${groundOn ? ' has-ground' : ''}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
          ref={wrapRef}
          style={wrapStyle}
@@ -11805,6 +11983,8 @@ export function CanvasSurface({
          onPointerDown={onBackgroundPointerDown}
          onDoubleClick={onBackgroundDoubleClick}
          onContextMenu={onBackgroundContextMenu}>
+      {/* The ground (drawGround): first, so the grain and everything else sit over it. */}
+      {groundOn && <canvas ref={groundRef} className="cnv-ground" aria-hidden="true" />}
       {/* Grain texture — sits behind cards on the canvas surface
           only. Cards / popovers / modals all stack above it. */}
       <div className="grain-canvas" aria-hidden="true" />

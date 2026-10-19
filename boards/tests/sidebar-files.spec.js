@@ -510,7 +510,7 @@ test.describe('sidebar files wiring (App.jsx)', () => {
     const app = read('src/App.jsx');
     expect(app).toContain('const floatingChrome = filesSidebar && !mobileShell;');
     expect(app).toMatch(/\{floatingChrome \? \(\s*<FloatingChrome/);
-    expect(app).toMatch(/\) : \(\s*<div className="topbar">/);   // the bar everyone else gets, intact
+    expect(app).toMatch(/\) : \(\s*<div className=\{?[`"]topbar[$`"]/);   // the bar everyone else gets, intact
     expect(app).toContain("${floatingChrome ? ' is-floating-chrome' : ''}");
     // Full Files shrinks back into the sidebar with one icon, in either pane.
     expect(app).toContain("const shrinkToSidebar = { shrinkLabel: 'Shrink back to the sidebar'");

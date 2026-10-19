@@ -258,6 +258,11 @@ body {
 }
 [data-theme='light'] .grain-canvas,
 [data-theme='light'] .grain-surface { opacity: 0.025; }
+/* The board's ground drawn on a canvas in step with the camera (CanvasSurface
+   drawGround, lib/canvasGround.js; held to the preview). Under the grain and
+   everything else, and never in the way of a press. Its script sets the left
+   and width when the board runs on under a floating sidebar. */
+.cnv-ground { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
