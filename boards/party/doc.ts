@@ -18,8 +18,14 @@
 // Costs (2026-10-18): not hibernating, like the board room: a socket silent
 // for 5 minutes is closed (4000), the client parks when hidden or idle and
 // closes with a code, and an empty close is answered. Nothing is held open to
-// the board: it pushes on change, and this room lets go of its subscription
-// when its last socket leaves.
+// the board: it pushes on change, and when the last socket leaves this room
+// lets go of its subscription and throws its copy away (leave()).
+//
+// Only the board saying "no such card" or the database saying "no such
+// share" closes a room for good (4410). Not being able to ask (a network
+// error, a 5xx, a 404 from a board room still on older code) is 4503: the
+// client keeps its copy and tries again (2026-10-19: a view room built in the
+// minute after a deploy closed "gone" twice and stayed dead, then worked).
 import { YServer } from "y-partyserver";
 import type { Connection, ConnectionContext } from "partyserver";
 import { getServerByName } from "partyserver";
@@ -74,19 +80,27 @@ function toBytes(m: ArrayBuffer | ArrayBufferView): Uint8Array {
   return new Uint8Array(m.buffer, m.byteOffset, m.byteLength);
 }
 
+// What serviceRpc answers when the question got no answer: not the same as
+// an answer of null ("no such share").
+const FAILED = Symbol("failed");
+
 async function serviceRpc(env: Env, name: string, args: Record<string, unknown>): Promise<any> {
   const key = env.SUPABASE_SERVICE_ROLE_KEY || "";
-  if (!key) return null;
+  if (!key) return FAILED;
   try {
     const res = await fetch(`${env.SUPABASE_URL || DEFAULT_SUPABASE_URL}/rest/v1/rpc/${name}`, {
       method: "POST",
       headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(args),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[doc] ${name} answered ${res.status}`);
+      return FAILED;
+    }
     return await res.json();
-  } catch (_) {
-    return null;
+  } catch (e) {
+    console.warn(`[doc] ${name} failed`, e);
+    return FAILED;
   }
 }
 
@@ -115,11 +129,26 @@ export class DocParty extends YServer<Env> {
 
   private ready: Promise<void> | null = null;
   private subscribed = false;
+  private leaving = false;
 
   // The room's doc, once: where it lives, then the board's mirror of it.
   private ensureReady(): Promise<void> {
-    if (!this.ready) this.ready = this.prepare();
+    if (!this.ready) {
+      this.ready = this.prepare().catch((e) => {
+        console.error(`[doc ${this.name}] the room could not be built`, e);
+        this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
+      });
+    }
     return this.ready;
+  }
+
+  // The room is built before a socket is let in. y-partyserver sends every
+  // change of the document to every open socket, so a socket admitted first
+  // would get the board's copy twice: once as it lands, once in reply to its
+  // own sync step 1.
+  async getConnectionTags(_conn: Connection, _ctx: ConnectionContext): Promise<string[]> {
+    await this.ensureReady();
+    return [];
   }
 
   private async prepare() {
@@ -128,7 +157,12 @@ export class DocParty extends YServer<Env> {
     if (!m) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return; }
     const [, shareId, variant, gen] = m;
     const t = await serviceRpc(this.env, "_doc_room_target", { p_share: shareId });
-    if (!t || !t.board_id) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return; }
+    if (t === FAILED) { this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" }; return; }
+    if (!t || !t.board_id) {
+      console.warn(`[doc ${this.name}] no such share`);
+      this.dead = { code: CLOSE.GONE, reason: "gone" };
+      return;
+    }
     if (t.gen !== gen.toLowerCase()) { this.dead = { code: CLOSE.MOVED, reason: "moved" }; return; }
     this.target = { shareId, variant: variant === "view" ? "view" : "edit", gen: gen.toLowerCase(), boardId: t.board_id, cardId: t.card_id };
     try {
@@ -148,13 +182,28 @@ export class DocParty extends YServer<Env> {
       this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
       return;
     }
-    if (res.status === 410 || res.status === 404) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return; }
-    if (!res.ok) { this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" }; return; }
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    Y.applyUpdate(this.document, bytes, "board");
-    for (const k of r2KeysIn(bytes)) this.trusted.add(k);
-    this.docBytes = bytes.length;
-    this.subscribed = true;
+    // Only the bridge's 410 says the card is not on the board.
+    if (res.status === 410) {
+      console.warn(`[doc ${this.name}] the board has no card ${this.target.cardId}`);
+      this.dead = { code: CLOSE.GONE, reason: "gone" };
+      return;
+    }
+    if (!res.ok) {
+      console.warn(`[doc ${this.name}] the board answered ${res.status} to subscribe`);
+      this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
+      return;
+    }
+    try {
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      Y.applyUpdate(this.document, bytes, "board");
+      for (const k of r2KeysIn(bytes)) this.trusted.add(k);
+      this.docBytes = bytes.length;
+      this.subscribed = true;
+    } catch (e) {
+      // Whatever landed of it, this copy is thrown away (leave(), from onConnect).
+      console.error(`[doc ${this.name}] the board's copy did not apply`, e);
+      this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
+    }
   }
 
   // Never called with anything to save (the board holds the doc).
@@ -166,11 +215,12 @@ export class DocParty extends YServer<Env> {
 
   async onConnect(conn: Connection, ctx: ConnectionContext) {
     await this.ensureReady();
-    // A room that could not be built lets the next socket try again.
-    if (this.dead?.code === CLOSE.UNAVAILABLE) this.ready = null;
-    if (this.dead || !this.target) {
-      const d = this.dead || { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
+    if (this.leaving || this.dead || !this.target) {
+      const d = (!this.leaving && this.dead) || { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
       try { conn.close(d.code, d.reason); } catch (_) { /* already gone */ }
+      // A room that could not be built is no use to anyone: the next socket
+      // finds a fresh one.
+      if (d.code === CLOSE.UNAVAILABLE) this.leave();
       return;
     }
     if ([...this.getConnections()].length > DOC_ROOM_MAX_CONNECTIONS) {
@@ -398,6 +448,21 @@ export class DocParty extends YServer<Env> {
     } catch (_) { /* the board drops it at its next push (410) */ }
   }
 
+  // The last one out lets go of the board and throws this copy away; a socket
+  // that arrives meanwhile is sent to try again (4503). Subscribing this copy
+  // again would miss what the board deleted while it was unsubscribed: the
+  // board's copy carries a deletion as a deleted struct, which a copy that
+  // already holds that struct skips.
+  private leave() {
+    if (this.leaving) return;
+    this.leaving = true;
+    void (async () => {
+      await this.unsubscribe();
+      try { await this.ctx.storage.deleteAlarm(); } catch (_) { /* none set */ }
+      try { this.ctx.abort("the room emptied"); } catch (_) { /* already resetting */ }
+    })();
+  }
+
   // ── from the board, the upload party and the dialog ──────────────────────
 
   async onRequest(req: Request): Promise<Response> {
@@ -418,7 +483,7 @@ export class DocParty extends YServer<Env> {
     if (req.method !== "POST" || !(await isBridgeRequest(req, this.env))) return new Response("Not found", { status: 404 });
 
     if (url.pathname.endsWith("/push")) {
-      if (!this.subscribed || !this.target || this.dead) return new Response("Gone", { status: 410 });
+      if (!this.subscribed || !this.target || this.dead || this.leaving) return new Response("Gone", { status: 410 });
       if ([...this.getConnections()].length === 0) return new Response("Nobody here", { status: 410 });
       const bytes = new Uint8Array(await req.arrayBuffer());
       try {
@@ -458,7 +523,7 @@ export class DocParty extends YServer<Env> {
 
   // At most one every 5 seconds, and never two at once.
   private async recheck() {
-    if (!this.target || this.dead || this.recheckRunning || Date.now() - this.recheckAt < 5_000) return;
+    if (!this.target || this.dead || this.leaving || this.recheckRunning || Date.now() - this.recheckAt < 5_000) return;
     const conns = [...this.getConnections()];
     if (!conns.length) return;
     this.recheckRunning = true;
@@ -469,7 +534,9 @@ export class DocParty extends YServer<Env> {
   private async recheckNow(conns: Connection[]) {
     if (!this.target) return;
     const subjects = conns.map((c) => ({ key: c.id, user_id: stateOf(c).userId || null, token_ok: stateOf(c).tokenOk }));
-    const r = await serviceRpc(this.env, "_doc_room_recheck", { p_share: this.target.shareId, p_subjects: subjects });
+    const asked = await serviceRpc(this.env, "_doc_room_recheck", { p_share: this.target.shareId, p_subjects: subjects });
+    // No answer: everyone stays until the next minute's question.
+    const r = asked === FAILED ? null : asked;
     if (r && r.gone) { this.sendAway(CLOSE.GONE, "gone"); return; }
     if (r && r.gen && r.gen !== this.target.gen) { this.sendAway(CLOSE.MOVED, "moved"); return; }
     if (r && r.access) {
@@ -501,7 +568,7 @@ export class DocParty extends YServer<Env> {
 
   async onAlarm() {
     const conns = [...this.getConnections()];
-    if (!conns.length) { await this.unsubscribe(); return; }
+    if (!conns.length) { this.leave(); return; }
     await this.recheck();
     const now = Date.now();
     for (const c of this.getConnections()) {
@@ -515,11 +582,12 @@ export class DocParty extends YServer<Env> {
   }
 
   // A close with no status code gets its answer (lib/partyClose.js); the last
-  // one out lets go of the board.
+  // one out lets go of the board (leave()). partyserver has already dropped
+  // the closing socket from getConnections().
   onClose(conn: Connection, code: number, reason: string, wasClean: boolean) {
     try { super.onClose(conn, code, reason, wasClean); } finally { answerEmptyClose(conn, code); }
     this.lastHeard.delete(conn);
     this.limits.delete(conn);
-    if ([...this.getConnections()].length === 0) void this.unsubscribe();
+    if ([...this.getConnections()].length === 0) this.leave();
   }
 }

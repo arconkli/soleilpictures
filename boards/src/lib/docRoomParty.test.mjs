@@ -64,7 +64,7 @@ test('the room bills like a board room: silent close, an answered empty close, n
   assert.match(doc, /static options = \{ hibernate: false \};/);
   assert.match(doc, /if \(now - heard > DOC_ROOM_SILENT_CLOSE_MS\) \{ try \{ c\.close\(CLOSE\.SILENT, "silent"\);/);
   assert.match(doc, /finally \{ answerEmptyClose\(conn, code\); \}/);
-  assert.match(doc, /if \(\[\.\.\.this\.getConnections\(\)\]\.length === 0\) void this\.unsubscribe\(\);/);
+  assert.match(doc, /if \(\[\.\.\.this\.getConnections\(\)\]\.length === 0\) this\.leave\(\);/);
   assert.match(doc, /if \(\[\.\.\.this\.getConnections\(\)\]\.length === 0\) return new Response\("Nobody here", \{ status: 410 \}\);/);
   assert.doesNotMatch(doc, /setInterval\(/);
   assert.match(wrangler, /\{ "name": "Doc", "class_name": "DocParty" \}/);
@@ -82,7 +82,7 @@ test('access is asked again: every minute, at once on /recheck, and losing it cl
 test('review: an HTTP wake never wakes the board; /recheck is the managers’ and coalesced', () => {
   assert.match(doc, /async onLoad\(\) \{\s+return null;\s+\}/, 'nothing is built until a socket arrives');
   assert.match(doc, /async onConnect\(conn: Connection, ctx: ConnectionContext\) \{\s+await this\.ensureReady\(\);/);
-  assert.match(doc, /if \(!this\.subscribed \|\| !this\.target \|\| this\.dead\) return new Response\("Gone", \{ status: 410 \}\);/);
+  assert.match(doc, /if \(!this\.subscribed \|\| !this\.target \|\| this\.dead \|\| this\.leaving\) return new Response\("Gone", \{ status: 410 \}\);/);
   assert.match(doc, /this\.recheckRunning \|\| Date\.now\(\) - this\.recheckAt < 5_000\) return;/);
   assert.match(index, /const r = await docRoomAccess\(bearer, lobby\.name, ""\);\s+if \(!r \|\| r\.status !== "ok" \|\| r\.access !== "manage"\) return new Response\("Forbidden", \{ status: 403 \}\);/);
 });
@@ -95,4 +95,40 @@ test('review: the board takes a doc room’s write only where that doc lives', (
 
 test('review: the /recheck preflight is answered in the Worker', () => {
   assert.match(index, /\/\/ The preflight is answered here: a stranger never wakes the room\.\s+if \(req\.method === "OPTIONS"\) \{\s+return new Response\(null, \{\s+status: 204,/);
+});
+
+// 2026-10-19: a view room built in the minute after a deploy closed "gone"
+// twice and stayed dead; the same room worked an hour later.
+test('only "no such share" or "no such card" is gone; not being able to ask is tried again', () => {
+  assert.match(doc, /if \(!res\.ok\) \{\s+console\.warn\(`\[doc\] \$\{name\} answered \$\{res\.status\}`\);\s+return FAILED;/);
+  assert.match(doc, /\} catch \(e\) \{\s+console\.warn\(`\[doc\] \$\{name\} failed`, e\);\s+return FAILED;/);
+  assert.match(doc, /if \(t === FAILED\) \{ this\.dead = \{ code: CLOSE\.UNAVAILABLE, reason: "unavailable" \}; return; \}/);
+  // The bridge's 410 is gone; a 404 (a board room still on older code) is not.
+  assert.match(doc, /if \(res\.status === 410\) \{\s+console\.warn\(`\[doc \$\{this\.name\}\] the board has no card/);
+  assert.doesNotMatch(doc, /res\.status === 404/);
+  assert.match(doc, /if \(!res\.ok\) \{\s+console\.warn\(`\[doc \$\{this\.name\}\] the board answered \$\{res\.status\} to subscribe`\);\s+this\.dead = \{ code: CLOSE\.UNAVAILABLE/);
+  // A failed recheck closes no one.
+  assert.match(doc, /const r = asked === FAILED \? null : asked;/);
+});
+
+test('the room is built before a socket is let in, so the doc is sent once', () => {
+  assert.match(doc, /async getConnectionTags\(_conn: Connection, _ctx: ConnectionContext\): Promise<string\[\]> \{\s+await this\.ensureReady\(\);\s+return \[\];/);
+  assert.match(doc, /this\.ready = this\.prepare\(\)\.catch\(\(e\) => \{/, 'a throw is a 4503, never a rejected room');
+});
+
+test('the last one out lets go of the board and throws the copy away', () => {
+  const at = doc.indexOf('private leave() {');
+  assert.ok(at > 0);
+  const body = doc.slice(at, doc.indexOf('\n  }\n', at));
+  const order = ['if (this.leaving) return;', 'this.leaving = true;', 'await this.unsubscribe();', 'deleteAlarm()', 'this.ctx.abort("the room emptied")'];
+  let last = -1;
+  for (const needle of order) {
+    const i = body.indexOf(needle);
+    assert.ok(i > last, `${needle} comes in order`);
+    last = i;
+  }
+  // Meanwhile a socket is sent to try again, and a push is refused.
+  assert.match(doc, /if \(this\.leaving \|\| this\.dead \|\| !this\.target\) \{/);
+  assert.match(doc, /if \(!this\.subscribed \|\| !this\.target \|\| this\.dead \|\| this\.leaving\) return new Response\("Gone", \{ status: 410 \}\);/);
+  assert.match(doc, /if \(!conns\.length\) \{ this\.leave\(\); return; \}/);
 });
