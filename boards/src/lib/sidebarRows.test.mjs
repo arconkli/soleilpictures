@@ -160,6 +160,10 @@ test('the files list: a search or filter opens every shelf, and rows are as tall
   ] };
   const rows = contentRows('B', 0, { contents, foldMinor: false, heights: { file: 36 } });
   assert.deepEqual(rows.map((r) => r.type), ['shelf', 'file', 'file', 'file', 'shelf', 'file', 'file']);
+  assert.deepEqual(rows.filter((r) => r.type === 'shelf').map((r) => r.toggle), [null, null], 'plain headings');
+  // A shelf shut while browsing doesn't hide what a search or a filter found.
+  const shutPhotos = contentRows('B', 0, { contents, foldMinor: false, shelfState: () => ({ shut: true }) });
+  assert.deepEqual(shutPhotos.map((r) => r.type), ['shelf', 'file', 'file', 'file', 'shelf', 'file', 'file']);
   assert.equal(rows[1].height, 36);
   assert.equal(rows[0].height, ROW_HEIGHTS.fine.shelf);
   const folded = contentRows('B', 0, { contents });

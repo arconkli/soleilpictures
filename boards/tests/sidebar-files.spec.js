@@ -204,10 +204,38 @@ test.describe('sidebar files', () => {
     await expect(shelf('Photos').locator('.sbf-shelf-count')).toHaveText('30');
     await toggle('Photos').click();
     await expect(photoRows(page)).toHaveCount(5);
-    // A search shows everything it found, notes too.
+    // A search shows everything it found, notes too, under plain headings.
     await f.locator('.sbf-search input').fill('wardrobe');
     await expect(f.locator('.sbf-file', { hasText: 'Wardrobe ideas' })).toBeVisible();
     await expect(f.locator('.sbf-shelf.is-closed')).toHaveCount(0);
+    await expect(f.locator('button.sbf-shelf-toggle')).toHaveCount(0);
+    // A shelf shut while browsing doesn't hide what a search finds in it.
+    await f.locator('.sbf-search input').fill('');
+    await toggle('Photos').click();
+    await expect(photoRows(page)).toHaveCount(0);
+    await f.locator('.sbf-search input').fill('still-00');
+    await expect(f.locator('.sbf-file', { hasText: 'film-still-001.jpg' })).toBeVisible();
+    await f.locator('.sbf-search input').fill('');
+    await expect(photoRows(page)).toHaveCount(0);   // and browsing remembers it was shut
+  });
+
+  test('a heading keeps the keyboard when the list it opens or shuts grows long or short', async ({ page }) => {
+    await open(page);
+    const f = files(page);
+    await row(page, 'Music video').click();
+    await expect(shown(page)).toHaveText('Music video');
+    await f.locator('.sbf-more-btn', { hasText: /Show \d+ more/ }).first().click();
+    await expect(f.locator('.sbf-block.is-windowed')).toHaveCount(1);
+    const photos = f.locator('.sbf-shelf-toggle', { hasText: 'Photos' });
+    await photos.focus();
+    await page.keyboard.press('Enter');                       // shut: the list is short again
+    await expect(f.locator('.sbf-block.is-windowed')).toHaveCount(0);
+    await expect(photos).toBeFocused();
+    await page.keyboard.press('Enter');                       // open: long again
+    await expect(f.locator('.sbf-block.is-windowed')).toHaveCount(1);
+    await expect(photos).toBeFocused();
+    await page.keyboard.press('ArrowDown');                   // and the arrows still walk the rows
+    await expect(f.locator('[data-sb-item]').first()).toBeFocused();
   });
 
   test('the board runs on under the floating cards: the gaps show it and take presses, the cards keep theirs', async ({ page }) => {

@@ -143,15 +143,25 @@ function Row({ row, depth, ctx }) {
 
   if (row.type === 'shelf') {
     const label = row.label || row.shelfId;
+    // A search, a filter and Starred show every shelf open: the heading is
+    // just a heading there (toggle null), not a switch.
+    const heading = row.toggle ? (
+      <button type="button" className="sbf-shelf-toggle" role="treeitem" aria-expanded={!row.closed}
+              title={`${row.closed ? 'Show' : 'Hide'} ${label.toLowerCase()}`}
+              onClick={() => onShelf(row)}>
+        <span className="sbf-shelf-label">{label}</span>
+        <span className="sbf-shelf-count">{row.count}</span>
+        <span className="sbf-shelf-caret" aria-hidden="true"><Icon as={ChevronRight} size={10} weight="regular" /></span>
+      </button>
+    ) : (
+      <div className="sbf-shelf-toggle is-static">
+        <span className="sbf-shelf-label">{label}</span>
+        <span className="sbf-shelf-count">{row.count}</span>
+      </div>
+    );
     return (
       <div className={`sbf-shelf${row.closed ? ' is-closed' : ''}`} style={pad}>
-        <button type="button" className="sbf-shelf-toggle" role="treeitem" aria-expanded={!row.closed}
-                title={`${row.closed ? 'Show' : 'Hide'} ${label.toLowerCase()}`}
-                onClick={() => onShelf(row)}>
-          <span className="sbf-shelf-label">{label}</span>
-          <span className="sbf-shelf-count">{row.count}</span>
-          <span className="sbf-shelf-caret" aria-hidden="true"><Icon as={ChevronRight} size={10} weight="regular" /></span>
-        </button>
+        {heading}
         {onOpenShelf && (
           <button type="button" className="sbf-shelf-open" tabIndex={-1}
                   title="Open in Files" aria-label={`Open ${row.label || row.shelfId} in Files`}
@@ -271,25 +281,25 @@ export function ClusterShelves({
     } : null,
   };
 
-  if (!windowed) {
-    return (
-      <div className="sbf-block" role="group">
-        {rows.map((row) => <Row key={row.key} row={row} depth={row.depth} ctx={ctx} />)}
-      </div>
-    );
-  }
-  const shown = [];
-  for (let i = range.start; i < range.end; i++) shown.push(i);
-  if (pinned != null && (pinned < range.start || pinned >= range.end)) {
-    for (let i = Math.max(0, pinned - 1); i <= Math.min(rows.length - 1, pinned + 1); i++) {
-      if (i < range.start || i >= range.end) shown.push(i);
+  // Short or long, the rows sit in the same elements (a keyed slot each), so
+  // a list that crosses WINDOW_AFTER — a heading opened or shut, a shelf shown
+  // in full — keeps the row that has focus instead of remounting every row and
+  // dropping focus to the page. Windowed, a slot is positioned by its offset.
+  let shown = rows.map((_, i) => i);
+  if (windowed) {
+    shown = [];
+    for (let i = range.start; i < range.end; i++) shown.push(i);
+    if (pinned != null && (pinned < range.start || pinned >= range.end)) {
+      for (let i = Math.max(0, pinned - 1); i <= Math.min(rows.length - 1, pinned + 1); i++) {
+        if (i < range.start || i >= range.end) shown.push(i);
+      }
+      shown.sort((a, b) => a - b);
     }
-    shown.sort((a, b) => a - b);
   }
   return (
-    <div className="sbf-block is-windowed" role="group" ref={blockRef}
-         style={{ height: layout.total }}
-         aria-rowcount={rows.length}
+    <div className={`sbf-block${windowed ? ' is-windowed' : ''}`} role="group" ref={blockRef}
+         style={windowed ? { height: layout.total } : undefined}
+         aria-rowcount={windowed ? rows.length : undefined}
          onFocus={(e) => {
            const i = Number(e.target.closest?.('[data-slot]')?.dataset.slot);
            if (Number.isFinite(i)) setPinned(i);
@@ -299,7 +309,7 @@ export function ClusterShelves({
         const row = rows[i];
         return (
           <div key={row.key} className="sbf-slot" data-slot={i}
-               style={{ top: layout.offsets[i], height: row.height }}>
+               style={windowed ? { top: layout.offsets[i], height: row.height } : undefined}>
             <Row row={row} depth={row.depth} ctx={ctx} />
           </div>
         );

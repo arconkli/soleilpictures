@@ -32,8 +32,9 @@ export const PEEK = { rows: 5 };
 // 2026-10-18). A shelf's state says which way it was turned: `open` for one
 // that starts closed, `shut` for one that starts open. With no files at all
 // nothing starts closed (then the rest is all there is), and `foldMinor:
-// false` — a search, a filter, Starred — opens everything: what was asked for
-// is never kept behind a header.
+// false` — a search, a filter, Starred — shows every shelf open under a plain
+// heading (`toggle: null`): what was asked for is never kept behind a header,
+// and a shelf shut while browsing doesn't hide what a search found.
 //
 // `heights` overrides row heights by type (the files list's rows are roomier
 // than the tree's).
@@ -77,9 +78,10 @@ export function contentRows(b, depth, {
     if (!(shelf.total > 0)) continue;
     const st = shelfState(b, shelf.id) || {};
     const minor = folding && shelf.layout === 'fold';
-    const closed = minor ? !st.open : !!st.shut;
+    const toggle = !foldMinor ? null : minor ? 'open' : 'shut';
+    const closed = toggle === 'open' ? !st.open : toggle === 'shut' ? !!st.shut : false;
     push('shelf', `s:${b}:${shelf.id}`, {
-      shelfId: shelf.id, count: shelf.total, label: shelf.label, closed, toggle: minor ? 'open' : 'shut',
+      shelfId: shelf.id, count: shelf.total, label: shelf.label, closed, toggle,
     });
     if (closed) continue;
     pushMore(shelf, pushItems(shelf, st), st);
