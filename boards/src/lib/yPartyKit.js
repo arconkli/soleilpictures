@@ -114,6 +114,15 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     },
   });
 
+  // Close with a status code before handing the socket to disconnect() or
+  // destroy(): those call ws.close() with none, and the board room did not
+  // answer an empty Close frame (2026-10-18: not within 70 s; with 1000, 16 ms).
+  // Until the browser's own timer gave up, the socket stayed half-closed and
+  // connect() stood down, so a parked tab could not take its room back.
+  const closeSocket = (why) => {
+    try { if (provider.ws) provider.ws.close(1000, why); } catch (_) { /* already closing */ }
+  };
+
   // A tab hidden for five minutes, or on screen and unused for fifteen on a
   // board where nobody else is doing anything, lets go of the room
   // (lib/partyPark.js): the room is billed for every second this socket is
@@ -126,6 +135,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     if (!wasUp) return;
     console.log('[partykit] board', boardId, `parked (${why})`);
     perf.bump('partykit.park');
+    closeSocket('parked');
     try { provider.disconnect(); } catch (_) {}
   };
   const unparkFor = (why) => () => {
@@ -275,6 +285,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       try { ydoc.off('update', onRemoteUpdate); } catch (_) {}
       try { awareness.off('change', onAwarenessChange); } catch (_) {}
       reconnector.dispose();
+      closeSocket('left');
       try { provider.destroy(); } catch (_) {}
       try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
       if (typeof window !== 'undefined') {
