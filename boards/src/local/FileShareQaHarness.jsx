@@ -20,7 +20,10 @@
 // The doc-* fixtures open a shared doc (DocShareView) on an in-memory room
 // (fakeDocRoom): the doc as the room would send it, a hello, caught up.
 // window.__fileShareQa.docRooms holds each room, so a spec can refuse a
-// write (refuse(reason)) or close it (end(code)).
+// write (refuse(reason)) or close it (end(code)). In an edit room every write
+// this tab makes is judged by the real room's rule (validateGuestUpdate) on a
+// copy of the doc written by another client, as its members' would be; what
+// it refuses lands in window.__fileShareQa.refusals.
 // `mode: 'shortcuts'` draws a shortcut card (components/cards/ShortcutCard.jsx)
 // for each answer in fixture.shortcuts (token → the share's answer), and one
 // on a public board.
@@ -28,6 +31,7 @@ import { useMemo, useState } from 'react';
 import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { addPage, cardScope, initCardDocStore } from '../lib/docState.js';
+import { validateGuestUpdate } from '../lib/docRoomBridge.js';
 import { ShortcutCard } from '../components/cards/ShortcutCard.jsx';
 import { SharedFileHost } from '../components/fileShare/SharedFileHost.jsx';
 import { SharedPage } from '../components/shared/SharedPage.jsx';
@@ -284,6 +288,9 @@ export const FIXTURES = {
 
 let seq = 0;
 
+// Whose comments a signed-in guest writes, here (the room checks it).
+const QA_USER_ID = '9a9a9a9a-0000-4000-8000-00000000a11e';
+
 // The doc's live room, in memory (see the header).
 function fakeDocRoom(fx, log) {
   return (ydoc, { room, onHello, onSync, onRefused, onEnd }) => {
@@ -291,17 +298,19 @@ function fakeDocRoom(fx, log) {
     const share = fx.share || {};
     const awareness = new Awareness(ydoc);
     awareness.setLocalState({});
-    ydoc.transact(() => {
+    // The doc as its members wrote it: another client's.
+    const board = new Y.Doc();
+    board.transact(() => {
       const card = new Y.Map();
-      ydoc.getMap('cards').set(DOC_CARD, card);
+      board.getMap('cards').set(DOC_CARD, card);
       card.set('id', DOC_CARD);
       card.set('kind', 'doc');
       card.set('title', share.file?.name || 'Pilot, revisions');
-      initCardDocStore(ydoc, card);
+      initCardDocStore(board, card);
       // The view room holds no comment threads.
       if (!share.can_edit) card.delete('docComments');
       const scope = cardScope(card);
-      const pageId = addPage(ydoc, { name: 'Act one', scope });
+      const pageId = addPage(board, { name: 'Act one', scope });
       const block = (text, type = 'paragraph', attrs = {}) => {
         const el = new Y.XmlElement(type);
         for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
@@ -314,6 +323,27 @@ function fakeDocRoom(fx, log) {
         block('MARA checks her watch, then the mirror, then her watch again.'),
       ]);
     });
+    // The room's copy, which judges this tab's writes as the real room does.
+    const roomDoc = new Y.Doc();
+    const start = Y.encodeStateAsUpdate(board);
+    Y.applyUpdate(roomDoc, start, 'room');
+    Y.applyUpdate(ydoc, start, 'room');
+    const claims = new Set();
+    const judge = (update, origin) => {
+      if (origin === 'room' || !share.can_edit) return;
+      const verdict = validateGuestUpdate(roomDoc, update, {
+        cardKey: DOC_CARD, claims, userId: QA_USER_ID, displayName: 'Sam Rivera',
+        trustedKeys: new Set(), maxBytes: 1024 * 1024,
+      });
+      if (!verdict.ok) {
+        if (typeof window !== 'undefined' && window.__fileShareQa) (window.__fileShareQa.refusals ||= []).push(verdict.reason);
+        onRefused(verdict.reason);
+        return;
+      }
+      for (const c of verdict.clients || []) claims.add(c);
+      Y.applyUpdate(roomDoc, update, 'room');
+    };
+    ydoc.on('update', judge);
     const handle = { room, refuse: (reason) => onRefused(reason), end: (code) => onEnd({ action: 'reask', code }) };
     if (typeof window !== 'undefined' && window.__fileShareQa) (window.__fileShareQa.docRooms ||= []).push(handle);
     const timer = setTimeout(() => {
@@ -324,7 +354,7 @@ function fakeDocRoom(fx, log) {
     return {
       awareness, provider: null,
       whenSynced: async () => true,
-      destroy() { clearTimeout(timer); try { awareness.destroy(); } catch (_) {} },
+      destroy() { clearTimeout(timer); ydoc.off('update', judge); try { awareness.destroy(); } catch (_) {} },
     };
   };
 }
@@ -352,6 +382,7 @@ export function makeFakeApi(fixture, calls = []) {
   return {
     calls,
     attachDocRoom: fakeDocRoom(fx, log),
+    getSessionUserId: async () => QA_USER_ID,
     createDocImageResolver: () => ({ cached: () => null, resolve: async () => null, onAuthError() {} }),
     recheckDocRooms(token) { log('recheckDocRooms', [token]); return Promise.resolve(); },
     setShare(next) { share = next; },

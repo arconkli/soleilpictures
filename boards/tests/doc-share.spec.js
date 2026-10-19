@@ -60,6 +60,48 @@ test.describe('a doc shared on its own', () => {
     await expect(editor(page)).toContainText('Rain starts.');
   });
 
+  // The harness room judges every write with the real room's rule
+  // (validateGuestUpdate) on a copy written by another client.
+  test('real editing passes the room’s own checks: typing, marks, a list, a paste, a comment', async ({ page }) => {
+    await open(page, 'doc-edit');
+    await expect(view(page)).toHaveAttribute('data-doc-share-mode', 'edit');
+    const ed = editor(page);
+    await ed.locator('p', { hasText: 'MARA checks' }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Rain starts. ');
+    await page.keyboard.press('Control+b');
+    await page.keyboard.type('Thunder.');
+    await page.keyboard.press('Control+b');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('- first beat');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('second beat');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    // A paste carrying an image and an app link keeps only its words.
+    await ed.evaluate((el) => {
+      const dt = new DataTransfer();
+      dt.setData('text/html', '<p>Pasted <img src="https://example.com/x.png"> words and a <a href="soleil://board/x">doc link</a></p>');
+      dt.setData('text/plain', 'Pasted words and a doc link');
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    });
+    await expect(ed).toContainText('Rain starts. Thunder.');
+    await expect(ed.locator('strong', { hasText: 'Thunder.' })).toHaveCount(1);
+    await expect(ed.locator('li', { hasText: 'second beat' })).toHaveCount(1);
+    await expect(ed).toContainText('words and a doc link');
+    await expect(ed.locator('img')).toHaveCount(0);
+    await expect(ed.locator('a[href^="soleil:"]')).toHaveCount(0);
+    // A comment, as this guest (the room checks who and what name).
+    await ed.locator('p', { hasText: 'A quiet street' }).getByText('quiet', { exact: false }).first().dblclick();
+    await page.locator('.dsv button[title^="Add comment"]').click();
+    await page.getByPlaceholder('Comment, then ⏎ to post').fill('Too quiet?');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.__fileShareQa.refusals || [])).toEqual([]);
+    await expect(page.locator('.dsv-notice')).toHaveCount(0);
+  });
+
   test('signed out on a link that edits: reading, with Sign in to edit', async ({ page }) => {
     await open(page, 'doc-signed-out');
     await expect(view(page)).toHaveAttribute('data-doc-share-mode', 'view');

@@ -129,8 +129,11 @@ function Shell({ children, signedOut, token, wide = false, doc = false, action =
 
 // The same room as a dialog over the app: Close where the brand was, Esc
 // closes unless something sits above it (the owner's dialog, a confirm).
-function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = 'Shared file' }) {
-  const modalRef = useRef(null);
+// hostRef (optional) receives this dialog's modal handle too, so a player inside
+// can tell when something opened above the dialog (FilmPlayer modalHandle).
+function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = 'Shared file', hostRef = null }) {
+  const ownRef = useRef(null);
+  const modalRef = hostRef || ownRef;
   const rootRef = useRef(null);
   useEffect(() => {
     const unregister = modalGuard.registerModalOpen();
@@ -324,6 +327,9 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
 
   const playerRef = useRef(null);
   const audioRef = useRef(null);
+  // Inside the app the view is a dialog: the player leaves Escape and its keys
+  // to anything opened above it (Add to cluster, Manage sharing).
+  const hostModalRef = useRef(null);
   const [comments, setComments] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [page, setPage] = useState(1);
@@ -586,6 +592,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
   } else if (kind === 'video') {
     viewer = (
       <FilmPlayer key={`v${gen}`} ref={playerRef} mode="full" keyboard={!manageOpen} src={SRC} poster={urls.poster ? POSTER : null}
+                  modalHandle={overlay ? hostModalRef : undefined}
                   title={file.name || ''} markers={markers} onAction={onPlayerAction} onFrameChange={onFrameChange}
                   probe={() => import('../../hooks/useMediaFacts.js').then((m) => m.probeCardVideo({ kind: 'video', src: SRC }))} />
     );
@@ -606,7 +613,8 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
   }
 
   return (
-    <Frame overlay={overlay} onClose={onClose} signedOut={!signedIn} token={token} wide={showRail} action={headerActions}>
+    <Frame overlay={overlay} onClose={onClose} signedOut={!signedIn} token={token} wide={showRail} action={headerActions}
+           hostRef={hostModalRef}>
       {manageDialog}
       <div className={`fsp-layout${showRail ? ' has-rail' : ''}`}>
         <div className="fsp-col">

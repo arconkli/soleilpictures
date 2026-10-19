@@ -87,3 +87,13 @@ test('the Shared page’s menus and undo are the app’s', () => {
   const dot = css.match(/\.shp-dot \{[^}]*\}/)?.[0] || '';
   assert.doesNotMatch(dot, /soleil/, 'the unread dot is not gold');
 });
+
+// A shared video's player listens on window in the capture phase: inside the
+// app it must leave Escape to anything opened above the viewer (Add to
+// cluster, Manage sharing), or one Escape closed the whole viewer.
+test('the in-app viewer hands its player the dialog’s modal handle', () => {
+  const page = readFileSync(new URL('../components/fileShare/FileSharePage.jsx', import.meta.url), 'utf8');
+  assert.match(page, /const modalRef = hostRef \|\| ownRef;/);
+  assert.match(page, /modalHandle=\{overlay \? hostModalRef : undefined\}/);
+  assert.match(page, /wide=\{showRail\} action=\{headerActions\}\s+hostRef=\{hostModalRef\}>/);
+});

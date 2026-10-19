@@ -25,8 +25,8 @@
 // A refused write means this copy holds something the room never will, so it
 // starts over from the room.
 //
-// `api` may carry attachDocRoom / createDocImageResolver: the DEV harness
-// passes an in-memory room (local/FileShareQaHarness.jsx).
+// `api` may carry attachDocRoom / createDocImageResolver / getSessionUserId:
+// the DEV harness passes an in-memory room (local/FileShareQaHarness.jsx).
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { attachDocRoom as realAttachDocRoom, DOC_ROOM_CLOSE } from '../../lib/docRoomClient.js';
@@ -91,10 +91,12 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
   onRefreshRef.current = onRefresh;
 
   // Whose comments these are, for a signed-in reader (the room checks it).
+  const getSessionUserId = api?.getSessionUserId || null;
   useEffect(() => {
     if (!signedIn) { setUserId(null); return undefined; }
     let off = false;
     (async () => {
+      if (getSessionUserId) { const id = await getSessionUserId(); if (!off) setUserId(id || null); return; }
       const sb = await supabaseClient();
       try {
         const { data } = await sb.auth.getSession();
@@ -102,7 +104,7 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
       } catch (_) { /* their comments wait for a session */ }
     })();
     return () => { off = true; };
-  }, [signedIn]);
+  }, [signedIn, getSessionUserId]);
 
   // The doc's images, through the share.
   const resolver = useMemo(
