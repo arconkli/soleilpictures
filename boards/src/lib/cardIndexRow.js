@@ -208,12 +208,14 @@ export function cardIndexBody(kind, get) {
 
 // A cell container weighs its FILLED cells — so a grid of 25 images counts ~25
 // toward the demo cap, not 1, and an EMPTY grid counts 0 (gridCount.cardWeight
-// says why). A new-model schedule keeps a minimum of 1. Everything else,
-// including a LEGACY rows schedule, weighs 1.
+// says why). A new-model schedule keeps a minimum of 1. A cluster's card weighs
+// what gridCount.CLUSTER_CARD_COST says. Everything else, including a LEGACY
+// rows schedule, weighs 1.
 export function cardIndexWeight(kind, get) {
   if (kind === 'grid' || (kind === 'schedule' && get('schedView'))) {
     return cardWeight(kind, cellsOf(get));
   }
+  if (kind === 'board') return cardWeight(kind);
   return 1;
 }
 

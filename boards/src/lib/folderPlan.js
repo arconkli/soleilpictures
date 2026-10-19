@@ -6,11 +6,14 @@
 // tests all price a folder the same way.
 //
 // COST is in cards, because that is what the free plan counts: one card per
-// file, AND one per cluster — a cluster sits on its parent's canvas as a card,
-// the same rule the plans page states. The preflight asks about this number,
-// and slicePlan cuts the plan down to whatever the answer allows.
+// file, plus what each cluster's own card weighs on its parent's canvas
+// (gridCount.CLUSTER_CARD_COST; the plans page states the same rule). The
+// preflight asks about this number, and slicePlan cuts the plan down to
+// whatever the answer allows. Both take `clusterCost` so the tests can pin
+// either rule; the app always uses the default.
 
 import { classifyDropFile } from './fileIngest.js';
+import { CLUSTER_CARD_COST } from './gridCount.js';
 
 // A plan node: { name, items: [{ file, route, kind, w, h }], children: [node] }.
 function planNode(node, ctx) {
@@ -31,7 +34,7 @@ function planNode(node, ctx) {
   return { name: String(node.name || 'Folder').slice(0, 200), items, children };
 }
 
-export function countPlan(nodes) {
+export function countPlan(nodes, { clusterCost = CLUSTER_CARD_COST } = {}) {
   // `bytes` is what the folder's files weigh, for the drive half of the
   // preflight (importPreflight.planBytes); clusters weigh nothing.
   const out = { clusters: 0, files: 0, cost: 0, kinds: {}, depth: 0, bytes: 0 };
@@ -46,14 +49,14 @@ export function countPlan(nodes) {
     n.children.forEach((c) => walk(c, depth + 1));
   };
   (nodes || []).forEach((n) => walk(n, 1));
-  out.cost = out.clusters + out.files;
+  out.cost = out.clusters * clusterCost + out.files;
   return out;
 }
 
 // root: folderWalk's virtual root. Folders dropped at the top become clusters
 // on the current board; LOOSE files dropped beside them are returned for the
 // ordinary drop path, which already knows how to place files on this board.
-export function planFolderImport(root, { canAttemptFiles = true, classify = classifyDropFile } = {}) {
+export function planFolderImport(root, { canAttemptFiles = true, classify = classifyDropFile, clusterCost = CLUSTER_CARD_COST } = {}) {
   const ctx = {
     canAttemptFiles, classify,
     skipped: { partial: 0, pureref: 0, scripts: 0 },
@@ -67,7 +70,7 @@ export function planFolderImport(root, { canAttemptFiles = true, classify = clas
     loose: Array.from(root?.files || []),
     skipped: ctx.skipped,
     blocked: ctx.blocked,
-    ...countPlan(nodes),
+    ...countPlan(nodes, { clusterCost }),
   };
 }
 
@@ -76,11 +79,11 @@ export function planFolderImport(root, { canAttemptFiles = true, classify = clas
 // Depth-first, in the order the folders read: a cluster is only taken if there
 // is room for it AND at least one card inside it, so a budget that runs out
 // halfway leaves the first folders whole rather than a trail of empty shells.
-export function slicePlan(nodes, budget) {
+export function slicePlan(nodes, budget, { clusterCost = CLUSTER_CARD_COST } = {}) {
   let left = Math.max(0, Math.floor(Number(budget) || 0));
   const take = (node) => {
-    if (left < 2) return null;   // the cluster's own card, plus one inside it
-    left -= 1;
+    if (left < clusterCost + 1) return null;   // the cluster's own card, plus one inside it
+    left -= clusterCost;
     const items = node.items.slice(0, left);
     left -= items.length;
     const children = [];
@@ -88,7 +91,7 @@ export function slicePlan(nodes, budget) {
       const t = take(child);
       if (t) children.push(t);
     }
-    if (!items.length && !children.length) { left += 1; return null; }
+    if (!items.length && !children.length) { left += clusterCost; return null; }
     return { ...node, items, children };
   };
   const out = [];

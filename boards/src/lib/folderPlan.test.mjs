@@ -4,15 +4,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { planFolderImport, slicePlan, countPlan, postOrder } from './folderPlan.js';
+import { CLUSTER_CARD_COST } from './gridCount.js';
 
 const f = (name, type = 'image/jpeg', size = 1000) => ({ name, type, size });
 const dir = (name, files = [], dirs = []) => ({ name, files, dirs });
+
+// The tests below pin the cluster-costs-one rule ({ clusterCost: 1 }); the
+// free-cluster rule has its own tests at the end, and the app uses whichever
+// gridCount.CLUSTER_CARD_COST says.
+const ONE = { clusterCost: 1 };
 
 test('a folder costs one card per file and one per cluster', () => {
   const root = dir(null, [f('loose.jpg')], [
     dir('Diner', [f('a.jpg'), f('b.jpg')], [dir('Day 2', [f('c.jpg')]), dir('Empty', [])]),
   ]);
-  const plan = planFolderImport(root);
+  const plan = planFolderImport(root, ONE);
   assert.equal(plan.nodes.length, 1);
   assert.equal(plan.nodes[0].children.length, 1, 'an empty folder makes no cluster');
   assert.equal(plan.files, 3);
@@ -42,22 +48,42 @@ test('slicing never leaves an empty cluster, and keeps the first folders whole',
   const plan = planFolderImport(dir(null, [], [
     dir('A', [f('1.jpg'), f('2.jpg')], [dir('A1', [f('3.jpg')])]),
     dir('B', [f('4.jpg')]),
-  ]));
+  ]), ONE);
   assert.equal(plan.cost, 7);
-  const four = slicePlan(plan.nodes, 4);
+  const four = slicePlan(plan.nodes, 4, ONE);
   // A (1) + 1.jpg + 2.jpg = 3; A1 needs 2 more but only 1 is left → dropped.
-  assert.deepEqual(countPlan(four), { clusters: 1, files: 2, cost: 3, kinds: { image: 2 }, depth: 1, bytes: 2000 });
-  const one = slicePlan(plan.nodes, 1);
+  assert.deepEqual(countPlan(four, ONE), { clusters: 1, files: 2, cost: 3, kinds: { image: 2 }, depth: 1, bytes: 2000 });
+  const one = slicePlan(plan.nodes, 1, ONE);
   assert.deepEqual(one, [], 'room for a cluster but nothing in it is not room at all');
-  assert.equal(countPlan(slicePlan(plan.nodes, 99)).cost, 7);
-  assert.equal(countPlan(slicePlan(plan.nodes, 0)).cost, 0);
+  assert.equal(countPlan(slicePlan(plan.nodes, 99, ONE), ONE).cost, 7);
+  assert.equal(countPlan(slicePlan(plan.nodes, 0, ONE), ONE).cost, 0);
 });
 
 test('a cluster with only subfolders still slices cleanly', () => {
-  const plan = planFolderImport(dir(null, [], [dir('Top', [], [dir('Inner', [f('a.jpg')])])]));
+  const plan = planFolderImport(dir(null, [], [dir('Top', [], [dir('Inner', [f('a.jpg')])])]), ONE);
   assert.equal(plan.cost, 3);
-  assert.equal(countPlan(slicePlan(plan.nodes, 2)).cost, 0, 'Top + Inner + a.jpg needs 3');
-  assert.equal(countPlan(slicePlan(plan.nodes, 3)).cost, 3);
+  assert.equal(countPlan(slicePlan(plan.nodes, 2, ONE), ONE).cost, 0, 'Top + Inner + a.jpg needs 3');
+  assert.equal(countPlan(slicePlan(plan.nodes, 3, ONE), ONE).cost, 3);
+});
+
+test('with free clusters a folder costs only its files, and slicing still leaves no empty cluster', () => {
+  const FREE = { clusterCost: 0 };
+  const plan = planFolderImport(dir(null, [], [
+    dir('A', [f('1.jpg'), f('2.jpg')], [dir('A1', [f('3.jpg')])]),
+    dir('B', [f('4.jpg')]),
+  ]), FREE);
+  assert.equal(plan.cost, 4, 'four files, clusters free');
+  assert.equal(plan.clusters, 3);
+  // Two cards: A + 1.jpg + 2.jpg, and nothing left for A1 or B.
+  assert.deepEqual(countPlan(slicePlan(plan.nodes, 2, FREE), FREE), { clusters: 1, files: 2, cost: 2, kinds: { image: 2 }, depth: 1, bytes: 2000 });
+  assert.deepEqual(slicePlan(plan.nodes, 0, FREE), [], 'a free cluster still needs a card inside it');
+  const nested = planFolderImport(dir(null, [], [dir('Top', [], [dir('Inner', [f('a.jpg')])])]), FREE);
+  assert.equal(countPlan(slicePlan(nested.nodes, 1, FREE), FREE).clusters, 2, 'one card buys Top and Inner around it');
+});
+
+test('the app prices folders by gridCount.CLUSTER_CARD_COST', () => {
+  const plan = planFolderImport(dir(null, [], [dir('A', [f('1.jpg')], [dir('A1', [f('2.jpg')])])]));
+  assert.equal(plan.cost, 2 + 2 * CLUSTER_CARD_COST);
 });
 
 test('undo order is children first', () => {

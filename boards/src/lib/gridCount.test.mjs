@@ -4,7 +4,7 @@
 // Run with:  cd boards && node src/lib/gridCount.test.mjs
 // Plain Node ESM, no framework — exit 0 on pass, non-zero on failure.
 
-import { isCellFilled, cellsWeight, cardWeight } from './gridCount.js';
+import { isCellFilled, cellsWeight, cardWeight, CLUSTER_CARD_COST } from './gridCount.js';
 import { hasLabelTag, stampCarry } from './gridSequence.js';
 
 let failed = 0, passed = 0;
@@ -14,9 +14,13 @@ function assertEq(actual, expected, msg) {
   else passed++;
 }
 
-// A non-grid card always weighs 1.
+// A non-grid card always weighs 1 — except a cluster's, which weighs the one
+// shared constant (0 or 1; never anything else).
 assertEq(cardWeight('note'), 1, 'note weighs 1');
 assertEq(cardWeight('image'), 1, 'image card weighs 1');
+assertEq(cardWeight('board'), CLUSTER_CARD_COST, 'a cluster weighs CLUSTER_CARD_COST');
+assertEq(cardWeight('boardlink'), 1, 'a linked cluster weighs 1');
+assertEq(CLUSTER_CARD_COST === 0 || CLUSTER_CARD_COST === 1, true, 'CLUSTER_CARD_COST is 0 or 1');
 
 // Empty cell states don't count.
 assertEq(isCellFilled({ type: 'empty' }), false, 'empty cell: not filled');

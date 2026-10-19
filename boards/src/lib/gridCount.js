@@ -68,6 +68,15 @@ export function cellsWeight(cells) {
   return n;
 }
 
+// What a cluster's card weighs on the canvas that holds it. Making a cluster
+// should never be the thing that walls someone, so clusters are becoming free;
+// until that ships this stays 1, and the release flips it in the same commit as
+// the migration that teaches the server the same rule (_tg_card_weight_by_kind)
+// and the docs that state it. Every path that charges for a new cluster (the
+// cap pre-checks in App, the folder planner) asks this, never a literal 1.
+// A LINKED cluster (boardlink) is not a cluster of yours and keeps weighing 1.
+export const CLUSTER_CARD_COST = 1;
+
 // Weight of one card toward the cap.
 //
 // A GRID weighs its filled cells and nothing else, so an empty grid weighs 0.
@@ -79,9 +88,12 @@ export function cellsWeight(cells) {
 //
 // A SCHEDULE keeps its minimum of 1: a calendar is a placed card even before
 // anything is on it. A LEGACY schedule (rows table, no cells map) passes no
-// cells → weighs 1. Everything else is 1.
+// cells → weighs 1. A CLUSTER's card weighs CLUSTER_CARD_COST. Everything else
+// is 1.
 export function cardWeight(kind, cells) {
   if (kind === 'grid') return cellsWeight(cells);
   if (kind === 'schedule') return Math.max(1, cellsWeight(cells));
+  if (kind === 'board') return CLUSTER_CARD_COST;
   return 1;
 }
+

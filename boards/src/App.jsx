@@ -174,6 +174,7 @@ import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, fitByCost, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { CLUSTER_CARD_COST } from './lib/gridCount.js';
 import { planImport, planBytes } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
@@ -2029,7 +2030,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Returns the id it placed, or null when nothing was placed (the cap
     // refused it, or the board isn't ready) — so a caller never reports a card
     // that does not exist.
-    const addCard = (card, { afterInsert = null } = {}) => {
+    // untracked: off the undo stack, for a card whose undo is a toast that
+    // reverses more than this one write (a cluster made from a selection).
+    const addCard = (card, { afterInsert = null, untracked = false } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return null; }
       // Owner-pays cap: hard-block at the limit (cards total across the
       // OWNER's workspaces — 0187). The trigger on card_index enforces the
@@ -2073,7 +2076,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // this transaction so create+init is ONE undo step. Yjs transact is
         // reentrant, so a nested ydoc.transact inside afterInsert merges here.
         if (afterInsert) { try { afterInsert(m.get(c.id)); } catch (_) {} }
-      }, 'local');
+      }, untracked ? 'cross-board-move' : 'local');
       // The gate let this card in on a cached count. If the server disagrees,
       // this is the one card the refusal may take back (capRefusal.js).
       if (gated && placedId) notePlacedThroughCap([placedId]);
@@ -3339,13 +3342,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // pre-named cluster also skips the rename autofocus below.
       const defaultName = opts.name || 'Untitled cluster';
       // Ask the cap before the cluster exists, the way addNewProject does: its
-      // card on this canvas costs one. Asked only by addCard below, the refusal
-      // came after createBoard — a cluster with no card, logged as created,
-      // whose card the reconcile effect then kept trying to place.
+      // card on this canvas costs CLUSTER_CARD_COST. Asked only by addCard
+      // below, the refusal came after createBoard — a cluster with no card,
+      // logged as created, whose card the reconcile effect then kept trying to
+      // place. A cost of 0 never meets the wall (evaluateDemoCap).
       if (!opts.seed) {
         const cs = capSource();
         if (cs.capped) {
-          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: CLUSTER_CARD_COST, limit: cs.limit });
           if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
         }
       }
@@ -3359,7 +3363,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const w = d.w || 280, h = d.h || 220;
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
-        addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) });
+        // opts.untracked: a cluster made FROM cards is undone by the move's
+        // toast (which also trashes the cluster); a Cmd+Z that took only its
+        // card would leave the cluster behind with the cards inside it.
+        addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) },
+          { untracked: !!opts.untracked });
         // Which door this came through. card_placed already says a cluster was
         // made; nothing said whether it was the sidebar, cmd-K or the canvas.
         if (!opts.seed) {
@@ -3371,7 +3379,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           } catch (_) {}
         }
         await refreshBoards();
-        if (!opts.name) setAutoFocusId(b.id);
+        // opts.focusName: focus the name even when one was suggested — a
+        // suggestion is a starting point, and most clusters that kept
+        // "Untitled cluster" were never renamed.
+        if (!opts.name || opts.focusName) setAutoFocusId(b.id);
         tourFireRef.current?.({ type: 'cluster_created', boardId: b.id });
         // Step inside it when the caller asked (the first-card auto-open).
         // Safe here specifically because refreshBoards has already landed.
@@ -3416,7 +3427,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // made whose own card would then be refused.
       const cs = capSource();
       if (cs.capped) {
-        const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+        const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: CLUSTER_CARD_COST, limit: cs.limit });
         if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
       }
       const d = defaultsRef.current?.board || {};
@@ -3433,8 +3444,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           logEvent(EV.CLUSTER_CREATE, { via, parent_depth: 0, opened: true, board_id: b.id });
         } catch (_) {}
         // Its card on the root counts once the reconcile places it; move the
-        // cached count now so the next add gates on it.
-        if (cs.own) myTier.notePlaced?.(1);
+        // cached count now so the next add gates on it (a 0 moves nothing).
+        if (cs.own) myTier.notePlaced?.(CLUSTER_CARD_COST);
         await refreshBoards();
         projectOpenRef.current?.(b.id);
         projectCreatedRef.current?.(b.id, { via });
@@ -4543,10 +4554,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const createBoardInside = async (parentId) => {
     const parent = boards[parentId];
     if (!parent) return;
-    // The new cluster's card on its parent costs one, and arrives through the
-    // reconcile effect, which restores rather than adds — so the cap is asked
-    // here, before the cluster exists, and the count moved now.
-    const ask = askCapFor(parentId, 1);
+    // The new cluster's card on its parent costs CLUSTER_CARD_COST, and arrives
+    // through the reconcile effect, which restores rather than adds — so the cap
+    // is asked here, before the cluster exists, and the count moved now.
+    const ask = askCapFor(parentId, CLUSTER_CARD_COST);
     if (!ask.ok) return;
     const d = defaultsRef.current?.board || {};
     const view = d.view || 'canvas';
@@ -4563,7 +4574,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           via: 'sidebar_inside', parent_depth: boardDepth(boards, parentId), opened: false, board_id: b?.id || null,
         });
       } catch (_) {}
-      if (ask.cs.own) myTier.notePlaced?.(1);
+      if (ask.cs.own) myTier.notePlaced?.(CLUSTER_CARD_COST);
       await refreshBoards();
     } catch (e) {
       console.error('createBoardInside failed', e);
@@ -4740,7 +4751,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
         } finally { peek.destroy(); }
       }
-      const ask = askCapFor(targetId, 1 + carried);
+      const ask = askCapFor(targetId, CLUSTER_CARD_COST + carried);
       if (!ask.ok) return;
       const newBoard = await createBoard({
         workspaceId: target.workspace_id,
@@ -4770,7 +4781,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await saveBoardSnapshot(newBoard.id, tmp);
         tmp.destroy();
       }
-      if (ask.cs.own) myTier.notePlaced?.(1 + carried);
+      if (ask.cs.own) myTier.notePlaced?.(CLUSTER_CARD_COST + carried);
       await refreshBoards();
       feedback.toast({ type: 'success', message: 'Pasted cluster.' });
     } catch (e) {
@@ -8073,8 +8084,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //    update.
   useEffect(() => {
     const onDrop = async (e) => {
+      // createdBoardId / createdBoardName: the target was made a moment ago FOR
+      // these cards ("New cluster from N cards"). Its name comes with the event
+      // because this listener's `boards` can predate it, and its undo trashes it.
       const { sourceBoardId, targetBoardId, cards: movedCards,
-              onTargetSaved, onTargetFailed, via } = e.detail || {};
+              onTargetSaved, onTargetFailed, via, createdBoardId = null, createdBoardName = null } = e.detail || {};
       const ack    = () => { try { onTargetSaved?.(); } catch (_) {} };
       const reject = (err) => { try { onTargetFailed?.(err); } catch (_) {} };
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
@@ -8359,11 +8373,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // later edits, and both boards get the room-reset treatment any
         // out-of-band board_state write requires. The pre-drop snapshots
         // remain the catastrophic fallback.
+        const targetName = createdBoardName || boards[targetBoardId]?.name || 'cluster';
         undoToast(feedback, {
           type: 'success',
-          message: movedCards.length === 1
-            ? `Moved card to “${boards[targetBoardId]?.name || 'cluster'}”`
-            : `Moved ${movedCards.length} cards to “${boards[targetBoardId]?.name || 'cluster'}”`,
+          message: createdBoardId
+            ? (movedCards.length === 1 ? `Made “${targetName}” from 1 card` : `Made “${targetName}” from ${movedCards.length} cards`)
+            : movedCards.length === 1
+              ? `Moved card to “${targetName}”`
+              : `Moved ${movedCards.length} cards to “${targetName}”`,
           onUndo: async () => {
             try {
               // 1) Strip the copies from the TARGET (same snapshot
@@ -8392,6 +8409,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 await forceResetBoardRoom(targetBoardId);
                 try { window.__soleilEmitBoardReset?.(targetBoardId); } catch (_) {}
               }
+              // 1b) A cluster made for this move goes too — to the trash, the
+              //     way a folder import's undo takes its clusters. Before the
+              //     source reloads, so the reconcile never sees a live child
+              //     with no card and puts one back.
+              if (createdBoardId) {
+                await deleteBoard(createdBoardId);
+                await refreshBoards();
+                myTier.refetch?.();
+              }
               // 2) Restore the originals on the SOURCE (original ids, so
               //    comments re-anchor and Yjs identities line up).
               const ssnap = await loadBoardSnapshot(sourceBoardId);
@@ -8410,6 +8436,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 }
                 const cm = s.getMap('cards');
                 for (const c of movedCards) { if (!cm.has(c.id)) cm.set(c.id, cardToYMap({ ...c })); }
+                if (createdBoardId && cm.has(createdBoardId)) cm.delete(createdBoardId);
                 const ar = s.getArray('arrows');
                 for (const a of sourceArrows) ar.push([{ ...a }]);
               }, 'cross-board-move');
