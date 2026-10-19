@@ -39,8 +39,10 @@ import { verifyUser } from './lib/workerAuth.js';
 // verdict quality matters. Embeddings: bge-m3, chosen over qwen3-embedding-0.6b
 // on 2026-10-18 by re-embedding the stored cards — equal rank agreement with
 // the OpenAI vectors (Spearman ~0.60), better-spread scores near the top, and a
-// fifth of the cold-call latency.
-const APPLY_MODEL = '@cf/meta/llama-3.1-8b-instruct';        // /api/tags/apply
+// fifth of the cold-call latency. Cloudflare retired the plain
+// llama-3.1-8b-instruct id on 2026-05-30 (error 5028, so /apply had failed every
+// call since); the fp8 build is the same model, quantized.
+const APPLY_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';    // /api/tags/apply
 const CLUSTER_NAME_MODEL = '@cf/meta/llama-3.2-3b-instruct'; // /api/tags/cluster-name
 const EMBEDDING_MODEL = '@cf/baai/bge-m3';
 const EMBEDDING_DIM = 1024;   // pgvector columns are vector(1024) since 0418

@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { coalesce, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, effectiveTypeFilter } from '../lib/tagSurface.js';
+import { coalesce, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, effectiveTypeFilter, suggestionAlreadyApplied } from '../lib/tagSurface.js';
 import { setTagEntityType } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
@@ -485,6 +485,11 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     return s;
   }, [direct.cards]);
 
+  // The inbox leaves out cards that already carry the tag (tagSurface.js).
+  const pendingSuggestions = useMemo(
+    () => suggestions.filter(s => !suggestionAlreadyApplied(s, rows)),
+    [suggestions, rows]);
+
   // ── Actions ─────────────────────────────────────────────────────────────
   // Remove always dismisses too. Otherwise the autotag triggers
   // re-apply the tag on the next card_index UPDATE if the text
@@ -907,8 +912,8 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                 onClick={() => setManageOpen(o => !o)}
                 title="Description, source filter, pending suggestions">
           Manage
-          {suggestions.length > 0 && (
-            <span className="tag-detail-manage-badge">{suggestions.length}</span>
+          {pendingSuggestions.length > 0 && (
+            <span className="tag-detail-manage-badge">{pendingSuggestions.length}</span>
           )}
         </button>
         {onClose && (
@@ -974,15 +979,15 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
               </button>
             </div>
           )}
-          {suggestions.length > 0 && (
+          {pendingSuggestions.length > 0 && (
             <div className="tag-profile-suggest">
               <div className="tag-detail-block-head">
                 <Icon as={FileText} size={12} />
                 <span className="tag-detail-block-title">Pending suggestions</span>
-                <span className="tag-detail-block-attr is-count">{suggestions.length}</span>
+                <span className="tag-detail-block-attr is-count">{pendingSuggestions.length}</span>
               </div>
               <div className="tag-detail-suggestions">
-                {suggestions.map(s => {
+                {pendingSuggestions.map(s => {
                   const kind = s.card_kind || s.source_kind;
                   const Icn = kindIcon(kind);
                   const titleText = (s.title || '').trim()
@@ -1013,7 +1018,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
               </div>
             </div>
           )}
-          {rows.length === 0 && suggestions.length === 0 && (
+          {rows.length === 0 && pendingSuggestions.length === 0 && (
             <div className="tag-profile-manage-empty">Nothing to manage.</div>
           )}
         </div>

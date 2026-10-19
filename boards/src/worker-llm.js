@@ -3,9 +3,9 @@
 // (doc-page word-level tagging, migrated off OpenAI gpt-4o).
 //
 // Workers AI is the FREE in-worker tier — no API key, no credits. Text
-// models return { response: string }. They don't support OpenAI-style
-// strict json_schema, so callers prompt for JSON and parse it tolerantly
-// with the helpers below.
+// models return { response }: a string, or the value already parsed when the
+// whole answer is JSON. They don't support OpenAI-style strict json_schema,
+// so callers prompt for JSON and parse it tolerantly with the helpers below.
 
 // Tolerant JSON-OBJECT extraction — strips ``` fences and any surrounding
 // prose, then grabs the outermost {...}. Returns null on failure.
@@ -41,5 +41,10 @@ export async function runWorkersAiChat(env, model, system, user, opts = {}) {
     max_tokens: opts.max_tokens ?? 1024,
     temperature: opts.temperature ?? 0.2,
   });
-  return out?.response || '';
+  // An answer that is all JSON arrives as an object (llama-3.2-3b and
+  // llama-3.3-70b, 2026-10-19). String() of it is "[object Object]", so every
+  // cluster name came back "malformed json from model" until this.
+  const r = out?.response;
+  if (r && typeof r === 'object') return JSON.stringify(r);
+  return r || '';
 }
