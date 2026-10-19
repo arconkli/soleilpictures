@@ -92,3 +92,7 @@ test('review: the board takes a doc room’s write only where that doc lives', (
   assert.match(bridge, /if \(env\.DOC_BRIDGE_SECRET && env\.DOC_BRIDGE_SECRET\.length >= 32\) return env\.DOC_BRIDGE_SECRET;/);
   assert.match(doc, /while \(this\.claims\.size > 500\) this\.claims\.delete/);
 });
+
+test('review: the /recheck preflight is answered in the Worker', () => {
+  assert.match(index, /\/\/ The preflight is answered here: a stranger never wakes the room\.\s+if \(req\.method === "OPTIONS"\) \{\s+return new Response\(null, \{\s+status: 204,/);
+});

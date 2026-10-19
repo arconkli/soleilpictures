@@ -125,7 +125,19 @@ async function beforeRequest(req: Request, lobby: Lobby): Promise<Request | Resp
   if (lobby.className === "Doc") {
     const url = new URL(req.url);
     if (!DOC_ROOM.test(lobby.name) || !url.pathname.endsWith("/recheck")) return notFound();
-    if (req.method === "OPTIONS") return req;
+    // The preflight is answered here: a stranger never wakes the room.
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": req.headers.get("origin") || "*",
+          "access-control-allow-methods": "POST, OPTIONS",
+          "access-control-allow-headers": "content-type, authorization",
+          "access-control-max-age": "86400",
+          "vary": "Origin",
+        },
+      });
+    }
     if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
     const bearer = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
     if (!bearer) return new Response("Missing token", { status: 401 });
