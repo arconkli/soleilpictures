@@ -27,6 +27,7 @@
 import { Server, type Connection, type ConnectionContext } from "partyserver";
 import type { Env } from "./env";
 import { heldElsewhere, isFresh, rosterFrom, shouldAnnounce } from "../src/lib/workspaceRoster.js";
+import { answerEmptyClose } from "../src/lib/partyClose.js";
 
 // What one socket carries (see lib/workspaceRoster.js).
 interface Presence {
@@ -147,8 +148,9 @@ export class WorkspaceParty extends Server<Env> {
   // Instant departure: a closed socket's tab leaves, unless a reconnect has
   // already brought it back on another socket. The alarm sweep is the backstop
   // for sockets that die without a close.
-  onClose(conn: Connection) {
+  onClose(conn: Connection, code: number) {
     this.depart(conn);
+    answerEmptyClose(conn, code);
   }
 
   onError(conn: Connection) {

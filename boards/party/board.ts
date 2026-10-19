@@ -43,6 +43,7 @@ import { RoomLog, MAX_PENDING_UPDATES } from "./roomLog";
 import { DEFAULT_SUPABASE_URL, type Env } from "./env";
 import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boardStateSync.js";
 import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
+import { answerEmptyClose } from "../src/lib/partyClose.js";
 
 const ALARM_MS = 60_000;
 const IDLE_WATCH_MS = 15 * 60_000;
@@ -198,6 +199,11 @@ export class BoardParty extends YServer<Env> {
   onMessage(conn: Connection, message: string | ArrayBuffer | ArrayBufferView) {
     this.lastHeard.set(conn, Date.now());
     super.onMessage(conn, message);
+  }
+
+  // A close with no status code gets its answer (lib/partyClose.js).
+  onClose(conn: Connection, code: number, reason: string, wasClean: boolean) {
+    try { super.onClose(conn, code, reason, wasClean); } finally { answerEmptyClose(conn, code); }
   }
 
   private async armAlarm() {
