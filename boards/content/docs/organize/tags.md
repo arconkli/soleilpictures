@@ -72,8 +72,9 @@ tags you have already made, so a workspace with no tags gets none.
 - **A looser match is only suggested.** It waits on the tag until you accept or
   dismiss it.
 
-It reads up to {{fact:embedCharsPerDay}} characters of text per account a day,
-far more than a day's work produces. Past that, it pauses until the next day.
+It reads up to {{fact:embedCharsPerDay}} characters per account a day, counting
+the instructions sent along with your text, more than a normal day's work needs.
+Past that, it pauses until the next day.
 
 Nothing applied automatically is hidden. Open the tag, press **Manage** and
 filter to **Auto** to see everything it picked up on its own. Right-click any
