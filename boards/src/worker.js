@@ -33,6 +33,7 @@ import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './lib/crawlerU
 import { ogTargetProblem } from './lib/safeUrl.js';
 import { makeRateLimiter } from './lib/webImageSave.js';
 import { runAeoRetrievalProbe } from './worker-aeo.js';
+import { runAiModelDigest, runAiModelWatch } from './worker-aiwatch.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
@@ -965,12 +966,18 @@ const worker = {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
       // then the history-aware orphan sweep. Sequential so R2 ops don't spike.
       ctx.waitUntil(runImageSizeBackfill(env).then(() => runR2Sweep(env)));
+      // The Workers AI model watch (worker-aiwatch.js): pages when a model the
+      // app calls is announced for retirement, leaves the catalog, or stops
+      // answering. Separate from the sweep; it touches no R2.
+      ctx.waitUntil(runAiModelWatch(env));
     } else if (which === '0 6 * * 1') {
       // Mondays 06:00 UTC — the AEO retrieval probe (migration 0296). Weekly
       // because retrieval moves on the timescale of index refreshes; daily
       // would mostly sample answer-to-answer variance. No-ops without
       // OPENAI_API_KEY.
       ctx.waitUntil(runAeoRetrievalProbe(env));
+      // ...and one email listing the week's new Workers AI models, if any.
+      ctx.waitUntil(runAiModelDigest(env));
     } else if (which === '45 * * * *') {
       // Hourly at :45 — copy new R2 objects into the locked backup bucket, so
       // the images (which the database dump only holds POINTERS to) have a

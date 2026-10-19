@@ -45,7 +45,9 @@ binding = "AI"
 # both the R2 object and the images row. Safe no-ops if the R2 binding
 # or SUPABASE_SERVICE_ROLE_KEY secret is missing.
 [triggers]
-# Daily 04:00 UTC: history-aware R2 orphan sweep (dry-run by default).
+# Daily 04:00 UTC: history-aware R2 orphan sweep (dry-run by default), and the
+#                    Workers AI model watch (src/worker-aiwatch.js), which pages
+#                    when a model the app calls is retiring, gone or failing.
 # Hourly at :15:     Job 1 compaction — board_ops → R2 hourly batches (dry-run by default).
 # Every minute:      webhook drain — fan the outbox out and deliver what is due.
 #                    This is the path that carries changes made IN THE APP;
@@ -56,7 +58,8 @@ binding = "AI"
 #                    0296, src/worker-aeo.js). Weekly because retrieval moves at
 #                    the speed of index refreshes; daily would sample answer
 #                    variance and read it as movement. No-ops without
-#                    OPENAI_API_KEY.
+#                    OPENAI_API_KEY. Also the week's new Workers AI models,
+#                    one email when there are any.
 # Hourly at :45:     R2 off-site mirror — copy new image/preview/op-batch objects
 #                    into the LOCKED backup bucket (runR2Mirror). The DB dump
 #                    only holds pointers to these; this holds the bytes. No-ops

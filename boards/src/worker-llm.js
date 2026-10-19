@@ -29,6 +29,16 @@ export function parseJsonArrayLoose(text) {
   try { const v = JSON.parse(s); return Array.isArray(v) ? v : null; } catch { return null; }
 }
 
+// A text model's answer as text, from env.AI.run's result or the REST API's
+// `result`. An answer that is all JSON arrives as an object (llama-3.2-3b and
+// llama-3.3-70b, 2026-10-19). String() of it is "[object Object]", so every
+// cluster name came back "malformed json from model" until this.
+export function responseText(out) {
+  const r = out?.response;
+  if (r == null) return '';
+  return typeof r === 'string' ? r : JSON.stringify(r);
+}
+
 // Run a text model on env.AI with a system + user message pair. Returns the
 // raw response string (''. on empty). Throws on binding/model error — the
 // caller decides the fallback (we never want an AI hiccup to break a flow).
@@ -41,10 +51,5 @@ export async function runWorkersAiChat(env, model, system, user, opts = {}) {
     max_tokens: opts.max_tokens ?? 1024,
     temperature: opts.temperature ?? 0.2,
   });
-  // An answer that is all JSON arrives as an object (llama-3.2-3b and
-  // llama-3.3-70b, 2026-10-19). String() of it is "[object Object]", so every
-  // cluster name came back "malformed json from model" until this.
-  const r = out?.response;
-  if (r && typeof r === 'object') return JSON.stringify(r);
-  return r || '';
+  return responseText(out);
 }
