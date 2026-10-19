@@ -244,6 +244,34 @@ async function signReadUrl(
 export class UploadParty {
   constructor(readonly room: { id: string; env: Record<string, unknown> }) {}
 
+  // An RPC as the service role, for what only the party may read: a shared
+  // file's storage keys, once get_file_share run as the caller has said ok
+  // (0426). Null when it cannot be had.
+  private async serviceRpc(name: string, args: Record<string, unknown>): Promise<any> {
+    const key = String(this.room.env.SUPABASE_SERVICE_ROLE_KEY || "");
+    if (!key) return null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+        method: "POST",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(args),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // get_file_share's answer with its file's keys: since 0426 the answer
+  // carries none (a browser could call it too), so they come from the
+  // service role. Before 0426 the answer had them.
+  private async withKeys(result: any, token: string): Promise<any> {
+    if (!result || result.status !== "ok" || result.keys || result.file?.kind === "doc") return result;
+    const keys = await this.serviceRpc("_file_share_keys", { p_token: token });
+    return keys && typeof keys === "object" ? { ...result, keys } : result;
+  }
+
   async onRequest(req: Request) {
     const origin = req.headers.get("Origin");
     if (req.method === "OPTIONS") {
@@ -390,7 +418,7 @@ export class UploadParty {
       if (status === 404) return Response.json({ status: "gone" }, { headers: cors });
       return new Response("File link temporarily unavailable", { status, headers: cors });
     }
-    const result: any = await rpcRes.json();
+    const result: any = await this.withKeys(await rpcRes.json(), token);
     const r2 = new AwsClient({
       accessKeyId: env.accessKeyId,
       secretAccessKey: env.secretAccessKey,
@@ -435,7 +463,20 @@ export class UploadParty {
       if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { headers: cors });
       return new Response("Thumbnails temporarily unavailable", { status: 503, headers: cors });
     }
-    const keys: Record<string, unknown> = (await rpcRes.json().catch(() => ({}))) || {};
+    // The caller's answer says which rows have a poster: true (since 0426), or
+    // the key itself (before). Keys for the trues come from the service role.
+    const answer: Record<string, unknown> = (await rpcRes.json().catch(() => ({}))) || {};
+    const keys: Record<string, unknown> = {};
+    const need: string[] = [];
+    for (const [t, v] of Object.entries(answer)) {
+      if (!FILE_TOKEN_RE.test(t)) continue;
+      if (v === true) need.push(t);
+      else if (typeof v === "string" && v) keys[t] = v;
+    }
+    if (need.length) {
+      const more = await this.serviceRpc("_file_share_poster_keys", { p_tokens: need });
+      if (more && typeof more === "object") for (const t of need) if (typeof more[t] === "string") keys[t] = more[t];
+    }
     const r2 = this.mkR2Client(env);
     const urls: Record<string, string> = {};
     await Promise.all(Object.entries(keys).map(async ([t, k]) => {
@@ -500,7 +541,7 @@ export class UploadParty {
       if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { status: 401, headers: cors });
       return new Response("Saving is temporarily unavailable", { status: 503, headers: cors });
     }
-    const result: any = await rpcRes.json().catch(() => null);
+    const result: any = await this.withKeys(await rpcRes.json().catch(() => null), token);
     const why = saveRefusal(result);
     if (why) return refuse(why);
     const srcKey: string = result.keys.src;

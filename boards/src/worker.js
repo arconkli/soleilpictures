@@ -1313,6 +1313,27 @@ async function rpc(env, fn, params, timeoutMs = 30_000) {
 // Anon-key variant of rpc() for token-gated public functions. Short timeout:
 // this runs inline with HTML serving, not in a cron — a slow Supabase must
 // degrade to default meta, not stall the share page.
+// The service role's RPC, for what only the Worker may read (a shared file's
+// storage key for its preview, after the anonymous answer said ok).
+async function serviceRpc(env, fn, params, timeoutMs = 1500) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+      'authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+      'accept': 'application/json',
+    },
+    body: JSON.stringify(params || {}),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`rpc ${fn} ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return await res.json();
+}
+
 async function anonRpc(env, fn, params, timeoutMs = 1500) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
@@ -2630,8 +2651,15 @@ async function handleFileThumb(env, token, request) {
     });
 
   const meta = await anonRpc(env, 'get_file_share', { p_token: token }).catch(() => null);
-  const poster = meta?.keys?.poster || '';
-  if (meta?.status !== 'ok' || !/\.webp$/i.test(poster) || !env.IMAGES) return fallback();
+  if (meta?.status !== 'ok' || !env.IMAGES) return fallback();
+  // Since 0426 get_file_share answers no storage keys (a browser could call
+  // it): with the anonymous answer ok, the key comes from the service role.
+  let poster = meta?.keys?.poster || '';
+  if (!poster && env.SUPABASE_SERVICE_ROLE_KEY) {
+    const keys = await serviceRpc(env, '_file_share_keys', { p_token: token }).catch(() => null);
+    poster = keys?.poster || '';
+  }
+  if (!/\.webp$/i.test(poster)) return fallback();
 
   const obj = await env.IMAGES.get(poster.replace(/^r2:/, ''));
   if (!obj) return fallback();
