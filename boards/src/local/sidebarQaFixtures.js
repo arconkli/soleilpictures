@@ -86,8 +86,3 @@ export const HOME_PHOTOS = {
     { id: 'p3', src: '/signin-yahweh.webp' },
   ],
 };
-
-export const HOME_SHARED = [
-  { id: 'ext-ridge', name: 'Ridgeline, spec spot', from: 'Priya Nair', viewOnly: true, board: { thumb_key: '/landing/japandi-living-room.webp' } },
-  { id: 'ext-north', name: 'Northwind lookbook', from: 'Sam Okafor', viewOnly: false, board: { thumb_key: '/landing/sage-terracotta-wedding.webp' } },
-];

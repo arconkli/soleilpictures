@@ -165,14 +165,14 @@ import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { isAbandonedUpload } from './lib/abandonedUploads.js';
 import { forceBoardThumbnail, boardDoc, loadYBoard } from './lib/yboard.js';
-import { ancestorPath, boardDepth, planReparent } from './lib/boardTree.js';
+import { ancestorPath, boardDepth, collectDescendantIds, planReparent } from './lib/boardTree.js';
 import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
@@ -256,6 +256,8 @@ const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then
 import { ProjectsHome } from './components/ProjectsHome.jsx';
 import { ClustersHome } from './components/home/ClustersHome.jsx';
 import { useHomeRail, loadClusterPhotos } from './hooks/useHomeRail.js';
+import { useClusterStars } from './hooks/useClusterStars.js';
+import { canManageWorkspace } from './lib/workspaceRoles.js';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -8011,21 +8013,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     userProfiles.populateFromPeers(wsPeers);
   }, [wsPeers]);
-  // What the files sidebar's Home shows beside the clusters: the newest
-  // conversations, who's here and where (hooks/useHomeRail.js). Off elsewhere.
-  const homeRail = useHomeRail({
-    enabled: filesSidebar && currentSurface === 'home',
-    conversationList, selfId: user.id, wsPeers, boards,
-  });
-  // The files sidebar's Home brings its universe forward with a button: its
-  // own flag, off whenever you come back to Home, never remembered (the old
-  // Home's soleil.home.exploring would open it straight into the 3D view).
-  const [homeUniverse, setHomeUniverse] = useState(false);
-  useEffect(() => { if (currentSurface !== 'home') setHomeUniverse(false); }, [currentSurface]);
-  const openHomeUniverse = (open) => {
-    try { logEvent(EV.HOME_EXPLORE, { open: !!open }); } catch (_) {}
-    setHomeUniverse(!!open);
-  };
+  // Who is on each cluster now, for the card of a cluster picked on the files
+  // sidebar's Home (hooks/useHomeRail.js), and which clusters are starred
+  // (hooks/useClusterStars.js). Off elsewhere.
+  const homeOn = filesSidebar && currentSurface === 'home';
+  const homeRail = useHomeRail({ enabled: homeOn, selfId: user.id, wsPeers, boards });
+  const homeStars = useClusterStars(workspace.id, { enabled: homeOn });
 
   // Collaboration, as opposed to invitations. Everything about ASKING someone
   // to join was measured; whether two people were ever on a board together was
@@ -10276,18 +10269,57 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         )}
 
         {currentSurface === 'home' && filesSidebar ? (
-          // The workspace at a glance (preview only; the owner's pick,
-          // 2026-10-19): the cluster to pick up, the clusters, and a rail of
-          // messages, who's here, what's shared and storage, frosted over the
-          // live universe, which Universe brings forward to explore.
+          // The universe is the page (preview only; the owner's pick, "B",
+          // 2026-10-19): every cluster a named star, a picked one's card with
+          // what you can do to it, Find and New cluster at the bottom, and the
+          // workspace at the top left with Rename, Invite, switch and New
+          // workspace beside its name.
           <ClustersHome
             boards={boards}
             rootId={rootBoard.id}
             workspaceId={workspace.id}
-            recents={recents.recents}
             canCreate={canEditBoard(rootBoard.id)}
-            exploring={homeUniverse && !mobileShell}
-            onExplore={openHomeUniverse}
+            Graph={mobileShell ? null : HomeGraph}
+            graphProps={{
+              workspaceId: workspace.id,
+              onNavigate: (target) => {
+                if (!target || target.kind === 'url') {
+                  if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                setCurrentSurface('board');
+                navHandlers[target.kind]?.(target);
+              },
+            }}
+            workspace={workspace}
+            workspaces={workspaces || []}
+            personalWorkspaceId={personalWorkspaceId}
+            selfUserId={user.id}
+            wsPeers={wsPeers}
+            memberCount={(workspaceMembers || []).length}
+            canManageWorkspace={canManageWorkspace(workspaceRole || (workspace.created_by === user.id ? 'owner' : workspace._myRole))}
+            onSwitchWorkspace={(id) => {
+              if (!id || id === workspace.id) return;
+              try { logEvent(EV.HOME_WORKSPACE_SWITCH, { n_workspaces: (workspaces || []).length }); } catch (_) {}
+              // Land on Home in the other workspace, not on its canvas.
+              markHomeAfterSwitch(id);
+              onSwitchWorkspace(id);
+            }}
+            onNewWorkspace={() => {
+              try { logEvent(EV.HOME_WORKSPACE_NEW, { n_workspaces: (workspaces || []).length }); } catch (_) {}
+              addNewWorkspace({ thenHome: true });
+            }}
+            onRemoveWorkspace={(ws, action) => removeWorkspace(ws, action, { thenHome: true })}
+            onOpenWorkspaceSettings={(ws) => openWorkspaceSettings(ws, { thenHome: true })}
+            onInviteWorkspace={(ws) => shareWorkspace(ws || workspace, { thenHome: true })}
+            onRenameWorkspace={async (name) => {
+              try {
+                await renameWorkspace(workspace.id, name);
+                await onWorkspacesChanged?.();
+              } catch (e) {
+                feedback.toast({ type: 'error', message: 'Could not rename the workspace: ' + (e.message || e) });
+              }
+            }}
             onOpenBoard={(id, via) => {
               try { logEvent(EV.HOME_OPEN_BOARD, { via, board_id: id }); } catch (_) {}
               setStack(ancestorPath(boards, id));
@@ -10295,43 +10327,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               setCurrentSurface('board');
             }}
             onNewProject={(name) => { mainMutators.addNewProject?.({ via: 'home', name }); }}
-            graph={!mobileShell ? (
-              <Suspense fallback={<div className="home-graph-wrap" />}>
-                <HomeGraph
-                  workspaceId={workspace.id}
-                  backdrop={!homeUniverse}
-                  scenery={!homeUniverse}
-                  onNavigate={(target) => {
-                    if (!target || target.kind === 'url') {
-                      if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');
-                      return;
-                    }
-                    setCurrentSurface('board');
-                    navHandlers[target.kind]?.(target);
-                  }}
-                />
-              </Suspense>
-            ) : null}
+            canEditCluster={(id) => canEditBoard(id)}
+            onRenameCluster={(id, name) => renameBoardById(id, name)}
+            onCoverCluster={(id, file) => setBoardCustomThumbById(id, file)}
+            onMoveCluster={async (id) => {
+              // The tree's drag-to-nest, with its pre-validation, mirror
+              // cleanup and Undo: the same event, from a picked cluster.
+              const exclude = [id, ...collectDescendantIds(boards, id)];
+              const target = await requestClusterPick({ placeholder: `Move “${boards[id]?.name || 'cluster'}” into…`, excludeIds: exclude });
+              if (!target?.id) return;
+              document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', { detail: { childIds: [id], targetId: target.id } }));
+            }}
+            isStarred={homeStars.isStarred}
+            onToggleStar={homeStars.toggle}
+            onDeleteCluster={(id) => deleteBoardsById([id])}
             loadPhotos={loadClusterPhotos}
             hereByBoard={homeRail.hereByBoard}
-            conversations={homeRail.conversations}
-            onOpenMessages={(convId) => { if (convId) setOpenConversationId(convId); setTweak('showMessages', true); }}
-            herePeople={homeRail.herePeople}
-            onJumpToPeer={jumpToPeer}
-            shared={sharedRoots.map(s => ({
-              id: s.board_id,
-              name: (s.board_name && s.board_name.trim()) || 'Untitled cluster',
-              from: s.source_workspace_name || '',
-              viewOnly: s.role === 'viewer',
-              board: boards[s.board_id] || null,
-            }))}
-            meter={{
-              isPaid: myTier.tier === 'paid' || myTier.tier === 'admin',
-              cardsUsed: myTier.demoCardCount,
-              cardLimit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
-              storage: sidebarStorage,
-            }}
-            onOpenPlan={() => openSettings('billing')}
           />
         ) : currentSurface === 'home' ? (
           <ProjectsHome

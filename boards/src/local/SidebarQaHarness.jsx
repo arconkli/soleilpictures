@@ -28,8 +28,10 @@ import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
-import { railConversations } from '../lib/homeRail.js';
-import { SELF, PEERS, messagesFixture, HOME_COVERS, HOME_PHOTOS, HOME_SHARED } from './sidebarQaFixtures.js';
+import { HomeGraph } from '../components/HomeGraph.jsx';
+import { GraphFixtureContext } from '../lib/graphFixture.js';
+import { graphFromRows } from '../lib/graphData.js';
+import { SELF, PEERS, messagesFixture, HOME_COVERS, HOME_PHOTOS } from './sidebarQaFixtures.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -38,9 +40,6 @@ const T0 = Date.parse('2026-10-01T12:00:00Z');
 // not coloured squares: a screenshot of this harness is judged as the product,
 // and flat swatches made a calm list look like a toy.
 const PHOTOS = Object.values(import.meta.glob('./qa-photos/*.jpg', { eager: true, query: '?url', import: 'default' }));
-// Home's universe as the real HomeGraph draws it, captured at 1440×900 (it needs
-// a signed-in workspace to draw itself), one for each theme.
-const UNIVERSE = import.meta.glob('./qa-universe/*.jpg', { eager: true, query: '?url', import: 'default' });
 function swatch(i) {
   return PHOTOS[i % PHOTOS.length];
 }
@@ -197,11 +196,6 @@ const QA_STYLE = `
 .sbqa-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); z-index: 1; }
 .sbqa-tag, .sbqa-faces { color: var(--ink-1); font: 500 12px var(--font-sans); padding: 4px 8px; }
-.sbqa-universe { position: absolute; inset: 0; background: #0a0908; }
-.sbqa-universe img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.sbqa-universe .is-light, [data-theme='light'] .sbqa-universe .is-dark { display: none; }
-[data-theme='light'] .sbqa-universe { background: #f5f5f7; }
-[data-theme='light'] .sbqa-universe .is-light { display: block; }
 .sbqa-home-readout { position: fixed; left: 340px; bottom: 6px; z-index: 5; opacity: .6; }
 `;
 
@@ -216,27 +210,22 @@ const WHO = QS.get('who') || 'here';
 const DRAWER = QS.get('drawer') !== '0';
 userProfiles.populateFromPeers(PEERS);
 
-// Home: the harness's clusters with real covers and an order, who's where,
-// and the rail's conversations from the same fixture Messages draws.
-const HERE_PEOPLE = [
-  { id: 'maya', name: 'Maya Ortiz', initial: 'M', where: 'In Feature film', loc: { boardId: 'film' }, color: pickPresenceColor('maya') },
-  { id: 'jon', name: 'Jon Park', initial: 'J', where: 'In Casting', loc: { boardId: 'cast' }, color: pickPresenceColor('jon') },
+// Home: the harness's clusters with real covers and an order, who's on which,
+// and the workspace at its top left. &viewer=1 is someone who may only look
+// (no Rename, Invite, New cluster or a cluster's changes); &empty=1 a
+// workspace with nothing but Studio in it. Its universe is the real one
+// (HomeGraph), drawn from the same clusters and card rows the sidebar reads.
+const VIEWER = QS.has('viewer');
+const EMPTY = QS.has('empty');
+const HERE_BY_BOARD = new Map([
+  ['film', [{ id: 'maya', name: 'Maya Ortiz', initial: 'M', loc: { boardId: 'film' }, color: pickPresenceColor('maya') }]],
+  ['cast', [{ id: 'jon', name: 'Jon Park', initial: 'J', loc: { boardId: 'cast' }, color: pickPresenceColor('jon') }]],
+]);
+const HOME_WORKSPACES = [
+  { id: WS, name: 'Sidebar QA', created_by: SELF.id, settings: {} },
+  { id: 'ws-personal', name: 'Personal', created_by: SELF.id, settings: {} },
+  { id: 'ws-ridge', name: 'Ridgeline', created_by: 'priya', settings: {}, _myRole: 'editor' },
 ];
-const HERE_BY_BOARD = new Map([['film', [HERE_PEOPLE[0]]], ['cast', [HERE_PEOPLE[1]]]]);
-function railRowsFrom(fx) {
-  const byConv = new Map();
-  const mine = new Map();
-  for (const p of fx.participants) {
-    byConv.set(p.conversation_id, [...(byConv.get(p.conversation_id) || []), p]);
-    if (p.user_id === SELF.id) mine.set(p.conversation_id, p);
-  }
-  const unread = new Map(Object.entries(fx.counts));
-  return railConversations({ conversations: fx.conversations, participantsByConv: byConv, myStateByConv: mine, unreadByConv: unread }, {
-    selfId: SELF.id,
-    nameOf: (id) => userProfiles.get(id)?.name || '',
-    colorOf: (id) => userProfiles.get(id)?.color || pickPresenceColor(id),
-  });
-}
 
 // The stand-in board under the canvas's real wrappers (App's split pane, its
 // surface, FilesDock), panned so its first column starts under the sidebar:
@@ -285,13 +274,17 @@ export function SidebarQaHarness() {
   const listRef = useRef(null);
   const [msgsOpen, setMsgsOpen] = useState(MSG_QA);
   const [openConv, setOpenConv] = useState(QS.get('conv') || null);
-  const [exploring, setExploring] = useState(false);
   const fixture = useMemo(() => messagesFixture(), []);
-  const railRows = useMemo(() => railRowsFrom(fixture), [fixture]);
-  const homeBoards = useMemo(() => Object.fromEntries(Object.entries(allBoards).map(([id, b], i) => [id, {
-    ...b, thumb_key: HOME_COVERS[id] || b.thumb_key, card_count: (CARDS[id] || []).length,
-    updated_at: { film: '2026-10-19T08:00:00Z', cast: '2026-10-18T16:00:00Z', mv: '2026-10-16T10:00:00Z' }[id] || `2026-09-${10 + i}T10:00:00Z`,
-  }])), [allBoards]);
+  const homeBoards = useMemo(() => Object.fromEntries(Object.entries(allBoards)
+    .filter(([id]) => !EMPTY || id === 'root')
+    .map(([id, b], i) => [id, {
+      ...b, thumb_key: HOME_COVERS[id] || b.thumb_key, card_count: EMPTY ? 0 : (CARDS[id] || []).length,
+      updated_at: { film: '2026-10-19T08:00:00Z', cast: '2026-10-18T16:00:00Z', mv: '2026-10-16T10:00:00Z' }[id] || `2026-09-${10 + i}T10:00:00Z`,
+    }])), [allBoards]);
+  const homeGraph = useMemo(() => ({
+    graph: graphFromRows(Object.values(homeBoards), EMPTY ? [] : Object.values(ROWS).flat(), [], { structural: true }),
+  }), [homeBoards]);
+  const [homeStars, setHomeStars] = useState(() => new Set(['mv']));
   // App's <body> hooks while the files sidebar is on: Messages portals there.
   useEffect(() => {
     const b = document.body;
@@ -482,27 +475,32 @@ export function SidebarQaHarness() {
             matched nothing in the app. */}
         {SURFACE === 'home' ? (
           <>
+            <GraphFixtureContext.Provider value={homeGraph}>
             <ClustersHome
-              boards={homeBoards} rootId="root" workspaceId={WS} recents={['film', 'cast', 'mv']} canCreate
-              exploring={exploring} onExplore={setExploring}
+              boards={homeBoards} rootId="root" workspaceId={WS} canCreate={!VIEWER}
+              Graph={phone ? null : HomeGraph}
+              graphProps={{ workspaceId: WS, onNavigate: (t) => say(`navigate ${t?.kind || ''}`) }}
+              workspace={HOME_WORKSPACES[0]} workspaces={HOME_WORKSPACES} personalWorkspaceId="ws-personal"
+              selfUserId={SELF.id} wsPeers={PEERS} memberCount={4} canManageWorkspace={!VIEWER}
+              onSwitchWorkspace={(id) => say(`switch ${id}`)}
+              onNewWorkspace={() => say('new workspace')}
+              onRemoveWorkspace={(ws, action) => say(`${action} ${ws.id}`)}
+              onOpenWorkspaceSettings={(ws) => say(`settings ${ws.id}`)}
+              onInviteWorkspace={(ws) => say(`invite ${ws?.id}`)}
+              onRenameWorkspace={async (name) => say(`rename workspace ${name}`)}
               onOpenBoard={(id, via) => say(`home ${via} ${id}`)}
               onNewProject={(name) => say(`new cluster ${name || ''}`)}
-              graph={phone ? null : (
-                <div className="sbqa-universe" data-testid="sbqa-universe">
-                  <img className="is-dark" src={UNIVERSE['./qa-universe/universe-dark.jpg']} alt="" />
-                  <img className="is-light" src={UNIVERSE['./qa-universe/universe-light.jpg']} alt="" />
-                </div>
-              )}
+              canEditCluster={() => !VIEWER}
+              onRenameCluster={(id, name) => say(`rename ${id} ${name}`)}
+              onCoverCluster={(id, file) => say(`cover ${id} ${file?.name || ''}`)}
+              onMoveCluster={(id) => say(`move ${id}`)}
+              isStarred={(id) => homeStars.has(id)}
+              onToggleStar={(id) => { say(`star ${id}`); setHomeStars((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); }}
+              onDeleteCluster={(id) => say(`delete ${id}`)}
               loadPhotos={async (id) => HOME_PHOTOS[id] || []}
               hereByBoard={HERE_BY_BOARD}
-              conversations={railRows}
-              onOpenMessages={(id) => { say(`messages ${id || ''}`); setOpenConv(id); if (MSG_QA) setMsgsOpen(true); }}
-              herePeople={HERE_PEOPLE}
-              onJumpToPeer={(loc) => say(`jump ${loc?.boardId}`)}
-              shared={HOME_SHARED}
-              meter={{ isPaid: false, cardsUsed: 38, cardLimit: 50, storage: { used: 1.2 * 1024 ** 3, quota: 5 * 1024 ** 3, loading: false } }}
-              onOpenPlan={() => say('plan')}
             />
+            </GraphFixtureContext.Provider>
             <div className="sbqa-readout sbqa-home-readout"><div data-testid="sbqa-log">{log.join(' | ')}</div></div>
           </>
         ) : (

@@ -19,6 +19,7 @@ import { itemFromIndexRow, itemFromCard } from '../lib/indexRowCard.js';
 import { sortItems, groupItems, filterItems } from '../lib/sidebarSort.js';
 import { countsFromRows, countsFromItems, rollupCounts, withLive } from '../lib/sidebarCounts.js';
 import { searchEntities } from '../lib/entitySearch.js';
+import { STARS_CHANGED, announceStars } from '../lib/starsChanged.js';
 
 const PEEK_PER_SHELF = 12;
 const PAGE = 60;
@@ -225,6 +226,12 @@ export function useSidebarFiles({
   }, [workspaceId]);
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
   useEffect(() => { fetchRecent(); fetchStarred(); }, [fetchRecent, fetchStarred]);
+  // A cluster starred or unstarred from Home's card shows here too.
+  useEffect(() => {
+    const onChanged = (e) => { if (e?.detail?.from !== 'sidebar') fetchStarred(); };
+    window.addEventListener(STARS_CHANGED, onChanged);
+    return () => window.removeEventListener(STARS_CHANGED, onChanged);
+  }, [fetchStarred]);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -406,6 +413,7 @@ export function useSidebarFiles({
     if (source?.toggleStar) {
       await source.toggleStar(boardId, cardId || '', !starKeys.has(key));
       fetchStarred();
+      announceStars('sidebar');
       return;
     }
     if (!supabase) return;
@@ -426,6 +434,7 @@ export function useSidebarFiles({
       if (error) console.warn('[sidebar] star', error.message || error);
     }
     fetchStarred();
+    announceStars('sidebar');
   }, [starKeys, allBoards, workspaceId, fetchStarred, source]);
 
   const countOf = useCallback((boardId) => (counts.chipRolled.get(boardId)?.total || 0), [counts]);

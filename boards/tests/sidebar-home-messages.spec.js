@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-// Round 8 of the files sidebar (preview only), in the sidebar QA harness: the
-// line under the workspace's name, Home as the workspace at a glance, and
-// Messages in the sidebar's card with its thread in bubbles — the owner's
-// picks (D, D, D) from the canvas of 2026-10-19.
+// The files sidebar (preview only), in the sidebar QA harness: the line under
+// the workspace's name and Messages in the sidebar's card with its thread in
+// bubbles (the owner's picks D, D from the canvas of 2026-10-19), and Home as
+// the universe's map (their pick B from the canvas of the same day, with the
+// workspace at its top left).
 
 async function open(page, query = '') {
   await page.goto(`/?sidebarqa=1${query}`);
@@ -43,87 +44,168 @@ test.describe('the sidebar\'s top', () => {
   });
 });
 
-test.describe('Home, the workspace at a glance', () => {
-  test('the cluster to pick up: its newest photos, where it is, who is in it; the next few as chips', async ({ page }) => {
-    await open(page, '&surface=home');
-    const cont = page.locator('.ch-cont');
-    await expect(cont.locator('.ch-cont-name')).toHaveText('Feature film');
-    await expect(cont.locator('.ch-cont-sub')).toContainText('Studio · edited');
-    await expect(cont.locator('.ch-here')).toHaveText(/Maya is here/);
-    await expect(cont.locator('.ch-collage.n3 img')).toHaveCount(3);
-    await expect(page.locator('.ch-chip')).toHaveText(['Casting', 'Music video', 'Moodboards']);
-    await cont.click();
-    await expect(log(page)).toContainText('home continue film');
-    await page.locator('.ch-chip', { hasText: 'Casting' }).click();
-    await expect(log(page)).toContainText('home recent cast');
+test.describe('Home, the universe as the map', () => {
+  // The universe drifts; reduced motion holds it still, so a star's name stays
+  // where a click can land on it (Playwright waits for a still target). It is
+  // drawn in software here (no GPU), so these get the slow tests' time.
+  test.beforeEach(async ({ page }) => {
+    test.slow();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+  });
+  const home = async (page, query = '') => {
+    await open(page, `&surface=home${query}`);
+    await page.waitForSelector('.hg-map.is-ready');
+  };
+  const star = (page, name) => page.locator('.hg-name', { hasText: name });
+
+  test('the universe is the page: every cluster a named star, the workspace at the top left, nothing the sidebar has', async ({ page }) => {
+    await home(page);
+    const sky = page.locator('.ch-sky');
+    const r = await rect(sky);
+    expect([Math.round(r.left), Math.round(r.top), Math.round(r.width)]).toEqual([0, 0, page.viewportSize().width]);
+    await expect(sky).toHaveCSS('pointer-events', 'auto');
+    // The sidebar's cards and the islands still lie over it.
+    expect(await page.evaluate(() => !!document.elementFromPoint(24, 24)?.closest('.sbf-card'))).toBe(true);
+    for (const name of ['Studio', 'Feature film', 'Music video', 'Moodboards', 'Locations', 'Casting']) {
+      await expect(star(page, name)).toHaveCount(1);
+    }
+    // Clusters inside another are named too, quieter: an orange star with no name reads as a bug.
+    expect((await page.locator('.hg-name.is-nested').allInnerTexts()).sort()).toEqual(['Casting', 'Locations']);
+    await expect(page.locator('.hg-name:not([data-off="1"])')).not.toHaveCount(0);
+    // Every name on show sits in the open area, right of the sidebar.
+    const sidebarRight = (await rect(page.locator('.sbf-card.is-tree'))).right;
+    for (const box of await page.locator('.hg-name:not([data-off="1"])').evaluateAll(els => els.map(e => e.getBoundingClientRect().toJSON()))) {
+      expect(box.left).toBeGreaterThanOrEqual(sidebarRight);
+    }
+    // The workspace, top left: its name, a caret that switches, and the words.
+    const ws = page.locator('.ch-ws');
+    await expect(ws.locator('.ch-ws-name')).toHaveText('Sidebar QA');
+    await expect(ws.getByRole('button', { name: 'Switch workspace' })).toHaveAttribute('aria-haspopup', 'menu');
+    for (const w of ['Rename', 'Invite', 'New workspace']) await expect(ws.getByRole('button', { name: w })).toBeVisible();
+    await expect(ws.locator('.ch-ws-meta')).toHaveText(/^Your workspace · 4 people · updated /);
+    expect((await rect(ws)).top).toBeGreaterThanOrEqual(52);   // under the islands
+    // Find and New cluster at the bottom; no rail, no pick-up card.
+    await expect(page.getByRole('searchbox', { name: 'Find a cluster' })).toBeVisible();
+    await expect(page.locator('.ch-bar').getByRole('button', { name: 'New cluster' })).toBeVisible();
+    for (const gone of ['.ch-rail', '.ch-cont', '.ch-grid']) await expect(page.locator(gone)).toHaveCount(0);
     // Home is where you are: the gold bar is on Home, on no cluster.
     await expect(page.locator('.sbf-quickbtn.is-on')).toHaveText('Home');
     await expect(page.locator('.sb-tree-row.active')).toHaveCount(0);
   });
 
-  test('the clusters at the top as covers, a sort, and New cluster named in place', async ({ page }) => {
-    await open(page, '&surface=home');
-    const names = page.locator('.ch-grid .ch-tile:not(.ch-new) .ch-tile-name');
-    await expect(names).toHaveText(['Feature film', 'Music video', 'Moodboards']);
-    await expect(page.locator('.ch-grid .ch-tile', { hasText: 'Studio' })).toHaveCount(0);  // the root is the sidebar's
-    await page.locator('.ch-sort .ch-btn').click();
-    await page.getByRole('menuitemradio', { name: 'Name' }).click();
-    await expect(names).toHaveText(['Feature film', 'Moodboards', 'Music video']);
-    await page.locator('.ch-tile', { hasText: 'Music video' }).click();
-    await expect(log(page)).toContainText('home tile mv');
-    await page.locator('.ch-new').click();
-    await page.getByLabel('New cluster name').fill('Pitch deck');
+  test('a picked star opens its card beside it: photos, what is inside, who is in it, and what you can do', async ({ page }) => {
+    await home(page);
+    await star(page, 'Feature film').click();
+    const card = page.locator('.hg-card .ch-card');
+    await expect(card).toBeVisible();
+    await expect(star(page, 'Feature film')).toHaveClass(/is-sel/);
+    await expect(card.locator('.ch-card-name')).toHaveText('Feature film');
+    await expect(card.locator('.ch-card-sub')).toHaveText(/^\d+ cards · 2 inside · edited /);
+    await expect(card.locator('.ch-cover.is-photos.n3 img')).toHaveCount(3);
+    await expect(card.locator('.ch-inword')).toHaveText(['Casting', 'Locations']);
+    await expect(card.locator('.ch-here')).toHaveText(/Maya is here/);
+    for (const w of ['Open', 'Rename', 'Cover', 'Move', 'Star', 'Delete']) await expect(card.getByRole('button', { name: w, exact: true })).toBeVisible();
+    // Beside its star, inside the open area, joined by a short line (placed on
+    // the frame after it shows, so asked until it is).
+    const sidebarRight = (await rect(page.locator('.sbf-card.is-tree'))).right;
+    await expect.poll(async () => (await rect(card)).left).toBeGreaterThanOrEqual(sidebarRight);
+    expect((await rect(card)).bottom).toBeLessThanOrEqual(page.viewportSize().height);
+    await expect(page.locator('.hg-lead')).toHaveCount(1);
+    // Star, Open; a name inside picks that cluster; Escape puts the card down.
+    await card.getByRole('button', { name: 'Star', exact: true }).click();
+    await expect(log(page)).toContainText('star film');
+    await expect(card.getByRole('button', { name: 'Unstar' })).toHaveAttribute('aria-pressed', 'true');
+    await card.getByRole('button', { name: 'Open' }).click();
+    await expect(log(page)).toContainText('home card film');
+    await card.locator('.ch-inword', { hasText: 'Casting' }).click();
+    await expect(card.locator('.ch-card-name')).toHaveText('Casting');
+    await expect(card.locator('.ch-card-sub')).toHaveText(/^In Feature film · /);
+    await page.keyboard.press('Escape');
+    await expect(card).toHaveCount(0);
+    // Rename in place on the card.
+    await star(page, 'Music video').click();
+    await card.getByRole('button', { name: 'Rename' }).click();
+    await card.getByLabel('Cluster name').fill('Music video, cut 2');
     await page.keyboard.press('Enter');
-    await expect(log(page)).toContainText('new cluster Pitch deck');
+    await expect(log(page)).toContainText('rename mv Music video, cut 2');
+    // Delete puts it down and goes through App's delete (its Undo is App's).
+    await card.getByRole('button', { name: 'Delete' }).click();
+    await expect(log(page)).toContainText('delete mv');
+    await expect(card).toHaveCount(0);
+    // Twice on a star opens it.
+    await star(page, 'Moodboards').dblclick();
+    await expect(log(page)).toContainText('home star mood');
   });
 
-  test('the rail: messages, who is here, what is shared, storage', async ({ page }) => {
-    await open(page, '&surface=home');
-    const msgs = page.locator('.ch-card[aria-label="Messages"] .ch-item');
-    await expect(msgs).toHaveCount(3);
-    await expect(msgs.nth(0).locator('.ch-item-name')).toHaveText('Maya Ortiz');
-    await expect(msgs.nth(0).locator('.ch-count')).toHaveText('2');
-    await expect(msgs.nth(1).locator('.ch-item-sub')).toHaveText(/^Lena: Callbacks moved/);
-    await msgs.nth(1).click();
-    await expect(log(page)).toContainText('messages c-cast');
-    const here = page.locator('.ch-card[aria-label="Here now"] .ch-item');
-    await expect(here.locator('.ch-item-sub')).toHaveText(['In Feature film', 'In Casting']);
-    await here.nth(1).click();
-    await expect(log(page)).toContainText('jump cast');
-    const shared = page.locator('.ch-card[aria-label="Shared with you"] .ch-item');
-    await expect(shared).toHaveCount(2);
-    await expect(shared.nth(0).locator('.ch-tag')).toHaveText('View');
-    await expect(page.locator('.ch-card[aria-label="Storage"] .sbf-meter-text')).toHaveText('38 of 50 cards · 1.2 of 5.0 GB');
+  test('find lights what it finds and dims the rest; Enter goes to the first; Escape clears it', async ({ page }) => {
+    await home(page);
+    const find = page.getByRole('searchbox', { name: 'Find a cluster' });
+    await find.fill('film');
+    await expect(page.locator('.ch-find-n')).toHaveText('1 found');
+    await expect(star(page, 'Feature film')).toHaveClass(/is-hit/);
+    await expect(star(page, 'Music video')).toHaveClass(/is-faded/);
+    await find.fill('zzz');
+    await expect(page.locator('.ch-find-n')).toHaveText('Nothing found');
+    await find.fill('MOOD');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.hg-card .ch-card-name')).toHaveText('Moodboards');
+    await page.keyboard.press('Escape');   // the card first
+    await expect(page.locator('.hg-card')).toHaveCount(0);
+    await find.focus();
+    await page.keyboard.press('Escape');   // then the search
+    await expect(find).toHaveValue('');
+    await expect(page.locator('.hg-name.is-faded')).toHaveCount(0);
   });
 
-  test('the universe runs behind all of Home under frosted cards, and comes forward to explore', async ({ page }) => {
-    await open(page, '&surface=home');
-    const sky = page.locator('.ch-sky');
-    await expect(page.getByTestId('sbqa-universe')).toBeVisible();
-    // Fixed to the window, under the sidebar's cards and the islands as well
-    // as Home's, and scenery: it takes no pointer.
-    const r = await rect(sky);
-    expect([Math.round(r.left), Math.round(r.top), Math.round(r.width)]).toEqual([0, 0, page.viewportSize().width]);
-    await expect(sky).toHaveCSS('pointer-events', 'none');
-    await expect(sky).toHaveAttribute('aria-hidden', 'true');
-    expect(await page.evaluate(() => !!document.elementFromPoint(24, 24)?.closest('.sbf-card'))).toBe(true);
-    // Home's blocks are frosted plates over it.
-    for (const sel of ['.ch-cont', '.ch-tile:not(.ch-new)', '.ch-card', '.ch-chip']) {
-      await expect(page.locator(sel).first()).toHaveCSS('backdrop-filter', /blur\(20px\)/);
-    }
-    // Universe brings the same one forward: Home's things go, the way back clears the islands.
-    await page.getByTestId('sbqa-universe').evaluate((el) => { el.dataset.kept = '1'; });
-    await page.getByRole('button', { name: 'Universe' }).click();
-    await expect(page.locator('.ch-cont')).toHaveCount(0);
-    await expect(sky).toHaveClass(/is-exploring/);
-    await expect(sky).toHaveCSS('pointer-events', 'auto');
-    await expect(page.getByTestId('sbqa-universe')).toHaveAttribute('data-kept', '1');
-    const back = page.getByRole('button', { name: 'Home', exact: true }).last();
-    expect((await rect(back)).top).toBeGreaterThanOrEqual(52);
-    await back.click();
-    await expect(page.locator('.ch-cont')).toBeVisible();
-    await expect(sky).not.toHaveClass(/is-exploring/);
-    await expect(page.getByTestId('sbqa-universe')).toHaveAttribute('data-kept', '1');
+  test('the workspace: switch from the caret, rename in place, invite, a new one; a viewer can only look', async ({ page }) => {
+    await home(page);
+    const ws = page.locator('.ch-ws');
+    await ws.getByRole('button', { name: 'Switch workspace' }).click();
+    const menu = page.locator('.ph-ws-pop .ws-menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('.ws-menu-name')).toContainText(['Personal', 'Sidebar QA', 'Ridgeline']);
+    await menu.locator('.ws-menu-row', { hasText: 'Ridgeline' }).click();
+    await expect(log(page)).toContainText('switch ws-ridge');
+    await expect(menu).toHaveCount(0);
+    await ws.getByRole('button', { name: 'Rename' }).click();
+    const name = ws.getByLabel('Workspace name');
+    await expect(name).toHaveValue('Sidebar QA');
+    await expect(ws.locator('.ch-ws-meta')).toHaveText('Enter to save · Esc to cancel');
+    await name.fill('Lost Time');
+    await page.keyboard.press('Enter');
+    await expect(log(page)).toContainText('rename workspace Lost Time');
+    await ws.getByRole('button', { name: 'Invite' }).click();
+    await expect(log(page)).toContainText('invite ws-qa');
+    await ws.getByRole('button', { name: 'New workspace' }).click();
+    await expect(log(page)).toContainText('new workspace');
+
+    await home(page, '&viewer=1');
+    await expect(ws.getByRole('button', { name: 'Rename' })).toHaveCount(0);
+    await expect(ws.getByRole('button', { name: 'Invite' })).toHaveCount(0);
+    await expect(ws.getByRole('button', { name: 'New workspace' })).toBeVisible();
+    await expect(page.locator('.ch-bar').getByRole('button', { name: 'New cluster' })).toHaveCount(0);
+    await star(page, 'Feature film').click();
+    const card = page.locator('.hg-card .ch-card');
+    await expect(card.locator('.ch-card-acts button')).toHaveText(['Open', 'Star']);
+    await expect(card.locator('.ch-card-note')).toHaveText('You can look around this cluster but not change it.');
+  });
+
+  test('New cluster is named above the bar; a workspace of only Studio says what its stars will be', async ({ page }) => {
+    await home(page);
+    await page.locator('.ch-bar').getByRole('button', { name: 'New cluster' }).click();
+    const naming = page.locator('.ch-naming');
+    await expect(naming.getByLabel('Name the new cluster')).toBeFocused();
+    await page.keyboard.type('Trailer');
+    await page.keyboard.press('Enter');
+    await expect(log(page)).toContainText('new cluster Trailer');
+    await expect(naming).toHaveCount(0);
+
+    await home(page, '&empty=1');
+    await expect(page.locator('.hg-name')).toHaveText(['Studio']);
+    await expect(page.locator('.ch-empty-line')).toHaveText('Every cluster you make becomes a star here.');
+    await expect(page.locator('.ch-bar')).toHaveCount(0);
+    await page.locator('.ch-empty').getByRole('button', { name: 'New cluster' }).click();
+    await expect(page.locator('.ch-naming')).toBeVisible();
   });
 });
 
