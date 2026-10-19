@@ -5,6 +5,7 @@ export interface Env {
   Main: DurableObjectNamespace;
   Workspace: DurableObjectNamespace;
   Universe: DurableObjectNamespace;
+  Doc: DurableObjectNamespace;
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   R2_ACCOUNT_ID?: string;

@@ -257,3 +257,28 @@ async function authWorkspaceUncached(
   if (rows.length === 0) return { ok: false, reason: "not a member of this workspace" };
   return { ok: true, userId: claims.sub, email: claims.email };
 }
+
+// A shared doc's room (party/doc.ts): may this caller come in? 0426
+// doc_room_access, run AS the caller (their bearer, or the anon key for
+// someone signed out on a view link). `share` is the share's token when they
+// came by its link. → its answer, or null when it can't be had.
+export async function docRoomAccess(accessToken: string, room: string, share: string): Promise<any> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/doc_room_access`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken || SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_room: room, p_token: /^[0-9a-f-]{36}$/i.test(share) ? share : null }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.status === 401 && accessToken) return { status: "auth_expired" };
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
+}

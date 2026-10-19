@@ -495,3 +495,69 @@ test('guest limits: a sliding window, and the numbers the docs quote', async () 
   assert.ok(L.DOC_ROOM_SILENT_CLOSE_MS === 5 * 60 * 1000, 'the board room’s silent close');
   assert.ok(L.DOC_ROOM_GUEST_DOC_MAX_BYTES > L.DOC_ROOM_FRAME_MAX_BYTES);
 });
+
+// Security review (2026-10-18), each finding pinned.
+test('review: a frame cannot delete someone else’s thread by writing the same key elsewhere', () => {
+  const board = makeBoard();
+  const { room } = mirrorOf(board);
+  const g = guestOf(room);
+  const u = editAs(g, () => {
+    cardMapOf(g).get('docMeta').set('t1', 'decoy');      // same key, another map
+    cardMapOf(g).get('docComments').delete('t1');        // Rae's thread
+  });
+  assert.equal(validateGuestUpdate(room, u, ctxFor(g)).reason, 'comment_author');
+});
+
+test('review: a frame is bounded in structs, and a big legitimate one validates quickly', async () => {
+  const { GUEST_MAX_STRUCTS } = await import('./docRoomBridge.js');
+  const board = makeBoard();
+  const { room } = mirrorOf(board);
+  const g = guestOf(room);
+  const flood = editAs(g, () => {
+    const meta = cardMapOf(g).get('docMeta');
+    for (let i = 0; i <= GUEST_MAX_STRUCTS; i++) meta.set(`k${i}`, i);
+  });
+  assert.equal(validateGuestUpdate(room, flood, ctxFor(g, { maxBytes: 10 * 1024 * 1024 })).reason, 'too_many');
+  const g2 = guestOf(room);
+  const t = () => cardMapOf(g2).get('docPageContent').get('p1').get(0).get(0);
+  const many = editAs(g2, () => { for (let i = 0; i < 3000; i++) t().insert(i % 2 ? 0 : t().length, 'x'); });
+  const t0 = Date.now();
+  const v = validateGuestUpdate(room, many, ctxFor(g2, { maxBytes: 10 * 1024 * 1024 }));
+  assert.equal(v.ok, true, v.reason);
+  assert.ok(Date.now() - t0 < 1500, `took ${Date.now() - t0}ms`);
+});
+
+test('review: attributes that could run or load something are refused, on old nodes and new ones', () => {
+  const board = makeBoard();
+  const { room } = mirrorOf(board);
+  const cases = [
+    ['an event handler', (g) => cardMapOf(g).get('docPageContent').get('p1').get(0).setAttribute('onclick', 'x()'), 'attribute'],
+    ['a style', (g) => cardMapOf(g).get('docPageContent').get('p1').get(0).setAttribute('style', 'color:red'), 'attribute'],
+    ['a script url in any attribute', (g) => cardMapOf(g).get('docPageContent').get('p1').get(0).setAttribute('title', 'javascript:alert(1)'), 'unsafe_link'],
+    ['a css url', (g) => cardMapOf(g).get('docPageContent').get('p1').get(0).setAttribute('data-x', 'url(https://t.example)'), 'unsafe_link'],
+    ['a style on a node made in the same frame', (g) => {
+      const el = new Y.XmlElement('paragraph');
+      el.setAttribute('style', 'background:url(x)');
+      cardMapOf(g).get('docPageContent').get('p1').insert(0, [el]);
+    }, 'attribute'],
+    ['an image made in the same frame from outside', (g) => {
+      const el = new Y.XmlElement('image');
+      el.setAttribute('poster', 'https://tracker.example/x');
+      cardMapOf(g).get('docPageContent').get('p1').insert(0, [el]);
+    }, 'attribute'],
+  ];
+  for (const [what, fn, reason] of cases) {
+    const g = guestOf(room);
+    const u = editAs(g, () => fn(g));
+    assert.equal(validateGuestUpdate(room, u, ctxFor(g)).reason, reason, what);
+  }
+  // Ordinary attributes pass: a heading level, an alignment.
+  const g = guestOf(room);
+  const ok = editAs(g, () => {
+    const h = new Y.XmlElement('heading');
+    h.setAttribute('level', 2);
+    h.setAttribute('textAlign', 'center');
+    cardMapOf(g).get('docPageContent').get('p1').insert(0, [h]);
+  });
+  assert.equal(validateGuestUpdate(room, ok, ctxFor(g)).ok, true);
+});

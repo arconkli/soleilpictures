@@ -44,6 +44,7 @@ import { DEFAULT_SUPABASE_URL, type Env } from "./env";
 import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boardStateSync.js";
 import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
+import { BoardBridge } from "./bridge";
 
 const ALARM_MS = 60_000;
 const IDLE_WATCH_MS = 15 * 60_000;
@@ -78,6 +79,8 @@ export class BoardParty extends YServer<Env> {
 
   private local!: RoomLog;
   private remote!: BoardRoomState;
+  // Shared docs' mirrors of this board's doc cards (party/bridge.ts, doc.ts).
+  private bridge: BoardBridge | null = null;
   private resetting = false;
   private opLogWired = false;
   private localHeldContent = false;
@@ -118,6 +121,14 @@ export class BoardParty extends YServer<Env> {
       }
     });
     this.compactLocal();
+    // A shared doc's mirror hears about every transaction that touches its doc;
+    // with no mirror subscribed this returns at its first line.
+    this.bridge = new BoardBridge({
+      name: this.name, env: this.env, document: this.document, ctx: this.ctx as any,
+      resetting: () => this.resetting,
+    });
+    await this.bridge.load();
+    this.document.on("afterTransaction", (tr: Y.Transaction) => this.bridge?.onTransaction(tr));
     // The local copy held something: make sure the database gets it now
     // rather than at the next edit. The write is a compare-and-set, so this can
     // only add to what is stored.
@@ -270,6 +281,8 @@ export class BoardParty extends YServer<Env> {
     } catch (e) {
       console.error(`[board ${this.name}] reset broadcast failed`, e);
     }
+    // Shared docs' rooms start over from the restored board (a new generation).
+    try { await this.bridge?.closeAll(4012, "reset"); } catch (_) { /* they rebuild on their own */ }
     await sleep(150);
     try { this.local.wipe(); } catch (_) { /* deleteAll below */ }
     try { await this.ctx.storage.deleteAll(); } catch (e) { console.error(`[board ${this.name}] deleteAll failed`, e); }
@@ -303,6 +316,12 @@ export class BoardParty extends YServer<Env> {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
     if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     const url = new URL(req.url);
+    // A shared doc's room, through its Durable Object stub (never from outside:
+    // the Worker's beforeRequest lets only /reset through).
+    if (url.pathname.includes("/bridge/") && this.bridge) {
+      const res = await this.bridge.handle(req);
+      if (res) return res;
+    }
     if (!url.pathname.endsWith("/reset")) return new Response("Not found", { status: 404, headers: corsHeaders });
 
     const auth = req.headers.get("authorization") || "";

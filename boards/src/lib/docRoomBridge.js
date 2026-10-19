@@ -41,7 +41,13 @@ export const DOC_KEYS = Object.freeze([
 export const CARD_FIELDS = Object.freeze(['kind', 'title', 'fontFamily']);
 const VIEW_HIDDEN = new Set(['docComments']);
 const GC_REF = 0;   // yjs structGCRefNumber
-const MAX_WALK = 100000;
+// A doc nests a few levels (cards → card → doc key → fragment → block → text,
+// lists a little deeper): any walk longer than this is not a doc.
+const MAX_WALK = 64;
+// One guest frame: at most this many structs and delete ranges (a keystroke is
+// one or two; a paste of a long page a few hundred).
+export const GUEST_MAX_STRUCTS = 5000;
+export const GUEST_MAX_DELETE_RANGES = 5000;
 
 export function keptKeys(variant = 'edit') {
   const all = [...DOC_KEYS, ...CARD_FIELDS];
@@ -233,6 +239,13 @@ export function r2KeysIn(bytes) {
 
 const ALLOWED_TYPES = new Set([Y.XmlElement, Y.XmlText, Y.XmlFragment, Y.Map, Y.Array, Y.Text]);
 const SAFE_HREF = /^(https?:\/\/|mailto:)/i;
+// Attribute names a guest may write on a node. Anything shaped like an event
+// handler, a style or another way to load a URL is refused, whether or not the
+// editor's schema would drop it, in case some path ever serializes the doc
+// itself (security review, 2026-10-18).
+const ATTR_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,40}$/;
+const ATTR_DENY = /^(on|style$|srcset$|poster$|background$|formaction$|xlink|data$|action$|ping$|lowsrc$|dynsrc$|codebase$|manifest$|iframe|embed)/i;
+const UNSAFE_VALUE = /(javascript|vbscript|livescript)\s*:|data\s*:\s*text\/html|url\s*\(/i;
 
 function isAllowedContent(c) {
   if (c instanceof Y.ContentString || c instanceof Y.ContentFormat || c instanceof Y.ContentAny
@@ -268,7 +281,7 @@ function firstValue(content) {
 // ctx: { cardKey, claims: Set<client> (this connection's own clients),
 //        userId, displayName, trustedKeys: Set<'<key>'>, maxBytes,
 //        writableKeys?: Set<key> }
-// → { ok: true, clients: [ids it writes] } | { ok: false, reason }
+// → { ok: true, clients: [ids it writes], empty } | { ok: false, reason }
 export function validateGuestUpdate(roomDoc, update, ctx = {}) {
   const fail = (reason) => ({ ok: false, reason });
   if (!(update instanceof Uint8Array) || !update.length) return fail('empty');
@@ -294,12 +307,31 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
     if (clock > state(client)) return fail('gap');
   }
 
-  // New items, by id, for references inside the frame.
+  if (structs.length > GUEST_MAX_STRUCTS) return fail('too_many');
+  let dsRanges = 0;
+  for (const [, list] of ds.clients) dsRanges += list.length;
+  if (dsRanges > GUEST_MAX_DELETE_RANGES) return fail('too_many');
+
+  // New items, by id, for references inside the frame: per client, in clock
+  // order (a frame lists each client's structs in order), found by bisection.
   const fresh = new Map();   // `${client}:${clock}` → { s, zone }
   const keyOf = (id) => `${id.client}:${id.clock}`;
+  const byClient = new Map();
+  for (const s of structs) {
+    if (!byClient.has(s.id.client)) byClient.set(s.id.client, []);
+    byClient.get(s.id.client).push(s);
+  }
   const findFresh = (id) => {
-    for (const s of structs) {
-      if (s.id.client === id.client && id.clock >= s.id.clock && id.clock < s.id.clock + s.length) return s;
+    const list = byClient.get(id.client);
+    if (!list) return null;
+    let lo = 0;
+    let hi = list.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const s = list[mid];
+      if (id.clock < s.id.clock) hi = mid - 1;
+      else if (id.clock >= s.id.clock + s.length) lo = mid + 1;
+      else return s;
     }
     return null;
   };
@@ -319,16 +351,24 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
   // Items first, in order; a reference to a fresh item later in the frame is
   // resolved on a later pass.
   const items = structs.filter((s) => s instanceof Y.Item);
+  const replacedThreads = new Set();
   for (const s of structs) {
     if (!(s instanceof Y.Item) && !claims.has(s.id.client) && state(s.id.client) > 0) return fail('foreign_client');
   }
+  // The type a fresh item of this frame lands in, once it is known.
+  const parentOfFresh = (f) => fresh.get(keyOf(f.id))?.parentObj ?? null;
+  // A map key a fresh item writes: its own, or (when it replaces a value) its origin's.
+  const subOfFresh = (f) => fresh.get(keyOf(f.id))?.sub ?? null;
+  const commentsType = cardsRoot._map.get(ctx.cardKey)?.content?.type?._map?.get('docComments')?.content?.type || null;
+
   let pending = items;
   for (let pass = 0; pass < 8 && pending.length; pass++) {
     const next = [];
     for (const s of pending) {
       if (!isAllowedContent(s.content)) return fail('content');
       let key = null;
-      let parentType = null;   // the existing room type the item lands in, when known
+      let parentObj = null;   // the type the item lands in, existing or fresh
+      let originSub = null;   // the map key of the value it replaces
       if (typeof s.parent === 'string') return fail('root_write');
       if (s.parent) {
         const r = placeOfRef(s.parent);
@@ -338,7 +378,8 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
         // The parent must be a doc type, or a type inside one.
         key = insideKey(r.place);
         if (!key || !writable.has(key)) return fail('outside_doc');
-        if (r.item && r.item.content instanceof Y.ContentType) parentType = r.item.content.type;
+        const holder = r.item || r.fresh;
+        parentObj = holder && holder.content instanceof Y.ContentType ? holder.content.type : null;
       } else {
         const ref = s.origin || s.rightOrigin;
         if (!ref) return fail('no_parent');
@@ -354,17 +395,29 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
           const k = keyOfPlace(r.place);
           if (!writable.has(k) || (key && key !== k)) return fail('outside_doc');
           key = k;
-          if (r.item && r.item.parent && r.item.parent.constructor !== Object) parentType = r.item.parent;
+          if (r.item) {
+            parentObj = r.item.parent || parentObj;
+            if (o === s.origin) originSub = r.item.parentSub || null;
+          } else if (r.fresh) {
+            parentObj = parentOfFresh(r.fresh) || parentObj;
+            if (o === s.origin) originSub = subOfFresh(r.fresh);
+          }
         }
         if (key === undefined) { next.push(s); continue; }
       }
-      fresh.set(keyOf(s.id), { s, place: `in:${key}` });
+      const sub = s.parentSub || originSub || null;
+      fresh.set(keyOf(s.id), { s, place: `in:${key}`, parentObj, sub });
 
       // What it says.
-      const sub = s.parentSub || (s.origin ? placeOfRef(s.origin).item?.parentSub : null) || null;
       if (s.content instanceof Y.ContentFormat && s.content.key === 'link') {
         const href = s.content.value && typeof s.content.value === 'object' ? s.content.value.href : null;
         if (href != null && !SAFE_HREF.test(String(href))) return fail('unsafe_link');
+      }
+      // An attribute of a node (an entry of an XmlElement): its name and value.
+      if (sub && parentObj instanceof Y.XmlElement) {
+        if (!ATTR_NAME.test(sub) || ATTR_DENY.test(sub)) return fail('attribute');
+        const v = firstValue(s.content);
+        if (typeof v === 'string' && UNSAFE_VALUE.test(v)) return fail('unsafe_link');
       }
       if (sub === 'src') {
         const v = firstValue(s.content);
@@ -378,13 +431,11 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
         if (v != null && !SAFE_HREF.test(String(v))) return fail('unsafe_link');
       }
       // A comment thread: docComments[<id>] = { …thread }.
-      if (key === 'docComments' && s.content instanceof Y.ContentAny) {
-        const commentsType = cardsRoot._map.get(ctx.cardKey)?.content?.type?._map?.get('docComments')?.content?.type;
-        const isEntry = parentType && commentsType && parentType === commentsType;
-        if (isEntry && sub) {
-          const prev = commentsType.get(sub);
-          if (!threadChangeOk(prev, firstValue(s.content), ctx)) return fail('comment_author');
-        }
+      if (commentsType && parentObj === commentsType && sub && s.content instanceof Y.ContentAny) {
+        const prev = commentsType.get(sub);
+        if (!threadChangeOk(prev, firstValue(s.content), ctx)) return fail('comment_author');
+        // This key's old value may go: it was replaced by one that passed.
+        replacedThreads.add(sub);
       }
     }
     if (next.length === pending.length) return fail('missing_ref');
@@ -393,7 +444,6 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
   if (pending.length) return fail('missing_ref');
 
   // Deletions: only inside the doc, and a comment thread only by its author.
-  const commentsType = cardsRoot._map.get(ctx.cardKey)?.content?.type?._map?.get('docComments')?.content?.type;
   for (const [client, list] of ds.clients) {
     for (const { clock, len } of list) {
       for (let c = clock; c < clock + len;) {
@@ -409,14 +459,15 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
           const p = placeOf(it, cardsRoot, ctx.cardKey);
           if (!p || !p.startsWith('in:') || !writable.has(keyOfPlace(p))) return fail('outside_doc');
           if (commentsType && it.parent === commentsType && it.parentSub) {
-            const replaced = items.some((s) => s.parentSub === it.parentSub || (s.origin && s.origin.client === it.id.client && s.origin.clock >= it.id.clock && s.origin.clock < next));
+            // A thread goes only when its author removes it, or when this frame
+            // put a valid new value under the same key of docComments itself.
             const prev = firstValue(it.content);
-            if (!replaced && !(prev && prev.authorId === ctx.userId)) return fail('comment_author');
+            if (!replacedThreads.has(it.parentSub) && !(prev && prev.authorId === ctx.userId)) return fail('comment_author');
           }
         }
         c = next;
       }
     }
   }
-  return { ok: true, clients: [...firstClock.keys()] };
+  return { ok: true, clients: [...firstClock.keys()], empty: structs.length === 0 && ds.clients.size === 0 };
 }

@@ -25,10 +25,13 @@
     "bindings": [
       { "name": "Main", "class_name": "BoardParty" },
       { "name": "Workspace", "class_name": "WorkspaceParty" },
-      { "name": "Universe", "class_name": "UniverseParty" }
+      { "name": "Universe", "class_name": "UniverseParty" },
+      { "name": "Doc", "class_name": "DocParty" }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["BoardParty", "WorkspaceParty", "UniverseParty"] }
+    { "tag": "v1", "new_sqlite_classes": ["BoardParty", "WorkspaceParty", "UniverseParty"] },
+    // A shared doc's live room (party/doc.ts), 2026-10-18.
+    { "tag": "v2", "new_sqlite_classes": ["DocParty"] }
   ]
 }

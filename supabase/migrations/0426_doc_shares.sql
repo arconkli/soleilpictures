@@ -908,7 +908,8 @@ $$;
 
 -- p_room '<share id>.<edit|view>.<generation>'; p_token the share's token when
 -- the person came by its link. → { status: ok | sign_in | no_access | gone |
--- moved | view_only, access, variant, card_key, share_id, user_id, name }.
+-- moved | view_only, access, variant, card_key, share_id, user_id, token_ok,
+-- name }.
 -- 'moved': the room is an old generation (a restore or a move): read
 -- get_file_share again for the new one.
 create or replace function public.doc_room_access(p_room text, p_token uuid default null)
@@ -957,6 +958,8 @@ begin
     'card_key', v_share.card_id,
     'share_id', v_share.id,
     'user_id', v_uid,
+    -- Whether the token given was the share's own: the room re-asks with it.
+    'token_ok', p_token is not null and p_token = v_share.token,
     'name', case when v_uid is null then null else coalesce(v_name, 'Guest') end
   );
 end;
@@ -1000,6 +1003,10 @@ declare
   v_r      jsonb;
   v_acc    text;
 begin
+  -- A room holds at most DOC_ROOM_MAX_CONNECTIONS (50) sockets.
+  if jsonb_typeof(coalesce(p_subjects, '[]'::jsonb)) <> 'array' or jsonb_array_length(coalesce(p_subjects, '[]'::jsonb)) > 100 then
+    raise exception 'at most 100 subjects' using errcode = '22023';
+  end if;
   select s.* into v_share from public.file_shares s where s.id = p_share;
   if not found then
     return jsonb_build_object('gone', true, 'access', '{}'::jsonb);
