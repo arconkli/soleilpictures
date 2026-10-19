@@ -21521,6 +21521,28 @@ button, [role="button"], a {
   color: var(--ink-1);
   text-align: center;
 }
+/* The sheet's "New cluster" row (CanvasSurface, behind clusterNudgesAllowed):
+   full width above the tiles and raised like the desktop bar's pill, because
+   on a phone there is no bar to put that pill in. Never gold at rest. */
+.mobile-add-cluster {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 64px; margin: 0 0 10px; padding: 10px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-3);
+  color: var(--ink-0);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.mobile-add-cluster:active { transform: scale(0.98); background: var(--bg-4); }
+.mobile-add-cluster:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.mobile-add-cluster:active .mobile-add-ico,
+.mobile-add-cluster:focus-visible .mobile-add-ico { color: var(--soleil); }
+.mobile-add-cluster-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mobile-add-cluster-lbl { font: 600 14px/1.2 var(--font-sans); color: var(--ink-0); }
+.mobile-add-cluster-sub { font: 500 12px/1.35 var(--font-sans); color: var(--ink-2); }
 
 
 /* MobileBottomNav -------------------------------------------------------- */

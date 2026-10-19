@@ -6246,6 +6246,26 @@ export function CanvasSurface({
     document.addEventListener('soleil-new-cluster', onNew);
     return () => document.removeEventListener('soleil-new-cluster', onNew);
   }, [board?.id, paneId, canEdit, isPublic]);
+  // A phone's bar has no room for "+ New cluster", so its + sheet leads with
+  // the row instead; with no popover to hang, the name is asked in the app's
+  // own prompt, in the popover's words, and then it goes the same way.
+  const newClusterFromSheet = async () => {
+    const plan = planClusterFromSelection({ cards, ids: [...selectedRef.current], clusters: 'skip' });
+    const n = plan.ids.length;
+    const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+    const typed = await feedback.prompt({
+      title: 'Name this cluster',
+      message: n
+        ? (n === 1 ? 'The card you picked moves into it. Undo puts it back.' : `The ${n} cards you picked move into it. Undo puts them back.`)
+        : `It lands on ${board?.name || 'this cluster'} as a card and opens, ready to fill.`,
+      label: 'Name',
+      placeholder: 'Name it, e.g. Short film',
+      defaultValue: n ? (suggestClusterName({ groupName, cards: plan.cards }) || '') : '',
+      confirmLabel: 'Create cluster',
+    });
+    if (typed == null) return;
+    await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via: 'add_sheet' });
+  };
 
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
@@ -13220,6 +13240,18 @@ export function CanvasSurface({
           landscape phone) so the puck never dead-ends. */}
       {mobileShell && mobileAdd && (
         <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
+          {/* A cluster for the next project leads, above the tiles — the bar
+              has no "+ New cluster" on a phone. Its tile below goes. */}
+          {clusterNudgesAllowed() && (
+            <button type="button" className="mobile-add-cluster"
+                    onClick={() => { setMobileAdd(null); newClusterFromSheet(); }}>
+              <span className="mobile-add-ico" aria-hidden="true"><Icon as={Folder} size={22} /></span>
+              <span className="mobile-add-cluster-txt">
+                <span className="mobile-add-cluster-lbl">New cluster</span>
+                <span className="mobile-add-cluster-sub">A canvas inside this one. Make one per project.</span>
+              </span>
+            </button>
+          )}
           <div className="mobile-add-grid">
             {/* Photos leads on the phone sheet — camera-roll multi-select is the
                 mobile superpower and images are the activation signal. */}
@@ -13231,7 +13263,7 @@ export function CanvasSurface({
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
               <span className="mobile-add-lbl">Photos</span>
             </button>
-            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script').map(a => (
+            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script' && !(a.id === 'board' && clusterNudgesAllowed())).map(a => (
               <button
                 key={a.id}
                 type="button"
