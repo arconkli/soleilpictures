@@ -11,13 +11,13 @@
 // JSON and parse tolerantly. EVERY failure path falls back to deterministic
 // behaviour — a model hiccup must never drop someone's photo.
 
-import { runWorkersAiChat, parseJsonLoose } from '../worker-llm.js';
+import { runWorkersAiChat, parseJsonLoose, responseText } from '../worker-llm.js';
 
 // Workers AI is reachable two ways, and Scout needs both: the `AI` binding when
 // running inside the Worker, and the REST API from the Node ingest service
 // (which exists because Photon's iMessage provider needs gRPC + child_process
 // and therefore cannot run in a Worker). Same model, same free allocation.
-async function runChat(env, model, system, user, opts) {
+export async function runChat(env, model, system, user, opts) {
   if (env?.AI) return runWorkersAiChat(env, model, system, user, opts);
 
   if (!env?.CF_ACCOUNT_ID || !env?.CF_AI_TOKEN) throw new Error('no Workers AI transport configured');
@@ -42,13 +42,15 @@ async function runChat(env, model, system, user, opts) {
   );
   if (!res.ok) throw new Error(`workers-ai ${res.status}`);
   const body = await res.json();
-  return body?.result?.response || '';
+  return responseText(body?.result);
 }
 
 // 8b rather than the 3b used for candidate classification: the `topic` becomes
 // a visible section header on the user's canvas, and 3b mangles film vocabulary
-// ("tech scout", "gaffer", "recce", "Scene 4 int. diner"). Still free tier.
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+// ("tech scout", "gaffer", "recce", "Scene 4 int. diner"). Cloudflare retired
+// the plain llama-3.1-8b-instruct id on 2026-05-30 (error 5028); the fp8 build
+// is the same model, quantized.
+const MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
 
 const SYSTEM = [
   'You read short messages sent by film crew to an ingest bot and extract intent.',

@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runWorkersAiChat, parseJsonLoose, parseJsonArrayLoose } from '../worker-llm.js';
+import { runWorkersAiChat, parseJsonLoose, parseJsonArrayLoose, responseText } from '../worker-llm.js';
 import { handleTagsRoute } from '../worker-tags.js';
+import { runChat } from './scoutIntent.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(here, p), 'utf8');
@@ -26,6 +27,38 @@ test('a text answer passes through untouched, and an empty one is empty', async 
   assert.deepEqual(parseJsonLoose(fenced), { verdicts: [] });
   assert.equal(await runWorkersAiChat(envAnswering(undefined), 'm', 's', 'u'), '');
   assert.equal(await runWorkersAiChat(envAnswering(null), 'm', 's', 'u'), '');
+});
+
+test('every text-model answer is read through responseText, the SEO drafts and Scout too', () => {
+  assert.equal(responseText({ response: { a: 1 } }), '{"a":1}');
+  assert.equal(responseText({ response: 'plain' }), 'plain');
+  assert.equal(responseText({ response: false }), 'false');
+  assert.equal(responseText(undefined), '');
+  const seo = read('../worker-seo.js');
+  assert.doesNotMatch(seo, /function parseJsonLoose/, 'one parser, from worker-llm.js');
+  assert.match(seo, /const draft = parseJsonLoose\(responseText\(out\)\);/);
+  assert.match(read('./scoutIntent.js'), /return responseText\(body\?\.result\);/);
+});
+
+test("Scout's REST path reads a parsed answer as text, and its classifier can reach the model", async () => {
+  const realFetch = globalThis.fetch;
+  let called = '';
+  globalThis.fetch = async (url) => {
+    called = String(url);
+    return new Response(JSON.stringify({ success: true, result: { response: { topic: 'Scene 4 - Diner', action: 'ingest' } } }));
+  };
+  try {
+    const text = await runChat({ CF_ACCOUNT_ID: 'acct', CF_AI_TOKEN: 't' }, '@cf/meta/llama-3.1-8b-instruct-fp8', 's', 'u');
+    assert.deepEqual(parseJsonLoose(text), { topic: 'Scene 4 - Diner', action: 'ingest' });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.equal(called, 'https://api.cloudflare.com/client/v4/accounts/acct/ai/run/@cf/meta/llama-3.1-8b-instruct-fp8');
+  assert.match(read('./scoutIntent.js'), /const MODEL = '@cf\/meta\/llama-3\.1-8b-instruct-fp8';/);
+  // The Node service has no AI binding, so a binding-only call threw every time.
+  const pipeline = read('../../../scout/src/pipeline.js');
+  assert.doesNotMatch(pipeline, /runWorkersAiChat\(|import \{[^}]*runWorkersAiChat/);
+  assert.match(pipeline, /await runChat\(\s*cfg, '@cf\/meta\/llama-3\.1-8b-instruct-fp8'/);
 });
 
 test('doc word-tagging runs on a model Cloudflare still serves', () => {

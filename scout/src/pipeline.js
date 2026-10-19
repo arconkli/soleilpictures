@@ -22,7 +22,7 @@ import {
   isDeleteIntent, isCreateConfirmation,
   prepareMove, executeMove, undoMove, describeBin, PENDING_TTL_MS,
 } from './filing.js';
-import { extractIntent, parseCommand, parseFileIntent } from '../../boards/src/lib/scoutIntent.js';
+import { extractIntent, parseCommand, parseFileIntent, runChat } from '../../boards/src/lib/scoutIntent.js';
 import {
   extractUrls, textWithoutUrls, arrangeExisting,
 } from '../../boards/src/lib/scoutCards.js';
@@ -41,7 +41,6 @@ import {
   looksLikeQuestion, matchTopic, renderAnswer, fallbackAnswer,
   CLASSIFIER_SYSTEM, isValidTopic,
 } from './answers.js';
-import { runWorkersAiChat } from '../../boards/src/worker-llm.js';
 
 // Fetch og metadata through the app's own /api/og route so link cards get the
 // same title/image/favicon a browser paste would produce.
@@ -518,8 +517,10 @@ async function answerQuestion(cfg, text, ctx) {
 
   if (!topic && (cfg.AI || (cfg.CF_ACCOUNT_ID && cfg.CF_AI_TOKEN))) {
     try {
-      const out = await runWorkersAiChat(
-        cfg, '@cf/meta/llama-3.1-8b-instruct', CLASSIFIER_SYSTEM,
+      // runChat, not runWorkersAiChat: this service has no AI binding, only
+      // the REST API (config.js), and the binding-only call threw every time.
+      const out = await runChat(
+        cfg, '@cf/meta/llama-3.1-8b-instruct-fp8', CLASSIFIER_SYSTEM,
         String(text).slice(0, 400), { max_tokens: 12, temperature: 0 },
       );
       const guess = String(out || '').trim().toLowerCase().replace(/[^a-z_]/g, '');

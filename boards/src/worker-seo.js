@@ -24,6 +24,7 @@
 import { SEO_LANDING_LISTED } from './lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from './lib/seoListicleIndex.js';
 import { DOCS_PATHS } from './lib/docsiteIndex.js';
+import { parseJsonLoose, responseText } from './worker-llm.js';
 
 // Cloudflare Workers AI (free in-worker tier — no API key/credits). The vision
 // model captions images for alt text; the text model drafts SEO copy. Both run
@@ -60,16 +61,6 @@ function cors204() {
       'access-control-allow-headers': 'authorization, content-type',
     },
   });
-}
-
-// Tolerant JSON extraction for text-model output (strips ``` fences / prose).
-function parseJsonLoose(text) {
-  if (!text) return null;
-  let s = String(text).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-  const a = s.indexOf('{');
-  const b = s.lastIndexOf('}');
-  if (a >= 0 && b > a) s = s.slice(a, b + 1);
-  try { return JSON.parse(s); } catch { return null; }
 }
 
 // REST helpers (service-role) — used after the admin gate passes.
@@ -285,7 +276,7 @@ async function handleSeoDraft(env, boardId) {
   } catch (e) {
     return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
   }
-  const draft = parseJsonLoose(out?.response || '');
+  const draft = parseJsonLoose(responseText(out));
   if (!draft || !draft.seo_title) return json({ error: 'model returned no usable draft — try again' }, 502);
   return json({ draft, grounded_on: { tags: tags.length, titles: titles.length, notes: notes.length, image_count: imageCount } });
 }
