@@ -9,7 +9,8 @@
 // sidebar gets, or side by side pulled narrow) renders the other
 // arrangement's handles here and carries on. Double-click puts back what a
 // handle sizes; a focused edge moves with the arrow keys. A new arrangement
-// slides the files' card to its new place.
+// slides the files' card to its new place. With the files hidden, the
+// clusters' card's width is the one handle.
 //
 // The handles sit in a fixed layer over the window and are placed from where
 // the cards actually are (the CSS has the last word on a card's size: a
@@ -17,7 +18,7 @@
 // whenever a card changes size.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { EDGE, SIZES, arrangementOf, dragLayout, frameVars, handleList, handleSpecs, keyLayout, resetLayout, sidebarFootprint } from '../../lib/sidebarLayout.js';
+import { EDGE, SIZES, arrangementOf, dragLayout, frameVars, handleList, handleSpecs, keyLayout, resetLayout, shownArrangement, sidebarFootprint } from '../../lib/sidebarLayout.js';
 
 const CURSOR = { v: 'ew-resize', h: 'ns-resize', grip: 'ns-resize', corner: 'nwse-resize' };
 // A card's rounded corner, 12px, with a little of each edge (the corner sits
@@ -35,7 +36,9 @@ const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia
 export function applyLayout(frame, layout, fit = {}) {
   if (!frame) return;
   for (const [k, v] of Object.entries(frameVars(layout, fit))) frame.style.setProperty(k, v);
-  frame.classList.toggle('is-side', arrangementOf(layout, fit) === 'side');
+  const shown = shownArrangement(layout, fit);
+  frame.classList.toggle('is-side', shown === 'side');
+  frame.classList.toggle('is-files-hidden', shown === 'hidden');
   frame.closest('.app')?.style.setProperty('--sb-w', `${sidebarFootprint(layout, fit)}px`);
 }
 
@@ -67,7 +70,7 @@ function valueOf(id, t, f) {
 export function SidebarHandles({ layout, coarse = false, roomy = true, snug = true, frameRef, treeRef, filesRef, navRef, onLayout }) {
   // The arrangement a drag switched to, until it lets go and App has it.
   const [dragArr, setDragArr] = useState(null);
-  const arr = dragArr || arrangementOf(layout, { coarse, roomy, snug });
+  const arr = dragArr || shownArrangement(layout, { coarse, roomy, snug });
   const layerRef = useRef(null);
   const guideRef = useRef(null);
   const dragRef = useRef(null);
@@ -78,7 +81,10 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
   live.current = { layout, coarse, roomy, snug, onLayout };
   const fit = () => ({ coarse: live.current.coarse, roomy: live.current.roomy, snug: live.current.snug });
 
-  const domArr = () => (frameRef.current?.classList.contains('is-side') ? 'side' : 'stack');
+  const domArr = () => {
+    const c = frameRef.current?.classList;
+    return c?.contains('is-files-hidden') ? 'hidden' : c?.contains('is-side') ? 'side' : 'stack';
+  };
 
   const place = useCallback(() => {
     const layer = layerRef.current, t = treeRef.current, f = filesRef.current;
@@ -178,7 +184,7 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
       const rest = tr.h - nav.clientHeight;
       hug = rest + (at === 'stack' ? Math.min(nav.scrollHeight, Math.round(SIZES.stackNavShare * window.innerHeight)) : nav.scrollHeight);
     }
-    return { layout: lay, arr: at, t: tr, f: fr, top: box.top, full: box.bottom - EDGE, hug, x, vw: window.innerWidth, coarse: live.current.coarse };
+    return { layout: lay, arr: at, under: arrangementOf(lay, fit()), t: tr, f: fr, top: box.top, full: box.bottom - EDGE, hug, x, vw: window.innerWidth, coarse: live.current.coarse };
   };
 
   const onMove = useRef(null);
@@ -275,7 +281,7 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
              tabIndex={h.focus ? 0 : -1}
              title={`${h.label} · double-click to put it back`}
              onPointerDown={(e) => onPointerDown(e, h.id, h.kind)}
-             onDoubleClick={() => { sizeAtOnce(frameRef.current); onLayout?.(resetLayout(layout, arr, h.id), { commit: true }); }}
+             onDoubleClick={() => { sizeAtOnce(frameRef.current); onLayout?.(resetLayout(layout, arr, h.id, arrangementOf(layout, fit())), { commit: true }); }}
              onKeyDown={h.focus ? (e) => onKeyDown(e, h.id, h.kind) : undefined}>
           {h.kind === 'corner' && (
             <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d={ARC} /></svg>

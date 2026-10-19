@@ -4,7 +4,7 @@ import {
   EDGE, SIZES, LAYOUT_DEFAULT, SIDEBAR_LAYOUT_KEY, OLD_SIDEBAR_W_KEY,
   defaultLayout, sanitizeLayout, layoutFromOldWidth, readSidebarLayout, writeSidebarLayout,
   sidebarFootprint, arrangementOf, frameVars, toggledLayout, handleSpecs, dragLayout, resetLayout, keyLayout,
-  SIDE_FITS_QUERY, KEPT_FITS_QUERY,
+  SIDE_FITS_QUERY, KEPT_FITS_QUERY, shownArrangement, withFilesHidden, handleList,
 } from './sidebarLayout.js';
 
 const memory = (init = {}) => {
@@ -296,4 +296,59 @@ test('the arrow keys move a focused edge 16px, 64 with Shift, along its own dire
   // Past the stacked width, a key stops at it instead of switching.
   const w = keyLayout(stacked(defaultLayout(), {}), 'filesRight', 'v', 'ArrowRight', true);
   assert.equal(w.arr, 'stack');
+});
+
+// ── The files hidden ─────────────────────────────────────────────────────────
+// Folded to their heading under the clusters' card: the board gets their room.
+const hiddenAt = (layout, over = {}) => ({
+  ...VIEW, layout, arr: 'hidden', under: arrangementOf(layout),
+  t: rect(8, 8, layout[arrangementOf(layout)].tw, 600), f: rect(8, 616, layout[arrangementOf(layout)].tw, 84), x: 8, ...over,
+});
+
+test('the files hide and come back with every size as it was', () => {
+  const side = { ...defaultLayout(), arr: 'side', pinned: true, side: { tw: 260, fw: 420, tBottom: 'hug', fBottom: 'full' } };
+  const hidden = withFilesHidden(side, true);
+  assert.equal(hidden.filesHidden, true);
+  assert.deepEqual(withFilesHidden(hidden, false), { ...side, filesHidden: false });
+  assert.equal(sanitizeLayout({ filesHidden: 'yes' }).filesHidden, false, 'only true hides them');
+  assert.equal(sanitizeLayout({ filesHidden: true }).filesHidden, true);
+  // Kept per device with the rest.
+  const s = memory();
+  writeSidebarLayout(hidden, s);
+  assert.equal(readSidebarLayout(s).filesHidden, true);
+  // The button between the arrangements leaves it alone.
+  assert.equal(toggledLayout(hidden, 'side').filesHidden, true);
+});
+
+test('hidden, the sidebar is the clusters\' card alone, at its width in the arrangement in force', () => {
+  const stack = withFilesHidden({ ...defaultLayout(), stack: { ...LAYOUT_DEFAULT.stack, tw: 280, fw: 420 } }, true);
+  assert.equal(shownArrangement(stack), 'hidden');
+  assert.equal(shownArrangement(defaultLayout()), 'stack');
+  assert.equal(sidebarFootprint(stack), EDGE + 280);
+  assert.equal(sidebarFootprint({ ...stack, filesHidden: false }), EDGE + 420);
+  const side = withFilesHidden({ ...defaultLayout(), arr: 'side' }, true);
+  assert.equal(sidebarFootprint(side), EDGE + LAYOUT_DEFAULT.side.tw);
+  // A window too narrow for side by side shows the stacked width.
+  assert.equal(sidebarFootprint(side, { roomy: false, snug: false }), EDGE + LAYOUT_DEFAULT.stack.tw);
+  assert.deepEqual(frameVars(side), {
+    '--sbf-tw': '240px', '--sbf-fw': '240px', '--sbf-th': 'auto', '--sbf-fh': 'auto', '--sbf-frame-h': '100%', '--sbf-nav-max': 'none',
+  });
+});
+
+test('hidden, only the clusters\' width has a handle, and it never changes the arrangement', () => {
+  assert.deepEqual(handleList('hidden').map((h) => h.id), ['treeRight']);
+  const st = hiddenAt(withFilesHidden(defaultLayout(), true));
+  const [edge] = handleSpecs('hidden', st);
+  assert.deepEqual([edge.id, edge.x, edge.w], ['treeRight', 8 + 312 - 4, 8]);
+  // Stacked: the stacked clusters' width, no further than the stacked sidebar gets.
+  assert.equal(dragLayout(st, 'treeRight', 40, 0).layout.stack.tw, 352);
+  assert.equal(dragLayout(st, 'treeRight', 900, 0).layout.stack.tw, SIZES.stackMaxW);
+  assert.equal(dragLayout(st, 'treeRight', 900, 0).layout.arr, 'stack');
+  assert.equal(dragLayout(st, 'treeRight', -900, 0).layout.stack.tw, SIZES.treeMinW);
+  // Side by side: the side-by-side clusters' width.
+  const sd = hiddenAt(withFilesHidden({ ...defaultLayout(), arr: 'side' }, true));
+  const r = dragLayout(sd, 'treeRight', 30, 0).layout;
+  assert.deepEqual([r.arr, r.side.tw, r.stack.tw, r.filesHidden], ['side', 270, LAYOUT_DEFAULT.stack.tw, true]);
+  assert.equal(keyLayout(sd, 'treeRight', 'v', 'ArrowLeft').side.tw, 224);
+  assert.equal(resetLayout({ ...r, side: { ...r.side, tw: 300 } }, 'hidden', 'treeRight', 'side').side.tw, LAYOUT_DEFAULT.side.tw);
 });

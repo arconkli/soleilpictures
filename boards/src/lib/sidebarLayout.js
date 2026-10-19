@@ -18,6 +18,12 @@
 // side keeps them stacked (SIDE_FITS_QUERY; KEPT_FITS_QUERY for side by side
 // the button keeps, which can be narrower), and so does a touch screen.
 //
+// The files can be hidden (owner, 2026-10-19: "a way to hide/unhide the files
+// bar. it needs to be SUPER easy and SUPER obvious on how to get it back"):
+// `filesHidden` folds the files' card to its heading, under the clusters' card,
+// in either arrangement, and the clusters' card keeps its width. The board
+// gets the files' room, and their sizes wait for Show.
+//
 // Sizes are CSS px, heights measured down from the top of the sidebar. A
 // height is a number, or 'full' (down to the window's bottom margin), or for
 // the clusters' card 'hug' (as tall as what's in it). Each arrangement keeps
@@ -50,6 +56,7 @@ export const SIZES = Object.freeze({
 export const LAYOUT_DEFAULT = Object.freeze({
   arr: 'stack',
   pinned: false,
+  filesHidden: false,
   stack: Object.freeze({ tw: 312, fw: 312, th: 'hug', bottom: 'full' }),
   side: Object.freeze({ tw: 240, fw: 384, tBottom: 'hug', fBottom: 'full' }),
 });
@@ -62,7 +69,7 @@ const width = (v, lo, hi, d) => (num(v) == null ? d : Math.round(clamp(v, lo, hi
 const bottom = (v, tokens, lowest, d) => (tokens.includes(v) ? v : num(v) == null ? d : Math.round(Math.max(lowest, v)));
 
 export function defaultLayout() {
-  return { arr: 'stack', pinned: false, stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side } };
+  return { arr: 'stack', pinned: false, filesHidden: false, stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side } };
 }
 
 // Whatever came out of storage, as a layout.
@@ -74,6 +81,7 @@ export function sanitizeLayout(raw) {
   return {
     arr: raw.arr === 'side' ? 'side' : 'stack',
     pinned: raw.arr === 'side' && raw.pinned === true,
+    filesHidden: raw.filesHidden === true,
     stack: {
       tw: width(st.tw, SIZES.treeMinW, SIZES.stackMaxW, d.stack.tw),
       fw: width(st.fw, SIZES.filesMinW, SIZES.stackMaxW, d.stack.fw),
@@ -135,12 +143,20 @@ export const KEPT_FITS_QUERY = `(min-width: ${SIZES.room + SIDE_LEAST}px)`;
 // snug (KEPT_FITS_QUERY matches) }.
 export const arrangementOf = (layout, { coarse = false, roomy = true, snug = true } = {}) =>
   (!coarse && layout?.arr === 'side' && (roomy || (snug && !!layout.pinned)) ? 'side' : 'stack');
+// What the cards show: the arrangement in force, or 'hidden' while the files'
+// card is folded to its heading under the clusters' card (which keeps the
+// width it has in the arrangement in force).
+export const shownArrangement = (layout, fit) => (layout?.filesHidden ? 'hidden' : arrangementOf(layout, fit));
+// The files hidden (Hide, ⌘\) or back (Show); every size stays as it was.
+export const withFilesHidden = (layout, hidden) => ({ ...sanitizeLayout(layout), filesHidden: !!hidden });
 
 // The sidebar's column: the cards and their margin. The window may cut it
 // shorter (clusterSidebar.css keeps SIZES.room for the board).
 export function sidebarFootprint(layout, fit = {}) {
   const l = layout || LAYOUT_DEFAULT;
-  if (arrangementOf(l, fit) === 'side') return EDGE + l.side.tw + EDGE + l.side.fw;
+  const arr = arrangementOf(l, fit);
+  if (l.filesHidden) return EDGE + l[arr].tw;
+  if (arr === 'side') return EDGE + l.side.tw + EDGE + l.side.fw;
   return EDGE + Math.max(l.stack.tw, l.stack.fw);
 }
 
@@ -148,6 +164,12 @@ export function sidebarFootprint(layout, fit = {}) {
 // .sbf-frame.
 export function frameVars(layout, fit = {}) {
   const l = layout || LAYOUT_DEFAULT;
+  if (l.filesHidden) {
+    // The clusters' card as tall as its list (as much of the window as that
+    // takes), the folded files under it at its width.
+    const tw = `${l[arrangementOf(l, fit)].tw}px`;
+    return { '--sbf-tw': tw, '--sbf-fw': tw, '--sbf-th': 'auto', '--sbf-fh': 'auto', '--sbf-frame-h': '100%', '--sbf-nav-max': 'none' };
+  }
   if (arrangementOf(l, fit) === 'side') {
     const s = l.side;
     return {
@@ -201,9 +223,11 @@ const LABELS = {
 const HANDLES = {
   stack: [['treeRight', 'v'], ['filesRight', 'v'], ['divider', 'grip'], ['bottom', 'h'], ['corner', 'corner']],
   side: [['split', 'v'], ['right', 'v'], ['treeBottom', 'h'], ['bottom', 'h'], ['treeCorner', 'corner'], ['corner', 'corner']],
+  // The files hidden: only the clusters' card's width.
+  hidden: [['treeRight', 'v']],
 };
-// The handles an arrangement has, in the order they render.
-export const handleList = (arr) => HANDLES[arr === 'side' ? 'side' : 'stack']
+// The handles an arrangement has (or 'hidden'), in the order they render.
+export const handleList = (arr) => HANDLES[arr === 'side' || arr === 'hidden' ? arr : 'stack']
   .map(([id, kind]) => ({ id, kind, label: LABELS[id], focus: kind !== 'corner' }));
 export function handleSpecs(arr, { t, f }, { coarse = false } = {}) {
   const z = coarse ? 16 : ZONE;
@@ -211,7 +235,9 @@ export function handleSpecs(arr, { t, f }, { coarse = false } = {}) {
   const at = {};
   const put = (id, x, y, w, h) => { at[id] = { x, y, w: Math.max(0, w), h: Math.max(0, h) }; };
   const corner = (id, r) => put(id, r.x + r.w - 18, r.y + r.h - 18, 24, 24);
-  if (arr === 'side') {
+  if (arr === 'hidden') {
+    put('treeRight', t.x + t.w - z / 2, t.y + R, z, t.h - 2 * R);
+  } else if (arr === 'side') {
     // The gap, where the two cards face each other.
     const top = Math.max(t.y, f.y) + R;
     put('split', t.x + t.w, top, f.x - (t.x + t.w), Math.min(t.y + t.h, f.y + f.h) - R - top);
@@ -233,7 +259,8 @@ export function handleSpecs(arr, { t, f }, { coarse = false } = {}) {
 }
 
 // ── Dragging one ─────────────────────────────────────────────────────────────
-// `start`: the drag's beginning, measured — { layout, arr, t, f (the cards'
+// `start`: the drag's beginning, measured — { layout, arr ('hidden' with the
+// files hidden), under (then, the arrangement in force), t, f (the cards'
 // viewport rects), top (the sidebar's top, viewport y), full (a full-height
 // card's bottom, viewport y), hug (the clusters' card as tall as what's in it,
 // px), x (the pointer), vw, coarse, flips (false: never change the
@@ -255,6 +282,16 @@ export function dragLayout(start, id, dx, dy) {
   const px = start.x + dx;                                 // the pointer now
   let align = null;
   let alignX = null;
+  if (start.arr === 'hidden') {
+    // The files hidden: the clusters' card's width in the arrangement in
+    // force, and nothing changes the arrangement.
+    const under = start.under === 'side' ? 'side' : 'stack';
+    const most = under === 'side' ? SIZES.treeMaxW : SIZES.stackMaxW;
+    if (id === 'treeRight') {
+      layout[under].tw = Math.round(clamp(t.w + dx, SIZES.treeMinW, Math.max(SIZES.treeMinW, Math.min(most, widest - EDGE))));
+    }
+    return { layout, align, alignX, flip: null };
+  }
   const yBottom = (y, lo) => {
     const v = clamp(Math.round(y), lo, full);
     return { v, full: full - v <= SNAP_FULL };
@@ -341,9 +378,15 @@ export function dragLayout(start, id, dx, dy) {
 }
 
 // A handle double-clicked: what it sizes goes back to how it started.
-export function resetLayout(layout, arr, id) {
+// `under`: with the files hidden ('hidden'), the arrangement in force.
+export function resetLayout(layout, arr, id, under = 'stack') {
   const l = sanitizeLayout(layout);
   const d = defaultLayout();
+  if (arr === 'hidden') {
+    const k = under === 'side' ? 'side' : 'stack';
+    if (id === 'treeRight') l[k].tw = d[k].tw;
+    return l;
+  }
   if (arr === 'side') {
     if (id === 'split' || id === 'treeCorner') { l.side.tw = d.side.tw; l.side.fw = d.side.fw; }
     if (id === 'right' || id === 'corner') l.side.fw = d.side.fw;

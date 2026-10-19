@@ -206,7 +206,9 @@ function Row({ row, depth, ctx }) {
 }
 
 // The rows of a long block that touch the sidebar's viewport, recomputed on
-// scroll and resize (one rAF per frame at most). The row holding focus is
+// scroll and whenever the list's box changes size (one rAF per frame at most):
+// a card's edge dragged, or the files shown again after Hide, which leaves no
+// window resize to go by. The row holding focus is
 // rendered wherever it is (see `pinned` below): unmounting it would drop focus
 // to the page, and ↑/↓ walk the rows that are in the DOM.
 function useWindow(scrollRef, blockRef, layout, active) {
@@ -227,9 +229,12 @@ function useWindow(scrollRef, blockRef, layout, active) {
     measure();
     scroller.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    ro?.observe(scroller);
     return () => {
       scroller.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
+      ro?.disconnect();
       if (raf) cancelAnimationFrame(raf);
     };
   }, [scrollRef, blockRef, layout, active]);

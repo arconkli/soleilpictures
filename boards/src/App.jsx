@@ -217,7 +217,7 @@ import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
-import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
+import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, withFilesHidden, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
 import { whoLine } from './lib/sidebarWho.js';
 import { SidebarWho } from './components/sidebar/SidebarWho.jsx';
 import { useMatchMedia } from './hooks/useMatchMedia.js';
@@ -8017,8 +8017,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     enabled: filesSidebar && currentSurface === 'home',
     conversationList, selfId: user.id, wsPeers, boards,
   });
-  // The files sidebar's Home keeps the universe behind its button: its own
-  // flag, off whenever you come back to Home, never remembered (the old
+  // The files sidebar's Home brings its universe forward with a button: its
+  // own flag, off whenever you come back to Home, never remembered (the old
   // Home's soleil.home.exploring would open it straight into the 3D view).
   const [homeUniverse, setHomeUniverse] = useState(false);
   useEffect(() => { if (currentSurface !== 'home') setHomeUniverse(false); }, [currentSurface]);
@@ -8984,6 +8984,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
     { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
       run: () => setSidebarOpen(!sidebarOpen) },
+    // The files sidebar's files card (preview only): hidden, it folds to its
+    // heading under the clusters; ⌘\ does the same (ClusterSidebar).
+    { id: 'sidebar-files', label: sidebarLayout.filesHidden ? 'Show files in the sidebar' : 'Hide files in the sidebar',
+      icon: FilesIcon, keywords: ['files', 'sidebar', 'hide', 'show', 'panel'],
+      // Hiding needs the sidebar open to mean anything; Show opens it too.
+      available: filesSidebar && !mobileShell && (sidebarOpen || !!sidebarLayout.filesHidden),
+      run: () => {
+        const hide = !sidebarLayout.filesHidden;
+        onSidebarLayout(withFilesHidden(sidebarLayout, hide), { commit: true });
+        if (!hide && !sidebarOpen) setSidebarOpen(true);
+      } },
     // Keyworded for what people will actually type when the canvas isn't doing
     // what they expect ("scroll", "wheel", "zoom") rather than for the name of
     // the setting, which they have no reason to know.
@@ -9023,6 +9034,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+      sidebarLayout, onSidebarLayout, filesSidebar, mobileShell,
       captureAllowed, capture.on, switchMode, switchInSplit, switchView, switchBoardId,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut, feedback]);
 
@@ -10266,8 +10278,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         {currentSurface === 'home' && filesSidebar ? (
           // The workspace at a glance (preview only; the owner's pick,
           // 2026-10-19): the cluster to pick up, the clusters, and a rail of
-          // messages, who's here, what's shared and storage. The universe is
-          // behind a button: HomeGraph mounts, and its chunk loads, only then.
+          // messages, who's here, what's shared and storage, frosted over the
+          // live universe, which Universe brings forward to explore.
           <ClustersHome
             boards={boards}
             rootId={rootBoard.id}
@@ -10287,7 +10299,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <Suspense fallback={<div className="home-graph-wrap" />}>
                 <HomeGraph
                   workspaceId={workspace.id}
-                  backdrop={false}
+                  backdrop={!homeUniverse}
+                  scenery={!homeUniverse}
                   onNavigate={(target) => {
                     if (!target || target.kind === 'url') {
                       if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');

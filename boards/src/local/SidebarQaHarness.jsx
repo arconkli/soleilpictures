@@ -38,6 +38,9 @@ const T0 = Date.parse('2026-10-01T12:00:00Z');
 // not coloured squares: a screenshot of this harness is judged as the product,
 // and flat swatches made a calm list look like a toy.
 const PHOTOS = Object.values(import.meta.glob('./qa-photos/*.jpg', { eager: true, query: '?url', import: 'default' }));
+// Home's universe as the real HomeGraph draws it, captured at 1440×900 (it needs
+// a signed-in workspace to draw itself), one for each theme.
+const UNIVERSE = import.meta.glob('./qa-universe/*.jpg', { eager: true, query: '?url', import: 'default' });
 function swatch(i) {
   return PHOTOS[i % PHOTOS.length];
 }
@@ -194,7 +197,11 @@ const QA_STYLE = `
 .sbqa-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); z-index: 1; }
 .sbqa-tag, .sbqa-faces { color: var(--ink-1); font: 500 12px var(--font-sans); padding: 4px 8px; }
-.sbqa-universe { position: absolute; inset: 0; display: grid; place-items: center; background: #0a0908; color: var(--ink-3); font: 500 13px var(--font-sans); }
+.sbqa-universe { position: absolute; inset: 0; background: #0a0908; }
+.sbqa-universe img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sbqa-universe .is-light, [data-theme='light'] .sbqa-universe .is-dark { display: none; }
+[data-theme='light'] .sbqa-universe { background: #f5f5f7; }
+[data-theme='light'] .sbqa-universe .is-light { display: block; }
 .sbqa-home-readout { position: fixed; left: 340px; bottom: 6px; z-index: 5; opacity: .6; }
 `;
 
@@ -480,7 +487,12 @@ export function SidebarQaHarness() {
               exploring={exploring} onExplore={setExploring}
               onOpenBoard={(id, via) => say(`home ${via} ${id}`)}
               onNewProject={(name) => say(`new cluster ${name || ''}`)}
-              graph={phone ? null : <div className="sbqa-universe" data-testid="sbqa-universe">The universe</div>}
+              graph={phone ? null : (
+                <div className="sbqa-universe" data-testid="sbqa-universe">
+                  <img className="is-dark" src={UNIVERSE['./qa-universe/universe-dark.jpg']} alt="" />
+                  <img className="is-light" src={UNIVERSE['./qa-universe/universe-light.jpg']} alt="" />
+                </div>
+              )}
               loadPhotos={async (id) => HOME_PHOTOS[id] || []}
               hereByBoard={HERE_BY_BOARD}
               conversations={railRows}

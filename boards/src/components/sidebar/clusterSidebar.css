@@ -148,6 +148,52 @@
 .app.is-floating-chrome .sbf-frame.is-side > .sbf-card.is-tree { min-width: 196px; }
 .app.is-floating-chrome .sbf-frame.is-side > .sbf-card.is-files { flex: 0 1 auto; height: var(--sbf-fh, 100%); min-width: 232px; }
 
+/* ── Hiding the files ─────────────────────────────────────────────────────── */
+/* The owner, 2026-10-19: "a way to hide/unhide the files bar. it needs to be
+   SUPER easy and SUPER obvious on how to get it back" (picked from four
+   mockups). The files' card has a heading like CLUSTERS with a word to hide
+   it; hidden, the card folds to that heading where it was, its word now Show,
+   with the foot under it, and the clusters' card takes the room (its list
+   uncapped: frameVars). Side by side folds the same way, under the clusters. */
+.sbf-files-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 32px; padding: 6px 9px 0 15px; box-sizing: border-box;
+}
+.sbf-files-heading + .sbf-files-head { padding-top: 4px; }
+.sbf-files-heading-label {
+  font: 600 10.5px/1.4 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sbf-quiet);
+}
+.sbf-files-hide {
+  height: 24px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  color: var(--ink-3); font: 500 12px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.sbf-files-hide:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-files-hide:focus-visible, .sbf-files-bar:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.app.is-floating-chrome .sbf-card.is-files.is-folded { flex: 0 0 auto; min-height: 0; width: var(--sbf-tw, 312px); }
+.sbf-card.is-files.is-folded > .sbf-files,
+.sbf-card.is-files.is-folded > .sbf-meter { display: none; }
+.sbf-files-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; height: 42px; box-sizing: border-box; margin: 0; padding: 0 9px 0 15px;
+  border: 0; border-radius: 12px 12px 0 0; background: transparent; cursor: pointer; text-align: left;
+  transition: background-color var(--dur-fast) var(--ease);
+  animation: sbfFold var(--dur-base) var(--ease);
+}
+.sbf-files-bar:hover { background: var(--bg-hov); }
+.sbf-files-show {
+  flex-shrink: 0; display: inline-flex; align-items: center; height: 26px; padding: 0 11px; border-radius: 7px;
+  background: var(--sbf-count); color: var(--ink-0); font: 500 12px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.sbf-files-bar:hover .sbf-files-show { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
+@keyframes sbfFold { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sbf-files-bar { animation: none; } }
+@media (pointer: coarse) {
+  .sbf-files-bar { height: 48px; }
+  .sbf-files-hide { height: 36px; padding: 0 12px; }
+}
+
 /* ── The handles (SidebarHandles) ────────────────────────────────────────── */
 /* Each card's right and bottom edges and corner, and the gap between the
    cards: a line when you reach for one (after a beat, so passing over it

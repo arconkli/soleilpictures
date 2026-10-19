@@ -96,16 +96,34 @@ test.describe('Home, the workspace at a glance', () => {
     await expect(page.locator('.ch-card[aria-label="Storage"] .sbf-meter-text')).toHaveText('38 of 50 cards · 1.2 of 5.0 GB');
   });
 
-  test('the universe is behind a button, with a way back', async ({ page }) => {
+  test('the universe runs behind all of Home under frosted cards, and comes forward to explore', async ({ page }) => {
     await open(page, '&surface=home');
-    await expect(page.getByTestId('sbqa-universe')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Universe' }).click();
+    const sky = page.locator('.ch-sky');
     await expect(page.getByTestId('sbqa-universe')).toBeVisible();
-    // The way back clears the floating islands.
+    // Fixed to the window, under the sidebar's cards and the islands as well
+    // as Home's, and scenery: it takes no pointer.
+    const r = await rect(sky);
+    expect([Math.round(r.left), Math.round(r.top), Math.round(r.width)]).toEqual([0, 0, page.viewportSize().width]);
+    await expect(sky).toHaveCSS('pointer-events', 'none');
+    await expect(sky).toHaveAttribute('aria-hidden', 'true');
+    expect(await page.evaluate(() => !!document.elementFromPoint(24, 24)?.closest('.sbf-card'))).toBe(true);
+    // Home's blocks are frosted plates over it.
+    for (const sel of ['.ch-cont', '.ch-tile:not(.ch-new)', '.ch-card', '.ch-chip']) {
+      await expect(page.locator(sel).first()).toHaveCSS('backdrop-filter', /blur\(20px\)/);
+    }
+    // Universe brings the same one forward: Home's things go, the way back clears the islands.
+    await page.getByTestId('sbqa-universe').evaluate((el) => { el.dataset.kept = '1'; });
+    await page.getByRole('button', { name: 'Universe' }).click();
+    await expect(page.locator('.ch-cont')).toHaveCount(0);
+    await expect(sky).toHaveClass(/is-exploring/);
+    await expect(sky).toHaveCSS('pointer-events', 'auto');
+    await expect(page.getByTestId('sbqa-universe')).toHaveAttribute('data-kept', '1');
     const back = page.getByRole('button', { name: 'Home', exact: true }).last();
     expect((await rect(back)).top).toBeGreaterThanOrEqual(52);
     await back.click();
     await expect(page.locator('.ch-cont')).toBeVisible();
+    await expect(sky).not.toHaveClass(/is-exploring/);
+    await expect(page.getByTestId('sbqa-universe')).toHaveAttribute('data-kept', '1');
   });
 });
 

@@ -26,6 +26,12 @@
 // Clicking a file opens Quick look; double-clicking goes to it on its board.
 // Files drag onto any cluster in the tree to move there (⌥ copies), and files
 // from the desktop drop on a cluster or onto the section itself.
+//
+// Floating, the files' card has a heading like the clusters' with a word that
+// hides it (owner, 2026-10-19: "it needs to be SUPER easy and SUPER obvious on
+// how to get it back", picked from four mockups): hidden, the card folds to
+// that heading where it was, "Files … Show", with the foot under it, and the
+// clusters take the room. ⌘\ hides and shows them too, and so does ⌘K.
 
 import { Suspense, lazy, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -42,7 +48,7 @@ import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { FILTER_CHIPS, SHELF_IDS } from '../../lib/sidebarShelves.js';
 import { SORTS, filterItems } from '../../lib/sidebarSort.js';
-import { arrangementOf, frameVars, toggledLayout } from '../../lib/sidebarLayout.js';
+import { arrangementOf, frameVars, toggledLayout, withFilesHidden } from '../../lib/sidebarLayout.js';
 import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
@@ -278,7 +284,9 @@ export function ClusterSidebar({
   // by side, always stack), each card its own size; the button above the
   // files switches, keeping each arrangement's sizes. Side by side from the
   // button stays however narrow it's dragged (kept), until the button again.
-  const side = floating && arrangementOf(layout, { coarse, roomy, snug }) === 'side';
+  // Hidden, the files fold to their heading under the clusters, in either.
+  const folded = floating && !!onLayout && !!layout?.filesHidden;
+  const side = floating && !folded && arrangementOf(layout, { coarse, roomy, snug }) === 'side';
   const kept = side && !!layout?.pinned;
   const frameRef = useRef(null);
   const treeCardRef = useRef(null);
@@ -286,6 +294,42 @@ export function ClusterSidebar({
   const ownNavRef = useRef(null);
   const navRef = listRef || ownNavRef;
   const toggleSide = () => { sizeAtOnce(frameRef.current); onLayout?.(toggledLayout(layout, side ? 'side' : 'stack'), { commit: true }); };
+
+  // ── Hiding the files ──────────────────────────────────────────────────────
+  // Hide moves focus to Show and Show back to Hide, so the way back is where
+  // focus lands; ⌘\ moves it only when it was in the card that folded.
+  const hideRef = useRef(null);
+  const showRef = useRef(null);
+  const focusAfter = useRef(null);      // 'show' | 'hide' | null
+  const focusInFiles = useRef(false);
+  const live = useRef(null);
+  live.current = { layout, onLayout };
+  const setFilesHidden = useCallback((hidden, focus = null) => {
+    const { layout: l, onLayout: set } = live.current;
+    if (!set || !!l?.filesHidden === hidden) return;
+    focusAfter.current = focus;
+    sizeAtOnce(frameRef.current);
+    set(withFilesHidden(l, hidden), { commit: true });
+  }, []);
+  useLayoutEffect(() => {
+    const want = focusAfter.current;
+    focusAfter.current = null;
+    // ⌘\ from inside the card: focus stays with it (a removed node fires no blur).
+    const inFiles = focusInFiles.current || !!filesCardRef.current?.contains(document.activeElement);
+    if (want === 'show' || (folded && want == null && inFiles)) showRef.current?.focus();
+    else if (want === 'hide' || (!folded && want == null && inFiles)) hideRef.current?.focus();
+  }, [folded]);
+  useEffect(() => {
+    if (!floating || !sizable || !onLayout) return undefined;
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.repeat || e.shiftKey || !(e.metaKey || e.ctrlKey)) return;
+      if (e.key !== '\\' && e.code !== 'Backslash') return;
+      e.preventDefault();
+      setFilesHidden(!live.current.layout?.filesHidden);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [floating, sizable, onLayout, setFilesHidden]);
 
   // ── Quick look ────────────────────────────────────────────────────────────
   // A click opens Quick look, a double-click goes to the file. The click of a
@@ -657,9 +701,18 @@ export function ClusterSidebar({
     },
   } : {};
 
+  // Folded, however it came (Hide, ⌘\, ⌘K): no menu left open over nothing,
+  // no selection waiting to come back with Show.
+  useEffect(() => {
+    if (!folded) return;
+    setMenuOpen(false);
+    setFileMenu(null);
+    clearSelection();
+  }, [folded, clearSelection]);
+
   return (
     <>
-      <div className={`sbf-frame${side ? ' is-side' : ''}`} ref={frameRef} style={floating ? frameVars(layout, { coarse, roomy, snug }) : undefined}>
+      <div className={`sbf-frame${side ? ' is-side' : ''}${folded ? ' is-files-hidden' : ''}`} ref={frameRef} style={floating ? frameVars(layout, { coarse, roomy, snug }) : undefined}>
       <div className="sbf-card is-tree" ref={treeCardRef}>
       {top}
       <nav className="sbf-quick" aria-label="Go to">
@@ -674,8 +727,24 @@ export function ClusterSidebar({
       </div>
       </div>
 
-      <div className="sbf-card is-files" ref={filesCardRef}>
+      <div className={`sbf-card is-files${folded ? ' is-folded' : ''}`} ref={filesCardRef}
+           onFocus={() => { focusInFiles.current = true; }}
+           onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) focusInFiles.current = false; }}>
+      {folded && (
+        <button type="button" className="sbf-files-bar" ref={showRef} aria-label="Show files" title="Show files (⌘\)"
+                aria-expanded="false" onClick={() => setFilesHidden(false, 'hide')}>
+          <span className="sbf-files-heading-label">Files</span>
+          <span className="sbf-files-show" aria-hidden="true">Show</span>
+        </button>
+      )}
       <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}>
+        {floating && onLayout && (
+          <div className="sbf-files-heading">
+            <span className="sbf-files-heading-label">Files</span>
+            <button type="button" className="sbf-files-hide" ref={hideRef} aria-label="Hide files" title="Hide files (⌘\)"
+                    aria-expanded="true" onClick={() => setFilesHidden(true, 'show')}>Hide</button>
+          </div>
+        )}
         <header className="sbf-files-head">
           <div className="sbf-tabs" role="tablist" aria-label="Show files from" onKeyDown={onTabsKeyDown}>
             {tabs.map((t) => {

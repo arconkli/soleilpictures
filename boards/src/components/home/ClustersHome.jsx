@@ -8,7 +8,12 @@
 //     workspace as covers, with New cluster;
 //   - on the right, a rail of the sidebar's glass cards: Messages, who's here
 //     now and where, what's shared with you, and storage;
-//   - the universe behind a button, so its 3D chunk loads only when asked for.
+//   - the universe behind all of it (owner, the same day: "on our home i still
+//     want our really nice universe background"; they picked "Frosted over the
+//     universe" from a second canvas, 3C639h9nF5WtG1bF2gCr78). It runs under
+//     the sidebar and the top bar too, scenery you can't knock about, and
+//     Home's cards are frosted over it, so its lights glow through them and
+//     show sharp between them. Universe brings it forward to move around in.
 //
 // No workspace header: the sidebar's switcher is right there. Presentational:
 // App hands in what it already holds, shaped by lib/homeRail.js, and the order
@@ -148,7 +153,8 @@ export function ClustersHome({
   canCreate = false,
   onOpenBoard,            // (boardId, via) — via: continue | recent | tile | shared
   onNewProject,           // (name | null)
-  // The universe, behind a button. graph is a node (null on phones: no button).
+  // The universe: behind Home, or forward to explore. graph is a node (null on
+  // phones, which keep the board's ground).
   exploring = false, onExplore, graph = null,
   loadPhotos,             // (boardId) → Promise<[{ id, src }]>: the cluster's newest photos
   hereByBoard = null,     // Map boardId → [{ id, name, initial, color }] (others there now)
@@ -180,14 +186,21 @@ export function ClustersHome({
     return () => { live = false; };
   }, [lastId, loadPhotos]);
 
+  // First in both branches, so going to explore it and back never mounts it again.
+  const sky = graph ? (
+    <div className={`ch-sky${exploring ? ' is-exploring' : ''}`} aria-hidden={exploring ? undefined : 'true'}>{graph}</div>
+  ) : null;
+
   if (exploring && graph) {
     return (
-      <div className="ch-root is-exploring">
-        <div className="ch-graph">{graph}</div>
-        <button type="button" className="ch-back ch-glass" onClick={() => onExplore?.(false)}>
-          <Icon as={ArrowLeft} size={14} weight="regular" /> Home
-        </button>
-      </div>
+      <>
+        {sky}
+        <div className="ch-root is-exploring">
+          <button type="button" className="ch-back ch-glass" onClick={() => onExplore?.(false)}>
+            <Icon as={ArrowLeft} size={14} weight="regular" /> Home
+          </button>
+        </div>
+      </>
     );
   }
 
@@ -200,6 +213,8 @@ export function ClustersHome({
   const empty = clusters.length === 0;
 
   return (
+    <>
+    {sky}
     <div className="ch-root">
       <div className="ch-layout">
         <div className="ch-main">
@@ -330,5 +345,6 @@ export function ClustersHome({
         </aside>
       </div>
     </div>
+    </>
   );
 }

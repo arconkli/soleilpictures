@@ -915,3 +915,81 @@ test.describe('sidebar files: menus', () => {
     await expect(page.getByTestId('sbqa-log')).toContainText('opens-as cast list');
   });
 });
+
+// Hiding the files (owner, 2026-10-19: "it needs to be SUPER easy and SUPER
+// obvious on how to get it back"): the files' card folds to its heading where
+// it was, "Files … Show", and the clusters take the room.
+test.describe('sidebar files: hiding them', () => {
+  const sidebarW = (page) => page.locator('.sidebar').evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  const settled = (page) => expect.poll(() => page.evaluate(() => document.querySelector('.sbf-card.is-files').getAnimations().length)).toBe(0);
+
+  test('Hide folds the files to their heading where they were; Show brings them back as they were', async ({ page }) => {
+    await open(page);
+    const before = await card(page, 'files');
+    const heading = page.locator('.sbf-files-heading');
+    await expect(heading.locator('.sbf-files-heading-label')).toHaveText('Files');
+    const hide = heading.getByRole('button', { name: 'Hide files' });
+    await expect(hide).toHaveText('Hide');
+    await expect(nav(page)).not.toHaveCSS('max-height', 'none');            // the tree's list has its share
+    await hide.click();
+    const show = page.getByRole('button', { name: 'Show files' });
+    await expect(show).toBeFocused();                                       // the way back is where focus lands
+    await expect(show.locator('.sbf-files-heading-label')).toHaveText('Files');
+    await expect(show.locator('.sbf-files-show')).toHaveText('Show');
+    await expect(files(page)).toBeHidden();
+    await expect(page.locator('.sbf-meter')).toBeHidden();
+    await expect(page.locator('.sbf-card.is-files .sb-foot')).toBeVisible();   // help, settings, you stay
+    // Folded where the card was: under the clusters, at their width.
+    await settled(page);
+    const tree = await card(page, 'tree');
+    const f = await card(page, 'files');
+    expect([f.x, f.w, f.y]).toEqual([tree.x, tree.w, tree.bottom + 8]);
+    expect(f.h).toBeLessThan(110);
+    await expect(nav(page)).toHaveCSS('max-height', 'none');                // the clusters take the room
+    // Kept on this device.
+    await page.goto('/?sidebarqa=1');
+    await page.waitForSelector('[data-sidebarqa-ready]');
+    await page.getByRole('button', { name: 'Show files' }).click();
+    await expect(page.locator('.sbf-block').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Hide files' })).toBeFocused();
+    await settled(page);
+    expect(await card(page, 'files')).toEqual(before);
+    // ⌘\ from inside the card keeps focus with it, either way.
+    await page.keyboard.press('ControlOrMeta+Backslash');
+    await expect(page.getByRole('button', { name: 'Show files' })).toBeFocused();
+    await page.keyboard.press('ControlOrMeta+Backslash');
+    await expect(page.getByRole('button', { name: 'Hide files' })).toBeFocused();
+    // Folding closes what was open in the card: no menu left over the folded bar.
+    await files(page).getByRole('button', { name: /All files/ }).click();
+    await expect(page.locator('.sbf-menu')).toBeVisible();
+    await page.keyboard.press('ControlOrMeta+Backslash');
+    await expect(page.locator('.sbf-menu')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Show files' })).toBeFocused();
+  });
+
+  test('⌘\\ hides and shows them; side by side they fold under the clusters and the board gets the room', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the floating sidebar is a desktop one');
+    await open(page);
+    await files(page).getByRole('button', { name: 'Show files beside the clusters' }).click();
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    await settled(page);
+    const wide = await sidebarW(page);
+    const tree = await card(page, 'tree');
+    await page.keyboard.press('ControlOrMeta+Backslash');
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-files-hidden/);
+    await expect(page.locator('.sbf-frame')).not.toHaveClass(/is-side/);
+    await settled(page);
+    const f = await card(page, 'files');
+    expect([f.x, f.w, f.y]).toEqual([tree.x, tree.w, (await card(page, 'tree')).bottom + 8]);
+    expect(await card(page, 'tree')).toMatchObject({ x: tree.x, w: tree.w });
+    await expect.poll(() => sidebarW(page)).toBe(8 + tree.w);
+    // One handle while they're hidden: the clusters' width.
+    await expect(page.locator('[data-handle]')).toHaveCount(1);
+    await drag(page, 'treeRight', 30, 0);
+    await expect.poll(async () => (await card(page, 'tree')).w).toBe(tree.w + 30);
+    await page.keyboard.press('ControlOrMeta+Backslash');
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    await expect(page.locator('.sbf-block').first()).toBeVisible();
+    await expect.poll(() => sidebarW(page)).toBe(wide + 30);
+  });
+});

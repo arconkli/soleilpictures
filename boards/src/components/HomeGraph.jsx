@@ -48,7 +48,10 @@ const HALO_TEXTURE = (() => {
 // the graph is scenery that can still be orbited and clicked, so its own
 // messages (the empty state, the "link things with @" hint) stay out of the way
 // of the panel, which is what Home is saying.
-export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
+// `scenery`: the files sidebar's Home (preview only) keeps the graph behind its
+// cards, where it takes no pointer. Nothing stays selected there: a planet's
+// drawer would sit under Home out of reach, and would hold the drift still.
+export function HomeGraph({ workspaceId, onNavigate, backdrop = false, scenery = false }) {
   const fgRef = useRef(null);
   const containerRef = useRef(null);
   const [data, setData] = useState({ nodes: [], links: [] });
@@ -60,6 +63,7 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
   const structural = true;
   const kinds = KIND_FILTER_DEFAULT;
   const [selected, setSelected] = useState(null);
+  useEffect(() => { if (scenery) setSelected(null); }, [scenery]);
   const [supportsWebGL, setSupportsWebGL] = useState(true);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [theme, setTheme] = useState(readTheme);
