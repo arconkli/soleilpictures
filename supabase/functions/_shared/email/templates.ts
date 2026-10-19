@@ -611,22 +611,29 @@ interface FileSharedData {
   sharerName: string;
   fileName: string;
   role: string;
+  kind: string;
   token: string;
   origin: string;
 }
 
+// A doc (0426) is read or edited together; a file is viewed, or commented on.
 function fileShared(d: FileSharedData): RenderedEmail {
-  const headline = `${d.sharerName} shared a file with you.`;
-  const subtitle = `You can view${d.role === "comment" ? " and comment on" : ""} "${d.fileName}".`;
+  const doc = d.kind === "doc";
+  const headline = `${d.sharerName} shared ${doc ? "a document" : "a file"} with you.`;
+  const can = doc
+    ? (d.role === "edit" ? "view and edit" : "view")
+    : (d.role === "comment" ? "view and comment on" : "view");
+  const subtitle = `You can ${can} "${d.fileName}".`;
+  const open = doc ? "Open document" : "Open file";
   const url = fileUrlBase(d.origin) + d.token;
   return {
     subject: `${d.sharerName} shared "${d.fileName}" with you`,
     html: renderEmail({
       preheader: subtitle,
-      eyebrow: "File shared",
+      eyebrow: doc ? "Document shared" : "File shared",
       headline,
       subtitle,
-      cta: { label: "Open file", url },
+      cta: { label: open, url },
     }),
     text: plain([
       "CLUSTERS",
@@ -634,7 +641,7 @@ function fileShared(d: FileSharedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open file: " + url,
+      open + ": " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -1677,10 +1684,13 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
     case "file_shared": {
       const token = String(data.token ?? "");
       if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("file_shared needs a token");
+      const doc = data.kind === "doc";
       return fileShared({
         sharerName: safePerson(data.sharerName),
-        fileName:   fileLabel(data.fileName),
-        role:       data.role === "comment" ? "comment" : "view",
+        // A doc's title has no extension to move out of the way.
+        fileName:   doc ? safeLabel(data.fileName, 60, "a document") : fileLabel(data.fileName),
+        role:       data.role === "comment" ? "comment" : data.role === "edit" ? "edit" : "view",
+        kind:       doc ? "doc" : "file",
         token,
         origin:     String(data.origin ?? ""),
       });

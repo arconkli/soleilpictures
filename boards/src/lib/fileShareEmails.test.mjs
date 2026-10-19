@@ -31,11 +31,12 @@ test('the switch sanitises every attacker-typed field', () => {
   const sw = tpl.slice(tpl.indexOf('case "file_shared"'), tpl.indexOf('case "activate_nudge_1"'));
   assert.match(sw, /sharerName:\s+safePerson\(data\.sharerName\)/);
   // The extension moves out of the name before safeLabel sees it (fileLabel).
-  assert.match(sw, /fileName:\s+fileLabel\(data\.fileName\)/);
+  assert.match(sw, /fileName:\s+doc \? safeLabel\(data\.fileName, 60, "a document"\) : fileLabel\(data\.fileName\)/);
   assert.match(tpl, /function fileLabel\(raw: unknown\): string \{[\s\S]*?safeLabel\(m\[1\], 52, "a file"\)/);
   assert.match(sw, /commenterName:\s+safePerson\(data\.commenterName\)/);
   assert.match(sw, /commentPreview: safeLabel\(data\.commentPreview, 280\)/);
-  assert.match(sw, /role:\s+data\.role === "comment" \? "comment" : "view"/);
+  assert.match(sw, /role:\s+data\.role === "comment" \? "comment" : data\.role === "edit" \? "edit" : "view"/);
+  assert.match(sw, /kind:\s+doc \? "doc" : "file"/);
   assert.match(sw, /\[0-9a-f-\]\{36\}/);
   assert.match(sw, /throw new Error\("file_shared needs a token"\)/);
 });
@@ -51,6 +52,16 @@ test('the link origin is production unless it is exactly the preview origin', ()
   assert.match(tpl, /origin === FILE_PREVIEW_ORIGIN \? FILE_PREVIEW_ORIGIN \+ "\/f\/" : FILE_URL_BASE/);
   const sw = tpl.slice(tpl.indexOf('case "file_shared"'), tpl.indexOf('case "activate_nudge_1"'));
   assert.equal(sw.match(/origin:\s+String\(data\.origin \?\? ""\)/g).length, 2);
+});
+
+// 0426: the invitation names a doc and the edit role (the trigger sends both).
+test('a doc is "a document" you can view, or view and edit', () => {
+  const fn = tpl.slice(tpl.indexOf('function fileShared('), tpl.indexOf('interface FileCommentedData'));
+  assert.match(fn, /shared \$\{doc \? "a document" : "a file"\} with you\./);
+  assert.match(fn, /\? \(d\.role === "edit" \? "view and edit" : "view"\)/);
+  assert.match(fn, /: \(d\.role === "comment" \? "view and comment on" : "view"\);/);
+  assert.match(fn, /const open = doc \? "Open document" : "Open file";/);
+  assert.match(fn, /eyebrow: doc \? "Document shared" : "File shared",/);
 });
 
 test('file_commented carries the comment-reply unsubscribe', () => {
