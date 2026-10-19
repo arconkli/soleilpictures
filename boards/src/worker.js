@@ -1022,7 +1022,8 @@ const worker = {
       // answering. Separate from the sweep; it touches no R2.
       ctx.waitUntil(runAiModelWatch(env));
     } else if (which === '0 6 * * 1') {
-      // Mondays 06:00 UTC — the AEO retrieval probe (migration 0296). Weekly
+      // Sundays 06:00 UTC: Cloudflare counts day-of-week 1 as Sunday, and every
+      // run since 2026-09-06 has landed on one. The AEO retrieval probe (0296). Weekly
       // because retrieval moves on the timescale of index refreshes; daily
       // would mostly sample answer-to-answer variance. No-ops without
       // OPENAI_API_KEY.

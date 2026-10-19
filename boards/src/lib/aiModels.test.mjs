@@ -330,7 +330,7 @@ test('the watch says so when it cannot see, instead of reporting all clear', asy
   assert.match(moved.raised[0].p_body, /changed shape/);
 });
 
-test("the Monday digest lists the week's new models in one email, and stays quiet without any", async () => {
+test("the Sunday digest lists the week's new models in one email, and stays quiet without any", async () => {
   const { out, raised } = await watch({ catalog: CATALOG, digest: true });
   assert.deepEqual(out.fresh, ['@cf/acme/new-embed', '@cf/acme/new-chat']);
   assert.equal(raised.length, 1);
@@ -353,7 +353,7 @@ test("the Monday digest lists the week's new models in one email, and stays quie
   assert.match(busy.p_body, /The catalog: https:\/\/developers\.cloudflare\.com\/workers-ai\/models\/$/);
 });
 
-test('the crons run the watch every morning and the digest on Mondays', () => {
+test('the crons run the watch every morning and the digest on Sundays', () => {
   const worker = read('../worker.js');
   const branch = (cron) => {
     const at = worker.indexOf(`which === '${cron}'`);

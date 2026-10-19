@@ -53,13 +53,14 @@ binding = "AI"
 #                    This is the path that carries changes made IN THE APP;
 #                    API-driven events are already delivered inline. It costs
 #                    one indexed probe when there is nothing pending.
-# Mondays 06:00 UTC: the AEO retrieval probe — asks an assistant the questions a
+# Sundays 06:00 UTC: the AEO retrieval probe — asks an assistant the questions a
 #                    buyer asks and records whether we are cited (migration
 #                    0296, src/worker-aeo.js). Weekly because retrieval moves at
 #                    the speed of index refreshes; daily would sample answer
 #                    variance and read it as movement. No-ops without
 #                    OPENAI_API_KEY. Also the week's new Workers AI models,
-#                    one email when there are any.
+#                    one email when there are any. "0 6 * * 1" is SUNDAY:
+#                    Cloudflare counts day-of-week 1 as Sunday.
 # Hourly at :45:     R2 off-site mirror — copy new image/preview/op-batch objects
 #                    into the LOCKED backup bucket (runR2Mirror). The DB dump
 #                    only holds pointers to these; this holds the bytes. No-ops
