@@ -64,11 +64,12 @@ export function parseRoomMessage(text) {
 }
 
 // ydoc: a Y.Doc of its own (never a board's). onHello(hello), onRefused(reason),
-// onEnd({ action: 'reask' | 'stop', code }): the room is not coming back as it
-// was; the caller asks the share again or says why.
+// onSync() each time this copy has caught up with the room, onEnd({ action:
+// 'reask' | 'stop', code }): the room is not coming back as it was; the caller
+// asks the share again or says why.
 export function attachDocRoom(ydoc, {
   room, token, getAccessToken = async () => '',
-  onHello = () => {}, onRefused = () => {}, onEnd = () => {},
+  onHello = () => {}, onRefused = () => {}, onEnd = () => {}, onSync = () => {},
   host = PARTY_HOST,
   WebSocketPolyfill = undefined,   // the tests' socket
 } = {}) {
@@ -117,6 +118,10 @@ export function attachDocRoom(ydoc, {
     if (action !== 'retry') { end(action, code); return; }
     // Refused before it opened, again and again: the share has changed.
     if (!opened && ++failures >= REASK_AFTER_FAILURES) end('reask', code);
+  });
+
+  provider.on('sync', (isSynced) => {
+    if (isSynced && !destroyed) { try { onSync(); } catch (_) {} }
   });
 
   provider.on('custom-message', (text) => {

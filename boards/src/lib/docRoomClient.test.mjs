@@ -70,6 +70,16 @@ class FakeWS {
   text(s) { this.emit('message', { data: s }); }
 }
 
+// The provider's next socket, however long its backoff takes on a busy box.
+async function nextSocket(n, timeoutMs = 5000) {
+  const t0 = Date.now();
+  while (FakeWS.all.length <= n) {
+    if (Date.now() - t0 > timeoutMs) throw new Error(`no socket ${n}`);
+    await tick(10);
+  }
+  return FakeWS.all[n];
+}
+
 function attach(opts = {}) {
   FakeWS.all = [];
   const seen = { hello: [], refused: [], end: [] };
@@ -85,8 +95,7 @@ function attach(opts = {}) {
 test('it opens the doc party’s room with the share token, and the session when there is one', async () => {
   const { room } = attach({ getAccessToken: async () => 'jwt-1' });
   try {
-    await tick(5);
-    const url = new URL(FakeWS.all[0].url);
+    const url = new URL((await nextSocket(0)).url);
     assert.equal(url.host, 'party.test');
     assert.equal(url.pathname, `/parties/doc/${ROOM}`);
     assert.equal(url.searchParams.get('share'), TOKEN);
@@ -94,16 +103,14 @@ test('it opens the doc party’s room with the share token, and the session when
   } finally { room.destroy(); }
   const anon = attach();
   try {
-    await tick(5);
-    assert.equal(new URL(FakeWS.all[0].url).searchParams.get('access_token'), null, 'signed out sends no token');
+    assert.equal(new URL((await nextSocket(0)).url).searchParams.get('access_token'), null, 'signed out sends no token');
   } finally { anon.room.destroy(); }
 });
 
 test('hello and refused reach the caller', async () => {
   const { room, seen } = attach();
   try {
-    await tick(5);
-    const ws = FakeWS.all[0];
+    const ws = await nextSocket(0);
     ws.open();
     ws.text('__YPS:{"type":"hello","me":{"name":"Viewer"},"readOnly":true}');
     ws.text('__YPS:{"type":"refused","reason":"doc_full"}');
@@ -118,8 +125,7 @@ test('a final close stops for good; moved asks again; neither reconnects', async
   for (const [code, action] of [[DOC_ROOM_CLOSE.GONE, 'stop'], [DOC_ROOM_CLOSE.LOST, 'stop'], [DOC_ROOM_CLOSE.MOVED, 'reask']]) {
     const { room, seen } = attach();
     try {
-      await tick(5);
-      FakeWS.all[0].open();
+      (await nextSocket(0)).open();
       FakeWS.all[0].drop(code);
       await tick(300);
       assert.deepEqual(seen.end, [{ action, code }], String(code));
@@ -131,13 +137,11 @@ test('a final close stops for good; moved asks again; neither reconnects', async
 test('a retryable close reconnects, keeping the doc', async () => {
   const { room, seen, ydoc } = attach();
   try {
-    await tick(5);
+    (await nextSocket(0)).open();
     ydoc.getMap('m').set('k', 1);
-    FakeWS.all[0].open();
     FakeWS.all[0].drop(DOC_ROOM_CLOSE.UNAVAILABLE);
-    await tick(400);
+    await nextSocket(1);
     assert.deepEqual(seen.end, []);
-    assert.equal(FakeWS.all.length, 2, 'a second socket');
     assert.equal(ydoc.getMap('m').get('k'), 1);
   } finally { room.destroy(); }
 });
@@ -145,13 +149,10 @@ test('a retryable close reconnects, keeping the doc', async () => {
 test('a socket refused before it opens, again and again, asks the share again', async () => {
   const { room, seen } = attach();
   try {
-    await tick(5);
     for (let i = 0; i < REASK_AFTER_FAILURES; i++) {
-      const ws = FakeWS.all[FakeWS.all.length - 1];
-      ws.drop(1006);
-      if (i < REASK_AFTER_FAILURES - 1) await tick(2 ** (i + 1) * 100 + 80);
+      (await nextSocket(i)).drop(1006);
+      if (i < REASK_AFTER_FAILURES - 1) assert.deepEqual(seen.end, [], `not after ${i + 1}`);
     }
-    await tick(5);
     assert.deepEqual(seen.end, [{ action: 'reask', code: 1006 }]);
     const n = FakeWS.all.length;
     await tick(900);
@@ -162,17 +163,12 @@ test('a socket refused before it opens, again and again, asks the share again', 
 test('a socket that opened resets the count', async () => {
   const { room, seen } = attach();
   try {
-    await tick(5);
-    FakeWS.all[0].drop(1006);
-    await tick(280);
-    FakeWS.all[1].drop(1006);
-    await tick(480);
-    FakeWS.all[2].open();
-    FakeWS.all[2].drop(1006);
-    await tick(280);
-    assert.equal(FakeWS.all.length, 4);
-    FakeWS.all[3].drop(1006);
-    await tick(5);
+    (await nextSocket(0)).drop(1006);
+    (await nextSocket(1)).drop(1006);
+    const third = await nextSocket(2);
+    third.open();
+    third.drop(1006);
+    (await nextSocket(3)).drop(1006);
     assert.deepEqual(seen.end, [], 'two failures since it last opened');
   } finally { room.destroy(); }
 });
@@ -181,8 +177,7 @@ test('it lets go with a status code: the room does not answer an empty close', a
   const { room } = attach();
   let ws;
   try {
-    await tick(5);
-    ws = FakeWS.all[0];
+    ws = await nextSocket(0);
     ws.open();
   } finally { room.destroy(); }
   assert.deepEqual(ws.closedWith, { code: 1000, reason: 'left' });
