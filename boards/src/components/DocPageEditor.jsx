@@ -18,6 +18,7 @@ import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } fr
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { uploadImage } from '../lib/uploads.js';
+import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -183,7 +184,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false, guestMode = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -810,7 +811,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // Keep user-chosen text colors readable on the page sheet in both themes
       // (scoped stylesheet override; never mutates content).
       ReadableColors,
-      mentionExt,
+      // A guest in a shared doc names nothing in a workspace they are not in.
+      ...(guestMode ? [] : [mentionExt]),
     ],
     // Don't steal focus from an active text field (e.g. the page-rename
     // input in the sidebar) or another editor. A newly-mounted sheet —
@@ -848,6 +850,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // insert at the drop point (or current cursor for paste).
       handleDrop: (view, event, _slice, moved) => {
         if (moved) return false;
+        // A guest's drop is a paste (transformPasted below): no entity links,
+        // no uploads.
+        if (guestMode) return false;
         // Universal entity-ref drop → insert as a manual link mark at
         // the drop position. Picker rows / canvas chips / message
         // attachment chips all use this mime type so any of them can
@@ -877,11 +882,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // font, size, default black ink, backgrounds — so they take the doc's
       // own formatting instead of planting 11pt Arial marks. See pasteScrub.
       transformPastedHTML: scrubPastedHtml,
+      // A guest's paste keeps its words and loses what the doc's room would
+      // refuse from them (lib/guestPaste.js).
+      ...(guestMode ? { transformPasted: guestPasteSlice } : {}),
       handlePaste: (_view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
         const imgs = items.filter(it => it.type.startsWith('image/'));
         if (!imgs.length) return false;
         event.preventDefault();
+        if (guestMode) {
+          feedback.toast({ type: 'info', message: "Images can't be added to a doc shared with you." });
+          return true;
+        }
         const ed = editorRef.current;
         if (ed) imgs.forEach(it => { const f = it.getAsFile(); if (f) uploadAndInsert(ed, f); });
         return true;

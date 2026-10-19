@@ -1,8 +1,8 @@
 // Open the file-share dialog from anywhere (the host listens):
 //   openFileShare({ boardId, cardId, card, boardName, surface })
 // `card` is a snapshot for a cluster that isn't open in a pane.
-import { fileSharesAllowed } from './appHost.js';
-import { isShareableCard } from './fileShares.js';
+import { docSharesAllowed, fileSharesAllowed } from './appHost.js';
+import { isShareableCard, isShareableDoc } from './fileShares.js';
 
 export const FILE_SHARE_EVENT = 'soleil-open-file-share';
 
@@ -24,6 +24,12 @@ export function shareTargetForRef({ boardId, cardId, kind = 'image', src = null,
   const card = { id: cardId, kind, src, title: name || undefined };
   if (!isShareableCard(card)) return null;
   return { boardId, cardId, card, boardName: null, surface };
+}
+
+// A doc card's menu row (the canvas and the list), held with the rest of doc
+// sharing: the label, or null when it can't be shared from here.
+export function docShareLabel(card) {
+  return docSharesAllowed() && isShareableDoc(card) ? 'Share doc…' : null;
 }
 
 export function openFileShare(detail) {

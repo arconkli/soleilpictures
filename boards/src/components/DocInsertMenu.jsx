@@ -17,6 +17,8 @@ import { safeRun } from '../lib/safeEditorCmd.js';
 // Insert-only blocks (each runs on the live editor). Intentionally excludes
 // anything already reachable from the toolbar (style <select>, list/quote/
 // bookmark buttons) — the "+" is not a second copy of the toolbar.
+// An item whose handler is missing is left out (a guest in a shared doc has
+// neither: DocSurface guestMode).
 function insertItems({ onInsertImage, onInsertBoardEmbed }) {
   return [
     { id: 'image', title: 'Image', subtitle: 'Upload from your machine',
@@ -31,7 +33,7 @@ function insertItems({ onInsertImage, onInsertBoardEmbed }) {
       run: (e) => safeRun(e.chain().focus().toggleCodeBlock(), 'doc-insert:code') },
     { id: 'embed', title: 'Embed cluster', subtitle: 'Link to another cluster / card',
       run: (e) => onInsertBoardEmbed?.(e) },
-  ];
+  ].filter((it) => (it.id === 'image' ? !!onInsertImage : it.id === 'embed' ? !!onInsertBoardEmbed : true));
 }
 
 export function DocInsertMenu({ editor, disabled = false, onInsertImage, onInsertBoardEmbed }) {

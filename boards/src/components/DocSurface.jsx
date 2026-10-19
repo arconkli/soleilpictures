@@ -127,6 +127,18 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // comment surfaces entirely (view-only MEMBERS keep
                               // them — gate on this, not canEdit).
                               isPublic = false,
+                              // true → a doc shared with this reader on its own
+                              // (components/fileShare/DocShareView.jsx), in its
+                              // live room. They may read or edit its words but
+                              // bring nothing in (no images, no cluster embeds,
+                              // no @-links), and the doc's housekeeping (healing
+                              // the mode, seeding a page, following the title) is
+                              // left to its members: the room refuses a guest's
+                              // write outside the doc, and two healers race.
+                              guestMode = false,
+                              // false → no Export in the toolbar (a doc shared without
+                              // "Allow saving a copy").
+                              allowExport = true,
                               onClose }) {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
 
@@ -267,7 +279,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // awareness, could both heal — that needs stranded lines too, so it is
   // vanishingly rare, which is not true of converting on every mount.)
   useEffect(() => {
-    if (!canEdit || !awareness) return;
+    if (!canEdit || !awareness || guestMode) return;
     if (awareness.clientID !== Math.min(...awareness.getStates().keys())) return;
     try { healDocMode(ydoc, scope); } catch (_) {}
   }, [ydoc, scope, canEdit, awareness, docMode]);
@@ -540,8 +552,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => {
     if (!ready || seededRef.current) return;
     // A reader's seed would exist only in their tab (the board room drops a
-    // viewer's writes) — they get the "Nothing open yet" state instead.
-    if (!canEdit) return;
+    // viewer's writes) — they get the "Nothing open yet" state instead. So
+    // does a guest: the doc's members seed it.
+    if (!canEdit || guestMode) return;
     if (pages.length === 0) {
       seededRef.current = true;
       const id = addPage(ydoc, { name: titleOverride || board.name || 'Untitled', scope });
@@ -567,7 +580,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => {
     const prev = prevTitleRef.current;
     prevTitleRef.current = titleOverride;
-    if (!titleOverride || titleOverride === prev || !pages.length) return;
+    if (!titleOverride || titleOverride === prev || !pages.length || guestMode) return;
     followTitle(ydoc, scope, prev, titleOverride);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titleOverride]);
@@ -1085,8 +1098,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     pagesShownContinuous={phoneReflow}
                     onTogglePageless={onTogglePageless}
                     onInsertBookmark={insertBookmarkAtCaret}
-                    onInsertImage={pickImageFromDisk}
-                    onInsertBoardEmbed={pickBoardEmbed}
+                    canExport={allowExport}
+                    onInsertImage={guestMode ? null : pickImageFromDisk}
+                    onInsertBoardEmbed={guestMode ? null : pickBoardEmbed}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
                     onAddComment={() => openAddCommentRef.current?.()}
@@ -1153,6 +1167,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 boards={Object.values(boards || {})}
                 editable={canEdit}
                 isPublic={isPublic}
+                guestMode={guestMode}
                 onDeleteSheet={canEdit && sid !== activePageId ? () => deleteSheet(sid) : null}
               />
             ))
@@ -1168,7 +1183,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         </div>
         {/* Save state is reported per HOST board (yboard persists the board
             that holds the doc); board.id here is the doc card's id. */}
-        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={scope?.boardId || (scope ? null : board.id)} />
+        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={scope?.boardId || (scope ? null : board.id)}
+                         showSave={!guestMode} />
       </section>
 
       {embedPickerOpen && (

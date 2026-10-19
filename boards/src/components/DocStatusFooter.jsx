@@ -7,7 +7,9 @@
 
 import { useEffect, useState } from 'react';
 
-export function DocStatusFooter({ editor, ydoc, boardId = null }) {
+// showSave false: the counts only (a guest in a shared doc has no save of
+// their own to report: its cluster saves it).
+export function DocStatusFooter({ editor, ydoc, boardId = null, showSave = true }) {
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
   const [savedAt, setSavedAt] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -81,7 +83,7 @@ export function DocStatusFooter({ editor, ydoc, boardId = null }) {
 
   return (
     <div className="doc-foot">
-      <span className={`doc-foot-status ${saving ? 'is-saving' : ''} ${!online ? 'is-offline' : ''} ${saveError ? 'is-error' : ''}`}>{savedLabel}</span>
+      {showSave && <span className={`doc-foot-status ${saving ? 'is-saving' : ''} ${!online ? 'is-offline' : ''} ${saveError ? 'is-error' : ''}`}>{savedLabel}</span>}
       <span className="doc-foot-spacer" />
       <span className="doc-foot-counts">
         {counts.words} {counts.words === 1 ? 'word' : 'words'} · {counts.chars} {counts.chars === 1 ? 'char' : 'chars'}

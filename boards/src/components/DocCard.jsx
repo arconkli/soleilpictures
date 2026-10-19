@@ -20,6 +20,9 @@ import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Avatar } from './primitives.jsx';
 import { useMessagesUi } from '../hooks/useOpenDm.js';
 import { EditableText } from './EditableText.jsx';
+import { FileShareButton } from './fileShare/FileShareButton.jsx';
+import { docSharesAllowed } from '../lib/appHost.js';
+import { isShareableDoc } from '../lib/fileShares.js';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
 // ~400KB raw) into whichever chunk imports it statically — which used to be
@@ -575,6 +578,12 @@ export function DocCardOverlay({
                 <span className="doc-card-peers-overflow">+{peersOnCard.length - 4}</span>
               )}
             </div>
+          )}
+          {/* Share this doc on its own, to read or edit together (held:
+              docSharesAllowed). Its cluster is the scope's host board. */}
+          {!isPublic && canEdit && scope?.boardId && docSharesAllowed() && isShareableDoc(card) && (
+            <FileShareButton variant="doc" surface="doc" boardId={scope.boardId} cardId={card.id}
+                             card={{ id: card.id, kind: 'doc', title: card.title || 'Untitled doc' }} />
           )}
           {/* Messages. Fullscreen covers the whole workspace and side mode
               docks over exactly where the panel lives, so without this the

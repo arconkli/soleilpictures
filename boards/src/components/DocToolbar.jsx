@@ -52,7 +52,9 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
                                // false → view-only member. Their Y.Doc writes never leave the
                                // tab (the board room drops them), so the bar keeps only what
                                // reads: Find, Export and zoom.
-                               canEdit = true }) {
+                               canEdit = true,
+                               // false → no Export (a doc shared without "Allow saving a copy").
+                               canExport = true }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
   useEffect(() => {
@@ -361,7 +363,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
       </>)}
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
-      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} canEdit={canEdit} />
+      {canExport && <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} canEdit={canEdit} />}
 
       <span className="doc-tb-spacer" />
 

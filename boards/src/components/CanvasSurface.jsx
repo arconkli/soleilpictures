@@ -7,7 +7,7 @@ import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
-import { openFileShare } from '../lib/fileShareBus.js';
+import { openFileShare, docShareLabel } from '../lib/fileShareBus.js';
 import { openableUrl } from '../lib/openableUrl.js';
 import { isShareableCard } from '../lib/fileShares.js';
 
@@ -8186,6 +8186,12 @@ export function CanvasSurface({
     }
     if (!multi && canEdit && !isPublic && fileSharesAllowed() && isShareableCard(c)) {
       items.push({ id: 'share-file', label: 'Share file…',
+        run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
+    }
+    // A doc, to read or edit together (held: docSharesAllowed).
+    const shareDoc = !multi && canEdit && !isPublic ? docShareLabel(c) : null;
+    if (shareDoc) {
+      items.push({ id: 'share-doc', label: shareDoc,
         run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
     }
     metaItems.push({ backlinks: true });

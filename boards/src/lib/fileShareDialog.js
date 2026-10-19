@@ -51,12 +51,17 @@ export function mergeChips(chips, text, max = FILE_SHARE_PEOPLE_PER_CALL) {
   return { chips: out, overflow };
 }
 
-// The settings row the dialog renders, whatever the RPC handed back.
+// The settings row the dialog renders, whatever the RPC handed back. A doc
+// (kind 'doc', 0426) is view | edit; a file is view | comment.
 export function normalizeSettings(data) {
   const d = data && typeof data === 'object' ? data : {};
-  const link = ['view', 'comment'].includes(d.link_access) ? d.link_access : 'none';
+  const isDoc = d.kind === 'doc';
+  const upper = isDoc ? 'edit' : 'comment';
+  const link = ['view', upper].includes(d.link_access) ? d.link_access : 'none';
   return {
     exists: !!d.exists,
+    kind: typeof d.kind === 'string' ? d.kind : null,
+    isDoc,
     token: d.token || null,
     linkAccess: link,
     allowDownload: d.allow_download == null ? true : !!d.allow_download,
@@ -64,7 +69,7 @@ export function normalizeSettings(data) {
       .filter((p) => p && p.email)
       .map((p) => ({
         email: String(p.email),
-        role: p.role === 'view' ? 'view' : 'comment',
+        role: p.role === 'view' ? 'view' : upper,
         pending: !!p.pending,
         name: p.name || null,
         avatarUrl: p.avatar_url || null,

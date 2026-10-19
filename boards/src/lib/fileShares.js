@@ -29,6 +29,12 @@ export function isShareableCard(card) {
   return fileRefOf(card).startsWith('r2:');
 }
 
+// A doc card is shared through its live room (0426, party/doc.ts), not a
+// stored file; its entry points are held apart (appHost.docSharesAllowed).
+export function isShareableDoc(card) {
+  return !!card && !card.pending && card.kind === 'doc';
+}
+
 // The same rule as SQL _file_risky: the extension, or the mime type.
 export function isRiskyFile(name, mime) {
   const m = /\.([A-Za-z0-9]{1,8})$/.exec(String(name || ''));
@@ -166,6 +172,29 @@ export const addFileSharePeople = (boardId, cardId, emails, role) =>
 // role null removes the person.
 export const setFileSharePerson = (boardId, cardId, email, role) =>
   rpc('set_file_share_person', { p_board: boardId, p_card: cardId, p_email: email, p_role: role ?? null });
+
+// After the owner changes who may be in a shared doc, both its rooms (edit and
+// view) ask again now instead of at their next minute (party/doc.ts /recheck,
+// for managers only). get_file_share names the current generation's room.
+const DOC_ROOM_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(?:edit|view)\.([0-9a-f]{12})$/i;
+export function docRoomsOf(room) {
+  const m = DOC_ROOM_RE.exec(String(room || ''));
+  return m ? [`${m[1]}.edit.${m[2]}`, `${m[1]}.view.${m[2]}`] : [];
+}
+export async function recheckDocRooms(token) {
+  if (!token) return;
+  try {
+    const sb = await client();
+    if (!sb) return;
+    const { data } = await sb.rpc('get_file_share', { p_token: token });
+    const rooms = data?.status === 'ok' ? docRoomsOf(data.room) : [];
+    const bearer = rooms.length ? await accessToken(sb) : '';
+    if (!bearer) return;
+    await Promise.all(rooms.map((r) => fetch(`${PARTY_ORIGIN}/parties/doc/${r}/recheck`, {
+      method: 'POST', headers: { Authorization: `Bearer ${bearer}` },
+    }).catch(() => null)));
+  } catch (_) { /* the rooms ask on their own within the minute */ }
+}
 
 // ---------------------------------------------------------------------------
 // The Shared page (0424): what's been shared with you, and what you've shared.

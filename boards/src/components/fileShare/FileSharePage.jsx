@@ -25,6 +25,10 @@
 // owner's dialog right here (lazy). When it closes, or any write lands
 // (FILE_SHARE_CHANGED_EVENT), the page reads its state again.
 //
+// A doc (0426) is not a stored file: the answer names its live room, and
+// DocShareView (lazy, held with the rest of doc sharing: docSharesAllowed)
+// reads or edits it there, with the same header and the same Manage sharing.
+//
 // Inside the app (variant 'overlay', opened by lib/sharedFileBus.js from the
 // Shared page, the bell or a shortcut) the same view is a dialog over the app:
 // Close instead of the brand, Esc closes, and the host adds its own actions
@@ -39,7 +43,7 @@ import {
 import { rememberShare } from '../../lib/fileShareUrls.js';
 import { FILE_SHARE_URL_TTL_SECONDS, fsRef } from '../../lib/fileShareBundle.js';
 import * as modalGuard from '../../lib/modalGuard.js';
-import { sharedFilesAllowed } from '../../lib/appHost.js';
+import { docSharesAllowed, sharedFilesAllowed } from '../../lib/appHost.js';
 import { Icon } from '../Icon.jsx';
 import { X } from '../../lib/icons.js';
 import { timeToFrame } from '../../lib/timecode.js';
@@ -54,6 +58,7 @@ const FilmPlayer = lazy(() => import('../film/FilmPlayer.jsx').then((m) => ({ de
 const PdfViewer = lazy(() => import('../PdfViewer.jsx').then((m) => ({ default: m.PdfViewer })));
 const ImageZoomStage = lazy(() => import('../ImageLightbox.jsx').then((m) => ({ default: m.ImageZoomStage })));
 const FileShareDialog = lazy(() => import('./FileShareDialog.jsx').then((m) => ({ default: m.FileShareDialog })));
+const DocShareView = lazy(() => import('./DocShareView.jsx').then((m) => ({ default: m.DocShareView })));
 
 const REFRESH_MS = 5 * 60 * 1000;
 // A mounted viewer's urls older than this are swapped for fresh ones.
@@ -101,9 +106,11 @@ function factsLine(file) {
   return parts.filter(Boolean).join(' · ');
 }
 
-function Shell({ children, signedOut, token, wide = false, action = null }) {
+// A doc's page is not the dark screening room: the doc keeps the reader's own
+// theme, as it has in the app, under the same dark bar (fileShare.css .fsp--doc).
+function Shell({ children, signedOut, token, wide = false, doc = false, action = null }) {
   return (
-    <div className="fsp public-dark">
+    <div className={doc ? 'fsp fsp--doc' : 'fsp public-dark'}>
       <header className="fsp-top">
         <a className="fsp-brand" href="/" aria-label="Clusters home">
           <ClustersMark size={22} />
@@ -115,14 +122,14 @@ function Shell({ children, signedOut, token, wide = false, action = null }) {
              onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'topbar' })}>Sign in</a>
         )}
       </header>
-      <main className={`fsp-main${wide ? ' is-wide' : ''}`}>{children}</main>
+      <main className={`fsp-main${wide ? ' is-wide' : ''}${doc ? ' is-doc' : ''}`}>{children}</main>
     </div>
   );
 }
 
 // The same room as a dialog over the app: Close where the brand was, Esc
 // closes unless something sits above it (the owner's dialog, a confirm).
-function OverlayShell({ children, wide = false, action = null, onClose, label = 'Shared file' }) {
+function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = 'Shared file' }) {
   const modalRef = useRef(null);
   const rootRef = useRef(null);
   useEffect(() => {
@@ -146,7 +153,7 @@ function OverlayShell({ children, wide = false, action = null, onClose, label = 
     return () => document.removeEventListener('keydown', onKey, true);
   }, [onClose]);
   return createPortal(
-    <div ref={rootRef} tabIndex={-1} className="fsp fsp--overlay public-dark" role="dialog" aria-modal="true" aria-label={label}>
+    <div ref={rootRef} tabIndex={-1} className={`fsp fsp--overlay ${doc ? 'fsp--doc' : 'public-dark'}`} role="dialog" aria-modal="true" aria-label={label}>
       <header className="fsp-top">
         <button type="button" className="fsp-btn fsp-close" onClick={() => onClose?.()} aria-label="Close" title="Close (Esc)">
           <Icon as={X} size={16} weight="regular" />
@@ -154,7 +161,7 @@ function OverlayShell({ children, wide = false, action = null, onClose, label = 
         <span className="fsp-top-label">Shared with you</span>
         {action}
       </header>
-      <main className={`fsp-main${wide ? ' is-wide' : ''}`}>{children}</main>
+      <main className={`fsp-main${wide ? ' is-wide' : ''}${doc ? ' is-doc' : ''}`}>{children}</main>
     </div>,
     document.body,
   );
@@ -530,6 +537,49 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
 
   const sharedBy = res.shared_by?.name || 'Someone on Clusters';
 
+  // On the page, someone signed in can take the file into the app, where
+  // Save a copy and Add shortcut live (held with the Shared page).
+  const openInApp = !overlay && signedIn && sharedFilesAllowed() ? (
+    <a className="fsp-btn fsp-open-app" href={`/?shared=${encodeURIComponent(token)}`}>Open in Clusters</a>
+  ) : null;
+  const headerActions = (canManage || extraActions || openInApp) ? (
+    <div className="fsp-top-actions">
+      {extraActions}
+      {openInApp}
+      {canManage && (
+        <button type="button" className="fsp-btn fsp-manage" onClick={() => setManageOpen(true)}>
+          Manage sharing
+        </button>
+      )}
+    </div>
+  ) : null;
+  const manageDialog = canManage && manageOpen ? (
+    <Suspense fallback={null}>
+      <FileShareDialog boardId={res.board_id} cardId={res.card_id}
+                       card={{ id: res.card_id, kind: file.kind, fileName: file.name }}
+                       onClose={closeManage}
+                       {...(typeof api?.getFileShareSettings === 'function' ? { api } : {})} />
+    </Suspense>
+  ) : null;
+
+  // A doc: its live room, keyed by room so a new generation is a new view.
+  if (kind === 'doc') {
+    return (
+      <Frame overlay={overlay} onClose={onClose} signedOut={!signedIn} token={token} doc action={headerActions}
+             label="Shared doc">
+        {manageDialog}
+        {docSharesAllowed() ? (
+          <Suspense fallback={<div className="dsv-wait"><span className="fsp-spinner" aria-label="Loading" /></div>}>
+            <DocShareView key={res.room || 'none'} token={token} res={res} onRefresh={onRefresh}
+                          signInHref={signInHref} api={api} />
+          </Suspense>
+        ) : (
+          <StatePanel title="This doc isn't available here yet." body="Ask the person who shared it for another way to see it." />
+        )}
+      </Frame>
+    );
+  }
+
   let viewer;
   if (!inline) {
     viewer = <FileCardView file={file} />;
@@ -555,33 +605,9 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
     viewer = <FileCardView file={file} />;
   }
 
-  // On the page, someone signed in can take the file into the app, where
-  // Save a copy and Add shortcut live (held with the Shared page).
-  const openInApp = !overlay && signedIn && sharedFilesAllowed() ? (
-    <a className="fsp-btn fsp-open-app" href={`/?shared=${encodeURIComponent(token)}`}>Open in Clusters</a>
-  ) : null;
-  const headerActions = (canManage || extraActions || openInApp) ? (
-    <div className="fsp-top-actions">
-      {extraActions}
-      {openInApp}
-      {canManage && (
-        <button type="button" className="fsp-btn fsp-manage" onClick={() => setManageOpen(true)}>
-          Manage sharing
-        </button>
-      )}
-    </div>
-  ) : null;
-
   return (
     <Frame overlay={overlay} onClose={onClose} signedOut={!signedIn} token={token} wide={showRail} action={headerActions}>
-      {canManage && manageOpen && (
-        <Suspense fallback={null}>
-          <FileShareDialog boardId={res.board_id} cardId={res.card_id}
-                           card={{ id: res.card_id, kind: file.kind, fileName: file.name }}
-                           onClose={closeManage}
-                           {...(typeof api?.getFileShareSettings === 'function' ? { api } : {})} />
-        </Suspense>
-      )}
+      {manageDialog}
       <div className={`fsp-layout${showRail ? ' has-rail' : ''}`}>
         <div className="fsp-col">
           <div ref={stageRef} className={`fsp-stage fsp-stage--${inline ? kind : 'file'}`}>

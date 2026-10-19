@@ -16,6 +16,12 @@
 // included, is the dialog's own inline notice (role="status"), never a toast.
 // Every confirmed write tells the bus (notifyFileShareChanged), so the
 // viewers' Share / Shared buttons and an open /f/ page re-read.
+//
+// A doc (card kind 'doc', 0426) is shared to read or edit together: its roles
+// are Can view / Can edit, a link can let anyone read it and anyone signed in
+// edit it, and "Allow downloading" is "Allow saving a copy". After a confirmed
+// write its live rooms ask again who may be in them (api.recheckDocRooms), so a
+// removed person is out within seconds rather than at the room's next minute.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '../Modal.jsx';
 import { Icon as Glyph } from '../Icon.jsx';
@@ -31,13 +37,23 @@ import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './fileShareDialog.css';
 
-const ROLE_LABEL = { view: 'Can view', comment: 'Can comment' };
+const ROLE_LABEL = { view: 'Can view', comment: 'Can comment', edit: 'Can edit' };
+// The roles above "Can view", by what is being shared.
+const upperRole = (isDoc) => (isDoc ? 'edit' : 'comment');
 
-function linkSub(link) {
+function linkSub(link, isDoc = false) {
+  if (isDoc) {
+    if (link === 'edit') return 'Anyone with the link can read it. Signed in, they can edit it too.';
+    if (link === 'view') return 'Anyone with the link can read it. No account needed.';
+    return 'Only the people above, and people in this cluster, can open it.';
+  }
   if (link === 'comment') return 'Anyone with the link can view it. Signed in, they can comment.';
   if (link === 'view') return 'Anyone with the link can view it. No account needed.';
   return 'Only the people above, and people in this cluster, can open it.';
 }
+
+// How long a burst of changes waits before the doc's rooms are asked again.
+const RECHECK_AFTER_MS = 400;
 
 async function writeClipboard(textOrPromise) {
   // A link that has to be created first is handed over as a promise: Safari
@@ -83,9 +99,12 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
 
   const [phase, setPhase] = useState('loading'); // loading | ready | denied | error
   const [s, setS] = useState(() => normalizeSettings(null));
+  // A doc from the card that opened the dialog, then from the server's row.
+  const isDoc = card?.kind === 'doc' || s.isDoc;
+  const upper = upperRole(isDoc);
   const [chips, setChips] = useState([]);
   const [draft, setDraft] = useState('');
-  const [inviteRole, setInviteRole] = useState('comment');
+  const [inviteRole, setInviteRole] = useState(() => upperRole(card?.kind === 'doc'));
   const [sending, setSending] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -97,10 +116,21 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
   const mounted = useRef(true);
   const sRef = useRef(s);
   sRef.current = s;
+  const isDocRef = useRef(isDoc);
+  isDocRef.current = isDoc;
+  const recheckTimer = useRef(null);
+  const recheckNow = useRef(null);
   const chain = useRef(Promise.resolve());
   // The last settings row an RPC returned: updated only by load and results.
   const serverRef = useRef(null);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // A change made just before closing still reaches the rooms.
+      if (recheckTimer.current) { clearTimeout(recheckTimer.current); recheckTimer.current = null; recheckNow.current?.(); }
+    };
+  }, []);
 
   const apply = useCallback((data) => {
     if (!data || typeof data !== 'object') return;
@@ -108,11 +138,20 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     if (mounted.current) setS(normalizeSettings(data));
   }, []);
 
+  // A doc's rooms ask again who may be in them, once a burst of changes ends.
+  const scheduleRecheck = useCallback((token) => {
+    if (!token || typeof api.recheckDocRooms !== 'function') return;
+    recheckNow.current = () => { recheckNow.current = null; Promise.resolve(api.recheckDocRooms(token)).catch(() => {}); };
+    if (recheckTimer.current) clearTimeout(recheckTimer.current);
+    recheckTimer.current = setTimeout(() => { recheckTimer.current = null; recheckNow.current?.(); }, RECHECK_AFTER_MS);
+  }, [api]);
+
   // A write the server confirmed: apply it, and tell the viewers.
   const applyWrite = useCallback((data) => {
     apply(data);
     notifyFileShareChanged({ boardId, cardId });
-  }, [apply, boardId, cardId]);
+    if (isDocRef.current || data?.kind === 'doc') scheduleRecheck(data?.token || sRef.current.token);
+  }, [apply, boardId, cardId, scheduleRecheck]);
 
   // A write failed: show what the server has, and why.
   const rollback = useCallback((err) => {
@@ -197,7 +236,8 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       return;
     }
     setSending(true);
-    const { data, error: err } = await enqueue(() => api.addFileSharePeople(boardId, cardId, valid, inviteRole));
+    const role = inviteRole === 'view' ? 'view' : upper;
+    const { data, error: err } = await enqueue(() => api.addFileSharePeople(boardId, cardId, valid, role));
     if (!mounted.current) return;
     setSending(false);
     if (err) {
@@ -209,7 +249,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     const skipped = (Array.isArray(data?.skipped) ? data.skipped.length : 0) + invalidCount;
     setChips([]);
     say(sharedMessage(added, skipped));
-    logEvent(EV.FILE_SHARE_PEOPLE_ADD, { n: added, role: inviteRole, skipped });
+    logEvent(EV.FILE_SHARE_PEOPLE_ADD, { n: added, role, skipped });
   };
 
   const onDraftKey = (e) => {
@@ -333,7 +373,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
                   value={p.role}
                   onChange={(e) => (e.target.value === '__remove' ? removePerson(p) : setPersonRole(p, e.target.value))}>
             <option value="view">{ROLE_LABEL.view}</option>
-            <option value="comment">{ROLE_LABEL.comment}</option>
+            <option value={upper}>{ROLE_LABEL[upper]}</option>
             <option value="__remove">Remove</option>
           </select>
         </div>
@@ -358,7 +398,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
         {phase === 'loading' && <div className="fsd-section fsd-empty">Loading…</div>}
 
         {phase === 'denied' && (
-          <div className="fsd-section fsd-empty" role="alert">You can't share files in this cluster.</div>
+          <div className="fsd-section fsd-empty" role="alert">You can't share {isDoc ? 'docs' : 'files'} in this cluster.</div>
         )}
 
         {phase === 'error' && (
@@ -396,8 +436,8 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
               </div>
               <div className="fsd-invite-access">
                 <select className="fsd-select" aria-label="Access for the people you add"
-                        value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-                  <option value="comment">{ROLE_LABEL.comment}</option>
+                        value={inviteRole === 'view' ? 'view' : upper} onChange={(e) => setInviteRole(e.target.value)}>
+                  <option value={upper}>{ROLE_LABEL[upper]}</option>
                   <option value="view">{ROLE_LABEL.view}</option>
                 </select>
                 <button type="button" className="fsd-btn fsd-send" onClick={send} disabled={!sendable || sending}>
@@ -427,7 +467,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
                     <option value="restricted">Only people added</option>
                     <option value="anyone">Anyone with the link</option>
                   </select>
-                  <div className="fsd-row-sub fsd-wrap">{linkSub(s.linkAccess)}</div>
+                  <div className="fsd-row-sub fsd-wrap">{linkSub(s.linkAccess, isDoc)}</div>
                 </div>
                 {s.linkAccess !== 'none' && (
                   <div className="fsd-row-access">
@@ -435,7 +475,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
                             value={s.linkAccess}
                             onChange={(e) => writeShare({ linkAccess: e.target.value })}>
                       <option value="view">{ROLE_LABEL.view}</option>
-                      <option value="comment">{ROLE_LABEL.comment}</option>
+                      <option value={upper}>{ROLE_LABEL[upper]}</option>
                     </select>
                   </div>
                 )}
@@ -443,8 +483,10 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
 
               <div className="fsd-row fsd-toggle-row">
                 <div className="fsd-row-text">
-                  <div className="fsd-row-name" id="fsd-dl-label">Allow downloading</div>
-                  <div className="fsd-row-sub fsd-wrap">People you share it with can save the original file.</div>
+                  <div className="fsd-row-name" id="fsd-dl-label">{isDoc ? 'Allow saving a copy' : 'Allow downloading'}</div>
+                  <div className="fsd-row-sub fsd-wrap">
+                    {isDoc ? 'People you share it with can save a copy of their own.' : 'People you share it with can save the original file.'}
+                  </div>
                 </div>
                 <button type="button" role="switch" aria-checked={s.allowDownload}
                         aria-labelledby="fsd-dl-label"
@@ -477,7 +519,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
         </div>
       )}
       <div className="fsd-foot">
-        {phase === 'ready' && s.commentCount > 0 && s.token && (
+        {phase === 'ready' && !isDoc && s.commentCount > 0 && s.token && (
           <button type="button" className="fsd-linkish fsd-comments" onClick={openComments}>
             {commentsLabel(s.commentCount)} · Open
           </button>

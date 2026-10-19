@@ -40,7 +40,7 @@ test('mergeChips caps at the per-call limit and counts the overflow', () => {
 
 test('normalizeSettings fills defaults and maps people', () => {
   assert.deepEqual(normalizeSettings({ exists: false }), {
-    exists: false, token: null, linkAccess: 'none', allowDownload: true, people: [], commentCount: 0,
+    exists: false, kind: null, isDoc: false, token: null, linkAccess: 'none', allowDownload: true, people: [], commentCount: 0,
   });
   const s = normalizeSettings({
     exists: true, token: 't1', link_access: 'comment', allow_download: false, comment_count: 4,
@@ -58,6 +58,25 @@ test('normalizeSettings fills defaults and maps people', () => {
     { email: 'b@x.com', role: 'comment', pending: false, name: 'Bea', avatarUrl: 'https://i/a.png' },
   ]);
   assert.equal(normalizeSettings({ link_access: 'edit' }).linkAccess, 'none');
+});
+
+// A doc (0426) speaks view | edit, a file view | comment: each other's upper
+// role reads as the lower one, never as the other kind's.
+test('normalizeSettings reads a doc as view | edit', () => {
+  const d = normalizeSettings({
+    exists: true, kind: 'doc', token: 't2', link_access: 'edit', allow_download: false,
+    people: [
+      { email: 'a@x.com', role: 'edit', pending: false },
+      { email: 'b@x.com', role: 'view', pending: true },
+      { email: 'c@x.com', role: 'comment', pending: false },
+    ],
+  });
+  assert.equal(d.isDoc, true);
+  assert.equal(d.kind, 'doc');
+  assert.equal(d.linkAccess, 'edit');
+  assert.deepEqual(d.people.map((p) => p.role), ['edit', 'view', 'edit']);
+  assert.equal(normalizeSettings({ kind: 'doc', link_access: 'comment' }).linkAccess, 'none');
+  assert.equal(normalizeSettings({ kind: 'video', link_access: 'comment' }).isDoc, false);
 });
 
 test('sharedMessage and commentsLabel', () => {

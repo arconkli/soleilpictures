@@ -17,7 +17,14 @@
 // `mode: 'overlay'` mounts the in-app viewer (SharedFileHost) over a stand-in
 // app with an "Open" button; `mode: 'shared-page'` mounts the Shared page over
 // fake 0424 lists (fixture.withMe / fixture.byMe).
+// The doc-* fixtures open a shared doc (DocShareView) on an in-memory room
+// (fakeDocRoom): the doc as the room would send it, a hello, caught up.
+// window.__fileShareQa.docRooms holds each room, so a spec can refuse a
+// write (refuse(reason)) or close it (end(code)).
 import { useMemo, useState } from 'react';
+import * as Y from 'yjs';
+import { Awareness } from 'y-protocols/awareness';
+import { addPage, cardScope, initCardDocStore } from '../lib/docState.js';
 import { SharedFileHost } from '../components/fileShare/SharedFileHost.jsx';
 import { SharedPage } from '../components/shared/SharedPage.jsx';
 import { setSharedFilesSource } from '../hooks/useSharedFiles.js';
@@ -57,6 +64,19 @@ function ok(file, extra = {}) {
     status: 'ok', access: 'comment', signed_in: true, can_comment: true, allow_download: true,
     file: { kind: 'file', name: 'File', mime: null, size: null, duration: null, page_count: null, ext: null, risky: false, ...file },
     shared_by: SHARED_BY, comment_count: 0, urls: {}, ttl: 21600, ...extra,
+  };
+}
+
+// A shared doc: its share, its card, its rooms.
+const DOC_SHARE_ID = '5d0c5d0c-0000-4000-8000-00000000d0c0';
+const DOC_CARD = 'doc-qa-1';
+const docRoom = (variant) => `${DOC_SHARE_ID}.${variant}.0123456789ab`;
+function okDoc(extra = {}) {
+  const canEdit = !!extra.can_edit;
+  return {
+    status: 'ok', access: 'view', signed_in: true, can_edit: false, edit_needs_sign_in: false, allow_download: false,
+    file: { kind: 'doc', name: 'Pilot, revisions' }, room: docRoom(canEdit ? 'edit' : 'view'), card_key: DOC_CARD,
+    shared_by: SHARED_BY, urls: {}, ttl: 21600, ...extra,
   };
 }
 
@@ -212,6 +232,24 @@ export const FIXTURES = {
       exists: true, token: QA_TOKEN, link_access: 'view', allow_download: true, comment_count: 0, people: [],
     },
   },
+  // A doc shared on its own (0426): read in the view room, edited in the edit
+  // room, the link that edits once you sign in, and its owner's page.
+  'doc-view': { share: okDoc(), comments: [] },
+  'doc-edit': { share: okDoc({ access: 'edit', can_edit: true }), comments: [] },
+  'doc-signed-out': { share: okDoc({ signed_in: false, edit_needs_sign_in: true }), comments: [] },
+  'doc-manage': {
+    share: okDoc({ access: 'manage', can_edit: true, allow_download: true, board_id: 'qa-board', card_id: DOC_CARD }),
+    comments: [],
+    settings: {
+      exists: true, kind: 'doc', token: QA_TOKEN, link_access: 'edit', allow_download: false, comment_count: 0,
+      people: [{ email: 'sam@example.com', role: 'edit', pending: false, name: 'Sam Rivera', avatar_url: null }],
+    },
+  },
+  'doc-dialog': {
+    dialog: true,
+    card: { id: DOC_CARD, kind: 'doc', title: 'Pilot, revisions' },
+    settings: { exists: false, kind: 'doc' },
+  },
   gone: { share: { status: 'gone' }, comments: [] },
   'sign-in': { share: { status: 'sign_in' }, comments: [] },
   'no-access': { share: { status: 'no_access', email: 'sam@example.com' }, comments: [] },
@@ -219,6 +257,51 @@ export const FIXTURES = {
 };
 
 let seq = 0;
+
+// The doc's live room, in memory (see the header).
+function fakeDocRoom(fx, log) {
+  return (ydoc, { room, onHello, onSync, onRefused, onEnd }) => {
+    log('attachDocRoom', [room]);
+    const share = fx.share || {};
+    const awareness = new Awareness(ydoc);
+    awareness.setLocalState({});
+    ydoc.transact(() => {
+      const card = new Y.Map();
+      ydoc.getMap('cards').set(DOC_CARD, card);
+      card.set('id', DOC_CARD);
+      card.set('kind', 'doc');
+      card.set('title', share.file?.name || 'Pilot, revisions');
+      initCardDocStore(ydoc, card);
+      // The view room holds no comment threads.
+      if (!share.can_edit) card.delete('docComments');
+      const scope = cardScope(card);
+      const pageId = addPage(ydoc, { name: 'Act one', scope });
+      const block = (text, type = 'paragraph', attrs = {}) => {
+        const el = new Y.XmlElement(type);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        el.insert(0, [new Y.XmlText(text)]);
+        return el;
+      };
+      scope.content.get(pageId).insert(0, [
+        block('Cold open', 'heading', { level: 2 }),
+        block('A quiet street before dawn. A van idles with its lights off.'),
+        block('MARA checks her watch, then the mirror, then her watch again.'),
+      ]);
+    });
+    const handle = { room, refuse: (reason) => onRefused(reason), end: (code) => onEnd({ action: 'reask', code }) };
+    if (typeof window !== 'undefined' && window.__fileShareQa) (window.__fileShareQa.docRooms ||= []).push(handle);
+    const timer = setTimeout(() => {
+      onHello({ type: 'hello', me: { name: 'Sam Rivera', color: '#2fb67c' }, access: share.access,
+                readOnly: !share.can_edit, variant: share.can_edit ? 'edit' : 'view' });
+      onSync();
+    }, 30);
+    return {
+      awareness, provider: null,
+      whenSynced: async () => true,
+      destroy() { clearTimeout(timer); try { awareness.destroy(); } catch (_) {} },
+    };
+  };
+}
 
 // A fake of the client API (lib/fileShares.js + the page's signOut). Comments
 // live in memory so add/resolve/delete/restore round-trip through the list.
@@ -242,6 +325,9 @@ export function makeFakeApi(fixture, calls = []) {
 
   return {
     calls,
+    attachDocRoom: fakeDocRoom(fx, log),
+    createDocImageResolver: () => ({ cached: () => null, resolve: async () => null, onAuthError() {} }),
+    recheckDocRooms(token) { log('recheckDocRooms', [token]); return Promise.resolve(); },
     setShare(next) { share = next; },
     getShare() { return JSON.parse(JSON.stringify(share)); },
     fetchFileShare(token, opts) {

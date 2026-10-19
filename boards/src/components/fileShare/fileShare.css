@@ -57,6 +57,15 @@
 .fsp-top-actions .fsp-manage { margin-left: 0; }
 .fsp-top-actions .fsp-btn { height: 32px; padding: 0 12px; }
 
+/* A doc's page (DocShareView): the same dark bar, but the doc keeps the
+   reader's theme, so the page does not pin the app's tokens dark
+   (.public-dark); the brand mark still wears its dark-ground form. */
+[data-theme="light"] .fsp--doc .fsp-top .clusters-mark-dark { display: block; }
+[data-theme="light"] .fsp--doc .fsp-top .clusters-mark-light { display: none; }
+.fsp--doc { background: var(--bg-0); }
+.fsp--doc .fsp-main .fsp-state-title { color: var(--ink-0); }
+.fsp--doc .fsp-main .fsp-state-body { color: var(--ink-2); }
+
 /* In the app: the same room as a dialog over everything (the owner's share
    dialog still opens above it). */
 .fsp--overlay { z-index: 2147483000; outline: none; }
