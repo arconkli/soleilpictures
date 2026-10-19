@@ -10,11 +10,12 @@ import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { ViewSwitch } from '../components/ViewSwitch.jsx';
+import { NewClusterButton } from '../components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from '../components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } from '../lib/filesDock.js';
 import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
-import { scheduleCreationAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
 import { CURATED_TEMPLATES } from '../lib/gridTemplateIndex.js';
@@ -501,6 +502,8 @@ export function LocalBoardsApp({ user, signOut }) {
     [boards, currentId],
   );
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || id }));
+  // "+ New cluster" after the trail, where App.jsx's bar has it.
+  const showNewCluster = clusterNudgesAllowed() && !mobileShell && currentSurface === 'board' && !readOnlyQa;
 
   // Real (if simple) undo for the local shell: a bounded snapshot stack per
   // board. Production runs the Yjs UndoManager; ?local=1 used to stub
@@ -1912,7 +1915,7 @@ export function LocalBoardsApp({ user, signOut }) {
       </aside>
 
       <main className="main">
-        <div className="topbar">
+        <div className={`topbar${showNewCluster ? ' topbar-centered' : ''}`}>
           <div className="tb-left">
             {mobileShell && (
               <button className="tb-icon" title="Open menu" aria-label="Open menu"
@@ -1928,6 +1931,9 @@ export function LocalBoardsApp({ user, signOut }) {
                 </React.Fragment>
               ))}
             </div>
+            {showNewCluster && (
+              <NewClusterButton boardId={currentId} paneId="main" boardName={crumbs[crumbs.length - 1]?.name} />
+            )}
           </div>
 
           <div className="tb-center">

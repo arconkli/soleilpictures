@@ -108,6 +108,7 @@ import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
+import { NewClusterButton } from './components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
 import { placedOf, positionUnplaced } from './lib/placement.js';
@@ -9067,6 +9068,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const tbMutators = toolbarPane === 'split' ? splitMutators : mainMutators;
   const tbYDoc = toolbarPane === 'split' ? splitYDoc : currentYDoc;
   const tbBoard = toolbarPane === 'split' ? (splitBoard || currentBoard) : currentBoard;
+  // "+ New cluster" after the trail (NewClusterButton): on a cluster you can
+  // edit, on a desktop. A phone's bar has no room for it; its + sheet has it.
+  const tbCanEdit = toolbarPane === 'split' ? splitBoardPerm.canEdit : canEditCurrent;
+  const showNewCluster = clusterNudgesAllowed() && !mobileShell && currentSurface === 'board'
+    && !!activeBoardId && tbCanEdit;
+  // Nothing in the pane took it (still loading): make it in the cluster the
+  // trail shows, and step inside.
+  const newClusterUnhandled = (name) => tbMutators.addNewBoard?.(null, { via: 'topbar', ...(name ? { name } : {}), openAfter: true });
   const ybReadyForCurrent = Boolean(currentYDoc);
   // Hide orphan board / boardlink cards at the render layer. See the
   // long comment in the orphan-sweep section above for why we filter
@@ -9961,7 +9970,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             ]}
           />
         ) : (
-        <div className="topbar">
+        <div className={`topbar${showNewCluster ? ' topbar-centered' : ''}`}>
           <div className="tb-left">
             {(!sidebarOpen || mobileShell) && (
               <button className="tb-icon" title={mobileShell ? 'Open menu' : 'Open sidebar (⌘B)'}
@@ -10005,6 +10014,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 </React.Fragment>
               ))}
             </div>
+            {showNewCluster && (
+              <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
+                                boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
+                                onUnhandled={newClusterUnhandled} />
+            )}
           </div>
 
           <div className="tb-center">

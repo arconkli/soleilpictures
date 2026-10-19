@@ -148,7 +148,8 @@ import {
   dockVisitsKey, dockDismissCountKey, parseVisits, dockVisitAllowed, noteDockVisit,
   dockRetired, rootHoldsClusters,
 } from '../lib/dockFatigue.js';
-import { cardMoveTargets } from '../lib/projectsHome.js';
+import { cardMoveTargets, spotBesideContent } from '../lib/projectsHome.js';
+import { publishNewClusterPick } from '../lib/newClusterPick.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
 import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
@@ -3224,6 +3225,21 @@ export function CanvasSurface({
   const groupById = useMemo(() => {
     const m = {}; (groups || []).forEach(g => m[g.id] = g); return m;
   }, [groups]);
+  // What the top bar's "+ New cluster" would take from this pane: the picked
+  // cards, counted the way it moves them (a cluster among them stays where it
+  // is), and the name it would offer for them (lib/newClusterPick.js).
+  useEffect(() => {
+    if (isPublic || !board?.id || !clusterNudgesAllowed()) return;
+    if (!selected.size) { publishNewClusterPick(paneId, null); return; }
+    const plan = planClusterFromSelection({ cards: cardsRef.current, ids: [...selected], clusters: 'skip' });
+    const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+    publishNewClusterPick(paneId, {
+      boardId: board.id,
+      count: plan.ids.length,
+      suggestion: plan.ids.length ? suggestClusterName({ groupName, cards: plan.cards }) : null,
+    });
+  }, [selected, board?.id, paneId, isPublic, groupById]);
+  useEffect(() => () => { if (!isPublic) publishNewClusterPick(paneId, null); }, [paneId, isPublic]);
   // Expand any selection / drag set to include all groupmates of any
   // card whose group has 2+ visible members. Single-orphan group
   // members aren't expanded — orphaned groups just behave like
@@ -6171,23 +6187,28 @@ export function CanvasSurface({
   // goes on untracked: that toast is its undo, not Cmd+Z. Named at birth: the
   // field opens on a suggestion (the group's name, what the files share, the
   // first note), because most clusters left "Untitled" stayed that way.
-  const createClusterFrom = async (ids, { via } = {}) => {
+  // A caller that already asked for the name (the top bar's popover) passes
+  // it as `name` — null for the default — and no second prompt opens.
+  const createClusterFrom = async (ids, { via, name: given, clusters = 'refuse' } = {}) => {
     if (!board?.id || !mutators.addNewBoard) return null;
-    const plan = planClusterFromSelection({ cards, ids });
+    const plan = planClusterFromSelection({ cards, ids, clusters });
     keepUploadsInPlace(plan.held);
     if (plan.refused || !plan.ids.length) return null;
-    const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
-    const n = plan.ids.length;
-    const typed = await feedback.prompt({
-      title: 'Name this cluster',
-      message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
-      label: 'Name',
-      placeholder: 'e.g. Kitchen refs',
-      defaultValue: suggestClusterName({ groupName, cards: plan.cards }) || '',
-      confirmLabel: 'Create cluster',
-    });
-    if (typed == null) return null;
-    const name = String(typed).trim().slice(0, 200) || null;
+    let name = given;
+    if (given === undefined) {
+      const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+      const n = plan.ids.length;
+      const typed = await feedback.prompt({
+        title: 'Name this cluster',
+        message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
+        label: 'Name',
+        placeholder: 'e.g. Kitchen refs',
+        defaultValue: suggestClusterName({ groupName, cards: plan.cards }) || '',
+        confirmLabel: 'Create cluster',
+      });
+      if (typed == null) return null;
+      name = String(typed).trim().slice(0, 200) || null;
+    }
     const newId = await mutators.addNewBoard(plan.center, { via, ...(name ? { name } : {}), untracked: true });
     if (!newId) return null;
     await moveCardsIntoBoard(plan.ids, newId, plan.cards, {
@@ -6195,6 +6216,36 @@ export function CanvasSurface({
     });
     return newId;
   };
+
+  // The top bar's "+ New cluster" (NewClusterButton) arrives named. Cards
+  // picked here go into it, the way "New cluster from N cards" takes them, and
+  // a cluster among them stays where it is. Nothing picked: it lands beside
+  // what is here and opens, ready to fill. The host opens it in the main pane
+  // (the board list it needs has only just refreshed — see addClusterCard);
+  // the split pane steps in itself.
+  const newClusterHereRef = useRef(null);
+  newClusterHereRef.current = async ({ name = null, via = 'topbar' } = {}) => {
+    const picked = [...selectedRef.current];
+    if (picked.length && planClusterFromSelection({ cards, ids: picked, clusters: 'skip' }).ids.length) {
+      return createClusterFrom(picked, { via, name, clusters: 'skip' });
+    }
+    const spot = spotBesideContent(cards);
+    const newId = await mutators.addNewBoard?.({ x: spot.x + 140, y: spot.y + 110 },
+      { via, ...(name ? { name } : {}), openAfter: paneId === 'main' });
+    if (newId && paneId !== 'main') onOpenBoard?.(newId);
+    return newId || null;
+  };
+  useEffect(() => {
+    if (isPublic) return undefined;
+    const onNew = (e) => {
+      const d = e.detail;
+      if (!d || d.handled || d.boardId !== board?.id || d.paneId !== paneId || !canEdit) return;
+      d.handled = true;
+      newClusterHereRef.current?.(d);
+    };
+    document.addEventListener('soleil-new-cluster', onNew);
+    return () => document.removeEventListener('soleil-new-cluster', onNew);
+  }, [board?.id, paneId, canEdit, isPublic]);
 
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }

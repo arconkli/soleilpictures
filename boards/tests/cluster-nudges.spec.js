@@ -51,6 +51,7 @@ test.describe('cluster nudges', () => {
     const tool = page.locator('.cnv-tool[data-tour="cluster-tool"]');
     await expect(tool).toHaveAttribute('data-tip', 'Add cluster');
     await expect(tool.locator('.cnv-tool-card')).toHaveCount(0);
+    await expect(page.locator('.tb-newcluster')).toHaveCount(0);
     await card(page, 'mixqa-0').click({ button: 'right' });
     await expect(page.locator('.ctx-menu')).toBeVisible();
     await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'new cluster' })).toHaveCount(0);
@@ -139,6 +140,85 @@ test.describe('cluster nudges', () => {
     await studio(page);
     await page.locator('.canvas-wrap').first().dblclick({ position: { x: 900, y: 650 } });
     await expect(page.locator('.cnv-quick-add .cnv-quick-add-lbl', { hasText: 'Cluster' })).toBeVisible();
+  });
+
+  test('the top bar: "+ New cluster" with nothing picked lands beside the pile, named, and opens', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    const btn = page.locator('.topbar .tb-newcluster');
+    await expect(btn).toHaveText('New cluster');
+    await expect(btn.locator('.ncl-count')).toHaveCount(0);
+    await btn.click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-pop-h')).toHaveText('Name this cluster');
+    await expect(pop.locator('.ncl-help')).toHaveText('It lands on Studio as a card and opens, ready to fill.');
+    await expect(pop.locator('.ncl-field')).toBeFocused();
+    await pop.locator('.ncl-field').fill('Short film');
+    await page.keyboard.press('Enter');
+    await expect(pop).toHaveCount(0);
+    await expect(page.locator('.crumbs .crumb')).toHaveText(['Studio', 'Short film']);
+
+    // Back on Studio: the pile is untouched and the cluster sits to its right.
+    await page.locator('.crumbs .crumb', { hasText: 'Studio' }).click();
+    const made = page.locator('.card.card-kind-board', { hasText: 'Short film' });
+    await expect(made).toHaveCount(1);
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(3);
+    const pileRight = Math.max(...await Promise.all(['mixqa-0', 'mixqa-1', 'mixqa-2'].map(async (id) => {
+      const b = await card(page, id).boundingBox();
+      return b.x + b.width;
+    })));
+    expect((await made.boundingBox()).x).toBeGreaterThan(pileRight);
+  });
+
+  test('the top bar: with cards picked it counts them and files them in, staying put', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await recordMoves(page);
+    await card(page, 'mixqa-0').click();
+    await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
+    const btn = page.locator('.topbar .tb-newcluster');
+    await expect(btn.locator('.ncl-count')).toHaveText('2');
+    await btn.click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('The 2 cards you picked move into it. Undo puts them back.');
+    await pop.locator('.ncl-field').fill('Diner');
+    await pop.locator('.ncl-create').click();
+
+    await expect(card(page, 'mixqa-0')).toHaveCount(0);
+    await expect(card(page, 'mixqa-1')).toHaveCount(0);
+    await expect(card(page, 'mixqa-2')).toBeVisible();
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Diner' })).toHaveCount(1);
+    await expect(page.locator('.crumbs .crumb')).toHaveText(['Studio']);
+    await expect(btn.locator('.ncl-count')).toHaveCount(0);
+    const moves = await page.evaluate(() => window.__moves);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].ids.sort()).toEqual(['mixqa-0', 'mixqa-1']);
+    expect(moves[0]).toMatchObject({ name: 'Diner' });
+    expect(moves[0].created).toBeTruthy();
+  });
+
+  test('the top bar popover: Escape and Cancel make nothing, and keys typed there never reach the canvas', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await card(page, 'mixqa-0').click();
+    const btn = page.locator('.topbar .tb-newcluster');
+    await expect(btn.locator('.ncl-count')).toHaveText('1');
+    await btn.click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('The card you picked moves into it. Undo puts it back.');
+    // Backspace on a focused button in the popover is not the canvas's Delete.
+    await page.keyboard.press('Tab');
+    await expect(pop.locator('.ncl-cancel')).toBeFocused();
+    await page.keyboard.press('Backspace');
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(pop).toHaveCount(0);
+    await expect(btn).toBeFocused();
+    await btn.click();
+    await pop.locator('.ncl-cancel').click();
+    await expect(pop).toHaveCount(0);
+    await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
+    await expect(card(page, 'mixqa-0')).toBeVisible();
   });
 
   // The App.jsx half the local harness doesn't mirror: the toast names the

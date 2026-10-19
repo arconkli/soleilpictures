@@ -56,6 +56,8 @@ import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { fileSharesAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
+import { publishNewClusterPick } from '../lib/newClusterPick.js';
+import { spotBesideContent } from '../lib/projectsHome.js';
 import { openFileShare } from '../lib/fileShareBus.js';
 import { isShareableCard } from '../lib/fileShares.js';
 import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
@@ -1024,28 +1026,74 @@ export function ListSurface({
   // on the board, filled through moveCardsTo, and undone by its toast — which
   // also trashes the cluster. The canvas does the same from its menu
   // (CanvasSurface createClusterFrom); clusterFromSelection plans both.
-  const newClusterFromSelection = useCallback(async () => {
+  // The top bar's popover has already asked the name: it passes `name` (null
+  // for the default), and no second prompt opens.
+  const newClusterFromSelection = useCallback(async ({ name: given, via = 'from_list_selection', clusters = 'refuse' } = {}) => {
     if (!canEdit || !mutators.addNewBoard) return;
-    const plan = planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false });
+    const plan = planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false, clusters });
     if (plan.held.length) {
       feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
     }
     if (plan.refused || !plan.ids.length) return;
-    const n = plan.ids.length;
-    const typed = await feedback.prompt({
-      title: 'Name this cluster',
-      message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
-      label: 'Name',
-      placeholder: 'e.g. Kitchen refs',
-      defaultValue: suggestClusterName({ cards: plan.cards }) || '',
-      confirmLabel: 'Create cluster',
-    });
-    if (typed == null) return;
-    const name = String(typed).trim().slice(0, 200) || null;
-    const newId = await mutators.addNewBoard(plan.center, { via: 'from_list_selection', ...(name ? { name } : {}), untracked: true });
+    let name = given;
+    if (given === undefined) {
+      const n = plan.ids.length;
+      const typed = await feedback.prompt({
+        title: 'Name this cluster',
+        message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
+        label: 'Name',
+        placeholder: 'e.g. Kitchen refs',
+        defaultValue: suggestClusterName({ cards: plan.cards }) || '',
+        confirmLabel: 'Create cluster',
+      });
+      if (typed == null) return;
+      name = String(typed).trim().slice(0, 200) || null;
+    }
+    const newId = await mutators.addNewBoard(plan.center, { via, ...(name ? { name } : {}), untracked: true });
     if (!newId) return;
     await moveCardsTo(plan.ids, newId, null, { createdBoardId: newId, createdBoardName: name || 'Untitled cluster' });
   }, [canEdit, mutators, cards, selectedCards, feedback, moveCardsTo]);
+
+  // The top bar's "+ New cluster" (NewClusterButton), when this list is what
+  // the pane shows. The files picked here go into it, exactly as selected (a
+  // cluster among them stays where it is); with none picked, it lands beside
+  // what is on the board and opens. The count it shows comes from here too
+  // (lib/newClusterPick.js). Not the docked panel, and not while browsing
+  // another cluster: the canvas beside the panel answers for its pane.
+  const listOwnsPane = !isPanel && !browsingFrom && !!board?.id;
+  useEffect(() => {
+    if (!listOwnsPane || !clusterNudgesAllowed()) return;
+    if (!selectedCards.size) { publishNewClusterPick(paneId, null); return; }
+    const plan = planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false, clusters: 'skip' });
+    publishNewClusterPick(paneId, {
+      boardId: board.id,
+      count: plan.ids.length,
+      suggestion: plan.ids.length ? suggestClusterName({ cards: plan.cards }) : null,
+    });
+  }, [listOwnsPane, selectedCards, cards, board?.id, paneId]);
+  useEffect(() => () => { if (listOwnsPane) publishNewClusterPick(paneId, null); }, [listOwnsPane, paneId]);
+  const newClusterHereRef = useRef(null);
+  newClusterHereRef.current = async ({ name = null, via = 'topbar' } = {}) => {
+    if (planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false, clusters: 'skip' }).ids.length) {
+      return newClusterFromSelection({ name, via, clusters: 'skip' });
+    }
+    const spot = spotBesideContent(cards);
+    const newId = await mutators.addNewBoard?.({ x: spot.x + 140, y: spot.y + 110 },
+      { via, ...(name ? { name } : {}), openAfter: paneId === 'main' });
+    if (newId && paneId !== 'main') onOpenBoard?.(newId);
+    return newId || null;
+  };
+  useEffect(() => {
+    if (!listOwnsPane) return undefined;
+    const onNew = (e) => {
+      const d = e.detail;
+      if (!d || d.handled || d.boardId !== board?.id || d.paneId !== paneId || !canEdit) return;
+      d.handled = true;
+      newClusterHereRef.current?.(d);
+    };
+    document.addEventListener('soleil-new-cluster', onNew);
+    return () => document.removeEventListener('soleil-new-cluster', onNew);
+  }, [listOwnsPane, board?.id, paneId, canEdit]);
 
   // Put on board: files waiting in Files go onto the board as one block where
   // its canvas was last looking (lib/viewCenter.js), or beside its content.
@@ -2200,7 +2248,7 @@ export function ListSurface({
               </button>
             )}
             {canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
-              <button type="button" className="list-selbar-act" onClick={newClusterFromSelection}
+              <button type="button" className="list-selbar-act" onClick={() => newClusterFromSelection()}
                       title="Move them into a new cluster" aria-label="New cluster">
                 <Icon as={Folder} size={14} weight="light" /><span>New cluster</span>
               </button>
