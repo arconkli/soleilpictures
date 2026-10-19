@@ -20,12 +20,13 @@ import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebar
 
 const WINDOW_AFTER = 80;
 // Rows start a little in from the list's edge, so a hover fill has room: with
-// the list's own 8px, a row's thumbnail and label sit on the sidebar's 16px edge.
+// the list's own 7px, a row's thumbnail and label sit 15px inside the files'
+// card, where everything in it starts.
 const ROW_PAD = 8;
-// Row heights for the list, in step with clusterSidebar.css: one 32px rhythm
+// Row heights for the list, in step with clusterSidebar.css: one 30px rhythm
 // (44px to a finger), a shelf's label with a little air above it.
 const LIST_HEIGHTS = {
-  fine: { shelf: 36, file: 32, more: 32, loading: 32, empty: 44, fold: 32 },
+  fine: { shelf: 36, file: 30, more: 30, loading: 30, empty: 44, fold: 30 },
   coarse: { shelf: 44, file: 44, more: 44, loading: 44, empty: 52, fold: 44 },
 };
 const EMPTY_NOTE = 'No files here yet. Drop some in, or press Upload.';
@@ -60,9 +61,9 @@ function ItemGlyph({ item }) {
   }
   if (item.kind === 'file') {
     const IconComp = iconForFile(extOf(item.meta?.fileName, item.meta?.ext), item.meta?.mime);
-    return <span className="sbf-file-icon"><Icon as={IconComp} size={13} /></span>;
+    return <span className="sbf-file-icon"><Icon as={IconComp} size={16} weight="regular" /></span>;
   }
-  return <span className="sbf-file-icon"><KindIcon kind={item.kind} size={13} /></span>;
+  return <span className="sbf-file-icon"><KindIcon kind={item.kind} size={16} weight="regular" /></span>;
 }
 
 // Touch has no right-click: holding a file opens its menu, and the tap that
@@ -142,7 +143,7 @@ function Row({ row, depth, ctx }) {
           <button type="button" className="sbf-shelf-open" tabIndex={-1}
                   title="Open in Files" aria-label={`Open ${row.label || row.shelfId} in Files`}
                   onClick={(e) => { e.stopPropagation(); onOpenShelf(row.boardId, row.shelfId); }}>
-            <Icon as={ArrowsOutSimple} size={12} />
+            <Icon as={ArrowsOutSimple} size={12} weight="regular" />
           </button>
         )}
       </div>

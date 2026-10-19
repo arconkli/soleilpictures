@@ -9451,7 +9451,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     <R2Image src={iconSrc} alt="" />
                   </span>
                 ) : (
-                  <span className="sb-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }}>
+                  // The files sidebar's is neutral: the name beside it says
+                  // which workspace, and gold and colour are kept for data.
+                  <span className="sb-ws-avatar" style={filesSidebar ? undefined : { background: pickPresenceColor(workspace.id) }}>
                     {(workspace.name || '?').trim().charAt(0).toUpperCase()}
                   </span>
                 );
@@ -9466,7 +9468,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {filesSidebar && (
               <button className="sb-mid-search" onClick={() => setPaletteOpen(true)}
                       title="Search (⌘K)" aria-label="Search">
-                <Icon as={Search} size={14} />
+                <Icon as={Search} size={16} weight="regular" />
               </button>
             )}
             {/* In the drawer this is the drawer's close. It used to write the
@@ -9476,7 +9478,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     onClick={() => (mobileShell ? setMobileNavOpen(false) : setSidebarOpen(false))}
                     title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
                     aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
-              <Icon as={PanelLeftClose} size={14} />
+              <Icon as={PanelLeftClose} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
             </button>
             {wsMenuOpen && (
               <WorkspaceMenu
@@ -9760,7 +9762,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <HelpButton as="foot" via="sidebar" />
             <button className="sb-foot-icon" title="Settings" aria-label="Settings"
                     onClick={() => openSettings('general')}>
-              <Icon as={Settings} size={14} />
+              <Icon as={Settings} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
             </button>
             {(() => {
               const avatarSrc = ownProfile?.avatar_url || '';

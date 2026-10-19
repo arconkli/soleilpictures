@@ -4,9 +4,9 @@
 // does: Home and Messages, a tree of cluster names, and below it (or beside it,
 // wide) the files of the cluster they're in, or of Recent or Starred (tabs), one
 // row each with a small thumbnail — Quick look, the search and its "All files ⌄"
-// menu (what shows, the sort), paging a long shelf in place — plus the one-line
-// meter, the resize handle and the divider, all on one 16px edge. The App.jsx
-// wiring behind the hold is pinned by reading the source.
+// menu (what shows, the sort), paging a long shelf in place — plus the meter,
+// the resize handle and the divider, on two floating cards with one edge 15px
+// inside them. The App.jsx wiring behind the hold is pinned by reading the source.
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -96,13 +96,13 @@ test.describe('sidebar files', () => {
     await expect(files(page).getByRole('tabpanel')).toHaveAttribute('aria-labelledby', await shown(page).getAttribute('id'));
   });
 
-  test('the files header is the tabs and ⤢; the split toggle shows when you reach for it', async ({ page }) => {
+  test('the files header is the tabs and its two icons, quiet until you reach for it', async ({ page }) => {
     await open(page);
     const head = files(page).locator('.sbf-files-head');
     const split = head.getByRole('button', { name: 'Show files beside the clusters' });
     const opacity = () => split.evaluate((el) => getComputedStyle(el).opacity);
     await page.mouse.move(900, 450);
-    await expect.poll(opacity).toBe('0');
+    await expect.poll(opacity).toBe('0.5');
     await head.hover();
     await expect.poll(opacity).toBe('1');
     await expect(head.getByRole('button', { name: 'Open in the full Files page' })).toBeVisible();
@@ -114,11 +114,11 @@ test.describe('sidebar files', () => {
     await expect(btns).toHaveText(['Home', /^Messages2$/]);                      // no Schedule: retired
     await expect(page.locator('.sbf-quick svg')).toHaveCount(0);                 // words, no icons
     await expect(btns.nth(1).locator('.sbf-quick-count')).toHaveText('2');       // unread, a plain number
-    // Rows, one over the other, the sidebar's width less its 8px insets.
+    // Rows, one over the other, the card's width less its 7px insets.
     const [h, m] = await btns.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
     expect(m.top).toBeGreaterThanOrEqual(h.bottom - 1);
-    const inner = await page.locator('.sidebar').evaluate((el) => el.clientWidth);   // less its border
-    expect(Math.round(h.width)).toBe(inner - 16);
+    const card = await page.locator('.sbf-quick').evaluate((el) => el.getBoundingClientRect().width);
+    expect(Math.round(h.width)).toBe(Math.round(card) - 14);
     await btns.nth(0).click();
     await expect(page.getByTestId('sbqa-log')).toContainText('home');
     await expect(files(page).getByRole('tab')).toHaveText(['Feature film', 'Recent', 'Starred']);
@@ -140,27 +140,38 @@ test.describe('sidebar files', () => {
     await expect(page.getByTestId('sbqa-log')).toContainText('palette ""');
   });
 
-  test('one left edge: the top, the headings, the tabs and the files all start 16px in', async ({ page }) => {
+  test('two floating cards, one edge inside them: the top, the headings and the files all start 15px in', async ({ page }) => {
     await open(page);
+    // The cards are .sb-mid's ::before (the clusters) and ::after (the files), 8px off the window's edge.
+    const card = (which) => page.locator('.sb-mid').evaluate((el, w) => {
+      const cs = getComputedStyle(el, w);
+      return [cs.content, cs.borderTopLeftRadius];
+    }, which);
+    expect(await card('::before')).toEqual(['""', '12px']);
+    expect(await card('::after')).toEqual(['""', '12px']);
     const left = (sel) => page.locator(sel).first().evaluate((el) =>
       Math.round(el.getBoundingClientRect().left - el.closest('.sidebar').getBoundingClientRect().left));
-    for (const sel of ['.sb-ws-avatar', '.sbf-quickbtn .sbf-quick-label', '.sb-boards-head-label', '.sbf-tab .sbf-tab-label',
-      '.sbf-search svg', '.sbf-shelf-label', '.sbf-file-thumb', '.sbf-meter-text']) {
-      expect(await left(sel), sel).toBe(16);
+    for (const sel of ['.sb-ws-avatar', '.sbf-quickbtn .sbf-quick-label', '.sb-boards-head-label',
+      '.sbf-search svg', '.sbf-shelf-label', '.sbf-file-thumb', '.sbf-meter-track', '.sbf-meter-text']) {
+      expect(await left(sel), sel).toBe(23);
     }
-    // The tree hangs its chevrons on that edge: names 20px in, 16px a level. A file's name follows its thumbnail.
-    expect(await left('.sb-tree-row[aria-level="1"] .sb-row-label')).toBe(36);
-    expect(await left('.sb-tree-row[aria-level="2"] .sb-row-label')).toBe(52);
-    expect(await left('.sbf-file .sbf-file-name')).toBe(46);
-    expect(await left('.sbf-more-btn')).toBe(46);
-    // The cluster you're in is its fill alone: no bar, no bold.
+    expect(await left('.sbf-tabs')).toBe(15);        // the segmented control's track, its chips inside
+    // The tree's chevrons sit on that edge: names 16px a level. A file's name follows its thumbnail.
+    expect(await left('.sb-tree-row[aria-level="1"] .sb-tree-chev')).toBe(23);
+    expect(await left('.sb-tree-row[aria-level="1"] .sb-row-label')).toBe(39);
+    expect(await left('.sb-tree-row[aria-level="2"] .sb-row-label')).toBe(55);
+    expect(await left('.sbf-file .sbf-file-name')).toBe(57);
+    expect(await left('.sbf-more-btn')).toBe(57);
+    // The cluster you're in: a chip with a gold bar inside its left end, not bold.
     const active = row(page, 'Feature film');
-    expect(await active.evaluate((el) => getComputedStyle(el, '::before').display)).toBe('none');
+    expect(await active.evaluate((el) => getComputedStyle(el, '::before').display)).toBe('block');
+    expect(await active.evaluate((el) => getComputedStyle(el, '::before').backgroundColor)).toBe('rgb(255, 165, 0)');
     expect(await active.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('500');
-    // One row height.
-    for (const sel of ['.sbf-quickbtn', '.sb-tree-row', '.sbf-file', '.sbf-tab']) {
-      expect(Math.round(await page.locator(sel).first().evaluate((el) => el.getBoundingClientRect().height)), sel).toBe(32);
+    // One row height; the shown source a 26px chip in a 30px track.
+    for (const sel of ['.sbf-quickbtn', '.sb-tree-row', '.sbf-file', '.sbf-tabs']) {
+      expect(Math.round(await page.locator(sel).first().evaluate((el) => el.getBoundingClientRect().height)), sel).toBe(30);
     }
+    expect(Math.round(await shown(page).evaluate((el) => el.getBoundingClientRect().height))).toBe(26);
   });
 
   test('a long shelf expands in place, and a cluster read from the server pages', async ({ page }) => {
@@ -296,14 +307,14 @@ test.describe('sidebar files', () => {
     await expect(page.getByRole('menuitemradio', { name: 'Name' })).toHaveAttribute('aria-checked', 'true');
   });
 
-  test('the meter is one quiet line, Upload beside it, the foot\'s top edge filled as far as the nearer limit', async ({ page }) => {
+  test('the meter is a 4px bar over one line, Upload beside it, filled as far as the nearer limit', async ({ page }) => {
     await open(page);
     const m = page.locator('.sbf-meter');
     await expect(m.locator('.sbf-meter-text')).toHaveText('38 of 50 cards · 1.2 of 5.0 GB');
     await expect(m.locator('.sbf-meter-track')).toHaveCount(1);
-    const [mb, tb] = [await m.boundingBox(), await m.locator('.sbf-meter-track').boundingBox()];
-    expect(Math.abs(tb.y - mb.y)).toBeLessThanOrEqual(1);
-    expect(Math.round(tb.height)).toBe(2);
+    const [tb, xb] = [await m.locator('.sbf-meter-track').boundingBox(), await m.locator('.sbf-meter-text').boundingBox()];
+    expect(Math.round(tb.height)).toBe(4);
+    expect(tb.y + tb.height).toBeLessThanOrEqual(xb.y);              // the bar over the line
     // The bar follows the fuller of the two: 38 of 50 cards (76%), not 1.2 of 5 GB.
     expect(parseFloat(await m.locator('.sbf-meter-fill').evaluate((el) => el.style.width))).toBeCloseTo(76, 0);
     await expect(m.locator('.sbf-upload')).toHaveText('Upload');

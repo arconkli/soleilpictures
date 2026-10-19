@@ -125,27 +125,28 @@ function htmlToText(html, max = 80) {
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
 // Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile by
-// default; the cluster browser passes its own size.
+// default; the cluster browser passes its own size, and the files sidebar its
+// own weight (regular: thin is a hairline at 16px on its glass).
 //
 // audio/video used to be missing here, so a list-board row drew a generic
 // circle for a loop while the cluster browser drew headphones for the same
 // card — one kind, two glyphs, depending which list you were looking at.
-export function KindIcon({ kind, size = 22 }) {
+export function KindIcon({ kind, size = 22, weight }) {
   if (kind === 'board' || kind === 'list' || kind === 'boardlink') {
-    return <Icon as={FolderIcon} size={size} />;
+    return <Icon as={FolderIcon} size={size} weight={weight} />;
   }
-  if (kind === 'image')    return <Icon as={ImagePh} size={size} />;
-  if (kind === 'note')     return <Icon as={StickyNote} size={size} />;
-  if (kind === 'link')     return <Icon as={LinkPh} size={size} />;
-  if (kind === 'palette')  return <Icon as={PalettePh} size={size} />;
-  if (kind === 'doc')      return <Icon as={FileText} size={size} />;
-  if (kind === 'schedule') return <Icon as={CalendarPh} size={size} />;
-  if (kind === 'shape')    return <Icon as={SquarePh} size={size} />;
-  if (kind === 'pdf')      return <Icon as={FilePdf} size={size} />;
-  if (kind === 'audio')    return <Icon as={Headphones} size={size} />;
-  if (kind === 'video')    return <Icon as={Clapperboard} size={size} />;
-  if (kind === 'file')     return <Icon as={Paperclip} size={size} />;
-  return <Icon as={CirclePh} size={size} />;
+  if (kind === 'image')    return <Icon as={ImagePh} size={size} weight={weight} />;
+  if (kind === 'note')     return <Icon as={StickyNote} size={size} weight={weight} />;
+  if (kind === 'link')     return <Icon as={LinkPh} size={size} weight={weight} />;
+  if (kind === 'palette')  return <Icon as={PalettePh} size={size} weight={weight} />;
+  if (kind === 'doc')      return <Icon as={FileText} size={size} weight={weight} />;
+  if (kind === 'schedule') return <Icon as={CalendarPh} size={size} weight={weight} />;
+  if (kind === 'shape')    return <Icon as={SquarePh} size={size} weight={weight} />;
+  if (kind === 'pdf')      return <Icon as={FilePdf} size={size} weight={weight} />;
+  if (kind === 'audio')    return <Icon as={Headphones} size={size} weight={weight} />;
+  if (kind === 'video')    return <Icon as={Clapperboard} size={size} weight={weight} />;
+  if (kind === 'file')     return <Icon as={Paperclip} size={size} weight={weight} />;
+  return <Icon as={CirclePh} size={size} weight={weight} />;
 }
 
 // One row inside a list-board card. Sub-board rows use useBoardPreview to

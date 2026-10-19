@@ -556,7 +556,7 @@ export function SidebarBoardTree({
                   aria-hidden="true">
             {/* The files sidebar's chevron is the icon its section heads use (it turns
                 when open); the old sidebar keeps its triangles. */}
-            {filesView ? <Icon as={ChevronRight} size={11} /> : (isOpen ? '▾' : '▸')}
+            {filesView ? <Icon as={ChevronRight} size={10} weight="regular" /> : (isOpen ? '▾' : '▸')}
           </button>
           {!filesView && <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />}
           {isRenaming ? (

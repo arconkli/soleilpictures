@@ -17,16 +17,17 @@ import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question } from '../lib/icons.js';
+import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Settings } from '../lib/icons.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
 
+// Real photographs (small crops of the app's own landing and sign-in images),
+// not coloured squares: a screenshot of this harness is judged as the product,
+// and flat swatches made a calm list look like a toy.
+const PHOTOS = Object.values(import.meta.glob('./qa-photos/*.jpg', { eager: true, query: '?url', import: 'default' }));
 function swatch(i) {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>`
-    + `<rect width='80' height='80' fill='hsl(${(i * 47) % 360},55%,55%)'/>`
-    + `<circle cx='56' cy='26' r='12' fill='hsl(${(i * 47 + 180) % 360},60%,75%)'/></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  return PHOTOS[i % PHOTOS.length];
 }
 
 // A cluster's cards, deterministically: n of each kind, each a minute apart.
@@ -227,23 +228,30 @@ export function SidebarQaHarness() {
         {!phone && <SidebarResizer width={width} onChange={(w) => setWidth(clampSidebarWidth(w))} />}
         <div className="sb-mid">
           {/* App's head, by its classes, so the parts below sit as they do there:
-              the workspace, search everywhere (an icon), and collapse. */}
+              the workspace (its subtitle and members too), search everywhere
+              (an icon), and collapse. */}
           <div className="sb-top">
             <div className="sb-mid-head">
               <button type="button" className="sb-ws-trigger" onClick={() => say('workspaces')}>
-                <span className="sb-ws-avatar" style={{ background: '#8b7cf6' }}>S</span>
+                <span className="sb-ws-avatar">S</span>
                 <span className="sb-ws-name">Sidebar QA</span>
                 <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
                   <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
               <button type="button" className="sb-mid-search" onClick={() => say('palette ""')} title="Search (⌘K)" aria-label="Search">
-                <Icon as={Search} size={14} />
+                <Icon as={Search} size={16} weight="regular" />
               </button>
               <button type="button" className="sb-mid-collapse" onClick={() => setCollapsed(true)}
                       title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
-                <Icon as={PanelLeftClose} size={14} />
+                <Icon as={PanelLeftClose} size={16} weight="regular" />
               </button>
+            </div>
+            <div className="sb-mid-subtitle">Yours</div>
+            <div className="sb-members" title="3 members">
+              <span className="sb-member is-online" style={{ background: '#2f6fd6' }} />
+              <span className="sb-member is-online" style={{ background: '#b4532a' }} />
+              <span className="sb-member" style={{ background: '#3f8f6b' }} />
             </div>
           </div>
           <ClusterSidebar
@@ -282,6 +290,16 @@ export function SidebarQaHarness() {
             onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
             uploadsByBoard={{ cast: 3 }}
           />
+          {/* App's foot, by its classes: Help, Settings and you. */}
+          <div className="sb-foot">
+            <button type="button" className="sb-foot-icon" title="Help" aria-label="Help" onClick={() => say('help')}>
+              <Icon as={Question} size={16} weight="regular" />
+            </button>
+            <button type="button" className="sb-foot-icon" title="Settings" aria-label="Settings" onClick={() => say('settings')}>
+              <Icon as={Settings} size={16} weight="regular" />
+            </button>
+            <button type="button" className="sb-foot-avatar" title="Account" style={{ background: '#2f6fd6' }} onClick={() => say('account')}>A</button>
+          </div>
         </div>
       </aside>
       <main className="main">

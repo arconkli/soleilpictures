@@ -2,29 +2,68 @@
    scoped under .app.sb-files or an .sbf- class, so the held build changes
    nothing for anyone else.
 
-   Two parts: the clusters (a plain tree of names) and the files of one of
-   them. Narrow, the files sit under the clusters, a divider between; past
-   SIDEBAR_W.SPLIT_AT the sidebar is .is-wide and they take a column of their
-   own beside. .sb-mid (App's) is the grid that places the parts.
+   Two parts: the clusters (a tree of names) and the files of one of them.
+   Narrow, the files sit under the clusters; past SIDEBAR_W.SPLIT_AT the
+   sidebar is .is-wide and they take a column of their own beside. .sb-mid
+   (App's) is the grid that places the parts.
 
-   One system for all of it (owner, 2026-10-18: "it looks BAD"):
-   - one left edge, 16px from the sidebar's: the workspace's mark, Home and
-     Messages, section headings, the first tab, the search icon, a shelf's
-     label and a file's thumbnail, the meter. Fills run 8px in from either
-     side, radius 6; numbers on the right end 16px in.
-   - the tree hangs its chevrons on that edge, names 20px in, 16px a level.
-   - 13px/500 for every row, 12px/600 ink-2 for headings, 12px/400 ink-3 for
-     counts and sizes; 32px rows (44px to a finger).
-   - gold (--soleil) only for what is in force: the cluster you're in, the
-     tab that's shown, a filter that's on, a selection, a drop target, focus.
-     The cluster you're in is its fill alone: no bar, no bold.
+   The look is the one the owner picked from four mockups (2026-10-18,
+   "B · Floating", artifact GnfNFQd8xHLebeSE6rYP5K): the sidebar is two glass
+   cards floating over the canvas's ground, in the material of the floating
+   top bar. The clusters' card holds the workspace, Home, Messages and the
+   tree; the files' card holds the files, the meter and the foot. The gap
+   between them is the divider. The cards are .sb-mid's ::before and ::after,
+   laid on the grid areas they hold, so neither App nor ClusterSidebar wraps
+   anything.
+
+   The measures (fine pointer):
+   - cards 8px from the window's edges and 8px apart; radius 12; content 15px
+     inside a card's edge (23px from the sidebar's).
+   - rows 30px, 13px; headings 10.5px/600 capitals, spaced .08em, quiet ink.
+   - the cluster you're in is a raised chip (a grey fill in light) with a 3px
+     gold bar inside its left end. Gold otherwise only for focus, a filter
+     that's on, a selection and a drop target.
+   - Recent and Starred: a segmented control, a recessed track with the shown
+     source a raised chip. Search and "All files ⌄" side by side.
+   - file rows: a 24px thumbnail (radius 5, a hairline inside) or the kind's
+     icon bare, 10px before the name; length or size at the end.
+   - the meter: a 4px rounded bar over one line of 12px, Upload a raised chip.
 
    Row heights in the files list are not decoration: ClusterShelves.jsx
    LIST_HEIGHTS positions the rows of a long list by them, so a row here must
-   be exactly that tall (fine: shelf 36, file 32, more 32, note 32, empty 44;
+   be exactly that tall (fine: shelf 36, file 30, more 30, note 30, empty 44;
    coarse: shelf 44, file 44, more 44, note 44, empty 52). */
 
-.app.sb-files { grid-template-columns: var(--sb-w, 320px) 1fr; }
+/* ── The materials ───────────────────────────────────────────────────────── */
+.app.sb-files {
+  grid-template-columns: var(--sb-w, 320px) 1fr;
+  --sbf-glass: color-mix(in oklab, var(--bg-1) 88%, transparent);
+  --sbf-glass-line: #232328;
+  --sbf-glass-shadow: 0 1px 0 rgba(0, 0, 0, .4), 0 2px 6px rgba(0, 0, 0, .25), 0 14px 34px rgba(0, 0, 0, .3);
+  --sbf-chip: var(--bg-4);
+  --sbf-chip-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .45);
+  --sbf-track: rgba(0, 0, 0, .3);
+  --sbf-field: rgba(0, 0, 0, .24);
+  --sbf-meter: rgba(245, 245, 247, .09);
+  --sbf-meter-fill: #a4a4ac;
+  --sbf-quiet: #74747c;
+  --sbf-count: rgba(245, 245, 247, .085);
+  --sbf-thumb-line: rgba(255, 255, 255, .11);
+}
+[data-theme='light'] .app.sb-files {
+  --sbf-glass: color-mix(in oklab, #fcfcfd 88%, transparent);
+  --sbf-glass-line: rgba(10, 10, 12, .08);
+  --sbf-glass-shadow: 0 1px 0 rgba(0, 0, 0, .03), 0 6px 22px rgba(10, 10, 12, .08);
+  --sbf-chip: #ffffff;
+  --sbf-chip-shadow: 0 0 0 1px rgba(10, 10, 12, .07), 0 1px 2px rgba(10, 10, 12, .08);
+  --sbf-track: rgba(10, 10, 12, .055);
+  --sbf-field: rgba(10, 10, 12, .045);
+  --sbf-meter: rgba(10, 10, 12, .08);
+  --sbf-meter-fill: #7a7a82;
+  --sbf-quiet: #86868e;
+  --sbf-count: rgba(10, 10, 12, .065);
+  --sbf-thumb-line: rgba(10, 10, 12, .1);
+}
 .app.sb-files.sb-collapsed { grid-template-columns: 0 1fr; }
 /* The resize handle straddles the sidebar's edge, but the sidebar is its own
    stacking context (the grain layer isolates it), so its z-index can't lift
@@ -39,10 +78,10 @@ body.sbf-resizing-v * { cursor: row-resize !important; user-select: none !import
    under the pointer instead of trailing it. */
 body.sbf-resizing .app { transition: none !important; }
 
-/* The sidebar's edge: a line when you reach for it (after a beat, so passing
-   over it doesn't flash), gold while it's held. */
+/* The sidebar's edge, which is the cards' right edge: a line when you reach
+   for it (after a beat, so passing over it doesn't flash), gold while held. */
 .sbf-resizer {
-  position: fixed; top: 0; bottom: 0;
+  position: fixed; top: 8px; bottom: 8px;
   left: calc(var(--sb-w, 320px) - 3px);
   width: 6px; z-index: 40; cursor: col-resize;
   touch-action: none;
@@ -52,7 +91,7 @@ body.sbf-resizing .app { transition: none !important; }
 body.sbf-resizing .sbf-resizer,
 .sbf-resizer:focus-visible { outline: none; box-shadow: inset -2px 0 0 var(--soleil); transition-delay: 0s; }
 
-/* ── The parts ───────────────────────────────────────────────────────────── */
+/* ── The parts, and the two cards ────────────────────────────────────────── */
 .app.sb-files .sidebar .sb-mid {
   display: grid; padding: 0; gap: 0; overflow: hidden;
   grid-template-columns: minmax(0, 1fr);
@@ -60,50 +99,105 @@ body.sbf-resizing .sbf-resizer,
   grid-template-areas: "top" "quick" "nav" "divider" "files" "meter" "foot";
 }
 .app.sb-files .sidebar.is-wide .sb-mid {
-  grid-template-columns: minmax(240px, 38%) minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-  grid-template-areas: "top files" "quick files" "nav files" "meter files" "foot files";
+  column-gap: 8px;
+  grid-template-columns: minmax(232px, 38%) minmax(0, 1fr);
+  /* The clusters' card is as tall as the clusters (they scroll past the
+     window); the files' card runs the whole height. */
+  grid-template-rows: auto auto minmax(0, auto) minmax(0, 1fr) auto auto;
+  grid-template-areas: "top files" "quick files" "nav files" ". files" ". meter" ". foot";
 }
-.app.sb-files .sb-mid > .sb-top { grid-area: top; padding: 10px 8px 0; }
+.app.sb-files .sb-mid > .sb-top { grid-area: top; }
 .app.sb-files .sb-mid > .sbf-quick { grid-area: quick; }
 .app.sb-files .sb-mid > .sbf-nav { grid-area: nav; }
 .app.sb-files .sb-mid > .sbf-divider { grid-area: divider; }
 .app.sb-files .sb-mid > .sbf-files { grid-area: files; }
 .app.sb-files .sb-mid > .sbf-meter { grid-area: meter; }
-.app.sb-files .sb-mid > .sb-foot { grid-area: foot; padding: 4px 8px 8px; margin: 0; }
+.app.sb-files .sb-mid > .sb-foot { grid-area: foot; }
+
+/* Floating: everywhere but the phone drawer, which is a panel of its own. */
+.app.sb-files .sidebar:not(.is-mobile-open) { background-color: var(--bg-0); border-right-color: transparent; }
+.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid { padding: 8px 0 8px 8px; }
+.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid > * { z-index: 1; }
+.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::before,
+.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::after {
+  content: ''; z-index: 0; grid-column: 1; pointer-events: none;
+  border: 1px solid var(--sbf-glass-line); border-radius: 12px;
+  background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+          backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--sbf-glass-shadow);
+}
+.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::before { grid-row: 1 / 4; }
+.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::after { grid-row: 5 / 8; }
+.app.sb-files .sidebar.is-wide:not(.is-mobile-open) .sb-mid::after { grid-column: 2; grid-row: 1 / 7; }
 
 /* ── The top: the workspace, search everywhere, collapse ─────────────────── */
+.app.sb-files .sb-mid > .sb-top { padding: 3px 7px 2px; }
+/* Whose workspace it is, under its name, and its members at the end of that
+   line rather than on one of their own. The drawer's own rows (Version
+   history, Focus view, Admin) take the whole width. */
+.app.sb-files .sb-mid > .sb-top {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+}
+.app.sb-files .sb-top .sb-mid-head,
+.app.sb-files .sb-top > .sb-row { grid-column: 1 / -1; }
 .app.sb-files .sb-top .sb-mid-head { padding: 0; gap: 2px; }
-.app.sb-files .sb-top .sb-ws-trigger { flex: 0 1 auto; margin-right: auto; height: 32px; padding: 0 8px; border-radius: 6px; }
+.app.sb-files .sb-top .sb-ws-trigger { flex: 0 1 auto; margin-right: auto; height: 32px; padding: 0 8px; border-radius: 7px; }
 /* ⌄ beside the name it opens, not pushed out to the icons. */
 .app.sb-files .sb-top .sb-ws-name { flex: 0 1 auto; }
-.app.sb-files .sb-top .sb-mid-collapse { width: 28px; height: 28px; border-radius: 6px; }
-.app.sb-files .sb-top .sb-mid-subtitle {
-  margin-top: 0; padding: 0 8px 2px;
-  font: 400 12px/1.3 var(--font-sans); letter-spacing: 0;
+.app.sb-files .sb-top .sb-ws-avatar:not(.sb-ws-avatar-img) {
+  width: 20px; height: 20px; border-radius: 6px; background: var(--bg-4); color: var(--ink-0); font-size: 11px;
 }
-.app.sb-files .sb-top .sb-members { padding: 2px 8px 4px 11px; }
+[data-theme='light'] .app.sb-files .sb-top .sb-ws-avatar:not(.sb-ws-avatar-img) { background: #e4e4e8; }
+.app.sb-files .sb-top .sb-ws-chev { color: var(--ink-3); }
+.app.sb-files .sb-top .sb-mid-collapse,
 .sb-mid-search {
-  flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px;
-  display: grid; place-items: center; background: transparent; color: var(--ink-3); cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease);
+  flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px;
+  display: grid; place-items: center; background: transparent; color: var(--ink-2); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.sb-mid-search:hover { background: var(--bg-hov); color: var(--ink-1); }
+.app.sb-files .sb-top .sb-mid-collapse:hover,
+.sb-mid-search:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sb-mid-search:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.app.sb-files .sb-top .sb-mid-subtitle {
+  margin-top: -2px; padding: 0 8px 6px 36px;
+  font: 400 12px/1.3 var(--font-sans); letter-spacing: 0; color: var(--ink-3);
+}
+.app.sb-files .sb-top .sb-members { padding: 0 8px 6px 8px; margin-top: -2px; }
+.app.sb-files .sb-top .sb-member { border-color: var(--bg-1); }
 
 /* Home and Messages, a row of words each (ClusterSidebar QuickBtn). */
-.sbf-quick { display: flex; flex-direction: column; padding: 6px 8px 2px; }
+.sbf-quick { display: flex; flex-direction: column; gap: 1px; padding: 4px 7px 6px; }
 .sbf-quickbtn {
-  display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px;
+  position: relative; display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px;
   border: 0; border-radius: 6px; background: transparent; text-align: left;
   color: var(--ink-1); font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease);
 }
 .sbf-quickbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
-.sbf-quickbtn.is-on { background: var(--soleil-soft); color: var(--ink-0); }
 .sbf-quickbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .sbf-quick-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.sbf-quick-count { color: var(--ink-2); font: 500 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.sbf-quick-count {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
+  display: grid; place-items: center; background: var(--sbf-count);
+  color: var(--ink-0); font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+
+/* What you're in: a raised chip with a gold bar inside its left end. The
+   tree's rows, Shared's, a tag's, Home's and Messages' all mark it so. */
+.app.sb-files .sb-mid .sb-row.active,
+.app.sb-files .sb-tag-row.active,
+.sbf-quickbtn.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+[data-theme='light'] .app.sb-files .sb-mid .sb-row.active,
+[data-theme='light'] .app.sb-files .sb-tag-row.active,
+[data-theme='light'] .sbf-quickbtn.is-on { background: rgba(10, 10, 12, .07); box-shadow: none; }
+.app.sb-files .sb-mid .sb-row.active::before,
+.app.sb-files .sb-tag-row.active::before,
+.sbf-quickbtn.is-on::before {
+  content: ''; position: absolute; left: 3px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 2px; background: var(--soleil);
+}
+.app.sb-files .sb-tag-row { position: relative; }
 
 /* Full Files shrinks back into the sidebar with this: shown at rest, not only
    on hover, since it is the way back. */
@@ -115,23 +209,24 @@ body.sbf-resizing .sbf-resizer,
    divider changes that) when the files are under them; wide, all of it. */
 .app.sb-files .sb-mid > .sbf-nav {
   min-height: 0; max-height: 42vh; overflow-y: auto; overflow-x: hidden;
-  overscroll-behavior: contain; padding: 0 8px 8px;
+  overscroll-behavior: contain; padding: 0 7px 8px;
 }
 .app.sb-files .sidebar.is-wide .sb-mid > .sbf-nav { max-height: none; }
+.app.sb-files .sb-list.sbf-nav.fade-bottom:not(.fade-top) {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+}
 
-.app.sb-files .sb-mid .sb-row { height: 32px; font-size: 13px; border-radius: 6px; }
-.app.sb-files .sb-mid .sb-row.active { background: var(--soleil-soft); color: var(--ink-0); }
-.app.sb-files .sb-mid .sb-row.active::before { display: none; }
+.app.sb-files .sb-mid .sb-row { height: 30px; font-size: 13px; border-radius: 6px; }
 
-/* Section headings, a word as written ("Clusters", not CLUSTERS), on the
-   edge; their fold chevron after the word, there when you reach for it (or
-   while the section is folded, so it can be found), and + likewise. */
+/* Section headings: small spaced capitals in a quiet ink, their fold
+   chevron after the word when you reach for it (or while folded), + too. */
 .app.sb-files .sb-mid .sb-eyebrow,
-.app.sb-files .sb-mid .sb-eyebrow span { text-transform: none; letter-spacing: 0; }
-.app.sb-files .sb-mid .sb-eyebrow { font: 600 12px/1.4 var(--font-sans); color: var(--ink-2); }
+.app.sb-files .sb-mid .sb-eyebrow span { text-transform: uppercase; letter-spacing: .08em; }
+.app.sb-files .sb-mid .sb-eyebrow { font: 600 10.5px/1.4 var(--font-sans); color: var(--sbf-quiet); }
 .app.sb-files .sb-mid .sb-boards-head,
 .app.sb-files .sb-mid .sb-tags-head,
-.app.sb-files .sb-mid .sb-shared-head { min-height: 34px; padding: 10px 8px 4px; gap: 6px; }
+.app.sb-files .sb-mid .sb-shared-head { min-height: 32px; padding: 10px 8px 4px; gap: 6px; }
 .app.sb-files .sb-mid .sb-boards-head:hover,
 .app.sb-files .sb-mid .sb-tags-head:hover,
 .app.sb-files .sb-mid .sb-shared-head:hover { color: var(--ink-1); }
@@ -156,48 +251,46 @@ body.sbf-resizing .sbf-resizer,
 .app.sb-files .sb-tags-add:focus-visible { opacity: 1; }
 .app.sb-files .sb-boards-count, .app.sb-files .sb-tags-head-count, .app.sb-files .sb-shared-count { display: none; }
 
-/* Cluster rows: the name alone (and an upload's ↑ 3), the chevron on the
-   edge. The cluster you're in is its fill; its parents' chevrons stay ink. */
-.sb-tree-row.is-files { height: 32px; gap: 6px; padding-right: 8px; font-size: 13px; font-weight: 500; color: var(--ink-1); }
+/* Cluster rows: the name alone (and an upload's ↑ 3), the chevron where the
+   text starts, a level 16px in. */
+.sb-tree-row.is-files { height: 30px; gap: 4px; padding-right: 8px; font-size: 13px; font-weight: 500; color: var(--ink-1); }
 .sb-tree-row.is-files.active { color: var(--ink-0); font-weight: 500; }
+.app.sb-files .sb-tree-row.is-files .sb-tree-chev { width: 12px; height: 12px; }
 .app.sb-files .sb-tree-row.is-files .sb-tree-chev,
-.app.sb-files .sb-row.sb-tree-row.is-ancestor .sb-tree-chev { color: var(--ink-2); opacity: 1; }
+.app.sb-files .sb-row.sb-tree-row.is-ancestor .sb-tree-chev { color: var(--ink-3); opacity: 1; }
 .app.sb-files .sb-tree-row.is-files:hover .sb-tree-chev { color: var(--ink-1); }
 .sb-tree-row.is-files .sb-tree-chev svg { transition: transform var(--dur-fast) var(--ease); }
 .sb-tree-row.is-files .sb-tree-chev.is-open svg { transform: rotate(90deg); }
 .sbf-status { margin-left: auto; padding-left: 6px; color: var(--ink-2); font: 500 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sb-tree-row.is-files.is-drop-target { box-shadow: inset 0 0 0 1.5px var(--soleil); }
 
-/* "All clusters": a way out, not a cluster — quieter, its mark where the
-   chevrons hang. */
-.app.sb-files .sb-row-all { padding-left: 8px; gap: 6px; color: var(--ink-2); }
-.app.sb-files .sb-row-all svg { flex-shrink: 0; color: var(--ink-2); }
+/* "All clusters": a way out, not a cluster: quieter, and no mark of its own
+   (!important: Icon sets display:block inline). */
+.app.sb-files .sb-row-all { padding-left: 24px; gap: 6px; color: var(--ink-2); }
+.app.sb-files .sb-row-all svg { display: none !important; }
 
 /* Shared with me: names only, as the tree. */
-.app.sb-files .sb-shared-group-head { padding: 4px 8px; font: 500 12px/1.3 var(--font-sans); }
+.app.sb-files .sb-shared-group-head { padding: 4px 8px 4px 24px; font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); }
 .app.sb-files .sb-shared-rows { padding-left: 0; }
-.app.sb-files .sb-shared-row { padding-left: 28px; }
+.app.sb-files .sb-shared-row { padding-left: 24px; }
 .app.sb-files .sb-shared-row .sb-dot { display: none; }
 
-/* Tags: the tag's colour on the edge, its name with the clusters'. */
+/* Tags: the tag's colour where the chevrons are, its name with the clusters'. */
 .app.sb-files .sb-tag-row {
-  height: 32px; padding: 0 8px; gap: 12px; border-left: 0; border-radius: 6px;
+  height: 30px; padding: 0 8px 0 10px; gap: 10px; border-left: 0; border-radius: 6px;
   color: var(--ink-1); font: 500 13px/1 var(--font-sans);
 }
-.app.sb-files .sb-tag-row.active { background: var(--soleil-soft); color: var(--ink-0); }
 .app.sb-files .sb-tag-row-count { font: 400 12px/1 var(--font-sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .app.sb-files .sb-tags-empty { padding: 4px 8px 8px; font: 400 12px/1.45 var(--font-sans); }
 
-/* The divider between the parts when they're stacked: a hairline, with a
-   hit area wider than it, and a grip that shows when you reach for it. */
+/* The divider: the gap between the cards, with a grip when you reach for it. */
 .sbf-divider {
-  position: relative; z-index: 1; height: 9px; margin: -4px 0;
+  position: relative; z-index: 1; height: 8px;
   display: flex; align-items: center; justify-content: center;
   cursor: row-resize; touch-action: none;
 }
-.sbf-divider::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: var(--line-1); }
 .sbf-divider-grip {
-  position: relative; width: 24px; height: 3px; border-radius: 2px;
+  position: relative; width: 28px; height: 3px; border-radius: 2px;
   background: var(--line-3); opacity: 0; transition: opacity var(--dur-fast) var(--ease);
 }
 .sbf-divider:hover .sbf-divider-grip { opacity: 1; transition-delay: .15s; }
@@ -207,70 +300,67 @@ body.sbf-resizing-v .sbf-divider-grip,
 
 /* ── The files ───────────────────────────────────────────────────────────── */
 .sbf-files {
-  min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px;
   /* A row's thumbnail and the gap after it: where a file's name starts. */
-  --sbf-thumb: 22px; --sbf-gap: 8px;
-}
-.app.sb-files .sidebar.is-wide .sbf-files {
-  border-left: 1px solid var(--line-1);
-  background: color-mix(in oklab, var(--bg-1) 72%, var(--bg-0));
+  --sbf-thumb: 24px; --sbf-gap: 10px;
 }
 .sbf-files.is-dropping { box-shadow: inset 0 0 0 2px var(--soleil); }
 
-/* What the files show: the cluster, Recent or Starred, as tabs, the shown one
-   underlined in gold. The cluster's name gives way first; Recent and Starred
-   never shorten. ⤢ (the full Files page) and the split toggle are icons at
-   the end, the toggle there when you reach for the header (or while wide,
-   where it is the way back); too narrow for them, they go. */
+/* What the files show: the cluster, Recent or Starred, a segmented control,
+   the shown one a raised chip. Narrow, the three share the width and the
+   cluster's name gives way; wide, each is as wide as its word. ⤢ (the full
+   Files page) and the split toggle sit after it, quiet until you reach for
+   the header (and full while wide, where the toggle is the way back). */
 .sbf-files-head {
-  display: flex; align-items: center; gap: 2px; padding: 6px 8px 2px;
+  display: flex; align-items: center; gap: 4px; padding: 8px 7px 6px;
   container-type: inline-size;
 }
-.app.sb-files .sidebar.is-wide .sbf-files-head { padding-top: 10px; }
-.sbf-tabs { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+.sbf-tabs {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 2px;
+  padding: 2px; border-radius: 9px; background: var(--sbf-track);
+}
 .sbf-tab {
-  position: relative; flex: 0 0 auto; height: 32px; padding: 0 8px;
-  border: 0; border-radius: 6px; background: transparent; cursor: pointer;
-  color: var(--ink-2); font: 600 13px/1 var(--font-sans); white-space: nowrap;
+  position: relative; flex: 1 1 0; min-width: 0; height: 26px; padding: 0 8px;
+  border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+  color: var(--ink-2); font: 600 12px/1 var(--font-sans); white-space: nowrap; text-align: center;
+  transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
 }
-.sbf-tab.is-cluster { flex: 0 1 auto; min-width: 72px; }
 .sbf-tab-label { display: block; overflow: hidden; text-overflow: ellipsis; }
-.sbf-tab:hover { color: var(--ink-1); }
-.sbf-tab.is-on { color: var(--ink-0); }
-.sbf-tab.is-on::after {
-  content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px;
-  border-radius: 2px; background: var(--soleil);
-}
+.sbf-tab:hover { color: var(--ink-0); }
+.sbf-tab.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
 .sbf-tab:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.app.sb-files .sidebar.is-wide .sbf-tabs { flex: 0 1 auto; }
+.app.sb-files .sidebar.is-wide .sbf-tab { flex: 0 1 auto; padding: 0 14px; }
 
 .sbf-iconbtn {
-  flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px;
-  background: transparent; color: var(--ink-3); display: grid; place-items: center; cursor: pointer;
+  flex-shrink: 0; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--ink-2); display: grid; place-items: center; cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
-.sbf-iconbtn:hover { background: var(--bg-hov); color: var(--ink-1); }
+.sbf-iconbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sbf-iconbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
-.sbf-files-head .sbf-iconbtn.is-reveal { opacity: 0; }
-.sbf-files-head:hover .sbf-iconbtn.is-reveal,
-.sbf-files-head .sbf-iconbtn.is-reveal:focus-visible,
-.app.sb-files .sidebar.is-wide .sbf-files-head .sbf-iconbtn.is-reveal { opacity: 1; }
-@container (max-width: 299px) { .sbf-files-head .sbf-iconbtn.is-reveal { display: none; } }
+.sbf-files-head .sbf-iconbtn { opacity: .5; }
+.sbf-files-head:hover .sbf-iconbtn,
+.sbf-files-head .sbf-iconbtn:focus-visible,
+.app.sb-files .sidebar.is-wide .sbf-files-head .sbf-iconbtn { opacity: 1; }
+/* Too narrow for them, they go, the toggle first: the header is 298px inside
+   the card at the default 320, 218px at the narrowest 240. */
+@container (max-width: 269px) { .sbf-files-head .sbf-iconbtn.is-reveal { display: none; } }
 .sbf-iconbtn.is-slot { visibility: hidden; pointer-events: none; }
-@container (max-width: 259px) { .sbf-files-head .sbf-iconbtn.is-expand { display: none; } }
+@container (max-width: 235px) { .sbf-files-head .sbf-iconbtn.is-expand { display: none; } }
 
-/* The tab's panel: the search line, then the list. */
+/* The tab's panel: search and "All files ⌄" side by side, then the list. */
 .sbf-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.sbf-files-tools { padding: 6px 8px 8px; }
+.sbf-files-tools { display: flex; align-items: center; gap: 4px; padding: 0 7px 4px; }
 .sbf-search {
+  flex: 1 1 auto; min-width: 0;
   display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 4px 0 8px;
-  border: 0; border-radius: 8px; color: var(--ink-3);
-  background: color-mix(in srgb, var(--ink-0) 4%, transparent);
+  border: 0; border-radius: 8px; color: var(--ink-3); background: var(--sbf-field);
   transition: background-color var(--dur-fast) var(--ease);
 }
-.sbf-search:hover { background: var(--bg-hov); }
-.sbf-search:focus-within { background: var(--bg-hov); box-shadow: inset 0 0 0 1px var(--soleil); }
+.sbf-search:focus-within { box-shadow: inset 0 0 0 1px var(--soleil); }
 .sbf-search input {
-  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; padding: 0;
   color: var(--ink-0); font: 500 13px/1 var(--font-sans);
 }
 .sbf-search input::placeholder { color: var(--ink-3); }
@@ -283,15 +373,15 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-search-clear:hover { color: var(--ink-0); }
 
 /* What the list shows ("All files ⌄"), with the sort and the grouping in its
-   menu. A filter other than All is a choice in force: the active fill. */
+   menu. A filter other than All is a choice in force: a gold hairline. */
 .sbf-filter { position: relative; flex-shrink: 0; }
 .sbf-filter-btn {
-  display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 6px 0 8px;
-  border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer;
+  display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); cursor: pointer;
   font: 500 12px/1 var(--font-sans); white-space: nowrap;
 }
-.sbf-filter-btn:hover, .sbf-filter-btn.is-open { color: var(--ink-0); background: var(--bg-act); }
-.sbf-filter-btn.is-on { color: var(--ink-0); background: var(--soleil-soft); }
+.sbf-filter-btn:hover, .sbf-filter-btn.is-open { color: var(--ink-0); background: var(--bg-hov); }
+.sbf-filter-btn.is-on { color: var(--ink-0); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent); }
 .sbf-filter-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .sbf-filter-caret { display: grid; place-items: center; color: var(--ink-3); }
 
@@ -304,7 +394,7 @@ body.sbf-resizing-v .sbf-divider-grip,
   border-radius: var(--radius-md); box-shadow: var(--shadow-3);
   animation: ctx-menu-in var(--dur-fast) var(--ease);
 }
-.sbf-menu-label { flex-shrink: 0; padding: 8px 10px 4px; color: var(--ink-3); font: 600 11px/1 var(--font-sans); }
+.sbf-menu-label { flex-shrink: 0; padding: 8px 10px 4px 28px; color: var(--ink-3); font: 600 11px/1 var(--font-sans); }
 .sbf-menu-sep { flex-shrink: 0; height: 1px; margin: 4px 6px; background: var(--line-2); }
 .sbf-menu-item {
   flex-shrink: 0; display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 10px 0 28px;
@@ -324,19 +414,19 @@ body.sbf-resizing-v .sbf-divider-grip,
    clusters' list does the same); a new source fades in from the top. */
 .sbf-files-list {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
-  padding: 0 8px 14px;
+  padding: 0 7px 12px;
 }
 .sbf-files-list.fade-top.fade-bottom {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-          mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent 100%);
 }
 .sbf-files-list.fade-top:not(.fade-bottom) {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
-          mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
 }
 .sbf-files-list.fade-bottom:not(.fade-top) {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
-          mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
 }
 .sbf-files-body { animation: sbf-source-in var(--dur-fast) var(--ease); }
 @keyframes sbf-source-in { from { opacity: 0; } to { opacity: 1; } }
@@ -347,15 +437,16 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-starred-head { padding-left: 8px; }
 .sbf-file.sbf-cluster-link { padding-left: calc(8px + var(--sbf-thumb) + var(--sbf-gap)); }
 
-/* A section per kind of file. */
+/* A section per kind of file, its heading the same small capitals as the
+   clusters' sections, with some air above it. */
 .sbf-block { position: relative; }
 .sbf-block.is-windowed .sbf-slot { position: absolute; left: 0; right: 0; }
 .sbf-shelf {
   box-sizing: border-box; height: 36px; display: flex; align-items: flex-end; gap: 6px;
-  padding-right: 4px; padding-bottom: 7px;
-  color: var(--ink-2); font: 600 12px/1 var(--font-sans);
+  padding-right: 4px; padding-bottom: 9px;
+  color: var(--sbf-quiet); font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
 }
-.sbf-shelf-count { color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+.sbf-shelf-count { color: var(--ink-3); font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .sbf-shelf-open {
   margin-left: auto; margin-bottom: -6px; width: 24px; height: 24px; display: grid; place-items: center;
   padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink-3); cursor: pointer; opacity: 0;
@@ -364,10 +455,10 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-shelf:hover .sbf-shelf-open, .sbf-shelf-open:focus-visible { opacity: 1; }
 .sbf-shelf-open:hover { color: var(--ink-1); background: var(--bg-hov); }
 
-/* One row per file: a small thumbnail (or its kind's mark, bare) beside its
+/* One row per file: a small thumbnail (or its kind's icon, bare) beside its
    name, its length or size at the end. */
 .sbf-file {
-  box-sizing: border-box; width: 100%; height: 32px; display: flex; align-items: center; gap: var(--sbf-gap);
+  box-sizing: border-box; width: 100%; height: 30px; display: flex; align-items: center; gap: var(--sbf-gap);
   padding: 0 8px 0 0; border: 0; border-radius: 6px; background: transparent;
   color: var(--ink-1); font: 500 13px/1 var(--font-sans); text-align: left; cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease);
@@ -379,14 +470,13 @@ body.sbf-resizing-v .sbf-divider-grip,
   display: grid; place-items: center;
 }
 .sbf-file-thumb { position: relative; border-radius: 5px; overflow: hidden; background: var(--bg-3); }
-/* A hairline inside the photo, so a dark one doesn't melt into the row. */
+/* A hairline inside the photo, so a dark one doesn't melt into the card. */
 .sbf-file-thumb::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06);
+  box-shadow: inset 0 0 0 1px var(--sbf-thumb-line);
 }
-[data-theme='light'] .sbf-file-thumb::after { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .06); }
 .sbf-file-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sbf-file-icon { border-radius: 5px; color: var(--ink-2); background: color-mix(in srgb, var(--ink-0) 6%, transparent); }
+.sbf-file-icon { color: var(--ink-2); }
 .sbf-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sbf-file-where {
   flex-shrink: 1; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -400,7 +490,7 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-star-mark { flex-shrink: 0; color: var(--ink-2); font-size: 10px; }
 
 /* "Show 25 more" sits under the names it adds to. */
-.sbf-more { box-sizing: border-box; height: 32px; display: flex; align-items: center; gap: 14px; }
+.sbf-more { box-sizing: border-box; height: 30px; display: flex; align-items: center; gap: 14px; }
 .sbf-more > :first-child { margin-left: calc(var(--sbf-thumb) + var(--sbf-gap)); }
 .sbf-more-btn {
   border: 0; padding: 4px 0; background: transparent; cursor: pointer;
@@ -408,7 +498,7 @@ body.sbf-resizing-v .sbf-divider-grip,
 }
 .sbf-more-btn:hover { color: var(--ink-0); text-decoration: underline; text-underline-offset: 3px; }
 .sbf-more-btn.is-less { color: var(--ink-3); }
-.sbf-fold { box-sizing: border-box; height: 32px; display: flex; align-items: center; gap: 6px; }
+.sbf-fold { box-sizing: border-box; height: 30px; display: flex; align-items: center; gap: 6px; }
 .sbf-fold-btn {
   height: 22px; padding: 0 9px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--line-2); background: transparent; color: var(--ink-2);
@@ -417,38 +507,46 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-fold-btn:hover, .sbf-fold-btn.is-open { color: var(--ink-0); border-color: var(--line-3); }
 .sbf-fold-count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .sbf-note {
-  box-sizing: border-box; height: 32px; line-height: 32px; color: var(--ink-3);
-  font: 400 13px/32px var(--font-sans);
+  box-sizing: border-box; height: 30px; color: var(--ink-3);
+  font: 400 13px/30px var(--font-sans);
 }
 .sbf-note.is-empty { height: 44px; display: flex; align-items: center; line-height: 1.4; }
 
-/* ── Foot: room used, on one line, and a way to add files ────────────────── */
-/* The bar is the foot's own top edge, filled as far as the nearer limit. */
-.sbf-meter { position: relative; flex-shrink: 0; padding: 0 8px 0 16px; }
-.sbf-meter-track { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--line-2); overflow: hidden; }
-.sbf-meter-fill { height: 100%; border-radius: 0 1px 1px 0; background: var(--ink-3); transition: width .3s ease; }
+/* ── The files card's foot: room used, a way to add files ────────────────── */
+/* A 4px bar, filled as far as the nearer limit, over one line. */
+.sbf-meter { position: relative; flex-shrink: 0; padding: 10px 15px 0; border-top: 1px solid var(--line-1); }
+.sbf-meter-track { height: 4px; border-radius: 2px; background: var(--sbf-meter); overflow: hidden; }
+.sbf-meter-fill { height: 100%; border-radius: 2px; background: var(--sbf-meter-fill); transition: width .3s ease; }
 .sbf-meter-fill.is-near { background: #ef4444; }
-.sbf-meter-line { display: flex; align-items: center; gap: 8px; height: 40px; }
+.sbf-meter-line { display: flex; align-items: center; gap: 8px; height: 38px; }
 .sbf-meter-text {
   flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left;
-  color: var(--ink-3); font: 400 12px/1.3 var(--font-sans); font-variant-numeric: tabular-nums;
+  color: var(--ink-2); font: 400 12px/1.3 var(--font-sans); font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.sbf-meter-text:hover { color: var(--ink-1); }
+.sbf-meter-text:hover { color: var(--ink-0); }
 .sbf-meter-text:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 3px; }
 .sbf-upload {
-  flex-shrink: 0; margin-left: auto; height: 28px; padding: 0 8px; border: 0; border-radius: 6px;
-  background: transparent; color: var(--ink-1); font: 500 12px/1 var(--font-sans); cursor: pointer;
+  flex-shrink: 0; margin-left: auto; display: flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px 0 9px; border: 0; border-radius: 7px;
+  background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow);
+  color: var(--ink-0); font: 600 12px/1 var(--font-sans); cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease);
 }
-.sbf-upload:hover { background: var(--bg-hov); color: var(--ink-0); }
-.sbf-upload:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-upload:hover { background: color-mix(in srgb, var(--sbf-chip) 88%, var(--ink-0)); }
+.sbf-upload:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* Help, Settings and you, under the meter, in the same card. */
+.app.sb-files .sb-mid > .sb-foot { margin: 0; padding: 0 9px 8px; gap: 2px; border-top: 0; }
+.app.sb-files .sb-foot .sb-foot-icon { color: var(--ink-2); }
 
 /* ── Selection (⌘/⇧-click) and the bar that acts on it ───────────────────── */
-.sbf-file.is-selected { background: var(--soleil-soft); color: var(--ink-0); }
+.sbf-file.is-selected {
+  background: var(--bg-act); color: var(--ink-0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent);
+}
 .sbf-bulk {
-  flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 16px;
-  border-top: 1px solid var(--line-1); background: var(--bg-1);
+  flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 15px;
+  border-top: 1px solid var(--line-1);
 }
 .sbf-bulk-count { flex: 1; min-width: 0; color: var(--ink-1); font: 500 12px/1 var(--font-sans); white-space: nowrap; }
 .sbf-bulk-btn {
@@ -463,20 +561,24 @@ body.sbf-resizing-v .sbf-divider-grip,
 @media (hover: none) and (pointer: coarse) {
   .app.sb-files .sb-mid .sb-row { height: 44px; font-size: 15px; }
   .sb-tree-row.is-files { height: 44px; font-size: 15px; }
-  /* A finger-sized chevron that still draws on the edge, names where they
-     are with a mouse. */
-  .sb-tree-row.is-files .sb-tree-chev { width: 32px; height: 40px; margin: 0 -8px 0 -10px; }
+  /* A finger-sized chevron that still draws where the text starts, names
+     where they are with a mouse. */
+  .app.sb-files .sb-tree-row.is-files .sb-tree-chev { width: 32px; height: 40px; margin: 0 -10px 0 -10px; }
   .app.sb-files .sb-boards-add, .app.sb-files .sb-tags-add { opacity: 1; width: 36px; height: 36px; }
   .sbf-quickbtn { height: 44px; font-size: 15px; }
-  .sb-mid-search { width: 40px; height: 40px; }
-  .sbf-tab { height: 44px; font-size: 15px; }
+  .app.sb-files .sb-tag-row { height: 44px; font-size: 15px; }
+  .sb-mid-search, .app.sb-files .sb-top .sb-mid-collapse { width: 40px; height: 40px; }
+  /* A finger gets the whole 44px: the shown source's chip fills the track. */
+  .sbf-tabs { padding: 0; border-radius: 10px; }
+  .sbf-tab { height: 44px; font-size: 14px; border-radius: 10px; }
   .sbf-iconbtn { width: 40px; height: 40px; }
-  .sbf-search { height: 40px; }
+  .sbf-files-head .sbf-iconbtn { opacity: 1; }
+  .sbf-search, .sbf-filter-btn { height: 40px; }
   .sbf-search input { font-size: 16px; }   /* under 16px, iOS zooms the page on focus */
-  .sbf-filter-btn { height: 34px; padding: 0 10px; font-size: 14px; }
+  .sbf-filter-btn { padding: 0 10px; font-size: 14px; }
   .sbf-menu-item { height: 40px; font-size: 15px; }
   .sbf-files { --sbf-thumb: 28px; --sbf-gap: 10px; }
-  .sbf-shelf { height: 44px; font-size: 13px; padding-bottom: 9px; }
+  .sbf-shelf { height: 44px; font-size: 12px; padding-bottom: 10px; }
   .sbf-file { height: 44px; font-size: 15px; }
   .sbf-more { height: 44px; }
   .sbf-more-btn { font-size: 14px; padding: 12px 0; }
@@ -484,24 +586,26 @@ body.sbf-resizing-v .sbf-divider-grip,
   .sbf-note { height: 44px; line-height: 44px; font-size: 14px; }
   .sbf-note.is-empty { height: 52px; }
   .sbf-shelf-open { display: none; }
-  .sbf-divider { height: 17px; margin: -8px 0; }
-  .sbf-divider::before { top: 8px; }
+  .sbf-divider { height: 16px; }
   .sbf-bulk-btn { height: 36px; padding: 0 12px; font-size: 13px; }
   .sbf-meter-line { height: 48px; }
   .sbf-meter-text { font-size: 13px; }
-  .sbf-upload { height: 36px; padding: 0 12px; font-size: 14px; }
+  .sbf-upload { height: 36px; padding: 0 14px 0 12px; font-size: 14px; }
+  .app.sb-files .sb-foot .sb-foot-icon, .app.sb-files .sb-foot .sb-foot-avatar { width: 40px; height: 40px; }
 }
 
 /* ── The phone drawer: one scroll for everything ─────────────────────────── */
 /* A phone hasn't the height to share between two scrolling parts: the drawer
-   scrolls as one, clusters then files, and the divider has no job. */
+   scrolls as one, clusters then files, and the divider has no job. It is a
+   panel already, so no cards: the same rows on the drawer's own ground. */
 .app.sb-files .sidebar.is-mobile-open .sb-mid {
-  overflow-y: auto; overflow-x: hidden;
+  overflow-y: auto; overflow-x: hidden; padding: 0;
   /* max-content, not auto: auto rows would be squeezed to the drawer's
      height and the parts would spill over one another. */
   grid-template-rows: repeat(7, max-content);
 }
+.app.sb-files .sidebar.is-mobile-open .sb-mid > .sb-top { padding-top: 10px; }
 .app.sb-files .sidebar.is-mobile-open .sb-mid > .sbf-nav { max-height: none; overflow: visible; }
 .app.sb-files .sidebar.is-mobile-open .sb-mid > .sbf-divider { display: none; }
-.app.sb-files .sidebar.is-mobile-open .sbf-files { overflow: visible; border-top: 1px solid var(--line-1); padding-top: 6px; }
+.app.sb-files .sidebar.is-mobile-open .sbf-files { overflow: visible; border-radius: 0; border-top: 1px solid var(--line-1); padding-top: 6px; }
 .app.sb-files .sidebar.is-mobile-open .sbf-files-list { overflow: visible; -webkit-mask-image: none; mask-image: none; }

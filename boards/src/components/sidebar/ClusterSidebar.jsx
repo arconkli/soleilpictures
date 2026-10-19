@@ -10,13 +10,14 @@
 // Narrow, the files sit under the clusters with a divider to share the height.
 // Dragged wider than SIDEBAR_W.SPLIT_AT (or with the expand button) they move
 // beside them, a column of their own. The layout itself is CSS
-// (clusterSidebar.css): this renders the parts.
+// (clusterSidebar.css): this renders the parts, and the CSS floats them as two
+// cards, the look the owner picked from four mockups.
 //
 // Above the clusters, Home and Messages, a row of words each. The files
-// section has three tabs for what it shows (the cluster, Recent, Starred), one
-// search line whose "All files ⌄" menu filters, sorts and groups, then the
-// files as rows, a small thumbnail beside each name (owner, 2026-10-18: the
-// board is the visual place, the sidebar a calm list of words).
+// section has a segmented control for what it shows (the cluster, Recent,
+// Starred), a search field with an "All files ⌄" menu beside it that filters,
+// sorts and groups, then the files as rows, a small thumbnail beside each name
+// (owner, 2026-10-18: the board is the visual place, the sidebar a calm list).
 // Clicking a file opens Quick look; double-clicking goes to it on its board.
 // Files drag onto any cluster in the tree to move there (⌥ copies), and files
 // from the desktop drop on a cluster or onto the section itself.
@@ -718,13 +719,13 @@ export function ClusterSidebar({
                     title={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
                     aria-pressed={wide}
                     onClick={toggleWide}>
-              <Icon as={Columns2} size={14} />
+              <Icon as={Columns2} size={14} weight="regular" />
             </button>
           )}
           {onOpenShelf && (view === 'cluster' ? (
             <button type="button" className="sbf-iconbtn is-expand" aria-label="Open in the full Files page" title="Open in the full Files page"
                     onClick={() => onOpenShelf(shownId, null)}>
-              <Icon as={ArrowsOutSimple} size={14} />
+              <Icon as={ArrowsOutSimple} size={14} weight="regular" />
             </button>
           ) : (
             // Recent and Starred have no Files page of their own; the space
@@ -734,11 +735,13 @@ export function ClusterSidebar({
         </header>
 
         <div className="sbf-panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${view}`}>
+        {/* Search and what it shows, side by side: "All files ⌄" is its own
+            button, not part of the field. */}
         <div className="sbf-files-tools">
           <div className="sbf-search">
-            <Icon as={Search} size={13} />
+            <Icon as={Search} size={14} weight="regular" />
             <input type="search" value={query}
-                   placeholder="Search"
+                   placeholder={`Search ${title}`}
                    aria-label={`Search ${title}`}
                    onChange={(e) => setQuery(e.target.value)}
                    onKeyDown={(e) => {
@@ -747,58 +750,58 @@ export function ClusterSidebar({
                      if (e.key === 'Enter' && (nothing || e.metaKey || e.ctrlKey)) { e.preventDefault(); onOpenPalette?.(query); }
                    }} />
             {query && (
-              <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} /></button>
+              <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} weight="regular" /></button>
             )}
-            <div className="sbf-filter" ref={menuRef}
-                 onKeyDown={(e) => {
-                   if (e.key !== 'Escape' || !menuOpen) return;
-                   e.preventDefault();
-                   e.stopPropagation();
-                   setMenuOpen(false);
-                   filterBtnRef.current?.focus();
-                 }}>
-              <button type="button" ref={filterBtnRef}
-                      className={`sbf-filter-btn${chip !== 'all' ? ' is-on' : ''}${menuOpen ? ' is-open' : ''}`}
-                      aria-haspopup="menu" aria-expanded={menuOpen}
-                      title={`Showing ${chipLabel.toLowerCase()} · sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
-                      onClick={(e) => { menuByKey.current = e.detail === 0; setMenuOpen((o) => !o); }}>
-                {chipLabel}<span className="sbf-filter-caret" aria-hidden="true"><Icon as={ChevronDown} size={11} /></span>
-              </button>
-              {menuOpen && createPortal(
-                <div className="sbf-menu" role="menu" aria-label="Show, sort and group" ref={menuPopRef}
-                     style={menuPos || { top: 0, right: 0, visibility: 'hidden' }}
-                     onKeyDown={onMenuKeyDown}>
-                  <div className="sbf-menu-label">Show</div>
-                  {chips.map((c) => (
-                    <button type="button" key={c.id} role="menuitemradio" aria-checked={chip === c.id}
-                            className={`sbf-menu-item${chip === c.id ? ' is-on' : ''}`}
-                            onClick={() => { setChip(c.id); closeMenu(); }}>
-                      {c.id === 'all' ? 'All files' : c.label}
-                      {(chipCounts[c.id] || 0) > 0 && <span className="sbf-menu-count">{chipCounts[c.id]}</span>}
-                    </button>
-                  ))}
-                  <div className="sbf-menu-sep" role="separator" />
-                  <div className="sbf-menu-label">Sort</div>
-                  {SORTS.map((so) => (
-                    <button type="button" key={so} role="menuitemradio" aria-checked={prefs.sort === so}
-                            className={`sbf-menu-item${prefs.sort === so ? ' is-on' : ''}`}
-                            onClick={() => { setPref('sort', so); closeMenu(); }}>
-                      {SORT_LABELS[so]}
-                    </button>
-                  ))}
-                  <div className="sbf-menu-sep" role="separator" />
-                  <div className="sbf-menu-label">Group by</div>
-                  {Object.keys(GROUP_LABELS).map((g) => (
-                    <button type="button" key={g} role="menuitemradio" aria-checked={prefs.groupBy === g}
-                            className={`sbf-menu-item${prefs.groupBy === g ? ' is-on' : ''}`}
-                            onClick={() => { setPref('groupBy', g); closeMenu(); }}>
-                      {GROUP_LABELS[g]}
-                    </button>
-                  ))}
-                </div>,
-                document.body,
-              )}
-            </div>
+          </div>
+          <div className="sbf-filter" ref={menuRef}
+               onKeyDown={(e) => {
+                 if (e.key !== 'Escape' || !menuOpen) return;
+                 e.preventDefault();
+                 e.stopPropagation();
+                 setMenuOpen(false);
+                 filterBtnRef.current?.focus();
+               }}>
+            <button type="button" ref={filterBtnRef}
+                    className={`sbf-filter-btn${chip !== 'all' ? ' is-on' : ''}${menuOpen ? ' is-open' : ''}`}
+                    aria-haspopup="menu" aria-expanded={menuOpen}
+                    title={`Showing ${chipLabel.toLowerCase()} · sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
+                    onClick={(e) => { menuByKey.current = e.detail === 0; setMenuOpen((o) => !o); }}>
+              {chipLabel}<span className="sbf-filter-caret" aria-hidden="true"><Icon as={ChevronDown} size={10} weight="regular" /></span>
+            </button>
+            {menuOpen && createPortal(
+              <div className="sbf-menu" role="menu" aria-label="Show, sort and group" ref={menuPopRef}
+                   style={menuPos || { top: 0, right: 0, visibility: 'hidden' }}
+                   onKeyDown={onMenuKeyDown}>
+                <div className="sbf-menu-label">Show</div>
+                {chips.map((c) => (
+                  <button type="button" key={c.id} role="menuitemradio" aria-checked={chip === c.id}
+                          className={`sbf-menu-item${chip === c.id ? ' is-on' : ''}`}
+                          onClick={() => { setChip(c.id); closeMenu(); }}>
+                    {c.id === 'all' ? 'All files' : c.label}
+                    {(chipCounts[c.id] || 0) > 0 && <span className="sbf-menu-count">{chipCounts[c.id]}</span>}
+                  </button>
+                ))}
+                <div className="sbf-menu-sep" role="separator" />
+                <div className="sbf-menu-label">Sort</div>
+                {SORTS.map((so) => (
+                  <button type="button" key={so} role="menuitemradio" aria-checked={prefs.sort === so}
+                          className={`sbf-menu-item${prefs.sort === so ? ' is-on' : ''}`}
+                          onClick={() => { setPref('sort', so); closeMenu(); }}>
+                    {SORT_LABELS[so]}
+                  </button>
+                ))}
+                <div className="sbf-menu-sep" role="separator" />
+                <div className="sbf-menu-label">Group by</div>
+                {Object.keys(GROUP_LABELS).map((g) => (
+                  <button type="button" key={g} role="menuitemradio" aria-checked={prefs.groupBy === g}
+                          className={`sbf-menu-item${prefs.groupBy === g ? ' is-on' : ''}`}
+                          onClick={() => { setPref('groupBy', g); closeMenu(); }}>
+                    {GROUP_LABELS[g]}
+                  </button>
+                ))}
+              </div>,
+              document.body,
+            )}
           </div>
         </div>
 

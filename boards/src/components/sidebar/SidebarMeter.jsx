@@ -1,17 +1,19 @@
-// The foot of the sidebar: how much room is used, and a way to add files.
+// The foot of the files' card: how much room is used, and a way to add files.
 //
-// One quiet line (owner, 2026-10-18: the sidebar had too much going on). The
-// free plan stops at a card limit OR a storage limit, whichever comes first,
-// so the line names both, "38 of 50 cards · 1.2 of 5.0 GB"; a paid plan has
-// no card limit and names storage alone. The bar is the foot's own top edge,
-// filled as far as whichever limit is closer to full. The numbers come from
-// the same places the plan pill reads (useMyTier's count and limit, passed in
-// so this never calls useMyTier itself, and useStorageUsage). The bar is
-// neutral ink: gold is for active and selected things, and a meter is
-// neither. Red only near full, as in Settings → Billing.
+// A 4px bar over one line (owner, 2026-10-18, the floating mockup they
+// picked). The free plan stops at a card limit OR a storage limit, whichever
+// comes first, so the line names both, "38 of 50 cards · 1.2 of 5.0 GB"; a
+// paid plan has no card limit and names storage alone. The bar fills as far
+// as whichever limit is closer to full. The numbers come from the same places
+// the plan pill reads (useMyTier's count and limit, passed in so this never
+// calls useMyTier itself, and useStorageUsage). The bar is neutral ink: gold
+// is for active and selected things, and a meter is neither. Red only near
+// full, as in Settings → Billing.
 
 import { useRef } from 'react';
 import { fmtBytes } from '../../lib/storageLabel.js';
+import { Icon } from '../Icon.jsx';
+import { Upload } from '../../lib/icons.js';
 
 const NEAR = 0.9;
 
@@ -56,6 +58,7 @@ export function SidebarMeter({
           <>
             <button type="button" className="sbf-upload" title={uploadTitle}
                     onClick={() => { const el = inputRef.current; if (el) { el.value = ''; el.click(); } }}>
+              <Icon as={Upload} size={14} weight="regular" />
               Upload
             </button>
             <input ref={inputRef} type="file" multiple hidden
