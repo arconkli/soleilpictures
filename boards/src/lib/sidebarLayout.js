@@ -319,10 +319,12 @@ export function dragLayout(start, id, dx, dy) {
     const lo = id === 'treeRight' ? SIZES.treeMinW : SIZES.filesMinW;
     let nw = Math.round(clamp(w, lo, cap));
     // Lined up with the other card's right edge, it meets it, and a guide
-    // shows where.
+    // shows where. Judged on the width asked for, not the one clamped to the
+    // card's least or most, or a meeting point near either would hold the
+    // card off it.
     const other = id === 'treeRight' ? f : t;
     const meet = Math.round(other.x + other.w - card.x);
-    if (Math.abs(nw - meet) <= SNAP && meet >= lo && meet <= cap) { nw = meet; alignX = other.x + other.w; }
+    if (Math.abs(w - meet) <= SNAP && meet >= lo && meet <= cap) { nw = meet; alignX = other.x + other.w; }
     if (id === 'treeRight') s.tw = nw;
     else s.fw = nw;
   }

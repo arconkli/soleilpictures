@@ -228,6 +228,12 @@ test('stacked, a right edge dragged near the other card\'s lines up with it, and
   const thin = { ...defaultLayout(), stack: { ...LAYOUT_DEFAULT.stack, tw: 226, fw: 300 } };
   const e = dragLayout(stacked(thin), 'filesRight', -67, 0);
   assert.deepEqual([e.layout.stack.fw, e.alignX], [233, null]);
+  // A meeting point just off a card's least doesn't hold it off its least: clusters 236 wide, the
+  // files pulled all the way left (or an arrow key away) still get to 232.
+  const near = { ...defaultLayout(), stack: { ...LAYOUT_DEFAULT.stack, tw: 236, fw: 300 } };
+  assert.equal(dragLayout(stacked(near), 'filesRight', -200, 0).layout.stack.fw, SIZES.filesMinW);
+  const atMeet = { ...defaultLayout(), stack: { ...LAYOUT_DEFAULT.stack, tw: 236, fw: 236 } };
+  assert.equal(keyLayout(stacked(atMeet), 'filesRight', 'v', 'ArrowLeft').stack.fw, SIZES.filesMinW);
   // Side by side, there's nothing to line up.
   assert.equal(dragLayout(sideBySide(), 'right', 5, 0).alignX, null);
 });
