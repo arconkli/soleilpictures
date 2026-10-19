@@ -53,6 +53,7 @@ import { layoutDrop } from '../lib/layoutEngine.js';
 import { placedOf, positionUnplaced } from '../lib/placement.js';
 import { classifyDropFile, fileMetaFor } from '../lib/fileIngest.js';
 import { useFeedback } from '../components/AppFeedback.jsx';
+import { failMove } from '../lib/moveFailure.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
@@ -1716,6 +1717,29 @@ export function LocalBoardsApp({ user, signOut }) {
         return;
       }
       if (sourceBoardId === targetBoardId) { try { onTargetSaved?.(); } catch (_) {} return; }
+      // A move that fails at its last step, as every one on the preview did
+      // while Cloudflare refused the Worker's call to the party: a spec sets
+      // window.__soleilFailNextMove. App's failure path (lib/moveFailure.js),
+      // with a trash that leaves the cluster's card on the source, as the real
+      // soft delete does: the source drops it itself.
+      if (import.meta.env.DEV && window.__soleilFailNextMove) {
+        window.__soleilFailNextMove = false;
+        const { createdBoardId = null, createdBoardName = null } = e.detail || {};
+        failMove({
+          err: new Error('reset failed (QA)'),
+          message: 'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.',
+          createdBoardId, createdBoardName,
+          trash: async (id) => setLocalState(prev => {
+            const nextBoards = { ...prev.boards };
+            const nextBoardState = { ...prev.boardState };
+            delete nextBoards[id];
+            delete nextBoardState[id];
+            return { ...prev, boards: nextBoards, boardState: nextBoardState };
+          }),
+          toast: (t) => feedback.toast(t),
+        }).then((err) => { try { onTargetFailed?.(err); } catch (_) {} });
+        return;
+      }
       const idMap = {};
       for (const c of moved) idMap[c.id] = createId(c.kind || 'card');
       const minX = Math.min(...moved.map(c => c.x ?? 0));
@@ -1749,7 +1773,7 @@ export function LocalBoardsApp({ user, signOut }) {
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);
     return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
-  }, [boards]);
+  }, [boards, feedback]);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   // App.jsx has its own; the local shell had no global keydown handler at all.

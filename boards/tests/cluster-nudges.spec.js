@@ -248,6 +248,31 @@ test.describe('cluster nudges', () => {
     expect(moves[0].created).toBeTruthy();
   });
 
+  // A move that fails at its last step, as every one on the preview did while
+  // Cloudflare refused the Worker's call to the party. The harness fails the
+  // next move through App's own failure path (lib/moveFailure.js) when
+  // window.__soleilFailNextMove is set (dev only).
+  test('the top bar: a move that fails takes the new cluster back and says so once', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await card(page, 'mixqa-0').click();
+    await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
+    await page.evaluate(() => { window.__soleilFailNextMove = true; });
+    await page.locator('.topbar .tb-newcluster').click();
+    const pop = page.locator('.ncl-pop');
+    await pop.locator('.ncl-field').fill('swag');
+    await pop.locator('.ncl-create').click();
+
+    const errors = page.locator('.toast.toast-error .toast-msg');
+    await expect(errors).toHaveText(['Couldn’t make “swag”. Your cards are still here — try again.']);
+    await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
+    for (const id of ['mixqa-0', 'mixqa-1', 'mixqa-2']) await expect(card(page, id)).toBeVisible();
+    // A beat later it is still the only one, and nothing says it was made.
+    await page.waitForTimeout(600);
+    await expect(errors).toHaveCount(1);
+    await expect(page.locator('.toast', { hasText: 'Made “swag”' })).toHaveCount(0);
+  });
+
   test('the top bar popover: Escape and Cancel make nothing, and keys typed there never reach the canvas', async ({ page }) => {
     await optIn(page);
     await studio(page);

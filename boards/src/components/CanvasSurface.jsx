@@ -6367,11 +6367,11 @@ export function CanvasSurface({
       await targetSaved;
     } catch (err) {
       console.error('[drag-into-board] target save failed; NOT deleting source', err);
-      feedback.toast({
-        type: 'error',
-        message: 'Move failed — your cards are safe on this cluster. ' + (err?.message || err),
-        ttl: 8000,
-      });
+      // App's listener has said why, in the move's one message
+      // (lib/moveFailure.js). A cluster made for this move is in the trash by
+      // now; its card leaves this canvas the way it came, off the undo history,
+      // with the room it took.
+      if (createdBoardId && err?.createdBoardTrashed) mutators.deleteCardsForMove?.([createdBoardId], { refund: true });
       return;
     }
     // Now safe to clear local comments + delete source.

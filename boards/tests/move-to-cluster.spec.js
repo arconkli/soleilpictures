@@ -71,13 +71,9 @@ test.describe('move to cluster', () => {
 
   test('when the destination cannot save, every card stays where it was', async ({ page }) => {
     await withProject(page, 'Spec ad');
-    // Play the destination refusing: answer before the app's listener can.
-    await page.evaluate(() => {
-      window.addEventListener('soleil-card-into-board-drop', (e) => {
-        e.stopImmediatePropagation();
-        e.detail?.onTargetFailed?.(new Error('destination refused'));
-      }, true);
-    });
+    // Play the destination failing its last step, through the listener's own
+    // failure path (lib/moveFailure.js; the harness's switch is dev only).
+    await page.evaluate(() => { window.__soleilFailNextMove = true; });
 
     await card(page, 'mixqa-0').click();
     await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
@@ -87,7 +83,12 @@ test.describe('move to cluster', () => {
     await item.click();
     await page.locator('.ctx-submenu .ctx-item', { hasText: 'Spec ad' }).click();
 
-    await expect(page.locator('.toast')).toContainText('Move failed');
+    // Said once: the canvas the cards came from adds nothing of its own.
+    const errors = page.locator('.toast.toast-error .toast-msg');
+    await expect(errors).toHaveText(['Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.']);
+    await page.waitForTimeout(600);
+    await expect(errors).toHaveCount(1);
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Spec ad' })).toHaveCount(1);
     await expect(card(page, 'mixqa-0')).toBeVisible();
     await expect(card(page, 'mixqa-1')).toBeVisible();
     await expect(card(page, 'mixqa-2')).toBeVisible();

@@ -166,6 +166,7 @@ import { holdReload } from './lib/buildWatch.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
+import { failMove } from './lib/moveFailure.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { isAbandonedUpload } from './lib/abandonedUploads.js';
 import { forceBoardThumbnail, boardDoc, loadYBoard } from './lib/yboard.js';
@@ -8133,8 +8134,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // because this listener's `boards` can predate it, and its undo trashes it.
       const { sourceBoardId, targetBoardId, cards: movedCards,
               onTargetSaved, onTargetFailed, via, createdBoardId = null, createdBoardName = null } = e.detail || {};
-      const ack    = () => { try { onTargetSaved?.(); } catch (_) {} };
+      let acked = false;
+      const ack    = () => { acked = true; try { onTargetSaved?.(); } catch (_) {} };
       const reject = (err) => { try { onTargetFailed?.(err); } catch (_) {} };
+      // A step that fails says so here, once (lib/moveFailure.js), and takes a
+      // cluster made for these cards to the trash; the source keeps its cards
+      // and drops that cluster's card.
+      const fail = async (err, message) => reject(await failMove({
+        err, message, createdBoardId, createdBoardName, acked,
+        trash: async (id) => {
+          await deleteBoard(id);
+          try { await refreshBoards(); } catch (_) {}
+          myTier.refetch?.();
+        },
+        toast: (t) => feedback.toast(t),
+      }));
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
       if (sourceBoardId === targetBoardId) { ack(); return; }
       // ── Onboarding AHA: first time the seed note is dragged into the tutorial
@@ -8234,12 +8248,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // a clear error so the user can retry rather than lose data.
         if (!snap) {
           console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
-          feedback.toast({
-            type: 'error',
-            message: 'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.',
-            ttl: 8000,
-          });
-          reject(new Error('target board_state empty'));
+          await fail(new Error('target board_state empty'),
+            'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.');
           return;
         }
         const tmp = boardDoc(targetBoardId);
@@ -8324,12 +8334,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             tmpCardCount, expectedMin, targetCardCountBefore, moved: movedCards.length,
           });
           tmp.destroy();
-          feedback.toast({
-            type: 'error',
-            message: 'Move cancelled — the destination cluster’s state looked unsafe to overwrite.',
-            ttl: 8000,
-          });
-          reject(new Error('tmp card count below expected'));
+          await fail(new Error('tmp card count below expected'),
+            'Move cancelled — the destination cluster’s state looked unsafe to overwrite.');
           return;
         }
         const tmpFinalCount = tmp.getMap('cards').size;
@@ -8339,8 +8345,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (saveErr) {
           console.error('[xbm:save] saveBoardSnapshot threw', saveErr);
           tmp.destroy();
-          feedback.toast({ type: 'error', message: 'Could not save destination cluster: ' + (saveErr.message || saveErr) });
-          reject(saveErr);
+          await fail(saveErr, 'Could not save destination cluster: ' + (saveErr.message || saveErr));
           return;
         }
         console.log('[xbm:save] done');
@@ -8361,12 +8366,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           await forceResetBoardRoom(targetBoardId);
         } catch (resetErr) {
           console.error('[xbm] target room reset failed; NOT acking (source keeps cards)', resetErr);
-          feedback.toast({
-            type: 'error',
-            message: 'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.',
-            ttl: 8000,
-          });
-          reject(resetErr);
+          await fail(resetErr,
+            'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.');
           return;
         }
         // If the target happens to be open (e.g. the split pane / another
@@ -8528,8 +8529,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       } catch (err) {
         console.error('cross-board move failed', err);
-        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
-        reject(err);
+        await fail(err, 'Move failed: ' + (err?.message || err));
       }
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);

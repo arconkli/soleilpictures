@@ -1014,7 +1014,14 @@ export function ListSurface({
           detail: { sourceBoardId: from.boardId, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu', ...(extra || {}) },
         }));
       });
-    } catch (_) { return false; } // App said why; nothing left this cluster
+    } catch (err) {
+      // App said why; nothing left this cluster. A cluster made for this move
+      // went to the trash there, and its card goes from here (lib/moveFailure.js).
+      if (extra?.createdBoardId && err?.createdBoardTrashed) {
+        from.mutators?.deleteCardsForMove?.([extra.createdBoardId], { refund: true });
+      }
+      return false;
+    }
     from.mutators?.deleteCardsForMove?.(moving.map((c) => c.id));
     setSelectedCards(new Set());
     // A browsed cluster shows its saved snapshot: fetch it again with them in.
