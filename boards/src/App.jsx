@@ -9923,6 +9923,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     </React.Fragment>
                   ))}
                 </div>
+                {showNewCluster && (
+                  <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
+                                    boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
+                                    onUnhandled={newClusterUnhandled} />
+                )}
                 {!canEditCurrent && (
                   <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
                 )}

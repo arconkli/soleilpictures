@@ -90,3 +90,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
 }
 .topbar.topbar-centered .tb-right { justify-self: end; }
+
+/* In the floating islands (FloatingChrome): Share's height there. */
+.chrome-island .ncl-wrap { margin-left: 4px; }
+.chrome-island .tb-btn.tb-newcluster { height: 28px; }
