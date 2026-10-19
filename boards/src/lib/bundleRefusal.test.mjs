@@ -31,7 +31,7 @@ test('an outage stays retryable', () => {
 test('the upload party decides with it, on both bundle routes', () => {
   const src = readFileSync(new URL('../../party/upload.ts', import.meta.url), 'utf8');
   assert.match(src, /from "\.\.\/src\/lib\/bundleRefusal\.js"/);
-  // /share-bundle, /public-bundle and /file-share (0421).
-  assert.equal((src.match(/bundleRefusalStatus\(rpcRes\.status, msg\)/g) || []).length, 3);
+  // /share-bundle, /public-bundle, /file-share (0421) and /doc-images.
+  assert.equal((src.match(/bundleRefusalStatus\(rpcRes\.status, msg\)/g) || []).length, 4);
   assert.doesNotMatch(src, /rpcRes\.status >= 500 \? rpcRes\.status : 404/);
 });

@@ -52,6 +52,9 @@
 //   R2_SECRET_ACCESS_KEY  R2 API token secret
 
 import { AwsClient } from "aws4fetch";
+import { getServerByName } from "partyserver";
+import { bridgeHeaders } from "./bridge";
+import type { Env } from "./env";
 import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
 import { bundleRefusalStatus } from "../src/lib/bundleRefusal.js";
 import {
@@ -60,6 +63,10 @@ import {
 import {
   SAVE_REFUSAL_STATUS, copyKey, copyPlan, saveRefusal, savedCard, savedCardId, savedImageRow,
 } from "../src/lib/fileShareSave.js";
+import {
+  DOC_IMAGE_CACHE_CONTROL, DOC_IMAGE_URL_TTL_SECONDS, alignedUrls, candidateKeys, parseDocImageRequest,
+  rasterTypeOf, roomOfAnswer,
+} from "../src/lib/docShareImages.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Thumbnails on the Shared page's rows: short-lived and private, like the /f/
@@ -219,7 +226,7 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
 // defaults are the long-lived immutable pair every existing caller wants.
 async function signReadUrl(
   r2: AwsClient, env: R2Env, key: string, disposition: string | null = null,
-  opts: { ttl?: number; cacheControl?: string } = {},
+  opts: { ttl?: number; cacheControl?: string; contentType?: string | null } = {},
 ): Promise<string> {
   const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
   // X-Amz-Expires MUST be a signed query param ON THE URL before signing.
@@ -227,14 +234,36 @@ async function signReadUrl(
   // its own 86400 (24h) default, so a URL we believe is good for 7 days actually
   // dies in a day (the client then serves a dead URL → 403 → the "locked" image).
   // Setting it here makes aws4fetch sign + keep our 7-day value.
+  // contentType overrides the type the object was stored with (the bytes are
+  // served as that, whatever the uploader said they were).
   const r2Url = `${base}?response-cache-control=${encodeURIComponent(opts.cacheControl ?? READ_RESPONSE_CACHE_CONTROL)}`
     + (disposition ? `&response-content-disposition=${encodeURIComponent(disposition)}` : "")
+    + (opts.contentType ? `&response-content-type=${encodeURIComponent(opts.contentType)}` : "")
     + `&X-Amz-Expires=${opts.ttl ?? READ_URL_TTL_SECONDS}`;
   const signed = await r2.sign(
     new Request(r2Url, { method: "GET" }),
     { aws: { signQuery: true } },
   );
   return signed.url;
+}
+
+// The image keys a shared doc's live room holds (party/doc.ts /keys, by stub
+// with the bridge header): files a member put in the doc. A room nobody is in
+// holds none, and asking never wakes its board. Null when it could not be asked.
+async function docRoomKeys(env: Record<string, unknown>, room: string): Promise<Set<string> | null> {
+  try {
+    const stub = await getServerByName(env.Doc as any, room);
+    const res = await stub.fetch("https://bridge/keys", {
+      method: "POST",
+      headers: await bridgeHeaders(env as unknown as Env),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { keys?: unknown };
+    const keys = Array.isArray(body?.keys) ? body.keys : [];
+    return new Set(keys.filter((k): k is string => typeof k === "string"));
+  } catch (_) {
+    return null;
+  }
 }
 
 // ── Party ────────────────────────────────────────────────────────────
@@ -301,6 +330,10 @@ export class UploadParty {
     // caller (their bearer, else the anon key), so signed-out link viewers work.
     if (url.pathname.endsWith("/file-share")) {
       return this.handleFileShare(req, env, origin);
+    }
+    // So are a shared doc's images, on the same terms.
+    if (url.pathname.endsWith("/doc-images")) {
+      return this.handleDocImages(req, env, origin);
     }
 
     const accessToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
@@ -433,6 +466,98 @@ export class UploadParty {
       attachmentDisposition,
     );
     return Response.json(out, { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
+  }
+
+  // POST /share/doc-images — anon-callable, like /file-share. Body: { token,
+  // keys: string[] (≤ 100) }. A shared doc's images, for someone reading it
+  // through its share. The rule is lib/docShareImages.js's, in its order: the
+  // share as the caller sees it, the doc's current room, the keys that room
+  // holds, the share workspace's live images rows. Each url lives an hour,
+  // private, served as its raster type. urls[i] answers keys[i]; no key is
+  // ever named in the answer.
+  async handleDocImages(
+    req: Request, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const headers = { ...(corsHeaders(origin) as Record<string, string>), "Cache-Control": "no-store" };
+    const reply = (body: unknown, status = 200) => Response.json(body, { status, headers });
+    let body: unknown = null;
+    try { body = await req.json(); } catch (_) { /* refused below */ }
+    const ask = parseDocImageRequest(body, FILE_TOKEN_RE);
+    if (!ask) return reply({ status: "bad_request" }, 400);
+
+    // 1. As the caller: their bearer, else the anon key (the token decides).
+    const userBearer = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${userBearer || SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_token: ask.token }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401 && userBearer) return reply({ status: "auth_expired" });
+      const msg = await rpcRes.text().catch(() => "");
+      if (bundleRefusalStatus(rpcRes.status, msg) === 404) return reply({ status: "gone" });
+      return reply({ status: "unavailable" }, 503);
+    }
+    const share: any = await rpcRes.json().catch(() => null);
+    if (share?.status === "sign_in" || share?.status === "no_access") return reply({ status: share.status });
+    if (share?.status !== "ok" || share.file?.kind !== "doc") return reply({ status: "gone" });
+    const room = roomOfAnswer(share);
+    if (!room) return reply({ status: "gone" });
+
+    // 2. The doc's current room: a move or a restore made a new one.
+    const target = await this.serviceRpc("_doc_room_target", { p_share: room.shareId });
+    if (!target?.workspace_id) return reply({ status: "unavailable" }, 503);
+    if (String(target.gen || "").toLowerCase() !== room.gen) return reply({ status: "moved" });
+
+    // 3. What that room holds: files a member put in the doc.
+    const trusted = await docRoomKeys(this.room.env, room.name);
+    if (!trusted) return reply({ status: "unavailable" }, 503);
+    const candidates = candidateKeys(ask.keys, { workspaceId: target.workspace_id, trusted });
+
+    // 4. Which of those are this workspace's live files.
+    const live = candidates.size ? await this.liveImageKeys(String(target.workspace_id), [...candidates]) : new Set<string>();
+    if (!live) return reply({ status: "unavailable" }, 503);
+
+    const r2 = new AwsClient({
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+    const urlByKey = new Map<string, string>();
+    await Promise.all([...live].filter((k) => candidates.has(k)).map(async (k) => {
+      try {
+        urlByKey.set(k, await signReadUrl(r2, env, k, null, {
+          ttl: DOC_IMAGE_URL_TTL_SECONDS, cacheControl: DOC_IMAGE_CACHE_CONTROL, contentType: rasterTypeOf(k),
+        }));
+      } catch (_) { /* that one answers null */ }
+    }));
+    return reply({ status: "ok", urls: alignedUrls(ask.keys, urlByKey), ttl: DOC_IMAGE_URL_TTL_SECONDS });
+  }
+
+  // Which of these keys are live images rows of this workspace, read as the
+  // service role. Null when the table could not be read.
+  private async liveImageKeys(workspaceId: string, keys: string[]): Promise<Set<string> | null> {
+    const svc = String(this.room.env.SUPABASE_SERVICE_ROLE_KEY || "");
+    if (!svc || !UUID_RE.test(workspaceId) || !keys.length) return null;
+    // The keys passed rasterTypeOf's pattern: no quote or comma can be in one.
+    const list = encodeURIComponent(keys.map((k) => `"${k}"`).join(","));
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/images?select=storage_path&workspace_id=eq.${workspaceId}&deleted_at=is.null&storage_path=in.(${list})`,
+        { headers: { apikey: svc, Authorization: `Bearer ${svc}`, Accept: "application/json" } },
+      );
+      if (!res.ok) return null;
+      const rows = (await res.json()) as Array<{ storage_path?: unknown }>;
+      return new Set(rows.map((r) => (typeof r?.storage_path === "string" ? r.storage_path : "")).filter(Boolean));
+    } catch (_) {
+      return null;
+    }
   }
 
   // POST /file-thumbs — signed in. Body: { tokens: uuid[] (≤ 50) }. Presigns

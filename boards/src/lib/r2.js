@@ -143,8 +143,27 @@ export function setPrefixResolver(prefix, resolver) {
     _prefixResolvers.delete(prefix);
   }
 }
+// Exact keys with their own source, ahead of the prefixes: a doc shared with
+// you holds its images under its owner's keys, which only the share may sign
+// for you (lib/docShareImages.js). releaseKeyResolver lets go of a key only
+// while that resolver still holds it.
+const _keyResolvers = new Map();
+export function setKeyResolver(key, resolver) {
+  if (typeof key !== 'string' || !key) return;
+  if (resolver && typeof resolver.cached === 'function' && typeof resolver.resolve === 'function') {
+    _keyResolvers.set(key, resolver);
+  } else {
+    _keyResolvers.delete(key);
+  }
+}
+export function releaseKeyResolver(key, resolver) {
+  if (_keyResolvers.get(key) === resolver) _keyResolvers.delete(key);
+}
 function prefixResolverFor(key) {
-  if (!_prefixResolvers.size || typeof key !== 'string') return null;
+  if (typeof key !== 'string') return null;
+  const exact = _keyResolvers.size ? _keyResolvers.get(key) : null;
+  if (exact) return exact;
+  if (!_prefixResolvers.size) return null;
   for (const [prefix, r] of _prefixResolvers) if (key.startsWith(prefix)) return r;
   return null;
 }
