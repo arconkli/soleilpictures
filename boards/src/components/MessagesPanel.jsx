@@ -1,8 +1,11 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Plus, X, EyeOff, LogOut } from '../lib/icons.js';
+import { Plus, X, EyeOff, LogOut, Search } from '../lib/icons.js';
 import { useConversationList } from '../hooks/useConversationList.js';
+import { useMessagesLook } from './messagesLook.js';
+import { conversationMatches } from '../lib/messagesCard.js';
+import './messagesCard.css';
 import { findOrCreateDm, leaveConversation, rejoinConversation } from '../lib/messages.js';
 import { hiddenFromInbox, isDmConversation } from '../lib/conversationState.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -129,6 +132,21 @@ export function MessagesPanel({
     }));
   }, [conversations, myStateByConv, participantsByConv]);
 
+  // The card look (the files sidebar's, preview only) has a find line over
+  // the list: a conversation stays while every word is in its title, its
+  // people's names or its last message.
+  const card = useMessagesLook() === 'card';
+  const [find, setFind] = useState('');
+  const shownConversations = useMemo(() => {
+    if (!card || !find.trim()) return visibleConversations;
+    return visibleConversations.filter((c) => {
+      const names = (participantsByConv.get(c.conversation_id) || [])
+        .filter(p => p.user_id !== userId)
+        .map(p => userProfiles.get(p.user_id)?.name || userProfiles.get(p.user_id)?.email || '');
+      return conversationMatches({ title: c.title || '', names, preview: c.last_message_body || '' }, find);
+    });
+  }, [card, find, visibleConversations, participantsByConv, userId]);
+
   const handleConversationCreated = useCallback((convId) => {
     setOpenConversationId(convId);
     onRefreshRequested?.();
@@ -233,8 +251,14 @@ export function MessagesPanel({
     <div className="msg-panel" ref={listRef} tabIndex={-1}>
       <div className="msg-panel-head">
         <div className="msg-panel-title">
-          <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
-          <div className="msg-panel-name">All conversations</div>
+          {card ? (
+            <div className="msg-panel-name">Messages</div>
+          ) : (
+            <>
+              <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
+              <div className="msg-panel-name">All conversations</div>
+            </>
+          )}
         </div>
         <button
           className="msg-panel-icon"
@@ -249,6 +273,18 @@ export function MessagesPanel({
           <Icon as={X} size={14} />
         </button>
       </div>
+
+      {card && visibleConversations.length > 0 && (
+        <label className="msg-find">
+          <Icon as={Search} size={14} />
+          <input type="search" value={find} placeholder="Find a conversation" aria-label="Find a conversation"
+                 onChange={(e) => setFind(e.target.value)}
+                 onKeyDown={(e) => {
+                   // Esc clears a find first; the panel closes on the next one.
+                   if (e.key === 'Escape' && find) { e.preventDefault(); setFind(''); }
+                 }} />
+        </label>
+      )}
 
       <div className="msg-panel-body">
         {!loaded && (
@@ -278,9 +314,13 @@ export function MessagesPanel({
             No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.
           </div>
         )}
-        {visibleConversations.map(conv => (
+        {card && find.trim() && visibleConversations.length > 0 && shownConversations.length === 0 && (
+          <div className="msg-empty t-meta">No conversations match “{find.trim()}”.</div>
+        )}
+        {shownConversations.map(conv => (
           <ConversationRow
             key={conv.conversation_id}
+            card={card}
             conv={conv}
             participants={participantsByConv.get(conv.conversation_id) || []}
             unreadCount={unreadByConv.get(conv.conversation_id) || 0}
@@ -317,7 +357,7 @@ export function MessagesPanel({
   );
 }
 
-function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
+function ConversationRow({ card = false, conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
   const isUnread = unreadCount > 0;
   const peers = participants.filter(p => p.user_id !== currentUserId && !p.left_at);
   const isDm = isDmConversation(participants); // rows, not active members (COMMS-17)
@@ -351,7 +391,7 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
 
   return (
     <button
-      className={`msg-row ${isUnread ? 'is-unread' : ''}`}
+      className={`msg-row ${isUnread ? 'is-unread' : ''}${card ? ' is-card' : ''}`}
       onClick={onOpen}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -363,7 +403,9 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
       }}
       title={title}
     >
-      {isUnread && <span className="msg-row-dot" />}
+      {/* The card look: no gold dot, the time on the name's line and the
+          count, a quiet pill, on the preview's (messagesCard.css). */}
+      {isUnread && !card && <span className="msg-row-dot" />}
       <span className={`msg-row-avatar ${avatarPeers.length > 1 ? 'is-stack' : ''}`}>
         {avatarPeers.length === 0 ? '·' : avatarPeers.map((p) => (
           <span
@@ -375,15 +417,30 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
           </span>
         ))}
       </span>
-      <span className="msg-row-text">
-        <span className="msg-row-name">{title}</span>
-        {preview && (
-          <span className="msg-row-preview">{preview.slice(0, 60)}</span>
-        )}
-      </span>
-      {isUnread
-        ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
-        : <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>}
+      {card ? (
+        <span className="msg-row-text">
+          <span className="msg-row-line">
+            <span className="msg-row-name">{title}</span>
+            <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>
+          </span>
+          <span className="msg-row-line">
+            <span className="msg-row-preview">{preview.slice(0, 80)}</span>
+            {isUnread && <span className="msg-row-count" aria-label={`${unreadCount} unread`}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          </span>
+        </span>
+      ) : (
+        <>
+          <span className="msg-row-text">
+            <span className="msg-row-name">{title}</span>
+            {preview && (
+              <span className="msg-row-preview">{preview.slice(0, 60)}</span>
+            )}
+          </span>
+          {isUnread
+            ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            : <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>}
+        </>
+      )}
     </button>
   );
 }

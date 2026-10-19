@@ -37,8 +37,10 @@
    coarse: shelf 44, file 44, more 44, note 44, empty 52). */
 
 /* ── The materials ───────────────────────────────────────────────────────── */
-.app.sb-files {
-  grid-template-columns: var(--sb-w, 320px) 1fr;
+.app.sb-files { grid-template-columns: var(--sb-w, 320px) 1fr; }
+/* The materials live on <body> too while the files sidebar is on (App sets
+   data-sb-files): Messages portals to <body>, outside .app, and wears them. */
+.app.sb-files, body[data-sb-files] {
   --sbf-handle-ink: rgba(245, 245, 247, .34);
   --sbf-glass: color-mix(in oklab, var(--bg-1) 88%, transparent);
   --sbf-glass-line: #232328;
@@ -58,7 +60,7 @@
   --sbf-count: rgba(245, 245, 247, .085);
   --sbf-thumb-line: rgba(255, 255, 255, .11);
 }
-[data-theme='light'] .app.sb-files {
+[data-theme='light'] .app.sb-files, [data-theme='light'] body[data-sb-files] {
   --sbf-handle-ink: rgba(10, 10, 12, .26);
   --sbf-glass: color-mix(in oklab, #fcfcfd 88%, transparent);
   --sbf-glass-line: rgba(10, 10, 12, .08);
@@ -273,17 +275,29 @@ body.sbf-sizing .app,
 .app.sb-files .sb-top .sb-mid-collapse:hover,
 .sb-mid-search:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sb-mid-search:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
-.app.sb-files .sb-top .sb-mid-subtitle {
-  margin-top: -2px; padding: 0 8px 6px 36px;
-  font: 400 12px/1.3 var(--font-sans); letter-spacing: 0; color: var(--ink-3);
+/* The line under the name says who's here (their faces, then "Maya and Jon
+   are here") or whose workspace it is, under the name's first letter (36px
+   in: the trigger's 8 and the 20px mark's 8 more), and nothing when it's
+   only yours (lib/sidebarWho.js). */
+.app.sb-files .sb-top .sbf-who {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; min-width: 0;
+  margin-top: -3px; padding: 0 8px 7px 36px;
+  font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); white-space: nowrap;
 }
-.app.sb-files .sb-top .sb-members { padding: 0 8px 6px 8px; margin-top: -2px; }
-.app.sb-files .sb-top .sb-member { border-color: var(--bg-1); }
+.sbf-who-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sbf-who-faces { display: flex; flex-shrink: 0; }
+.sbf-who-face {
+  width: 15px; height: 15px; margin-left: -4px; border-radius: 50%; display: grid; place-items: center;
+  box-shadow: 0 0 0 1.5px var(--bg-1); color: rgba(10, 10, 12, .84); font: 700 7.5px/1 var(--font-sans);
+}
+.sbf-who-face:first-child { margin-left: 0; }
 
-/* Home and Messages, a row of words each (ClusterSidebar QuickBtn). */
-.sbf-quick { display: flex; flex-direction: column; gap: 1px; padding: 4px 7px 6px; }
+/* Home and Messages, a row of words each (ClusterSidebar QuickBtn), the words
+   in the clusters' names column: 24px in, as Studio's name is past its
+   chevron. */
+.sbf-quick { display: flex; flex-direction: column; gap: 1px; padding: 2px 7px 4px; }
 .sbf-quickbtn {
-  position: relative; display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px;
+  position: relative; display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px 0 24px;
   border: 0; border-radius: 6px; background: transparent; text-align: left;
   color: var(--ink-1); font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease);
@@ -291,11 +305,15 @@ body.sbf-sizing .app,
 .sbf-quickbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sbf-quickbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .sbf-quick-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Unread is a plain number, as the sidebar's other counts are; the row's
+   words go bright while there is any. */
 .sbf-quick-count {
-  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
-  display: grid; place-items: center; background: var(--sbf-count);
-  color: var(--ink-0); font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+  flex-shrink: 0; color: var(--ink-0); font: 600 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
 }
+.sbf-quickbtn:has(.sbf-quick-count) { color: var(--ink-0); }
+/* Messages open: pressed, the chip without the bar. */
+.sbf-quickbtn.is-pressed { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+[data-theme='light'] .sbf-quickbtn.is-pressed { background: rgba(10, 10, 12, .07); box-shadow: none; }
 
 /* What you're in: a raised chip with a gold bar inside its left end. The
    tree's rows, Shared's, a tag's, Home's and Messages' all mark it so. */

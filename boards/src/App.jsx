@@ -154,6 +154,7 @@ import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
+import { MessagesLookContext } from './components/messagesLook.js';
 import { NotificationsPanel } from './components/NotificationsPanel.jsx';
 import { addShootDays, scaffoldShootDay, nextDayNumber } from './lib/productionDay.js';
 import { useNotifications } from './hooks/useNotifications.js';
@@ -217,6 +218,8 @@ import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
 import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
+import { whoLine } from './lib/sidebarWho.js';
+import { SidebarWho } from './components/sidebar/SidebarWho.jsx';
 import { useMatchMedia } from './hooks/useMatchMedia.js';
 import { moveFiles, failureMessage, appendCards } from './lib/clustersApi.js';
 import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
@@ -251,6 +254,8 @@ const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then
 // Home's projects panel is light (no three.js), so it is eager: the panel paints
 // at once while the graph behind it loads lazily.
 import { ProjectsHome } from './components/ProjectsHome.jsx';
+import { ClustersHome } from './components/home/ClustersHome.jsx';
+import { useHomeRail, loadClusterPhotos } from './hooks/useHomeRail.js';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -825,6 +830,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // With the files sidebar the desktop bar floats as two islands over the
   // surface (components/chrome/FloatingChrome.jsx); a phone keeps its bar.
   const floatingChrome = filesSidebar && !mobileShell;
+  // Messages portals to <body>, outside .app, so what it wears with the files
+  // sidebar hangs off <body>: data-sb-files for the look (the sidebar's
+  // materials, bubbles), data-sb-float for the floating card beside the
+  // islands (a desktop; on a phone it stays a sheet).
+  useEffect(() => {
+    const b = document.body;
+    if (filesSidebar) b.setAttribute('data-sb-files', '1'); else b.removeAttribute('data-sb-files');
+    if (floatingChrome) b.setAttribute('data-sb-float', '1'); else b.removeAttribute('data-sb-float');
+    return () => { b.removeAttribute('data-sb-files'); b.removeAttribute('data-sb-float'); };
+  }, [filesSidebar, floatingChrome]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Ephemeral immersive "focus" view for touch — hides ALL chrome so the user
   // can just look at a board/pictures. Distinct from the persisted desktop
@@ -7996,6 +8011,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     userProfiles.populateFromPeers(wsPeers);
   }, [wsPeers]);
+  // What the files sidebar's Home shows beside the clusters: the newest
+  // conversations, who's here and where (hooks/useHomeRail.js). Off elsewhere.
+  const homeRail = useHomeRail({
+    enabled: filesSidebar && currentSurface === 'home',
+    conversationList, selfId: user.id, wsPeers, boards,
+  });
+  // The files sidebar's Home keeps the universe behind its button: its own
+  // flag, off whenever you come back to Home, never remembered (the old
+  // Home's soleil.home.exploring would open it straight into the 3D view).
+  const [homeUniverse, setHomeUniverse] = useState(false);
+  useEffect(() => { if (currentSurface !== 'home') setHomeUniverse(false); }, [currentSurface]);
+  const openHomeUniverse = (open) => {
+    try { logEvent(EV.HOME_EXPLORE, { open: !!open }); } catch (_) {}
+    setHomeUniverse(!!open);
+  };
 
   // Collaboration, as opposed to invitations. Everything about ASKING someone
   // to join was measured; whether two people were ever on a board together was
@@ -9543,7 +9573,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           personalWorkspaceId={personalWorkspaceId}
           selfUserId={user.id}
           wsPeers={wsPeers}
-          onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
+          onSelect={(id) => {
+            // From Home (the files sidebar's has no switcher of its own), land
+            // on Home in the other workspace too.
+            if (filesSidebar && currentSurface === 'home' && id !== workspace.id) markHomeAfterSwitch(id);
+            onSwitchWorkspace(id); setCurrentSurface('board');
+          }}
           onAddNew={addNewWorkspace}
           onRemove={(ws, action) => removeWorkspace(ws, action)}
           onOpenSettings={(ws) => openWorkspaceSettings(ws)}
@@ -9562,6 +9597,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const sharedBy = maskEmail(ownerPeer?.user?.email, workspace.created_by)
                        || maskName(ownerPeer?.user?.name, workspace.created_by)
                        || 'someone';
+      // The files sidebar's line says who's here, or whose it is, and
+      // nothing at all in a workspace that's only yours (lib/sidebarWho.js).
+      if (filesSidebar) {
+        const line = whoLine({
+          others: (wsPeers || []).filter(p => p?.user?.id && p.user.id !== user.id && p?.location?.isActive !== false).map(p => ({
+            id: p.user.id,
+            name: maskName(p.user.name, p.user.id) || maskEmail(p.user.email, p.user.id) || '',
+          })),
+          mine: isOwner || isPersonal,
+          sharedBy,
+          coowner: workspace._myRole === 'coowner',
+        });
+        return <SidebarWho line={line} />;
+      }
       const subtitle = isPersonal
         ? 'Personal'
         : isOwner
@@ -9713,7 +9762,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         shell the sidebar IS the drawer, and .sb-collapsed hides every row in
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
-    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}`}
+    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}${filesSidebar && currentSurface === 'home' ? ' is-home' : ''}`}
          style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarFootprint(sidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
@@ -9783,7 +9832,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               coarse={isTouch}
               quickNav={{
                 home: { active: currentSurface === 'home', onClick: () => setCurrentSurface('home') },
-                messages: { active: !!tweak.showMessages, unread: messagesUnread, onClick: () => setTweak('showMessages', !tweak.showMessages) },
+                // Messages opens over the cluster you're in, so it reads as
+                // pressed, not as where you are: the gold bar stays on that
+                // cluster.
+                messages: { pressed: !!tweak.showMessages, unread: messagesUnread, onClick: () => setTweak('showMessages', !tweak.showMessages) },
                 // No Schedule: the feature is retired (owner, 2026-10-18).
               }}
               listRef={sidebarScrollRef}
@@ -10211,7 +10263,64 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
         )}
 
-        {currentSurface === 'home' ? (
+        {currentSurface === 'home' && filesSidebar ? (
+          // The workspace at a glance (preview only; the owner's pick,
+          // 2026-10-19): the cluster to pick up, the clusters, and a rail of
+          // messages, who's here, what's shared and storage. The universe is
+          // behind a button: HomeGraph mounts, and its chunk loads, only then.
+          <ClustersHome
+            boards={boards}
+            rootId={rootBoard.id}
+            workspaceId={workspace.id}
+            recents={recents.recents}
+            canCreate={canEditBoard(rootBoard.id)}
+            exploring={homeUniverse && !mobileShell}
+            onExplore={openHomeUniverse}
+            onOpenBoard={(id, via) => {
+              try { logEvent(EV.HOME_OPEN_BOARD, { via, board_id: id }); } catch (_) {}
+              setStack(ancestorPath(boards, id));
+              recents.push(id);
+              setCurrentSurface('board');
+            }}
+            onNewProject={(name) => { mainMutators.addNewProject?.({ via: 'home', name }); }}
+            graph={!mobileShell ? (
+              <Suspense fallback={<div className="home-graph-wrap" />}>
+                <HomeGraph
+                  workspaceId={workspace.id}
+                  backdrop={false}
+                  onNavigate={(target) => {
+                    if (!target || target.kind === 'url') {
+                      if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');
+                      return;
+                    }
+                    setCurrentSurface('board');
+                    navHandlers[target.kind]?.(target);
+                  }}
+                />
+              </Suspense>
+            ) : null}
+            loadPhotos={loadClusterPhotos}
+            hereByBoard={homeRail.hereByBoard}
+            conversations={homeRail.conversations}
+            onOpenMessages={(convId) => { if (convId) setOpenConversationId(convId); setTweak('showMessages', true); }}
+            herePeople={homeRail.herePeople}
+            onJumpToPeer={jumpToPeer}
+            shared={sharedRoots.map(s => ({
+              id: s.board_id,
+              name: (s.board_name && s.board_name.trim()) || 'Untitled cluster',
+              from: s.source_workspace_name || '',
+              viewOnly: s.role === 'viewer',
+              board: boards[s.board_id] || null,
+            }))}
+            meter={{
+              isPaid: myTier.tier === 'paid' || myTier.tier === 'admin',
+              cardsUsed: myTier.demoCardCount,
+              cardLimit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
+              storage: sidebarStorage,
+            }}
+            onOpenPlan={() => openSettings('billing')}
+          />
+        ) : currentSurface === 'home' ? (
           <ProjectsHome
             boards={boards}
             rootId={rootBoard.id}
@@ -10493,6 +10602,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         />
       ), document.body)}
       {tweak.showMessages && createPortal((
+        // With the files sidebar Messages wears its card (messagesLook.js).
+        <MessagesLookContext.Provider value={filesSidebar ? 'card' : null}>
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
@@ -10516,6 +10627,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onPeerConsumed={() => setPendingDmPeerId(null)}
           onClose={() => setTweak('showMessages', false)}
         />
+        </MessagesLookContext.Provider>
       ), document.body)}
 
       {shareOpen && (() => {

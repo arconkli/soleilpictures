@@ -81,10 +81,12 @@ function ancestorsOf(boards, id) {
 }
 
 // Where to go: Home and Messages (App's), a row each. Words only, no icons
-// (the owner's call), and an unread count as a plain number at the row's end.
-function QuickBtn({ label, active = false, unread = 0, onClick }) {
+// (the owner's call), in the clusters' names column, and an unread count as a
+// plain number at the row's end. Home is a place (active: the gold bar);
+// Messages opens over where you are (pressed: the chip alone).
+function QuickBtn({ label, active = false, pressed = false, unread = 0, onClick }) {
   return (
-    <button type="button" className={`sbf-quickbtn${active ? ' is-on' : ''}`} aria-pressed={active} onClick={onClick}>
+    <button type="button" className={`sbf-quickbtn${active ? ' is-on' : ''}${pressed ? ' is-pressed' : ''}`} aria-pressed={active || pressed} onClick={onClick}>
       <span className="sbf-quick-label">{label}</span>
       {unread > 0 && <span className="sbf-quick-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
     </button>

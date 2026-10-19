@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit } from '../lib/icons.js';
@@ -28,6 +28,9 @@ import { showingConversation } from '../lib/threadAttention.js';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
 import { isDmConversation } from '../lib/conversationState.js';
+import { useMessagesLook } from './messagesLook.js';
+import { membersLine } from '../lib/messagesCard.js';
+import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 
 const STICK_THRESHOLD_PX = 80;
 // Start fetching the previous page this far before the reader hits the top.
@@ -42,6 +45,11 @@ export function MessageThread({
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
   const feedback = useFeedback();
+  // The files sidebar's card look: who's in it under the name, the thread in
+  // bubbles (messagesCard.css), no glowing mark on an empty one.
+  const card = useMessagesLook() === 'card';
+  // The dev QA harness's rows, when it provides them (lib/messagesFixture.js).
+  const fixture = useContext(MessagesFixtureContext);
 
   const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading } = useMessageThread({
     conversationId, userId,
@@ -226,12 +234,13 @@ export function MessageThread({
     if (replyParent) return;
     const topLevelIds = (messages || []).filter(m => !m.parent_id).map(m => m.id);
     if (topLevelIds.length === 0) { setReplyCounts(new Map()); return; }
+    if (fixture) { setReplyCounts(new Map(Object.entries(fixture.replyCounts?.[conversationId] || {}))); return; }
     let cancelled = false;
     replyCountsFor(topLevelIds).then(map => {
       if (!cancelled) setReplyCounts(map);
     });
     return () => { cancelled = true; };
-  }, [messages, replyParent]);
+  }, [messages, replyParent, fixture, conversationId]);
 
   // ── Pinned strip ─────────────────────────────────────────────────────
   const [pinned, setPinned] = useState([]);
@@ -241,10 +250,11 @@ export function MessageThread({
   const pinnedSig = messages.filter(m => m.is_pinned).map(m => m.id).join(',');
   useEffect(() => {
     if (!conversationId) return;
+    if (fixture) { setPinned(messages.filter(m => m.is_pinned)); return; }
     let cancelled = false;
     listPinnedForConversation({ conversationId }).then(rows => { if (!cancelled) setPinned(rows); });
     return () => { cancelled = true; };
-  }, [conversationId, messages.length, pinnedSig]);
+  }, [conversationId, messages.length, pinnedSig, fixture]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
   // Once, when the target's page is on screen. It re-ran on every new
@@ -634,7 +644,7 @@ export function MessageThread({
           <Icon as={ChevronLeft} size={14} />
         </button>
         <div className="msg-panel-title">
-          <div className="t-eyebrow msg-panel-eyebrow">{subtitle}</div>
+          {!card && <div className="t-eyebrow msg-panel-eyebrow">{subtitle}</div>}
           {renaming ? (
             <input
               className="msg-panel-name-input"
@@ -657,6 +667,11 @@ export function MessageThread({
             >
               {titleText}
             </button>
+          )}
+          {card && (
+            <div className="msg-panel-sub">
+              {replyParent ? 'Thread' : isDm ? 'Direct message' : membersLine(peerLabels)}
+            </div>
           )}
         </div>
         {!isDm && !replyParent && (
@@ -730,11 +745,20 @@ export function MessageThread({
 
       {showPinned && (
         <div className={`msg-pinned-strip ${pinnedExpanded ? 'is-expanded' : ''}`}>
-          <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)}>
-            <Icon as={Pin} size={11} />
-            <span className="t-eyebrow">PINNED · {pinned.length}</span>
-            <span className="msg-pinned-chev">{pinnedExpanded ? '▾' : '▸'}</span>
-          </button>
+          {card ? (
+            // One row: the newest pin's words, then how many there are.
+            <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)} aria-expanded={pinnedExpanded}>
+              <Icon as={Pin} size={13} />
+              <span className="msg-pinned-text">{(pinned[pinned.length - 1]?.body || '').replace(/\s+/g, ' ').trim()}</span>
+              <span className="msg-pinned-n">{pinned.length} pinned</span>
+            </button>
+          ) : (
+            <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)}>
+              <Icon as={Pin} size={11} />
+              <span className="t-eyebrow">PINNED · {pinned.length}</span>
+              <span className="msg-pinned-chev">{pinnedExpanded ? '▾' : '▸'}</span>
+            </button>
+          )}
           {pinnedExpanded && (
             <div className="msg-pinned-list">
               {pinned.map(p => (
@@ -752,7 +776,7 @@ export function MessageThread({
         </div>
       )}
 
-      <div className="msg-thread-body" ref={scrollRef} onScroll={onScroll}>
+      <div className={`msg-thread-body${card ? (isDm ? ' is-dm' : ' is-group') : ''}`} ref={scrollRef} onScroll={onScroll}>
         {!searchOpen && !replyParent && hasOlder && (
           <button
             type="button"
@@ -797,7 +821,7 @@ export function MessageThread({
           null
         ) : isEmpty ? (
           <div className="msg-empty msg-empty-hero">
-            <SoleilMark size={32} color="var(--soleil)" glow />
+            {!card && <SoleilMark size={32} color="var(--soleil)" glow />}
             <div className="msg-empty-title">No messages yet</div>
             <div className="msg-empty-sub">Say hi</div>
           </div>

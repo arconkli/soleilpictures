@@ -170,10 +170,14 @@ test.describe('sidebar files', () => {
     expect(cards[1][1] - cards[0][2]).toBe(8);
     const left = (sel) => page.locator(sel).first().evaluate((el) =>
       Math.round(el.getBoundingClientRect().left - el.closest('.sidebar').getBoundingClientRect().left));
-    for (const sel of ['.sb-ws-avatar', '.sbf-quickbtn .sbf-quick-label', '.sb-boards-head-label',
+    for (const sel of ['.sb-ws-avatar', '.sb-boards-head-label',
       '.sbf-search svg', '.sbf-shelf-label', '.sbf-file-thumb', '.sbf-meter-track', '.sbf-meter-text']) {
       expect(await left(sel), sel).toBe(23);
     }
+    // Who's here sits under the workspace's name; Home and Messages are words
+    // in the cluster names' column (round 8, the owner's pick D).
+    expect(await left('.sbf-who .sbf-who-faces')).toBe(51);
+    expect(await left('.sbf-quickbtn .sbf-quick-label')).toBe(39);
     expect(await left('.sbf-tabs')).toBe(15);        // the segmented control's track, its chips inside
     // The tree's chevrons sit on that edge: names 16px a level. A file's name follows its thumbnail.
     expect(await left('.sb-tree-row[aria-level="1"] .sb-tree-chev')).toBe(23);

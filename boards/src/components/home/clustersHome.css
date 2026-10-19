@@ -1,0 +1,222 @@
+/* Home with the files sidebar (ClustersHome; preview only). The sidebar's
+   vocabulary: its glass for cards, its small uppercase headings, its quiet
+   buttons and its chip for what's pressed. Home sits on the board's ground,
+   which runs on under the sidebar's cards as a board does (App puts .is-home
+   on .app while Home shows). */
+
+.app.sb-files.is-home {
+  --ch-dot2: rgba(245, 245, 247, .085);
+  background-color: var(--bg-0);
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--ch-dot2) 1.25px, transparent 1.75px),
+    radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1.5px),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 80px 80px, 20px 20px, 80px 80px, 80px 80px;
+}
+[data-theme='light'] .app.sb-files.is-home { --ch-dot2: rgba(10, 10, 12, .11); }
+
+.ch-root {
+  position: relative; flex: 1; min-height: 0; height: 100%; overflow-x: hidden; overflow-y: auto;
+  scrollbar-width: none; color: var(--ink-1); container: ch-root / inline-size;
+}
+.ch-root::-webkit-scrollbar { display: none; }
+.ch-layout {
+  box-sizing: border-box; height: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr) 296px; gap: 24px;
+  padding: 16px 24px 0 40px;
+}
+/* Clear the floating islands (they end 44px down). */
+.app.is-floating-chrome .ch-layout { padding-top: 58px; }
+.ch-main, .ch-rail { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.ch-main::-webkit-scrollbar, .ch-rail::-webkit-scrollbar { display: none; }
+.ch-main { min-width: 0; padding-bottom: 32px; container: ch-main / inline-size; }
+.ch-rail { display: flex; flex-direction: column; gap: 8px; padding-bottom: 24px; }
+
+/* The sidebar's glass, for Home's own cards. */
+.ch-glass {
+  position: relative; border-radius: 12px; background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--sbf-glass-shadow);
+}
+.ch-glass::after {
+  content: ''; position: absolute; inset: 0; border: 1px solid var(--sbf-glass-line);
+  border-radius: inherit; pointer-events: none;
+}
+
+.ch-h {
+  margin: 0; font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--sbf-quiet);
+}
+.ch-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 28px; margin: 0 2px 10px; }
+.ch-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border: 0; border-radius: 7px; background: transparent; color: var(--ink-2);
+  font: 500 12.5px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.ch-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.ch-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+
+/* A cover: the board as last rendered, or a small empty canvas. */
+.ch-cover {
+  position: relative; display: block; width: 100%; aspect-ratio: 16 / 10;
+  border-radius: 8px; overflow: hidden; background: var(--bg-2);
+}
+.ch-cover img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform var(--dur-slow) var(--ease); }
+.ch-cover::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--sbf-thumb-line);
+}
+.ch-cover.is-empty {
+  background-color: var(--bg-1);
+  background-image: radial-gradient(circle at 1px 1px, var(--ch-dot2, rgba(245, 245, 247, .085)) 1px, transparent 1.5px);
+  background-size: 10px 10px;
+}
+
+/* The cluster to pick up: its newest photos, then its name, where it is,
+   and who's in it now. */
+.ch-cont {
+  display: flex; gap: 16px; width: 100%; margin: 0 0 12px; padding: 6px; border: 0;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.ch-cont:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.ch-collage, .ch-collage-cover { flex: 0 1 340px; width: 340px; min-width: 0; height: 204px; aspect-ratio: auto; border-radius: 7px; }
+.ch-collage {
+  display: grid; gap: 4px; overflow: hidden;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.ch-collage.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+.ch-collage.n1 { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.ch-collage.n3 img:first-child { grid-row: 1 / span 2; }
+.ch-collage img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: cover; transition: transform var(--dur-slow) var(--ease); }
+.ch-cont:hover .ch-collage img, .ch-cont:hover .ch-collage-cover img { transform: scale(1.015); }
+.ch-cont-meta { flex: 1 0 180px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 8px 8px 0; }
+.ch-cont-name { font: 600 15px/1.25 var(--font-sans); color: var(--ink-0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-cont-sub { font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); }
+.ch-here { display: flex; align-items: center; gap: 7px; margin-top: 10px; color: var(--ink-2); font: 500 12px/1 var(--font-sans); }
+.ch-faces { display: flex; }
+.ch-face {
+  width: 18px; height: 18px; margin-left: -4px; border-radius: 5px; display: grid; place-items: center;
+  box-shadow: 0 0 0 1.5px var(--bg-1); color: rgba(10, 10, 12, .84); font: 700 9.5px/1 var(--font-sans);
+}
+.ch-face:first-child { margin-left: 0; }
+
+.ch-recents { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 28px; }
+.ch-chip {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 220px; height: 30px; padding: 0 10px 0 4px;
+  border: 0; border-radius: 8px; background: var(--sbf-count); color: var(--ink-1);
+  font: 500 12px/1 var(--font-sans); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.ch-chip:hover { background: var(--bg-hov); color: var(--ink-0); }
+.ch-chip:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.ch-chip-cover { flex: 0 0 34px; width: 34px; border-radius: 4px; }
+.ch-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The clusters at the top of the workspace. */
+.ch-first { margin: 2px 2px 16px; color: var(--ink-2); font: 400 13px/1.5 var(--font-sans); }
+.ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 22px 16px; }
+.ch-tile {
+  display: flex; flex-direction: column; min-width: 0; padding: 0; border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.ch-tile .ch-cover { margin-bottom: 9px; transition: transform var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease); }
+.ch-tile:hover .ch-cover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+.ch-tile:focus-visible { outline: none; }
+.ch-tile:focus-visible .ch-cover { box-shadow: 0 0 0 2px var(--soleil); }
+.ch-tile-name { padding: 0 2px; font: 500 13px/1.3 var(--font-sans); color: var(--ink-0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-tile-sub { margin-top: 2px; padding: 0 2px; font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-new-cover { display: grid; place-items: center; background: transparent; color: var(--ink-2); }
+.ch-new-cover::after { box-shadow: none; border: 1.5px dashed var(--line-2); }
+.ch-new:hover .ch-new-cover { color: var(--ink-0); transform: none; box-shadow: none; }
+.ch-new-input {
+  margin: 0 2px; padding: 0 0 3px; border: 0; border-bottom: 1px solid var(--line-3); outline: 0;
+  background: transparent; color: var(--ink-0); font: 500 13px/1.3 var(--font-sans);
+}
+.ch-new-input::placeholder { color: var(--ink-3); }
+.ch-new-input:focus { border-bottom-color: var(--soleil); }
+
+/* Sort: a quiet button and a small menu in the app's menu material. */
+.ch-sort { position: relative; }
+.ch-menu {
+  position: absolute; z-index: 20; top: 32px; right: 0; min-width: 150px; padding: 4px;
+  border-radius: 10px; background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2), 0 12px 32px rgba(0, 0, 0, .38), 0 2px 8px rgba(0, 0, 0, .22);
+}
+[data-theme='light'] .ch-menu { box-shadow: inset 0 0 0 1px var(--line-2), 0 12px 32px rgba(10, 10, 12, .12), 0 2px 8px rgba(10, 10, 12, .06); }
+.ch-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px 0 8px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ink-1);
+  font: 500 12.5px/1 var(--font-sans); text-align: left; cursor: pointer;
+}
+.ch-menu-item:hover, .ch-menu-item:focus-visible { outline: none; background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
+.ch-menu-check { width: 12px; display: grid; place-items: center; color: var(--ink-0); }
+
+/* The rail: the sidebar's cards, one job each. */
+.ch-card { flex-shrink: 0; padding: 2px 7px 7px; }
+.ch-card-head { display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 0 0 8px; }
+.ch-none { margin: 0; padding: 6px 8px 8px; color: var(--ink-3); font: 400 12.5px/1.45 var(--font-sans); }
+.ch-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; box-sizing: border-box;
+  padding: 6px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-1);
+  font: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.ch-item:hover:not(:disabled) { background: var(--bg-hov); }
+.ch-item:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.ch-item:disabled { cursor: default; }
+.ch-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ch-item-name { font: 500 13px/1.25 var(--font-sans); color: var(--ink-0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-item-sub { font: 400 12px/1.25 var(--font-sans); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-item.is-unread .ch-item-name { font-weight: 600; }
+.ch-item.is-unread .ch-item-sub { color: var(--ink-1); }
+.ch-item-cover { flex: 0 0 40px; width: 40px; border-radius: 5px; }
+.ch-av {
+  flex: 0 0 24px; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  background: var(--bg-4); color: rgba(10, 10, 12, .84); font: 700 11px/1 var(--font-sans);
+}
+.ch-stack { position: relative; flex: 0 0 24px; width: 24px; height: 24px; }
+.ch-stack .ch-av { position: absolute; width: 16px; height: 16px; border-radius: 5px; font-size: 8px; box-shadow: 0 0 0 1.5px var(--bg-1); }
+.ch-stack .ch-av:first-child { left: 0; top: 0; }
+.ch-stack .ch-av:last-child { right: 0; bottom: 0; }
+.ch-count {
+  flex-shrink: 0; box-sizing: border-box; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  display: grid; place-items: center; background: var(--sbf-count); color: var(--ink-0);
+  font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.ch-tag { flex-shrink: 0; color: var(--ink-3); font: 500 11.5px/1 var(--font-sans); }
+.ch-card .sbf-meter { margin: 0; padding: 2px 8px 6px; border: 0; background: none; }
+
+/* The universe, behind its button: the 3D map fills Home, with a way back. */
+.ch-root.is-exploring .ch-graph { position: absolute; inset: 0; }
+.ch-back {
+  position: absolute; z-index: 3; left: 16px; top: 16px;
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 13px 0 10px;
+  border: 0; border-radius: 10px; color: var(--ink-0); font: 600 12.5px/1 var(--font-sans); cursor: pointer;
+}
+.app.is-floating-chrome .ch-back { top: 58px; }
+.ch-back:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
+/* Narrow (a phone, a small window): one column, the rail after the
+   clusters, and the whole of Home scrolls. */
+@container ch-root (max-width: 760px) {
+  .ch-layout { display: block; height: auto; padding: 16px 16px 24px; }
+  .app.is-floating-chrome .ch-layout { padding-top: 58px; }
+  .ch-main, .ch-rail { overflow: visible; }
+  .ch-rail { margin-top: 8px; }
+}
+/* The pick-up card goes by its own column: too narrow for the photos beside
+   the words (a mid-size window beside the rail, or a phone), it stacks. */
+@container ch-main (max-width: 560px) {
+  .ch-cont { flex-direction: column; gap: 8px; }
+  .ch-collage, .ch-collage-cover { flex: none; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+  .ch-cont-meta { flex: none; }
+}
+@container ch-main (max-width: 420px) {
+  .ch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
+}
+@media (pointer: coarse) {
+  .ch-chip { height: 40px; }
+  .ch-btn { height: 36px; }
+}

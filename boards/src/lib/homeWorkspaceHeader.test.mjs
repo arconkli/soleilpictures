@@ -76,8 +76,10 @@ test('App: Home\'s switcher lands on Home; the sidebar\'s still goes to the canv
   assert.match(app, /useState\(\(\) => \(arrivedOnHome \? 'home' : 'board'\)\);\s*useEffect\(\(\) => \{ clearHomeAfterSwitch\(\); clearSettingsAfterSwitch\(\); \}, \[\]\);/);
   assert.match(app, /const addNewWorkspace = async \(\{ thenHome = false \} = \{\}\) => \{/);
   assert.match(app, /if \(thenHome === true\) markHomeAfterSwitch\(ws\.id\);\s*onSwitchWorkspace\?\.\(ws\.id\);/);
-  assert.match(app, /onSelect=\{\(id\) => \{ onSwitchWorkspace\(id\); setCurrentSurface\('board'\); \}\}/,
-    'the sidebar switcher is unchanged: it takes you to work');
+  // The sidebar's switcher takes you to work — except from the files
+  // sidebar's Home, which has no switcher of its own: that lands on Home.
+  assert.match(app, /onSelect=\{\(id\) => \{[\s\S]{0,260}?if \(filesSidebar && currentSurface === 'home' && id !== workspace\.id\) markHomeAfterSwitch\(id\);\s*onSwitchWorkspace\(id\); setCurrentSurface\('board'\);\s*\}\}/,
+    'the sidebar switcher takes you to work, and from the files Home to Home');
 });
 
 test('a Settings note opens Settings in the workspace switched to, on its tab, and only there', () => {

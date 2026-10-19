@@ -8,6 +8,7 @@
 // DEV-only: main.jsx mounts it behind the literal import.meta.env.DEV guard.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import '../styles.css';
 import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
@@ -18,6 +19,17 @@ import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Settings } from '../lib/icons.js';
+import { SidebarWho } from '../components/sidebar/SidebarWho.jsx';
+import { whoLine } from '../lib/sidebarWho.js';
+import { ClustersHome } from '../components/home/ClustersHome.jsx';
+import { MessagesPanel } from '../components/MessagesPanel.jsx';
+import { MessagesLookContext } from '../components/messagesLook.js';
+import { MessagesFixtureContext } from '../lib/messagesFixture.js';
+import { FeedbackProvider } from '../components/AppFeedback.jsx';
+import * as userProfiles from '../lib/userProfiles.js';
+import { pickPresenceColor } from '../lib/presenceColor.js';
+import { railConversations } from '../lib/homeRail.js';
+import { SELF, PEERS, messagesFixture, HOME_COVERS, HOME_PHOTOS, HOME_SHARED } from './sidebarQaFixtures.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -182,7 +194,42 @@ const QA_STYLE = `
 .sbqa-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); z-index: 1; }
 .sbqa-tag, .sbqa-faces { color: var(--ink-1); font: 500 12px var(--font-sans); padding: 4px 8px; }
+.sbqa-universe { position: absolute; inset: 0; display: grid; place-items: center; background: #0a0908; color: var(--ink-3); font: 500 13px var(--font-sans); }
+.sbqa-home-readout { position: fixed; left: 340px; bottom: 6px; z-index: 5; opacity: .6; }
 `;
+
+// What the URL asks for: Home instead of the board (&surface=home), Messages
+// open (&messages=1; &conv=<id> opens a conversation, &readonly=1 as a
+// viewer), and the line under the workspace (&who=here|shared|none).
+const QS = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+const SURFACE = QS.get('surface') === 'home' ? 'home' : 'board';
+const MSG_QA = QS.has('messages');
+const WHO = QS.get('who') || 'here';
+// A phone shows the drawer open unless &drawer=0 asks for what's under it.
+const DRAWER = QS.get('drawer') !== '0';
+userProfiles.populateFromPeers(PEERS);
+
+// Home: the harness's clusters with real covers and an order, who's where,
+// and the rail's conversations from the same fixture Messages draws.
+const HERE_PEOPLE = [
+  { id: 'maya', name: 'Maya Ortiz', initial: 'M', where: 'In Feature film', loc: { boardId: 'film' }, color: pickPresenceColor('maya') },
+  { id: 'jon', name: 'Jon Park', initial: 'J', where: 'In Casting', loc: { boardId: 'cast' }, color: pickPresenceColor('jon') },
+];
+const HERE_BY_BOARD = new Map([['film', [HERE_PEOPLE[0]]], ['cast', [HERE_PEOPLE[1]]]]);
+function railRowsFrom(fx) {
+  const byConv = new Map();
+  const mine = new Map();
+  for (const p of fx.participants) {
+    byConv.set(p.conversation_id, [...(byConv.get(p.conversation_id) || []), p]);
+    if (p.user_id === SELF.id) mine.set(p.conversation_id, p);
+  }
+  const unread = new Map(Object.entries(fx.counts));
+  return railConversations({ conversations: fx.conversations, participantsByConv: byConv, myStateByConv: mine, unreadByConv: unread }, {
+    selfId: SELF.id,
+    nameOf: (id) => userProfiles.get(id)?.name || '',
+    colorOf: (id) => userProfiles.get(id)?.color || pickPresenceColor(id),
+  });
+}
 
 // The stand-in board under the canvas's real wrappers (App's split pane, its
 // surface, FilesDock), panned so its first column starts under the sidebar:
@@ -229,6 +276,22 @@ export function SidebarQaHarness() {
   const [live, setLive] = useState(true);
   const [toast, setToast] = useState(null);
   const listRef = useRef(null);
+  const [msgsOpen, setMsgsOpen] = useState(MSG_QA);
+  const [openConv, setOpenConv] = useState(QS.get('conv') || null);
+  const [exploring, setExploring] = useState(false);
+  const fixture = useMemo(() => messagesFixture(), []);
+  const railRows = useMemo(() => railRowsFrom(fixture), [fixture]);
+  const homeBoards = useMemo(() => Object.fromEntries(Object.entries(allBoards).map(([id, b], i) => [id, {
+    ...b, thumb_key: HOME_COVERS[id] || b.thumb_key, card_count: (CARDS[id] || []).length,
+    updated_at: { film: '2026-10-19T08:00:00Z', cast: '2026-10-18T16:00:00Z', mv: '2026-10-16T10:00:00Z' }[id] || `2026-09-${10 + i}T10:00:00Z`,
+  }])), [allBoards]);
+  // App's <body> hooks while the files sidebar is on: Messages portals there.
+  useEffect(() => {
+    const b = document.body;
+    b.setAttribute('data-sb-files', '1');
+    if (!phone) b.setAttribute('data-sb-float', '1');
+    return () => { b.removeAttribute('data-sb-files'); b.removeAttribute('data-sb-float'); };
+  }, [phone]);
   const source = useMemo(() => {
     const s = makeSource(new Set(['mood:', 'loc:loc-img-0']));
     window.__sidebarQa = {
@@ -287,12 +350,9 @@ export function SidebarQaHarness() {
           </div>
         )}
       </div>
-      <div className="sb-mid-subtitle">Yours</div>
-      <div className="sb-members" title="3 members">
-        <span className="sb-member is-online" style={{ background: '#2f6fd6' }} />
-        <span className="sb-member is-online" style={{ background: '#b4532a' }} />
-        <span className="sb-member" style={{ background: '#3f8f6b' }} />
-      </div>
+      <SidebarWho line={WHO === 'none' ? null : whoLine(WHO === 'shared'
+        ? { mine: false, sharedBy: 'Maya Ortiz' }
+        : { mine: true, others: [{ id: 'maya', name: 'Maya Ortiz' }, { id: 'jon', name: 'Jon Park' }] })} />
     </div>
   );
   // Help, Settings and you.
@@ -311,16 +371,16 @@ export function SidebarQaHarness() {
   return (
     <>
     <style>{QA_STYLE}</style>
-    <div className={`app sb-files${phone ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}`}
+    <div className={`app sb-files${phone ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${SURFACE === 'home' ? ' is-home' : ''}`}
          style={{ '--sb-w': `${collapsed ? 0 : phone ? drawerW : sidebarFootprint(layout, { coarse: phone, roomy, snug })}px`, height: '100vh' }} data-sidebarqa-ready="1">
-      <aside className={`sidebar${phone ? ' is-mobile-open' : ''}`}>
+      <aside className={`sidebar${phone && DRAWER ? ' is-mobile-open' : ''}`}>
         <div className="sb-mid">
           <ClusterSidebar
             workspaceId={WS}
             boards={BOARDS}
             allBoards={allBoards}
             rootId="root"
-            activeBoardId={active}
+            activeBoardId={SURFACE === 'home' ? null : active}
             liveBoardId={live ? active : null}
             liveCards={live ? (CARDS[active] || []) : null}
             coarse={phone}
@@ -333,13 +393,13 @@ export function SidebarQaHarness() {
             snug={snug}
             sizable={!phone && !collapsed}
             quickNav={{
-              home: { active: false, onClick: () => say('home') },
-              messages: { active: false, unread: 2, onClick: () => say('messages') },
+              home: { active: SURFACE === 'home', onClick: () => say('home') },
+              messages: { pressed: msgsOpen, unread: 2, onClick: () => { say('messages'); if (MSG_QA) setMsgsOpen((o) => !o); } },
             }}
             listRef={listRef}
             source={source}
             boardsSectionProps={{
-              boards: BOARDS, workspaceId: WS, rootId: 'root', activeBoardId: active,
+              boards: BOARDS, workspaceId: WS, rootId: 'root', activeBoardId: SURFACE === 'home' ? null : active,
               onOpenBoard: (id) => setActive(id), canEditBoard: () => true,
               onOpenPicker: () => say('picker'),
             }}
@@ -413,6 +473,27 @@ export function SidebarQaHarness() {
             that let the board run under the sidebar walk this chain, and a
             stand-in that skipped a link once let them pass here while they
             matched nothing in the app. */}
+        {SURFACE === 'home' ? (
+          <>
+            <ClustersHome
+              boards={homeBoards} rootId="root" workspaceId={WS} recents={['film', 'cast', 'mv']} canCreate
+              exploring={exploring} onExplore={setExploring}
+              onOpenBoard={(id, via) => say(`home ${via} ${id}`)}
+              onNewProject={(name) => say(`new cluster ${name || ''}`)}
+              graph={phone ? null : <div className="sbqa-universe" data-testid="sbqa-universe">The universe</div>}
+              loadPhotos={async (id) => HOME_PHOTOS[id] || []}
+              hereByBoard={HERE_BY_BOARD}
+              conversations={railRows}
+              onOpenMessages={(id) => { say(`messages ${id || ''}`); setOpenConv(id); if (MSG_QA) setMsgsOpen(true); }}
+              herePeople={HERE_PEOPLE}
+              onJumpToPeer={(loc) => say(`jump ${loc?.boardId}`)}
+              shared={HOME_SHARED}
+              meter={{ isPaid: false, cardsUsed: 38, cardLimit: 50, storage: { used: 1.2 * 1024 ** 3, quota: 5 * 1024 ** 3, loading: false } }}
+              onOpenPlan={() => say('plan')}
+            />
+            <div className="sbqa-readout sbqa-home-readout"><div data-testid="sbqa-log">{log.join(' | ')}</div></div>
+          </>
+        ) : (
         <div className="split-wrap">
         <div className="split-pane" style={{ flex: 1 }}>
         <div className="surface-wrap is-canvas">
@@ -460,8 +541,27 @@ export function SidebarQaHarness() {
         </div>
         </div>
         </div>
+        )}
       </main>
     </div>
+    {msgsOpen && createPortal((
+      <FeedbackProvider>
+        <MessagesFixtureContext.Provider value={fixture}>
+          <MessagesLookContext.Provider value="card">
+            <MessagesPanel
+              workspaceId={WS} currentUser={SELF}
+              canSendMessages={!QS.has('readonly')} readOnlyReason={QS.has('readonly') ? 'viewer' : null}
+              refreshTick={0}
+              openConversationId={openConv} setOpenConversationId={setOpenConv}
+              initialOpenConversationId={null} jumpToMessageId={null} pendingOpenPeerId={null}
+              suggestedUserIds={new Set(['maya', 'jon'])}
+              onRefreshRequested={() => {}} onPermalinkConsumed={() => {}} onPeerConsumed={() => {}}
+              onClose={() => setMsgsOpen(false)}
+            />
+          </MessagesLookContext.Provider>
+        </MessagesFixtureContext.Provider>
+      </FeedbackProvider>
+    ), document.body)}
     </>
   );
 }

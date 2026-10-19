@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { fetchConversationMessages, fetchConversationRange, markRead } from '../lib/messages.js';
 import { subscribeConversation } from '../lib/messageRealtime.js';
 import { MESSAGE_PAGE, mergeNewestPage, prependOlder, lastMessageId } from '../lib/messagePaging.js';
 import { tabIsAttended } from '../lib/threadAttention.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
 import { watchForResync } from '../lib/messageResync.js';
+import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 
 const NO_MESSAGES = [];
 
@@ -25,6 +26,8 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   // The last newest-page read failed. The thread keeps what it shows; an
   // empty one says "Couldn't load" rather than "No messages yet" (COMMS-15).
   const [failed, setFailed] = useState(false);
+  // The dev QA harness's rows, when it provides them (lib/messagesFixture.js).
+  const fixture = useContext(MessagesFixtureContext);
   const onMarkedReadRef = useRef(onMarkedRead);
   onMarkedReadRef.current = onMarkedRead;
   // A fetch that resolves after a conversation switch must not paint the
@@ -69,7 +72,9 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     const superseded = () => seq !== seqRef.current;
     const read = (async () => {
       if (!conversationId) { setMessages([]); setHasOlder(false); setFailed(false); return; }
-      const rows = await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
+      const rows = fixture
+        ? (fixture.messages?.[conversationId] || [])
+        : await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
       if (convRef.current !== conversationId) return;
       if (superseded()) return latestReadRef.current;
       setFailed(rows == null);
@@ -95,7 +100,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     })();
     latestReadRef.current = read;
     return read;
-  }, [conversationId]);
+  }, [conversationId, fixture]);
 
   useEffect(() => { refetch(); }, [refetch]);
 
@@ -147,6 +152,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   const shown = messages.length && messages[0].conversation_id !== conversationId ? NO_MESSAGES : messages;
   const lastId = lastMessageId(shown);
   useEffect(() => {
+    if (fixture) return;
     if (!userId || !conversationId || !attended) return;
     let cancelled = false;
     (async () => {
@@ -155,11 +161,15 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
       if (ok) onMarkedReadRef.current?.();
     })();
     return () => { cancelled = true; };
-  }, [userId, conversationId, lastId, attended]);
+  }, [userId, conversationId, lastId, attended, fixture]);
 
   // Realtime subscribe.
   useEffect(() => {
     if (!conversationId) return;
+    if (fixture) {
+      setTypingUsers(new Map(Object.entries(fixture.typing?.[conversationId] || {})));
+      return;
+    }
     const onMessage = () => refetch();
     const onTyping = ({ user_id, ts }) => {
       if (user_id === userId) return;
@@ -182,7 +192,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
       if (payload?.conversation_id === conversationId) resync.kick();
     });
     return () => { resync.stop(); unsubInbox(); unsub(); };
-  }, [conversationId, userId, refetch]);
+  }, [conversationId, userId, refetch, fixture]);
 
   return {
     messages: shown, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed,
