@@ -51,7 +51,7 @@ test('groupItems by type', () => {
   const xs = [it('1', { shelf: 'writing', kind: 'note' }), it('2'), it('3', { shelf: 'writing', kind: 'note' })];
   const g = groupItems(xs, {});
   assert.deepEqual(g.map((s) => [s.id, s.label, s.layout, ids(s.items)]), [
-    ['photos', 'Photos', 'rows', ['2']], ['writing', 'Writing', 'rows', ['1', '3']],
+    ['photos', 'Photos', 'rows', ['2']], ['writing', 'Notes', 'fold', ['1', '3']],
   ]);
 });
 

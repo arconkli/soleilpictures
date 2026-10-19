@@ -67,8 +67,12 @@ export function shelfKey(boardId, shelfId) {
   return `${boardId}:${shelfId}`;
 }
 
-// field is 'open' (a fold shelf's rows showing) or 'expanded' (past the peek).
+// field is 'open' (a shelf that starts closed, opened), 'shut' (one that
+// starts open, closed) or 'expanded' (past the peek).
 export function toggleShelf(map, key, field) {
-  const cur = map[key] || { open: false, expanded: false };
-  return { ...map, [key]: { open: !!cur.open, expanded: !!cur.expanded, [field]: !cur[field] } };
+  const cur = map[key] || {};
+  return {
+    ...map,
+    [key]: { open: !!cur.open, shut: !!cur.shut, expanded: !!cur.expanded, [field]: !cur[field] },
+  };
 }

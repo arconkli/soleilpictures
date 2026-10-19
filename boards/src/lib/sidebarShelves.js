@@ -1,24 +1,29 @@
 // The shelves a cluster's contents sit on in the sidebar.
 //
-// The sidebar lists EVERYTHING in a cluster, so it has to sort it before it
-// shows it: sub-clusters first, then one shelf per kind of thing, in the order
-// people look for them. Every shelf is a list of rows, a small thumbnail beside
-// each name: the board is the visual place, the sidebar a calm list (owner,
-// 2026-10-18). Links and everything else can fold into one line until opened.
+// The sidebar holds everything in a cluster, so it sorts it before it shows
+// it: one shelf per kind of thing, in the order people look for them. Every
+// shelf is a list of rows, a small thumbnail beside each name: the board is
+// the visual place, the sidebar a calm list (owner, 2026-10-18).
 //
-// SHELF_OF_KIND has a twin in SQL — sidebar_shelf_of() in
-// supabase/migrations/0419_sidebar_files.sql — because a closed cluster is
-// counted and paged on the server. sidebarShelves.test.mjs reads that migration
-// and fails when the two disagree, so change both or neither.
+// The files tab is files: photos, video, audio and files (PDFs, uploads and
+// docs) are listed. Notes, links and everything else ('fold') are summed up,
+// one closed heading each with its count, until someone opens one (owner,
+// 2026-10-18: "it should be files, or those items summarized as something").
+// The notes' shelf keeps its old id, 'writing', which the server returns.
+//
+// SHELF_OF_KIND has a twin in SQL — sidebar_shelf_of(), last defined in
+// supabase/migrations/0428_sidebar_docs_with_files.sql — because a closed
+// cluster is counted and paged on the server. sidebarShelves.test.mjs reads the
+// newest definition and fails when the two disagree, so change both or neither.
 
 export const SHELVES = [
   { id: 'photos',  label: 'Photos',  layout: 'rows' },
   { id: 'video',   label: 'Video',   layout: 'rows' },
   { id: 'audio',   label: 'Audio',   layout: 'rows' },
   { id: 'files',   label: 'Files',   layout: 'rows' },
-  { id: 'writing', label: 'Writing', layout: 'rows' },
+  { id: 'writing', label: 'Notes',   layout: 'fold' },
   { id: 'links',   label: 'Links',   layout: 'fold' },
-  { id: 'more',    label: 'More',    layout: 'fold' },
+  { id: 'more',    label: 'Other',   layout: 'fold' },
 ];
 
 export const SHELF_IDS = SHELVES.map((s) => s.id);
@@ -36,8 +41,8 @@ export const SHELF_OF_KIND = Object.freeze({
   audio: 'audio',
   pdf: 'files',
   file: 'files',
+  doc: 'files',
   note: 'writing',
-  doc: 'writing',
   link: 'links',
   board: null,
   boardlink: null,
@@ -57,8 +62,8 @@ export const SHELF_BUCKETS = Object.freeze({
   photos: ['image'],
   video: ['video'],
   audio: ['audio'],
-  files: ['pdf', 'file'],
-  writing: ['note', 'doc'],
+  files: ['pdf', 'file', 'doc'],
+  writing: ['note'],
   links: ['link'],
   more: ['palette', 'other'],
 });
@@ -72,7 +77,7 @@ export const FILTER_CHIPS = [
   { id: 'video', label: 'Video' },
   { id: 'audio', label: 'Audio' },
   { id: 'files', label: 'Files' },
-  { id: 'writing', label: 'Writing' },
+  { id: 'writing', label: 'Notes' },
   { id: 'links', label: 'Links' },
   { id: 'unplaced', label: 'Not on board' },
 ];

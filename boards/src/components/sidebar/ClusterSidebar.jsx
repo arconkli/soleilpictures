@@ -18,6 +18,8 @@
 // Starred), a search field with an "All files ⌄" menu beside it that filters,
 // sorts and groups, then the files as rows, a small thumbnail beside each name
 // (owner, 2026-10-18: the board is the visual place, the sidebar a calm list).
+// Notes, links and the rest are summed up under the files, a closed heading
+// each with its count, until a search, a filter or Starred asks for them.
 // Clicking a file opens Quick look; double-clicking goes to it on its board.
 // Files drag onto any cluster in the tree to move there (⌥ copies), and files
 // from the desktop drop on a cluster or onto the section itself.
@@ -838,6 +840,7 @@ export function ClusterSidebar({
               contents={contents}
               emptyNote={emptyNote}
               coarse={coarse}
+              foldMinor={view !== 'starred' && chip === 'all' && !query.trim()}
               shelfState={shelfState} onToggleShelf={onToggleShelf}
               onLoadMore={files.loadMore} canLoadMore={view === 'cluster' ? files.canLoadMore : () => false}
               onItem={onItem}

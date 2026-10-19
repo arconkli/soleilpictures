@@ -10,8 +10,8 @@
 // A shelf header's height includes the air above its label (it is what
 // separates one shelf from the next).
 export const ROW_HEIGHTS = {
-  fine: { cluster: 36, shelf: 28, file: 28, fold: 28, more: 28, loading: 28, empty: 28 },
-  coarse: { cluster: 44, shelf: 36, file: 44, fold: 44, more: 44, loading: 44, empty: 44 },
+  fine: { cluster: 36, shelf: 28, file: 28, more: 28, loading: 28, empty: 28 },
+  coarse: { cluster: 44, shelf: 36, file: 44, more: 44, loading: 44, empty: 44 },
 };
 
 // One level of the tree, in px: cluster rows step in by it (SidebarBoardTree),
@@ -22,14 +22,21 @@ export const INDENT = 16;
 export const PEEK = { rows: 5 };
 
 // One cluster's contents as rows: its shelves (header, file rows, "Show N
-// more"), the folded Links · More line and any fold shelf opened
-// under it, or a single loading / empty row. `depth` is the indent the rows
+// more"), or a single loading / empty row. `depth` is the indent the rows
 // take; `hasChildren` says whether sub-clusters sit above them (a cluster with
 // sub-clusters and nothing of its own is not "empty").
 //
+// A shelf's header opens and closes it. Files start open; the shelves laid out
+// 'fold' (notes, links, everything else) start closed, so the list is the
+// files and, under them, one header a kind saying what else is there (owner,
+// 2026-10-18). A shelf's state says which way it was turned: `open` for one
+// that starts closed, `shut` for one that starts open. With no files at all
+// nothing starts closed (then the rest is all there is), and `foldMinor:
+// false` — a search, a filter, Starred — opens everything: what was asked for
+// is never kept behind a header.
+//
 // `heights` overrides row heights by type (the files list's rows are roomier
-// than the tree's); `foldMinor: false` lists Links and More as ordinary
-// shelves instead of folding them into one line.
+// than the tree's).
 export function contentRows(b, depth, {
   contents, shelfState = () => ({}), coarse = false, hasChildren = false,
   heights: heightOverrides = null, foldMinor = true,
@@ -65,22 +72,17 @@ export function contentRows(b, depth, {
     if (!c.searching) push('empty', `e:${b}`, {});
     return rows;
   }
-  const folds = [];
+  const folding = foldMinor && shelves.some((s) => s.layout !== 'fold' && s.total > 0);
   for (const shelf of shelves) {
-    if (shelf.layout === 'fold' && foldMinor) { if (shelf.total > 0) folds.push(shelf); continue; }
     if (!(shelf.total > 0)) continue;
     const st = shelfState(b, shelf.id) || {};
-    push('shelf', `s:${b}:${shelf.id}`, { shelfId: shelf.id, count: shelf.total, label: shelf.label });
+    const minor = folding && shelf.layout === 'fold';
+    const closed = minor ? !st.open : !!st.shut;
+    push('shelf', `s:${b}:${shelf.id}`, {
+      shelfId: shelf.id, count: shelf.total, label: shelf.label, closed, toggle: minor ? 'open' : 'shut',
+    });
+    if (closed) continue;
     pushMore(shelf, pushItems(shelf, st), st);
-  }
-  if (folds.length) {
-    push('fold', `o:${b}`, { parts: folds.map((s) => ({ shelfId: s.id, count: s.total, label: s.label })) });
-    for (const shelf of folds) {
-      const st = shelfState(b, shelf.id) || {};
-      if (!st.open) continue;
-      const shown = pushItems(shelf, st);
-      pushMore(shelf, shown, st);
-    }
   }
   return rows;
 }

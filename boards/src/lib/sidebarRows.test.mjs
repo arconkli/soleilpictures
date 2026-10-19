@@ -85,18 +85,30 @@ test('shelves with zero total are skipped', () => {
   assert.deepEqual(types(r), ['cluster', 'shelf', 'file']);
 });
 
-test('fold row lists fold shelves in order; open fold shelf shows its rows', () => {
-  const shelves = [fold('links', 2), fold('more', 1), fold('other', 0)];
+test('under files, the rest is one closed header a kind, each opening on its own', () => {
+  const shelves = [rowsShelf('A', 'photos', 1), fold('links', 2), fold('more', 1), fold('other', 0)];
   let r = build({ contentsOf: () => ({ loading: false, shelves }) });
-  assert.deepEqual(types(r), ['cluster', 'fold']);
-  assert.deepEqual(r[1].parts, [{ shelfId: 'links', count: 2, label: 'links' }, { shelfId: 'more', count: 1, label: 'more' }]);
-  assert.equal(r[1].key, 'o:A');
+  assert.deepEqual(types(r), ['cluster', 'shelf', 'file', 'shelf', 'shelf']);
+  assert.deepEqual(r.filter((x) => x.type === 'shelf').map((x) => [x.shelfId, x.count, x.closed, x.toggle]),
+    [['photos', 1, false, 'shut'], ['links', 2, true, 'open'], ['more', 1, true, 'open']]);
   r = build({
     contentsOf: () => ({ loading: false, shelves }),
     shelfState: (b, s) => ({ open: s === 'links', expanded: false }),
   });
-  assert.deepEqual(types(r), ['cluster', 'fold', 'file', 'file']);
-  assert.equal(r[2].shelfId, 'links');
+  assert.deepEqual(types(r), ['cluster', 'shelf', 'file', 'shelf', 'file', 'file', 'shelf']);
+  assert.equal(r[4].shelfId, 'links');
+  r = build({
+    contentsOf: () => ({ loading: false, shelves }),
+    shelfState: (b, s) => ({ shut: s === 'photos' }),
+  });
+  assert.deepEqual(types(r), ['cluster', 'shelf', 'shelf', 'shelf'], 'a files shelf closes too');
+  assert.equal(r[1].closed, true);
+});
+
+test('with no files, nothing starts closed', () => {
+  const r = build({ contentsOf: () => ({ loading: false, shelves: [fold('links', 2), fold('more', 1)] }) });
+  assert.deepEqual(types(r), ['cluster', 'shelf', 'file', 'file', 'shelf', 'file']);
+  assert.ok(r.filter((x) => x.type === 'shelf').every((x) => !x.closed));
 });
 
 test('children come before contents, one level deeper', () => {
@@ -141,7 +153,7 @@ test('visibleRange on a 5,000-row list: top, middle, end, empty', () => {
   assert.deepEqual(visibleRange(layoutRows([]), 0, 600), { start: 0, end: 0 });
 });
 
-test('the files list: minor shelves as plain shelves, and rows as tall as asked', () => {
+test('the files list: a search or filter opens every shelf, and rows are as tall as asked', () => {
   const contents = { loading: false, shelves: [
     { id: 'photos', label: 'Photos', layout: 'rows', total: 3, items: Array.from({ length: 3 }, (_, i) => ({ cardId: `p${i}` })) },
     { id: 'links', label: 'Links', layout: 'fold', total: 2, items: [{ cardId: 'l1' }, { cardId: 'l2' }] },
@@ -150,5 +162,8 @@ test('the files list: minor shelves as plain shelves, and rows as tall as asked'
   assert.deepEqual(rows.map((r) => r.type), ['shelf', 'file', 'file', 'file', 'shelf', 'file', 'file']);
   assert.equal(rows[1].height, 36);
   assert.equal(rows[0].height, ROW_HEIGHTS.fine.shelf);
-  assert.deepEqual(contentRows('B', 0, { contents }).map((r) => r.type).slice(-1), ['fold'], 'folded by default');
+  const folded = contentRows('B', 0, { contents });
+  assert.deepEqual(folded.map((r) => r.type), ['shelf', 'file', 'file', 'file', 'shelf'], 'links closed by default');
+  assert.equal(folded.at(-1).closed, true);
+  assert.equal(folded.at(-1).count, 2, 'a closed header still says how many');
 });

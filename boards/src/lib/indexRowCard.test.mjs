@@ -9,8 +9,15 @@ test('displayName chain and kind fallbacks', () => {
   assert.equal(displayName({ kind: 'pdf', meta: { name: 'b.pdf' } }), 'b.pdf');
   assert.equal(displayName({ kind: 'note', snippet: '\n  first line  \nsecond' }), 'first line');
   assert.equal(displayName({ kind: 'note', snippet: 'x'.repeat(200) }).length, 80);
-  const f = { image: 'Photo', video: 'Video', audio: 'Audio', pdf: 'PDF', file: 'File', note: 'Note', doc: 'Untitled doc', palette: 'Item' };
+  const f = {
+    image: 'Photo', video: 'Video', audio: 'Audio', pdf: 'PDF', file: 'File', note: 'Note', doc: 'Untitled doc',
+    grid: 'Grid', palette: 'Palette', schedule: 'Schedule', art: 'Drawing', vote: 'Vote', shape: 'Shape',
+    'something-new': 'Card',
+  };
   for (const [k, v] of Object.entries(f)) assert.equal(displayName({ kind: k }), v);
+  assert.equal(displayName({ kind: 'shape', meta: { shape: 'ellipse' } }), 'Ellipse');
+  assert.equal(displayName({ kind: 'shape', meta: { shape: 'arrow', label: null } }), 'Arrow');
+  assert.equal(displayName({ kind: 'palette', title: 'Night exteriors' }), 'Night exteriors');
   assert.equal(displayName({ kind: 'link', meta: { url: 'https://www.example.com/x' } }), 'example.com');
   assert.equal(displayName({ kind: 'link', meta: { url: 'nope' } }), 'Link');
   assert.equal(displayName({ kind: 'link' }), 'Link');

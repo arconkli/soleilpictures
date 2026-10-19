@@ -16,10 +16,15 @@ import { shelfOf } from './sidebarShelves.js';
 const SNIPPET_MAX = 160;
 const NAME_MAX = 80;
 
+// What a card is called when nothing on it names it. Every kind the canvas
+// makes has a word here: "Item" told nobody anything (owner, 2026-10-18).
 const KIND_FALLBACK = {
   image: 'Photo', video: 'Video', audio: 'Audio', pdf: 'PDF',
   file: 'File', note: 'Note', doc: 'Untitled doc',
+  grid: 'Grid', palette: 'Palette', schedule: 'Schedule', art: 'Drawing',
+  vote: 'Vote', shape: 'Shape',
 };
+const SHAPE_NAMES = { rect: 'Rectangle', ellipse: 'Ellipse', line: 'Line', arrow: 'Arrow' };
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
@@ -35,7 +40,8 @@ function kindFallback(kind, meta) {
     } catch { /* not a URL */ }
     return 'Link';
   }
-  return KIND_FALLBACK[kind] || 'Item';
+  if (kind === 'shape' && SHAPE_NAMES[meta?.shape]) return SHAPE_NAMES[meta.shape];
+  return KIND_FALLBACK[kind] || 'Card';
 }
 
 export function displayName({ kind, title, meta, snippet } = {}) {

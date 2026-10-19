@@ -2,6 +2,9 @@
 // section lists them: a section per kind, one row per file with a small
 // thumbnail, and "Show N more" and "Show less". Photos too: the board is the
 // visual place, and the sidebar stays a calm list (owner, 2026-10-18).
+// Notes, links and the rest sit under the files as closed headings with their
+// counts; a heading opens or closes its section (lib/sidebarRows.js says which
+// start closed).
 //
 // lib/sidebarRows.js turns the shelves into fixed-height rows; this draws them.
 // A short list renders whole (most clusters, and every peek). A long one — a
@@ -12,7 +15,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
 import { Icon } from '../Icon.jsx';
-import { ArrowsOutSimple } from '../../lib/icons.js';
+import { ArrowsOutSimple, ChevronRight, GridFour, Scribble } from '../../lib/icons.js';
 import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
@@ -26,8 +29,8 @@ const ROW_PAD = 8;
 // Row heights for the list, in step with clusterSidebar.css: one 30px rhythm
 // (44px to a finger), a shelf's label with a little air above it.
 const LIST_HEIGHTS = {
-  fine: { shelf: 36, file: 30, more: 30, loading: 30, empty: 44, fold: 30 },
-  coarse: { shelf: 44, file: 44, more: 44, loading: 44, empty: 52, fold: 44 },
+  fine: { shelf: 36, file: 30, more: 30, loading: 30, empty: 44 },
+  coarse: { shelf: 44, file: 44, more: 44, loading: 44, empty: 52 },
 };
 const EMPTY_NOTE = 'No files here yet. Drop some in, or press Upload.';
 
@@ -63,6 +66,10 @@ function ItemGlyph({ item }) {
     const IconComp = iconForFile(extOf(item.meta?.fileName, item.meta?.ext), item.meta?.mime);
     return <span className="sbf-file-icon"><Icon as={IconComp} size={16} weight="regular" /></span>;
   }
+  // Two kinds KindIcon draws as a bare circle get the mark the canvas's own
+  // add menu gives them.
+  const own = { grid: GridFour, art: Scribble }[item.kind];
+  if (own) return <span className="sbf-file-icon"><Icon as={own} size={16} weight="regular" /></span>;
   return <span className="sbf-file-icon"><KindIcon kind={item.kind} size={16} weight="regular" /></span>;
 }
 
@@ -132,13 +139,19 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
   const pad = { paddingLeft: ROW_PAD };
-  const { onItem, onItemOpen, onMore, onLess, onFold, onOpenShelf, foldOpen, starred, selected, onDragItem, onItemMenu, emptyNote } = ctx;
+  const { onItem, onItemOpen, onMore, onLess, onShelf, onOpenShelf, starred, selected, onDragItem, onItemMenu, emptyNote } = ctx;
 
   if (row.type === 'shelf') {
+    const label = row.label || row.shelfId;
     return (
-      <div className="sbf-shelf" style={pad}>
-        <span className="sbf-shelf-label">{row.label || row.shelfId}</span>
-        <span className="sbf-shelf-count">{row.count}</span>
+      <div className={`sbf-shelf${row.closed ? ' is-closed' : ''}`} style={pad}>
+        <button type="button" className="sbf-shelf-toggle" role="treeitem" aria-expanded={!row.closed}
+                title={`${row.closed ? 'Show' : 'Hide'} ${label.toLowerCase()}`}
+                onClick={() => onShelf(row)}>
+          <span className="sbf-shelf-label">{label}</span>
+          <span className="sbf-shelf-count">{row.count}</span>
+          <span className="sbf-shelf-caret" aria-hidden="true"><Icon as={ChevronRight} size={10} weight="regular" /></span>
+        </button>
         {onOpenShelf && (
           <button type="button" className="sbf-shelf-open" tabIndex={-1}
                   title="Open in Files" aria-label={`Open ${row.label || row.shelfId} in Files`}
@@ -170,20 +183,6 @@ function Row({ row, depth, ctx }) {
             Show less
           </button>
         )}
-      </div>
-    );
-  }
-  if (row.type === 'fold') {
-    return (
-      <div className="sbf-fold" style={pad}>
-        {row.parts.map((p) => (
-          <button type="button" key={p.shelfId} tabIndex={-1}
-                  className={`sbf-fold-btn${foldOpen(row.boardId, p.shelfId) ? ' is-open' : ''}`}
-                  aria-expanded={foldOpen(row.boardId, p.shelfId)}
-                  onClick={() => onFold(row.boardId, p.shelfId)}>
-            {p.label || p.shelfId} <span className="sbf-fold-count">{p.count}</span>
-          </button>
-        ))}
       </div>
     );
   }
@@ -228,17 +227,19 @@ function useWindow(scrollRef, blockRef, layout, active) {
 }
 
 // `emptyNote` is what an empty list says (a cluster whose files are all in
-// its sub-clusters says so, rather than "no files here yet").
+// its sub-clusters says so, rather than "no files here yet"). `foldMinor:
+// false` opens every heading: a search, a filter and Starred show everything
+// they found.
 export function ClusterShelves({
-  boardId, depth = 0, contents, coarse = false, emptyNote = EMPTY_NOTE,
+  boardId, depth = 0, contents, coarse = false, emptyNote = EMPTY_NOTE, foldMinor = true,
   shelfState, onToggleShelf, onLoadMore, canLoadMore,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
   isSelected = null, onDragItem = null, onItemMenu = null,
 }) {
   const rows = useMemo(() => contentRows(boardId, depth, {
     contents, shelfState: (b, s) => shelfState?.(b, s) || {}, coarse,
-    heights: LIST_HEIGHTS[coarse ? 'coarse' : 'fine'], foldMinor: false,
-  }), [boardId, depth, contents, shelfState, coarse]);
+    heights: LIST_HEIGHTS[coarse ? 'coarse' : 'fine'], foldMinor,
+  }), [boardId, depth, contents, shelfState, coarse, foldMinor]);
   const layout = useMemo(() => layoutRows(rows), [rows]);
   const windowed = rows.length > WINDOW_AFTER;
   const blockRef = useRef(null);
@@ -259,8 +260,7 @@ export function ClusterShelves({
     },
     onLess: (row) => onToggleShelf?.(boardId, row.shelfId, 'expanded'),
     emptyNote,
-    onFold: (b, shelfId) => onToggleShelf?.(b, shelfId, 'open'),
-    foldOpen: (b, shelfId) => !!shelfState?.(b, shelfId)?.open,
+    onShelf: (row) => onToggleShelf?.(boardId, row.shelfId, row.toggle),
     onOpenShelf,
     starred: (item) => !!isStarred?.(item.boardId, item.cardId),
     selected: (item) => !!isSelected?.(item),

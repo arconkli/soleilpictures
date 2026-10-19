@@ -42,8 +42,11 @@ test.describe('sidebar files', () => {
     await expect(shown(page)).toHaveText('Feature film');
     // No picture or subtitle in the header, and no sub-cluster cards: the tree lists those.
     await expect(f.locator('.sbf-files-head img, .sbf-files-sub, .sbf-sub, .sbf-chip')).toHaveCount(0);
+    // Files first; notes, links and the rest summed up under them, a closed heading each.
     expect(await f.locator('.sbf-shelf-label').allTextContents())
-      .toEqual(['Photos', 'Video', 'Audio', 'Files', 'Writing', 'Links', 'More']);
+      .toEqual(['Photos', 'Video', 'Audio', 'Files', 'Notes', 'Links', 'Other']);
+    expect(await f.locator('.sbf-shelf-toggle').evaluateAll((els) => els.map((el) => el.getAttribute('aria-expanded'))))
+      .toEqual(['true', 'true', 'true', 'true', 'false', 'false', 'false']);
     // Photos are rows with a small thumbnail, like everything else: no grid.
     await expect(photoRows(page)).toHaveCount(5);
     await expect(photoRows(page).first()).toHaveClass(/sbf-file/);
@@ -172,6 +175,75 @@ test.describe('sidebar files', () => {
       expect(Math.round(await page.locator(sel).first().evaluate((el) => el.getBoundingClientRect().height)), sel).toBe(30);
     }
     expect(Math.round(await shown(page).evaluate((el) => el.getBoundingClientRect().height))).toBe(26);
+    // The cluster's name gets the room it needs beside Recent and Starred and the two buttons.
+    expect(await shown(page).locator('.sbf-tab-label').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  });
+
+  test('the files tab is files: a doc sits with them, the rest is summed up, and nothing is called "Item"', async ({ page }) => {
+    await open(page);
+    const f = files(page);
+    const shelf = (name) => f.locator('.sbf-shelf', { hasText: name });
+    const toggle = (name) => shelf(name).locator('.sbf-shelf-toggle');
+    // A doc is a file people write: it's listed with the PDFs and uploads.
+    await expect(f.locator('.sbf-file', { hasText: 'Shot list' })).toBeVisible();
+    // Notes are a heading with a count until opened.
+    await expect(shelf('Notes')).toHaveClass(/is-closed/);
+    await expect(shelf('Notes').locator('.sbf-shelf-count')).toHaveText('3');
+    await expect(f.locator('.sbf-file', { hasText: 'Call sheet notes' })).toHaveCount(0);
+    // Opened, Other shows what it holds, each by a name that says what it is.
+    await toggle('Other').click();
+    await expect(toggle('Other')).toHaveAttribute('aria-expanded', 'true');
+    const other = f.locator('[data-sb-item^="film:film-grid-"], [data-sb-item^="film:film-shape-"], [data-sb-item^="film:film-pal-"]');
+    await expect(other.locator('.sbf-file-name')).toHaveText(['Grid', 'Grid', 'Arrow', 'Rectangle', 'Night palette']);
+    await expect(f.locator('.sbf-file-name', { hasText: /^Item$/ })).toHaveCount(0);
+    await toggle('Other').click();
+    await expect(other).toHaveCount(0);
+    // A files heading closes and opens the same way.
+    await toggle('Photos').click();
+    await expect(photoRows(page)).toHaveCount(0);
+    await expect(shelf('Photos').locator('.sbf-shelf-count')).toHaveText('30');
+    await toggle('Photos').click();
+    await expect(photoRows(page)).toHaveCount(5);
+    // A search shows everything it found, notes too.
+    await f.locator('.sbf-search input').fill('wardrobe');
+    await expect(f.locator('.sbf-file', { hasText: 'Wardrobe ideas' })).toBeVisible();
+    await expect(f.locator('.sbf-shelf.is-closed')).toHaveCount(0);
+  });
+
+  test('the board runs on under the floating cards: the gaps show it and take presses, the cards keep theirs', async ({ page }) => {
+    await open(page);
+    const sidebar = page.locator('.sidebar');
+    const wrap = page.locator('.canvas-wrap');
+    // The sidebar paints nothing of its own.
+    expect(await sidebar.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+    // The canvas's box stays beside the sidebar — it measures, fits and frames by it — and only its
+    // painting reaches under, the ground drawn on from the same pattern.
+    const edge = await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().right));
+    expect(await wrap.evaluate((el) => Math.round(el.getBoundingClientRect().left))).toBe(edge);
+    expect(await wrap.evaluate((el) => getComputedStyle(el).clipPath)).toContain('inset');
+    expect(await wrap.evaluate((el) => {
+      const before = getComputedStyle(el, '::before');
+      return [before.content, before.backgroundImage === getComputedStyle(el).backgroundImage];
+    })).toEqual(['""', true]);
+    // What a press lands on.
+    const hit = (x, y) => page.evaluate(([px, py]) => {
+      const el = document.elementFromPoint(px, py);
+      return el?.closest('.canvas-wrap') ? 'board' : el?.closest('.sidebar') ? 'sidebar' : String(el?.tagName);
+    }, [x, y]);
+    const vh = page.viewportSize().height;
+    const divider = await page.locator('.sbf-divider').boundingBox();
+    expect(await hit(4, vh / 2), 'the left gutter').toBe('board');
+    expect(await hit(160, 3), 'above the cards').toBe('board');
+    expect(await hit(160, vh - 3), 'below them').toBe('board');
+    expect(await hit(160, divider.y - 40), "the clusters' card").toBe('sidebar');
+    expect(await hit(160, divider.y + divider.height + 60), "the files' card").toBe('sidebar');
+    expect(await hit(160, divider.y + divider.height / 2), 'the divider between them').toBe('sidebar');
+    await page.mouse.click(4, vh / 2);
+    await expect(page.getByTestId('sbqa-log')).toContainText('canvas');
+    // Wide, the clusters' card is as tall as the clusters, and under it is board.
+    await page.evaluate(() => window.__sidebarQa.setWidth(640));
+    await expect(sidebar).toHaveClass(/is-wide/);
+    expect(await hit(120, vh - 60), "under the clusters' card").toBe('board');
   });
 
   test('a long shelf expands in place, and a cluster read from the server pages', async ({ page }) => {

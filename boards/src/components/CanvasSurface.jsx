@@ -11552,6 +11552,10 @@ export function CanvasSurface({
     backgroundPosition: boardIsEmpty
       ? '0 0, 0 0, 0 0'
       : `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+    // The same offset on its own, for ground drawn past this box's edge: the
+    // files sidebar lets the board run on under it (clusterSidebar.css).
+    '--cnv-bg-x': boardIsEmpty ? '0px' : `${pan.x}px`,
+    '--cnv-bg-y': boardIsEmpty ? '0px' : `${pan.y}px`,
   };
 
   // Viewport-centre canvas point — where the empty-state tiles drop their card

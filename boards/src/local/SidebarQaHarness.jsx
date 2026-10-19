@@ -45,7 +45,10 @@ function cardsFor(prefix, spec, startIndex = 0) {
   for (let n = 0; n < (spec.note || 0); n++) out.push({ id: `${prefix}-note-${n}`, kind: 'note', html: `<p>${['Call sheet notes', 'Wardrobe ideas', 'Ask about the barn', 'Lens list', 'Day two order'][n % 5]}</p>`, createdAt: at(), ...pos(k++) });
   for (let n = 0; n < (spec.doc || 0); n++) out.push({ id: `${prefix}-doc-${n}`, kind: 'doc', title: ['Shot list', 'Treatment v2'][n % 2], lines: [{ text: 'INT. BARN — DAY' }], createdAt: at(), ...pos(k++) });
   for (let n = 0; n < (spec.link || 0); n++) out.push({ id: `${prefix}-link-${n}`, kind: 'link', link: `https://www.example.com/ref/${n + 1}`, title: `Reference ${n + 1}`, createdAt: at(), ...pos(k++) });
-  for (let n = 0; n < (spec.grid || 0); n++) out.push({ id: `${prefix}-grid-${n}`, kind: 'grid', title: `Storyboard ${n + 1}`, createdAt: at(), ...pos(k++) });
+  // Grids and shapes as people leave them: nothing on them names them.
+  for (let n = 0; n < (spec.grid || 0); n++) out.push({ id: `${prefix}-grid-${n}`, kind: 'grid', createdAt: at(), ...pos(k++) });
+  for (let n = 0; n < (spec.shape || 0); n++) out.push({ id: `${prefix}-shape-${n}`, kind: 'shape', shape: n % 2 ? 'rect' : 'arrow', createdAt: at(), ...pos(k++) });
+  for (let n = 0; n < (spec.palette || 0); n++) out.push({ id: `${prefix}-pal-${n}`, kind: 'palette', title: ['Night palette', 'Daylight'][n % 2], swatches: ['#1d2b3a', '#c8a26b'], createdAt: at(), ...pos(k++) });
   return out;
 }
 
@@ -59,7 +62,7 @@ const BOARDS = {
 };
 
 const CARDS = {
-  film: cardsFor('film', { image: 30, video: 3, audio: 2, pdf: 1, file: 2, note: 3, doc: 1, link: 4, grid: 2 }, 0),
+  film: cardsFor('film', { image: 30, video: 3, audio: 2, pdf: 1, file: 2, note: 3, doc: 1, link: 4, grid: 2, shape: 2, palette: 1 }, 0),
   loc:  cardsFor('loc',  { image: 40, pdf: 2, note: 1 }, 100),
   cast: cardsFor('cast', { image: 12, note: 5 }, 200),
   mv:   cardsFor('mv',   { image: 120, video: 10, audio: 18, link: 2 }, 300),
@@ -174,11 +177,28 @@ function makeMoveApi(calls) {
 // The stand-in canvas: a dotted field to float over, and a corner for the
 // readout the specs watch.
 const QA_STYLE = `
-.sbqa-canvas { position: absolute; inset: 0; background: var(--bg-0, #0c0c0e);
-  background-image: radial-gradient(var(--line-2) 1px, transparent 1px); background-size: 22px 22px; }
-.sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); }
+.sbqa-world { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.sbqa-card { position: absolute; border-radius: 4px; overflow: hidden; background: var(--bg-2); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.sbqa-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); z-index: 1; }
 .sbqa-tag, .sbqa-faces { color: var(--ink-1); font: 500 12px var(--font-sans); padding: 4px 8px; }
 `;
+
+// The stand-in board under the canvas's real wrappers (App's split pane, its
+// surface, FilesDock), panned so its first column starts under the sidebar:
+// the floating cards' gaps should show these photos and this ground, not a
+// strip of black. The ground is drawn the way CanvasSurface draws it, at 1:1.
+const PAN = { x: -170, y: 36 };
+const BOARD = Array.from({ length: 10 }, (_, i) => ({
+  id: `b${i}`, src: swatch(i), x: (i % 5) * 236, y: Math.floor(i / 5) * 300 + (i % 2) * 40, w: 216, h: 270 - (i % 3) * 40,
+}));
+const GROUND = {
+  backgroundImage: 'linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)',
+  backgroundSize: '80px 80px, 80px 80px, 20px 20px',
+  backgroundPosition: `${PAN.x}px ${PAN.y}px, ${PAN.x}px ${PAN.y}px, ${PAN.x}px ${PAN.y}px`,
+  '--cnv-bg-x': `${PAN.x}px`,
+  '--cnv-bg-y': `${PAN.y}px`,
+};
 
 export function SidebarQaHarness() {
   const [active, setActive] = useState('film');
@@ -350,8 +370,21 @@ export function SidebarQaHarness() {
             ]}
           />
         )}
-        <div className="surface-wrap is-canvas" style={{ flex: 1 }}>
-          <div className="canvas-wrap sbqa-canvas">
+        <div className="split-wrap">
+        <div className="split-pane" style={{ flex: 1 }}>
+        <div className="surface-wrap is-canvas">
+        <div className="fdl fdl-off">
+        <div className="fdl-canvas">
+          <div className="canvas-wrap sbqa-canvas" style={GROUND}
+               onPointerDown={(e) => { if (!e.target.closest('button')) say('canvas'); }}>
+            <div className="sbqa-world" style={{ transform: `translate(${PAN.x}px, ${PAN.y}px)` }}>
+              {BOARD.map((c) => (
+                <div key={c.id} className="sbqa-card" data-sbqa-card={c.id}
+                     style={{ left: c.x, top: c.y, width: c.w, height: c.h }}>
+                  <img src={c.src} alt="" draggable={false} />
+                </div>
+              ))}
+            </div>
             {!phone && (
               <>
                 <button type="button" className="cnv-comments-eye" aria-label="Comments">◉</button>
@@ -375,6 +408,10 @@ export function SidebarQaHarness() {
               )}
             </div>
           </div>
+        </div>
+        </div>
+        </div>
+        </div>
         </div>
       </main>
     </div>

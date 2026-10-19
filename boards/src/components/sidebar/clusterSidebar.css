@@ -9,8 +9,8 @@
 
    The look is the one the owner picked from four mockups (2026-10-18,
    "B · Floating", artifact GnfNFQd8xHLebeSE6rYP5K): the sidebar is two glass
-   cards floating over the canvas's ground, in the material of the floating
-   top bar. The clusters' card holds the workspace, Home, Messages and the
+   cards floating over the board, which runs on under them, in the material of
+   the floating top bar. The clusters' card holds the workspace, Home, Messages and the
    tree; the files' card holds the files, the meter and the foot. The gap
    between them is the divider. The cards are .sb-mid's ::before and ::after,
    laid on the grid areas they hold, so neither App nor ClusterSidebar wraps
@@ -115,12 +115,12 @@ body.sbf-resizing .sbf-resizer,
 .app.sb-files .sb-mid > .sb-foot { grid-area: foot; }
 
 /* Floating: everywhere but the phone drawer, which is a panel of its own. */
-.app.sb-files .sidebar:not(.is-mobile-open) { background-color: var(--bg-0); border-right-color: transparent; }
+.app.sb-files .sidebar:not(.is-mobile-open) { background-color: transparent; border-right-color: transparent; }
 .app.sb-files .sidebar:not(.is-mobile-open) .sb-mid { padding: 8px 0 8px 8px; }
 .app.sb-files .sidebar:not(.is-mobile-open) .sb-mid > * { z-index: 1; }
 .app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::before,
 .app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::after {
-  content: ''; z-index: 0; grid-column: 1; pointer-events: none;
+  content: ''; z-index: 0; grid-column: 1;
   border: 1px solid var(--sbf-glass-line); border-radius: 12px;
   background: var(--sbf-glass);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
@@ -130,6 +130,42 @@ body.sbf-resizing .sbf-resizer,
 .app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::before { grid-row: 1 / 4; }
 .app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::after { grid-row: 5 / 8; }
 .app.sb-files .sidebar.is-wide:not(.is-mobile-open) .sb-mid::after { grid-column: 2; grid-row: 1 / 7; }
+
+/* The board runs on under the cards. They float over the canvas, so the gaps
+   around and between them show the board itself (owner, 2026-10-18: "we
+   should be able to see the actual board behind it in the gaps instead of
+   just black"), and a press, a scroll or a drop in a gap lands on the board.
+   Only the painting reaches under the sidebar: the canvas's box, which it
+   measures, fits and frames by, stays beside it, so nothing on the board
+   moves and a fit still centres in the part you can see. Desktop only
+   (.is-floating-chrome); the phone drawer is a panel.
+   - The sidebar paints nothing of its own (nor its grain) and lets presses
+     through; the cards and all that's on them take them back.
+   - The main pane's canvas paints past its left edge (clip-path), and its
+     ground goes on under the sidebar in ::before, from the pattern's offset
+     CanvasSurface publishes as --cnv-bg-x/-y. The wrappers between it and
+     .app stop clipping; .app clips instead, so a card far off the board
+     can't make the page scroll. */
+.app.is-floating-chrome > .sidebar { pointer-events: none; }
+.app.is-floating-chrome > .sidebar::after { display: none; }
+.app.is-floating-chrome > .sidebar > *,
+.app.is-floating-chrome > .sidebar .sb-mid > *,
+.app.is-floating-chrome > .sidebar .sb-mid::before,
+.app.is-floating-chrome > .sidebar .sb-mid::after { pointer-events: auto; }
+.app.is-floating-chrome > .sidebar > .sb-mid { pointer-events: none; }
+.app.is-floating-chrome { overflow: clip; }
+.app.is-floating-chrome .split-wrap,
+.app.is-floating-chrome .split-pane:first-child,
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas,
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .fdl { overflow: visible; }
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .fdl > .fdl-canvas > .canvas-wrap {
+  overflow: visible; clip-path: inset(0 0 0 -100vw);
+}
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .fdl > .fdl-canvas > .canvas-wrap::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw;
+  background-color: inherit; background-image: inherit; background-size: inherit;
+  background-position: calc(var(--cnv-bg-x, 0px) + 100vw) var(--cnv-bg-y, 0px);
+}
 
 /* ── The top: the workspace, search everywhere, collapse ─────────────────── */
 .app.sb-files .sb-mid > .sb-top { padding: 3px 7px 2px; }
@@ -307,8 +343,9 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-files.is-dropping { box-shadow: inset 0 0 0 2px var(--soleil); }
 
 /* What the files show: the cluster, Recent or Starred, a segmented control,
-   the shown one a raised chip. Narrow, the three share the width and the
-   cluster's name gives way; wide, each is as wide as its word. ⤢ (the full
+   the shown one a raised chip. Narrow, each is as wide as its word and they
+   share what's left over; when a name is too long, only the name gives way
+   ("Recent" and "Starred" never do). Wide, each is as wide as its word. ⤢ (the full
    Files page) and the split toggle sit after it, quiet until you reach for
    the header (and full while wide, where the toggle is the way back). */
 .sbf-files-head {
@@ -320,11 +357,12 @@ body.sbf-resizing-v .sbf-divider-grip,
   padding: 2px; border-radius: 9px; background: var(--sbf-track);
 }
 .sbf-tab {
-  position: relative; flex: 1 1 0; min-width: 0; height: 26px; padding: 0 8px;
+  position: relative; flex: 1 1 auto; min-width: 0; height: 26px; padding: 0 8px;
   border: 0; border-radius: 7px; background: transparent; cursor: pointer;
   color: var(--ink-2); font: 600 12px/1 var(--font-sans); white-space: nowrap; text-align: center;
   transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
 }
+.sbf-tab + .sbf-tab { flex-shrink: 0; }
 .sbf-tab-label { display: block; overflow: hidden; text-overflow: ellipsis; }
 .sbf-tab:hover { color: var(--ink-0); }
 .sbf-tab.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
@@ -438,17 +476,33 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-file.sbf-cluster-link { padding-left: calc(8px + var(--sbf-thumb) + var(--sbf-gap)); }
 
 /* A section per kind of file, its heading the same small capitals as the
-   clusters' sections, with some air above it. */
+   clusters' sections, with some air above it. The heading opens and closes
+   its section; notes, links and the rest start closed, so under the files
+   they read as a summary: "NOTES 20 ›". The caret shows on a closed heading,
+   and on an open one only when reached for. */
 .sbf-block { position: relative; }
 .sbf-block.is-windowed .sbf-slot { position: absolute; left: 0; right: 0; }
-.sbf-shelf {
-  box-sizing: border-box; height: 36px; display: flex; align-items: flex-end; gap: 6px;
-  padding-right: 4px; padding-bottom: 9px;
+.sbf-shelf { box-sizing: border-box; height: 36px; display: flex; align-items: stretch; padding-right: 4px; }
+.sbf-shelf-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 6px;
+  padding: 0 0 9px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; text-align: left;
   color: var(--sbf-quiet); font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
+  transition: color var(--dur-fast) var(--ease);
 }
+.sbf-shelf-toggle:hover { color: var(--ink-1); }
+.sbf-shelf-toggle:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .sbf-shelf-count { color: var(--ink-3); font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.sbf-shelf-caret {
+  display: grid; place-items: center; width: 10px; height: 10px; margin-bottom: -1px;
+  color: var(--ink-3); opacity: 0; transform: rotate(90deg);
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.sbf-shelf.is-closed .sbf-shelf-caret { transform: none; }
+.sbf-shelf.is-closed .sbf-shelf-caret,
+.sbf-shelf:hover .sbf-shelf-caret,
+.sbf-shelf-toggle:focus-visible .sbf-shelf-caret { opacity: 1; }
 .sbf-shelf-open {
-  margin-left: auto; margin-bottom: -6px; width: 24px; height: 24px; display: grid; place-items: center;
+  align-self: flex-end; margin-bottom: 3px; width: 24px; height: 24px; display: grid; place-items: center;
   padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink-3); cursor: pointer; opacity: 0;
   transition: opacity var(--dur-fast) var(--ease);
 }
@@ -498,14 +552,6 @@ body.sbf-resizing-v .sbf-divider-grip,
 }
 .sbf-more-btn:hover { color: var(--ink-0); text-decoration: underline; text-underline-offset: 3px; }
 .sbf-more-btn.is-less { color: var(--ink-3); }
-.sbf-fold { box-sizing: border-box; height: 30px; display: flex; align-items: center; gap: 6px; }
-.sbf-fold-btn {
-  height: 22px; padding: 0 9px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line-2); background: transparent; color: var(--ink-2);
-  font: 500 12px/20px var(--font-sans); white-space: nowrap;
-}
-.sbf-fold-btn:hover, .sbf-fold-btn.is-open { color: var(--ink-0); border-color: var(--line-3); }
-.sbf-fold-count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .sbf-note {
   box-sizing: border-box; height: 30px; color: var(--ink-3);
   font: 400 13px/30px var(--font-sans);
@@ -578,11 +624,12 @@ body.sbf-resizing-v .sbf-divider-grip,
   .sbf-filter-btn { padding: 0 10px; font-size: 14px; }
   .sbf-menu-item { height: 40px; font-size: 15px; }
   .sbf-files { --sbf-thumb: 28px; --sbf-gap: 10px; }
-  .sbf-shelf { height: 44px; font-size: 12px; padding-bottom: 10px; }
+  .sbf-shelf { height: 44px; }
+  .sbf-shelf-toggle { font-size: 12px; padding-bottom: 10px; }
+  .sbf-shelf-caret { opacity: 1; }
   .sbf-file { height: 44px; font-size: 15px; }
   .sbf-more { height: 44px; }
   .sbf-more-btn { font-size: 14px; padding: 12px 0; }
-  .sbf-fold { height: 44px; }
   .sbf-note { height: 44px; line-height: 44px; font-size: 14px; }
   .sbf-note.is-empty { height: 52px; }
   .sbf-shelf-open { display: none; }

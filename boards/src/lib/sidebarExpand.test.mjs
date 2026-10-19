@@ -72,13 +72,15 @@ test('navigate drops nullish ids; unknown action returns same state', () => {
 test('shelf keys and toggleShelf', () => {
   assert.equal(shelfKey('b1', 'photos'), 'b1:photos');
   const m1 = toggleShelf({}, 'b1:photos', 'expanded');
-  assert.deepEqual(m1['b1:photos'], { open: false, expanded: true });
+  assert.deepEqual(m1['b1:photos'], { open: false, shut: false, expanded: true });
   const m2 = toggleShelf(m1, 'b1:photos', 'open');
-  assert.deepEqual(m2['b1:photos'], { open: true, expanded: true });
+  assert.deepEqual(m2['b1:photos'], { open: true, shut: false, expanded: true });
   const m3 = toggleShelf(m2, 'b1:photos', 'expanded');
-  assert.deepEqual(m3['b1:photos'], { open: true, expanded: false });
+  assert.deepEqual(m3['b1:photos'], { open: true, shut: false, expanded: false });
   assert.notEqual(m3, m2);
-  assert.deepEqual(m2['b1:photos'], { open: true, expanded: true });
+  assert.deepEqual(m2['b1:photos'], { open: true, shut: false, expanded: true });
+  const m4 = toggleShelf(m3, 'b1:photos', 'shut');
+  assert.deepEqual(m4['b1:photos'], { open: true, shut: true, expanded: false }, 'shut keeps the rest');
 });
 
 test('reset swaps in another workspace\'s saved state whole', () => {
