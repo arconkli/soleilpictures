@@ -47,6 +47,10 @@ async function nameIt(page, name, { expectMessage } = {}) {
 test.describe('cluster nudges', () => {
   test('held: without the opt-in nothing new appears', async ({ page }) => {
     await studio(page);
+    // The rail's Cluster tool keeps its plain tip and its old icon.
+    const tool = page.locator('.cnv-tool[data-tour="cluster-tool"]');
+    await expect(tool).toHaveAttribute('data-tip', 'Add cluster');
+    await expect(tool.locator('.cnv-tool-card')).toHaveCount(0);
     await card(page, 'mixqa-0').click({ button: 'right' });
     await expect(page.locator('.ctx-menu')).toBeVisible();
     await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'new cluster' })).toHaveCount(0);
@@ -113,6 +117,17 @@ test.describe('cluster nudges', () => {
   test('C picks the Cluster tool, and the tool says what a cluster is', async ({ page }) => {
     await optIn(page);
     await studio(page);
+    // A pause on the tool opens a card instead of the plain tip; picking the
+    // tool closes it, and the hint below the toolbar takes over.
+    const tool = page.locator('.cnv-tool[data-tour="cluster-tool"]');
+    await expect(tool).not.toHaveAttribute('data-tip', /.*/);
+    await tool.hover();
+    const hoverCard = tool.locator('.cnv-tool-card');
+    await expect(hoverCard).toBeVisible();
+    await expect(hoverCard).toContainText('A canvas inside this one. Make one per project, then drop cards onto it to file them.');
+    await expect(hoverCard.locator('kbd')).toHaveText('C');
+    await page.mouse.move(900, 600);
+    await expect(hoverCard).toBeHidden();
     await page.locator('.canvas-wrap').first().click({ position: { x: 900, y: 600 } });
     await page.keyboard.press('c');
     await expect(page.locator('.cnv-hint')).toContainText('Click to place a cluster: a canvas inside this one. Drop cards onto it to file them.');

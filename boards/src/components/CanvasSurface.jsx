@@ -70,7 +70,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   MessageCircle, MessageCircleOff,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
   Calendar as CalendarPh, X,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
@@ -209,6 +209,17 @@ import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layou
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
+
+// The cluster glyph. Once the cluster nudges ship it is the folder a cluster
+// already wears in Files, list rows and the cluster browser (cards.jsx
+// KindIcon) — one picture for one thing; until then the two windows it has
+// always had here. Uploading a folder then shows the folder OPEN, so the add
+// menu never draws two identical rows.
+const clusterGlyph = () => (clusterNudgesAllowed() ? Folder : Browsers);
+const folderUploadGlyph = () => (clusterNudgesAllowed() ? FolderOpen : Folder);
+// The Cluster tool's hover card shows what a cluster looks like on a canvas,
+// with the same Lost Time stills the sign-in page shows (public/).
+const CLUSTER_CARD_COVERS = ['/signin-losttime.webp', '/signin-losttime-still1.webp', '/signin-losttime-still2.webp'];
 
 // Empty-board headline rotator — cycles a few accurate, breadth-signaling nouns
 // ("Start your moodboard / script / shot list…") to hint the app's full range
@@ -1787,7 +1798,8 @@ export function CanvasSurface({
   const emptyPanelVisible = canEdit && !isPublic && boardReady
     && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length) && unplacedCount === 0));
   const firstLike = firstBoard || freshProject;
-  const panelTiles = firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
+  const panelTiles = (firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES)
+    .map((t) => (t.id === 'board' ? { ...t, icon: clusterGlyph() } : t));
   const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
   useEffect(() => {
     if (!emptyPanelVisible || !board?.id) return;
@@ -8718,7 +8730,7 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
+    { id: 'board',   group: 'card', label: 'Cluster', icon: clusterGlyph(), run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
     { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
     { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     // Multi-select, via the same batch ingest drag-drop uses. This used to call
@@ -8731,7 +8743,7 @@ export function CanvasSurface({
     // (50-73% at 6+, ~13% at zero). Selecting one file behaves exactly as before.
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
-    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: 'Folder', icon: Folder, run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
+    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: 'Folder', icon: folderUploadGlyph(), run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
     { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
@@ -11196,7 +11208,7 @@ export function CanvasSurface({
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
     { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
-    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: Browsers },
+    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: clusterGlyph() },
     { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
     { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
     // Draw was moved off the rail deliberately — on a desktop D reaches it
@@ -11226,7 +11238,7 @@ export function CanvasSurface({
     ]},
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
-      ...(canPickFolder ? [{ id: 'folder', label: 'Folder', icon: Folder, tip: 'Upload a folder — its folders become clusters', action: () => addFromRegistry('folder') }] : []),
+      ...(canPickFolder ? [{ id: 'folder', label: 'Folder', icon: folderUploadGlyph(), tip: 'Upload a folder — its folders become clusters', action: () => addFromRegistry('folder') }] : []),
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
       ...(scheduleCreationAllowed() ? [
         { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
@@ -12688,9 +12700,14 @@ export function CanvasSurface({
           const activate = isTpl
             ? () => { const next = !tplPanelOpen; setTplPanelOpen(next); setSelectedTool(next ? 'grid' : 'select'); }
             : () => setSelectedTool(t.id);
+          // The Cluster tool keeps its slot and its size; it teaches instead
+          // of shouting. A pause on it opens a card saying what a cluster IS
+          // (the plain tip said only "Add cluster"), and picking it shows the
+          // hint below the toolbar. Never on touch: there is no hover.
+          const teaches = t.id === 'board' && clusterNudgesAllowed() && !isTouch;
           const btn = (
-            <div className={`cnv-tool ${active ? 'active' : ''}`}
-                 data-tip={t.title}
+            <div className={`cnv-tool ${active ? 'active' : ''}${teaches ? ' cnv-tool-teach' : ''}`}
+                 data-tip={teaches ? undefined : t.title}
                  data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
                  role="button"
                  tabIndex={0}
@@ -12708,6 +12725,18 @@ export function CanvasSurface({
                  }}
                  onPointerDown={(e) => { e.stopPropagation(); activate(); }}>
               <Icon as={t.icon} size={20} />
+              {teaches && (
+                <span className="cnv-tool-card" role="tooltip">
+                  <span className="cnv-tool-card-mini">
+                    <span className="cnv-tool-card-cover">
+                      {CLUSTER_CARD_COVERS.map((src) => <img key={src} src={src} alt="" loading="lazy" decoding="async" />)}
+                    </span>
+                    <span className="cnv-tool-card-meta"><b>Lost Time</b><span>4 cards</span></span>
+                  </span>
+                  <span className="cnv-tool-card-title">Cluster<kbd>C</kbd></span>
+                  <span className="cnv-tool-card-body">A canvas inside this one. Make one per project, then drop cards onto it to file them.</span>
+                </span>
+              )}
             </div>
           );
           if (!isTpl) return <Fragment key={t.id}>{btn}</Fragment>;
