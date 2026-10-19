@@ -1802,6 +1802,16 @@ export function CanvasSurface({
   const panelTiles = (firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES)
     .map((t) => (t.id === 'board' ? { ...t, icon: clusterGlyph() } : t));
   const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
+  // On the empty Studio the panel ends with a line about clusters (below).
+  // Seen is logged once per cluster per session, as the panel's own row is.
+  const emptyStudioLine = !isPublic && board?.parent_board_id == null && clusterNudgesAllowed();
+  useEffect(() => {
+    if (!emptyPanelVisible || !emptyStudioLine || !board?.id) return;
+    if (typeof document !== 'undefined' && document.body?.dataset?.tourVariant) return;
+    logEventOnce(`cluster_nudge:empty_studio:${board.id}`, EV.CLUSTER_NUDGE, {
+      surface: 'empty_studio', action: 'view', picked: 0, board_id: board.id,
+    });
+  }, [emptyPanelVisible, emptyStudioLine, board?.id]);
   useEffect(() => {
     if (!emptyPanelVisible || !board?.id) return;
     // A running tour hides the panel by CSS (body[data-tour-variant]); a row
@@ -6247,9 +6257,11 @@ export function CanvasSurface({
     return () => document.removeEventListener('soleil-new-cluster', onNew);
   }, [board?.id, paneId, canEdit, isPublic]);
   // A phone's bar has no room for "+ New cluster", so its + sheet leads with
-  // the row instead; with no popover to hang, the name is asked in the app's
-  // own prompt, in the popover's words, and then it goes the same way.
-  const newClusterFromSheet = async () => {
+  // the row instead, and the empty Studio's line has no popover to open there;
+  // both ask the name in the app's own prompt, in the popover's words, and
+  // then go the same way. A nudge (empty_studio) logs its answer as the
+  // popover would.
+  const newClusterPrompted = async ({ via, nudge = false }) => {
     const plan = planClusterFromSelection({ cards, ids: [...selectedRef.current], clusters: 'skip' });
     const n = plan.ids.length;
     const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
@@ -6263,8 +6275,18 @@ export function CanvasSurface({
       defaultValue: n ? (suggestClusterName({ groupName, cards: plan.cards }) || '') : '',
       confirmLabel: 'Create cluster',
     });
+    if (nudge) {
+      try { logEvent(EV.CLUSTER_NUDGE, { surface: via, action: typed == null ? 'dismiss' : 'accept', picked: n, board_id: board?.id || null }); } catch (_) {}
+    }
     if (typed == null) return;
-    await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via: 'add_sheet' });
+    await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via });
+  };
+  // "Start a cluster for each" on the empty Studio: the top bar's popover when
+  // the bar shows this pane, else the prompt.
+  const startClusterFromEmpty = () => {
+    const d = { boardId: board?.id, paneId, via: 'empty_studio', handled: false };
+    document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
+    if (!d.handled) newClusterPrompted({ via: 'empty_studio', nudge: true });
   };
 
   const onCardPointerDown = (e, c) => {
@@ -13002,6 +13024,20 @@ export function CanvasSurface({
           </div>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">drag an image straight in&ensp;·&ensp;paste&ensp;·&ensp;or double-click to add</span>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">drag an image in&ensp;·&ensp;or long-press the canvas to add</span>
+          {/* Under the drop area, never in its place: images stay the first
+              thing to do here, and a cluster per project is the next thing to
+              know. Only on Studio, the one canvas everything lands on. */}
+          {emptyStudioLine && (
+            <>
+              <div className="cnv-empty-rule" aria-hidden="true" />
+              <div className="cnv-empty-clusters">
+                Working on more than one thing?
+                <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={startClusterFromEmpty}>
+                  <Icon as={Plus} size={14} weight="regular" />Start a cluster for each
+                </button>
+              </div>
+            </>
+          )}
         </div>
         );
       })()}
@@ -13244,7 +13280,7 @@ export function CanvasSurface({
               has no "+ New cluster" on a phone. Its tile below goes. */}
           {clusterNudgesAllowed() && (
             <button type="button" className="mobile-add-cluster"
-                    onClick={() => { setMobileAdd(null); newClusterFromSheet(); }}>
+                    onClick={() => { setMobileAdd(null); newClusterPrompted({ via: 'add_sheet' }); }}>
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={Folder} size={22} /></span>
               <span className="mobile-add-cluster-txt">
                 <span className="mobile-add-cluster-lbl">New cluster</span>

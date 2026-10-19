@@ -51,3 +51,15 @@ test('the row names the cluster first, then opens it', async ({ page }) => {
   await dialog.locator('.btn-primary').tap();
   await expect(page.locator('.crumbs .crumb.here')).toHaveText('Short film');
 });
+
+test('the empty Studio\'s line asks the name in the prompt, with no bar to hang a popover from', async ({ page }) => {
+  await page.goto('/?local=1&reset=1&blank=1');
+  const line = page.locator('.cnv-empty-tiles .cnv-empty-clusters button');
+  await expect(line).toHaveText('Start a cluster for each');
+  await line.tap();
+  const dialog = page.locator('.feedback-dialog');
+  await expect(dialog.locator('.feedback-message')).toHaveText('It lands on Studio as a card and opens, ready to fill.');
+  await dialog.locator('.feedback-field input').fill('Music video');
+  await dialog.locator('.btn-primary').tap();
+  await expect(page.locator('.crumbs .crumb.here')).toHaveText('Music video');
+});

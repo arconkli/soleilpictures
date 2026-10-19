@@ -15,7 +15,9 @@
 //   · nothing picked: it lands beside what is there and opens, ready to fill.
 // The surface marks the event handled; one that nobody took goes to
 // `onUnhandled(name)`. The count beside the label is what would move
-// (lib/newClusterPick.js).
+// (lib/newClusterPick.js). The empty Studio's "Start a cluster for each" opens
+// this same popover ('soleil-new-cluster-open'), so one field names a cluster
+// wherever the offer was made, and the create carries that door's `via`.
 //
 // Raised like Share, so the two things to press in the bar look alike, and
 // like Share never gold — gold marks active, selection and focus. The popover
@@ -49,20 +51,37 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
   const pick = useSyncExternalStore(subscribeNewClusterPick, () => readNewClusterPick(paneId, boardId));
   const n = pick.count;
 
-  const nudge = (action, extra = {}) => {
-    try { logEvent(EV.CLUSTER_NUDGE, { surface: 'topbar', action, picked: n, board_id: boardId, ...extra }); } catch (_) {}
+  // Which door opened it: 'topbar', or the surface that asked (empty_studio).
+  const viaRef = useRef('topbar');
+  const nudge = (action) => {
+    try { logEvent(EV.CLUSTER_NUDGE, { surface: viaRef.current, action, picked: n, board_id: boardId }); } catch (_) {}
   };
   const close = ({ dismissed = false, refocus = false } = {}) => {
     setOpen(false);
     if (dismissed) nudge('dismiss');
     if (refocus) btnRef.current?.focus();
   };
-  const show = () => {
+  const show = (via = 'topbar') => {
+    viaRef.current = via;
     // Picked cards start from the name "New cluster from N cards" would offer.
     setName(n ? (pick.suggestion || '') : '');
     setOpen(true);
-    nudge('view');
+    // The bar's button is always there, so its popover opening is its view;
+    // another door logs its own view when it is shown.
+    if (via === 'topbar') nudge('view');
   };
+  const showRef = useRef(show);
+  showRef.current = show;
+  useEffect(() => {
+    const onOpen = (e) => {
+      const d = e.detail;
+      if (!d || d.handled || d.boardId !== boardId || d.paneId !== paneId) return;
+      d.handled = true;
+      showRef.current(d.via || 'topbar');
+    };
+    document.addEventListener('soleil-new-cluster-open', onOpen);
+    return () => document.removeEventListener('soleil-new-cluster-open', onOpen);
+  }, [boardId, paneId]);
 
   // The popover is portaled out of wrapRef: a click in it isn't outside.
   useDismissOnOutside(wrapRef, open, () => close({ dismissed: true }), { escape: false, ignore: '.ncl-pop' });
@@ -101,7 +120,7 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
 
   const create = () => {
     const clean = name.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX) || null;
-    const detail = { boardId, paneId, name: clean, via: 'topbar', handled: false };
+    const detail = { boardId, paneId, name: clean, via: viaRef.current, handled: false };
     nudge('accept');
     setOpen(false);
     document.dispatchEvent(new CustomEvent('soleil-new-cluster', { detail }));
@@ -117,7 +136,7 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
       <button type="button" ref={btnRef} className="tb-btn tb-newcluster"
               aria-haspopup="dialog" aria-expanded={open}
               title={n ? `New cluster from the ${n} ${cardsWord(n)} you picked` : 'New cluster (C)'}
-              onClick={() => (open ? close({ dismissed: true }) : show())}>
+              onClick={() => (open ? close({ dismissed: true }) : show('topbar'))}>
         <Icon as={Plus} size={14} weight="regular" />
         <span className="tb-btn-label">New cluster</span>
         {n > 0 && <span className="ncl-count" aria-label={`${n} ${cardsWord(n)} picked`}>{n}</span>}
