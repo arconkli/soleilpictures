@@ -62,7 +62,7 @@ import { EntityLink } from './EntityLink.jsx';
 import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download,
+  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download, ArrowSquareOut,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -146,6 +146,7 @@ export function KindIcon({ kind, size = 22, weight }) {
   if (kind === 'audio')    return <Icon as={Headphones} size={size} weight={weight} />;
   if (kind === 'video')    return <Icon as={Clapperboard} size={size} weight={weight} />;
   if (kind === 'file')     return <Icon as={Paperclip} size={size} weight={weight} />;
+  if (kind === 'shortcut') return <Icon as={ArrowSquareOut} size={size} weight={weight} />;
   return <Icon as={CirclePh} size={size} weight={weight} />;
 }
 

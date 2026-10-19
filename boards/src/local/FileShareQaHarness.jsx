@@ -21,10 +21,14 @@
 // (fakeDocRoom): the doc as the room would send it, a hello, caught up.
 // window.__fileShareQa.docRooms holds each room, so a spec can refuse a
 // write (refuse(reason)) or close it (end(code)).
+// `mode: 'shortcuts'` draws a shortcut card (components/cards/ShortcutCard.jsx)
+// for each answer in fixture.shortcuts (token → the share's answer), and one
+// on a public board.
 import { useMemo, useState } from 'react';
 import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { addPage, cardScope, initCardDocStore } from '../lib/docState.js';
+import { ShortcutCard } from '../components/cards/ShortcutCard.jsx';
 import { SharedFileHost } from '../components/fileShare/SharedFileHost.jsx';
 import { SharedPage } from '../components/shared/SharedPage.jsx';
 import { setSharedFilesSource } from '../hooks/useSharedFiles.js';
@@ -79,6 +83,15 @@ function okDoc(extra = {}) {
     shared_by: SHARED_BY, urls: {}, ttl: 21600, ...extra,
   };
 }
+
+// Shortcut cards, one token per state (the share cache is per token).
+const SHORTCUT_TOKENS = {
+  ok: '5c000000-0000-4000-8000-000000000001',
+  doc: '5c000000-0000-4000-8000-000000000002',
+  gone: '5c000000-0000-4000-8000-000000000003',
+  noAccess: '5c000000-0000-4000-8000-000000000004',
+  public: '5c000000-0000-4000-8000-000000000005',
+};
 
 const SHARED_TOKENS = {
   video: '1a2b3c4d-0000-4000-8000-000000000001',
@@ -250,6 +263,19 @@ export const FIXTURES = {
     card: { id: DOC_CARD, kind: 'doc', title: 'Pilot, revisions' },
     settings: { exists: false, kind: 'doc' },
   },
+  // Shortcut cards in each state.
+  shortcuts: {
+    mode: 'shortcuts',
+    share: { status: 'gone' },
+    comments: [],
+    shortcuts: {
+      [SHORTCUT_TOKENS.ok]: ok({ kind: 'image', name: 'Look book', mime: 'image/webp', ext: 'webp' }, { urls: { src: MEDIA.image } }),
+      [SHORTCUT_TOKENS.doc]: okDoc(),
+      [SHORTCUT_TOKENS.gone]: { status: 'gone' },
+      [SHORTCUT_TOKENS.noAccess]: { status: 'no_access', email: 'sam@example.com' },
+      [SHORTCUT_TOKENS.public]: ok({ kind: 'video', name: 'Never asked for' }),
+    },
+  },
   gone: { share: { status: 'gone' }, comments: [] },
   'sign-in': { share: { status: 'sign_in' }, comments: [] },
   'no-access': { share: { status: 'no_access', email: 'sam@example.com' }, comments: [] },
@@ -332,6 +358,7 @@ export function makeFakeApi(fixture, calls = []) {
     getShare() { return JSON.parse(JSON.stringify(share)); },
     fetchFileShare(token, opts) {
       log('fetchFileShare', opts === undefined ? [token] : [token, opts]);
+      if (fx.shortcuts && fx.shortcuts[token]) return Promise.resolve(JSON.parse(JSON.stringify(fx.shortcuts[token])));
       const next = shareSeq.length ? shareSeq.shift() : share;
       return Promise.resolve(JSON.parse(JSON.stringify(next)));
     },
@@ -425,6 +452,7 @@ function OverlayView({ api }) {
     <div style={{ padding: 24 }}>
       <button type="button" data-qa-open-shared="1" onClick={() => openSharedFile({ token: QA_TOKEN, via: 'shared_page' })}>Open shared file</button>
       <SharedFileHost api={api}
+                      onAddShortcut={async ({ token, res }) => { api.calls.push({ fn: 'onAddShortcut', args: [token, res?.file?.kind || null] }); }}
                       onSaveCopy={async ({ token, res }) => {
                         api.calls.push({ fn: 'onSaveCopy', args: [token, res?.file?.kind || null] });
                         feedback.toast({ type: 'success', message: 'Saved to Opening sequence' });
@@ -436,6 +464,7 @@ function OverlayView({ api }) {
 function SharedPageView({ api }) {
   const feedback = useFeedback();
   return <SharedPage api={api} feedback={feedback} onClose={() => api.calls.push({ fn: 'onClose', args: [] })}
+                     onAddShortcut={async ({ token, res }) => { api.calls.push({ fn: 'onAddShortcut', args: [token, res?.file?.kind || null] }); }}
                      onSaveCopy={async ({ token }) => { api.calls.push({ fn: 'onSaveCopy', args: [token] }); }} />;
 }
 
@@ -464,6 +493,25 @@ export function FileShareQaHarness() {
       <FeedbackProvider>
         <div data-fileshareqa-ready="1" data-fixture={name} style={{ height: '100vh', display: 'flex' }}>
           <SharedPageView api={api} />
+        </div>
+      </FeedbackProvider>
+    );
+  }
+  if (fixture.mode === 'shortcuts') {
+    const box = { width: 240, height: 180, borderRadius: 12 };
+    return (
+      <FeedbackProvider>
+        <div data-fileshareqa-ready="1" data-fixture={name}
+             style={{ padding: 24, display: 'flex', flexWrap: 'wrap', gap: 20, background: 'var(--bg-0)', minHeight: '100vh' }}>
+          {['ok', 'doc', 'gone', 'noAccess'].map((k) => (
+            <div key={k} data-shortcut-fixture={k} style={box}>
+              <ShortcutCard shareToken={SHORTCUT_TOKENS[k]} api={api}
+                            onRemove={() => api.calls.push({ fn: 'onRemove', args: [k] })} />
+            </div>
+          ))}
+          <div data-shortcut-fixture="public" style={box}>
+            <ShortcutCard shareToken={SHORTCUT_TOKENS.public} api={api} isPublic />
+          </div>
         </div>
       </FeedbackProvider>
     );

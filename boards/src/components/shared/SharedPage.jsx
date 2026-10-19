@@ -45,7 +45,7 @@ function RowMenuButton({ label, onOpen }) {
   );
 }
 
-export function SharedPage({ onClose = null, onSaveCopy = null, feedback = null, initialTab = 'with_me', api = defaultApi }) {
+export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = null, feedback = null, initialTab = 'with_me', api = defaultApi }) {
   const shared = useSharedFiles({ enabled: true });
   const [tab, setTab] = useState(initialTab === 'by_me' ? 'by_me' : 'with_me');
   const [hidden, setHidden] = useState(() => new Set());     // optimistic removes
@@ -145,6 +145,11 @@ export function SharedPage({ onClose = null, onSaveCopy = null, feedback = null,
       { id: 'open', label: 'Open', run: () => openSharedFile({ token: item.token, via: 'shared_page' }) },
       ...(onSaveCopy && item.allow_download && SAVEABLE.has(item.kind)
         ? [{ id: 'copy', label: 'Save a copy…', run: () => onSaveCopy({ token: item.token, res: { file: item, allow_download: true } }) }]
+        : []),
+      // A live card on one of your clusters that opens this file (only the
+      // share's token goes on it: components/cards/ShortcutCard.jsx).
+      ...(onAddShortcut
+        ? [{ id: 'shortcut', label: 'Add shortcut…', run: () => onAddShortcut({ token: item.token, res: { file: item } }) }]
         : []),
     ] },
     { header: SECTION.EDIT, items: [

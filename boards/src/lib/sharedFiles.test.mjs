@@ -64,7 +64,7 @@ test('the Shared page, the in-app viewer and the sidebar row sit behind sharedFi
   const host = src('./appHost.js');
   assert.match(host, /export function sharedFilesAllowed\(\) \{\n  return import\.meta\.env\.DEV \|\| onPreviewHost\(\);\n\}/);
   const app = src('../App.jsx');
-  assert.match(app, /\{sharedFilesAllowed\(\) && <SharedFileHost onSaveCopy=\{saveSharedCopy\} \/>\}/);
+  assert.match(app, /\{sharedFilesAllowed\(\) && <SharedFileHost onSaveCopy=\{saveSharedCopy\} onAddShortcut=\{addSharedShortcut\} \/>\}/);
   assert.match(app, /\) : currentSurface === 'shared' && sharedFilesAllowed\(\) \? \(/);
   assert.match(app, /const sharedFiles = useSharedFiles\(\{ enabled: sharedFilesAllowed\(\) \}\);/);
   assert.match(app, /const sharedFilesRow = sharedFilesAllowed\(\) && /);

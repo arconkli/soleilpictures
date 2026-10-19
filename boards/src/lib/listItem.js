@@ -21,7 +21,7 @@ const GRID_RECT_CAP = 64;
 export const TYPE_LABELS = {
   image: 'Image', pdf: 'PDF', video: 'Video', audio: 'Audio', file: 'File',
   note: 'Note', link: 'Link', doc: 'Doc', palette: 'Palette', schedule: 'Schedule',
-  shape: 'Shape', grid: 'Grid', board: 'Cluster', boardlink: 'Link',
+  shape: 'Shape', grid: 'Grid', board: 'Cluster', boardlink: 'Link', shortcut: 'Shortcut',
 };
 
 // Coarse buckets for the type filter. Several kinds collapse (board+boardlink →

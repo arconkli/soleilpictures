@@ -5976,6 +5976,47 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
   }, [boards, workspace, user?.id, myTier, requestClusterPick, pitchCapWall, pitchStorageGate, feedback]);
 
+  // "Add shortcut" for a file shared with you (the Shared page, the in-app
+  // viewer): a live card on one of your clusters that carries only the
+  // share's token, never the file's name (components/cards/ShortcutCard.jsx).
+  // It counts as a card and takes no storage, so only the card wall applies.
+  const addSharedShortcut = useCallback(async ({ token, res }) => {
+    const picked = await requestClusterPick({ placeholder: 'Add a shortcut to…' });
+    const dest = picked?.id ? boards[picked.id] : null;
+    if (!dest) return;
+    const kind = res?.file?.kind || null;
+    const log = (ok, reason = null) => {
+      try { logEvent(EV.SHARED_FILE_SHORTCUT, { kind, ok, reason }); } catch (_) {}
+    };
+    const own = dest.workspace_id === workspace?.id && workspace?.created_by === user?.id;
+    const mt = myTierRef.current || myTier;
+    const limit = mt.effectiveCardLimit || DEMO_CARD_LIMIT;
+    if (own && mt.tier === 'demo' && Number(mt.demoCardCount) >= limit) {
+      log(false, 'limit_reached');
+      pitchCapWall({ limit, rejected: 1, kinds: ['shortcut'] });
+      return;
+    }
+    const id = `shortcut-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const landed = await appendCards({ boardId: dest.id, cards: [{ id, kind: 'shortcut', shareToken: token, w: 240, h: 180 }] });
+    if (!landed?.ok) {
+      log(false, landed?.error || 'append');
+      if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit, rejected: 1, kinds: ['shortcut'] }); return; }
+      feedback.toast({ type: 'error', message: landed?.error === 'forbidden' ? 'You can’t add to that cluster.' : 'Couldn’t add the shortcut. Try again.' });
+      return;
+    }
+    log(true);
+    const cardId = landed.cards?.[0]?.id || id;
+    feedback.toast({
+      type: 'success',
+      message: `Shortcut added to ${dest.name || 'your cluster'}`,
+      action: { label: 'Show', onClick: () => {
+        setCurrentSurface('board');
+        setViewOverride((o) => (o[dest.id] === 'canvas' ? o : { ...o, [dest.id]: 'canvas' }));
+        navHandlers.card({ kind: 'card', boardId: dest.id, cardId });
+      } },
+    });
+  }, [boards, workspace, user?.id, myTier, requestClusterPick, pitchCapWall, feedback, navHandlers]);
+
   // ── A dropped FOLDER becomes clusters (Drive basics, item 2) ─────────────────
   // lib/folderWalk reads the folder, lib/folderPlan prices it in cards, the
   // preflight asks ONCE for the whole thing, lib/folderImport does it. The pane
@@ -10206,7 +10247,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           />
         ) : currentSurface === 'shared' && sharedFilesAllowed() ? (
           <Suspense fallback={<div className="shp" />}>
-            <SharedPage onClose={() => setCurrentSurface('board')} onSaveCopy={saveSharedCopy} feedback={feedback} />
+            <SharedPage onClose={() => setCurrentSurface('board')} onSaveCopy={saveSharedCopy}
+                        onAddShortcut={addSharedShortcut} feedback={feedback} />
           </Suspense>
         ) : currentSurface === 'tag' && activeTag ? (
           // Keyed by tag: switching tags must start from empty state, not
@@ -10546,7 +10588,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }}
       />
       {fileSharesAllowed() && <FileShareHost />}
-      {sharedFilesAllowed() && <SharedFileHost onSaveCopy={saveSharedCopy} />}
+      {sharedFilesAllowed() && <SharedFileHost onSaveCopy={saveSharedCopy} onAddShortcut={addSharedShortcut} />}
 
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
           and choosing the partial keeps the cards they're entitled to. Rendered

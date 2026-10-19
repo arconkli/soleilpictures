@@ -10,6 +10,8 @@ import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, gli
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { secondIdeaDue } from '../lib/secondIdea.js';
 import { openFileShare, docShareLabel } from '../lib/fileShareBus.js';
+import { openSharedFile } from '../lib/sharedFileBus.js';
+import { ShortcutCard } from './cards/ShortcutCard.jsx';
 import { openableUrl } from '../lib/openableUrl.js';
 import { isShareableCard } from '../lib/fileShares.js';
 
@@ -7883,6 +7885,8 @@ export function CanvasSurface({
             if (href) window.open(href, '_blank', 'noopener');
             else feedback.toast({ type: 'error', message: "That link can't be opened." });
           }});
+        } else if (c.kind === 'shortcut' && c.shareToken && !isPublic) {
+          openItems.push({ id: 'open', label: 'Open', run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
         }
         metaItems.push({ id: 'info', label: 'Info', shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }) });
@@ -8023,6 +8027,9 @@ export function CanvasSurface({
           items.push({ id: 'image-download', label: 'Download',
             run: () => runDownload(c, 'image') });
         }
+      } else if (c.kind === 'shortcut') {
+        // A shortcut to a file shared with you: opens in the in-app viewer.
+        if (c.shareToken) openItems.push({ id: 'open', label: 'Open', run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
       } else if (c.kind === 'pdf') {
         openItems.push({ id: 'pdf-open', label: 'Open',
           run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id }); } });
@@ -9838,6 +9845,11 @@ export function CanvasSurface({
   const onCardDoubleClick = (e, c) => {
     if (isEditorPointerTarget(e)) return;
     if (e.target.closest && e.target.closest('.editable')) return;
+    // A shortcut opens the file shared with you, in the in-app viewer.
+    if (c.kind === 'shortcut') {
+      if (c.shareToken && !isPublic) { e.stopPropagation?.(); openSharedFile({ token: c.shareToken, via: 'shortcut' }); }
+      return;
+    }
     if (c.kind === 'board') {
       // Read-only viewers already navigate on single click (the !canEdit
       // branch of onCardPointerDown) — suppress the double-click path so a
@@ -10505,6 +10517,8 @@ export function CanvasSurface({
                                                        uploadProgress={uploadProgressById[c.id] ?? null}
                                                        opensOnBoard
                                                        onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
+    else if (c.kind === 'shortcut')  inner = <ShortcutCard shareToken={c.shareToken} isPublic={isPublic}
+                                                           onRemove={canEdit && !isPublic ? () => doDeleteIds([c.id]) : null} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
     // Tag chips along the card's bottom edge so the user actually sees

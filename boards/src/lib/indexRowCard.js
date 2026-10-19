@@ -23,6 +23,8 @@ const KIND_FALLBACK = {
   file: 'File', note: 'Note', doc: 'Untitled doc',
   grid: 'Grid', palette: 'Palette', schedule: 'Schedule', art: 'Drawing',
   vote: 'Vote', shape: 'Shape',
+  // A shortcut's index row is nameless by design (the file is someone else's).
+  shortcut: 'Shortcut',
 };
 const SHAPE_NAMES = { rect: 'Rectangle', ellipse: 'Ellipse', line: 'Line', arrow: 'Arrow' };
 
