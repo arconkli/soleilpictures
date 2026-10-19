@@ -47,6 +47,10 @@ function rangeRects(view, from, to) {
   }
 }
 
+// Someone reading or editing through the doc's share (DocShareView): the
+// room marks them (user.guest), and their tag says so.
+const peerLabel = (user) => `${(user.name || '?').split(' ')[0]}${user.guest ? ' (guest)' : ''}`;
+
 export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, getEditors, zoom = 1, currentUser }) {
   const [peers, setPeers] = useState([]);
 
@@ -409,7 +413,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, g
                 padding: '2px 5px',
                 borderRadius: 3,
                 whiteSpace: 'nowrap',
-              }}>{(p.user.name || '?').split(' ')[0]}</span>
+              }}>{peerLabel(p.user)}</span>
             </div>
           );
         }
@@ -417,7 +421,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, g
           els.push(
             <LiveCursor key={'cursor-' + p.clientId}
                         x={at.cursor.left} y={at.cursor.top}
-                        name={(p.user.name || '?').split(' ')[0]}
+                        name={peerLabel(p.user)}
                         color={color} />
           );
         }

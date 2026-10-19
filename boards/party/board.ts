@@ -129,6 +129,9 @@ export class BoardParty extends YServer<Env> {
     });
     await this.bridge.load();
     this.document.on("afterTransaction", (tr: Y.Transaction) => this.bridge?.onTransaction(tr));
+    // And every presence change, for the doc's readers (inert with no mirror).
+    this.document.awareness.on("update", (changes: { added: number[]; updated: number[]; removed: number[] }) =>
+      this.bridge?.onAwareness(changes));
     // The local copy held something: make sure the database gets it now
     // rather than at the next edit. The write is a compare-and-set, so this can
     // only add to what is stored.

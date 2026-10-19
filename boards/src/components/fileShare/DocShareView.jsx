@@ -238,7 +238,9 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
         ) : (
           <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
             <DocSurface
-              board={{ id: `fs-${token}`, name }}
+              // The doc's card id, as its members' DocPresence uses: presence
+              // crosses the mirror keyed by it (lib/docRoomPresence.js).
+              board={{ id: cardKey, name }}
               ydoc={ydoc}
               ready
               scope={scope}

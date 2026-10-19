@@ -32,10 +32,12 @@ import { getServerByName } from "partyserver";
 import * as Y from "yjs";
 import * as decoding from "lib0/decoding";
 import * as encoding from "lib0/encoding";
+import * as awarenessProtocol from "y-protocols/awareness";
 import { bannedAmong } from "./auth";
 import { DEFAULT_SUPABASE_URL, type Env } from "./env";
 import { bridgeHeaders, isBridgeRequest } from "./bridge";
 import { validateGuestUpdate, r2KeysIn } from "../src/lib/docRoomBridge.js";
+import { PRESENCE_FLUSH_MS, decodePresence, docPresenceOf, encodePresence } from "../src/lib/docRoomPresence.js";
 import {
   DOC_ROOM_FRAME_MAX_BYTES, DOC_ROOM_GUEST_UPDATES, DOC_ROOM_GUEST_UPDATES_WINDOW_MS,
   DOC_ROOM_GUEST_AWARENESS_PER_S, DOC_ROOM_MAX_CONNECTIONS, DOC_ROOM_GUEST_DOC_MAX_BYTES,
@@ -119,6 +121,12 @@ export class DocParty extends YServer<Env> {
   private lastHeard = new Map<Connection, number>();
   private limits = new Map<Connection, { updates: ReturnType<typeof rateWindow>; awareness: ReturnType<typeof rateWindow> }>();
   private claims = new Map<number, string>();   // a guest's Yjs client id → their user id
+  // Presence across the mirror (lib/docRoomPresence.js): the members the board
+  // shows here, and guests' changes waiting to cross to it.
+  private boardClients = new Set<number>();
+  private presenceQueue = new Set<number>();
+  private presenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private presenceWired = false;
 
   // Nothing happens until a socket arrives: an HTTP wake (a /recheck, a stray
   // /push) never wakes the board or builds the mirror (security review: a
@@ -199,6 +207,11 @@ export class DocParty extends YServer<Env> {
       for (const k of r2KeysIn(bytes)) this.trusted.add(k);
       this.docBytes = bytes.length;
       this.subscribed = true;
+      if (!this.presenceWired) {
+        this.presenceWired = true;
+        this.document.awareness.on("update", (changes: { added: number[]; updated: number[]; removed: number[] }) =>
+          this.onAwareness(changes));
+      }
     } catch (e) {
       // Whatever landed of it, this copy is thrown away (leave(), from onConnect).
       console.error(`[doc ${this.name}] the board's copy did not apply`, e);
@@ -317,7 +330,8 @@ export class DocParty extends YServer<Env> {
   // the doc's cursors need, and the name and color the room gave it.
   private cleanAwareness(conn: Connection, data: Uint8Array): Uint8Array | null {
     const st = stateOf(conn);
-    const taken = new Set<number>();
+    // Taken: another guest's ids, and the members' the board shows here.
+    const taken = new Set<number>(this.boardClients);
     for (const c of this.getConnections()) if (c !== conn) for (const id of stateOf(c).awareness || []) taken.add(id);
     try {
       const dec = decoding.createDecoder(data);
@@ -336,7 +350,7 @@ export class DocParty extends YServer<Env> {
           let parsed: any = null;
           try { parsed = JSON.parse(raw); } catch (_) { continue; }
           if (!parsed || typeof parsed !== "object") continue;
-          state = { user: { name: st.name, color: st.color, guest: true } };
+          state = { user: { id: `p:${id}`, name: st.name, color: st.color, guest: true } };
           for (const f of AWARENESS_FIELDS) if (f in parsed) state[f] = parsed[f];
         }
         const json = JSON.stringify(state);
@@ -369,6 +383,41 @@ export class DocParty extends YServer<Env> {
     // claims a fresh client id with a fresh doc.
     while (this.claims.size > 500) this.claims.delete(this.claims.keys().next().value as number);
     try { await this.ctx.storage.put(CLAIMS_KEY, Object.fromEntries([...this.claims].map(([c, u]) => [String(c), u]))); } catch (_) { /* best effort */ }
+  }
+
+  // ── presence, to the board ────────────────────────────────────────────────
+
+  // A guest's presence changed (or they left): it crosses to the board, which
+  // shows it to the members and to the doc's other room.
+  private onAwareness(changes: { added: number[]; updated: number[]; removed: number[] }) {
+    if (!this.subscribed || this.dead || this.leaving) return;
+    for (const id of [...changes.added, ...changes.updated, ...changes.removed]) {
+      if (!this.boardClients.has(id)) this.presenceQueue.add(id);
+    }
+    if (this.presenceQueue.size && !this.presenceTimer) {
+      this.presenceTimer = setTimeout(() => { void this.flushPresence(); }, PRESENCE_FLUSH_MS);
+    }
+  }
+
+  private async flushPresence() {
+    if (this.presenceTimer) { clearTimeout(this.presenceTimer); this.presenceTimer = null; }
+    if (!this.target || !this.presenceQueue.size) return;
+    const aw = this.document.awareness;
+    const entries: Array<{ id: number; clock: number; state: unknown }> = [];
+    for (const id of this.presenceQueue) {
+      const meta = aw.meta.get(id);
+      if (meta) entries.push({ id, clock: meta.clock, state: docPresenceOf(aw.getStates().get(id), this.target.cardId, id) });
+    }
+    this.presenceQueue.clear();
+    if (!entries.length) return;
+    try {
+      const stub = await getServerByName(this.env.Main as any, this.target.boardId);
+      await stub.fetch("https://bridge/bridge/presence", {
+        method: "POST",
+        headers: await bridgeHeaders(this.env, { "content-type": "application/octet-stream", "x-doc-room": this.name }),
+        body: encodePresence(entries),
+      });
+    } catch (_) { /* best effort: the 15 s renewal sends it again */ }
   }
 
   // ── to the board ──────────────────────────────────────────────────────────
@@ -457,6 +506,7 @@ export class DocParty extends YServer<Env> {
     if (this.leaving) return;
     this.leaving = true;
     void (async () => {
+      await this.flushPresence();
       await this.unsubscribe();
       try { await this.ctx.storage.deleteAlarm(); } catch (_) { /* none set */ }
       try { this.ctx.abort("the room emptied"); } catch (_) { /* already resetting */ }
@@ -496,6 +546,29 @@ export class DocParty extends YServer<Env> {
       // Files the members put in the doc are ones a guest may show again.
       for (const k of r2KeysIn(bytes)) this.trusted.add(k);
       this.docBytes += bytes.length;
+      return new Response(null, { status: 204 });
+    }
+
+    // The members the board shows in this doc. Never over a guest's own client
+    // id, and only this doc's fields; marked before they land, so they are not
+    // sent back.
+    if (url.pathname.endsWith("/presence")) {
+      if (!this.subscribed || !this.target || this.dead || this.leaving) return new Response("Gone", { status: 410 });
+      if ([...this.getConnections()].length === 0) return new Response("Nobody here", { status: 410 });
+      const guests = new Set<number>();
+      for (const c of this.getConnections()) for (const id of stateOf(c).awareness || []) guests.add(id);
+      const keep: Array<{ id: number; clock: number; state: ReturnType<typeof docPresenceOf> }> = [];
+      for (const e of decodePresence(new Uint8Array(await req.arrayBuffer()))) {
+        if (guests.has(e.id)) continue;
+        const state = e.state === null ? null : docPresenceOf(e.state, this.target.cardId, e.id);
+        if (e.state !== null && !state) continue;
+        keep.push({ id: e.id, clock: e.clock, state });
+      }
+      if (keep.length) {
+        for (const e of keep) if (e.state) this.boardClients.add(e.id);
+        awarenessProtocol.applyAwarenessUpdate(this.document.awareness, encodePresence(keep), null);
+        for (const e of keep) if (!e.state) this.boardClients.delete(e.id);
+      }
       return new Response(null, { status: 204 });
     }
 

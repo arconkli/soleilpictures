@@ -11,13 +11,19 @@
 // no sockets answers 410 and is dropped. With no subscription every hook
 // here returns at its first line.
 //
-// The routes (/bridge/subscribe, /bridge/unsubscribe, /bridge/apply) are
-// reachable only from a Durable Object stub: the Worker's beforeRequest
-// turns every outside request for them away, and each one checks the
-// bridge header too.
+// Presence crosses too (lib/docRoomPresence.js): this room is the hub, showing
+// a doc room's guests to its members and to the doc's other room, and its
+// members' presence in the doc to each doc room. Only the doc's own fields.
+//
+// The routes (/bridge/subscribe, /bridge/unsubscribe, /bridge/apply,
+// /bridge/presence) are reachable only from a Durable Object stub: the
+// Worker's beforeRequest turns every outside request for them away, and each
+// one checks the bridge header too.
 import * as Y from "yjs";
+import * as awarenessProtocol from "y-protocols/awareness";
 import { getServerByName } from "partyserver";
 import { extractDocSubtree, filterTransaction, validateGuestUpdate } from "../src/lib/docRoomBridge.js";
+import { PRESENCE_FLUSH_MS, decodePresence, docPresenceOf, encodePresence } from "../src/lib/docRoomPresence.js";
 import type { Env } from "./env";
 
 const SUBS_KEY = "bridgeSubs";
@@ -63,6 +69,12 @@ const isDocRoomOrigin = (o: unknown): o is DocRoomOrigin =>
 
 export class BoardBridge {
   private subs = new Map<string, Sub>();
+  // Presence: the members shown in each doc room, and the doc room each
+  // guest here came from.
+  private shownIn = new Map<string, Set<number>>();
+  private guestsOf = new Map<number, string>();
+  private presenceQueue = new Map<string, Set<number>>();
+  private presenceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly host: {
@@ -75,6 +87,10 @@ export class BoardBridge {
   ) {}
 
   get size() { return this.subs.size; }
+
+  private get awareness(): awarenessProtocol.Awareness {
+    return (this.host.document as unknown as { awareness: awarenessProtocol.Awareness }).awareness;
+  }
 
   async load() {
     try {
@@ -148,7 +164,77 @@ export class BoardBridge {
     const sub = this.subs.get(room);
     if (sub?.timer) clearTimeout(sub.timer);
     this.subs.delete(room);
+    this.dropPresence(room);
     await this.persist();
+  }
+
+  // ── presence ──────────────────────────────────────────────────────────────
+
+  // Every presence change here: what shows a subscribed doc crosses to its
+  // rooms, never back to the room it came from. A member who leaves the doc
+  // crosses once more, as gone.
+  onAwareness(changes: { added: number[]; updated: number[]; removed: number[] }) {
+    if (!this.subs.size || this.host.resetting()) return;
+    const ids = [...changes.added, ...changes.updated, ...changes.removed];
+    if (!ids.length) return;
+    const states = this.awareness.getStates();
+    for (const sub of this.subs.values()) {
+      const shown = this.shownIn.get(sub.room);
+      for (const id of ids) {
+        if (this.guestsOf.get(id) === sub.room) continue;
+        if (!shown?.has(id) && !docPresenceOf(states.get(id), sub.cardId, id)) continue;
+        let q = this.presenceQueue.get(sub.room);
+        if (!q) { q = new Set(); this.presenceQueue.set(sub.room, q); }
+        q.add(id);
+      }
+    }
+    if (this.presenceQueue.size && !this.presenceTimer) {
+      this.presenceTimer = setTimeout(() => { void this.flushPresence(); }, PRESENCE_FLUSH_MS);
+    }
+  }
+
+  private async flushPresence() {
+    this.presenceTimer = null;
+    const queued = this.presenceQueue;
+    this.presenceQueue = new Map();
+    const aw = this.awareness;
+    const states = aw.getStates();
+    for (const [room, ids] of queued) {
+      const sub = this.subs.get(room);
+      if (!sub) continue;
+      let shown = this.shownIn.get(room);
+      if (!shown) { shown = new Set(); this.shownIn.set(room, shown); }
+      const entries: Array<{ id: number; clock: number; state: unknown }> = [];
+      for (const id of ids) {
+        const meta = aw.meta.get(id);
+        if (!meta) continue;
+        const state = docPresenceOf(states.get(id), sub.cardId, id);
+        if (state) shown.add(id);
+        else if (shown.has(id)) shown.delete(id);
+        else continue;
+        entries.push({ id, clock: meta.clock, state });
+      }
+      if (!entries.length) continue;
+      try {
+        const stub = await getServerByName(this.host.env.Doc as any, room);
+        await stub.fetch("https://bridge/presence", {
+          method: "POST",
+          headers: await bridgeHeaders(this.host.env, { "content-type": "application/octet-stream" }),
+          body: encodePresence(entries),
+        });
+      } catch (_) { /* best effort: the next change, or the 15 s renewal, sends it again */ }
+    }
+  }
+
+  // A doc room gone: its guests leave the members' view.
+  private dropPresence(room: string) {
+    const ids = [...this.guestsOf].filter(([, r]) => r === room).map(([id]) => id);
+    for (const id of ids) this.guestsOf.delete(id);
+    if (ids.length) {
+      try { awarenessProtocol.removeAwarenessStates(this.awareness, ids, null); } catch (_) { /* already gone */ }
+    }
+    this.shownIn.delete(room);
+    this.presenceQueue.delete(room);
   }
 
   // Tell a doc room to send everyone away (a reset, a deleted card, a gap),
@@ -197,6 +283,32 @@ export class BoardBridge {
     if (path.endsWith("/bridge/unsubscribe")) {
       const body = (await req.json().catch(() => null)) as { room?: string } | null;
       await this.drop(String(body?.room || ""));
+      return new Response(null, { status: 204 });
+    }
+
+    // A doc room's guests, shown to the members and passed on to the doc's
+    // other room. Only this doc's fields, only a guest's (the room stamps
+    // them), and never over a client id this board has from anywhere else.
+    if (path.endsWith("/bridge/presence")) {
+      const room = req.headers.get("x-doc-room") || "";
+      const sub = this.subs.get(room);
+      if (!sub) return new Response("Gone", { status: 410 });
+      const aw = this.awareness;
+      const keep: Array<{ id: number; clock: number; state: ReturnType<typeof docPresenceOf> }> = [];
+      for (const e of decodePresence(new Uint8Array(await req.arrayBuffer()))) {
+        const from = this.guestsOf.get(e.id);
+        if (from ? from !== room : aw.getStates().has(e.id)) continue;
+        if (e.state === null) { if (from) keep.push({ id: e.id, clock: e.clock, state: null }); continue; }
+        const state = docPresenceOf(e.state, sub.cardId, e.id);
+        if (!state || !state.user.guest) continue;
+        keep.push({ id: e.id, clock: e.clock, state });
+      }
+      if (keep.length) {
+        // Marked before they land, so the hub does not send them back.
+        for (const e of keep) if (e.state) this.guestsOf.set(e.id, room);
+        awarenessProtocol.applyAwarenessUpdate(aw, encodePresence(keep), null);
+        for (const e of keep) if (!e.state) this.guestsOf.delete(e.id);
+      }
       return new Response(null, { status: 204 });
     }
 

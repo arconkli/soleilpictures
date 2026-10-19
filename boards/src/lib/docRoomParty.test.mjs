@@ -33,7 +33,7 @@ test('every guest write is validated before it applies, and a view socket never 
 
 test('names and presence are the room’s, not the browser’s', () => {
   assert.match(doc, /const name = \(h\.get\("x-doc-name"\) \|\| ""\)\.slice\(0, 80\)/);
-  assert.match(doc, /state = \{ user: \{ name: st\.name, color: st\.color, guest: true \} \};/);
+  assert.match(doc, /state = \{ user: \{ id: `p:\$\{id\}`, name: st\.name, color: st\.color, guest: true \} \};/);
   assert.match(doc, /if \(bytes\.length > AWARENESS_FRAME_MAX\) return;/);
   assert.match(doc, /if \(taken\.has\(id\) \|\| st\.awareness\.length >= 4\) continue;/, 'only its own client ids');
   // The Worker stamps them from doc_room_access, run as the caller.
@@ -131,4 +131,26 @@ test('the last one out lets go of the board and throws the copy away', () => {
   assert.match(doc, /if \(this\.leaving \|\| this\.dead \|\| !this\.target\) \{/);
   assert.match(doc, /if \(!this\.subscribed \|\| !this\.target \|\| this\.dead \|\| this\.leaving\) return new Response\("Gone", \{ status: 410 \}\);/);
   assert.match(doc, /if \(!conns\.length\) \{ this\.leave\(\); return; \}/);
+});
+
+// Presence across the mirror (lib/docRoomPresence.js): the board is the hub.
+test('presence crosses only as each side allows, and never echoes back', () => {
+  // The board: a room's entries only for its own guests, never over a client
+  // id it has from anywhere else, marked before they land.
+  assert.match(bridge, /if \(from \? from !== room : aw\.getStates\(\)\.has\(e\.id\)\) continue;/);
+  assert.match(bridge, /if \(!state \|\| !state\.user\.guest\) continue;/);
+  assert.match(bridge, /for \(const e of keep\) if \(e\.state\) this\.guestsOf\.set\(e\.id, room\);\s+awarenessProtocol\.applyAwarenessUpdate\(aw, encodePresence\(keep\), null\);/);
+  assert.match(bridge, /if \(this\.guestsOf\.get\(id\) === sub\.room\) continue;/, 'not back to the room it came from');
+  assert.match(bridge, /onAwareness\(changes: \{ added: number\[\]; updated: number\[\]; removed: number\[\] \}\) \{\s+if \(!this\.subs\.size \|\| this\.host\.resetting\(\)\) return;/, 'inert with no mirror');
+  assert.match(bridge, /this\.dropPresence\(room\);/, 'a room gone takes its guests with it');
+  assert.match(board, /this\.document\.awareness\.on\("update", \(changes: \{ added: number\[\]; updated: number\[\]; removed: number\[\] \}\) =>\s+this\.bridge\?\.onAwareness\(changes\)\);/);
+  // The doc room: never over a guest's own id, marked before they land, and a
+  // guest cannot take a member's id.
+  assert.match(doc, /if \(guests\.has\(e\.id\)\) continue;/);
+  assert.match(doc, /for \(const e of keep\) if \(e\.state\) this\.boardClients\.add\(e\.id\);\s+awarenessProtocol\.applyAwarenessUpdate\(this\.document\.awareness, encodePresence\(keep\), null\);/);
+  assert.match(doc, /const taken = new Set<number>\(this\.boardClients\);/);
+  assert.match(doc, /if \(!this\.boardClients\.has\(id\)\) this\.presenceQueue\.add\(id\);/);
+  // The last one out says goodbye first.
+  const leave = doc.slice(doc.indexOf('private leave() {'));
+  assert.ok(leave.indexOf('await this.flushPresence();') < leave.indexOf('await this.unsubscribe();'));
 });
