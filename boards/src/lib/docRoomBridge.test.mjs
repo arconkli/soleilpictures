@@ -561,3 +561,23 @@ test('review: attributes that could run or load something are refused, on old no
   });
   assert.equal(validateGuestUpdate(room, ok, ctxFor(g)).ok, true);
 });
+
+test('the board’s own look at a doc room’s write: inside that doc only', () => {
+  const board = makeBoard();
+  const { room } = mirrorOf(board);
+  // A write the room would pass lands fine on the board.
+  const g = guestOf(room);
+  const ok = editAs(g, () => cardMapOf(g).get('docPageContent').get('p1').get(0).get(0).insert(0, 'Hi '));
+  assert.equal(validateGuestUpdate(board, ok, { cardKey: CARD, structureOnly: true }).ok, true);
+  // One crafted against the cluster itself (another card) is refused there too.
+  const spyOf = () => { const d = new Y.Doc(); Y.applyUpdate(d, Y.encodeStateAsUpdate(board)); return d; };
+  const s1 = spyOf();
+  const elsewhere = editAs(s1, () => s1.getMap('cards').get('note-1').set('html', 'OWNED'));
+  assert.equal(validateGuestUpdate(board, elsewhere, { cardKey: CARD, structureOnly: true }).reason, 'outside_doc');
+  const s2 = spyOf();
+  const root = editAs(s2, () => s2.getMap('links').set('x', 1));
+  assert.equal(validateGuestUpdate(board, root, { cardKey: CARD, structureOnly: true }).reason, 'root_write');
+  const s3 = spyOf();
+  const field = editAs(s3, () => cardMapOf(s3).set('x', 1));
+  assert.equal(validateGuestUpdate(board, field, { cardKey: CARD, structureOnly: true }).reason, 'outside_doc');
+});

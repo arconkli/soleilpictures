@@ -280,7 +280,10 @@ function firstValue(content) {
 
 // ctx: { cardKey, claims: Set<client> (this connection's own clients),
 //        userId, displayName, trustedKeys: Set<'<key>'>, maxBytes,
-//        writableKeys?: Set<key> }
+//        writableKeys?: Set<key>, structureOnly?: boolean }
+// structureOnly: the board's own second look at a write its doc room already
+// passed (security review): only WHERE everything lands is checked, against
+// the board's full doc; who wrote it and what it says were the room's to judge.
 // → { ok: true, clients: [ids it writes], empty } | { ok: false, reason }
 export function validateGuestUpdate(roomDoc, update, ctx = {}) {
   const fail = (reason) => ({ ok: false, reason });
@@ -303,7 +306,7 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
     if (!firstClock.has(c)) firstClock.set(c, s.id.clock);
   }
   for (const [client, clock] of firstClock) {
-    if (state(client) > 0 && !claims.has(client)) return fail('foreign_client');
+    if (!ctx.structureOnly && state(client) > 0 && !claims.has(client)) return fail('foreign_client');
     if (clock > state(client)) return fail('gap');
   }
 
@@ -353,6 +356,7 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
   const items = structs.filter((s) => s instanceof Y.Item);
   const replacedThreads = new Set();
   for (const s of structs) {
+    if (ctx.structureOnly) break;
     if (!(s instanceof Y.Item) && !claims.has(s.id.client) && state(s.id.client) > 0) return fail('foreign_client');
   }
   // The type a fresh item of this frame lands in, once it is known.
@@ -407,6 +411,7 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
       }
       const sub = s.parentSub || originSub || null;
       fresh.set(keyOf(s.id), { s, place: `in:${key}`, parentObj, sub });
+      if (ctx.structureOnly) continue;
 
       // What it says.
       if (s.content instanceof Y.ContentFormat && s.content.key === 'link') {
@@ -458,7 +463,7 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
         if (it instanceof Y.Item) {
           const p = placeOf(it, cardsRoot, ctx.cardKey);
           if (!p || !p.startsWith('in:') || !writable.has(keyOfPlace(p))) return fail('outside_doc');
-          if (commentsType && it.parent === commentsType && it.parentSub) {
+          if (!ctx.structureOnly && commentsType && it.parent === commentsType && it.parentSub) {
             // A thread goes only when its author removes it, or when this frame
             // put a valid new value under the same key of docComments itself.
             const prev = firstValue(it.content);

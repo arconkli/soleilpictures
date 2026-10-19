@@ -17,16 +17,17 @@
 // bridge header too.
 import * as Y from "yjs";
 import { getServerByName } from "partyserver";
-import { extractDocSubtree, filterTransaction } from "../src/lib/docRoomBridge.js";
+import { extractDocSubtree, filterTransaction, validateGuestUpdate } from "../src/lib/docRoomBridge.js";
 import type { Env } from "./env";
 
 const SUBS_KEY = "bridgeSubs";
 const PUSH_DELAY_MS = 50;
 const ROOM_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(edit|view)\.[0-9a-f]{12}$/i;
 
-// The header one room shows another: derived from the service key, which
-// both hold and no browser does.
+// The header one room shows another: its own secret (DOC_BRIDGE_SECRET) when
+// the Worker has one, else derived from the service key; no browser has either.
 export async function bridgeSecret(env: Env): Promise<string> {
+  if (env.DOC_BRIDGE_SECRET && env.DOC_BRIDGE_SECRET.length >= 32) return env.DOC_BRIDGE_SECRET;
   const key = env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!key) return "";
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${key}:doc-bridge`));
@@ -207,6 +208,16 @@ export class BoardBridge {
       const actor = req.headers.get("x-actor") || null;
       const bytes = new Uint8Array(await req.arrayBuffer());
       if (!bytes.length) return new Response(null, { status: 204 });
+      // A second look, here, at where it lands: everything inside that card's
+      // doc, nothing else of the board (security review: a bug in the room, or
+      // a leaked key, can't write anywhere else).
+      const placed = validateGuestUpdate(this.host.document, bytes, {
+        cardKey: sub.cardId, structureOnly: true, maxBytes: 8 * 1024 * 1024,
+      });
+      if (!placed.ok) {
+        console.warn(`[board ${this.host.name}] refused a doc room's update: ${placed.reason}`);
+        return new Response("Refused", { status: 422 });
+      }
       try {
         Y.applyUpdate(this.host.document, bytes, { docRoom: room, actor } satisfies DocRoomOrigin);
       } catch (e) {

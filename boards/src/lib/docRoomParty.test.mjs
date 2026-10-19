@@ -77,3 +77,18 @@ test('access is asked again: every minute, at once on /recheck, and losing it cl
   assert.match(doc, /if \(uid && banned\.has\(uid\)\) \{ try \{ c\.close\(CLOSE\.SUSPENDED, "account suspended"\);/);
   assert.match(doc, /if \(r && r\.gen && r\.gen !== this\.target\.gen\) \{ this\.sendAway\(CLOSE\.MOVED, "moved"\); return; \}/);
 });
+
+// Security review of the room (2026-10-18), each finding pinned.
+test('review: an HTTP wake never wakes the board; /recheck is the managers’ and coalesced', () => {
+  assert.match(doc, /async onLoad\(\) \{\s+return null;\s+\}/, 'nothing is built until a socket arrives');
+  assert.match(doc, /async onConnect\(conn: Connection, ctx: ConnectionContext\) \{\s+await this\.ensureReady\(\);/);
+  assert.match(doc, /if \(!this\.subscribed \|\| !this\.target \|\| this\.dead\) return new Response\("Gone", \{ status: 410 \}\);/);
+  assert.match(doc, /this\.recheckRunning \|\| Date\.now\(\) - this\.recheckAt < 5_000\) return;/);
+  assert.match(index, /const r = await docRoomAccess\(bearer, lobby\.name, ""\);\s+if \(!r \|\| r\.status !== "ok" \|\| r\.access !== "manage"\) return new Response\("Forbidden", \{ status: 403 \}\);/);
+});
+
+test('review: the board takes a doc room’s write only where that doc lives', () => {
+  assert.match(bridge, /const placed = validateGuestUpdate\(this\.host\.document, bytes, \{\s+cardKey: sub\.cardId, structureOnly: true,/);
+  assert.match(bridge, /if \(env\.DOC_BRIDGE_SECRET && env\.DOC_BRIDGE_SECRET\.length >= 32\) return env\.DOC_BRIDGE_SECRET;/);
+  assert.match(doc, /while \(this\.claims\.size > 500\) this\.claims\.delete/);
+});

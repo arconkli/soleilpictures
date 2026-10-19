@@ -118,12 +118,19 @@ async function beforeRequest(req: Request, lobby: Lobby): Promise<Request | Resp
     return req;
   }
   if (lobby.className === "Universe") return lobby.name === "main" ? req : notFound();
-  // A shared doc's room answers only POST /recheck from outside (the owner
-  // changed who may be there). Its other routes are its board's, by stub.
+  // A shared doc's room answers only POST /recheck from outside: the owner
+  // changed who may be there. Only someone who manages the doc may ask
+  // (security review: an open /recheck could keep two rooms awake). Its other
+  // routes are its board's, by stub.
   if (lobby.className === "Doc") {
     const url = new URL(req.url);
     if (!DOC_ROOM.test(lobby.name) || !url.pathname.endsWith("/recheck")) return notFound();
-    if (req.method !== "POST" && req.method !== "OPTIONS") return new Response("Method not allowed", { status: 405 });
+    if (req.method === "OPTIONS") return req;
+    if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+    const bearer = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!bearer) return new Response("Missing token", { status: 401 });
+    const r = await docRoomAccess(bearer, lobby.name, "");
+    if (!r || r.status !== "ok" || r.access !== "manage") return new Response("Forbidden", { status: 403 });
     return req;
   }
   return notFound();

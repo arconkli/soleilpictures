@@ -106,13 +106,30 @@ export class DocParty extends YServer<Env> {
   private limits = new Map<Connection, { updates: ReturnType<typeof rateWindow>; awareness: ReturnType<typeof rateWindow> }>();
   private claims = new Map<number, string>();   // a guest's Yjs client id → their user id
 
+  // Nothing happens until a socket arrives: an HTTP wake (a /recheck, a stray
+  // /push) never wakes the board or builds the mirror (security review: a
+  // loop of cheap requests must not keep two rooms awake and billing).
   async onLoad() {
+    return null;
+  }
+
+  private ready: Promise<void> | null = null;
+  private subscribed = false;
+
+  // The room's doc, once: where it lives, then the board's mirror of it.
+  private ensureReady(): Promise<void> {
+    if (!this.ready) this.ready = this.prepare();
+    return this.ready;
+  }
+
+  private async prepare() {
+    this.dead = null;
     const m = ROOM_RE.exec(this.name || "");
-    if (!m) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return null; }
+    if (!m) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return; }
     const [, shareId, variant, gen] = m;
     const t = await serviceRpc(this.env, "_doc_room_target", { p_share: shareId });
-    if (!t || !t.board_id) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return null; }
-    if (t.gen !== gen.toLowerCase()) { this.dead = { code: CLOSE.MOVED, reason: "moved" }; return null; }
+    if (!t || !t.board_id) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return; }
+    if (t.gen !== gen.toLowerCase()) { this.dead = { code: CLOSE.MOVED, reason: "moved" }; return; }
     this.target = { shareId, variant: variant === "view" ? "view" : "edit", gen: gen.toLowerCase(), boardId: t.board_id, cardId: t.card_id };
     try {
       const stored = (await this.ctx.storage.get(CLAIMS_KEY)) as Record<string, string> | undefined;
@@ -129,16 +146,15 @@ export class DocParty extends YServer<Env> {
     } catch (e) {
       console.warn(`[doc ${this.name}] subscribe failed`, e);
       this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
-      return null;
+      return;
     }
-    if (res.status === 410 || res.status === 404) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return null; }
-    if (!res.ok) { this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" }; return null; }
+    if (res.status === 410 || res.status === 404) { this.dead = { code: CLOSE.GONE, reason: "gone" }; return; }
+    if (!res.ok) { this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" }; return; }
     const bytes = new Uint8Array(await res.arrayBuffer());
-    const doc = new Y.Doc();
-    Y.applyUpdate(doc, bytes, "board");
+    Y.applyUpdate(this.document, bytes, "board");
     for (const k of r2KeysIn(bytes)) this.trusted.add(k);
     this.docBytes = bytes.length;
-    return doc;
+    this.subscribed = true;
   }
 
   // Never called with anything to save (the board holds the doc).
@@ -149,6 +165,9 @@ export class DocParty extends YServer<Env> {
   }
 
   async onConnect(conn: Connection, ctx: ConnectionContext) {
+    await this.ensureReady();
+    // A room that could not be built lets the next socket try again.
+    if (this.dead?.code === CLOSE.UNAVAILABLE) this.ready = null;
     if (this.dead || !this.target) {
       const d = this.dead || { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
       try { conn.close(d.code, d.reason); } catch (_) { /* already gone */ }
@@ -296,6 +315,9 @@ export class DocParty extends YServer<Env> {
   }
 
   private async saveClaims() {
+    // Oldest first out past a few hundred: a guest who comes back after that
+    // claims a fresh client id with a fresh doc.
+    while (this.claims.size > 500) this.claims.delete(this.claims.keys().next().value as number);
     try { await this.ctx.storage.put(CLAIMS_KEY, Object.fromEntries([...this.claims].map(([c, u]) => [String(c), u]))); } catch (_) { /* best effort */ }
   }
 
@@ -383,7 +405,7 @@ export class DocParty extends YServer<Env> {
     const cors = {
       "access-control-allow-origin": req.headers.get("origin") || "*",
       "access-control-allow-methods": "POST, OPTIONS",
-      "access-control-allow-headers": "content-type",
+      "access-control-allow-headers": "content-type, authorization",
       "vary": "Origin",
     };
     // After the owner changes who may be here: ask again now, not in a minute.
@@ -396,7 +418,7 @@ export class DocParty extends YServer<Env> {
     if (req.method !== "POST" || !(await isBridgeRequest(req, this.env))) return new Response("Not found", { status: 404 });
 
     if (url.pathname.endsWith("/push")) {
-      if (!this.target || this.dead) return new Response("Gone", { status: 410 });
+      if (!this.subscribed || !this.target || this.dead) return new Response("Gone", { status: 410 });
       if ([...this.getConnections()].length === 0) return new Response("Nobody here", { status: 410 });
       const bytes = new Uint8Array(await req.arrayBuffer());
       try {
@@ -431,10 +453,21 @@ export class DocParty extends YServer<Env> {
 
   // ── who may still be here ─────────────────────────────────────────────────
 
+  private recheckRunning = false;
+  private recheckAt = 0;
+
+  // At most one every 5 seconds, and never two at once.
   private async recheck() {
-    if (!this.target || this.dead) return;
+    if (!this.target || this.dead || this.recheckRunning || Date.now() - this.recheckAt < 5_000) return;
     const conns = [...this.getConnections()];
     if (!conns.length) return;
+    this.recheckRunning = true;
+    this.recheckAt = Date.now();
+    try { await this.recheckNow(conns); } finally { this.recheckRunning = false; }
+  }
+
+  private async recheckNow(conns: Connection[]) {
+    if (!this.target) return;
     const subjects = conns.map((c) => ({ key: c.id, user_id: stateOf(c).userId || null, token_ok: stateOf(c).tokenOk }));
     const r = await serviceRpc(this.env, "_doc_room_recheck", { p_share: this.target.shareId, p_subjects: subjects });
     if (r && r.gone) { this.sendAway(CLOSE.GONE, "gone"); return; }

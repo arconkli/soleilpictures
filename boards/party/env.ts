@@ -8,6 +8,9 @@ export interface Env {
   Doc: DurableObjectNamespace;
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  // The shared doc rooms' bridge secret (party/bridge.ts); falls back to one
+  // derived from the service key.
+  DOC_BRIDGE_SECRET?: string;
   R2_ACCOUNT_ID?: string;
   R2_BUCKET?: string;
   R2_ACCESS_KEY_ID?: string;
