@@ -63,9 +63,12 @@ and invitees are the strongest return signal on record.
 - **Studio bar.** On a return visit, when Studio holds six or more loose cards,
   a bar offers once per device: "N cards on Studio aren't in a cluster · Move
   them into one". It replaces the one-shot `group` power reveal.
-- **Second idea.** A paste or drop onto a board that already holds six or more
-  cards, at least three hours after the last add there, offers "Start a new
-  cluster with these" on its toast.
+- **Second idea.** Something pasted or dropped onto a board that already holds
+  six or more loose cards, at least three hours after anything was last added
+  there, is offered a cluster of its own once it has landed. The offer is a
+  toast: "New idea? Give these N cards their own cluster · New cluster". Its button picks the new cards and opens the top bar's naming
+  popover (the prompt on a phone). It shows once per device, like the Studio
+  bar, and never beside another hint or over an upgrade surface.
 - **Free clusters.** The release migration changes `_tg_card_weight_by_kind`.
   A `board` card weighs 0 only when its id is a real board in the same
   workspace, so relabeling a note does not dodge the cap. The backfill runs

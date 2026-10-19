@@ -44,6 +44,45 @@ async function nameIt(page, name, { expectMessage } = {}) {
   await dialog.locator('.btn-primary').click();
 }
 
+// The second idea: an old pile — mixqa's cards carry no createdAt, which reads
+// as made long ago — and something new arriving on it. The Studio bar is
+// marked seen, so the pile's own offer doesn't hold the hint slot.
+async function oldPile(page, n = 8) {
+  await page.addInitScript(() => {
+    try { window.localStorage.setItem('soleil.hint.studio_bar', '1'); } catch (_) {}
+  });
+  await page.goto(`/?local=1&reset=1&blank=1&mixqa=${n}`);
+  await expect(card(page, `mixqa-${n - 1}`)).toBeVisible();
+}
+
+const pasteText = (page, text) => page.evaluate((t) => {
+  const dt = new DataTransfer();
+  dt.setData('text/plain', t);
+  window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+}, text);
+
+// Pictures dropped from the desktop, drawn here so no fixture is needed.
+const dropImages = (page, n) => page.evaluate(async (n) => {
+  const files = await Promise.all(Array.from({ length: n }, (_, i) => new Promise((res) => {
+    const c = document.createElement('canvas');
+    c.width = 160; c.height = 100;
+    const g = c.getContext('2d');
+    g.fillStyle = ['#c84', '#48c', '#8c4'][i % 3];
+    g.fillRect(0, 0, 160, 100);
+    c.toBlob((b) => res(new File([b], `scout-${i + 1}.png`, { type: 'image/png' })), 'image/png');
+  })));
+  const dt = new DataTransfer();
+  for (const f of files) dt.items.add(f);
+  const wrap = document.querySelector('.canvas-wrap');
+  const r = wrap.getBoundingClientRect();
+  const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height - 160 };
+  for (const t of ['dragenter', 'dragover', 'drop']) {
+    wrap.dispatchEvent(new DragEvent(t, { bubbles: true, cancelable: true, dataTransfer: dt, ...at }));
+  }
+}, n);
+
+const secondIdea = (page) => page.locator('.toast', { hasText: 'New idea?' });
+
 test.describe('cluster nudges', () => {
   test('held: without the opt-in nothing new appears', async ({ page }) => {
     await studio(page);
@@ -64,10 +103,14 @@ test.describe('cluster nudges', () => {
     await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
     await expect(page.locator('.cnv-empty-clusters')).toHaveCount(0);
-    // And a pile gets no Studio bar.
+    // And a pile gets no Studio bar, nor anything new pasted onto it a cluster.
     await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
     await expect(card(page, 'mixqa-7')).toBeVisible();
     await expect(page.locator('.cnv-studio-bar')).toHaveCount(0);
+    await pasteText(page, 'Scout the diner on 5th');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
+    await page.waitForTimeout(1500);
+    await expect(secondIdea(page)).toHaveCount(0);
   });
 
   test('one card with nowhere to go: "Move to a new cluster…" makes the cluster it goes into', async ({ page }) => {
@@ -281,6 +324,64 @@ test.describe('cluster nudges', () => {
     await expect(card(page, 'mixqa-7')).toBeVisible();
     await page.waitForTimeout(400);
     await expect(bar).toHaveCount(0);
+  });
+
+  test('the second idea: pictures dropped on an old pile are offered a cluster once they land, and move into it', async ({ page }) => {
+    await optIn(page);
+    await oldPile(page);
+    await recordMoves(page);
+    await dropImages(page, 2);
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(10);
+    const toast = secondIdea(page);
+    await expect(toast).toContainText('New idea? Give these 2 cards their own cluster.');
+    await toast.locator('.toast-action', { hasText: 'New cluster' }).click();
+    // The two are picked, so the bar counts them and its popover says so.
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('The 2 cards you picked move into it. Undo puts them back.');
+    await expect(page.locator('.tb-newcluster .ncl-count')).toHaveText('2');
+    await pop.locator('.ncl-field').fill('Locations');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Locations' })).toHaveCount(1);
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(8);
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    const moves = await page.evaluate(() => window.__moves);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].ids).toHaveLength(2);
+    expect(moves[0].ids.some((id) => id.startsWith('mixqa-'))).toBe(false);
+    expect(moves[0]).toMatchObject({ name: 'Locations' });
+  });
+
+  test('the second idea: dismissed, it is not offered again on this device', async ({ page }) => {
+    await optIn(page);
+    await oldPile(page);
+    await pasteText(page, 'Scout the diner on 5th');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
+    const toast = secondIdea(page);
+    await expect(toast).toContainText('New idea? Give this card its own cluster.');
+    await toast.locator('.toast-dismiss').click();
+    await expect(toast).toHaveCount(0);
+    await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
+    // Another old pile on this device: no second offer.
+    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+    await expect(card(page, 'mixqa-7')).toBeVisible();
+    await pasteText(page, 'And the motel');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
+    await page.waitForTimeout(1500);
+    await expect(secondIdea(page)).toHaveCount(0);
+  });
+
+  test('the second idea: five cards are not a pile, and a paste in the same sitting is more of the same', async ({ page }) => {
+    await optIn(page);
+    await oldPile(page, 5);
+    await pasteText(page, 'Scout the diner on 5th');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
+    await page.waitForTimeout(1500);
+    await expect(secondIdea(page)).toHaveCount(0);
+    // Six now, but one of them was added a moment ago.
+    await pasteText(page, 'And the motel');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(2);
+    await page.waitForTimeout(1500);
+    await expect(secondIdea(page)).toHaveCount(0);
   });
 
   // The App.jsx half the local harness doesn't mirror: the toast names the

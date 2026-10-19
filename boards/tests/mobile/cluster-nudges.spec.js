@@ -77,3 +77,39 @@ test('the Studio bar on a phone: the sweep asks the name in the prompt', async (
   await expect(page.locator('.card.card-kind-image')).toHaveCount(0);
   await expect(page.locator('.card.card-kind-board', { hasText: 'Lost Time' })).toHaveCount(1);
 });
+
+test('the second idea on a phone: the toast\'s New cluster asks the name in the prompt', async ({ page }) => {
+  // An old pile (mixqa's cards carry no createdAt) without the Studio bar's
+  // own offer, and a note pasted onto it.
+  await page.addInitScript(() => {
+    try { window.localStorage.setItem('soleil.hint.studio_bar', '1'); } catch (_) {}
+  });
+  await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+  await expect(page.locator('.card[data-card-id="mixqa-7"]')).toBeVisible();
+  await page.evaluate(() => {
+    window.__moves = [];
+    window.addEventListener('soleil-card-into-board-drop', (e) => {
+      window.__moves.push((e.detail?.cards || []).map((c) => c.id));
+    }, true);
+  });
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'Scout the diner on 5th');
+    window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  const toast = page.locator('.toast', { hasText: 'New idea?' });
+  await expect(toast).toContainText('New idea? Give this card its own cluster.');
+  await toast.locator('.toast-action', { hasText: 'New cluster' }).tap();
+  const dialog = page.locator('.feedback-dialog');
+  await expect(dialog.locator('.feedback-message')).toHaveText('The card you picked moves into it. Undo puts it back.');
+  await dialog.locator('.feedback-field input').fill('Diner');
+  await dialog.locator('.btn-primary').tap();
+  await expect(page.locator('.card.card-kind-board', { hasText: 'Diner' })).toHaveCount(1);
+  await expect(page.locator('.card.card-kind-note')).toHaveCount(0);
+  // Only the note went in. (The pile is counted from the move, not the DOM:
+  // the viewport cull unmounts what a phone's screen can't show.)
+  const moves = await page.evaluate(() => window.__moves);
+  expect(moves).toHaveLength(1);
+  expect(moves[0]).toHaveLength(1);
+  expect(moves[0][0].startsWith('mixqa-')).toBe(false);
+});
