@@ -384,6 +384,8 @@ export function SidebarQaHarness() {
         <div className="fdl-canvas">
           <div className="canvas-wrap sbqa-canvas" style={GROUND}
                onPointerDown={(e) => { if (!e.target.closest('button')) say('canvas'); }}>
+            {/* CanvasSurface's own first layer: the grain over the ground. */}
+            <div className="grain-canvas" aria-hidden="true" />
             <div className="sbqa-world" style={{ transform: `translate(${PAN.x}px, ${PAN.y}px)` }}>
               {BOARD.map((c) => (
                 <div key={c.id} className="sbqa-card" data-sbqa-card={c.id}

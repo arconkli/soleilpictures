@@ -229,6 +229,8 @@ test.describe('sidebar files', () => {
       const before = getComputedStyle(el, '::before');
       return [before.content, before.backgroundImage === getComputedStyle(el).backgroundImage];
     })).toEqual(['""', true]);
+    // The grain over the ground runs on under the sidebar too, or the gaps read darker than the board.
+    expect(await wrap.locator('.grain-canvas').evaluate((el) => el.getBoundingClientRect().left)).toBeLessThanOrEqual(0);
     // What a press lands on.
     const hit = (x, y) => page.evaluate(([px, py]) => {
       const el = document.elementFromPoint(px, py);
