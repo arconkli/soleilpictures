@@ -5,8 +5,8 @@
 // wide) the files of the cluster they're in, or of Recent or Starred (tabs), one
 // row each with a small thumbnail — Quick look, the search and its "All files ⌄"
 // menu (what shows, the sort), paging a long shelf in place — plus the meter,
-// the resize handle and the divider, on two floating cards with one edge 15px
-// inside them. The App.jsx wiring behind the hold is pinned by reading the source.
+// on two floating cards with one edge 15px inside them, each sized from its
+// own edges, its corner and the gap between them (SidebarHandles). The App.jsx wiring behind the hold is pinned by reading the source.
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -26,6 +26,20 @@ const photoRows = (page, b = 'film') => files(page).locator(`[data-sb-item^="${b
 // The files' tabs: the cluster, Recent, Starred — and the one that's shown.
 const tab = (page, name) => files(page).getByRole('tab', { name, exact: true });
 const shown = (page) => files(page).getByRole('tab', { selected: true });
+// A card where it is, rounded: x, y, w, h, right, bottom.
+const card = (page, which) => page.locator(`.sbf-card.is-${which}`).evaluate((el) => {
+  const r = el.getBoundingClientRect();
+  return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right), bottom: Math.round(r.bottom) };
+});
+// A handle (SidebarHandles' data-handle) dragged from its middle.
+async function drag(page, id, dx, dy, { steps = 8, release = true } = {}) {
+  const b = await page.locator(`[data-handle="${id}"]`).boundingBox();
+  const x = b.x + b.width / 2, y = b.y + b.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= steps; i++) await page.mouse.move(x + (dx * i) / steps, y + (dy * i) / steps);
+  if (release) await page.mouse.up();
+}
 
 test.describe('sidebar files', () => {
   test('the tree is cluster names; the files of the cluster you are in fill the section below it', async ({ page }) => {
@@ -145,13 +159,15 @@ test.describe('sidebar files', () => {
 
   test('two floating cards, one edge inside them: the top, the headings and the files all start 15px in', async ({ page }) => {
     await open(page);
-    // The cards are .sb-mid's ::before (the clusters) and ::after (the files), 8px off the window's edge.
-    const card = (which) => page.locator('.sb-mid').evaluate((el, w) => {
-      const cs = getComputedStyle(el, w);
-      return [cs.content, cs.borderTopLeftRadius];
-    }, which);
-    expect(await card('::before')).toEqual(['""', '12px']);
-    expect(await card('::after')).toEqual(['""', '12px']);
+    // Two cards, each a box of its own (the clusters, then the files), 8px off the window's edges and
+    // 8px apart, radius 12.
+    const cards = await page.locator('.sbf-card').evaluateAll((els) => els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return [Math.round(r.left), Math.round(r.top), Math.round(r.bottom), getComputedStyle(el).borderTopLeftRadius];
+    }));
+    expect(cards.map((c) => [c[0], c[3]])).toEqual([[8, '12px'], [8, '12px']]);
+    expect(cards[0][1]).toBe(8);
+    expect(cards[1][1] - cards[0][2]).toBe(8);
     const left = (sel) => page.locator(sel).first().evaluate((el) =>
       Math.round(el.getBoundingClientRect().left - el.closest('.sidebar').getBoundingClientRect().left));
     for (const sel of ['.sb-ws-avatar', '.sbf-quickbtn .sbf-quick-label', '.sb-boards-head-label',
@@ -245,8 +261,8 @@ test.describe('sidebar files', () => {
     // The sidebar paints nothing of its own, and the cards cast no soft shadow: clipped at the
     // sidebar's edge, it lifted nothing and only darkened the board in the gaps.
     expect(await sidebar.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
-    for (const card of ['::before', '::after']) {
-      expect(await page.locator('.sb-mid').evaluate((el, w) => getComputedStyle(el, w).boxShadow, card)).toMatch(/^rgba\([^)]*\) 0px 1px 1px 0px$/);
+    for (const shadow of await page.locator('.sbf-card').evaluateAll((els) => els.map((el) => getComputedStyle(el).boxShadow))) {
+      expect(shadow).toMatch(/^rgba\([^)]*\) 0px 1px 1px 0px$/);
     }
     // The canvas's box stays beside the sidebar — it measures, fits and frames by it — and only its
     // painting reaches under, the ground drawn on from the same pattern.
@@ -265,7 +281,7 @@ test.describe('sidebar files', () => {
       return el?.closest('.canvas-wrap') ? 'board' : el?.closest('.sidebar') ? 'sidebar' : String(el?.tagName);
     }, [x, y]);
     const vh = page.viewportSize().height;
-    const divider = await page.locator('.sbf-divider').boundingBox();
+    const divider = await page.locator('[data-handle="divider"]').boundingBox();
     expect(await hit(4, vh / 2), 'the left gutter').toBe('board');
     expect(await hit(160, 3), 'above the cards').toBe('board');
     expect(await hit(160, vh - 3), 'below them').toBe('board');
@@ -274,10 +290,19 @@ test.describe('sidebar files', () => {
     expect(await hit(160, divider.y + divider.height / 2), 'the divider between them').toBe('sidebar');
     await page.mouse.click(4, vh / 2);
     await expect(page.getByTestId('sbqa-log')).toContainText('canvas');
-    // Wide, the clusters' card is as tall as the clusters, and under it is board.
+    // Side by side, the clusters' card is as tall as the clusters, and under it is board (once the
+    // files have slid over).
     await page.evaluate(() => window.__sidebarQa.setWidth(640));
-    await expect(sidebar).toHaveClass(/is-wide/);
-    expect(await hit(120, vh - 60), "under the clusters' card").toBe('board');
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    await expect.poll(() => hit(120, vh - 60), { message: "under the clusters' card" }).toBe('board');
+    // With the ground drawn on a canvas (CanvasSurface's has-ground), the strip under the sidebar
+    // paints nothing, and a press in a gap still lands on the board.
+    await wrap.evaluate((el) => el.classList.add('has-ground'));
+    expect(await wrap.evaluate((el) => {
+      const before = getComputedStyle(el, '::before');
+      return [before.content, before.backgroundImage];
+    })).toEqual(['""', 'none']);
+    expect(await hit(4, vh / 2), 'the left gutter, over a canvas ground').toBe('board');
   });
 
   test('a long shelf expands in place, and a cluster read from the server pages', async ({ page }) => {
@@ -430,21 +455,127 @@ test.describe('sidebar files', () => {
     await expect(page.getByTestId('sbqa-log')).toContainText('plan');
   });
 
-  test('the sidebar resizes between 240 and 760, and double-click puts it back', async ({ page }, info) => {
-    test.skip(info.project.name !== 'desktop-chrome', 'the handle is a desktop control');
+  test('each card sizes from its own edges: the clusters skinny and the files wide, side by side, both short at the top left', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
     await open(page);
-    const width = () => page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().width);
-    expect(Math.round(await width())).toBe(320);
-    const h = page.locator('.sbf-resizer');
-    const box = await h.boundingBox();
-    await page.mouse.move(box.x + 3, box.y + 200);
+    const full = page.viewportSize().height - 8;                            // a card down to the window's bottom margin
+    await files(page).getByRole('button', { name: 'Show files beside the clusters' }).click();
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    await page.waitForTimeout(300);                                         // the files slide over
+    // As wide as the sidebar was side by side, the files the whole height.
+    expect(await page.locator('.sidebar').evaluate((el) => Math.round(el.getBoundingClientRect().width))).toBe(640);
+    expect((await card(page, 'files')).bottom).toBe(full);
+    // The gap gives the clusters' room to the files.
+    await drag(page, 'split', -40, 0);
+    let t = await card(page, 'tree');
+    let f = await card(page, 'files');
+    expect([t.w, f.x, f.w]).toEqual([200, 216, 424]);
+    // The files' right edge widens them, and the sidebar with them.
+    await drag(page, 'right', 160, 0);
+    f = await card(page, 'files');
+    expect(f.w).toBe(584);
+    expect(await page.locator('.sidebar').evaluate((el) => Math.round(el.getBoundingClientRect().right))).toBe(f.right);
+    // Each bottom edge its own card's: the files short, the clusters a little taller than their list.
+    await drag(page, 'bottom', 0, -300);
+    const hug = (await card(page, 'tree')).bottom;
+    await drag(page, 'treeBottom', 0, 40);
+    t = await card(page, 'tree');
+    f = await card(page, 'files');
+    expect([t.bottom, f.bottom]).toEqual([hug + 40, full - 300]);
+    // Under them is board, and it takes the press.
+    const under = await page.evaluate((y) => (document.elementFromPoint(100, y)?.closest('.canvas-wrap') ? 'board' : 'not board'), full - 20);
+    expect(under).toBe('board');
+    // Remembered.
+    const layout = await page.evaluate(() => window.__sidebarQa.layout());
+    expect(layout.side).toEqual({ tw: 200, fw: 584, tBottom: hug + 40, fBottom: full - 300 });
+    await page.reload();
+    await page.waitForSelector('[data-sidebarqa-ready]');
+    await expect.poll(async () => (await card(page, 'files')).w).toBe(584);
+    expect(await page.evaluate(() => window.__sidebarQa.layout())).toEqual(layout);
+  });
+
+  test('pulled wider than the stacked sidebar gets, the files go beside the clusters; pulled narrow again, under them', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
+    await open(page);
+    // Stacked, each card has its own width.
+    await drag(page, 'treeRight', -80, 0);
+    await drag(page, 'filesRight', 60, 0);
+    expect([(await card(page, 'tree')).w, (await card(page, 'files')).w]).toEqual([232, 372]);
+    // Wider than 532 (a 540px sidebar): side by side, carrying on with the files' right edge.
+    const b = await page.locator('[data-handle="filesRight"]').boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + 100);
     await page.mouse.down();
-    await page.mouse.move(box.x + 3 + 600, box.y + 200, { steps: 4 });
+    await page.mouse.move(700, b.y + 100, { steps: 10 });
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    await expect(page.locator('[data-handle="right"]')).toHaveClass(/is-held/);
+    await page.mouse.move(760, b.y + 100, { steps: 3 });
     await page.mouse.up();
-    await expect.poll(async () => Math.round(await width())).toBe(760);
-    await expect(page.locator('.sidebar')).toHaveClass(/is-wide/);
-    await h.dblclick();
-    await expect.poll(async () => Math.round(await width())).toBe(320);   // the reset eases back
+    await expect.poll(async () => (await card(page, 'files')).right).toBe(760);
+    // Narrower than 500 side by side: stacked again, the clusters as wide as they were stacked.
+    const r = await page.locator('[data-handle="right"]').boundingBox();
+    await page.mouse.move(r.x + r.width / 2, r.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(460, r.y + 100, { steps: 12 });
+    await page.mouse.up();
+    await expect(page.locator('.sbf-frame')).not.toHaveClass(/is-side/);
+    await expect.poll(async () => (await card(page, 'files')).right).toBe(460);
+    expect((await card(page, 'tree')).w).toBe(232);
+    expect(await page.locator('.sidebar').evaluate((el) => Math.round(el.getBoundingClientRect().width))).toBe(460);
+  });
+
+  test('a bottom snaps to the other card\'s with a guide, and to the window\'s; double-click and the arrow keys', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
+    await open(page);
+    const full = page.viewportSize().height - 8;
+    await page.evaluate(() => window.__sidebarQa.setWidth(640));
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    await page.waitForTimeout(300);                                         // the files slide over
+    await drag(page, 'bottom', 0, -300);
+    const fb = full - 300;
+    const t0 = await card(page, 'tree');
+    // The clusters' bottom dragged near the files': it meets it, and a guide shows where.
+    await drag(page, 'treeBottom', 0, fb - t0.bottom - 6, { release: false });
+    await expect(page.locator('.sbf-guide')).toHaveClass(/is-on/);
+    await page.mouse.up();
+    await expect(page.locator('.sbf-guide')).not.toHaveClass(/is-on/);
+    expect((await card(page, 'tree')).bottom).toBe(fb);
+    // Near the window's bottom, a bottom goes all the way down.
+    await drag(page, 'bottom', 0, full - fb - 12);
+    expect((await card(page, 'files')).bottom).toBe(full);
+    // Double-click puts back what a handle sizes.
+    await page.locator('[data-handle="treeBottom"]').dblclick();
+    await expect.poll(async () => (await card(page, 'tree')).bottom).toBe(t0.bottom);
+    // A focused edge moves 16px an arrow, 64 with Shift, and says how wide.
+    const w0 = (await card(page, 'files')).w;
+    await page.locator('[data-handle="right"]').focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Shift+ArrowLeft');
+    await expect.poll(async () => (await card(page, 'files')).w).toBe(w0 + 16 - 64);
+    await expect(page.locator('[data-handle="right"]')).toHaveAttribute('aria-valuenow', String(w0 + 16 - 64));
+    await expect(page.locator('[data-handle="right"]')).toHaveAttribute('role', 'separator');
+    // The corners only repeat two edges: not in the Tab order.
+    await expect(page.locator('[data-handle="corner"]')).toHaveAttribute('tabindex', '-1');
+  });
+
+  test('the workspace menu drops past a short clusters\' card, over the files, and the handles step aside', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
+    await open(page);
+    // The clusters' card made short, so the menu runs on past its bottom, over the files.
+    await page.evaluate(() => window.__sidebarQa.setLayout({ arr: 'stack', stack: { tw: 312, fw: 312, th: 160, bottom: 'full' } }));
+    await page.locator('.sb-ws-trigger').click();
+    const menu = page.locator('.ws-menu');
+    await expect(menu).toBeVisible();
+    const m = await menu.boundingBox();
+    expect(m.y + m.height).toBeGreaterThan((await card(page, 'tree')).bottom + 40);
+    // Its last row is what a press there lands on: not clipped by the card, not under the files.
+    const last = page.locator('.ws-menu-row').last();
+    const b = await last.boundingBox();
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.ws-menu-row')?.textContent,
+      [b.x + b.width / 2, b.y + b.height / 2])).toBe('Workspace settings');
+    await expect(page.locator('.sbf-handles')).toBeHidden();
+    await last.click();
+    await expect(menu).toHaveCount(0);
+    await expect(page.locator('.sbf-handles')).toBeVisible();
   });
 
   test('narrow, the files sit under the clusters; wide, beside them; the button switches', async ({ page }) => {
@@ -453,26 +584,24 @@ test.describe('sidebar files', () => {
     const f = await files(page).boundingBox();
     expect(f.y).toBeGreaterThanOrEqual(n.y + n.height - 1);
     await files(page).getByRole('button', { name: 'Show files beside the clusters' }).click();
-    await expect(page.locator('.sidebar')).toHaveClass(/is-wide/);
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
     await expect.poll(async () => {
       const [n2, f2] = [await nav(page).boundingBox(), await files(page).boundingBox()];
       return f2.x >= n2.x + n2.width - 1 && f2.y < n2.y;
     }).toBe(true);
     await files(page).getByRole('button', { name: 'Show files under the clusters' }).click();
-    await expect(page.locator('.sidebar')).not.toHaveClass(/is-wide/);
+    await expect(page.locator('.sbf-frame')).not.toHaveClass(/is-side/);
     await expect.poll(async () => Math.round(await page.locator('.sidebar').evaluate((el) => el.getBoundingClientRect().width))).toBe(320);
   });
 
-  test('the divider shares the height between clusters and files', async ({ page }) => {
+  test('stacked, the divider moves the line between the cards, and double-click gives the clusters their own height', async ({ page }) => {
     await open(page);
     const before = Math.round((await nav(page).boundingBox()).height);
-    const d = await page.locator('.sbf-divider').boundingBox();
-    await page.mouse.move(d.x + d.width / 2, d.y + 4);
-    await page.mouse.down();
-    await page.mouse.move(d.x + d.width / 2, d.y - 120, { steps: 4 });
-    await page.mouse.up();
+    await drag(page, 'divider', 0, -120);
     await expect.poll(async () => Math.round((await nav(page).boundingBox()).height)).toBeLessThan(before - 80);
-    await page.locator('.sbf-divider').dblclick();
+    // The files keep their bottom: they grow by what the clusters gave.
+    expect((await card(page, 'files')).bottom).toBe(page.viewportSize().height - 8);
+    await page.locator('[data-handle="divider"]').dblclick();
     await expect.poll(async () => Math.round((await nav(page).boundingBox()).height)).toBe(before);
   });
 

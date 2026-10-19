@@ -7,11 +7,14 @@
 // unreadable fast (the first two versions of this did exactly that), so the
 // tree never does.
 //
-// Narrow, the files sit under the clusters with a divider to share the height.
-// Dragged wider than SIDEBAR_W.SPLIT_AT (or with the expand button) they move
-// beside them, a column of their own. The layout itself is CSS
-// (clusterSidebar.css): this renders the parts, and the CSS floats them as two
-// cards, the look the owner picked from four mockups.
+// The files sit under the clusters (stacked) or beside them (side by side).
+// Floating, the parts sit on two cards, the look the owner picked from four
+// mockups: the clusters' card holds App's top (`top`), Home and Messages and
+// the tree; the files' card the files, the meter and App's foot (`foot`). Each
+// card takes its own size: App keeps the layout (lib/sidebarLayout.js), the
+// frame takes it as custom properties, and SidebarHandles sizes the cards from
+// their edges, corners and the gap between them. In the phone drawer they
+// don't box (clusterSidebar.css).
 //
 // Above the clusters, Home and Messages, a row of words each. The files
 // section has a segmented control for what it shows (the cluster, Recent,
@@ -33,12 +36,13 @@ import { Search, X, Columns2, ArrowsOutSimple, ChevronDown } from '../../lib/ico
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
 import { ClusterShelves } from './ClusterShelves.jsx';
 import { SidebarMeter } from './SidebarMeter.jsx';
+import { SidebarHandles, sizeAtOnce } from './SidebarHandles.jsx';
 import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { FILTER_CHIPS, SHELF_IDS } from '../../lib/sidebarShelves.js';
 import { SORTS, filterItems } from '../../lib/sidebarSort.js';
-import { isWideSidebar, toggledSidebarWidth } from '../../lib/sidebarWidth.js';
+import { arrangementOf, frameVars, toggledLayout } from '../../lib/sidebarLayout.js';
 import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
@@ -55,10 +59,6 @@ const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
 
 const PREFS_KEY = 'soleil.sidebar.prefs';
 const unfoldedKey = (ws) => `soleil.sidebar.unfolded.${ws}`;
-// How tall the clusters part is when the files sit under it (the divider).
-const NAV_H_KEY = 'soleil.sidebar.navH';
-// The last narrow width, for the expand button's way back.
-const NARROW_W_KEY = 'soleil.sidebar.narrowW';
 const SORT_LABELS = { newest: 'Newest first', name: 'Name', size: 'Size', canvas: 'Canvas order' };
 const GROUP_LABELS = { type: 'Type', canvas: 'Canvas groups' };
 
@@ -119,9 +119,14 @@ export function ClusterSidebar({
   liveBoardId,            // the cluster whose doc is open (its cards are live)
   liveCards,
   liveGroupNames = null,  // Map groupId → name, the open cluster's canvas groups
-  width = 320,
   coarse = false,
-  onSetWidth = null,      // (px) => void — the expand button's jump between narrow and wide
+  layout = null,          // App's sidebar layout (lib/sidebarLayout.js): the arrangement and each card's size
+  onLayout = null,        // (layout, { commit }) => void — a handle, or the button that switches the arrangement
+  floating = false,       // the desktop's two floating cards; false in the phone drawer
+  roomy = true,           // the window has the room for side by side (SIDE_FITS_QUERY)
+  sizable = false,        // the handles show (floating, and the sidebar open)
+  top = null,             // App's top of the sidebar (the workspace), on the clusters' card
+  foot = null,            // App's foot (help, settings, you), on the files' card
   quickNav = null,        // { home, messages }: { active, unread?, onClick } each, from App
   listRef,                // App's .sb-list ref (scroll edges)
   boardsSectionProps,     // everything SidebarBoardsSection already took from App
@@ -265,39 +270,17 @@ export function ClusterSidebar({
     e.currentTarget.querySelectorAll('[role="tab"]')[j]?.focus();
   };
 
-  // ── Narrow or wide ────────────────────────────────────────────────────────
-  const wide = !coarse && isWideSidebar(width);
-  useEffect(() => { if (!wide && !coarse) writeJson(NARROW_W_KEY, width); }, [wide, coarse, width]);
-  const toggleWide = () => onSetWidth?.(toggledSidebarWidth(width, readJson(NARROW_W_KEY, null)));
-  // The divider shares the height between the clusters and the files when
-  // they're stacked; dragged, it is remembered, double-clicked, it resets.
-  const [navH, setNavH] = useState(() => {
-    const v = Number(readJson(NAV_H_KEY, null));
-    return Number.isFinite(v) && v > 0 ? v : null;
-  });
-  const setNavHeight = (h) => {
-    const v = h == null ? null : Math.round(Math.max(96, Math.min(h, (typeof window !== 'undefined' ? window.innerHeight : 900) - 260)));
-    setNavH(v);
-    writeJson(NAV_H_KEY, v);
-  };
-  const onDividerDown = (e) => {
-    if (e.button !== 0) return;
-    const nav = listRef?.current;
-    if (!nav) return;
-    e.preventDefault();
-    const startY = e.clientY;
-    const startH = nav.getBoundingClientRect().height;
-    const move = (ev) => setNavH(Math.round(Math.max(96, startH + ev.clientY - startY)));
-    const up = (ev) => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      document.body.classList.remove('sbf-resizing-v');
-      setNavHeight(startH + ev.clientY - startY);
-    };
-    document.body.classList.add('sbf-resizing-v');
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
+  // ── The two cards ─────────────────────────────────────────────────────────
+  // Side by side or stacked (a touch screen, and a window too narrow for side
+  // by side, always stack), each card its own size; the button above the
+  // files switches, keeping each arrangement's sizes.
+  const side = floating && arrangementOf(layout, { coarse, roomy }) === 'side';
+  const frameRef = useRef(null);
+  const treeCardRef = useRef(null);
+  const filesCardRef = useRef(null);
+  const ownNavRef = useRef(null);
+  const navRef = listRef || ownNavRef;
+  const toggleSide = () => { sizeAtOnce(frameRef.current); onLayout?.(toggledLayout(layout), { commit: true }); };
 
   // ── Quick look ────────────────────────────────────────────────────────────
   // A click opens Quick look, a double-click goes to the file. The click of a
@@ -671,34 +654,22 @@ export function ClusterSidebar({
 
   return (
     <>
+      <div className={`sbf-frame${side ? ' is-side' : ''}`} ref={frameRef} style={floating ? frameVars(layout, { coarse, roomy }) : undefined}>
+      <div className="sbf-card is-tree" ref={treeCardRef}>
+      {top}
       <nav className="sbf-quick" aria-label="Go to">
         {quickNav?.home && <QuickBtn label="Home" {...quickNav.home} />}
         {quickNav?.messages && <QuickBtn label="Messages" {...quickNav.messages} />}
       </nav>
 
-      <div className="sb-list sbf-nav" ref={listRef} onKeyDown={onListKeyDown}
-           style={!wide && navH ? { maxHeight: navH } : undefined}>
+      <div className="sb-list sbf-nav" ref={navRef} onKeyDown={onListKeyDown}>
         <SidebarBoardsSection {...boardsSectionProps} filesView={filesView} />
         {sharedSection}
         {tagsSection}
       </div>
+      </div>
 
-      {!wide && (
-        <div className="sbf-divider" role="separator" aria-orientation="horizontal" tabIndex={0}
-             aria-label="Share the height between clusters and files"
-             title="Drag to share the height · double-click to reset"
-             onPointerDown={onDividerDown}
-             onDoubleClick={() => setNavHeight(null)}
-             onKeyDown={(e) => {
-               if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-               e.preventDefault();
-               const cur = listRef?.current?.getBoundingClientRect().height || 240;
-               setNavHeight(cur + (e.key === 'ArrowDown' ? 24 : -24));
-             }}>
-          <span className="sbf-divider-grip" aria-hidden="true" />
-        </div>
-      )}
-
+      <div className="sbf-card is-files" ref={filesCardRef}>
       <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}>
         <header className="sbf-files-head">
           <div className="sbf-tabs" role="tablist" aria-label="Show files from" onKeyDown={onTabsKeyDown}>
@@ -715,12 +686,12 @@ export function ClusterSidebar({
               );
             })}
           </div>
-          {!coarse && onSetWidth && (
+          {floating && !coarse && roomy && onLayout && (
             <button type="button" className="sbf-iconbtn is-reveal"
-                    aria-label={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
-                    title={wide ? 'Show files under the clusters' : 'Show files beside the clusters'}
-                    aria-pressed={wide}
-                    onClick={toggleWide}>
+                    aria-label={side ? 'Show files under the clusters' : 'Show files beside the clusters'}
+                    title={side ? 'Show files under the clusters' : 'Show files beside the clusters'}
+                    aria-pressed={side}
+                    onClick={toggleSide}>
               <Icon as={Columns2} size={14} weight="regular" />
             </button>
           )}
@@ -869,6 +840,13 @@ export function ClusterSidebar({
       </section>
 
       <SidebarMeter {...meterProps} onOpenPlan={onOpenPlan} onUpload={onUpload} />
+      {foot}
+      </div>
+      </div>
+      {floating && sizable && onLayout && (
+        <SidebarHandles layout={layout} coarse={coarse} roomy={roomy} onLayout={onLayout}
+                        frameRef={frameRef} treeRef={treeCardRef} filesRef={filesCardRef} navRef={navRef} />
+      )}
 
       {createPortal(
         <CardContextMenu open={!!fileMenu} x={fileMenu?.x || 0} y={fileMenu?.y || 0}

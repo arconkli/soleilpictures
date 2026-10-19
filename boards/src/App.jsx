@@ -215,8 +215,8 @@ import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
-import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
-import { readSidebarWidth, writeSidebarWidth, clampSidebarWidth, isWideSidebar } from './lib/sidebarWidth.js';
+import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, SIDE_FITS_QUERY } from './lib/sidebarLayout.js';
+import { useMatchMedia } from './hooks/useMatchMedia.js';
 import { moveFiles, failureMessage, appendCards } from './lib/clustersApi.js';
 import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
 import { useStorageUsage } from './hooks/useStorageUsage.js';
@@ -5387,7 +5387,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
 
-  const [sidebarW, setSidebarW] = useState(() => readSidebarWidth());
+  // The floating sidebar: stacked or side by side, and each card's size
+  // (lib/sidebarLayout.js). A handle sizes the cards directly while it's
+  // dragged and hands the layout over when it lets go; remembered per device.
+  const [sidebarLayout, setSidebarLayout] = useState(() => readSidebarLayout());
+  // Side by side only where the window has the room for it.
+  const sidebarRoomy = useMatchMedia(SIDE_FITS_QUERY);
+  const onSidebarLayout = useCallback((next, { commit = false } = {}) => {
+    setSidebarLayout(next);
+    if (commit) writeSidebarLayout(next);
+  }, []);
   // A shelf's ⤢ opens its cluster in full Files narrowed to that shelf.
   const [filesFilter, setFilesFilter] = useState(null);   // { boardId, buckets, token }
   const sidebarStorage = useStorageUsage({ enabled: filesSidebar });
@@ -9472,6 +9481,223 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     );
   };
 
+  // The sidebar's top and foot. The files sidebar puts them on its cards
+  // (ClusterSidebar's top and foot); the old one has them where they always
+  // were.
+  //
+  // The top: the workspace switcher and search, and on the old sidebar Home
+  // and Messages, held in place (flex-shrink:0) while the list below scrolls.
+  const sbTop = (
+    <div className="sb-top">
+    <div className="sb-mid-head">
+      <button className="sb-ws-trigger"
+              onClick={() => setWsMenuOpen(o => !o)}
+              title={`${workspace.name} · click to switch`}
+              aria-haspopup="menu" aria-expanded={wsMenuOpen}>
+        {(() => {
+          const iconSrc = workspace.settings?.icon_url || '';
+          return iconSrc ? (
+            <span className="sb-ws-avatar sb-ws-avatar-img">
+              <R2Image src={iconSrc} alt="" />
+            </span>
+          ) : (
+            // The files sidebar's is neutral: the name beside it says
+            // which workspace, and gold and colour are kept for data.
+            <span className="sb-ws-avatar" style={filesSidebar ? undefined : { background: pickPresenceColor(workspace.id) }}>
+              {(workspace.name || '?').trim().charAt(0).toUpperCase()}
+            </span>
+          );
+        })()}
+        <span className="sb-ws-name">{workspace.name}</span>
+        <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+          <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {/* The files sidebar keeps one search box, the files' own: search
+          everywhere is this icon (and ⌘K). */}
+      {filesSidebar && (
+        <button className="sb-mid-search" onClick={() => setPaletteOpen(true)}
+                title="Search (⌘K)" aria-label="Search">
+          <Icon as={Search} size={16} weight="regular" />
+        </button>
+      )}
+      {/* In the drawer this is the drawer's close. It used to write the
+          desktop collapse preference (to the account) and leave the
+          drawer open with every row hidden. */}
+      <button className="sb-mid-collapse"
+              onClick={() => (mobileShell ? setMobileNavOpen(false) : setSidebarOpen(false))}
+              title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
+              aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
+        <Icon as={PanelLeftClose} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
+      </button>
+      {wsMenuOpen && (
+        <WorkspaceMenu
+          workspaces={workspaces || []}
+          activeWorkspaceId={workspace.id}
+          personalWorkspaceId={personalWorkspaceId}
+          selfUserId={user.id}
+          wsPeers={wsPeers}
+          onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
+          onAddNew={addNewWorkspace}
+          onRemove={(ws, action) => removeWorkspace(ws, action)}
+          onOpenSettings={(ws) => openWorkspaceSettings(ws)}
+          onShare={(ws) => shareWorkspace(ws)}
+          onClose={() => setWsMenuOpen(false)}
+        />
+      )}
+    </div>
+    {(() => {
+      // Subtitle + member dots for the ACTIVE workspace.
+      const isOwner = workspace.created_by === user.id;
+      const isPersonal = workspace.id === personalWorkspaceId;
+      const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
+      const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
+      const ownerPeer = peerById.get(workspace.created_by);
+      const sharedBy = maskEmail(ownerPeer?.user?.email, workspace.created_by)
+                       || maskName(ownerPeer?.user?.name, workspace.created_by)
+                       || 'someone';
+      const subtitle = isPersonal
+        ? 'Personal'
+        : isOwner
+          ? 'Yours'
+          // A shared workspace names its owner by address, right under
+          // the workspace title — the most prominent leak on the screen.
+          : workspace._myRole === 'coowner'
+            ? `Co-owner · shared by ${sharedBy}`
+            : `Shared by ${sharedBy}`;
+      const visibleMembers = workspaceMembers.slice(0, 6);
+      const overflow = workspaceMembers.length - visibleMembers.length;
+      return (
+        <>
+          <div className="sb-mid-subtitle">{subtitle}</div>
+          {workspaceMembers.length > 0 && (
+            <div className="sb-members" title={`${workspaceMembers.length} member${workspaceMembers.length === 1 ? '' : 's'}`}>
+              {visibleMembers.map(m => {
+                const online = onlineIds.has(m.user_id);
+                const peer = peerById.get(m.user_id);
+                const tip = peer?.user?.name || peer?.user?.email
+                  || (m.user_id === user.id ? 'You' : 'Member');
+                return (
+                  <span key={m.user_id}
+                        className={`sb-member ${online ? 'is-online' : ''}`}
+                        style={{ background: pickPresenceColor(m.user_id) }}
+                        title={tip + (online ? ' · online' : '')} />
+                );
+              })}
+              {overflow > 0 && <span className="sb-member sb-member-overflow">+{overflow}</span>}
+            </div>
+          )}
+        </>
+      );
+    })()}
+
+    {!filesSidebar && (
+      <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
+        <Icon as={Search} size={13} />
+        <span>Search…</span>
+        <span className="sb-search-kbd">⌘K</span>
+      </button>
+    )}
+
+    {/* With the files sidebar, Home and Messages are rows of its own
+        (ClusterSidebar quickNav); Recent and Starred are tabs on its files. */}
+    {!filesSidebar && (<>
+    <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
+         {...rowButtonProps(() => setCurrentSurface('home'))}>
+      <Icon as={Home} size={14} />
+      <span className="sb-row-label">Home</span>
+    </div>
+    <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
+         {...rowButtonProps(() => setTweak('showMessages', !tweak.showMessages))}
+         title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
+      <Icon as={MessageSquare} size={14} />
+      <span className="sb-row-label">Messages</span>
+      {messagesUnread > 0 && (
+        <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
+      )}
+    </div>
+    {/* The bell only when it has something to show. Its one producer is the
+        schedule, so for nearly everyone it was an empty panel labelled
+        "Schedule" in every sidebar — and people opened it and found nothing. */}
+    {((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) && (
+    <div className={`sb-row ${notifOpen ? 'active' : ''}`}
+         {...rowButtonProps(() => {
+           // Only the open is worth a row; the close tells us nothing.
+           // This is the denominator notif_click needs — a notification
+           // nobody clicked and a bell nobody opened are different
+           // failures with different fixes.
+           if (!notifOpen) {
+             try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
+           }
+           setNotifOpen(v => !v);
+         })}
+         title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
+      <Icon as={Bell} size={14} />
+      <span className="sb-row-label">Schedule</span>
+      {notifications.unread > 0 && (
+        <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
+      )}
+    </div>
+    )}
+    </>)}
+    {/* The phone topbar has no room for these (SHELL-06), so the drawer
+        carries them. Search is above, Help is in the footer. */}
+    {mobileShell && currentSurface === 'board' && (
+      <div className="sb-row"
+           {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
+        <Icon as={History} size={14} />
+        <span className="sb-row-label">Version history</span>
+      </div>
+    )}
+    {mobileShell && isTouch && currentSurface === 'board' && (
+      <div className="sb-row"
+           {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
+        <Icon as={Maximize2} size={14} />
+        <span className="sb-row-label">Focus view</span>
+      </div>
+    )}
+    {mobileShell && myTier.tier === 'admin' && (
+      <div className="sb-row"
+           {...rowButtonProps(() => window.location.assign('/admin'))}>
+        <Icon as={LayoutGrid} size={14} />
+        <span className="sb-row-label">Admin dashboard</span>
+      </div>
+    )}
+    </div>
+  );
+  // The foot: the settings cog and your avatar. Both open the same panel and
+  // differ only in which tab it lands on: the cog is about the workspace, the
+  // avatar is about you.
+  const sbFoot = (
+    <div className="sb-foot">
+      <HelpButton as="foot" via="sidebar" />
+      <button className="sb-foot-icon" title="Settings" aria-label="Settings"
+              onClick={() => openSettings('general')}>
+        <Icon as={Settings} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
+      </button>
+      {(() => {
+        const avatarSrc = ownProfile?.avatar_url || '';
+        if (avatarSrc) {
+          return (
+            <button className="sb-foot-avatar sb-foot-avatar-img" title="Account"
+                    onClick={() => openSettings('profile')}>
+              <R2Image src={avatarSrc} alt="" />
+            </button>
+          );
+        }
+        return (
+          <button className="sb-foot-avatar" title="Account"
+                  style={{ background: userInfo.color || pickPresenceColor(user.id) }}
+                  onClick={() => openSettings('profile')}>
+            {/* With no avatar set this is the first letter of your
+                address, sitting in the corner of every screenshot. */}
+            {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
+          </button>
+        );
+      })()}
+    </div>
+  );
+
   return (
     <EntityNavigateContext.Provider value={navHandlers}>
     <OpenDmContext.Provider value={openDmWith}>
@@ -9482,7 +9708,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
     <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}`}
-         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarW}px` } : undefined}
+         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarFootprint(sidebarLayout, { coarse: isTouch, roomy: sidebarRoomy })}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -9514,197 +9740,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           not true: React 18 passes unknown attributes through only as
           strings. */}
       <aside ref={sidebarRef}
-             className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}${filesSidebar && !mobileShell && isWideSidebar(sidebarW) ? ' is-wide' : ''}`}
+             className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}`}
              inert={mobileShell && !mobileNavOpen ? '' : undefined}
              aria-hidden={mobileShell && !mobileNavOpen ? 'true' : undefined}
              role={mobileShell && mobileNavOpen ? 'dialog' : undefined}
              aria-modal={mobileShell && mobileNavOpen ? 'true' : undefined}
              aria-label={mobileShell && mobileNavOpen ? 'Menu' : undefined}>
-        {filesSidebar && !mobileShell && sidebarOpen && (
-          <SidebarResizer width={sidebarW} onChange={setSidebarW} onCommit={(w) => writeSidebarWidth(w)} />
-        )}
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
         <div className="sb-mid">
-          {/* Pinned top zone — workspace switcher, search, Home, Messages.
-              Held in place (flex-shrink:0) while the list below scrolls. */}
-          <div className="sb-top">
-          <div className="sb-mid-head">
-            <button className="sb-ws-trigger"
-                    onClick={() => setWsMenuOpen(o => !o)}
-                    title={`${workspace.name} · click to switch`}
-                    aria-haspopup="menu" aria-expanded={wsMenuOpen}>
-              {(() => {
-                const iconSrc = workspace.settings?.icon_url || '';
-                return iconSrc ? (
-                  <span className="sb-ws-avatar sb-ws-avatar-img">
-                    <R2Image src={iconSrc} alt="" />
-                  </span>
-                ) : (
-                  // The files sidebar's is neutral: the name beside it says
-                  // which workspace, and gold and colour are kept for data.
-                  <span className="sb-ws-avatar" style={filesSidebar ? undefined : { background: pickPresenceColor(workspace.id) }}>
-                    {(workspace.name || '?').trim().charAt(0).toUpperCase()}
-                  </span>
-                );
-              })()}
-              <span className="sb-ws-name">{workspace.name}</span>
-              <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {/* The files sidebar keeps one search box, the files' own: search
-                everywhere is this icon (and ⌘K). */}
-            {filesSidebar && (
-              <button className="sb-mid-search" onClick={() => setPaletteOpen(true)}
-                      title="Search (⌘K)" aria-label="Search">
-                <Icon as={Search} size={16} weight="regular" />
-              </button>
-            )}
-            {/* In the drawer this is the drawer's close. It used to write the
-                desktop collapse preference (to the account) and leave the
-                drawer open with every row hidden. */}
-            <button className="sb-mid-collapse"
-                    onClick={() => (mobileShell ? setMobileNavOpen(false) : setSidebarOpen(false))}
-                    title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
-                    aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
-              <Icon as={PanelLeftClose} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
-            </button>
-            {wsMenuOpen && (
-              <WorkspaceMenu
-                workspaces={workspaces || []}
-                activeWorkspaceId={workspace.id}
-                personalWorkspaceId={personalWorkspaceId}
-                selfUserId={user.id}
-                wsPeers={wsPeers}
-                onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
-                onAddNew={addNewWorkspace}
-                onRemove={(ws, action) => removeWorkspace(ws, action)}
-                onOpenSettings={(ws) => openWorkspaceSettings(ws)}
-                onShare={(ws) => shareWorkspace(ws)}
-                onClose={() => setWsMenuOpen(false)}
-              />
-            )}
-          </div>
-          {(() => {
-            // Subtitle + member dots for the ACTIVE workspace.
-            const isOwner = workspace.created_by === user.id;
-            const isPersonal = workspace.id === personalWorkspaceId;
-            const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
-            const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
-            const ownerPeer = peerById.get(workspace.created_by);
-            const sharedBy = maskEmail(ownerPeer?.user?.email, workspace.created_by)
-                             || maskName(ownerPeer?.user?.name, workspace.created_by)
-                             || 'someone';
-            const subtitle = isPersonal
-              ? 'Personal'
-              : isOwner
-                ? 'Yours'
-                // A shared workspace names its owner by address, right under
-                // the workspace title — the most prominent leak on the screen.
-                : workspace._myRole === 'coowner'
-                  ? `Co-owner · shared by ${sharedBy}`
-                  : `Shared by ${sharedBy}`;
-            const visibleMembers = workspaceMembers.slice(0, 6);
-            const overflow = workspaceMembers.length - visibleMembers.length;
-            return (
-              <>
-                <div className="sb-mid-subtitle">{subtitle}</div>
-                {workspaceMembers.length > 0 && (
-                  <div className="sb-members" title={`${workspaceMembers.length} member${workspaceMembers.length === 1 ? '' : 's'}`}>
-                    {visibleMembers.map(m => {
-                      const online = onlineIds.has(m.user_id);
-                      const peer = peerById.get(m.user_id);
-                      const tip = peer?.user?.name || peer?.user?.email
-                        || (m.user_id === user.id ? 'You' : 'Member');
-                      return (
-                        <span key={m.user_id}
-                              className={`sb-member ${online ? 'is-online' : ''}`}
-                              style={{ background: pickPresenceColor(m.user_id) }}
-                              title={tip + (online ? ' · online' : '')} />
-                      );
-                    })}
-                    {overflow > 0 && <span className="sb-member sb-member-overflow">+{overflow}</span>}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-          {!filesSidebar && (
-            <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
-              <Icon as={Search} size={13} />
-              <span>Search…</span>
-              <span className="sb-search-kbd">⌘K</span>
-            </button>
-          )}
-
-          {/* With the files sidebar, Home and Messages are rows of its own
-              (ClusterSidebar quickNav); Recent and Starred are tabs on its files. */}
-          {!filesSidebar && (<>
-          <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
-               {...rowButtonProps(() => setCurrentSurface('home'))}>
-            <Icon as={Home} size={14} />
-            <span className="sb-row-label">Home</span>
-          </div>
-          <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
-               {...rowButtonProps(() => setTweak('showMessages', !tweak.showMessages))}
-               title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
-            <Icon as={MessageSquare} size={14} />
-            <span className="sb-row-label">Messages</span>
-            {messagesUnread > 0 && (
-              <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
-            )}
-          </div>
-          {/* The bell only when it has something to show. Its one producer is the
-              schedule, so for nearly everyone it was an empty panel labelled
-              "Schedule" in every sidebar — and people opened it and found nothing. */}
-          {((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) && (
-          <div className={`sb-row ${notifOpen ? 'active' : ''}`}
-               {...rowButtonProps(() => {
-                 // Only the open is worth a row; the close tells us nothing.
-                 // This is the denominator notif_click needs — a notification
-                 // nobody clicked and a bell nobody opened are different
-                 // failures with different fixes.
-                 if (!notifOpen) {
-                   try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
-                 }
-                 setNotifOpen(v => !v);
-               })}
-               title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
-            <Icon as={Bell} size={14} />
-            <span className="sb-row-label">Schedule</span>
-            {notifications.unread > 0 && (
-              <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
-            )}
-          </div>
-          )}
-          </>)}
-          {/* The phone topbar has no room for these (SHELL-06), so the drawer
-              carries them. Search is above, Help is in the footer. */}
-          {mobileShell && currentSurface === 'board' && (
-            <div className="sb-row"
-                 {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
-              <Icon as={History} size={14} />
-              <span className="sb-row-label">Version history</span>
-            </div>
-          )}
-          {mobileShell && isTouch && currentSurface === 'board' && (
-            <div className="sb-row"
-                 {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
-              <Icon as={Maximize2} size={14} />
-              <span className="sb-row-label">Focus view</span>
-            </div>
-          )}
-          {mobileShell && myTier.tier === 'admin' && (
-            <div className="sb-row"
-                 {...rowButtonProps(() => window.location.assign('/admin'))}>
-              <Icon as={LayoutGrid} size={14} />
-              <span className="sb-row-label">Admin dashboard</span>
-            </div>
-          )}
-          </div>{/* /.sb-top */}
+          {!filesSidebar && sbTop}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
               BOARDS tree, and tags. Pinned nav above, pinned footer below.
@@ -9712,6 +9758,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               .sb-scroll rule would otherwise hijack this element's layout. */}
           {filesSidebar ? (
             <ClusterSidebar
+              top={sbTop}
+              foot={sbFoot}
+              layout={sidebarLayout}
+              onLayout={mobileShell ? null : onSidebarLayout}
+              floating={!mobileShell}
+              roomy={sidebarRoomy}
+              sizable={!mobileShell && sidebarOpen}
               workspaceId={workspace.id}
               boards={ownedBoards}
               allBoards={boards}
@@ -9720,11 +9773,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               liveBoardId={yb.ready && yb.boardId === currentBoard.id ? currentBoard.id : null}
               liveCards={yb.ready && yb.boardId === currentBoard.id ? yb.cards : null}
               liveGroupNames={sidebarGroupNames}
-              // In the drawer the width is the drawer's: min(86vw, 320px).
-              width={mobileShell ? Math.round(Math.min((typeof window !== 'undefined' ? window.innerWidth : 375) * 0.86, 320)) : sidebarW}
               coarse={isTouch}
-              // The files section's expand button: files beside the clusters, or under them.
-              onSetWidth={mobileShell ? null : (w) => { const v = clampSidebarWidth(w); setSidebarW(v); writeSidebarWidth(v); }}
               quickNav={{
                 home: { active: currentSurface === 'home', onClick: () => setCurrentSurface('home') },
                 messages: { active: !!tweak.showMessages, unread: messagesUnread, onClick: () => setTweak('showMessages', !tweak.showMessages) },
@@ -9846,36 +9895,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
           )}{/* /.sb-list */}
 
-          {/* Footer — settings cog + avatar. Both open the SAME panel; they
-              differ only in which tab it lands on. The cog is about the
-              workspace, the avatar is about you. */}
-          <div className="sb-foot">
-            <HelpButton as="foot" via="sidebar" />
-            <button className="sb-foot-icon" title="Settings" aria-label="Settings"
-                    onClick={() => openSettings('general')}>
-              <Icon as={Settings} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
-            </button>
-            {(() => {
-              const avatarSrc = ownProfile?.avatar_url || '';
-              if (avatarSrc) {
-                return (
-                  <button className="sb-foot-avatar sb-foot-avatar-img" title="Account"
-                          onClick={() => openSettings('profile')}>
-                    <R2Image src={avatarSrc} alt="" />
-                  </button>
-                );
-              }
-              return (
-                <button className="sb-foot-avatar" title="Account"
-                        style={{ background: userInfo.color || pickPresenceColor(user.id) }}
-                        onClick={() => openSettings('profile')}>
-                  {/* With no avatar set this is the first letter of your
-                      address, sitting in the corner of every screenshot. */}
-                  {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
-                </button>
-              );
-            })()}
-          </div>
+          {!filesSidebar && sbFoot}
         </div>
       </aside>
       {/* One panel. The cog lands on the workspace group, the avatar on

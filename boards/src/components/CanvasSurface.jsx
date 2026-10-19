@@ -1099,6 +1099,28 @@ export function CanvasSurface({
     bumpPerf('cull.drainPass');
     scheduleVisibleRecompute();
   }, [visibleIds, scheduleVisibleRecompute]);
+  // The board holds still on screen while a floating sidebar beside it
+  // changes size (a card dragged, the arrangement switched, the sidebar
+  // collapsed): its cards float over the board, so this box's left edge moving
+  // with theirs mustn't carry the board along. The camera moves the other way
+  // in the same frame (a ResizeObserver runs before paint) and is committed
+  // once it settles. Only where the board runs on under the sidebar
+  // (--cnv-ground-bleed: the main pane, with the floating sidebar).
+  const wrapLeftRef = useRef(null);
+  const holdStillTimerRef = useRef(0);
+  const holdBoardStill = () => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const left = wrap.getBoundingClientRect().left;
+    const was = wrapLeftRef.current;
+    wrapLeftRef.current = left;
+    if (was == null || Math.abs(left - was) < 0.5 || boardIsEmptyRef.current) return;
+    if (getComputedStyle(wrap).getPropertyValue('--cnv-ground-bleed').trim() !== '1') return;
+    panRef.current = { x: panRef.current.x - (left - was), y: panRef.current.y };
+    applyCanvasTransform();
+    clearTimeout(holdStillTimerRef.current);
+    holdStillTimerRef.current = setTimeout(() => setPan({ x: panRef.current.x, y: panRef.current.y }), 160);
+  };
   // ResizeObserver on the wrap element so viewport recomputes when the
   // window or sidebar resizes (also seeds wrapWHRef with the initial size
   // synchronously after mount via the first observation callback).
@@ -1110,11 +1132,12 @@ export function CanvasSurface({
         const r = e.contentRect;
         wrapWHRef.current = { w: r.width, h: r.height };
       }
+      holdBoardStill();
       scheduleVisibleRecompute();
       measureGround();
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); clearTimeout(holdStillTimerRef.current); };
   }, [scheduleVisibleRecompute]);
   // The ground's colours follow the theme (<html data-theme>, or the system's
   // when it has none), and a window moved to another screen redraws it sharp.

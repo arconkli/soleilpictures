@@ -2,19 +2,21 @@
    scoped under .app.sb-files or an .sbf- class, so the held build changes
    nothing for anyone else.
 
-   Two parts: the clusters (a tree of names) and the files of one of them.
-   Narrow, the files sit under the clusters; past SIDEBAR_W.SPLIT_AT the
-   sidebar is .is-wide and they take a column of their own beside. .sb-mid
-   (App's) is the grid that places the parts.
+   Two parts: the clusters (a tree of names) and the files of one of them,
+   stacked (the files under the clusters) or side by side.
 
    The look is the one the owner picked from four mockups (2026-10-18,
    "B · Floating", artifact GnfNFQd8xHLebeSE6rYP5K): the sidebar is two glass
    cards floating over the board, which runs on under them, in the material of
    the floating top bar. The clusters' card holds the workspace, Home, Messages and the
-   tree; the files' card holds the files, the meter and the foot. The gap
-   between them is the divider. The cards are .sb-mid's ::before and ::after,
-   laid on the grid areas they hold, so neither App nor ClusterSidebar wraps
-   anything.
+   tree; the files' card holds the files, the meter and the foot. Each card is
+   its own box (.sbf-card, in ClusterSidebar's .sbf-frame) and takes its own
+   size: every right and bottom edge, the corners and the gap between the
+   cards are handles (SidebarHandles; the owner picked "Each card" from a live
+   prototype, 2026-10-19). lib/sidebarLayout.js holds the sizes and gives them
+   to .sbf-frame as custom properties. The phone drawer is a panel, not cards:
+   there the frame and the cards are display:contents and .sb-mid (App's) is
+   the grid that places the parts.
 
    The measures (fine pointer):
    - cards 8px from the window's edges and 8px apart; radius 12; content 15px
@@ -37,6 +39,7 @@
 /* ── The materials ───────────────────────────────────────────────────────── */
 .app.sb-files {
   grid-template-columns: var(--sb-w, 320px) 1fr;
+  --sbf-handle-ink: rgba(245, 245, 247, .34);
   --sbf-glass: color-mix(in oklab, var(--bg-1) 88%, transparent);
   --sbf-glass-line: #232328;
   /* A hairline under each card and nothing softer. The board runs on under
@@ -56,6 +59,7 @@
   --sbf-thumb-line: rgba(255, 255, 255, .11);
 }
 [data-theme='light'] .app.sb-files {
+  --sbf-handle-ink: rgba(10, 10, 12, .26);
   --sbf-glass: color-mix(in oklab, #fcfcfd 88%, transparent);
   --sbf-glass-line: rgba(10, 10, 12, .08);
   --sbf-glass-shadow: 0 1px 1px rgba(10, 10, 12, .06);
@@ -70,71 +74,115 @@
   --sbf-thumb-line: rgba(10, 10, 12, .1);
 }
 .app.sb-files.sb-collapsed { grid-template-columns: 0 1fr; }
-/* The resize handle straddles the sidebar's edge, but the sidebar is its own
-   stacking context (the grain layer isolates it), so its z-index can't lift
-   the handle over the surface next door. Lifting the sidebar does. */
+/* The sidebar is as wide as its cards, but the board keeps 420px of the
+   window (SIZES.room in lib/sidebarLayout.js); a narrow window takes from the
+   files first. */
+.app.sb-files.is-floating-chrome:not(.sb-collapsed) {
+  grid-template-columns: min(var(--sb-w, 320px), max(240px, calc(100vw - 420px))) 1fr;
+}
+/* The handles straddle the cards' edges, but the sidebar is its own stacking
+   context (the grain layer isolates it), so their z-index can't lift them
+   over the surface next door. Lifting the sidebar does. */
 .app.sb-files > .sidebar { z-index: 2; }
 
-body.sbf-resizing,
-body.sbf-resizing * { cursor: col-resize !important; user-select: none !important; }
-body.sbf-resizing-v,
-body.sbf-resizing-v * { cursor: row-resize !important; user-select: none !important; }
-/* .app eases its columns for collapse; while dragging, the edge must stay
-   under the pointer instead of trailing it. */
-body.sbf-resizing .app { transition: none !important; }
-
-/* The sidebar's edge, which is the cards' right edge: a line when you reach
-   for it (after a beat, so passing over it doesn't flash), gold while held. */
-.sbf-resizer {
-  position: fixed; top: 8px; bottom: 8px;
-  left: calc(var(--sb-w, 320px) - 3px);
-  width: 6px; z-index: 40; cursor: col-resize;
-  touch-action: none;
-  transition: box-shadow var(--dur-fast) var(--ease);
-}
-.sbf-resizer:hover { box-shadow: inset -2px 0 0 var(--line-3); transition-delay: .15s; }
-body.sbf-resizing .sbf-resizer,
-.sbf-resizer:focus-visible { outline: none; box-shadow: inset -2px 0 0 var(--soleil); transition-delay: 0s; }
-
 /* ── The parts, and the two cards ────────────────────────────────────────── */
+/* The phone drawer: .sb-mid is the grid, the frame and the cards don't box. */
 .app.sb-files .sidebar .sb-mid {
   display: grid; padding: 0; gap: 0; overflow: hidden;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
-  grid-template-areas: "top" "quick" "nav" "divider" "files" "meter" "foot";
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "top" "quick" "nav" "files" "meter" "foot";
 }
-.app.sb-files .sidebar.is-wide .sb-mid {
-  column-gap: 8px;
-  grid-template-columns: minmax(232px, 38%) minmax(0, 1fr);
-  /* The clusters' card is as tall as the clusters (they scroll past the
-     window); the files' card runs the whole height. */
-  grid-template-rows: auto auto minmax(0, auto) minmax(0, 1fr) auto auto;
-  grid-template-areas: "top files" "quick files" "nav files" ". files" ". meter" ". foot";
-}
-.app.sb-files .sb-mid > .sb-top { grid-area: top; }
-.app.sb-files .sb-mid > .sbf-quick { grid-area: quick; }
-.app.sb-files .sb-mid > .sbf-nav { grid-area: nav; }
-.app.sb-files .sb-mid > .sbf-divider { grid-area: divider; }
-.app.sb-files .sb-mid > .sbf-files { grid-area: files; }
-.app.sb-files .sb-mid > .sbf-meter { grid-area: meter; }
-.app.sb-files .sb-mid > .sb-foot { grid-area: foot; }
+.app.sb-files:not(.is-floating-chrome) .sbf-frame,
+.app.sb-files:not(.is-floating-chrome) .sbf-card { display: contents; }
+.app.sb-files .sb-mid .sb-top { grid-area: top; }
+.app.sb-files .sb-mid .sbf-quick { grid-area: quick; }
+.app.sb-files .sb-mid .sbf-nav { grid-area: nav; }
+.app.sb-files .sb-mid .sbf-files { grid-area: files; }
+.app.sb-files .sb-mid .sbf-meter { grid-area: meter; }
+.app.sb-files .sb-mid .sb-foot { grid-area: foot; }
 
-/* Floating: everywhere but the phone drawer, which is a panel of its own. */
+/* Floating: everywhere but the phone, two cards in .sbf-frame. Stacked, a
+   column: the clusters as tall as what's in them (their list stops at 42% of
+   the window) unless the divider set a height, the files down to the frame's
+   bottom. Side by side, a row, each card its own height. */
 .app.sb-files .sidebar:not(.is-mobile-open) { background-color: transparent; border-right-color: transparent; }
-.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid { padding: 8px 0 8px 8px; }
-.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid > * { z-index: 1; }
-.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::before,
-.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::after {
-  content: ''; z-index: 0; grid-column: 1;
-  border: 1px solid var(--sbf-glass-line); border-radius: 12px;
-  background: var(--sbf-glass);
+/* No edge of its own either: a transparent border still took a pixel from the cards. */
+.app.is-floating-chrome > .sidebar { border-right-width: 0; }
+.app.is-floating-chrome .sidebar .sb-mid { display: block; position: relative; height: 100%; overflow: hidden; }
+.app.is-floating-chrome .sbf-frame {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--sbf-frame-h, 100%); max-height: 100%;
+  box-sizing: border-box; padding: 8px 0 8px 8px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+}
+.app.is-floating-chrome .sbf-frame.is-side { flex-direction: row; }
+.app.is-floating-chrome .sbf-card {
+  position: relative; box-sizing: border-box; display: flex; flex-direction: column;
+  min-width: 0; max-width: 100%; max-height: 100%; overflow: hidden;
+  border-radius: 12px; background: var(--sbf-glass);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
           backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: var(--sbf-glass-shadow);
 }
-.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::before { grid-row: 1 / 4; }
-.app.sb-files .sidebar:not(.is-mobile-open) .sb-mid::after { grid-row: 5 / 8; }
-.app.sb-files .sidebar.is-wide:not(.is-mobile-open) .sb-mid::after { grid-column: 2; grid-row: 1 / 7; }
+/* Its hairline over everything in it, so nothing that runs to its edge covers it. */
+.app.is-floating-chrome .sbf-card::after {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  border: 1px solid var(--sbf-glass-line); border-radius: inherit;
+}
+.app.is-floating-chrome .sbf-card > * { flex: none; }
+/* The workspace menu drops from the top of the clusters' card: the card
+   doesn't clip it (nothing else in it reaches its edges), and lies over the
+   files' card so the menu does too. */
+.app.is-floating-chrome .sbf-card.is-tree {
+  flex: 0 1 auto; width: var(--sbf-tw, 312px); height: var(--sbf-th, auto); min-height: 132px;
+  overflow: visible; z-index: 2;
+}
+.app.is-floating-chrome .sbf-card.is-files { z-index: 1; }
+.app.is-floating-chrome .sbf-card.is-tree > .sbf-nav { flex: 1 1 auto; }
+/* From nothing, so the files take what the clusters leave rather than both
+   shrinking alike. */
+.app.is-floating-chrome .sbf-card.is-files { flex: 1 1 0; width: var(--sbf-fw, 312px); min-height: 220px; }
+.app.is-floating-chrome .sbf-card.is-files > .sbf-files { flex: 1 1 auto; }
+.app.is-floating-chrome .sbf-frame.is-side > .sbf-card.is-tree { min-width: 196px; }
+.app.is-floating-chrome .sbf-frame.is-side > .sbf-card.is-files { flex: 0 1 auto; height: var(--sbf-fh, 100%); min-width: 232px; }
+
+/* ── The handles (SidebarHandles) ────────────────────────────────────────── */
+/* Each card's right and bottom edges and corner, and the gap between the
+   cards: a line when you reach for one (after a beat, so passing over it
+   doesn't flash), gold while held or focused. They sit in a fixed layer over
+   the window, so the half of an edge outside its card isn't clipped. */
+.sbf-handles { position: fixed; inset: 0; z-index: 40; pointer-events: none; transition: opacity var(--dur-fast) var(--ease); }
+.sbf-handles.is-moving { opacity: 0; }
+/* Nor while the workspace menu is open: it may lie over an edge or the gap. */
+.app:has(.sbf-card .ws-menu) .sbf-handles { display: none; }
+.sbf-handles.is-moving .sbf-handle { pointer-events: none; }
+.sbf-handle { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: auto; touch-action: none; outline: none; }
+.sbf-handle.is-v { cursor: ew-resize; }
+.sbf-handle.is-h, .sbf-handle.is-grip { cursor: ns-resize; }
+.sbf-handle.is-corner { cursor: nwse-resize; }
+.sbf-handle::after {
+  content: ''; position: absolute; border-radius: 1px; background: var(--sbf-handle-ink);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+}
+.sbf-handle.is-v::after { top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; }
+.sbf-handle.is-h::after { left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; }
+.sbf-handle.is-grip::after { left: 50%; top: 50%; width: 28px; height: 3px; margin: -1.5px 0 0 -14px; border-radius: 2px; }
+.sbf-handle.is-corner::after { content: none; }
+.sbf-handle svg { position: absolute; left: 0; top: 0; overflow: visible; opacity: 0; transition: opacity var(--dur-fast) var(--ease); }
+.sbf-handle svg path { fill: none; stroke: var(--sbf-handle-ink); stroke-width: 2; stroke-linecap: round; }
+.sbf-handle:hover::after, .sbf-handle:hover svg { opacity: 1; transition-delay: .15s; }
+.sbf-handle.is-held::after, .sbf-handle:focus-visible::after { opacity: 1; background: var(--soleil); transition-delay: 0s; }
+.sbf-handle.is-held svg, .sbf-handle:focus-visible svg { opacity: 1; transition-delay: 0s; }
+.sbf-handle.is-held svg path, .sbf-handle:focus-visible svg path { stroke: var(--soleil); }
+/* Where two bottoms line up while you drag one to the other. */
+.sbf-guide { position: absolute; left: 0; top: 0; height: 0; border-top: 1px dashed var(--soleil); opacity: 0; transition: opacity .1s var(--ease); }
+.sbf-guide.is-on { opacity: .85; }
+body.sbf-sizing,
+body.sbf-sizing * { cursor: var(--sbf-drag-cursor, default) !important; user-select: none !important; }
+/* .app eases its columns for collapse; while dragging, the edge must stay
+   under the pointer instead of trailing it. */
+body.sbf-sizing .app,
+.app.sbf-at-once { transition: none !important; }
 
 /* The board runs on under the cards. They float over the canvas, so the gaps
    around and between them show the board itself (owner, 2026-10-18: "we
@@ -148,16 +196,17 @@ body.sbf-resizing .sbf-resizer,
      through; the cards and all that's on them take them back.
    - The main pane's canvas paints past its left edge (clip-path), and its
      ground goes on under the sidebar in ::before, from the pattern's offset
-     CanvasSurface publishes as --cnv-bg-x/-y. The wrappers between it and
+     CanvasSurface publishes as --cnv-bg-x/-y. That strip is what a press in
+     a gap lands on: with the ground drawn on a canvas it paints nothing but
+     stays. The wrappers between it and
      .app stop clipping; .app clips instead, so a card far off the board
      can't make the page scroll. */
 .app.is-floating-chrome > .sidebar { pointer-events: none; }
 .app.is-floating-chrome > .sidebar::after { display: none; }
 .app.is-floating-chrome > .sidebar > *,
-.app.is-floating-chrome > .sidebar .sb-mid > *,
-.app.is-floating-chrome > .sidebar .sb-mid::before,
-.app.is-floating-chrome > .sidebar .sb-mid::after { pointer-events: auto; }
-.app.is-floating-chrome > .sidebar > .sb-mid { pointer-events: none; }
+.app.is-floating-chrome > .sidebar .sbf-card { pointer-events: auto; }
+.app.is-floating-chrome > .sidebar > .sb-mid,
+.app.is-floating-chrome > .sidebar .sbf-frame { pointer-events: none; }
 .app.is-floating-chrome { overflow: clip; }
 /* Between the surface and FilesDock sits SurfaceErrorBoundary's root, a
    display:contents box: no clipping of its own, but a child combinator across
@@ -169,11 +218,13 @@ body.sbf-resizing .sbf-resizer,
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap {
   overflow: visible; clip-path: inset(0 0 0 -100vw);
   /* The ground drawn on a canvas (CanvasSurface measureGround) widens itself
-     under the sidebar when this says so; then the CSS strip below stands down. */
+     under the sidebar when this says so; then the CSS strip below paints
+     nothing, and only takes the presses. CanvasSurface also holds the board
+     still on screen when this canvas's left edge moves with the sidebar's. */
   --cnv-ground-bleed: 1;
 }
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap.has-ground::before {
-  content: none;
+  background: none;
 }
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw;
@@ -193,11 +244,11 @@ body.sbf-resizing .sbf-resizer,
 }
 
 /* ── The top: the workspace, search everywhere, collapse ─────────────────── */
-.app.sb-files .sb-mid > .sb-top { padding: 3px 7px 2px; }
+.app.sb-files .sb-mid .sb-top { padding: 3px 7px 2px; }
 /* Whose workspace it is, under its name, and its members at the end of that
    line rather than on one of their own. The drawer's own rows (Version
    history, Focus view, Admin) take the whole width. */
-.app.sb-files .sb-mid > .sb-top {
+.app.sb-files .sb-mid .sb-top {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
 }
 .app.sb-files .sb-top .sb-mid-head,
@@ -266,13 +317,13 @@ body.sbf-resizing .sbf-resizer,
 .app.sb-files .cbt-shrink:hover { border-color: var(--line-3); color: var(--ink-0); }
 
 /* ── The clusters ────────────────────────────────────────────────────────── */
-/* As much height as they need up to about two fifths of the sidebar (the
-   divider changes that) when the files are under them; wide, all of it. */
-.app.sb-files .sb-mid > .sbf-nav {
-  min-height: 0; max-height: 42vh; overflow-y: auto; overflow-x: hidden;
+/* As much height as they need up to about two fifths of the window when
+   the files are under them (--sbf-nav-max; the divider changes that); side
+   by side, their card's. */
+.app.sb-files .sb-mid .sbf-nav {
+  min-height: 0; max-height: var(--sbf-nav-max, 42vh); overflow-y: auto; overflow-x: hidden;
   overscroll-behavior: contain; padding: 0 7px 8px;
 }
-.app.sb-files .sidebar.is-wide .sb-mid > .sbf-nav { max-height: none; }
 .app.sb-files .sb-list.sbf-nav.fade-bottom:not(.fade-top) {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
           mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
@@ -344,21 +395,6 @@ body.sbf-resizing .sbf-resizer,
 .app.sb-files .sb-tag-row-count { font: 400 12px/1 var(--font-sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .app.sb-files .sb-tags-empty { padding: 4px 8px 8px; font: 400 12px/1.45 var(--font-sans); }
 
-/* The divider: the gap between the cards, with a grip when you reach for it. */
-.sbf-divider {
-  position: relative; z-index: 1; height: 8px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: row-resize; touch-action: none;
-}
-.sbf-divider-grip {
-  position: relative; width: 28px; height: 3px; border-radius: 2px;
-  background: var(--line-3); opacity: 0; transition: opacity var(--dur-fast) var(--ease);
-}
-.sbf-divider:hover .sbf-divider-grip { opacity: 1; transition-delay: .15s; }
-.sbf-divider:focus-visible { outline: none; }
-body.sbf-resizing-v .sbf-divider-grip,
-.sbf-divider:focus-visible .sbf-divider-grip { opacity: 1; background: var(--soleil); transition-delay: 0s; }
-
 /* ── The files ───────────────────────────────────────────────────────────── */
 .sbf-files {
   min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px;
@@ -368,11 +404,12 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-files.is-dropping { box-shadow: inset 0 0 0 2px var(--soleil); }
 
 /* What the files show: the cluster, Recent or Starred, a segmented control,
-   the shown one a raised chip. Narrow, each is as wide as its word and they
-   share what's left over; when a name is too long, only the name gives way
-   ("Recent" and "Starred" never do). Wide, each is as wide as its word. ⤢ (the full
-   Files page) and the split toggle sit after it, quiet until you reach for
-   the header (and full while wide, where the toggle is the way back). */
+   the shown one a raised chip. In a narrow card, each is as wide as its word
+   and they share what's left over; when a name is too long, only the name
+   gives way ("Recent" and "Starred" never do). In a wide one, each is as wide
+   as its word. ⤢ (the full Files page) and the split toggle sit after it,
+   quiet until you reach for the header (and full side by side, where the
+   toggle is the way back). */
 .sbf-files-head {
   display: flex; align-items: center; gap: 4px; padding: 8px 7px 6px;
   container-type: inline-size;
@@ -392,8 +429,10 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-tab:hover { color: var(--ink-0); }
 .sbf-tab.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
 .sbf-tab:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
-.app.sb-files .sidebar.is-wide .sbf-tabs { flex: 0 1 auto; }
-.app.sb-files .sidebar.is-wide .sbf-tab { flex: 0 1 auto; padding: 0 14px; }
+@container (min-width: 360px) {
+  .sbf-tabs { flex: 0 1 auto; }
+  .sbf-tab { flex: 0 1 auto; padding: 0 14px; }
+}
 
 .sbf-iconbtn {
   flex-shrink: 0; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px;
@@ -405,7 +444,7 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-files-head .sbf-iconbtn { opacity: .5; }
 .sbf-files-head:hover .sbf-iconbtn,
 .sbf-files-head .sbf-iconbtn:focus-visible,
-.app.sb-files .sidebar.is-wide .sbf-files-head .sbf-iconbtn { opacity: 1; }
+.sbf-frame.is-side .sbf-files-head .sbf-iconbtn { opacity: 1; }
 /* Too narrow for them, they go, the toggle first: the header is 298px inside
    the card at the default 320, 218px at the narrowest 240. */
 @container (max-width: 269px) { .sbf-files-head .sbf-iconbtn.is-reveal { display: none; } }
@@ -608,7 +647,7 @@ body.sbf-resizing-v .sbf-divider-grip,
 .sbf-upload:hover { background: color-mix(in srgb, var(--sbf-chip) 88%, var(--ink-0)); }
 .sbf-upload:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 /* Help, Settings and you, under the meter, in the same card. */
-.app.sb-files .sb-mid > .sb-foot { margin: 0; padding: 0 9px 8px; gap: 2px; border-top: 0; }
+.app.sb-files .sb-mid .sb-foot { margin: 0; padding: 0 9px 8px; gap: 2px; border-top: 0; }
 .app.sb-files .sb-foot .sb-foot-icon { color: var(--ink-2); }
 
 /* ── Selection (⌘/⇧-click) and the bar that acts on it ───────────────────── */
@@ -659,7 +698,6 @@ body.sbf-resizing-v .sbf-divider-grip,
   .sbf-note { height: 44px; line-height: 44px; font-size: 14px; }
   .sbf-note.is-empty { height: 52px; }
   .sbf-shelf-open { display: none; }
-  .sbf-divider { height: 16px; }
   .sbf-bulk-btn { height: 36px; padding: 0 12px; font-size: 13px; }
   .sbf-meter-line { height: 48px; }
   .sbf-meter-text { font-size: 13px; }
@@ -669,16 +707,15 @@ body.sbf-resizing-v .sbf-divider-grip,
 
 /* ── The phone drawer: one scroll for everything ─────────────────────────── */
 /* A phone hasn't the height to share between two scrolling parts: the drawer
-   scrolls as one, clusters then files, and the divider has no job. It is a
-   panel already, so no cards: the same rows on the drawer's own ground. */
+   scrolls as one, clusters then files, and nothing sizes them. It is a panel
+   already, so no cards: the same rows on the drawer's own ground. */
 .app.sb-files .sidebar.is-mobile-open .sb-mid {
   overflow-y: auto; overflow-x: hidden; padding: 0;
   /* max-content, not auto: auto rows would be squeezed to the drawer's
      height and the parts would spill over one another. */
-  grid-template-rows: repeat(7, max-content);
+  grid-template-rows: repeat(6, max-content);
 }
-.app.sb-files .sidebar.is-mobile-open .sb-mid > .sb-top { padding-top: 10px; }
-.app.sb-files .sidebar.is-mobile-open .sb-mid > .sbf-nav { max-height: none; overflow: visible; }
-.app.sb-files .sidebar.is-mobile-open .sb-mid > .sbf-divider { display: none; }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sb-top { padding-top: 10px; }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-nav { max-height: none; overflow: visible; }
 .app.sb-files .sidebar.is-mobile-open .sbf-files { overflow: visible; border-radius: 0; border-top: 1px solid var(--line-1); padding-top: 6px; }
 .app.sb-files .sidebar.is-mobile-open .sbf-files-list { overflow: visible; -webkit-mask-image: none; mask-image: none; }

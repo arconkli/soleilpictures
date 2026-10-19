@@ -184,6 +184,31 @@ test("small zoom steps that arrive mid-glide join it instead of fighting it", as
   expect((await cameras(page)).cards.z).toBeCloseTo(a.cards.z * Math.exp((100 + 6 * 13.5) * 0.0025), 3);
 });
 
+test('the board holds still while a floating sidebar beside it changes size', async ({ page }) => {
+  await boot(page);
+  const wrap = page.locator('.canvas-wrap');
+  const at = () => page.locator('.canvas-wrap .card').first().evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return [Math.round(r.left), Math.round(r.top)];
+  });
+  // A canvas beside an ordinary sidebar moves with its edge, as it always has.
+  const a = await at();
+  await wrap.evaluate((el) => { el.style.marginLeft = '60px'; });
+  await expect.poll(at).toEqual([a[0] + 60, a[1]]);
+  await wrap.evaluate((el) => { el.style.marginLeft = ''; });
+  await expect.poll(at).toEqual(a);
+  // Where the board runs on under a floating sidebar (clusterSidebar.css's --cnv-ground-bleed),
+  // it holds still: in the same frame, and still once the camera is committed.
+  await wrap.evaluate((el) => el.style.setProperty('--cnv-ground-bleed', '1'));
+  await wrap.evaluate((el) => { el.style.marginLeft = '120px'; });
+  await nextFrame(page);
+  expect(await at()).toEqual(a);
+  await page.waitForTimeout(400);
+  expect(await at()).toEqual(a);
+  const cam = await cameras(page);
+  expect(cam.ground.x).toBeCloseTo(cam.cards.x, 3);
+});
+
 test("an empty board's ground stays put under its panel", async ({ page }) => {
   await boot(page, { blank: true });
   const g = await cameras(page);

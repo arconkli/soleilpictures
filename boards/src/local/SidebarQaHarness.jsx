@@ -1,7 +1,7 @@
 // Sidebar-files QA (?sidebarqa=1). Mounts the real <ClusterSidebar> in the
 // real sidebar shell over fixture clusters, so its tabs, shelves, Quick look,
 // the All files menu, paging and resize can be driven and screenshotted with no
-// backend. The open cluster is live (its cards are in memory, as yb.cards would
+// backend, and its two cards sized from their edges as App sizes them. The open cluster is live (its cards are in memory, as yb.cards would
 // be); every other cluster is served by a fake of 0419's RPCs that keeps the
 // same contract (shelf counts, a peek per shelf, offset paging, the four
 // sorts), and every call lands in window.__sidebarQa.calls for the spec.
@@ -11,8 +11,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles.css';
 import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
-import { SidebarResizer } from '../components/sidebar/SidebarResizer.jsx';
-import { SIDEBAR_W, clampSidebarWidth, isWideSidebar } from '../lib/sidebarWidth.js';
+import { SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout } from '../lib/sidebarLayout.js';
+import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
@@ -209,9 +209,20 @@ export function SidebarQaHarness() {
   // A phone shows the sidebar as the app's drawer, open — as the menu button
   // would leave it — at the drawer's width.
   const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
-  const [width, setWidth] = useState(phone ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : SIDEBAR_W.DEFAULT);
+  const drawerW = phone ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : 0;
+  // The cards' layout, kept and remembered as App keeps it.
+  const [layout, setLayout] = useState(() => readSidebarLayout());
+  const roomy = useMatchMedia(SIDE_FITS_QUERY);
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  const onLayout = (next, { commit = false } = {}) => {
+    setLayout(next);
+    if (commit) writeSidebarLayout(next);
+  };
   const [log, setLog] = useState([]);
   const [collapsed, setCollapsed] = useState(false);
+  // App's workspace menu, by its classes: it drops from the top of the clusters' card.
+  const [wsMenu, setWsMenu] = useState(false);
   // Whether the open cluster's doc is live; off, its files come from the fake
   // server like any other cluster's (the RPC path: peeks, pages, sorts).
   const [live, setLive] = useState(true);
@@ -224,7 +235,10 @@ export function SidebarQaHarness() {
       setActive: (id) => setActive(id),
       bumpBoards: () => setBoardsVersion((v) => v + 1),
       setCollapsed: (v) => setCollapsed(!!v),
-      setWidth: (w) => setWidth(clampSidebarWidth(w)),
+      // The sidebar at one width, as it was before the cards were sized apart.
+      setWidth: (w) => setLayout(layoutFromOldWidth(w)),
+      setLayout: (l) => setLayout(sanitizeLayout(l)),
+      layout: () => layoutRef.current,
       setLive: (v) => setLive(!!v),
     };
     return s;
@@ -239,41 +253,67 @@ export function SidebarQaHarness() {
     return () => document.removeEventListener(FILE_SHARE_EVENT, onShare);
   }, [source]);
 
+  // App's top and foot, by their classes, so the parts sit as they do there.
+  // The top: the workspace (its subtitle and members too), search everywhere
+  // (an icon), and collapse.
+  const top = (
+    <div className="sb-top">
+      <div className="sb-mid-head">
+        <button type="button" className="sb-ws-trigger" aria-expanded={wsMenu}
+                onClick={() => { say('workspaces'); setWsMenu((o) => !o); }}>
+          <span className="sb-ws-avatar">S</span>
+          <span className="sb-ws-name">Sidebar QA</span>
+          <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button type="button" className="sb-mid-search" onClick={() => say('palette ""')} title="Search (⌘K)" aria-label="Search">
+          <Icon as={Search} size={16} weight="regular" />
+        </button>
+        <button type="button" className="sb-mid-collapse" onClick={() => setCollapsed(true)}
+                title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
+          <Icon as={PanelLeftClose} size={16} weight="regular" />
+        </button>
+        {wsMenu && (
+          <div className="ws-menu" role="menu" aria-label="Workspaces">
+            {['Sidebar QA', 'Studio North', 'Feature film unit', 'Archive', 'Personal', 'Client: Lumen', 'Client: Harbor', 'New workspace…', 'Workspace settings'].map((n) => (
+              <div key={n} className="ws-menu-row-wrap">
+                <button type="button" role="menuitem" className="ws-menu-row" onClick={() => { say(`ws ${n}`); setWsMenu(false); }}>
+                  <span className="ws-menu-text">{n}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="sb-mid-subtitle">Yours</div>
+      <div className="sb-members" title="3 members">
+        <span className="sb-member is-online" style={{ background: '#2f6fd6' }} />
+        <span className="sb-member is-online" style={{ background: '#b4532a' }} />
+        <span className="sb-member" style={{ background: '#3f8f6b' }} />
+      </div>
+    </div>
+  );
+  // Help, Settings and you.
+  const foot = (
+    <div className="sb-foot">
+      <button type="button" className="sb-foot-icon" title="Help" aria-label="Help" onClick={() => say('help')}>
+        <Icon as={Question} size={16} weight="regular" />
+      </button>
+      <button type="button" className="sb-foot-icon" title="Settings" aria-label="Settings" onClick={() => say('settings')}>
+        <Icon as={Settings} size={16} weight="regular" />
+      </button>
+      <button type="button" className="sb-foot-avatar" title="Account" style={{ background: '#2f6fd6' }} onClick={() => say('account')}>A</button>
+    </div>
+  );
+
   return (
     <>
     <style>{QA_STYLE}</style>
     <div className={`app sb-files${phone ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}`}
-         style={{ '--sb-w': `${collapsed ? 0 : width}px`, height: '100vh' }} data-sidebarqa-ready="1">
-      <aside className={`sidebar${phone ? ' is-mobile-open' : ''}${!phone && isWideSidebar(width) ? ' is-wide' : ''}`}>
-        {!phone && <SidebarResizer width={width} onChange={(w) => setWidth(clampSidebarWidth(w))} />}
+         style={{ '--sb-w': `${collapsed ? 0 : phone ? drawerW : sidebarFootprint(layout, { coarse: phone, roomy })}px`, height: '100vh' }} data-sidebarqa-ready="1">
+      <aside className={`sidebar${phone ? ' is-mobile-open' : ''}`}>
         <div className="sb-mid">
-          {/* App's head, by its classes, so the parts below sit as they do there:
-              the workspace (its subtitle and members too), search everywhere
-              (an icon), and collapse. */}
-          <div className="sb-top">
-            <div className="sb-mid-head">
-              <button type="button" className="sb-ws-trigger" onClick={() => say('workspaces')}>
-                <span className="sb-ws-avatar">S</span>
-                <span className="sb-ws-name">Sidebar QA</span>
-                <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                  <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              <button type="button" className="sb-mid-search" onClick={() => say('palette ""')} title="Search (⌘K)" aria-label="Search">
-                <Icon as={Search} size={16} weight="regular" />
-              </button>
-              <button type="button" className="sb-mid-collapse" onClick={() => setCollapsed(true)}
-                      title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
-                <Icon as={PanelLeftClose} size={16} weight="regular" />
-              </button>
-            </div>
-            <div className="sb-mid-subtitle">Yours</div>
-            <div className="sb-members" title="3 members">
-              <span className="sb-member is-online" style={{ background: '#2f6fd6' }} />
-              <span className="sb-member is-online" style={{ background: '#b4532a' }} />
-              <span className="sb-member" style={{ background: '#3f8f6b' }} />
-            </div>
-          </div>
           <ClusterSidebar
             workspaceId={WS}
             boards={BOARDS}
@@ -282,9 +322,14 @@ export function SidebarQaHarness() {
             activeBoardId={active}
             liveBoardId={live ? active : null}
             liveCards={live ? (CARDS[active] || []) : null}
-            width={width}
             coarse={phone}
-            onSetWidth={phone ? null : (w) => setWidth(clampSidebarWidth(w))}
+            top={top}
+            foot={foot}
+            layout={layout}
+            onLayout={phone ? null : onLayout}
+            floating={!phone}
+            roomy={roomy}
+            sizable={!phone && !collapsed}
             quickNav={{
               home: { active: false, onClick: () => say('home') },
               messages: { active: false, unread: 2, onClick: () => say('messages') },
@@ -310,16 +355,6 @@ export function SidebarQaHarness() {
             onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
             uploadsByBoard={{ cast: 3 }}
           />
-          {/* App's foot, by its classes: Help, Settings and you. */}
-          <div className="sb-foot">
-            <button type="button" className="sb-foot-icon" title="Help" aria-label="Help" onClick={() => say('help')}>
-              <Icon as={Question} size={16} weight="regular" />
-            </button>
-            <button type="button" className="sb-foot-icon" title="Settings" aria-label="Settings" onClick={() => say('settings')}>
-              <Icon as={Settings} size={16} weight="regular" />
-            </button>
-            <button type="button" className="sb-foot-avatar" title="Account" style={{ background: '#2f6fd6' }} onClick={() => say('account')}>A</button>
-          </div>
         </div>
       </aside>
       <main className="main">

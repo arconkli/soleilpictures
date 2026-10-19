@@ -2,8 +2,8 @@
 // (?sidebarqa=1, which opens its drawer on a phone the way the menu button
 // would). The same two parts as the desktop — clusters, then the files of the
 // one you're in (or Recent, or Starred: tabs) — sized for a thumb and scrolling
-// as one: 44px rows and tabs, tap for Quick look, hold for a file's menu, no
-// resize handle and no divider.
+// as one: 44px rows and tabs, tap for Quick look, hold for a file's menu, and
+// no handles to size anything.
 import { expect, test } from '@playwright/test';
 
 async function open(page) {
@@ -16,8 +16,9 @@ test.describe('sidebar files on a phone', () => {
   test('the drawer holds the clusters and then the files, in touch-sized rows, scrolling as one', async ({ page }) => {
     await open(page);
     await expect(page.locator('.sidebar.is-mobile-open')).toBeVisible();
-    await expect(page.locator('.sbf-resizer')).toHaveCount(0);
-    await expect(page.locator('.sbf-divider')).toBeHidden();
+    // A panel, not cards: nothing to size them by.
+    await expect(page.locator('.sbf-handle')).toHaveCount(0);
+    expect(await page.locator('.sbf-card').evaluateAll((els) => els.map((el) => getComputedStyle(el).display))).toEqual(['contents', 'contents']);
     const h = (sel) => page.locator(sel).first().evaluate((el) => Math.round(el.getBoundingClientRect().height));
     expect(await h('.sb-tree-row.is-files')).toBe(44);
     expect(await h('.sbf-files .sbf-file')).toBe(44);
