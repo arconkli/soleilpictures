@@ -4,7 +4,7 @@ import {
   EDGE, SIZES, LAYOUT_DEFAULT, SIDEBAR_LAYOUT_KEY, OLD_SIDEBAR_W_KEY,
   defaultLayout, sanitizeLayout, layoutFromOldWidth, readSidebarLayout, writeSidebarLayout,
   sidebarFootprint, arrangementOf, frameVars, toggledLayout, handleSpecs, dragLayout, resetLayout, keyLayout,
-  SIDE_FITS_QUERY,
+  SIDE_FITS_QUERY, KEPT_FITS_QUERY,
 } from './sidebarLayout.js';
 
 const memory = (init = {}) => {
@@ -36,10 +36,19 @@ test('the defaults are the sidebar as it was: 320 stacked, 640 side by side', ()
   assert.equal(sidebarFootprint({ ...defaultLayout(), arr: 'side' }, { coarse: true }), 320);
   // A window too narrow for side by side keeps the files under the clusters, whatever was chosen.
   assert.equal(SIDE_FITS_QUERY, '(min-width: 920px)');
+  assert.equal(KEPT_FITS_QUERY, '(min-width: 864px)');
   const side = { ...defaultLayout(), arr: 'side' };
   assert.equal(arrangementOf(side, { roomy: false }), 'stack');
   assert.equal(sidebarFootprint(side, { roomy: false }), 320);
   assert.equal(frameVars(side, { roomy: false })['--sbf-fh'], 'auto');
+  // Side by side the button keeps fits a little narrower: as narrow as its two cards can be.
+  const kept = { ...side, pinned: true };
+  assert.equal(arrangementOf(kept, { roomy: false, snug: true }), 'side');
+  assert.equal(arrangementOf(kept, { roomy: false, snug: false }), 'stack');
+  assert.equal(arrangementOf(side, { roomy: false, snug: true }), 'stack', 'not kept: stacked below 920');
+  // The button goes from what shows: chosen side by side, but stacked by the window, it keeps it side by side.
+  const fromShown = toggledLayout(side, 'stack');
+  assert.deepEqual([fromShown.arr, fromShown.pinned], ['side', true]);
   assert.deepEqual(toggledLayout(defaultLayout()).arr, 'side');
   assert.deepEqual(toggledLayout(toggledLayout(defaultLayout())), defaultLayout());
 });
@@ -51,6 +60,11 @@ test('whatever storage holds comes back as a layout', () => {
   assert.equal(l.arr, 'side');
   assert.deepEqual(l.stack, { tw: SIZES.stackMaxW, fw: SIZES.filesMinW, th: 'hug', bottom: EDGE + SIZES.treeMinH + EDGE + SIZES.filesMinH });
   assert.deepEqual(l.side, { tw: LAYOUT_DEFAULT.side.tw, fw: SIZES.filesMaxW, tBottom: 'full', fBottom: EDGE + SIZES.filesMinH });
+  // Only side by side is ever kept by the button.
+  assert.equal(l.pinned, false);
+  assert.equal(sanitizeLayout({ arr: 'side', pinned: true }).pinned, true);
+  assert.equal(sanitizeLayout({ arr: 'stack', pinned: true }).pinned, false);
+  assert.equal(sanitizeLayout({ arr: 'side', pinned: 'yes' }).pinned, false);
 });
 
 test('the old one width carries over: narrow stays stacked at it, wide goes side by side split as before', () => {
@@ -158,6 +172,7 @@ test('stacked, each card has its own width, and pulled wider than 532 they go si
   const wide = dragLayout(stacked(), 'filesRight', 532 - 312 + 1, 0);
   assert.equal(wide.layout.arr, 'side');
   assert.equal(wide.flip, 'right');
+  assert.equal(wide.layout.pinned, false, 'dragged there, not kept: dragging narrow stacks them again');
   // The files' right edge under the pointer (8 + 533 from the left), the clusters at their side-by-side width.
   assert.equal(8 + wide.layout.side.tw + 8 + wide.layout.side.fw, 8 + 533);
   assert.equal(dragLayout(stacked(), 'treeRight', 300, 0).layout.arr, 'side');
@@ -167,10 +182,33 @@ test('stacked, each card has its own width, and pulled wider than 532 they go si
   const w2 = dragLayout(stacked(wideTree), 'filesRight', 541 - 320, 0).layout.side;
   assert.equal(8 + w2.tw + 8 + w2.fw, 541);
   assert.equal(w2.fw, SIZES.filesMinW);
-  // A window without the room for side by side: the stacked card stops at what it has.
+  // A window without the room for side by side from a drag (under 920): the stacked card stops at
+  // what it has, and a drag never switches back and forth on the way.
   const narrow = dragLayout(stacked(defaultLayout(), { vw: 900 }), 'filesRight', 400, 0);
   assert.equal(narrow.layout.arr, 'stack');
   assert.equal(narrow.layout.stack.fw, 900 - SIZES.room - 8);
+  for (let x = 330; x <= 900; x += 10) {
+    assert.equal(dragLayout(stacked(defaultLayout(), { vw: 880 }), 'filesRight', x - 320, 0).layout.arr, 'stack', `pointer at ${x}`);
+  }
+});
+
+test('side by side from the button stays however narrow it is dragged, and the button again stacks them as they were', () => {
+  const kept = toggledLayout(defaultLayout());
+  assert.deepEqual([kept.arr, kept.pinned], ['side', true]);
+  // The files' right edge dragged far past where they'd stack: they stay beside, at their least.
+  const r = dragLayout(sideBySide(kept), 'right', 300 - 640, 0);
+  assert.equal(r.flip, null);
+  assert.equal(r.layout.arr, 'side');
+  assert.equal(r.layout.side.fw, SIZES.filesMinW);
+  // The clusters at theirs too: the narrowest two cards side by side.
+  const thin = dragLayout(sideBySide({ ...kept, side: { ...kept.side, tw: SIZES.treeMinW, fw: SIZES.filesMinW } }), 'corner', -200, 0);
+  assert.equal(thin.layout.arr, 'side');
+  assert.equal(EDGE + thin.layout.side.tw + EDGE + thin.layout.side.fw, EDGE + SIZES.treeMinW + EDGE + SIZES.filesMinW);
+  // The button again: stacked, at the stacked sizes they had, and nothing kept.
+  const back = toggledLayout({ ...r.layout, stack: { ...LAYOUT_DEFAULT.stack, tw: 250, fw: 300 } });
+  assert.deepEqual([back.arr, back.pinned, back.stack.tw, back.stack.fw], ['stack', false, 250, 300]);
+  // Side by side that a drag got to stacks again when dragged narrow, as before.
+  assert.equal(dragLayout(sideBySide(), 'right', 470 - 640, 0).layout.arr, 'stack');
 });
 
 test('stacked, the divider moves the line between the cards, snaps back to the clusters\' own height, and the files keep their bottom', () => {

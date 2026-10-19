@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles.css';
 import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
-import { SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout } from '../lib/sidebarLayout.js';
+import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout } from '../lib/sidebarLayout.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
@@ -213,6 +213,7 @@ export function SidebarQaHarness() {
   // The cards' layout, kept and remembered as App keeps it.
   const [layout, setLayout] = useState(() => readSidebarLayout());
   const roomy = useMatchMedia(SIDE_FITS_QUERY);
+  const snug = useMatchMedia(KEPT_FITS_QUERY);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   const onLayout = (next, { commit = false } = {}) => {
@@ -311,7 +312,7 @@ export function SidebarQaHarness() {
     <>
     <style>{QA_STYLE}</style>
     <div className={`app sb-files${phone ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}`}
-         style={{ '--sb-w': `${collapsed ? 0 : phone ? drawerW : sidebarFootprint(layout, { coarse: phone, roomy })}px`, height: '100vh' }} data-sidebarqa-ready="1">
+         style={{ '--sb-w': `${collapsed ? 0 : phone ? drawerW : sidebarFootprint(layout, { coarse: phone, roomy, snug })}px`, height: '100vh' }} data-sidebarqa-ready="1">
       <aside className={`sidebar${phone ? ' is-mobile-open' : ''}`}>
         <div className="sb-mid">
           <ClusterSidebar
@@ -329,6 +330,7 @@ export function SidebarQaHarness() {
             onLayout={phone ? null : onLayout}
             floating={!phone}
             roomy={roomy}
+            snug={snug}
             sizable={!phone && !collapsed}
             quickNav={{
               home: { active: false, onClick: () => say('home') },

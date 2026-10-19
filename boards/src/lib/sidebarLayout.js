@@ -12,9 +12,11 @@
 // (side by side). The button above the files switches, and so does dragging
 // (owner: "Dragging wide flips it too"): a stacked card pulled wider than
 // SIZES.stackMaxW puts the files beside the clusters, and side by side pulled
-// narrower than SIZES.sideMinFootprint stacks them again. A window too narrow
-// for side by side (SIDE_FITS_QUERY) keeps them stacked, and so does a touch
-// screen.
+// narrower than SIZES.sideMinFootprint stacks them again. Side by side chosen
+// with the button is `pinned`: it stays however narrow it's dragged, until the
+// button stacks them again (owner, 2026-10-19). A window too narrow for side by
+// side keeps them stacked (SIDE_FITS_QUERY; KEPT_FITS_QUERY for side by side
+// the button keeps, which can be narrower), and so does a touch screen.
 //
 // Sizes are CSS px, heights measured down from the top of the sidebar. A
 // height is a number, or 'full' (down to the window's bottom margin), or for
@@ -47,6 +49,7 @@ export const SIZES = Object.freeze({
 });
 export const LAYOUT_DEFAULT = Object.freeze({
   arr: 'stack',
+  pinned: false,
   stack: Object.freeze({ tw: 312, fw: 312, th: 'hug', bottom: 'full' }),
   side: Object.freeze({ tw: 240, fw: 384, tBottom: 'hug', fBottom: 'full' }),
 });
@@ -59,7 +62,7 @@ const width = (v, lo, hi, d) => (num(v) == null ? d : Math.round(clamp(v, lo, hi
 const bottom = (v, tokens, lowest, d) => (tokens.includes(v) ? v : num(v) == null ? d : Math.round(Math.max(lowest, v)));
 
 export function defaultLayout() {
-  return { arr: 'stack', stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side } };
+  return { arr: 'stack', pinned: false, stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side } };
 }
 
 // Whatever came out of storage, as a layout.
@@ -70,6 +73,7 @@ export function sanitizeLayout(raw) {
   const sd = raw.side && typeof raw.side === 'object' ? raw.side : {};
   return {
     arr: raw.arr === 'side' ? 'side' : 'stack',
+    pinned: raw.arr === 'side' && raw.pinned === true,
     stack: {
       tw: width(st.tw, SIZES.treeMinW, SIZES.stackMaxW, d.stack.tw),
       fw: width(st.fw, SIZES.filesMinW, SIZES.stackMaxW, d.stack.fw),
@@ -119,13 +123,18 @@ export function writeSidebarLayout(layout, storage = globalThis.localStorage) {
 }
 
 // Side by side needs a window as wide as the board's room and the narrowest
-// side-by-side sidebar together; narrower, the files go under the clusters.
+// side-by-side sidebar a drag leaves (it stacks below that); side by side the
+// button keeps needs only the narrowest two cards. Narrower, the files go
+// under the clusters.
+export const SIDE_LEAST = EDGE + SIZES.treeMinW + EDGE + SIZES.filesMinW;
 export const SIDE_FITS_QUERY = `(min-width: ${SIZES.room + SIZES.sideMinFootprint}px)`;
+export const KEPT_FITS_QUERY = `(min-width: ${SIZES.room + SIDE_LEAST}px)`;
 
 // The arrangement in force. `fit`: { coarse (a touch screen, whose rows are
-// taller and whose finger needs the width), roomy (SIDE_FITS_QUERY matches) }.
-export const arrangementOf = (layout, { coarse = false, roomy = true } = {}) =>
-  (!coarse && roomy && layout?.arr === 'side' ? 'side' : 'stack');
+// taller and whose finger needs the width), roomy (SIDE_FITS_QUERY matches),
+// snug (KEPT_FITS_QUERY matches) }.
+export const arrangementOf = (layout, { coarse = false, roomy = true, snug = true } = {}) =>
+  (!coarse && layout?.arr === 'side' && (roomy || (snug && !!layout.pinned)) ? 'side' : 'stack');
 
 // The sidebar's column: the cards and their margin. The window may cut it
 // shorter (clusterSidebar.css keeps SIZES.room for the board).
@@ -161,8 +170,14 @@ export function frameVars(layout, fit = {}) {
   };
 }
 
-// The arrangement the button switches to, each with its own sizes.
-export const toggledLayout = (layout) => ({ ...sanitizeLayout(layout), arr: layout?.arr === 'side' ? 'stack' : 'side' });
+// The arrangement the button switches to from the one `shown` (which a narrow
+// window can make stacked when side by side was chosen), each with its own
+// sizes. Side by side from the button stays put (pinned) until the button
+// stacks them.
+export function toggledLayout(layout, shown = layout?.arr) {
+  const arr = shown === 'side' ? 'stack' : 'side';
+  return { ...sanitizeLayout(layout), arr, pinned: arr === 'side' };
+}
 
 // ── The handles ──────────────────────────────────────────────────────────────
 // Where each handle goes, from where the cards are (viewport rects: x, y, w, h).
@@ -253,12 +268,12 @@ export function dragLayout(start, id, dx, dy) {
     }
     if (id === 'right' || id === 'corner') {
       const want = f.w + dx;
-      if (canFlip && EDGE + t.w + EDGE + want < SIZES.sideMinFootprint) {
-        // Narrow enough to stack: the files go under the clusters, their right
-        // edge under the pointer.
+      if (canFlip && !layout.pinned && EDGE + t.w + EDGE + want < SIZES.sideMinFootprint) {
+        // Narrow enough to stack (unless the button keeps them side by side):
+        // the files go under the clusters, their right edge under the pointer.
         const st = layout.stack;
         st.fw = Math.round(clamp(px - left - EDGE, SIZES.filesMinW, Math.max(SIZES.filesMinW, Math.min(SIZES.stackMaxW, widest - EDGE))));
-        return { layout: { ...layout, arr: 'stack' }, align: null, flip: id === 'corner' ? 'corner' : 'filesRight' };
+        return { layout: { ...layout, arr: 'stack', pinned: false }, align: null, flip: id === 'corner' ? 'corner' : 'filesRight' };
       }
       const roomFor = Math.max(SIZES.filesMinW, widest - EDGE - t.w - EDGE);
       s.fw = Math.round(clamp(want, SIZES.filesMinW, Math.min(SIZES.filesMaxW, roomFor)));
@@ -295,7 +310,7 @@ export function dragLayout(start, id, dx, dy) {
       const both = Math.min(px - left, widest) - EDGE - EDGE;
       sd.tw = Math.round(clamp(Math.min(sd.tw, both - SIZES.filesMinW), SIZES.treeMinW, SIZES.treeMaxW));
       sd.fw = Math.round(clamp(both - sd.tw, SIZES.filesMinW, SIZES.filesMaxW));
-      return { layout: { ...layout, arr: 'side' }, align: null, flip: id === 'corner' ? 'corner' : 'right' };
+      return { layout: { ...layout, arr: 'side', pinned: false }, align: null, flip: id === 'corner' ? 'corner' : 'right' };
     }
     const cap = Math.max(SIZES.filesMinW, Math.min(SIZES.stackMaxW, widest - EDGE));
     if (id === 'treeRight') s.tw = Math.round(clamp(w, SIZES.treeMinW, cap));

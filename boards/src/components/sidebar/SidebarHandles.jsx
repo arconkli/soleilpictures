@@ -31,7 +31,7 @@ const kindOf = (id) => handleList('stack').concat(handleList('side')).find((h) =
 const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 // A layout put straight onto the frame, and the sidebar's width onto .app.
-// `fit`: { coarse, roomy }, as lib/sidebarLayout.js takes them.
+// `fit`: { coarse, roomy, snug }, as lib/sidebarLayout.js takes them.
 export function applyLayout(frame, layout, fit = {}) {
   if (!frame) return;
   for (const [k, v] of Object.entries(frameVars(layout, fit))) frame.style.setProperty(k, v);
@@ -64,10 +64,10 @@ function valueOf(id, t, f) {
   }
 }
 
-export function SidebarHandles({ layout, coarse = false, roomy = true, frameRef, treeRef, filesRef, navRef, onLayout }) {
+export function SidebarHandles({ layout, coarse = false, roomy = true, snug = true, frameRef, treeRef, filesRef, navRef, onLayout }) {
   // The arrangement a drag switched to, until it lets go and App has it.
   const [dragArr, setDragArr] = useState(null);
-  const arr = dragArr || arrangementOf(layout, { coarse, roomy });
+  const arr = dragArr || arrangementOf(layout, { coarse, roomy, snug });
   const layerRef = useRef(null);
   const guideRef = useRef(null);
   const dragRef = useRef(null);
@@ -75,8 +75,8 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, frameRef,
   const lastFilesRef = useRef(null);
   const [held, setHeld] = useState(null);
   const live = useRef({});
-  live.current = { layout, coarse, roomy, onLayout };
-  const fit = () => ({ coarse: live.current.coarse, roomy: live.current.roomy });
+  live.current = { layout, coarse, roomy, snug, onLayout };
+  const fit = () => ({ coarse: live.current.coarse, roomy: live.current.roomy, snug: live.current.snug });
 
   const domArr = () => (frameRef.current?.classList.contains('is-side') ? 'side' : 'stack');
 

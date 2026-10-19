@@ -511,6 +511,8 @@ test.describe('sidebar files', () => {
     await page.mouse.move(760, b.y + 100, { steps: 3 });
     await page.mouse.up();
     await expect.poll(async () => (await card(page, 'files')).right).toBe(760);
+    // Once the files have slid over (the handles are placed where they come to rest).
+    await expect.poll(() => page.evaluate(() => document.querySelector('.sbf-card.is-files').getAnimations().length)).toBe(0);
     // Narrower than 500 side by side: stacked again, the clusters as wide as they were stacked.
     const r = await page.locator('[data-handle="right"]').boundingBox();
     await page.mouse.move(r.x + r.width / 2, r.y + 100);
@@ -521,6 +523,59 @@ test.describe('sidebar files', () => {
     await expect.poll(async () => (await card(page, 'files')).right).toBe(460);
     expect((await card(page, 'tree')).w).toBe(232);
     expect(await page.locator('.sidebar').evaluate((el) => Math.round(el.getBoundingClientRect().width))).toBe(460);
+  });
+
+  test('side by side from the button stays however narrow the sidebar is dragged; the button again stacks them as they were', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
+    await open(page);
+    // Stacked sizes to come back to.
+    await drag(page, 'filesRight', 60, 0);
+    const stackedW = (await card(page, 'files')).w;
+    await files(page).getByRole('button', { name: 'Show files beside the clusters' }).click();
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    await page.waitForTimeout(300);                                         // the files slide over
+    const kept = files(page).getByRole('button', { name: 'Show files under the clusters' });
+    await expect(kept).toHaveClass(/is-kept/);                              // a choice in force: a gold hairline
+    // The files' right edge dragged far left, past where a dragged-in sidebar would stack:
+    // still side by side, the files at their least.
+    const r = await page.locator('[data-handle="right"]').boundingBox();
+    await page.mouse.move(r.x + r.width / 2, r.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(150, r.y + 100, { steps: 12 });
+    await page.mouse.up();
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    expect((await card(page, 'files')).w).toBe(232);
+    // The clusters at their least as well: the skinniest the two get side by side.
+    await drag(page, 'split', -100, 0);
+    await drag(page, 'right', -100, 0);
+    expect([(await card(page, 'tree')).w, (await card(page, 'files')).w]).toEqual([196, 232]);
+    expect(await page.locator('.sidebar').evaluate((el) => Math.round(el.getBoundingClientRect().width))).toBe(444);
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    // The button again: stacked, as wide as they were stacked, and nothing kept.
+    await kept.click();
+    await expect(page.locator('.sbf-frame')).not.toHaveClass(/is-side/);
+    await expect.poll(async () => (await card(page, 'files')).w).toBe(stackedW);
+    await expect(files(page).getByRole('button', { name: 'Show files beside the clusters' })).not.toHaveClass(/is-kept/);
+  });
+
+  test('in a window too narrow for a dragged side by side, the button\'s still shows, and the button goes from what shows', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
+    await page.setViewportSize({ width: 900, height: 800 });
+    await open(page);
+    // Side by side a drag got to (not kept) needs 920px: here it shows stacked.
+    await page.evaluate(() => window.__sidebarQa.setLayout({ arr: 'side', pinned: false }));
+    await expect(page.locator('.sbf-frame')).not.toHaveClass(/is-side/);
+    // The button keeps them side by side, and that fits.
+    await files(page).getByRole('button', { name: 'Show files beside the clusters' }).click();
+    await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
+    expect(await page.evaluate(() => window.__sidebarQa.layout().pinned)).toBe(true);
+    // No wider than the window leaves it, the cards inside it.
+    const aside = await page.locator('.sidebar').evaluate((el) => Math.round(el.getBoundingClientRect().right));
+    expect(aside).toBeLessThanOrEqual(900 - 420);
+    await expect.poll(async () => (await card(page, 'files')).right).toBeLessThanOrEqual(aside);
+    // And the button stacks them again.
+    await files(page).getByRole('button', { name: 'Show files under the clusters' }).click();
+    await expect(page.locator('.sbf-frame')).not.toHaveClass(/is-side/);
   });
 
   test('a bottom snaps to the other card\'s with a guide, and to the window\'s; double-click and the arrow keys', async ({ page }, info) => {

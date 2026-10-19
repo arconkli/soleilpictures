@@ -445,9 +445,17 @@ body.sbf-sizing .app,
 .sbf-files-head:hover .sbf-iconbtn,
 .sbf-files-head .sbf-iconbtn:focus-visible,
 .sbf-frame.is-side .sbf-files-head .sbf-iconbtn { opacity: 1; }
-/* Too narrow for them, they go, the toggle first: the header is 298px inside
-   the card at the default 320, 218px at the narrowest 240. */
-@container (max-width: 269px) { .sbf-files-head .sbf-iconbtn.is-reveal { display: none; } }
+/* Side by side kept by the button: a choice in force, so a gold hairline,
+   as "All files ⌄" has while it filters. */
+.sbf-files-head .sbf-iconbtn.is-kept { color: var(--ink-0); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent); }
+/* Too narrow for them, they go: the header is 298px inside the card at the
+   default 320, 218px at the narrowest. Stacked, the toggle goes first; side by
+   side it stays (it's the way back to stacked, and side by side kept by it has
+   no other) and ⤢ goes. */
+@container (max-width: 269px) {
+  .sbf-frame:not(.is-side) .sbf-files-head .sbf-iconbtn.is-reveal { display: none; }
+  .sbf-frame.is-side .sbf-files-head .sbf-iconbtn.is-expand { display: none; }
+}
 .sbf-iconbtn.is-slot { visibility: hidden; pointer-events: none; }
 @container (max-width: 235px) { .sbf-files-head .sbf-iconbtn.is-expand { display: none; } }
 

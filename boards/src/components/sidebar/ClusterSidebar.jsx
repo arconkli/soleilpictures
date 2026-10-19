@@ -124,6 +124,7 @@ export function ClusterSidebar({
   onLayout = null,        // (layout, { commit }) => void — a handle, or the button that switches the arrangement
   floating = false,       // the desktop's two floating cards; false in the phone drawer
   roomy = true,           // the window has the room for side by side (SIDE_FITS_QUERY)
+  snug = true,            // ... for side by side the button keeps (KEPT_FITS_QUERY)
   sizable = false,        // the handles show (floating, and the sidebar open)
   top = null,             // App's top of the sidebar (the workspace), on the clusters' card
   foot = null,            // App's foot (help, settings, you), on the files' card
@@ -273,14 +274,16 @@ export function ClusterSidebar({
   // ── The two cards ─────────────────────────────────────────────────────────
   // Side by side or stacked (a touch screen, and a window too narrow for side
   // by side, always stack), each card its own size; the button above the
-  // files switches, keeping each arrangement's sizes.
-  const side = floating && arrangementOf(layout, { coarse, roomy }) === 'side';
+  // files switches, keeping each arrangement's sizes. Side by side from the
+  // button stays however narrow it's dragged (kept), until the button again.
+  const side = floating && arrangementOf(layout, { coarse, roomy, snug }) === 'side';
+  const kept = side && !!layout?.pinned;
   const frameRef = useRef(null);
   const treeCardRef = useRef(null);
   const filesCardRef = useRef(null);
   const ownNavRef = useRef(null);
   const navRef = listRef || ownNavRef;
-  const toggleSide = () => { sizeAtOnce(frameRef.current); onLayout?.(toggledLayout(layout), { commit: true }); };
+  const toggleSide = () => { sizeAtOnce(frameRef.current); onLayout?.(toggledLayout(layout, side ? 'side' : 'stack'), { commit: true }); };
 
   // ── Quick look ────────────────────────────────────────────────────────────
   // A click opens Quick look, a double-click goes to the file. The click of a
@@ -654,7 +657,7 @@ export function ClusterSidebar({
 
   return (
     <>
-      <div className={`sbf-frame${side ? ' is-side' : ''}`} ref={frameRef} style={floating ? frameVars(layout, { coarse, roomy }) : undefined}>
+      <div className={`sbf-frame${side ? ' is-side' : ''}`} ref={frameRef} style={floating ? frameVars(layout, { coarse, roomy, snug }) : undefined}>
       <div className="sbf-card is-tree" ref={treeCardRef}>
       {top}
       <nav className="sbf-quick" aria-label="Go to">
@@ -686,10 +689,10 @@ export function ClusterSidebar({
               );
             })}
           </div>
-          {floating && !coarse && roomy && onLayout && (
-            <button type="button" className="sbf-iconbtn is-reveal"
+          {floating && !coarse && snug && onLayout && (
+            <button type="button" className={`sbf-iconbtn is-reveal${kept ? ' is-kept' : ''}`}
                     aria-label={side ? 'Show files under the clusters' : 'Show files beside the clusters'}
-                    title={side ? 'Show files under the clusters' : 'Show files beside the clusters'}
+                    title={side ? (kept ? 'Kept side by side · show files under the clusters' : 'Show files under the clusters') : 'Show files beside the clusters'}
                     aria-pressed={side}
                     onClick={toggleSide}>
               <Icon as={Columns2} size={14} weight="regular" />
@@ -844,7 +847,7 @@ export function ClusterSidebar({
       </div>
       </div>
       {floating && sizable && onLayout && (
-        <SidebarHandles layout={layout} coarse={coarse} roomy={roomy} onLayout={onLayout}
+        <SidebarHandles layout={layout} coarse={coarse} roomy={roomy} snug={snug} onLayout={onLayout}
                         frameRef={frameRef} treeRef={treeCardRef} filesRef={filesCardRef} navRef={navRef} />
       )}
 

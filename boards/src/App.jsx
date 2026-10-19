@@ -216,7 +216,7 @@ import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
-import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, SIDE_FITS_QUERY } from './lib/sidebarLayout.js';
+import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
 import { useMatchMedia } from './hooks/useMatchMedia.js';
 import { moveFiles, failureMessage, appendCards } from './lib/clustersApi.js';
 import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
@@ -5395,8 +5395,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // (lib/sidebarLayout.js). A handle sizes the cards directly while it's
   // dragged and hands the layout over when it lets go; remembered per device.
   const [sidebarLayout, setSidebarLayout] = useState(() => readSidebarLayout());
-  // Side by side only where the window has the room for it.
+  // Side by side only where the window has the room for it (less for side
+  // by side the button keeps).
   const sidebarRoomy = useMatchMedia(SIDE_FITS_QUERY);
+  const sidebarSnug = useMatchMedia(KEPT_FITS_QUERY);
   const onSidebarLayout = useCallback((next, { commit = false } = {}) => {
     setSidebarLayout(next);
     if (commit) writeSidebarLayout(next);
@@ -9712,7 +9714,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
     <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}`}
-         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarFootprint(sidebarLayout, { coarse: isTouch, roomy: sidebarRoomy })}px` } : undefined}
+         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarFootprint(sidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -9768,6 +9770,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               onLayout={mobileShell ? null : onSidebarLayout}
               floating={!mobileShell}
               roomy={sidebarRoomy}
+              snug={sidebarSnug}
               sizable={!mobileShell && sidebarOpen}
               workspaceId={workspace.id}
               boards={ownedBoards}
