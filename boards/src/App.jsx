@@ -61,6 +61,7 @@ import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolle
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { isDefaultClusterName } from './lib/hints.js';
 import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
 import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 
@@ -4196,7 +4197,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   };
 
   // ── Postgres board rename ─────────────────────────────────────────────────
-  const renameBoardById = async (boardId, name) => {
+  const renameBoardById = async (boardId, name, opts = {}) => {
     if (!name || !name.trim()) return;
     // boardsRef, not `boards`: these workspace mutators ride on the memoized
     // pane mutators (see mainMutatorsFull), so `boards` here is the map from
@@ -4207,6 +4208,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await renameBoard(boardId, name.trim());
       await refreshBoards();
       tourFireRef.current?.({ type: 'cluster_renamed', boardId });
+      // A cluster that was made becomes one that is used about when it gets a
+      // real name, and nothing recorded that. The name itself never leaves.
+      if (prevName !== name.trim()) {
+        try {
+          logEvent(EV.CLUSTER_RENAME, {
+            board_id: boardId, via: opts.via || 'unknown',
+            from_default: isDefaultClusterName(prevName), len: name.trim().length,
+          });
+        } catch (_) {}
+      }
       // Server-side meta is outside the Yjs UndoManager — the toast closure
       // is the undo engine (skip when the name didn't actually change).
       if (prevName && prevName !== name.trim()) {
@@ -5989,6 +6000,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         createCluster: async ({ parentBoardId, name }) => {
           const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'canvas', userId: user.id });
           setViewOverride(o => ({ ...o, [b.id]: 'list' }));
+          // A dropped folder is a door too, and the busiest one for people
+          // who arrive with their work already sorted. A sub-folder's parent
+          // was made moments ago, so its depth can read short; that is fine.
+          try {
+            logEvent(EV.CLUSTER_CREATE, {
+              via: 'folder_import', parent_depth: boardDepth(boardsRef.current || {}, parentBoardId),
+              opened: false, board_id: b.id,
+            });
+          } catch (_) {}
           return b.id;
         },
         deleteCluster, removeTopCard,
@@ -9556,7 +9576,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 activeBoardId: currentSurface === 'board' ? activeBoardId : null,
                 onOpenBoard: openSidebarCluster,
                 onShareBoard: openShareForBoard,
-                onRenameBoard: renameBoardById,
+                onRenameBoard: (id, name) => renameBoardById(id, name, { via: 'sidebar' }),
                 onCreateBoard: canEditBoard(rootBoard.id) ? () => { mainMutators.addNewProject?.({ via: 'sidebar' }); } : null,
                 renameRequest: projectRenameRequest,
                 onCreateBoardInside: createBoardInside,
@@ -9633,7 +9653,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             activeBoardId={currentSurface === 'board' ? activeBoardId : null}
             onOpenBoard={(id) => { setStack(ancestorPath(boards, id)); setCurrentSurface('board'); }}
             onShareBoard={openShareForBoard}
-            onRenameBoard={renameBoardById}
+            onRenameBoard={(id, name) => renameBoardById(id, name, { via: 'sidebar' })}
             onCreateBoard={canEditBoard(rootBoard.id) ? () => { mainMutators.addNewProject?.({ via: 'sidebar' }); } : null}
             renameRequest={projectRenameRequest}
             onCreateBoardInside={createBoardInside}

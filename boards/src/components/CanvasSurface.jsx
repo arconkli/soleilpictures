@@ -9870,7 +9870,7 @@ export function CanvasSurface({
                        }
                        return false;
                      }}
-                     onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name) : null}
+                     onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name, { via: 'card' }) : null}
                      autoFocus={af}
                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />
         : boardsReady
@@ -12789,7 +12789,7 @@ export function CanvasSurface({
              aria-label="Add your first images"
              role={frictionStuck ? 'status' : 'group'}>
           {freshProject && !firstBoard ? (
-            <ProjectNameField board={board} onRename={(name) => mutators.renameBoardById?.(board.id, name)} />
+            <ProjectNameField board={board} onRename={(name) => mutators.renameBoardById?.(board.id, name, { via: 'project_field' })} />
           ) : (
             <div className="cnv-empty-tiles-head">
               {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstLike ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}

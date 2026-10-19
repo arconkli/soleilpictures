@@ -1069,7 +1069,7 @@ export function ListSurface({
     setRenamingId(null);
     if (subBoards.some((b) => b.id === id)) {
       const name = cleanName(value);
-      if (name && name !== boards[id]?.name) mutators.renameBoardById?.(id, name);
+      if (name && name !== boards[id]?.name) mutators.renameBoardById?.(id, name, { via: 'list' });
       return;
     }
     const c = (cards || []).find((x) => x.id === id);
@@ -1957,7 +1957,7 @@ export function ListSurface({
             {canEdit && (
               <div className="list-empty-acts">
                 <button className="tb-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" /> Add files</button>
-                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard()}>New cluster</button>}
+                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}>New cluster</button>}
                 {onOpenPicker && <button className="tb-btn" onClick={onOpenPicker}><Icon as={LinkIcon} size={16} weight="light" /> Link a cluster</button>}
               </div>
             )}
