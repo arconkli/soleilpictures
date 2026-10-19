@@ -25,6 +25,11 @@ import { PARTY_ORIGIN } from './partyHost.js';
 export const DOC_IMAGE_KEYS_MAX = 100;
 export const DOC_IMAGE_URL_TTL_SECONDS = 60 * 60;
 export const DOC_IMAGE_CACHE_CONTROL = 'private, max-age=3600';
+// Asks a minute, per address and per share, in each isolate: it bounds a loop
+// (each ask costs two RPCs, a room stub and a table read), not a determined
+// crowd. A reader asks a few times a minute at most.
+export const DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS = 120;
+export const DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE = 240;
 
 const RASTER = Object.freeze({
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif',
@@ -59,19 +64,25 @@ export function roomOfAnswer(answer) {
   return { name: m[0].toLowerCase(), shareId: m[1].toLowerCase(), variant: m[2].toLowerCase(), gen: m[3].toLowerCase() };
 }
 
-// The keys worth asking the images table about: raster, under the share's
-// workspace, and held by the room.
-export function candidateKeys(keys, { workspaceId, trusted }) {
-  const prefix = `${String(workspaceId || '').toLowerCase()}/`;
+// The keys that could be signed at all: raster originals, and under the
+// share's workspace once it is known. Asked first, so a request with nothing
+// signable in it never wakes the doc's room or reads the table.
+export function plausibleKeys(keys, workspaceId = null) {
+  const prefix = workspaceId ? `${String(workspaceId).toLowerCase()}/` : null;
   const out = new Set();
-  if (prefix === '/' || !trusted) return out;
   for (const k of keys) {
     if (!k || !rasterTypeOf(k)) continue;
-    if (!k.toLowerCase().startsWith(prefix)) continue;
-    if (!trusted.has(k)) continue;
+    if (prefix && !k.toLowerCase().startsWith(prefix)) continue;
     out.add(k);
   }
   return out;
+}
+
+// The keys worth asking the images table about: plausible for the share's
+// workspace, and held by the room.
+export function candidateKeys(keys, { workspaceId, trusted }) {
+  if (!workspaceId || !trusted) return new Set();
+  return new Set([...plausibleKeys(keys, workspaceId)].filter((k) => trusted.has(k)));
 }
 
 // urls[i] for keys[i]: a url, or null.

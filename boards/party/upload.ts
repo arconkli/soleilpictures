@@ -64,9 +64,11 @@ import {
   SAVE_REFUSAL_STATUS, copyKey, copyPlan, saveRefusal, savedCard, savedCardId, savedImageRow,
 } from "../src/lib/fileShareSave.js";
 import {
-  DOC_IMAGE_CACHE_CONTROL, DOC_IMAGE_URL_TTL_SECONDS, alignedUrls, candidateKeys, parseDocImageRequest,
-  rasterTypeOf, roomOfAnswer,
+  DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS, DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE, DOC_IMAGE_CACHE_CONTROL,
+  DOC_IMAGE_URL_TTL_SECONDS, alignedUrls, candidateKeys, parseDocImageRequest, plausibleKeys, rasterTypeOf,
+  roomOfAnswer,
 } from "../src/lib/docShareImages.js";
+import { makeRateLimiter } from "../src/lib/webImageSave.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Thumbnails on the Shared page's rows: short-lived and private, like the /f/
@@ -246,6 +248,10 @@ async function signReadUrl(
   );
   return signed.url;
 }
+
+// /share/doc-images is anon-callable: per isolate, per address and per share.
+const docImagesAllowAddress = makeRateLimiter({ perMinute: DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS });
+const docImagesAllowShare = makeRateLimiter({ perMinute: DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE });
 
 // The image keys a shared doc's live room holds (party/doc.ts /keys, by stub
 // with the bridge header): files a member put in the doc. A room nobody is in
@@ -484,6 +490,12 @@ export class UploadParty {
     try { body = await req.json(); } catch (_) { /* refused below */ }
     const ask = parseDocImageRequest(body, FILE_TOKEN_RE);
     if (!ask) return reply({ status: "bad_request" }, 400);
+    if (!docImagesAllowAddress(req.headers.get("cf-connecting-ip") || "unknown") || !docImagesAllowShare(ask.token)) {
+      return Response.json({ status: "busy" }, { status: 429, headers: { ...headers, "retry-after": "60" } });
+    }
+    const none = () => reply({ status: "ok", urls: ask.keys.map(() => null), ttl: DOC_IMAGE_URL_TTL_SECONDS });
+    // Nothing that could ever be signed: nobody is asked anything.
+    if (!plausibleKeys(ask.keys).size) return none();
 
     // 1. As the caller: their bearer, else the anon key (the token decides).
     const userBearer = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
@@ -513,6 +525,8 @@ export class UploadParty {
     const target = await this.serviceRpc("_doc_room_target", { p_share: room.shareId });
     if (!target?.workspace_id) return reply({ status: "unavailable" }, 503);
     if (String(target.gen || "").toLowerCase() !== room.gen) return reply({ status: "moved" });
+    // None of this workspace's files asked for: the room is not woken.
+    if (!plausibleKeys(ask.keys, target.workspace_id).size) return none();
 
     // 3. What that room holds: files a member put in the doc.
     const trusted = await docRoomKeys(this.room.env, room.name);

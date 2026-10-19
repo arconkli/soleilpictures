@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   DOC_IMAGE_KEYS_MAX, DOC_IMAGE_URL_TTL_SECONDS, DOC_IMAGE_CACHE_CONTROL,
-  rasterTypeOf, parseDocImageRequest, roomOfAnswer, candidateKeys, alignedUrls, createDocImageResolver,
+  DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS, DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE,
+  rasterTypeOf, parseDocImageRequest, roomOfAnswer, plausibleKeys, candidateKeys, alignedUrls, createDocImageResolver,
 } from './docShareImages.js';
 import { FILE_TOKEN_RE } from './fileShareBundle.js';
 
@@ -47,6 +48,12 @@ test('the room is read from the answer get_file_share gave this caller', () => {
   assert.equal(roomOfAnswer({ room: `${SHARE}.admin.bcc7e3849c35` }), null);
   assert.equal(roomOfAnswer({ room: `${SHARE}.edit.zz` }), null);
   assert.equal(roomOfAnswer({}), null);
+});
+
+test('a request with nothing signable in it is answered before anyone is asked', () => {
+  assert.equal(plausibleKeys(['', 'x', key('a.svg'), `thumbs/${WS}/a.png`]).size, 0);
+  assert.deepEqual([...plausibleKeys([key('a.png'), key('b.png', OTHER)])], [key('a.png'), key('b.png', OTHER)], 'any workspace before it is known');
+  assert.deepEqual([...plausibleKeys([key('a.png'), key('b.png', OTHER)], WS)], [key('a.png')]);
 });
 
 test('a key is a candidate only if it is raster, the workspace’s own, and in the room', () => {
@@ -144,10 +151,13 @@ test('the route is anon-callable like /file-share, and asks in the rule’s orde
   const body = upload.slice(at, upload.indexOf('private async liveImageKeys(', at));
   const order = [
     'parseDocImageRequest(body, FILE_TOKEN_RE)',
+    '!docImagesAllowAddress(req.headers.get("cf-connecting-ip") || "unknown") || !docImagesAllowShare(ask.token)',
+    'if (!plausibleKeys(ask.keys).size) return none();',
     'Authorization: `Bearer ${userBearer || SUPABASE_ANON_KEY}`',
     'if (share?.status !== "ok" || share.file?.kind !== "doc") return reply({ status: "gone" });',
     'this.serviceRpc("_doc_room_target", { p_share: room.shareId })',
     'if (String(target.gen || "").toLowerCase() !== room.gen) return reply({ status: "moved" });',
+    'if (!plausibleKeys(ask.keys, target.workspace_id).size) return none();',
     'await docRoomKeys(this.room.env, room.name)',
     'candidateKeys(ask.keys, { workspaceId: target.workspace_id, trusted })',
     'await this.liveImageKeys(String(target.workspace_id), [...candidates])',
@@ -163,6 +173,11 @@ test('the route is anon-callable like /file-share, and asks in the rule’s orde
   assert.match(body, /ttl: DOC_IMAGE_URL_TTL_SECONDS, cacheControl: DOC_IMAGE_CACHE_CONTROL, contentType: rasterTypeOf\(k\),/);
   assert.doesNotMatch(body, /keys:\s*\[\.\.\.live\]|urls:\s*Object\.fromEntries/, 'no key in the answer');
   assert.equal(DOC_IMAGE_CACHE_CONTROL, 'private, max-age=3600');
+  // Bounded per address and per share, over the line answered 429.
+  assert.match(upload, /const docImagesAllowAddress = makeRateLimiter\(\{ perMinute: DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS \}\);/);
+  assert.match(upload, /const docImagesAllowShare = makeRateLimiter\(\{ perMinute: DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE \}\);/);
+  assert.match(body, /return Response\.json\(\{ status: "busy" \}, \{ status: 429, headers: \{ \.\.\.headers, "retry-after": "60" \} \}\);/);
+  assert.ok(DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS > 0 && DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE >= DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS);
 });
 
 test('the live-files read is the share workspace’s own, undeleted rows', () => {
