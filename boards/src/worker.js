@@ -94,6 +94,7 @@ const RELOAD_BY = '2026-10-21T00:00:00Z';
 // the PartyKit project it replaced, for tabs that have not reloaded off it.
 import { PARTY_HOST } from './lib/partyHost.js';
 import { OLD_PARTY_HOST, OLD_PARTY_GONE_AFTER } from './lib/partyDefaults.js';
+import { partyFetch } from './lib/partyFetch.js';
 
 // ── Per-route SEO metadata ──────────────────────────────────────────────
 // The SPA serves ONE index.html for every path (single-page-application
@@ -685,7 +686,7 @@ const worker = {
         return await handleApiRoute(url, request, env, ctx);
       }
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
-      if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx);
+      if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx, env);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
       if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
       const fileThumbMatch = url.pathname.match(/^\/api\/file-thumb\/([0-9a-f-]{36})$/i);
@@ -2787,8 +2788,9 @@ async function handleEmailThumb(env, boardId, searchParams, request) {
 // worked via curl but got flaky from real browsers — different deploy
 // edges, cached preflight failures, etc.). Going through the worker
 // avoids CORS entirely since the call is same-origin from the client's
-// perspective and worker-to-party is server-to-server.
-async function handleBoardReset(boardId, request, ctx) {
+// perspective and worker-to-party is server-to-server — by the PARTY service
+// binding, since a workers.dev URL is refused from the preview (lib/partyFetch.js).
+async function handleBoardReset(boardId, request, ctx, env) {
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -2811,7 +2813,7 @@ async function handleBoardReset(boardId, request, ctx) {
 
   const target = `https://${PARTY_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`;
   try {
-    const res = await fetch(target, {
+    const res = await partyFetch(env, target, {
       method: 'POST',
       headers: {
         'authorization': `Bearer ${token}`,

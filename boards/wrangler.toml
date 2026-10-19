@@ -66,6 +66,15 @@ binding = "AI"
 # R2_SWEEP_MODE=delete via `wrangler secret put`.
 crons = ["0 4 * * *", "15 * * * *", "* * * * *", "0 6 * * 1", "45 * * * *"]
 
+# The party Worker (boards/party), for this Worker's own calls into it: a
+# move's /reset and the API's multipart uploads (lib/partyFetch.js). A Worker on
+# workers.dev may not fetch another workers.dev Worker on the same account
+# (Cloudflare error 1042), which is what the preview is, so by URL every move
+# between clusters failed there.
+[[services]]
+binding = "PARTY"
+service = "soleil-boards-party"
+
 # R2 binding for the orphan sweeper. Matches PartyKit's R2_BUCKET so
 # the same bucket uploads go into is the one being swept.
 [[r2_buckets]]

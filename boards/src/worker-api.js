@@ -48,6 +48,7 @@ import {
 } from './lib/scoutBoard.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
+import { partyFetch } from './lib/partyFetch.js';
 import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
@@ -679,7 +680,8 @@ async function partyMpu(env, token, workspaceId, action, body) {
   const host = env.PARTY_HOST || PARTY_HOST;
   let res;
   try {
-    res = await fetch(`https://${host}/parties/upload/${encodeURIComponent(workspaceId)}/mpu/${action}`, {
+    // By the PARTY binding: a workers.dev URL is refused from the preview.
+    res = await partyFetch(env, `https://${host}/parties/upload/${encodeURIComponent(workspaceId)}/mpu/${action}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify(body),
