@@ -214,8 +214,12 @@ test.describe('sidebar files', () => {
     await open(page);
     const sidebar = page.locator('.sidebar');
     const wrap = page.locator('.canvas-wrap');
-    // The sidebar paints nothing of its own.
+    // The sidebar paints nothing of its own, and the cards cast no soft shadow: clipped at the
+    // sidebar's edge, it lifted nothing and only darkened the board in the gaps.
     expect(await sidebar.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+    for (const card of ['::before', '::after']) {
+      expect(await page.locator('.sb-mid').evaluate((el, w) => getComputedStyle(el, w).boxShadow, card)).toMatch(/^rgba\([^)]*\) 0px 1px 1px 0px$/);
+    }
     // The canvas's box stays beside the sidebar — it measures, fits and frames by it — and only its
     // painting reaches under, the ground drawn on from the same pattern.
     const edge = await sidebar.evaluate((el) => Math.round(el.getBoundingClientRect().right));
