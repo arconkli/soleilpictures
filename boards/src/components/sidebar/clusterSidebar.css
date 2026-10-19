@@ -154,14 +154,17 @@ body.sbf-resizing .sbf-resizer,
 .app.is-floating-chrome > .sidebar .sb-mid::after { pointer-events: auto; }
 .app.is-floating-chrome > .sidebar > .sb-mid { pointer-events: none; }
 .app.is-floating-chrome { overflow: clip; }
+/* Between the surface and FilesDock sits SurfaceErrorBoundary's root, a
+   display:contents box: no clipping of its own, but a child combinator across
+   it matches nothing, which is how these first shipped doing nothing at all. */
 .app.is-floating-chrome .split-wrap,
 .app.is-floating-chrome .split-pane:first-child,
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas,
-.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .fdl { overflow: visible; }
-.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .fdl > .fdl-canvas > .canvas-wrap {
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl { overflow: visible; }
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap {
   overflow: visible; clip-path: inset(0 0 0 -100vw);
 }
-.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .fdl > .fdl-canvas > .canvas-wrap::before {
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw;
   background-color: inherit; background-image: inherit; background-size: inherit;
   background-position: calc(var(--cnv-bg-x, 0px) + 100vw) var(--cnv-bg-y, 0px);

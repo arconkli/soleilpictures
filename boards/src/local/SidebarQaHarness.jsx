@@ -370,9 +370,16 @@ export function SidebarQaHarness() {
             ]}
           />
         )}
+        {/* App's chain to the canvas, element for element: SplitContainer's
+            wrap and pane, the pane's surface, SurfaceErrorBoundary's
+            display:contents root, then FilesDock. The clusterSidebar.css rules
+            that let the board run under the sidebar walk this chain, and a
+            stand-in that skipped a link once let them pass here while they
+            matched nothing in the app. */}
         <div className="split-wrap">
         <div className="split-pane" style={{ flex: 1 }}>
         <div className="surface-wrap is-canvas">
+        <div className="surface-eb-root">
         <div className="fdl fdl-off">
         <div className="fdl-canvas">
           <div className="canvas-wrap sbqa-canvas" style={GROUND}
@@ -408,6 +415,7 @@ export function SidebarQaHarness() {
               )}
             </div>
           </div>
+        </div>
         </div>
         </div>
         </div>
