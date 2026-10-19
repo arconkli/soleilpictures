@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   isDeleteEvent, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, coalesce,
-  effectiveTypeFilter, clampMenuPosition, isDuplicateTagName, findTagByName,
+  effectiveTypeFilter, clampMenuPosition, isDuplicateTagName, findTagByName, suggestionAlreadyApplied,
 } from './tagSurface.js';
 
 // What Supabase realtime actually delivers for entity_links under RLS +
@@ -138,4 +138,29 @@ test('a rename that collides finds the live tag it collided with, or none (a del
   assert.equal(findTagByName(tags, 'pricing', 'a'), null, 'never the tag being renamed');
   assert.equal(findTagByName(tags, 'Archive', 'a'), null, 'not live → held by a deleted tag');
   assert.equal(findTagByName(tags, '', 'a'), null);
+});
+
+test('the suggestions inbox leaves out cards that already carry the tag', () => {
+  const rows = [
+    { kind: 'card', board_id: 'b1', card_id: 'c1' },
+    { kind: 'board', board_id: 'b2', card_id: null },
+    { kind: 'group', board_id: 'b1', card_id: 'g1' },
+  ];
+  // The canvas scorer files card suggestions with no board: match on the card.
+  assert.equal(suggestionAlreadyApplied({ source_kind: 'card', source_id: 'c1', board_id: null }, rows), true);
+  assert.equal(suggestionAlreadyApplied({ source_kind: 'card', source_id: 'c1', board_id: 'b1' }, rows), true);
+  // The same card id on another board (a duplicated board) is not tagged there.
+  assert.equal(suggestionAlreadyApplied({ source_kind: 'card', source_id: 'c1', board_id: 'b9' }, rows), false);
+  assert.equal(suggestionAlreadyApplied({ source_kind: 'card', source_id: 'c2', board_id: null }, rows), false);
+  // A group or board row never stands in for a card.
+  assert.equal(suggestionAlreadyApplied({ source_kind: 'card', source_id: 'g1', board_id: null }, rows), false);
+  assert.equal(suggestionAlreadyApplied({ source_kind: 'board', source_id: 'b2' }, rows), false);
+  assert.equal(suggestionAlreadyApplied({ source_kind: 'card', source_id: 'c1' }, null), false);
+});
+
+test('the tag page counts and lists only the suggestions still pending', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, '../components/TagDetailView.jsx'), 'utf8');
+  assert.match(src, /const pendingSuggestions = useMemo\(\s*\(\) => suggestions\.filter\(s => !suggestionAlreadyApplied\(s, rows\)\),/);
+  assert.doesNotMatch(src, /\{suggestions\.(length|map)/, 'every render reads pendingSuggestions');
 });

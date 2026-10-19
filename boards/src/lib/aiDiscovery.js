@@ -250,6 +250,10 @@ export async function runWorkspaceDiscovery({ workspaceId, tagCentroids, embeddi
     // proposing a name that collides with an existing tag or another
     // already-named pending cluster.
     const named = await nameCluster(memberCards, { existingNames });
+    // null is a failed call (5xx, network, cooldown), not a verdict. A
+    // rejection is never asked again, so record one only when the model
+    // itself said name: null; a failure is asked again next pass.
+    if (!named) continue;
     const name = named?.name || null;
     const description = named?.description || null;
     const status = name ? 'named' : 'rejected';

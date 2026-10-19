@@ -677,10 +677,12 @@ export function useAiTagger(workspaceId) {
     //    callers that want it, but we don't write those to the inbox.
     //    Insert-or-skip via ignoreDuplicates preserves any existing row,
     //    including dismissed tombstones — the user's "don't suggest again"
-    //    choice sticks forever.
+    //    choice sticks forever. A tag the target already carries is left
+    //    out, or the inbox offers to add what is already there.
     const suggestable = candidates.filter(c => c.distance < SUGGEST_DIST);
-    if (suggestable.length > 0 && target?.kind && target?.id) {
-      const rows = suggestable.map(c => ({
+    const toInbox = suggestable.filter(c => !alreadyApplied.has(c.tag.id));
+    if (toInbox.length > 0 && target?.kind && target?.id) {
+      const rows = toInbox.map(c => ({
         tag_id: c.tag.id,
         source_kind: target.kind,
         source_id: String(target.id),

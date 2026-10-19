@@ -49,6 +49,16 @@ export function touchesTagSuggestion(payload, tagId) {
   return isDeleteEvent(payload) && o.tag_id == null;
 }
 
+// A pending suggestion for a card that already carries the tag (tagged by hand
+// since, or filed by the canvas scorer) would offer to add what is there.
+// `rows` are get_things_tagged's direct rows. Canvas suggestions have no
+// board_id (the scorer's target is just the card), so those match on card id.
+export function suggestionAlreadyApplied(s, rows) {
+  if (s?.source_kind !== 'card') return false;
+  return (rows || []).some(r => r.kind !== 'board' && r.kind !== 'group'
+    && r.card_id === s.source_id && (!s.board_id || r.board_id === s.board_id));
+}
+
 // ── Coalesced refresh ───────────────────────────────────────────────────
 // Wraps an async reload so overlapping calls never run concurrently AND are
 // never dropped: a call made while one is in flight queues exactly one
