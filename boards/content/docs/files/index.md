@@ -45,6 +45,8 @@ created — you never pick "upload as image" from a menu.
 | Anything else | A file card — type icon, name, size, download |
 
 Small text files get an inline preview on the card rather than only a download.
+Double-click a file card to open it full screen, with **Download** and **Share**
+there.
 
 ## Limits
 
@@ -159,4 +161,6 @@ from the viewer.
 
 To send someone one file on its own — a page with just that file, its player
 and its comments, and nothing else from the cluster — use **Share file…**
-([Sharing a single file](/docs/collaborate/sharing#sharing-a-single-file)).
+([Sharing a single file](/docs/collaborate/sharing#sharing-a-single-file)), or
+**Share** wherever the file is open full screen: the player, the image and PDF
+viewers, and Quick look from the sidebar or the file list.

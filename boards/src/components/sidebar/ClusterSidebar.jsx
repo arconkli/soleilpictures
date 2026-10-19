@@ -879,6 +879,7 @@ export function ClusterSidebar({
             onShowOnBoard={(it) => { setQl(null); onShowFile?.(it.boardId, it.id, { unplaced: !!it.unplaced }); }}
             onDownload={(it) => downloadCardAsset(it.card, it.kind, { surface: 'sidebar' })}
             boards={allBoards}
+            canEditItem={(it) => !!boardsSectionProps?.canEditBoard?.(it.boardId)}
           />
         </Suspense>
       )}

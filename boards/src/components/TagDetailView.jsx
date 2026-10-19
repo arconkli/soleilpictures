@@ -41,6 +41,7 @@ import { fetchTagVisuals } from '../lib/tagVisuals.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { openInfo } from '../lib/infoBus.js';
+import { shareTargetForRef } from '../lib/fileShareBus.js';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -1243,6 +1244,10 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           src={imageCardsFlat[lightboxIdx].meta?.src}
           title={imageCardsFlat[lightboxIdx].title || ''}
           alt={imageCardsFlat[lightboxIdx].title || ''}
+          shareTarget={shareTargetForRef({
+            boardId: imageCardsFlat[lightboxIdx].board_id, cardId: imageCardsFlat[lightboxIdx].card_id,
+            kind: 'image', src: imageCardsFlat[lightboxIdx].meta?.src, name: imageCardsFlat[lightboxIdx].title,
+          }, 'tag_view')}
           onClose={() => setLightboxIdx(null)}
         />
       )}

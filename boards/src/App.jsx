@@ -120,6 +120,7 @@ import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 import { PlayerHost } from './components/film/PlayerHost.jsx';
 import { FileShareHost } from './components/fileShare/FileShareHost.jsx';
+import { setShareRightsResolver } from './lib/fileShareBus.js';
 import { openPlayer } from './lib/playerBus.js';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -7718,6 +7719,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       userId: user.id, tier: myTier.tier,
     }).canEdit;
   }, [boards, workspace, workspaceMembers, sharedBoards, user.id, myTier.tier]);
+  // Viewers opened far from a pane (the tag view, hover popovers) ask this
+  // to decide whether to offer Share (lib/fileShareBus.js).
+  useEffect(() => {
+    setShareRightsResolver(canEditBoard);
+    return () => setShareRightsResolver(null);
+  }, [canEditBoard]);
   // Pre-compute a sync set of board ids the user can read — used by the
   // canvas to render the "No access" placeholder for boardlinks /
   // embedded boards that point outside the user's reach.
@@ -9071,6 +9078,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        onOpenPicker={() => openBoardLinkPicker(null, basePaneId)}
                        onDropInboxItem={dropInboxItemFor(muts)}
                        canEdit={paneCanEdit}
+                       canEditBoard={canEditBoard}
                        peersHereByBoard={peersHereByBoard}
                        peersBelowByBoard={peersBelowByBoard}
                        onJumpToPeer={jumpToPeer}
@@ -9127,6 +9135,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
                            gridTemplates={gridTemplates} gridSequences={gridSequences}
                            ydoc={yd}
+                           canEditBoard={canEditBoard}
                            getAwareness={yh.getAwareness}
                            focusRequest={focusRequest?.boardId === board.id ? focusRequest : null}
                            clearFocusRequest={() => setFocusRequest(null)}

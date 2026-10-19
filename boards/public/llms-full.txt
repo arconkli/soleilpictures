@@ -1579,7 +1579,7 @@ PureRef scene (.pur) | Nothing yet — Clusters cannot open PureRef boards. Expo
 An unfinished download (.crdownload, .part) | Skipped, with a note to drop it again once it has finished
 Anything else | A file card — type icon, name, size, download
 
-Small text files get an inline preview on the card rather than only a download.
+Small text files get an inline preview on the card rather than only a download. Double-click a file card to open it full screen, with Download and Share there.
 
 Limits
 
@@ -1637,7 +1637,7 @@ Downloading
 
 Every file card has a download. Images additionally offer a version with adjustments applied. PDFs can be downloaded from the viewer.
 
-To send someone one file on its own — a page with just that file, its player and its comments, and nothing else from the cluster — use Share file… (Sharing a single file).
+To send someone one file on its own — a page with just that file, its player and its comments, and nothing else from the cluster — use Share file… (Sharing a single file), or Share wherever the file is open full screen: the player, the image and PDF viewers, and Quick look from the sidebar or the file list.
 
 ## Frequently asked questions
 

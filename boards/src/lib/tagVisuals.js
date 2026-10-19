@@ -135,7 +135,10 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
         const cardKey = `${hit2.board_id || r.source_board_id}:${hit2.card_id || r.source_id}`;
         if (!seenImageCards.has(cardKey) && images.length < MAX_IMAGES) {
           seenImageCards.add(cardKey);
-          images.push({ src: meta.src, title, navTarget });
+          // The card itself, so a viewer can share this one file.
+          images.push({ src: meta.src, title, navTarget,
+                        boardId: hit2.board_id || r.source_board_id || null,
+                        cardId: hit2.card_id || r.source_id || null });
         }
         continue;
       }

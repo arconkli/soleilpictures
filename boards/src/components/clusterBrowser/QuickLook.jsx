@@ -142,10 +142,15 @@ export default function QuickLook({
   onPutOnBoard = null,   // (item) => put a file that's waiting in Files on the board
   infoOpen = false, onToggleInfo = null,
   boards = {}, canEdit = false, onDelete = null,
+  // Quick look can step across clusters (the sidebar's Recent and Starred, a
+  // browsed cluster), so edit rights are asked per file when the host knows
+  // them; `canEdit` is the fallback for a host showing one cluster.
+  canEditItem = null,
 }) {
   const rootRef = useRef(null);
   const item = items[index] || null;
   const n = items.length;
+  const itemCanEdit = item ? (canEditItem ? !!canEditItem(item) : canEdit) : false;
 
   // Kept: the film player in here takes its keys only while Quick look is the
   // top layer (the review player opened from it sits above), and so does
@@ -251,7 +256,7 @@ export default function QuickLook({
             <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
           </button>
         )}
-        {canEdit && item.boardId && !isPublicSurface() && fileSharesAllowed() && isShareableCard(item.card) && (
+        {itemCanEdit && item.boardId && !isPublicSurface() && fileSharesAllowed() && isShareableCard(item.card) && (
           <FileShareButton key={`share:${item.boardId}:${item.id}`} variant="ql" surface="quicklook"
                            boardId={item.boardId} cardId={item.id} card={item.card} boardName={null} />
         )}
@@ -283,9 +288,9 @@ export default function QuickLook({
           </button>
         )}
         {infoOpen && (
-          <DetailPanel inline target={{ type: 'card', item }} boards={boards} canEdit={canEdit}
+          <DetailPanel inline target={{ type: 'card', item }} boards={boards} canEdit={itemCanEdit}
                        onClose={onToggleInfo} onReveal={onShowOnBoard ? () => onShowOnBoard(item) : null}
-                       onDelete={onDelete} />
+                       onDelete={itemCanEdit ? onDelete : null} />
         )}
       </div>
     </div>,

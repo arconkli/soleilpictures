@@ -65,3 +65,24 @@ test('openFileShare is a no-op without ids', () => {
   assert.equal(FILE_SHARE_EVENT, 'soleil-open-file-share');
   assert.doesNotThrow(() => openFileShare({}));
 });
+
+// A viewer far from any pane (the tag view, a hover popover) shares a file it
+// knows by reference, only where the app shell says you can edit.
+test('shareTargetForRef needs a registered rights resolver and a stored file', async () => {
+  const { setShareRightsResolver, canShareIn, shareTargetForRef } = await import('./fileShareBus.js');
+  setShareRightsResolver(null);
+  assert.equal(canShareIn('b1'), false);
+  assert.equal(shareTargetForRef({ boardId: 'b1', cardId: 'c1', src: 'r2:ws/a.jpg' }), null, 'no resolver: public pages never offer Share');
+  setShareRightsResolver((id) => id === 'b1');
+  try {
+    const t = shareTargetForRef({ boardId: 'b1', cardId: 'c1', src: 'r2:ws/a.jpg', name: 'A' }, 'tag_view');
+    assert.deepEqual(t, { boardId: 'b1', cardId: 'c1', card: { id: 'c1', kind: 'image', src: 'r2:ws/a.jpg', title: 'A' }, boardName: null, surface: 'tag_view' });
+    assert.equal(shareTargetForRef({ boardId: 'b2', cardId: 'c1', src: 'r2:ws/a.jpg' }), null, 'a cluster you cannot edit');
+    assert.equal(shareTargetForRef({ boardId: 'b1', cardId: 'c1', src: 'https://x.test/a.jpg' }), null, 'not a stored file');
+    assert.equal(shareTargetForRef({ boardId: 'b1', src: 'r2:ws/a.jpg' }), null, 'no card id');
+    setShareRightsResolver(() => { throw new Error('boom'); });
+    assert.equal(canShareIn('b1'), false, 'a throwing resolver means no');
+  } finally {
+    setShareRightsResolver(null);
+  }
+});

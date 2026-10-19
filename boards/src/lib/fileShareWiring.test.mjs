@@ -36,7 +36,7 @@ for (const [surface, rel] of Object.entries(ENTRY_POINTS)) {
 // gates stay with each viewer.
 const BUTTON_POINTS = {
   player: ['../components/film/FilmReview.jsx', /fileSharesAllowed\(\) && canEdit && boardId && cardId && isShareableCard\(card\) && \(\s*<FileShareButton variant="frv" surface="player"/],
-  quicklook: ['../components/clusterBrowser/QuickLook.jsx', /canEdit && item\.boardId && !isPublicSurface\(\) && fileSharesAllowed\(\) && isShareableCard\(item\.card\) && \(\s*<FileShareButton [^>]*variant="ql" surface="quicklook"/],
+  quicklook: ['../components/clusterBrowser/QuickLook.jsx', /itemCanEdit && item\.boardId && !isPublicSurface\(\) && fileSharesAllowed\(\) && isShareableCard\(item\.card\) && \(\s*<FileShareButton [^>]*variant="ql" surface="quicklook"/],
 };
 for (const [surface, [rel, re]] of Object.entries(BUTTON_POINTS)) {
   test(`the ${surface} uses FileShareButton behind its gates`, () => {
@@ -60,8 +60,14 @@ test('FileShareButton opens the bus and keeps Shared neutral', () => {
 
 test('CanvasSurface hands both viewers a shareTarget only behind every gate', () => {
   const s = src('../components/CanvasSurface.jsx');
+  // The PDF viewer: this cluster's card.
   const gate = /\(canEdit && !isPublic && fileSharesAllowed\(\) && isShareableCard\(shareCard\)\)\s*\?\s*\{ boardId: board\.id, cardId: shareCard\.id/g;
-  assert.equal(s.match(gate)?.length, 2, 'one gate per viewer');
+  assert.equal(s.match(gate)?.length, 1, 'the PDF viewer gate');
+  // The lightbox: this cluster's card, or a sub-cluster row's card, whose
+  // rights are asked of that cluster.
+  assert.match(s, /const mayEdit = fromChild \? !!canEditBoard\?\.\(shareBoardId\) : canEdit;/);
+  assert.match(s, /\(mayEdit && !isPublic && fileSharesAllowed\(\) && isShareableCard\(shareCard\)\)\s*\?\s*\{ boardId: shareBoardId, cardId: shareCard\.id/);
+  assert.match(s, /setLightbox\(\{ src: item\.src, title: item\.name, shareBoardId: c\.id, shareCard: item\.card \|\| null \}\)/);
   assert.match(s, /<ImageLightbox [^>]*shareTarget=\{shareTarget\}/);
   assert.match(s, /<PdfViewer [^>]*shareTarget=\{shareTarget\}/);
   assert.equal(s.match(/setPdfViewer\(\{ src: c\.pdfSrc, name: c\.name \|\| c\.title \|\| 'PDF', cardId: c\.id \}\)/g)?.length, 3);
@@ -107,4 +113,38 @@ test('the share dialog backdrop ties the top-layer viewers (lightbox, PDF), on d
   assert.equal(rules.length, 2);
   for (const r of rules) assert.match(r, /z-index:\s*2147483647/);
   assert.match(src('../components/fileShare/FileShareDialog.jsx'), /backdropClassName="fsd-backdrop"/);
+});
+
+// Every fullscreen view offers Share when you can edit that file's cluster
+// (owner, 2026-10-18: "when i open ANY file full screen").
+test('Quick look asks edit rights per file where it can cross clusters', () => {
+  const ql = src('../components/clusterBrowser/QuickLook.jsx');
+  assert.match(ql, /const itemCanEdit = item \? \(canEditItem \? !!canEditItem\(item\) : canEdit\) : false;/);
+  assert.match(ql, /<DetailPanel inline [^>]*canEdit=\{itemCanEdit\}/);
+  const sb = src('../components/sidebar/ClusterSidebar.jsx');
+  assert.match(sb, /canEditItem=\{\(it\) => !!boardsSectionProps\?\.canEditBoard\?\.\(it\.boardId\)\}/);
+  const ls = src('../components/ListSurface.jsx');
+  assert.match(ls, /canEditItem=\{canEditBoard \? \(it\) => !!canEditBoard\(it\.boardId\) : null\}/);
+  const app = src('../App.jsx');
+  assert.match(app, /canEditBoard=\{canEditBoard\}\s+peersHereByBoard/);
+  assert.match(app, /ydoc=\{yd\}\s+canEditBoard=\{canEditBoard\}/);
+  assert.match(app, /setShareRightsResolver\(canEditBoard\);/);
+});
+
+test('viewers opened far from a pane share through shareTargetForRef', () => {
+  for (const rel of ['../components/TagDetailView.jsx', '../components/EntityHoverPopover.jsx', '../components/TagRangeHoverPopover.jsx']) {
+    const s = src(rel);
+    assert.match(s, /<ImageLightbox[\s\S]{0,400}shareTarget=\{shareTargetForRef\(/, rel);
+  }
+  const tv = src('./tagVisuals.js');
+  assert.match(tv, /boardId: hit2\.board_id \|\| r\.source_board_id \|\| null,/);
+});
+
+test('a plain file opens Quick look on the board instead of downloading', () => {
+  const s = src('../components/CanvasSurface.jsx');
+  assert.match(s, /if \(c\.kind === 'file'\) \{\s+if \(!c\.fileSrc \|\| c\.pending\) return;\s+e\.stopPropagation\(\);\s+setFileView\(\{ cardId: c\.id \}\);/);
+  assert.match(s, /<QuickLook items=\{\[item\]\}[\s\S]{0,300}canEdit=\{canEdit && !isPublic\}/);
+  assert.match(s, /opensOnBoard\n/);
+  const fc = src('../components/cards/FileCard.jsx');
+  assert.match(fc, /onDoubleClick=\{opensOnBoard \? undefined : download\}/);
 });

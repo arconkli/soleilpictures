@@ -134,6 +134,9 @@ export function ListSurface({
   board, boards, boardsReady = true, cards, childBoards,
   onOpenBoard, onOpenPicker, onDropInboxItem,
   canEdit = true,
+  // (boardId) => bool. Quick look asks it per file, because a browsed cluster
+  // is not always one this pane can edit.
+  canEditBoard = null,
   mutators = {},
   peersHereByBoard, peersBelowByBoard,
   // For nested list-mode previews — let inner BoardCards render
@@ -2119,6 +2122,7 @@ export function ListSurface({
               onPutOnBoard={canEdit && !browsingFrom ? (it) => { setQuickId(null); putOnBoard([it.id]); } : null}
               infoOpen={infoOpen} onToggleInfo={toggleInfo}
               boards={boards} canEdit={canEdit}
+              canEditItem={canEditBoard ? (it) => !!canEditBoard(it.boardId) : null}
               onDelete={async (ids) => {
                 const next = quickItems[quickIndex + 1] || quickItems[quickIndex - 1] || null;
                 if (!(await onDeleteItems(ids))) return;

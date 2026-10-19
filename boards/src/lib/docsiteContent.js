@@ -14350,7 +14350,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Small text files get an inline preview on the card rather than only a download."
+     "v": "Small text files get an inline preview on the card rather than only a download. Double-click a file card to open it full screen, with "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " there."
     }
    ]
   },
@@ -15212,7 +15240,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ")."
+     "v": "), or "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " wherever the file is open full screen: the player, the image and PDF viewers, and Quick look from the sidebar or the file list."
     }
    ]
   }

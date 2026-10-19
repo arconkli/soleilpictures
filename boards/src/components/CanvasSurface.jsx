@@ -47,9 +47,12 @@ import { ScheduleCard } from './cards/ScheduleCard.jsx';
 import { RichDocCard as RichDocCardView } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { toListItem } from '../lib/listItem.js';
 
 // Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
 const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
+// A file with no viewer of its own opens here (Download + Share).
+const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
@@ -561,6 +564,9 @@ export function CanvasSurface({
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
   onOpenBoard, tweak, depth, onOpenPicker,
+  // (boardId) => bool, for a file shown from ANOTHER cluster (a sub-cluster's
+  // list rows): Share in its viewer asks about that cluster, not this one.
+  canEditBoard = null,
   // Doc-card dock handoff — passed straight through to RichDocCard. See its
   // `onDock` prop: the workspace hosts the docked doc so it survives
   // navigating to another cluster.
@@ -1660,6 +1666,7 @@ export function CanvasSurface({
   // renders without its adjustments so the user can compare against the source.
   const [compareCardId, setCompareCardId] = useState(null);
   const [pdfViewer, setPdfViewer] = useState(null); // { src: 'r2:<pdfKey>', name }
+  const [fileView, setFileView] = useState(null);   // { cardId } — a plain file in Quick look
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
@@ -9372,6 +9379,14 @@ export function CanvasSurface({
       setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id });
       return;
     }
+    // A plain file (zip, docx…) opens full screen like everything else, with
+    // Download and Share there; it used to download on the spot.
+    if (c.kind === 'file') {
+      if (!c.fileSrc || c.pending) return;
+      e.stopPropagation();
+      setFileView({ cardId: c.id });
+      return;
+    }
     // image / note / link / etc — defer to inner editors so dbl-click
     // re-enters edit mode reliably. (Images: ImageCard's own .ic-imgwrap
     // dbl-click handles title edit; fullscreen view is the corner Expand button
@@ -9848,7 +9863,9 @@ export function CanvasSurface({
                        // diving into the list board. Returning true tells
                        // BoardCard we handled it; falsy → BoardCard's fallback.
                        if (item.kind === 'image' && item.src) {
-                         setLightbox({ src: item.src, title: item.name });
+                         // The row is a card of the sub-cluster c.id: Share in
+                         // the lightbox is about that cluster's card.
+                         setLightbox({ src: item.src, title: item.name, shareBoardId: c.id, shareCard: item.card || null });
                          return true;
                        }
                        return false;
@@ -9997,6 +10014,7 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                        pending={!!c.pending}
                                                        uploadProgress={uploadProgressById[c.id] ?? null}
+                                                       opensOnBoard
                                                        onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
@@ -13254,9 +13272,15 @@ export function CanvasSurface({
       )}
       {lightbox && (() => {
         // Share this one file from the viewer: same gates as the card menu.
-        const shareCard = lightbox.cardId ? cards.find(x => x.id === lightbox.cardId) : null;
-        const shareTarget = (canEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))
-          ? { boardId: board.id, cardId: shareCard.id, card: shareCard, boardName: board.name, surface: 'canvas' } : null;
+        // A sub-cluster's row brings its own cluster and card.
+        const fromChild = !!lightbox.shareBoardId;
+        const shareCard = fromChild ? lightbox.shareCard
+          : (lightbox.cardId ? cards.find(x => x.id === lightbox.cardId) : null);
+        const shareBoardId = fromChild ? lightbox.shareBoardId : board.id;
+        const mayEdit = fromChild ? !!canEditBoard?.(shareBoardId) : canEdit;
+        const shareTarget = (mayEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))
+          ? { boardId: shareBoardId, cardId: shareCard.id, card: shareCard,
+              boardName: fromChild ? (boards?.[shareBoardId]?.name || null) : board.name, surface: 'canvas' } : null;
         return (
           <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
                          downloadName={lightbox.downloadName || null} shareTarget={shareTarget}
@@ -13291,6 +13315,19 @@ export function CanvasSurface({
             onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
             onDownload={() => runDownload(card, 'image')}
             onClose={() => setImageEditFull(null)} />
+        );
+      })()}
+      {fileView && (() => {
+        const fc = cards.find(x => x.id === fileView.cardId);
+        const item = fc ? toListItem(fc, { boards, boardId: board.id }) : null;
+        if (!item) return null;
+        return (
+          <Suspense fallback={null}>
+            <QuickLook items={[item]} index={0} onIndex={() => {}}
+                       onClose={() => setFileView(null)}
+                       onDownload={(it) => runDownload(it.card, it.kind)}
+                       boards={boards} canEdit={canEdit && !isPublic} />
+          </Suspense>
         );
       })()}
       {pdfViewer && (

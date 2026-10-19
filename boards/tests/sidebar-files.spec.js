@@ -194,6 +194,15 @@ test.describe('sidebar files', () => {
     await expect(page.getByText(/of 30/)).toHaveCount(0);
   });
 
+  // Quick look opened from the sidebar asks the file's own cluster whether
+  // you can edit it; it never got told before, so Share never showed.
+  test('Quick look from the sidebar offers Share for a file you can edit', async ({ page }) => {
+    await open(page);
+    await files(page).locator('.sbf-file', { hasText: 'film-take-1.mov' }).click();
+    await expect(page.getByRole('dialog', { name: /Quick look: film-take-1\.mov/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Share file' })).toBeVisible();
+  });
+
   test('double-clicking a file goes to it: on its board, or in Files when it is stored off the board', async ({ page }) => {
     await open(page);
     await files(page).locator('.sbf-file', { hasText: 'film-take-1.mov' }).dblclick();
