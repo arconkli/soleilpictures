@@ -167,7 +167,7 @@ export function AppearanceTab({ mySettings, refresh }) {
             (lib/wasdPan.js). Applied at once as well as saved, like the wheel. */}
         <Toggle
           label="Move with W A S D"
-          desc="Hold W, A, S or D to move around a board, and add Shift to go faster. While it's on, A and D no longer pick the Arrow and Free-draw tools."
+          desc="Hold W, A, S or D to move around a board and Q or E to zoom in or out, with Shift to go faster. While it's on, A and D no longer pick the Arrow and Free-draw tools."
           value={wasdPan}
           onChange={(v) => {
             applyWasdPanNow(v);

@@ -13,7 +13,7 @@ faq:
   - q: Can the scroll wheel zoom instead of scrolling the board around?
     a: Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
   - q: Can I move around a board with W, A, S and D?
-    a: Yes, once you turn it on in Settings → Appearance → Move with W A S D. Hold a key to move that way and add Shift to go faster. It is off by default because A and D also pick the Arrow and Free-draw tools, which they stop doing while it is on.
+    a: Yes, once you turn it on in Settings → Appearance → Move with W A S D. Hold a key to move that way, hold Q or E to zoom in or out, and add Shift to go faster. It is off by default because A and D also pick the Arrow and Free-draw tools, which they stop doing while it is on.
   - q: Do these work on Windows?
     a: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app overlay detects your platform and shows the right modifier.
 related:
@@ -89,6 +89,7 @@ In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused 
 | `⇧2` | Fit selection |
 | `Space`-drag | Pan with any tool active |
 | `W` `A` `S` `D` | Move around the board, `⇧` for faster — once you [turn it on](#moving-with-w-a-s-d) |
+| `Q` / `E` | Zoom in · out around the middle of the screen, `⇧` for faster — with [W A S D movement](#moving-with-w-a-s-d) on |
 | Scroll | Pan the canvas — or zoom, if you swap it |
 | `⌘`-scroll | Zoom at the pointer |
 
@@ -113,7 +114,9 @@ browser as a `Ctrl`-scroll, so `Ctrl` means zoom whatever else is configured.
 
 **Settings → Appearance → Move with W A S D.** Off until you turn it on. Then
 hold `W`, `A`, `S` or `D` to move up, left, down or right — two at once go
-diagonally — and add `⇧` to go faster. Letting go eases to a stop.
+diagonally — and hold `Q` to zoom in or `E` to zoom out, around the middle of
+the screen. Add `⇧` to go faster at either, or move and zoom at once. Letting go
+eases to a stop.
 
 It is off by default because two of those keys already have a job: `A` picks
 the Arrow tool and `D` picks Free-draw. While movement is on they move you
@@ -121,8 +124,9 @@ instead, and both tools stay one click away on the tool rail. `⌘A` and `⌘D`
 (select all, duplicate) work as before.
 
 It goes by where the keys sit rather than the letters printed on them, so on an
-AZERTY keyboard it is `Z`, `Q`, `S` and `D`, and `A` stays the Arrow tool.
-Like the rest of Appearance, the setting follows your account to every device.
+AZERTY keyboard it is `Z`, `Q`, `S` and `D` to move and `A` and `E` to zoom, and
+the same two tools give way. Like the rest of Appearance, the setting follows
+your account to every device.
 
 ## Files
 

@@ -64,8 +64,9 @@ How Clusters looks and how the canvas answers your hands, in three sections:
   browser you happen to be in.
 - **Canvas** — whether a plain **scroll wheel** pans the
   [canvas](/docs/canvas) or zooms it (pinching a trackpad zooms either way), and
-  whether holding **W, A, S or D** moves you around a board. That one is off
-  until you turn it on, because `A` and `D` are also the Arrow and Free-draw keys.
+  whether holding **W, A, S or D** moves you around a board, with **Q** and
+  **E** to zoom. That one is off until you turn it on, because `A` and `D` are
+  also the Arrow and Free-draw keys.
 
 ### Notifications
 

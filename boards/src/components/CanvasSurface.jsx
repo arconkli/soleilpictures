@@ -140,7 +140,10 @@ import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js
 import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
-import { getWasdPan, wasdCodeOf, wasdDirection, wasdStep, WASD_SPEED, WASD_FAST, WASD_EASE, WASD_REST } from '../lib/wasdPan.js';
+import {
+  getWasdPan, wasdCodeOf, wasdDirection, wasdZoomDirection, wasdStep, wasdEase,
+  WASD_SPEED, WASD_FAST, WASD_EASE, WASD_REST, WASD_ZOOM_RATE, WASD_ZOOM_REST,
+} from '../lib/wasdPan.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
 import { canShowHint, claimHint, releaseHint, markHintSeen, hintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
 import { genuineCards, hasGenuineCard, isSeedCard } from '../lib/firstValueTrigger.js';
@@ -4980,23 +4983,25 @@ export function CanvasSurface({
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
   }, []);
 
-  // ── W A S D: hold a key to move around the board (lib/wasdPan.js) ────────
-  // Off unless it was turned on in Settings → Appearance → Canvas, and never on
-  // a public page, which keeps the defaults the way the wheel does. Shift is
-  // the faster gear. The camera moves the way a wheel pan moves it (the refs and
-  // the transform, in the frame, with the cull ADD-only while it moves) and is
-  // committed once, after it comes to rest.
+  // ── W A S D: hold a key to move around the board, Q or E to zoom ─────────
+  // (lib/wasdPan.js). Off unless it was turned on in Settings → Appearance →
+  // Canvas, and never on a public page, which keeps the defaults the way the
+  // wheel does. Shift is the faster gear for both. The camera moves the way a
+  // wheel pan moves it (the refs and the transform, in the frame, with the cull
+  // ADD-only while it moves) and is committed once, after it comes to rest.
   //
   // A held key stops on its keyup, and on everything that can swallow one: the
   // window losing focus, the tab hiding, ⌘/Ctrl/Alt going down (macOS sends no
   // keyup for a letter let go while ⌘ is held), and a dialog opening or an
-  // editor taking focus mid-hold. The shortcut handler leaves the four keys
+  // editor taking focus mid-hold. The shortcut handler leaves the six keys
   // alone while this is on, so A and D don't also pick their tools.
   useEffect(() => {
     if (isPublic) return undefined;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
     const held = new Set();
     let fast = false;
     let v = { x: 0, y: 0 };
+    let vz = 0;   // the zoom's rate, per second, of its logarithm
     let raf = 0, last = 0, settleTimer = 0, moved = false;
     // The settle contract of the wheel's scheduleCommit, once per glide.
     const settle = () => {
@@ -5016,16 +5021,27 @@ export function CanvasSurface({
       const dt = last ? Math.min(0.05, Math.max(0, (now - last) / 1000)) : 1 / 60;
       last = now;
       if (held.size && (boardKeysBlocked() || isEditorTarget({ target: document.activeElement }))) held.clear();
+      const gear = fast ? WASD_FAST : 1;
+      const tau = reduceMotion?.matches ? 0 : WASD_EASE;
       const dir = wasdDirection(held);
-      const speed = WASD_SPEED * (fast ? WASD_FAST : 1);
-      v = wasdStep(v, { x: dir.x * speed, y: dir.y * speed }, dt, reduceMotionMq?.matches ? 0 : WASD_EASE);
-      if (!held.size && Math.hypot(v.x, v.y) < WASD_REST) {
+      v = wasdStep(v, { x: dir.x * WASD_SPEED * gear, y: dir.y * WASD_SPEED * gear }, dt, tau);
+      vz = wasdEase(vz, wasdZoomDirection(held) * WASD_ZOOM_RATE * gear, dt, tau);
+      if (!held.size && Math.hypot(v.x, v.y) < WASD_REST && Math.abs(vz) < WASD_ZOOM_REST) {
         v = { x: 0, y: 0 };
+        vz = 0;
         last = 0;
         settleTimer = setTimeout(settle, 140);
         return;
       }
-      const p = panRef.current;
+      let p = panRef.current;
+      const z0 = zoomRef.current;
+      const z1 = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z0 * Math.exp(vz * dt)));
+      if (z1 !== z0) {
+        // Around the middle of the view, the way ⌘+ and ⌘− zoom.
+        const sx = wrapWHRef.current.w / 2, sy = wrapWHRef.current.h / 2;
+        p = { x: sx - ((sx - p.x) / z0) * z1, y: sy - ((sy - p.y) / z0) * z1 };
+        zoomRef.current = z1;
+      }
       panRef.current = { x: p.x - v.x * dt, y: p.y - v.y * dt };
       moved = true;
       gestureUntilRef.current = performance.now() + 200;
@@ -5043,6 +5059,8 @@ export function CanvasSurface({
       if (boardKeysBlocked()) return;
       if (hasSplit && getActivePane() !== paneId) return;
       if (isEditorTarget(e) || inInfoDrawer(e)) return;
+      // The Messages panel's keys are its own: E edits your focused message.
+      if (e.target?.closest?.('.msg-panel')) return;
       e.preventDefault();
       fast = e.shiftKey;
       held.add(code);
@@ -5056,7 +5074,7 @@ export function CanvasSurface({
     const onBlur = () => { held.clear(); fast = false; };
     const onHidden = () => {
       if (document.visibilityState !== 'hidden') return;
-      held.clear(); fast = false; v = { x: 0, y: 0 }; last = 0;
+      held.clear(); fast = false; v = { x: 0, y: 0 }; vz = 0; last = 0;
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
       settle();
     };
@@ -6039,8 +6057,9 @@ export function CanvasSurface({
       if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit1') { e.preventDefault(); fitToContent(); return; }
       if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit2') { e.preventDefault(); zoomToSelection(); return; }
 
-      // While W A S D movement is on, those four keys are the movement
-      // listener's (lib/wasdPan.js): A and D must not also pick Arrow and Free-draw.
+      // While W A S D movement is on, its six keys (W A S D, Q E) are the
+      // movement listener's (lib/wasdPan.js): A and D must not also pick Arrow
+      // and Free-draw.
       if (!isPublic && getWasdPan() && wasdCodeOf(e)) return;
 
       // Bare-key tool + arrange shortcuts (no Cmd/Ctrl/Alt). The isEditorTarget
