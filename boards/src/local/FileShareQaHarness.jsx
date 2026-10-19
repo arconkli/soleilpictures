@@ -14,7 +14,15 @@
 // A fixture with `viewer: 'lightbox' | 'pdf'` mounts that full-screen viewer
 // with a shareTarget, plus a FileShareHost over the same fake, the way the
 // canvas does: the Share button opens the dialog over the viewer.
+// `mode: 'overlay'` mounts the in-app viewer (SharedFileHost) over a stand-in
+// app with an "Open" button; `mode: 'shared-page'` mounts the Shared page over
+// fake 0424 lists (fixture.withMe / fixture.byMe).
 import { useMemo, useState } from 'react';
+import { SharedFileHost } from '../components/fileShare/SharedFileHost.jsx';
+import { SharedPage } from '../components/shared/SharedPage.jsx';
+import { setSharedFilesSource } from '../hooks/useSharedFiles.js';
+import { openSharedFile } from '../lib/sharedFileBus.js';
+import { useFeedback } from '../components/AppFeedback.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 import { FileSharePage } from '../components/fileShare/FileSharePage.jsx';
 import { FileShareDialog } from '../components/fileShare/FileShareDialog.jsx';
@@ -52,7 +60,36 @@ function ok(file, extra = {}) {
   };
 }
 
+const SHARED_TOKENS = {
+  video: '1a2b3c4d-0000-4000-8000-000000000001',
+  pdf: '1a2b3c4d-0000-4000-8000-000000000002',
+  link: '1a2b3c4d-0000-4000-8000-000000000003',
+  mine: '1a2b3c4d-0000-4000-8000-000000000004',
+};
+
 export const FIXTURES = {
+  'shared-page': {
+    mode: 'shared-page',
+    withMe: [
+      { token: SHARED_TOKENS.video, kind: 'video', name: 'Opening titles v3', ext: 'mp4', size: 2304, access: 'comment',
+        allow_download: true, shared_by: SHARED_BY, source: 'person', shared_at: iso(90), opened_at: null, activity_at: null, unread: true },
+      { token: SHARED_TOKENS.pdf, kind: 'pdf', name: 'Shooting script.pdf', ext: 'pdf', access: 'view',
+        allow_download: false, shared_by: { name: 'Jun Park', avatar_url: null }, source: 'person', shared_at: iso(60 * 30), opened_at: iso(60 * 29), activity_at: null, unread: false },
+      { token: SHARED_TOKENS.link, kind: 'file', name: 'Selects.zip', ext: 'zip', access: 'view',
+        allow_download: true, shared_by: SHARED_BY, source: 'link', shared_at: iso(60 * 50), opened_at: iso(60 * 50), activity_at: null, unread: false },
+    ],
+    byMe: [
+      { token: SHARED_TOKENS.mine, board_id: 'qa-board', board_name: 'Opening sequence', card_id: 'vid-qa', kind: 'video',
+        name: 'Rough cut', link_access: 'view', allow_download: true, people_count: 2, people: ['a@example.com', 'b@example.com'], comment_count: 1, updated_at: iso(10) },
+    ],
+  },
+  overlay: {
+    mode: 'overlay',
+    share: ok({ kind: 'video', name: 'Opening titles v3', mime: 'video/mp4', size: 2304, duration: 2, ext: 'mp4' },
+      { access: 'comment', urls: { src: new URL('../../tests/fixtures/media/frames-vp9.mp4', import.meta.url).href } }),
+    comments: [],
+  },
+
   'video-comment': {
     share: ok({ kind: 'video', name: 'Opening titles v3', mime: 'video/mp4', size: 2304, duration: 2, ext: 'mp4' },
       { access: 'manage', comment_count: 3, urls: { src: MEDIA.video, download: `${MEDIA.video}#download` } }),
@@ -245,6 +282,16 @@ export function makeFakeApi(fixture, calls = []) {
       comments = comments.map((c) => (c.id === id ? { ...c, deleted: false } : c));
       return res(null);
     },
+    markFileShareOpened(token) { log('markFileShareOpened', [token]); return res(true); },
+    listSharedWithMe(opts) { log('listSharedWithMe', [opts]); return res({ items: fx.withMe || [], next_before: null }); },
+    listMyFileShares(opts) { log('listMyFileShares', [opts]); return res({ items: fx.byMe || [] }); },
+    fetchSharedThumbs(tokens) { log('fetchSharedThumbs', [tokens]); return Promise.resolve({}); },
+    hideSharedFile(token, hidden) { log('hideSharedFile', [token, hidden]); return res(true); },
+    stopFileShare(boardId, cardId) {
+      log('stopFileShare', [boardId, cardId]);
+      return res({ link_access: 'view', stopped_at: '2026-10-18T12:00:00.123456+00:00', people: 2 });
+    },
+    undoStopFileShare(boardId, cardId, opts) { log('undoStopFileShare', [boardId, cardId, opts]); return res(settings); },
     signOut() {
       log('signOut', []);
       // Survives the navigation to sign-in, so the spec can see it came first.
@@ -284,6 +331,28 @@ export function makeFakeApi(fixture, calls = []) {
   };
 }
 
+// The in-app viewer over a stand-in app: Open dispatches openSharedFile, the
+// way the Shared page and the bell do.
+function OverlayView({ api }) {
+  const feedback = useFeedback();
+  return (
+    <div style={{ padding: 24 }}>
+      <button type="button" data-qa-open-shared="1" onClick={() => openSharedFile({ token: QA_TOKEN, via: 'shared_page' })}>Open shared file</button>
+      <SharedFileHost api={api}
+                      onSaveCopy={async ({ token, res }) => {
+                        api.calls.push({ fn: 'onSaveCopy', args: [token, res?.file?.kind || null] });
+                        feedback.toast({ type: 'success', message: 'Saved to Opening sequence' });
+                      }} />
+    </div>
+  );
+}
+
+function SharedPageView({ api }) {
+  const feedback = useFeedback();
+  return <SharedPage api={api} feedback={feedback} onClose={() => api.calls.push({ fn: 'onClose', args: [] })}
+                     onSaveCopy={async ({ token }) => { api.calls.push({ fn: 'onSaveCopy', args: [token] }); }} />;
+}
+
 export function FileShareQaHarness() {
   const [dialogOpen, setDialogOpen] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(true);
@@ -292,6 +361,8 @@ export function FileShareQaHarness() {
   const api = useMemo(() => {
     const a = makeFakeApi(fixture);
     if (typeof window !== 'undefined') window.__fileShareQa = { calls: a.calls, api: a, fixture: name };
+    // The Shared page's store reads this fake instead of the RPCs.
+    if (fixture?.mode === 'shared-page') setSharedFilesSource(a);
     return a;
   }, [fixture, name]);
 
@@ -300,6 +371,24 @@ export function FileShareQaHarness() {
       <div data-fileshareqa-ready="1" style={{ padding: 24, fontFamily: 'system-ui' }}>
         Unknown fixture “{name}”. Try: {Object.keys(FIXTURES).join(', ')}
       </div>
+    );
+  }
+  if (fixture.mode === 'shared-page') {
+    return (
+      <FeedbackProvider>
+        <div data-fileshareqa-ready="1" data-fixture={name} style={{ height: '100vh', display: 'flex' }}>
+          <SharedPageView api={api} />
+        </div>
+      </FeedbackProvider>
+    );
+  }
+  if (fixture.mode === 'overlay') {
+    return (
+      <FeedbackProvider>
+        <div data-fileshareqa-ready="1" data-fixture={name}>
+          <OverlayView api={api} />
+        </div>
+      </FeedbackProvider>
     );
   }
   if (fixture.viewer) {

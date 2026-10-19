@@ -52,6 +52,21 @@
 .fsp-top-link { color: var(--fsp-ink-1); text-decoration: none; font-weight: 500; padding: 6px 10px; border-radius: 8px; }
 .fsp-top-link:hover { color: var(--fsp-ink-0); background: var(--fsp-hover); }
 .fsp-top .fsp-manage { margin-left: auto; height: 32px; padding: 0 12px; }
+/* Several header actions sit together at the end of the bar. */
+.fsp-top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fsp-top-actions .fsp-manage { margin-left: 0; }
+.fsp-top-actions .fsp-btn { height: 32px; padding: 0 12px; }
+
+/* In the app: the same room as a dialog over everything (the owner's share
+   dialog still opens above it). */
+.fsp--overlay { z-index: 2147483000; outline: none; }
+.fsp-top .fsp-close { width: 32px; height: 32px; padding: 0; flex: none; }
+.fsp-top-label { color: var(--fsp-ink-2); font: 500 13px/1 var(--font-sans); margin-right: auto; }
+.fsp-top-label + .fsp-top-actions { margin-left: 0; }
+@media (max-width: 560px) {
+  .fsp-top-label { display: none; }
+  .fsp-top-actions .fsp-btn { padding: 0 10px; }
+}
 
 /* ── Buttons ─────────────────────────────────────────────────────────── */
 .fsp-btn {
@@ -234,3 +249,21 @@
   .fsp-info { padding: 16px 16px 4px; }
   .fsp-cta { margin: 20px 16px 24px; }
 }
+
+/* ── Add to cluster (in the app) ─────────────────────────────────────── */
+.fsp-addto { position: relative; display: inline-flex; }
+.fsp-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 10;
+  min-width: 240px; padding: 6px; border-radius: 12px;
+  background: var(--fsp-panel); border: 1px solid var(--fsp-line-2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.fsp-menu-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  padding: 9px 10px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--fsp-ink-0); text-align: left; cursor: pointer;
+}
+.fsp-menu-item:hover, .fsp-menu-item:focus-visible { background: var(--fsp-hover); }
+.fsp-menu-title { font: 600 13px/1.2 var(--font-sans); }
+.fsp-menu-sub { font: 400 12px/1.3 var(--font-sans); color: var(--fsp-ink-2); }

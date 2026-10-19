@@ -97,6 +97,17 @@ export function fileSharesAllowed() {
 }
 
 // ---------------------------------------------------------------------------
+// The Shared page hold
+//
+// What happens to a file once it is shared (owner, 2026-10-18): the Shared
+// page (with me / by me), the viewer the bell opens inside the app, Save a
+// copy and shortcuts. Held to DEV || preview, the allowlist shape above, until
+// the release that ships its docs.
+export function sharedFilesAllowed() {
+  return import.meta.env.DEV || onPreviewHost();
+}
+
+// ---------------------------------------------------------------------------
 // The template store hold
 //
 // The rule itself, and what "the store" covers, is in lib/templatePaths.js,

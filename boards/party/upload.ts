@@ -57,6 +57,15 @@ import { bundleRefusalStatus } from "../src/lib/bundleRefusal.js";
 import {
   FILE_SHARE_CACHE_CONTROL, FILE_SHARE_URL_TTL_SECONDS, FILE_TOKEN_RE, fileShareResponse,
 } from "../src/lib/fileShareBundle.js";
+import {
+  SAVE_REFUSAL_STATUS, copyKey, copyPlan, saveRefusal, savedCard, savedCardId, savedImageRow,
+} from "../src/lib/fileShareSave.js";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Thumbnails on the Shared page's rows: short-lived and private, like the /f/
+// page's own URLs.
+const SHARED_THUMB_TTL_SECONDS = 60 * 60;
+const SHARED_THUMB_CACHE_CONTROL = "private, max-age=3600";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
@@ -275,6 +284,11 @@ export class UploadParty {
       return new Response("Invalid token", { status: 401, headers: corsHeaders(origin) });
     }
 
+    // The Shared page (signed in only): its rows' thumbnails, and "Save a
+    // copy" of a file shared with you into a cluster of this workspace.
+    if (url.pathname.endsWith("/file-thumbs")) return this.handleFileThumbs(req, accessToken, env, origin);
+    if (url.pathname.endsWith("/file-save"))   return this.handleFileSave(req, accessToken, claims.sub, env, origin);
+
     // Multipart routes (large/arbitrary file uploads). All require the same
     // JWT auth above; each re-checks can_write_board for the specific board.
     if (url.pathname.endsWith("/mpu/create"))     return this.handleMpuCreate(req, accessToken, env, origin);
@@ -391,6 +405,215 @@ export class UploadParty {
       attachmentDisposition,
     );
     return Response.json(out, { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
+  }
+
+  // POST /file-thumbs — signed in. Body: { tokens: uuid[] (≤ 50) }. Presigns
+  // the poster of each shared file the caller can open, for the Shared page's
+  // rows. get_file_share_posters (SQL, as the caller) decides which; the keys
+  // never leave the Worker.
+  async handleFileThumbs(
+    req: Request, accessToken: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const cors = corsHeaders(origin);
+    let body: { tokens?: unknown } = {};
+    try { body = (await req.json()) as { tokens?: unknown }; } catch (_) {}
+    const tokens = Array.isArray(body.tokens)
+      ? [...new Set(body.tokens.map((t) => String(t || "").trim()).filter((t) => FILE_TOKEN_RE.test(t)))].slice(0, 50)
+      : [];
+    if (!tokens.length) return Response.json({ urls: {} }, { headers: cors });
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share_posters`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_tokens: tokens }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { headers: cors });
+      return new Response("Thumbnails temporarily unavailable", { status: 503, headers: cors });
+    }
+    const keys: Record<string, unknown> = (await rpcRes.json().catch(() => ({}))) || {};
+    const r2 = this.mkR2Client(env);
+    const urls: Record<string, string> = {};
+    await Promise.all(Object.entries(keys).map(async ([t, k]) => {
+      if (!FILE_TOKEN_RE.test(t) || typeof k !== "string" || !k) return;
+      try {
+        urls[t] = await signReadUrl(r2, env, k, null, {
+          ttl: SHARED_THUMB_TTL_SECONDS, cacheControl: SHARED_THUMB_CACHE_CONTROL,
+        });
+      } catch (_) { /* that row keeps its kind icon */ }
+    }));
+    return Response.json({ urls, ttl: SHARED_THUMB_TTL_SECONDS },
+      { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
+  }
+
+  // POST /<workspaceId>/file-save — signed in. Body: { token, boardId }.
+  // "Save a copy" of a file shared with you into a cluster of THIS workspace:
+  //   1. the cluster is in this workspace and the caller can edit it;
+  //   2. get_file_share AS THE CALLER says they may open and download it
+  //      (lib/fileShareSave.js saveRefusal);
+  //   3. authorize_upload charges the bytes to this workspace's owner (402 is
+  //      the storage wall, as for an upload) and the intents hold them;
+  //   4. R2 copies the object server-side (CopyObject, or UploadPartCopy in
+  //      parts above the single-copy ceiling), the poster too;
+  //   5. the images rows are inserted as the caller, like an upload's.
+  // Returns { ok, card }: the client lands it through /api/clusters/append.
+  // The source keys never leave the Worker.
+  async handleFileSave(
+    req: Request, accessToken: string, userId: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const workspaceId = this.room.id;
+    const cors = corsHeaders(origin);
+    const refuse = (reason: string, extra: Record<string, unknown> = {}) => Response.json(
+      { error: reason, reason, ...extra },
+      { status: (SAVE_REFUSAL_STATUS as Record<string, number>)[reason] || 400, headers: cors },
+    );
+    let body: { token?: string; boardId?: string } = {};
+    try { body = (await req.json()) as { token?: string; boardId?: string }; } catch (_) {}
+    const token = String(body.token || "").trim();
+    const boardId = String(body.boardId || "").trim();
+    if (!FILE_TOKEN_RE.test(token)) return refuse("gone");
+    if (!UUID_RE.test(boardId) || !UUID_RE.test(workspaceId)) return refuse("wrong_workspace");
+
+    // 1. Where it goes.
+    const rows = await supabaseGet(
+      `boards?id=eq.${encodeURIComponent(boardId)}&deleted_at=is.null&select=id,workspace_id`, accessToken);
+    if (!rows?.[0] || rows[0].workspace_id !== workspaceId) return refuse("wrong_workspace");
+    const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
+    if (canWrite !== true) return refuse("not_writer");
+
+    // 2. What it is, as the caller sees it.
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_token: token }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { status: 401, headers: cors });
+      return new Response("Saving is temporarily unavailable", { status: 503, headers: cors });
+    }
+    const result: any = await rpcRes.json().catch(() => null);
+    const why = saveRefusal(result);
+    if (why) return refuse(why);
+    const srcKey: string = result.keys.src;
+    // An image's poster is its preview, which the copy makes for itself; a
+    // video's poster and a PDF's page-one picture are part of the card.
+    const posterSrc: string | null = result.file.kind === "video" || result.file.kind === "pdf"
+      ? (typeof result.keys.poster === "string" && result.keys.poster ? result.keys.poster : null)
+      : null;
+
+    // 3. Room for it: the exact sizes from R2, charged to this workspace.
+    const r2 = this.mkR2Client(env);
+    const head = await r2.fetch(this.r2ObjectUrl(env, srcKey), { method: "HEAD" }).catch(() => null);
+    if (!head || !head.ok) return refuse("gone");
+    const bytes = Number(head.headers.get("content-length")) || 0;
+    const contentType = head.headers.get("content-type") || "application/octet-stream";
+    let posterBytes = 0;
+    if (posterSrc) {
+      const ph = await r2.fetch(this.r2ObjectUrl(env, posterSrc), { method: "HEAD" }).catch(() => null);
+      posterBytes = ph && ph.ok ? Number(ph.headers.get("content-length")) || 0 : 0;
+    }
+    const plan = copyPlan(bytes);
+    if (!plan) return refuse("gone");
+    const authRows = await supabaseRpc("authorize_upload",
+      { p_workspace_id: workspaceId, p_bytes: bytes + posterBytes }, accessToken);
+    const auth = Array.isArray(authRows) ? authRows[0] : authRows;
+    if (!auth || auth.allow !== true) {
+      const reason = auth?.reason === "over_quota" ? "over_quota" : "not_writer";
+      return refuse(reason, { used: auth?.used ?? null, quota: auth?.quota ?? null, remaining: auth?.remaining ?? null });
+    }
+    const dstKey = copyKey(workspaceId, srcKey, crypto.randomUUID());
+    const dstPoster = posterSrc && posterBytes > 0 ? copyKey(workspaceId, posterSrc, crypto.randomUUID()) : null;
+    const held = await supabaseRpc("record_upload_intent", {
+      p_key: dstKey, p_bytes: bytes, p_kind: plan.mode === "single" ? "put" : "multipart", p_board_id: boardId,
+    }, accessToken);
+    if (held !== true) return new Response("Could not reserve this copy", { status: 503, headers: cors });
+    if (dstPoster) {
+      await supabaseRpc("record_upload_intent",
+        { p_key: dstPoster, p_bytes: posterBytes, p_kind: "put", p_board_id: boardId }, accessToken);
+    }
+
+    // 4. The bytes.
+    if (!(await this.copyObject(r2, env, srcKey, dstKey, plan, contentType))) {
+      return new Response("Could not copy the file", { status: 502, headers: cors });
+    }
+    let posterKey: string | null = null;
+    if (dstPoster && posterSrc) {
+      const pplan = copyPlan(posterBytes);
+      if (pplan && await this.copyObject(r2, env, posterSrc, dstPoster, pplan, "image/jpeg")) posterKey = dstPoster;
+    }
+
+    // 5. The rows that make them this workspace's files.
+    const cardId = savedCardId(result.file.kind);
+    const name = typeof result.file.name === "string" ? result.file.name : null;
+    const imageRows = [savedImageRow({ workspaceId, boardId, cardId, key: dstKey, bytes, userId, originalName: name })];
+    if (posterKey) imageRows.push(savedImageRow({ workspaceId, boardId, cardId, key: posterKey, bytes: posterBytes, userId, originalName: null }));
+    const ins = await fetch(`${SUPABASE_URL}/rest/v1/images`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(imageRows),
+    });
+    if (!ins.ok) {
+      // No images row: the object is an orphan the R2 sweep reclaims.
+      return new Response("Could not finish saving the file", { status: 503, headers: cors });
+    }
+    const card = savedCard(result, { cardId, srcKey: dstKey, posterKey });
+    return Response.json({ ok: true, card, bytes }, { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
+  }
+
+  // A server-side copy inside the bucket: one CopyObject, or a multipart
+  // upload whose parts are UploadPartCopy ranges. True when the object exists
+  // whole at dstKey.
+  async copyObject(
+    r2: AwsClient, env: R2Env, srcKey: string, dstKey: string,
+    plan: { mode: string; parts?: Array<{ partNumber: number; start: number; end: number }> },
+    contentType: string,
+  ): Promise<boolean> {
+    const source = `/${env.bucket}/${srcKey.split("/").map(encodeURIComponent).join("/")}`;
+    if (plan.mode === "single") {
+      const res = await r2.fetch(this.r2ObjectUrl(env, dstKey), {
+        method: "PUT", headers: { "x-amz-copy-source": source },
+      }).catch(() => null);
+      if (!res) return false;
+      const text = await res.text().catch(() => "");
+      return res.ok && !/<Error>/.test(text);
+    }
+    const uploadId = await this.createMultipart(r2, env, dstKey, contentType);
+    if (!uploadId) return false;
+    const parts: Array<{ partNumber: number; etag: string }> = [];
+    for (const p of plan.parts || []) {
+      const url = `${this.r2ObjectUrl(env, dstKey)}?partNumber=${p.partNumber}&uploadId=${encodeURIComponent(uploadId)}`;
+      const res = await r2.fetch(url, {
+        method: "PUT",
+        headers: { "x-amz-copy-source": source, "x-amz-copy-source-range": `bytes=${p.start}-${p.end}` },
+      }).catch(() => null);
+      const text = res ? await res.text().catch(() => "") : "";
+      const m = text.match(/<ETag>([^<]+)<\/ETag>/);
+      if (!res || !res.ok || !m) {
+        await this.abortMultipart(r2, env, dstKey, uploadId);
+        return false;
+      }
+      parts.push({ partNumber: p.partNumber, etag: m[1].replace(/&quot;/g, "") });
+    }
+    const done = await this.completeMultipart(r2, env, dstKey, uploadId, parts);
+    if (!done.ok) {
+      await this.abortMultipart(r2, env, dstKey, uploadId);
+      return false;
+    }
+    return true;
   }
 
   // POST /public-bundle — anon-callable. Body: { slug, boardId? }. Identical to

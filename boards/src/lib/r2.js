@@ -127,6 +127,28 @@ let _override = null;
 export function setReadUrlResolver(fn) { _override = typeof fn === 'function' ? fn : null; }
 export function clearReadUrlResolver() { _override = null; }
 
+// Scoped resolvers: keys under a registered prefix resolve through their own
+// source, ahead of the override and of /sign-reads, so they never disturb how
+// everything else loads. `__fs/<token>/<name>` is a file shared with you,
+// presigned by the party's /file-share (lib/fileShareUrls.js): the /f/ page,
+// the in-app viewer and a shortcut card all read shared files this way.
+//   resolver = { cached(key) → url|null, resolve(key, { force }) → Promise<url|null>,
+//                onAuthError?(key) }
+const _prefixResolvers = new Map();
+export function setPrefixResolver(prefix, resolver) {
+  if (typeof prefix !== 'string' || !prefix) return;
+  if (resolver && typeof resolver.cached === 'function' && typeof resolver.resolve === 'function') {
+    _prefixResolvers.set(prefix, resolver);
+  } else {
+    _prefixResolvers.delete(prefix);
+  }
+}
+function prefixResolverFor(key) {
+  if (!_prefixResolvers.size || typeof key !== 'string') return null;
+  for (const [prefix, r] of _prefixResolvers) if (key.startsWith(prefix)) return r;
+  return null;
+}
+
 // Auth-error escalation for the public viewers. When a read-URL override is
 // installed (the /share + /c viewers answer r2:<key> from a presigned bundle
 // map), an expired/403 image CANNOT self-heal via getSignedUrl(force) — that
@@ -139,6 +161,8 @@ export function clearImageAuthErrorHandler() { _authErrHandler = null; }
 // active — the authenticated app self-heals via getSignedUrl(force) and must
 // never trigger bundle re-fetches.
 export function notifyImageAuthError(key) {
+  const scoped = prefixResolverFor(key);
+  if (scoped) { try { scoped.onAuthError?.(key); } catch (_) {} return; }
   if (_override && _authErrHandler) { try { _authErrHandler(key); } catch (_) {} }
 }
 
@@ -239,7 +263,7 @@ async function flush() {
 // party that predates the `download` field (its response has no `downloads`),
 // and the caller then takes the Blob path as before.
 export async function getDownloadUrl(key, filename) {
-  if (!key || typeof key !== 'string' || !filename || _override) return null;
+  if (!key || typeof key !== 'string' || !filename || _override || prefixResolverFor(key)) return null;
   try {
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token || '';
@@ -263,6 +287,8 @@ export async function getDownloadUrl(key, filename) {
 // network failed.
 export function getSignedUrl(key, { force = false } = {}) {
   if (!key || typeof key !== 'string') return Promise.resolve(null);
+  const scoped = prefixResolverFor(key);
+  if (scoped) return Promise.resolve(scoped.resolve(key, { force })).then((u) => u || null, () => null);
   // Public viewer: resolve against the bundle's presigned map, never
   // touch the auth-gated sign-reads endpoint.
   if (_override) return Promise.resolve(_override(key) || null);
@@ -294,6 +320,8 @@ export async function resolveSrc(src) {
 export function cachedUrl(src) {
   if (typeof src !== 'string' || !src.startsWith('r2:')) return src || null;
   const key = src.slice(3);
+  const scoped = prefixResolverFor(key);
+  if (scoped) return scoped.cached(key) || null;
   // Public viewer: the presigned URL is known synchronously, so the
   // first paint can show the image with no shimmer.
   if (_override) return _override(key) || null;

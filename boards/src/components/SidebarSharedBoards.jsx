@@ -25,10 +25,15 @@ export function SidebarSharedBoards({
   shared = [],     // rows from list_shared_boards
   activeBoardId,
   onOpenBoard,
+  // The Shared page's entry, when there is anything on it (files shared with
+  // you or by you): { unread, active, onOpen }. It sits under the heading and
+  // shows whether or not the clusters are folded.
+  filesRow = null,
 }) {
   const [exp, setExp] = useState(loadExpanded);
 
-  if (!shared || shared.length === 0) return null;
+  const hasBoards = !!shared && shared.length > 0;
+  if (!hasBoards && !filesRow) return null;
 
   // Group rows by source workspace.
   const groups = new Map();
@@ -51,13 +56,29 @@ export function SidebarSharedBoards({
 
   return (
     <div className="sb-shared">
-      <div className="sb-eyebrow sb-shared-head"
-           onClick={() => setRoot(!exp.root)}
-           role="button" tabIndex={0}>
-        <span className={`sb-shared-chev ${exp.root ? 'is-open' : ''}`}>▸</span>
-        Shared with me<span className="sb-shared-count"> · {shared.length}</span>
-      </div>
-      {exp.root && (
+      {hasBoards ? (
+        <div className="sb-eyebrow sb-shared-head"
+             onClick={() => setRoot(!exp.root)}
+             role="button" tabIndex={0}>
+          <span className={`sb-shared-chev ${exp.root ? 'is-open' : ''}`}>▸</span>
+          Shared with me<span className="sb-shared-count"> · {shared.length}</span>
+        </div>
+      ) : (
+        <div className="sb-eyebrow sb-shared-head">Shared with me</div>
+      )}
+      {filesRow && (
+        <div className={`sb-row sb-shared-row sb-shared-files ${filesRow.active ? 'active' : ''}`}
+             role="button" tabIndex={0}
+             onClick={() => filesRow.onOpen?.()}
+             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); filesRow.onOpen?.(); } }}
+             title="Files shared with you, and files you've shared">
+          <span className="sb-row-label">Shared files</span>
+          {filesRow.unread > 0 && (
+            <span className="sb-shared-unread" aria-label={`${filesRow.unread} new`}>{filesRow.unread}</span>
+          )}
+        </div>
+      )}
+      {hasBoards && exp.root && (
         <div className="sb-shared-body">
           {[...groups.entries()].map(([gid, group]) => {
             const open = exp.groups[gid] !== false; // groups default OPEN once parent is opened

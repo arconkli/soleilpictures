@@ -369,6 +369,11 @@ export const EV = Object.freeze({
   FILE_SHARE_SIGNIN_CLICK: 'file_share_signin_click',     // a sign-in link on /f/<token> {surface:'gate'|'comments'|'switch_account'} (must-land)
   FILE_SHARE_CTA_CLICK:    'file_share_cta_click',        // the signed-out "Try Clusters free" footer on /f/<token> {surface:'footer'} (must-land)
   FILE_SHARE_RETURN_LANDED: 'file_share_return_landed',   // {file_token} — a sign-in that began on /f/<token> was sent back to that file once a session existed
+  SHARED_PAGE_VIEW:        'shared_page_view',            // the Shared page opened {tab:'with_me'|'by_me',n,unread} — once per open
+  SHARED_FILE_OPEN:        'shared_file_open',            // a file shared with you opened inside the app {via:'shared_page'|'bell'|'toast'|'shortcut'|'link'}
+  SHARED_FILE_SAVE:        'shared_file_save',            // Save a copy of a file shared with you {kind,ok,reason}
+  SHARED_FILE_HIDE:        'shared_file_hide',            // a file taken off (or put back on) "Shared with me" {hidden}
+  FILE_SHARE_STOP:         'file_share_stop',             // Stop sharing from "Shared by me" {kind,undone}
   FILE_COMMENT_ADD:        'file_comment_add',            // a comment posted on a shared file {kind,pinned:'time'|'page'|null,reply}
   SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,share_token,board_id,boards_opened}
   SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}

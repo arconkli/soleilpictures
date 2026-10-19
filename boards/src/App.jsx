@@ -90,6 +90,8 @@ import { SidebarBoardsSection } from './components/SidebarBoardsSection.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { SidebarTags } from './components/SidebarTags.jsx';
 import { TagDetailView } from './components/TagDetailView.jsx';
+// The Shared page (held: sharedFilesAllowed), loaded when it is opened.
+const SharedPage = React.lazy(() => import('./components/shared/SharedPage.jsx').then((m) => ({ default: m.SharedPage })));
 import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
 import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
@@ -122,6 +124,9 @@ import { InfoHost } from './components/info/InfoHost.jsx';
 import { PlayerHost } from './components/film/PlayerHost.jsx';
 import { FileShareHost } from './components/fileShare/FileShareHost.jsx';
 import { setShareRightsResolver } from './lib/fileShareBus.js';
+import { SharedFileHost } from './components/fileShare/SharedFileHost.jsx';
+import { useSharedFiles } from './hooks/useSharedFiles.js';
+import { saveSharedFileCopy } from './lib/fileShares.js';
 import { openPlayer } from './lib/playerBus.js';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -202,14 +207,14 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed } from './lib/appHost.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
 import { SidebarResizer } from './components/sidebar/SidebarResizer.jsx';
 import { readSidebarWidth, writeSidebarWidth, clampSidebarWidth, isWideSidebar } from './lib/sidebarWidth.js';
-import { moveFiles, failureMessage } from './lib/clustersApi.js';
+import { moveFiles, failureMessage, appendCards } from './lib/clustersApi.js';
 import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
 import { useStorageUsage } from './hooks/useStorageUsage.js';
 import {
@@ -4898,12 +4903,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
+  //   'shared' = the Shared page (files shared with you / by you; held)
+  const sharedFiles = useSharedFiles({ enabled: sharedFilesAllowed() });
+  const sharedFilesRow = sharedFilesAllowed() && (sharedFiles.withMe.length || sharedFiles.byMe.length)
+    ? { unread: sharedFiles.unread, active: currentSurface === 'shared',
+        onOpen: () => { setCurrentSurface('shared'); if (mobileShell) setMobileNavOpen(false); } }
+    : null;
   // Name the tab after what you're looking at. The board shown is the one the
   // BREADCRUMB describes — same rule, so the tab and the topbar never disagree
   // about which side of a split you are on. A docked document has no board
   // trail of its own, so the trail (and the tab) keep naming the canvas.
   const tabTitle = useMemo(() => {
     if (currentSurface === 'tag') return activeTag?.name || null;
+    if (currentSurface === 'shared') return 'Shared';
     if (currentSurface !== 'board') return null;   // home graph → served title
     const paneId = (activePaneId === 'split' && splitId && !splitDoc) ? splitId : currentId;
     return boards[paneId]?.name || (paneId === rootBoard.id ? rootBoard.name : null);
@@ -5382,6 +5394,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Double-click (or Show on board) on a file in the sidebar: a placed file is
   // shown on its board; one stored off the board has no spot on a canvas, so
   // its cluster opens in Files with it picked out.
+  const showSidebarFileRef = useRef(null);
   const showSidebarFile = (boardId, cardId, { unplaced = false } = {}) => {
     if (!boardId || !boards[boardId]) return;
     if (mobileShell) setMobileNavOpen(false);
@@ -5390,6 +5403,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     openInFiles(boardId);
     setFilesReveal({ boardId, ids: [cardId], token: Date.now(), pane: 'main' });
   };
+  showSidebarFileRef.current = showSidebarFile;
   // Upload in the sidebar's foot: into the cluster on screen, or — off the
   // board — into one picked from a list that leads with the recent ones. Either
   // way it goes in as a drop on that cluster's row does: stored off the board,
@@ -5892,6 +5906,61 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setUpgradeReason('storage');
     return true;
   }, []);
+
+  // "Save a copy" of a file shared with you (the in-app viewer's Add to
+  // cluster): pick one of your clusters, and the party copies the file into
+  // it (lib/fileShareSave.js). It counts toward that workspace's storage and
+  // cards like an upload, so the walls are an upload's: the card limit is
+  // checked first for your own clusters, a full drive answers 402.
+  const saveSharedCopy = useCallback(async ({ token, res }) => {
+    const picked = await requestClusterPick({ placeholder: 'Save a copy to…' });
+    const dest = picked?.id ? boards[picked.id] : null;
+    if (!dest) return;
+    const own = dest.workspace_id === workspace?.id && workspace?.created_by === user?.id;
+    const mt = myTierRef.current || myTier;
+    const paid = mt.tier === 'paid' || mt.tier === 'admin';
+    if (own && mt.tier === 'demo') {
+      const limit = mt.effectiveCardLimit || DEMO_CARD_LIMIT;
+      if (Number(mt.demoCardCount) >= limit) { pitchCapWall({ limit, rejected: 1, kinds: [res?.file?.kind] }); return; }
+    }
+    const out = await saveSharedFileCopy(token, { boardId: dest.id, workspaceId: dest.workspace_id });
+    const log = (ok, reason = null) => {
+      try { logEvent(EV.SHARED_FILE_SAVE, { kind: res?.file?.kind || null, ok, reason }); } catch (_) {}
+    };
+    if (!out.ok) {
+      log(false, out.reason);
+      if (out.reason === 'over_quota') {
+        try {
+          logEventOnce(`storage_wall:shared_save:${own ? (paid ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, {
+            surface: 'shared_save', own: !!own, paid: !!paid, offered: !!(own && !paid),
+          });
+        } catch (_) {}
+        if (own && !paid && pitchStorageGate({ force: true })) return;
+        feedback.toast({ type: 'warning', message: storageFullMessage({ own, paid }) });
+        return;
+      }
+      const msg = out.reason === 'no_download' ? 'The person who shared it turned off downloading.'
+        : out.reason === 'not_writer' ? 'You can’t add files to that cluster.'
+        : out.reason === 'gone' || out.reason === 'no_access' ? 'This file isn’t shared with you anymore.'
+        : 'Couldn’t save a copy. Try again.';
+      feedback.toast({ type: 'error', message: msg });
+      return;
+    }
+    const landed = await appendCards({ boardId: dest.id, cards: [out.card] });
+    if (!landed?.ok) {
+      log(false, landed?.error || 'append');
+      if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit: mt.effectiveCardLimit || DEMO_CARD_LIMIT, rejected: 1, kinds: [out.card.kind] }); return; }
+      feedback.toast({ type: 'error', message: failureMessage(landed, 'save') || 'Couldn’t save a copy. Try again.' });
+      return;
+    }
+    log(true);
+    const cardId = landed.cards?.[0]?.id || out.card.id;
+    feedback.toast({
+      type: 'success',
+      message: `Saved to ${dest.name || 'your cluster'}`,
+      action: { label: 'Show', onClick: () => showSidebarFileRef.current?.(dest.id, cardId, { unplaced: true }) },
+    });
+  }, [boards, workspace, user?.id, myTier, requestClusterPick, pitchCapWall, pitchStorageGate, feedback]);
 
   // ── A dropped FOLDER becomes clusters (Drive basics, item 2) ─────────────────
   // lib/folderWalk reads the folder, lib/folderPlan prices it in cards, the
@@ -9598,6 +9667,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                   shared={sharedRoots}
                   activeBoardId={currentSurface === 'board' ? activeBoardId : null}
                   onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); if (mobileShell) setMobileNavOpen(false); }}
+                  filesRow={sharedFilesRow}
                 />
               )}
               tagsSection={(
@@ -9641,6 +9711,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             shared={sharedRoots}
             activeBoardId={currentSurface === 'board' ? activeBoardId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+            filesRow={sharedFilesRow}
           />
 
           {/* This workspace's own clusters only. The tree already filtered to
@@ -10071,6 +10142,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               </Suspense>
             )}
           />
+        ) : currentSurface === 'shared' && sharedFilesAllowed() ? (
+          <Suspense fallback={<div className="shp" />}>
+            <SharedPage onClose={() => setCurrentSurface('board')} onSaveCopy={saveSharedCopy} feedback={feedback} />
+          </Suspense>
         ) : currentSurface === 'tag' && activeTag ? (
           // Keyed by tag: switching tags must start from empty state, not
           // render the previous tag's items under the new name.
@@ -10409,6 +10484,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }}
       />
       {fileSharesAllowed() && <FileShareHost />}
+      {sharedFilesAllowed() && <SharedFileHost onSaveCopy={saveSharedCopy} />}
 
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
           and choosing the partial keeps the cards they're entitled to. Rendered

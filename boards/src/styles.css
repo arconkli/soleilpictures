@@ -1065,6 +1065,15 @@ body {
   font: 700 10px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase;
 }
 [data-theme='light'] .sb-shared-ro { color: var(--ink-1); }
+/* The Shared page's row: under the heading, level with the groups. Unread is
+   a plain count, as Messages has it — no gold at rest. */
+.sb-shared-files { padding-left: 14px; }
+.sb-shared-unread {
+  flex: none; margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: color-mix(in srgb, var(--ink-0) 10%, transparent);
+  color: var(--ink-0); font: 600 11px/1 var(--font-sans);
+}
 
 /* ─── Sidebar tags section ─────────────────────────────────────────── */
 /* Mirrors .sb-shared visually so the section reads as a sibling of

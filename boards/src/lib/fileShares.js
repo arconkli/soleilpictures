@@ -166,3 +166,69 @@ export const addFileSharePeople = (boardId, cardId, emails, role) =>
 // role null removes the person.
 export const setFileSharePerson = (boardId, cardId, email, role) =>
   rpc('set_file_share_person', { p_board: boardId, p_card: cardId, p_email: email, p_role: role ?? null });
+
+// ---------------------------------------------------------------------------
+// The Shared page (0424): what's been shared with you, and what you've shared.
+
+export const listSharedWithMe = ({ limit = 100, before = null } = {}) =>
+  rpc('list_shared_with_me', { p_limit: limit, p_before: before });
+
+// Opening a shared file marks it read; a signed-in open from a link puts it on
+// your list. Answers whether it recorded (false for your own, or the team's).
+export const markFileShareOpened = (token) => rpc('mark_file_share_opened', { p_token: token });
+
+export const hideSharedFile = (token, hidden) => rpc('hide_shared_file', { p_token: token, p_hidden: !!hidden });
+
+export const listMyFileShares = ({ limit = 200 } = {}) => rpc('list_my_file_shares', { p_limit: limit });
+
+// Stops a file's link and removes everyone in one step; the answer carries
+// what the undo needs ({ link_access, stopped_at }).
+export const stopFileShare = (boardId, cardId) => rpc('stop_file_share', { p_board: boardId, p_card: cardId });
+
+export const undoStopFileShare = (boardId, cardId, { linkAccess, stoppedAt }) =>
+  rpc('undo_stop_file_share', { p_board: boardId, p_card: cardId, p_link_access: linkAccess, p_stopped_at: stoppedAt });
+
+async function partyPost(path, body) {
+  const sb = await client();
+  if (!sb) return { status: 0, body: null };
+  const post = async () => {
+    const bearer = await accessToken(sb);
+    if (!bearer) return { status: 401, body: null };
+    const res = await fetch(`${PARTY_ORIGIN}/parties/upload/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
+      body: JSON.stringify(body),
+    });
+    let json = null;
+    try { json = await res.json(); } catch (_) { json = null; }
+    return { status: res.status, body: json };
+  };
+  try {
+    let out = await post();
+    if (out.status === 401 || out.body?.status === 'auth_expired') {
+      try { await sb.auth.refreshSession(); } catch (_) { /* retry anyway */ }
+      out = await post();
+    }
+    return out;
+  } catch (_) {
+    return { status: 0, body: null };
+  }
+}
+
+// { token: presigned poster url } for the Shared page's rows (≤ 50 a call).
+export async function fetchSharedThumbs(tokens) {
+  const list = [...new Set((tokens || []).filter(Boolean))].slice(0, 50);
+  if (!list.length) return {};
+  const { body } = await partyPost('share/file-thumbs', { tokens: list });
+  return (body && typeof body.urls === 'object' && body.urls) || {};
+}
+
+// "Save a copy": the party copies the file into a cluster of `workspaceId`
+// (it counts toward that workspace's storage) and answers the card to land.
+// { ok: true, card } or { ok: false, reason, status }.
+export async function saveSharedFileCopy(token, { boardId, workspaceId }) {
+  const { status, body } = await partyPost(`${encodeURIComponent(workspaceId)}/file-save`, { token, boardId });
+  if (status === 200 && body?.ok && body.card) return { ok: true, card: body.card };
+  return { ok: false, status, reason: body?.reason || (status === 402 ? 'over_quota' : 'error'),
+           used: body?.used ?? null, quota: body?.quota ?? null };
+}

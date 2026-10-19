@@ -15,7 +15,8 @@ import {
 } from '../lib/boardsApi.js';
 import { subscribeNotifications } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
-import { fileSharesAllowed } from '../lib/appHost.js';
+import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
+import { openSharedFile } from '../lib/sharedFileBus.js';
 
 export function useNotifications({ userId, feedback = null, onOpenBoard = null } = {}) {
   const [items, setItems] = useState([]);
@@ -63,7 +64,9 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null }
           message: `${payload.title}${payload.body ? ` — ${payload.body}` : ''}`,
           ttl: 8000,
           action: fileToken
-            ? { label: 'Open', onClick: () => window.open('/f/' + encodeURIComponent(fileToken), '_blank', 'noopener') }
+            ? { label: 'Open', onClick: () => (sharedFilesAllowed()
+                ? openSharedFile({ token: fileToken, via: 'toast' })
+                : window.open('/f/' + encodeURIComponent(fileToken), '_blank', 'noopener')) }
             : (payload.board_id ? { label: 'Open', onClick: openIt } : undefined),
         });
       } catch (_) {}

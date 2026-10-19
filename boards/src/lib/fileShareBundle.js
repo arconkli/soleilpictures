@@ -8,6 +8,18 @@ export const FILE_SHARE_URL_TTL_SECONDS = 6 * 60 * 60;
 export const FILE_SHARE_CACHE_CONTROL = 'private, max-age=21600';
 export const FILE_TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Inside the app a shared file's media are read through `r2:__fs/<token>/<name>`
+// (lib/fileShareUrls.js resolves them from this route's answer): src, poster
+// or download.
+export const FS_PREFIX = '__fs/';
+const FS_NAMES = new Set(['src', 'poster', 'download']);
+export function fsRef(token, name) { return `r2:${FS_PREFIX}${String(token || '').toLowerCase()}/${name}`; }
+// '__fs/<token>/<name>' (no 'r2:') → { token, name } or null.
+export function parseFsKey(key) {
+  const m = /^__fs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/([a-z]+)$/i.exec(String(key || ''));
+  return m && FS_NAMES.has(m[2]) ? { token: m[1].toLowerCase(), name: m[2] } : null;
+}
+
 // The name a saved copy gets: file.name, plus `.ext` when the name carries no
 // extension of its own and the extension is known.
 export function downloadName(file) {

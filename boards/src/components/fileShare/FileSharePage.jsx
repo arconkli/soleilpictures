@@ -6,8 +6,9 @@
 // get_file_share decides access as the caller). The page gets URLs, never
 // storage keys: the RPC's keys are identifiers the party strips before it
 // answers (they open nothing on their own). Viewers get the pseudo-keys
-// r2:__fs/src and r2:__fs/poster, which the read-url resolver below maps onto
-// the latest presigned urls.
+// r2:__fs/<token>/src and …/poster, which lib/fileShareUrls.js maps onto the
+// latest presigned urls (a scoped resolver: the app's own files are untouched,
+// so the same view can open over the app — variant 'overlay').
 //
 // Those urls live FILE_SHARE_URL_TTL_SECONDS (6h). The page re-fetches every 5
 // minutes while visible and on coming back, so a stopped share turns into
@@ -23,13 +24,24 @@
 // board_id and card_id) gets "Manage sharing" in the header, which opens the
 // owner's dialog right here (lazy). When it closes, or any write lands
 // (FILE_SHARE_CHANGED_EVENT), the page reads its state again.
+//
+// Inside the app (variant 'overlay', opened by lib/sharedFileBus.js from the
+// Shared page, the bell or a shortcut) the same view is a dialog over the app:
+// Close instead of the brand, Esc closes, and the host adds its own actions
+// (Save a copy, Add shortcut). A signed-in open marks the file opened (0424),
+// which also puts a link you opened on your "Shared with me" list.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   fetchFileShare, listFileComments, addFileComment, resolveFileComment, deleteFileComment, restoreFileComment,
-  formatAt,
+  markFileShareOpened, formatAt,
 } from '../../lib/fileShares.js';
-import { setReadUrlResolver, clearReadUrlResolver } from '../../lib/r2.js';
-import { FILE_SHARE_URL_TTL_SECONDS } from '../../lib/fileShareBundle.js';
+import { rememberShare } from '../../lib/fileShareUrls.js';
+import { FILE_SHARE_URL_TTL_SECONDS, fsRef } from '../../lib/fileShareBundle.js';
+import * as modalGuard from '../../lib/modalGuard.js';
+import { sharedFilesAllowed } from '../../lib/appHost.js';
+import { Icon } from '../Icon.jsx';
+import { X } from '../../lib/icons.js';
 import { timeToFrame } from '../../lib/timecode.js';
 import { logEvent, logEventNow, logEventOnce } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
@@ -48,8 +60,6 @@ const REFRESH_MS = 5 * 60 * 1000;
 export const STALE_URLS_MS = (FILE_SHARE_URL_TTL_SECONDS - 60 * 60) * 1000;
 // The answers that mean something; anything else is a failure to read.
 const KNOWN_STATUS = new Set(['ok', 'gone', 'sign_in', 'no_access']);
-const SRC = 'r2:__fs/src';
-const POSTER = 'r2:__fs/poster';
 
 async function getSupabase() {
   return (await import('../../lib/supabase.js')).supabase;
@@ -57,6 +67,7 @@ async function getSupabase() {
 
 export const defaultApi = {
   fetchFileShare, listFileComments, addFileComment, resolveFileComment, deleteFileComment, restoreFileComment,
+  markFileShareOpened,
   async signOut() {
     const sb = await getSupabase();
     if (!sb) return;
@@ -109,6 +120,52 @@ function Shell({ children, signedOut, token, wide = false, action = null }) {
   );
 }
 
+// The same room as a dialog over the app: Close where the brand was, Esc
+// closes unless something sits above it (the owner's dialog, a confirm).
+function OverlayShell({ children, wide = false, action = null, onClose, label = 'Shared file' }) {
+  const modalRef = useRef(null);
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const unregister = modalGuard.registerModalOpen();
+    modalRef.current = unregister;
+    return () => { modalRef.current = null; unregister(); };
+  }, []);
+  useEffect(() => {
+    const prev = document.activeElement;
+    rootRef.current?.focus({ preventScroll: true });
+    return () => { try { prev?.focus?.({ preventScroll: true }); } catch (_) {} };
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (modalGuard.isTopModal && !modalGuard.isTopModal(modalRef.current)) return;
+      e.preventDefault(); e.stopPropagation();
+      onClose?.();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  return createPortal(
+    <div ref={rootRef} tabIndex={-1} className="fsp fsp--overlay public-dark" role="dialog" aria-modal="true" aria-label={label}>
+      <header className="fsp-top">
+        <button type="button" className="fsp-btn fsp-close" onClick={() => onClose?.()} aria-label="Close" title="Close (Esc)">
+          <Icon as={X} size={16} weight="regular" />
+        </button>
+        <span className="fsp-top-label">Shared with you</span>
+        {action}
+      </header>
+      <main className={`fsp-main${wide ? ' is-wide' : ''}`}>{children}</main>
+    </div>,
+    document.body,
+  );
+}
+
+// The page's frame, or the dialog's: one stable component, so a player inside
+// never remounts because the host re-rendered.
+function Frame({ overlay = false, onClose = null, ...props }) {
+  return overlay ? <OverlayShell {...props} onClose={onClose} /> : <Shell {...props} />;
+}
+
 function StatePanel({ title, body, children }) {
   return (
     <div className="fsp-state" role="status">
@@ -130,18 +187,18 @@ function FileCardView({ file }) {
   );
 }
 
-export function FileSharePage({ token, api = defaultApi, staleAfterMs = STALE_URLS_MS }) {
+export function FileSharePage({
+  token, api = defaultApi, staleAfterMs = STALE_URLS_MS,
+  variant = 'page', onClose = null,
+  // (res) => node: the in-app host's own header actions (Save a copy, Add shortcut).
+  renderActions = null,
+}) {
   const [res, setRes] = useState({ status: 'loading' });
-  const urlsRef = useRef({});
   const okRef = useRef(false);
+  const markedRef = useRef(false);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-
-  // Storage keys never reach the page: r2:__fs/<name> → the presigned url.
-  useEffect(() => {
-    setReadUrlResolver((key) => (typeof key === 'string' && key.startsWith('__fs/') ? urlsRef.current[key.slice(5)] || null : null));
-    return () => clearReadUrlResolver();
-  }, []);
+  const overlay = variant === 'overlay';
 
   const load = useCallback(async ({ refresh = false } = {}) => {
     const asObj = (out) => (out && typeof out === 'object' ? out : { status: 'error' });
@@ -158,8 +215,14 @@ export function FileSharePage({ token, api = defaultApi, staleAfterMs = STALE_UR
     // file on screen and the polling going; gone, sign_in, no_access replace it.
     if (refresh && okRef.current && r.status === 'error') return;
     if (r.status === 'ok') {
-      urlsRef.current = { ...(r.urls || {}) };
+      // Storage keys never reach the page: r2:__fs/<token>/<name> → these urls.
+      rememberShare(token, r);
       r = { ...r, issuedAt: Date.now() };
+      // Opened: read on the Shared page, and a link you opened is listed there.
+      if (r.signed_in && !markedRef.current) {
+        markedRef.current = true;
+        Promise.resolve(api.markFileShareOpened?.(token)).catch(() => {});
+      }
     }
     okRef.current = r.status === 'ok';
     setRes(r);
@@ -186,24 +249,27 @@ export function FileSharePage({ token, api = defaultApi, staleAfterMs = STALE_UR
   const signInHref = signInHrefFor(token);
 
   if (status === 'loading') {
+    if (overlay) {
+      return <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}><span className="fsp-spinner" aria-label="Loading" /></Frame>;
+    }
     return <div className="fsp public-dark fsp--splash" aria-busy="true"><span className="fsp-spinner" aria-label="Loading" /></div>;
   }
   if (status === 'gone') {
     return (
-      <Shell signedOut={false} token={token}>
+      <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
         <StatePanel title="This file isn't available anymore."
                     body="It may have been deleted, or the person who shared it stopped sharing." />
-      </Shell>
+      </Frame>
     );
   }
   if (status === 'sign_in') {
     return (
-      <Shell signedOut={false} token={token}>
+      <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
         <StatePanel title="Sign in to open this file" body="Only people it was shared with can open it.">
           <a className="fsp-btn fsp-btn--primary" href={signInHref}
              onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'gate' })}>Sign in</a>
         </StatePanel>
-      </Shell>
+      </Frame>
     );
   }
   if (status === 'no_access') {
@@ -214,30 +280,33 @@ export function FileSharePage({ token, api = defaultApi, staleAfterMs = STALE_UR
       window.location.assign(signInHref);
     };
     return (
-      <Shell signedOut={false} token={token}>
+      <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
         <StatePanel title="You need access"
                     body={res.email ? `Ask the person who shared it to add ${res.email}.` : 'Ask the person who shared it to add you.'}>
           <a className="fsp-btn" href={signInHref} onClick={switchAccount}>Use another account</a>
         </StatePanel>
-      </Shell>
+      </Frame>
     );
   }
   if (status !== 'ok') {
     return (
-      <Shell signedOut={false} token={token}>
+      <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
         <StatePanel title="Couldn't load this file." body="Check your connection and try again.">
           <button type="button" className="fsp-btn" onClick={() => { setRes({ status: 'loading' }); load(); }}>Try again</button>
         </StatePanel>
-      </Shell>
+      </Frame>
     );
   }
   return (
-    <FileShareView token={token} res={res} api={api} signInHref={signInHref}
+    <FileShareView token={token} res={res} api={api} signInHref={signInHref} overlay={overlay} onClose={onClose}
+                   extraActions={renderActions ? renderActions(res) : null}
                    staleAfterMs={staleAfterMs} onRefresh={() => load({ refresh: true })} />
   );
 }
 
-function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh }) {
+function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, overlay = false, onClose = null, extraActions = null }) {
+  const SRC = fsRef(token, 'src');
+  const POSTER = fsRef(token, 'poster');
   const file = res.file || {};
   const urls = res.urls || {};
   const kind = file.kind;
@@ -422,10 +491,15 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh })
       }));
   }, [kind, comments, fps, activeId]);
 
+  // The player takes Escape for itself and hands it on as an action: inside
+  // the app, that closes the viewer like Escape anywhere else on it.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const onPlayerAction = useCallback((name, payload) => {
     if (name === 'marker' && payload?.id) setActiveId(payload.id);
     else if (name === 'comment') { playerRef.current?.pause?.(); setFocusReq((n) => n + 1); }
-  }, []);
+    else if (name === 'escape' && overlay) onCloseRef.current?.();
+  }, [overlay]);
 
   const getAnchor = useCallback(() => {
     if (kind === 'video') {
@@ -481,13 +555,25 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh })
     viewer = <FileCardView file={file} />;
   }
 
+  // On the page, someone signed in can take the file into the app, where
+  // Save a copy and Add shortcut live (held with the Shared page).
+  const openInApp = !overlay && signedIn && sharedFilesAllowed() ? (
+    <a className="fsp-btn fsp-open-app" href={`/?shared=${encodeURIComponent(token)}`}>Open in Clusters</a>
+  ) : null;
+  const headerActions = (canManage || extraActions || openInApp) ? (
+    <div className="fsp-top-actions">
+      {extraActions}
+      {openInApp}
+      {canManage && (
+        <button type="button" className="fsp-btn fsp-manage" onClick={() => setManageOpen(true)}>
+          Manage sharing
+        </button>
+      )}
+    </div>
+  ) : null;
+
   return (
-    <Shell signedOut={!signedIn} token={token} wide={showRail}
-           action={canManage ? (
-             <button type="button" className="fsp-btn fsp-manage" onClick={() => setManageOpen(true)}>
-               Manage sharing
-             </button>
-           ) : null}>
+    <Frame overlay={overlay} onClose={onClose} signedOut={!signedIn} token={token} wide={showRail} action={headerActions}>
       {canManage && manageOpen && (
         <Suspense fallback={null}>
           <FileShareDialog boardId={res.board_id} cardId={res.card_id}
@@ -522,7 +608,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh })
               </div>
             )}
           </div>
-          {!signedIn && (
+          {!signedIn && !overlay && (
             <footer className="fsp-cta">
               <span>Made with Clusters, one place for every file you make.</span>
               <a className="fsp-btn" href={`/?utm_source=file_share&utm_medium=cta&utm_campaign=${encodeURIComponent(token)}`}
@@ -540,7 +626,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh })
           </aside>
         )}
       </div>
-    </Shell>
+    </Frame>
   );
 }
 

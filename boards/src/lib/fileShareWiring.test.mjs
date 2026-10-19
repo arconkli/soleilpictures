@@ -91,20 +91,22 @@ test('the dialog never toasts, and tells the bus after a write', () => {
   assert.match(s, /notifyFileShareChanged\(\{ boardId, cardId \}\)/);
 });
 
-test('NotificationsPanel routes file.* kinds to /f/<token>', () => {
+// A file.* notification opens the file inside the app (over what you were
+// doing) once the Shared page ships; behind its hold, the /f/ page in a tab.
+test('NotificationsPanel opens file.* kinds in the app, else /f/<token>', () => {
   const s = src('../components/NotificationsPanel.jsx');
   assert.match(s, /startsWith\('file\.'\)/);
-  assert.match(s, /window\.open\('\/f\/' \+ encodeURIComponent\(n\.data\.token\)/);
-  assert.match(s, /import \{ fileSharesAllowed \} from '\.\.\/lib\/appHost\.js'/);
+  assert.match(s, /import \{ fileSharesAllowed, sharedFilesAllowed \} from '\.\.\/lib\/appHost\.js'/);
   assert.match(s, /startsWith\('file\.'\) && n\.data\?\.token && fileSharesAllowed\(\)/);
+  assert.match(s, /if \(sharedFilesAllowed\(\)\) openSharedFile\(\{ token: n\.data\.token, via: 'bell' \}\);\s+else window\.open\('\/f\/' \+ encodeURIComponent\(n\.data\.token\)/);
 });
 
-test('the live notification toast opens a file.* share in /f/', () => {
+test('the live notification toast opens a file.* share in the app, else /f/', () => {
   const s = src('../hooks/useNotifications.js');
   assert.match(s, /startsWith\('file\.'\)/);
-  assert.match(s, /'\/f\/' \+ encodeURIComponent\(fileToken\)/);
-  assert.match(s, /import \{ fileSharesAllowed \} from '\.\.\/lib\/appHost\.js'/);
+  assert.match(s, /import \{ fileSharesAllowed, sharedFilesAllowed \} from '\.\.\/lib\/appHost\.js'/);
   assert.match(s, /fileSharesAllowed\(\) && String\(payload\.kind/);
+  assert.match(s, /sharedFilesAllowed\(\)\s+\? openSharedFile\(\{ token: fileToken, via: 'toast' \}\)\s+: window\.open\('\/f\/' \+ encodeURIComponent\(fileToken\)/);
 });
 
 test('the share dialog backdrop ties the top-layer viewers (lightbox, PDF), on desktop and phone', () => {

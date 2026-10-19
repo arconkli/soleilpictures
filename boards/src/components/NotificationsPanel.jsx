@@ -17,7 +17,8 @@ import { parseISO, dayTitle, shortDate, todayISO, daysBetween } from '../lib/sch
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
-import { fileSharesAllowed } from '../lib/appHost.js';
+import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
+import { openSharedFile } from '../lib/sharedFileBus.js';
 import './notificationsPanel.css';
 
 // "in 3 days" / "today" / "tomorrow" — a crew member reads relative time faster
@@ -119,7 +120,10 @@ export function NotificationsPanel({
                     } catch (_) {}
                     onMarkRead?.([n.id]);
                     if (String(n.kind || '').startsWith('file.') && n.data?.token && fileSharesAllowed()) {
-                      window.open('/f/' + encodeURIComponent(n.data.token), '_blank', 'noopener');
+                      // Inside the app, over what you were doing; before the
+                      // Shared page shipped, its page in a new tab.
+                      if (sharedFilesAllowed()) openSharedFile({ token: n.data.token, via: 'bell' });
+                      else window.open('/f/' + encodeURIComponent(n.data.token), '_blank', 'noopener');
                       return;
                     }
                     if (n.board_id) onOpenBoard?.(n.board_id);
