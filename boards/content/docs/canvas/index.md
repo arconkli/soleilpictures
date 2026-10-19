@@ -46,9 +46,9 @@ zooms at the pointer and `⌘`, `Alt` or `Shift` pans. Pinching a trackpad zooms
 in either setting. See [keyboard shortcuts](/docs/keyboard-shortcuts).
 
 If you would rather steer with the keyboard, **Settings → Appearance → Move with
-W A S D** lets you hold `W`, `A`, `S` or `D` to move around, with `⇧` to go
-faster. It is off until you turn it on, because `A` and `D` are also the Arrow
-and Free-draw keys — see
+W A S D** lets you hold `W`, `A`, `S` or `D` to move around and `Q` or `E` to
+zoom in or out, with `⇧` to go faster. It is off until you turn it on, because
+`A` and `D` are also the Arrow and Free-draw keys — see
 [moving with W A S D](/docs/keyboard-shortcuts#moving-with-w-a-s-d).
 
 ## The tool rail

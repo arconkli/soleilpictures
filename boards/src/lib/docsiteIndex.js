@@ -300,7 +300,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I move around a board with W, A, S and D?",
-        "a": "Yes, once you turn it on in Settings → Appearance → Move with W A S D. Hold a key to move that way and add Shift to go faster. It is off by default because A and D also pick the Arrow and Free-draw tools, which they stop doing while it is on."
+        "a": "Yes, once you turn it on in Settings → Appearance → Move with W A S D. Hold a key to move that way, hold Q or E to zoom in or out, and add Shift to go faster. It is off by default because A and D also pick the Arrow and Free-draw tools, which they stop doing while it is on."
       },
       {
         "q": "Do these work on Windows?",

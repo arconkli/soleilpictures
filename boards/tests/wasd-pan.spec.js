@@ -1,5 +1,5 @@
-// W A S D movement (lib/wasdPan.js, the CanvasSurface movement listener) on
-// the ?local=1 harness, which mounts the real CanvasSurface. The setting is
+// W A S D movement and Q / E zoom (lib/wasdPan.js, the CanvasSurface movement
+// listener) on the ?local=1 harness, which mounts the real CanvasSurface. The setting is
 // read from the soleil.ui cache, which is where a signed-in session mirrors
 // profiles.settings.ui.wasdPan, so these tests set it there before the page
 // loads.
@@ -40,15 +40,42 @@ async function atRest(page) {
   for (let i = 0; i < 40; i += 1) {
     await page.waitForTimeout(100);
     const cur = await camera(page);
-    if (cur.x === prev.x && cur.y === prev.y) return cur;
+    if (cur.x === prev.x && cur.y === prev.y && cur.z === prev.z) return cur;
     prev = cur;
   }
   throw new Error('the board never came to rest');
 }
 
-test('off by default: D picks Free-draw and the board stays where it is', async ({ page }) => {
+// The middle of the view, and the card nearest it, in page pixels.
+const nearMiddle = (page) => page.evaluate(() => {
+  const r = document.querySelector('.canvas-wrap').getBoundingClientRect();
+  const mid = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  let best = null;
+  for (const el of document.querySelectorAll('.canvas-wrap .card[data-card-id]')) {
+    const b = el.getBoundingClientRect();
+    const d = Math.hypot(b.left + b.width / 2 - mid.x, b.top + b.height / 2 - mid.y);
+    if (!best || d < best.d) best = { id: el.getAttribute('data-card-id'), d };
+  }
+  return { mid, id: best?.id };
+});
+
+const cardCentre = (page, id) => page.evaluate((cid) => {
+  const b = document.querySelector(`.canvas-wrap .card[data-card-id="${cid}"]`).getBoundingClientRect();
+  return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+}, id);
+
+// A zoom around `mid` by k moves every point straight away from it (or toward
+// it) k times as far: the middle itself stays where it is.
+function expectZoomedAbout(mid, from, to, k) {
+  expect(Math.abs((to.x - mid.x) - k * (from.x - mid.x))).toBeLessThan(2);
+  expect(Math.abs((to.y - mid.y) - k * (from.y - mid.y))).toBeLessThan(2);
+}
+
+test('off by default: Q and E leave the zoom alone, and D picks Free-draw', async ({ page }) => {
   await boot(page, { wasd: false });
   const before = await camera(page);
+  await hold(page, 'q', 300);
+  await hold(page, 'e', 300);
   await hold(page, 'd', 300);
   await page.waitForTimeout(300);
   expect(await camera(page)).toEqual(before);
@@ -83,6 +110,39 @@ test('on: each key moves the view its way, and A and D pick no tool', async ({ p
 
   expect(down.z).toBe(start.z);
   await expect(wrap).toHaveClass(/tool-select/);
+});
+
+test('Q zooms in and E zooms out, around the middle of the view', async ({ page }) => {
+  await boot(page, { wasd: true });
+  const { mid, id } = await nearMiddle(page);
+  expect(id).toBeTruthy();
+  const a = await camera(page);
+  const sa = await cardCentre(page, id);
+
+  await hold(page, 'q', 400);
+  const b = await atRest(page);
+  expect(b.z).toBeGreaterThan(a.z * 1.2);
+  const sb = await cardCentre(page, id);
+  expectZoomedAbout(mid, sa, sb, b.z / a.z);
+
+  await hold(page, 'e', 400);
+  const c = await atRest(page);
+  expect(c.z).toBeLessThan(b.z / 1.2);
+  expectZoomedAbout(mid, sb, await cardCentre(page, id), c.z / b.z);
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-select/);
+});
+
+test('the zoom stops at the canvas limits and stays there', async ({ page }) => {
+  await boot(page, { wasd: true });
+  await hold(page, 'q', 1500, { shift: true });
+  const max = await atRest(page);
+  expect(max.z).toBeCloseTo(5, 6);
+  // Past the commit: nothing snaps back or keeps drifting.
+  await page.waitForTimeout(400);
+  expect(await camera(page)).toEqual(max);
+  await hold(page, 'e', 3000, { shift: true });
+  const min = await atRest(page);
+  expect(min.z).toBeCloseTo(0.1, 6);
 });
 
 test('Shift goes faster', async ({ page }) => {
@@ -127,7 +187,7 @@ test('a key held with Ctrl or ⌘ never moves the board', async ({ page }) => {
   expect(await camera(page)).toEqual(before);
 });
 
-test('typing W A S D into a note types them, and the board stays put', async ({ page }) => {
+test('typing W A S D and Q E into a note types them, and the board stays put', async ({ page }) => {
   await boot(page, { wasd: true });
   const note = page.locator('.canvas-wrap .card .note').first();
   await note.dblclick();
@@ -135,10 +195,10 @@ test('typing W A S D into a note types them, and the board stays put', async ({ 
   await editor.waitFor();
   const before = await camera(page);
   await page.keyboard.press('End');
-  await page.keyboard.type(' wasd');
+  await page.keyboard.type(' wasdqe');
   await page.waitForTimeout(400);
   expect(await camera(page)).toEqual(before);
-  await expect(editor).toContainText('wasd');
+  await expect(editor).toContainText('wasdqe');
 });
 
 test('an open dialog keeps the keys: the shortcuts list stops a held key', async ({ page }) => {
@@ -146,8 +206,10 @@ test('an open dialog keeps the keys: the shortcuts list stops a held key', async
   await page.keyboard.press('?');
   await expect(page.locator('.shortcuts-modal')).toBeVisible();
   await expect(page.locator('.shortcuts-modal')).toContainText('Move around, Shift for faster');
+  await expect(page.locator('.shortcuts-modal')).toContainText('Zoom in · out, with W A S D turned on');
   const before = await camera(page);
   await hold(page, 'd', 300);
+  await hold(page, 'q', 300);
   await page.waitForTimeout(300);
   expect(await camera(page)).toEqual(before);
 });

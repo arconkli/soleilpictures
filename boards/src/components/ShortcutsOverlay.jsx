@@ -68,6 +68,7 @@ const SECTIONS = [
       [['⇧2'], 'Fit selection'],
       [['Space-drag'], 'Pan (any tool)'],
       [['W', 'A', 'S', 'D'], 'Move around, Shift for faster — turn on in Settings → Appearance'],
+      [['Q', 'E'], 'Zoom in · out, with W A S D turned on'],
       [['Scroll'], 'Pan · zoom — swap in Settings → Appearance'],
       [[`${CMD}-scroll`], 'Zoom at the pointer'],
     ],

@@ -50,8 +50,8 @@ confused with "this is gold" on a colourful board.
 - **Scroll wheel** — **Pan** (the default: `⌘`-scroll zooms) or **Zoom** (a plain
   scroll zooms at the pointer; `⌘`, `Alt` or `Shift` pans)
 - **Move with W A S D** — off by default. Hold `W`, `A`, `S` or `D` to move
-  around a board, and add `⇧` to go faster. While it is on, `A` and `D` stop
-  picking the Arrow and Free-draw tools; see
+  around a board and `Q` or `E` to zoom in or out, and add `⇧` to go faster.
+  While it is on, `A` and `D` stop picking the Arrow and Free-draw tools; see
   [keyboard shortcuts](/docs/keyboard-shortcuts#moving-with-w-a-s-d).
 
 The wheel setting exists because the convention genuinely splits across the

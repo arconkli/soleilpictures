@@ -2546,6 +2546,51 @@ export const DOCS_CONTENT = {
     [
      [
       {
+       "t": "code",
+       "v": "Q"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "E"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Zoom in · out around the middle of the screen, "
+      },
+      {
+       "t": "code",
+       "v": "⇧"
+      },
+      {
+       "t": "text",
+       "v": " for faster — with "
+      },
+      {
+       "t": "link",
+       "v": "W A S D movement",
+       "href": "#moving-with-w-a-s-d",
+       "children": [
+        {
+         "t": "text",
+         "v": "W A S D movement"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on"
+      }
+     ]
+    ],
+    [
+     [
+      {
        "t": "text",
        "v": "Scroll"
       }
@@ -2764,7 +2809,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to move up, left, down or right — two at once go diagonally — and add "
+     "v": " to move up, left, down or right — two at once go diagonally — and hold "
+    },
+    {
+     "t": "code",
+     "v": "Q"
+    },
+    {
+     "t": "text",
+     "v": " to zoom in or "
+    },
+    {
+     "t": "code",
+     "v": "E"
+    },
+    {
+     "t": "text",
+     "v": " to zoom out, around the middle of the screen. Add "
     },
     {
      "t": "code",
@@ -2772,7 +2833,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to go faster. Letting go eases to a stop."
+     "v": " to go faster at either, or move and zoom at once. Letting go eases to a stop."
     }
    ]
   },
@@ -2854,7 +2915,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and "
+     "v": " to move and "
     },
     {
      "t": "code",
@@ -2862,7 +2923,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " stays the Arrow tool. Like the rest of Appearance, the setting follows your account to every device."
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "E"
+    },
+    {
+     "t": "text",
+     "v": " to zoom, and the same two tools give way. Like the rest of Appearance, the setting follows your account to every device."
     }
    ]
   },
@@ -5783,7 +5852,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to move around, with "
+     "v": " to move around and "
+    },
+    {
+     "t": "code",
+     "v": "Q"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "E"
+    },
+    {
+     "t": "text",
+     "v": " to zoom in or out, with "
     },
     {
      "t": "code",
@@ -33534,7 +33619,35 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " moves you around a board. That one is off until you turn it on, because "
+      "v": " moves you around a board, with "
+     },
+     {
+      "t": "strong",
+      "v": "Q",
+      "children": [
+       {
+        "t": "text",
+        "v": "Q"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "E",
+      "children": [
+       {
+        "t": "text",
+        "v": "E"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to zoom. That one is off until you turn it on, because "
      },
      {
       "t": "code",
@@ -36047,7 +36160,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " to move around a board, and add "
+      "v": " to move around a board and "
+     },
+     {
+      "t": "code",
+      "v": "Q"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "E"
+     },
+     {
+      "t": "text",
+      "v": " to zoom in or out, and add "
      },
      {
       "t": "code",
