@@ -5,8 +5,8 @@ h1: Theme and defaults
 navLabel: Theme and defaults
 section: account
 order: 2
-updated: 2026-08-26
-answer: Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
+updated: 2026-10-19
+answer: Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 faq:
   - q: Does my theme follow me between devices?
     a: Yes. Theme is a per-user account setting, not a browser one, so it syncs everywhere you sign in.
@@ -65,6 +65,10 @@ confused with "this is gold" on a colourful board.
 
 - **Scroll wheel** — **Pan** (the default: `⌘`-scroll zooms) or **Zoom** (a plain
   scroll zooms at the pointer; `⌘`, `Alt` or `Shift` pans)
+- **Move with W A S D** — off by default. Hold `W`, `A`, `S` or `D` to move
+  around a board, and add `⇧` to go faster. While it is on, `A` and `D` stop
+  picking the Arrow and Free-draw tools; see
+  [keyboard shortcuts](/docs/keyboard-shortcuts#moving-with-w-a-s-d).
 
 The wheel setting exists because the convention genuinely splits across the
 tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote

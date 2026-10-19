@@ -77,6 +77,9 @@ export const HARDCODED_FALLBACKS = Object.freeze({
     // what always shipped) or 'zoom'. An input preference, so per-user like the
     // rest of `ui`, and it follows the account between devices.
     wheelMode: 'pan',
+    // Hold W, A, S or D to move around a board (lib/wasdPan.js). Off unless
+    // chosen: with it on, A and D stop picking the Arrow and Free-draw tools.
+    wasdPan: false,
   },
 });
 

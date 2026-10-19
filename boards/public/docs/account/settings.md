@@ -2,7 +2,7 @@
 
 > Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
-_Source: https://clusters.soleilpictures.com/docs/account/settings · Updated 2026-10-17_
+_Source: https://clusters.soleilpictures.com/docs/account/settings · Updated 2026-10-19_
 
 Open it from the sidebar — the **cog** or **your avatar**, bottom left — or with
 `⌘K` → "settings". Both buttons open the same panel; they differ only in which
@@ -45,7 +45,9 @@ How Clusters looks and how the canvas answers your hands, in three sections:
   `⌘B` sets that preference too, so it follows your account rather than the
   browser you happen to be in.
 - **Canvas** — whether a plain **scroll wheel** pans the
-  [canvas](/docs/canvas) or zooms it. Pinching a trackpad zooms either way.
+  [canvas](/docs/canvas) or zooms it (pinching a trackpad zooms either way), and
+  whether holding **W, A, S or D** moves you around a board. That one is off
+  until you turn it on, because `A` and `D` are also the Arrow and Free-draw keys.
 
 ### Notifications
 
