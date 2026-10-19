@@ -8138,6 +8138,51 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   text-align: center;
 }
 .cnv-empty-tiles-sub-coarse { display: none; }
+/* The Studio bar (CanvasSurface, behind clusterNudgesAllowed): a pile on
+   Studio gets one offer to move into a cluster. In the armed hint's place at
+   the top of the canvas, and hidden while the naming popover is up (it is
+   portaled to the body), which it would otherwise sit under. */
+.cnv-studio-bar {
+  position: absolute; left: 50%; top: 14px; z-index: 25;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  max-width: calc(100% - 24px); box-sizing: border-box;
+  padding: 5px 5px 5px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  font: 500 12.5px/1.2 var(--font-sans);
+  color: var(--ink-1);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.cnv-studio-bar-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cnv-studio-bar-go {
+  flex-shrink: 0; height: 26px; padding: 0 11px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.cnv-studio-bar-go:hover { background: var(--bg-4); border-color: var(--line-3); }
+.cnv-studio-bar-x {
+  flex-shrink: 0; display: inline-grid; place-items: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 6px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.cnv-studio-bar-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.cnv-studio-bar-go:focus-visible, .cnv-studio-bar-x:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.app.is-floating-chrome .cnv-studio-bar { top: calc(var(--chrome-band) + 14px); }
+body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
+/* A phone's width holds the count and the action, not where they are. */
+@media (max-width: 640px) { .cnv-studio-bar-where { display: none; } }
 /* The empty Studio's line about clusters (CanvasSurface, behind
    clusterNudgesAllowed): after a hairline, quieter than the drop area above. */
 .cnv-empty-rule { align-self: stretch; height: 1px; margin: 2px 0 -2px; background: var(--line-2); }

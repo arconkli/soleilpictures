@@ -137,7 +137,7 @@ import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
-import { canShowHint, claimHint, releaseHint, markHintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
+import { canShowHint, claimHint, releaseHint, markHintSeen, hintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
 import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
@@ -1812,6 +1812,47 @@ export function CanvasSurface({
       surface: 'empty_studio', action: 'view', picked: 0, board_id: board.id,
     });
   }, [emptyPanelVisible, emptyStudioLine, board?.id]);
+
+  // ── The Studio bar ──
+  // A pile on Studio gets one offer to move into a cluster of its own: once
+  // per device (lib/hints.js), never on the account's first day (that pile is
+  // still being made), never over the tour or beside another hint, and nothing
+  // moves until it is asked to. Its action names the cluster in the top bar's
+  // popover, for the whole pile at once ('sweep'). Loose = what a sweep would
+  // move: not a cluster, not a starter card, not still uploading.
+  const STUDIO_BAR_MIN = 6;
+  const [studioBarUp, setStudioBarUp] = useState(false);
+  const pastFirstDay = !currentUser?.createdAt || (Date.now() - Date.parse(currentUser.createdAt)) >= 86_400_000;
+  // Once it has been offered on this device the pile is never counted again.
+  const studioBarEligible = !isPublic && canEdit && board?.parent_board_id == null && pastFirstDay
+    && clusterNudgesAllowed() && (studioBarUp || !hintSeen('studio_bar'));
+  const looseOnStudio = useMemo(() => (studioBarEligible
+    ? planClusterFromSelection({ cards, ids: cards.map((c) => c.id), clusters: 'skip', skipSeeds: true }).ids.length
+    : 0), [studioBarEligible, cards]);
+  useEffect(() => {
+    if (studioBarUp) {
+      // Filed, deleted or moved below the line: the offer is over.
+      if (!studioBarEligible || looseOnStudio < STUDIO_BAR_MIN) { releaseHint('studio_bar'); setStudioBarUp(false); }
+      return;
+    }
+    if (!studioBarEligible || !boardReady || looseOnStudio < STUDIO_BAR_MIN) return;
+    if (!canShowHint('studio_bar') || !claimHint('studio_bar')) return;
+    markHintSeen('studio_bar');
+    setStudioBarUp(true);
+    try { logEvent(EV.CLUSTER_NUDGE, { surface: 'studio_bar', action: 'view', picked: looseOnStudio, board_id: board?.id || null }); } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studioBarUp, studioBarEligible, boardReady, looseOnStudio]);
+  useEffect(() => () => releaseHint('studio_bar'), []);
+  const sweepStudio = () => {
+    const d = { boardId: board?.id, paneId, via: 'studio_sweep', surface: 'studio_bar', sweep: looseOnStudio, handled: false };
+    document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
+    if (!d.handled) newClusterPrompted({ via: 'studio_sweep', surface: 'studio_bar', sweep: true });
+  };
+  const dismissStudioBar = () => {
+    try { logEvent(EV.CLUSTER_NUDGE, { surface: 'studio_bar', action: 'dismiss', picked: looseOnStudio, board_id: board?.id || null }); } catch (_) {}
+    releaseHint('studio_bar');
+    setStudioBarUp(false);
+  };
   useEffect(() => {
     if (!emptyPanelVisible || !board?.id) return;
     // A running tour hides the panel by CSS (body[data-tour-variant]); a row
@@ -6199,9 +6240,9 @@ export function CanvasSurface({
   // first note), because most clusters left "Untitled" stayed that way.
   // A caller that already asked for the name (the top bar's popover) passes
   // it as `name` — null for the default — and no second prompt opens.
-  const createClusterFrom = async (ids, { via, name: given, clusters = 'refuse' } = {}) => {
+  const createClusterFrom = async (ids, { via, name: given, clusters = 'refuse', skipSeeds = false } = {}) => {
     if (!board?.id || !mutators.addNewBoard) return null;
-    const plan = planClusterFromSelection({ cards, ids, clusters });
+    const plan = planClusterFromSelection({ cards, ids, clusters, skipSeeds });
     keepUploadsInPlace(plan.held);
     if (plan.refused || !plan.ids.length) return null;
     let name = given;
@@ -6234,7 +6275,11 @@ export function CanvasSurface({
   // (the board list it needs has only just refreshed — see addClusterCard);
   // the split pane steps in itself.
   const newClusterHereRef = useRef(null);
-  newClusterHereRef.current = async ({ name = null, via = 'topbar' } = {}) => {
+  newClusterHereRef.current = async ({ name = null, via = 'topbar', sweep = false } = {}) => {
+    // The Studio bar's sweep: every loose card here, whatever is picked.
+    if (sweep) {
+      return createClusterFrom(cards.map((c) => c.id), { via, name, clusters: 'skip', skipSeeds: true });
+    }
     const picked = [...selectedRef.current];
     if (picked.length && planClusterFromSelection({ cards, ids: picked, clusters: 'skip' }).ids.length) {
       return createClusterFrom(picked, { via, name, clusters: 'skip' });
@@ -6259,34 +6304,37 @@ export function CanvasSurface({
   // A phone's bar has no room for "+ New cluster", so its + sheet leads with
   // the row instead, and the empty Studio's line has no popover to open there;
   // both ask the name in the app's own prompt, in the popover's words, and
-  // then go the same way. A nudge (empty_studio) logs its answer as the
-  // popover would.
-  const newClusterPrompted = async ({ via, nudge = false }) => {
-    const plan = planClusterFromSelection({ cards, ids: [...selectedRef.current], clusters: 'skip' });
+  // then go the same way — the Studio bar's sweep too, on a phone. A nudge
+  // (`surface`) logs its answer as the popover would.
+  const newClusterPrompted = async ({ via, surface = null, sweep = false }) => {
+    const plan = sweep
+      ? planClusterFromSelection({ cards, ids: cards.map((c) => c.id), clusters: 'skip', skipSeeds: true })
+      : planClusterFromSelection({ cards, ids: [...selectedRef.current], clusters: 'skip' });
     const n = plan.ids.length;
+    if (sweep && !n) return;
     const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
     const typed = await feedback.prompt({
       title: 'Name this cluster',
-      message: n
-        ? (n === 1 ? 'The card you picked moves into it. Undo puts it back.' : `The ${n} cards you picked move into it. Undo puts them back.`)
+      message: sweep ? `All ${n} loose cards move into it. Undo puts them back.`
+        : n ? (n === 1 ? 'The card you picked moves into it. Undo puts it back.' : `The ${n} cards you picked move into it. Undo puts them back.`)
         : `It lands on ${board?.name || 'this cluster'} as a card and opens, ready to fill.`,
       label: 'Name',
       placeholder: 'Name it, e.g. Short film',
-      defaultValue: n ? (suggestClusterName({ groupName, cards: plan.cards }) || '') : '',
+      defaultValue: n && !sweep ? (suggestClusterName({ groupName, cards: plan.cards }) || '') : '',
       confirmLabel: 'Create cluster',
     });
-    if (nudge) {
-      try { logEvent(EV.CLUSTER_NUDGE, { surface: via, action: typed == null ? 'dismiss' : 'accept', picked: n, board_id: board?.id || null }); } catch (_) {}
+    if (surface) {
+      try { logEvent(EV.CLUSTER_NUDGE, { surface, action: typed == null ? 'dismiss' : 'accept', picked: n, board_id: board?.id || null }); } catch (_) {}
     }
     if (typed == null) return;
-    await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via });
+    await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via, sweep });
   };
   // "Start a cluster for each" on the empty Studio: the top bar's popover when
   // the bar shows this pane, else the prompt.
   const startClusterFromEmpty = () => {
     const d = { boardId: board?.id, paneId, via: 'empty_studio', handled: false };
     document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
-    if (!d.handled) newClusterPrompted({ via: 'empty_studio', nudge: true });
+    if (!d.handled) newClusterPrompted({ via: 'empty_studio', surface: 'empty_studio' });
   };
 
   const onCardPointerDown = (e, c) => {
@@ -12906,6 +12954,20 @@ export function CanvasSurface({
         />
       )}
 
+      {/* The Studio bar (above): where the armed tools' hint goes, and only
+          while no tool is armed, so the two never stack. */}
+      {studioBarUp && selectedTool === 'select' && (
+        <div className="cnv-studio-bar" role="status">
+          <span className="cnv-studio-bar-txt">{looseOnStudio} loose cards<span className="cnv-studio-bar-where"> on {board?.name || 'Studio'}</span></span>
+          <button type="button" className="cnv-studio-bar-go" onPointerDown={(e) => e.stopPropagation()} onClick={sweepStudio}>
+            Move them into a cluster
+          </button>
+          <button type="button" className="cnv-studio-bar-x" aria-label="Dismiss" title="Dismiss"
+                  onPointerDown={(e) => e.stopPropagation()} onClick={dismissStudioBar}>
+            <Icon as={X} size={13} weight="regular" />
+          </button>
+        </div>
+      )}
       {selectedTool === 'arrow' && (
         <div className="cnv-hint">
           {arrowFrom ? 'Click target card to connect' : 'Click a card to start, or drag on empty canvas for a free arrow'}

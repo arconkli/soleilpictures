@@ -64,6 +64,10 @@ test.describe('cluster nudges', () => {
     await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
     await expect(page.locator('.cnv-empty-clusters')).toHaveCount(0);
+    // And a pile gets no Studio bar.
+    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+    await expect(card(page, 'mixqa-7')).toBeVisible();
+    await expect(page.locator('.cnv-studio-bar')).toHaveCount(0);
   });
 
   test('one card with nowhere to go: "Move to a new cluster…" makes the cluster it goes into', async ({ page }) => {
@@ -240,6 +244,43 @@ test.describe('cluster nudges', () => {
     // Inside a cluster the empty panel has no such line: it is Studio's alone.
     await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
     await expect(page.locator('.cnv-empty-clusters')).toHaveCount(0);
+  });
+
+  test('the Studio bar: a pile gets one offer, named in the bar\'s popover, and all of it moves', async ({ page }) => {
+    await optIn(page);
+    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    await recordMoves(page);
+    const bar = page.locator('.cnv-studio-bar');
+    await expect(bar.locator('.cnv-studio-bar-txt')).toHaveText('8 loose cards on Studio');
+    await bar.locator('.cnv-studio-bar-go').click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('All 8 loose cards move into it. Undo puts them back.');
+    await expect(pop.locator('.ncl-field')).toHaveValue('');
+    await expect(bar).toBeHidden();
+    await pop.locator('.ncl-field').fill('Lost Time');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(0);
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Lost Time' })).toHaveCount(1);
+    await expect(bar).toHaveCount(0);
+    const moves = await page.evaluate(() => window.__moves);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].ids).toHaveLength(8);
+    expect(moves[0]).toMatchObject({ name: 'Lost Time' });
+  });
+
+  test('the Studio bar: dismissed it is gone, and it is offered once per device', async ({ page }) => {
+    await optIn(page);
+    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+    const bar = page.locator('.cnv-studio-bar');
+    await expect(bar).toBeVisible();
+    await bar.locator('.cnv-studio-bar-x').click();
+    await expect(bar).toHaveCount(0);
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    await page.reload();
+    await expect(card(page, 'mixqa-7')).toBeVisible();
+    await page.waitForTimeout(400);
+    await expect(bar).toHaveCount(0);
   });
 
   // The App.jsx half the local harness doesn't mirror: the toast names the

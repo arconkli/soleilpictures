@@ -1021,7 +1021,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     email: user.email,
     name: userInfo.name,
     color: userInfo.color || pickPresenceColor(user.id),
-  }), [user.id, user.email, userInfo.name, userInfo.color]);
+    // The canvas keeps its offers off an account's first day (the Studio bar).
+    createdAt: user.created_at || null,
+  }), [user.id, user.email, userInfo.name, userInfo.color, user.created_at]);
 
   // Resolved defaults — workspace > user > hardcoded fallback. Drives every
   // addX mutator's initial values + the SettingsPanel UI. Stash in a ref

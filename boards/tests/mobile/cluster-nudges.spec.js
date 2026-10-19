@@ -63,3 +63,17 @@ test('the empty Studio\'s line asks the name in the prompt, with no bar to hang 
   await dialog.locator('.btn-primary').tap();
   await expect(page.locator('.crumbs .crumb.here')).toHaveText('Music video');
 });
+
+test('the Studio bar on a phone: the sweep asks the name in the prompt', async ({ page }) => {
+  await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+  const bar = page.locator('.cnv-studio-bar');
+  await expect(bar.locator('.cnv-studio-bar-txt')).toContainText('8 loose cards');
+  await expect(bar.locator('.cnv-studio-bar-where')).toBeHidden();
+  await bar.locator('.cnv-studio-bar-go').tap();
+  const dialog = page.locator('.feedback-dialog');
+  await expect(dialog.locator('.feedback-message')).toHaveText('All 8 loose cards move into it. Undo puts them back.');
+  await dialog.locator('.feedback-field input').fill('Lost Time');
+  await dialog.locator('.btn-primary').tap();
+  await expect(page.locator('.card.card-kind-image')).toHaveCount(0);
+  await expect(page.locator('.card.card-kind-board', { hasText: 'Lost Time' })).toHaveCount(1);
+});
