@@ -174,8 +174,10 @@
 .sbf-handle.is-held::after, .sbf-handle:focus-visible::after { opacity: 1; background: var(--soleil); transition-delay: 0s; }
 .sbf-handle.is-held svg, .sbf-handle:focus-visible svg { opacity: 1; transition-delay: 0s; }
 .sbf-handle.is-held svg path, .sbf-handle:focus-visible svg path { stroke: var(--soleil); }
-/* Where two bottoms line up while you drag one to the other. */
-.sbf-guide { position: absolute; left: 0; top: 0; height: 0; border-top: 1px dashed var(--soleil); opacity: 0; transition: opacity .1s var(--ease); }
+/* Where two edges line up while you drag one to the other: the bottoms (a
+   line across), or stacked, the right edges (a line down). */
+.sbf-guide { position: absolute; left: 0; top: 0; width: 0; height: 0; border-top: 1px dashed var(--soleil); opacity: 0; transition: opacity .1s var(--ease); }
+.sbf-guide.is-v { border-top: 0; border-left: 1px dashed var(--soleil); }
 .sbf-guide.is-on { opacity: .85; }
 body.sbf-sizing,
 body.sbf-sizing * { cursor: var(--sbf-drag-cursor, default) !important; user-select: none !important; }

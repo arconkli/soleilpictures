@@ -211,6 +211,27 @@ test('side by side from the button stays however narrow it is dragged, and the b
   assert.equal(dragLayout(sideBySide(), 'right', 470 - 640, 0).layout.arr, 'stack');
 });
 
+test('stacked, a right edge dragged near the other card\'s lines up with it, and says where', () => {
+  const l = { ...defaultLayout(), stack: { ...LAYOUT_DEFAULT.stack, tw: 250, fw: 312 } };
+  // The clusters' edge to within 4px of the files': it meets it, with a guide at that x.
+  const a = dragLayout(stacked(l), 'treeRight', 58, 0);
+  assert.deepEqual([a.layout.stack.tw, a.alignX], [312, 8 + 312]);
+  // 22px off: left where it is, and no guide.
+  const b = dragLayout(stacked(l), 'treeRight', 40, 0);
+  assert.deepEqual([b.layout.stack.tw, b.alignX], [290, null]);
+  // The files' edge to the clusters' too, and the files' corner.
+  const c = dragLayout(stacked(l), 'filesRight', -58, 0);
+  assert.deepEqual([c.layout.stack.fw, c.alignX], [250, 8 + 250]);
+  const d = dragLayout(stacked(l), 'corner', -66, -100);
+  assert.deepEqual([d.layout.stack.fw, d.alignX, d.layout.stack.bottom], [250, 258, 792]);
+  // Never past a card's least: the files (232 at the least) can't meet clusters 226 wide.
+  const thin = { ...defaultLayout(), stack: { ...LAYOUT_DEFAULT.stack, tw: 226, fw: 300 } };
+  const e = dragLayout(stacked(thin), 'filesRight', -67, 0);
+  assert.deepEqual([e.layout.stack.fw, e.alignX], [233, null]);
+  // Side by side, there's nothing to line up.
+  assert.equal(dragLayout(sideBySide(), 'right', 5, 0).alignX, null);
+});
+
 test('stacked, the divider moves the line between the cards, snaps back to the clusters\' own height, and the files keep their bottom', () => {
   const st = stacked(undefined, { hug: 380 });
   const up = dragLayout(st, 'divider', 0, -100).layout.stack;

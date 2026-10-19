@@ -140,15 +140,27 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
     return () => { ro?.disconnect(); window.removeEventListener('resize', place); };
   }, [place, treeRef, filesRef]);
 
-  const showGuide = (y) => {
+  // Where two edges line up while one is dragged to the other: across both
+  // cards at the bottoms' y, or (stacked) down both at the right edges' x.
+  const showGuide = (y, x = null) => {
     const g = guideRef.current;
     if (!g) return;
-    if (y == null || !treeRef.current || !filesRef.current) { g.classList.remove('is-on'); return; }
+    if ((y == null && x == null) || !treeRef.current || !filesRef.current) { g.classList.remove('is-on'); return; }
     const t = rectOf(treeRef.current), f = rectOf(filesRef.current);
-    const x0 = Math.min(t.x, f.x) - 12, x1 = Math.max(t.x + t.w, f.x + f.w) + 12;
-    g.style.left = `${x0}px`;
-    g.style.width = `${x1 - x0}px`;
-    g.style.top = `${Math.round(y)}px`;
+    g.classList.toggle('is-v', x != null);
+    if (x != null) {
+      const y0 = Math.min(t.y, f.y) - 12, y1 = Math.max(t.y + t.h, f.y + f.h) + 12;
+      g.style.left = `${Math.round(x)}px`;
+      g.style.top = `${y0}px`;
+      g.style.width = '0px';
+      g.style.height = `${y1 - y0}px`;
+    } else {
+      const x0 = Math.min(t.x, f.x) - 12, x1 = Math.max(t.x + t.w, f.x + f.w) + 12;
+      g.style.left = `${x0}px`;
+      g.style.top = `${Math.round(y)}px`;
+      g.style.width = `${x1 - x0}px`;
+      g.style.height = '0px';
+    }
     g.classList.add('is-on');
   };
 
@@ -195,7 +207,7 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
     } else {
       applyLayout(frameRef.current, r.layout, fit());
     }
-    showGuide(r.align);
+    showGuide(r.align, r.alignX);
     place();
   };
   onUp.current = () => {

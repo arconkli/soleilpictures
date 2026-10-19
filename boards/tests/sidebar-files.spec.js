@@ -578,6 +578,29 @@ test.describe('sidebar files', () => {
     await expect(page.locator('.sbf-frame')).not.toHaveClass(/is-side/);
   });
 
+  test('stacked, a right edge dragged to the other card\'s lines up with it, and a guide shows where', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
+    await open(page);
+    await drag(page, 'treeRight', -60, 0);                                   // the clusters 252 wide
+    const t = await card(page, 'tree');
+    expect(t.w).toBe(252);
+    // The files' right edge dragged to within a few px of the clusters': held there, a guide down both.
+    await drag(page, 'filesRight', -56, 0, { release: false });
+    const guide = page.locator('.sbf-guide');
+    await expect(guide).toHaveClass(/is-on/);
+    await expect(guide).toHaveClass(/is-v/);
+    const g = await guide.boundingBox();
+    expect(Math.round(g.x)).toBe(t.right);
+    expect(g.y).toBeLessThan(t.y);
+    expect(g.y + g.height).toBeGreaterThan((await card(page, 'files')).bottom);
+    await page.mouse.up();
+    await expect(guide).not.toHaveClass(/is-on/);
+    expect((await card(page, 'files')).right).toBe(t.right);
+    // Pulled on past it, it lets go.
+    await drag(page, 'filesRight', 40, 0);
+    expect((await card(page, 'files')).w).toBe(292);
+  });
+
   test('a bottom snaps to the other card\'s with a guide, and to the window\'s; double-click and the arrow keys', async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop-chrome', 'the handles are a desktop control');
     await open(page);

@@ -239,8 +239,9 @@ export function handleSpecs(arr, { t, f }, { coarse = false } = {}) {
 // px), x (the pointer), vw, coarse, flips (false: never change the
 // arrangement) }. Returns the layout the pointer asks for
 // `dx`, `dy` from where it started, `align` (a viewport y the two bottoms
-// snapped together at, for a guide) and `flip` (the handle the drag carries on
-// with when it changed the arrangement).
+// snapped together at, for a guide), `alignX` (a viewport x the two right
+// edges snapped together at, stacked) and `flip` (the handle the drag carries
+// on with when it changed the arrangement).
 const SNAP_FULL = 20;
 const SNAP = 10;
 export function dragLayout(start, id, dx, dy) {
@@ -253,6 +254,7 @@ export function dragLayout(start, id, dx, dy) {
   const widest = vw - SIZES.room - left;                   // the most the sidebar's column gets
   const px = start.x + dx;                                 // the pointer now
   let align = null;
+  let alignX = null;
   const yBottom = (y, lo) => {
     const v = clamp(Math.round(y), lo, full);
     return { v, full: full - v <= SNAP_FULL };
@@ -273,7 +275,7 @@ export function dragLayout(start, id, dx, dy) {
         // the files go under the clusters, their right edge under the pointer.
         const st = layout.stack;
         st.fw = Math.round(clamp(px - left - EDGE, SIZES.filesMinW, Math.max(SIZES.filesMinW, Math.min(SIZES.stackMaxW, widest - EDGE))));
-        return { layout: { ...layout, arr: 'stack', pinned: false }, align: null, flip: id === 'corner' ? 'corner' : 'filesRight' };
+        return { layout: { ...layout, arr: 'stack', pinned: false }, align: null, alignX: null, flip: id === 'corner' ? 'corner' : 'filesRight' };
       }
       const roomFor = Math.max(SIZES.filesMinW, widest - EDGE - t.w - EDGE);
       s.fw = Math.round(clamp(want, SIZES.filesMinW, Math.min(SIZES.filesMaxW, roomFor)));
@@ -294,7 +296,7 @@ export function dragLayout(start, id, dx, dy) {
       else if (Math.abs(b.v - hb) <= SNAP) s.tBottom = 'hug';
       else s.tBottom = ys(b.v);
     }
-    return { layout, align, flip: null };
+    return { layout, align, alignX, flip: null };
   }
 
   const s = layout.stack;
@@ -310,11 +312,19 @@ export function dragLayout(start, id, dx, dy) {
       const both = Math.min(px - left, widest) - EDGE - EDGE;
       sd.tw = Math.round(clamp(Math.min(sd.tw, both - SIZES.filesMinW), SIZES.treeMinW, SIZES.treeMaxW));
       sd.fw = Math.round(clamp(both - sd.tw, SIZES.filesMinW, SIZES.filesMaxW));
-      return { layout: { ...layout, arr: 'side', pinned: false }, align: null, flip: id === 'corner' ? 'corner' : 'right' };
+      return { layout: { ...layout, arr: 'side', pinned: false }, align: null, alignX: null, flip: id === 'corner' ? 'corner' : 'right' };
     }
     const cap = Math.max(SIZES.filesMinW, Math.min(SIZES.stackMaxW, widest - EDGE));
-    if (id === 'treeRight') s.tw = Math.round(clamp(w, SIZES.treeMinW, cap));
-    else s.fw = Math.round(clamp(w, SIZES.filesMinW, cap));
+    const card = id === 'treeRight' ? t : f;
+    const lo = id === 'treeRight' ? SIZES.treeMinW : SIZES.filesMinW;
+    let nw = Math.round(clamp(w, lo, cap));
+    // Lined up with the other card's right edge, it meets it, and a guide
+    // shows where.
+    const other = id === 'treeRight' ? f : t;
+    const meet = Math.round(other.x + other.w - card.x);
+    if (Math.abs(nw - meet) <= SNAP && meet >= lo && meet <= cap) { nw = meet; alignX = other.x + other.w; }
+    if (id === 'treeRight') s.tw = nw;
+    else s.fw = nw;
   }
   if (id === 'divider') {
     // The line between them moves; the files keep their bottom.
@@ -325,7 +335,7 @@ export function dragLayout(start, id, dx, dy) {
     const b = yBottom(f.y + f.h + dy, f.y + SIZES.filesMinH);
     s.bottom = b.full ? 'full' : Math.min(ys(b.v), fullB);
   }
-  return { layout, align, flip: null };
+  return { layout, align, alignX, flip: null };
 }
 
 // A handle double-clicked: what it sizes goes back to how it started.
