@@ -140,6 +140,7 @@ import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js
 import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
+import { getWasdPan, wasdCodeOf, wasdDirection, wasdStep, WASD_SPEED, WASD_FAST, WASD_EASE, WASD_REST } from '../lib/wasdPan.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
 import { canShowHint, claimHint, releaseHint, markHintSeen, hintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
 import { genuineCards, hasGenuineCard, isSeedCard } from '../lib/firstValueTrigger.js';
@@ -4979,7 +4980,101 @@ export function CanvasSurface({
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
   }, []);
 
-  // Wheel: what a plain wheel does depends on Settings → Display → Scroll
+  // ── W A S D: hold a key to move around the board (lib/wasdPan.js) ────────
+  // Off unless it was turned on in Settings → Appearance → Canvas, and never on
+  // a public page, which keeps the defaults the way the wheel does. Shift is
+  // the faster gear. The camera moves the way a wheel pan moves it (the refs and
+  // the transform, in the frame, with the cull ADD-only while it moves) and is
+  // committed once, after it comes to rest.
+  //
+  // A held key stops on its keyup, and on everything that can swallow one: the
+  // window losing focus, the tab hiding, ⌘/Ctrl/Alt going down (macOS sends no
+  // keyup for a letter let go while ⌘ is held), and a dialog opening or an
+  // editor taking focus mid-hold. The shortcut handler leaves the four keys
+  // alone while this is on, so A and D don't also pick their tools.
+  useEffect(() => {
+    if (isPublic) return undefined;
+    const held = new Set();
+    let fast = false;
+    let v = { x: 0, y: 0 };
+    let raf = 0, last = 0, settleTimer = 0, moved = false;
+    // The settle contract of the wheel's scheduleCommit, once per glide.
+    const settle = () => {
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
+      if (!moved) return;
+      moved = false;
+      gestureUntilRef.current = 0;
+      markGestureActiveUntil(0);
+      setPerfContext({ zoom: zoomRef.current });
+      setPan({ x: panRef.current.x, y: panRef.current.y });
+      setZoom(zoomRef.current);
+      scheduleVisibleRecompute();
+      emitCanvasSettle();
+    };
+    const frame = (now) => {
+      raf = 0;
+      const dt = last ? Math.min(0.05, Math.max(0, (now - last) / 1000)) : 1 / 60;
+      last = now;
+      if (held.size && (boardKeysBlocked() || isEditorTarget({ target: document.activeElement }))) held.clear();
+      const dir = wasdDirection(held);
+      const speed = WASD_SPEED * (fast ? WASD_FAST : 1);
+      v = wasdStep(v, { x: dir.x * speed, y: dir.y * speed }, dt, reduceMotionMq?.matches ? 0 : WASD_EASE);
+      if (!held.size && Math.hypot(v.x, v.y) < WASD_REST) {
+        v = { x: 0, y: 0 };
+        last = 0;
+        settleTimer = setTimeout(settle, 140);
+        return;
+      }
+      const p = panRef.current;
+      panRef.current = { x: p.x - v.x * dt, y: p.y - v.y * dt };
+      moved = true;
+      gestureUntilRef.current = performance.now() + 200;
+      markGestureActiveUntil(gestureUntilRef.current);
+      applyCanvasTransform(true);
+      scheduleVisibleRecompute();
+      raf = requestAnimationFrame(frame);
+    };
+    const onDown = (e) => {
+      if (e.key === 'Shift') { fast = true; return; }
+      if (e.metaKey || e.ctrlKey || e.altKey) { held.clear(); return; }
+      if (!getWasdPan()) return;
+      const code = wasdCodeOf(e);
+      if (!code || e.defaultPrevented) return;
+      if (boardKeysBlocked()) return;
+      if (hasSplit && getActivePane() !== paneId) return;
+      if (isEditorTarget(e) || inInfoDrawer(e)) return;
+      e.preventDefault();
+      fast = e.shiftKey;
+      held.add(code);
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+    const onUp = (e) => {
+      if (e.key === 'Shift') { fast = false; return; }
+      held.delete(e.code);
+    };
+    const onBlur = () => { held.clear(); fast = false; };
+    const onHidden = () => {
+      if (document.visibilityState !== 'hidden') return;
+      held.clear(); fast = false; v = { x: 0, y: 0 }; last = 0;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      settle();
+    };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('visibilitychange', onHidden);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onHidden);
+      if (raf) cancelAnimationFrame(raf);
+      settle();
+    };
+  }, [isPublic, hasSplit, paneId]);
+
+  // Wheel: what a plain wheel does depends on Settings → Appearance → Scroll
   // wheel. Default 'pan' (cmd-wheel zooms) is what always shipped; 'zoom'
   // swaps them. The whole modifier matrix lives in resolveWheelIntent — see
   // lib/wheelMode.js, and note that ctrl+wheel means zoom in BOTH modes
@@ -5085,7 +5180,7 @@ export function CanvasSurface({
           markWheelHintSeen();
           feedbackRef.current?.toast({
             type: 'info',
-            message: `Scrolling pans the canvas. ${isMac ? '⌘' : 'Ctrl'}-scroll zooms — or switch the wheel to zoom in Settings → Display.`,
+            message: `Scrolling pans the canvas. ${isMac ? '⌘' : 'Ctrl'}-scroll zooms — or switch the wheel to zoom in Settings → Appearance.`,
             ttl: 7000,
           });
           try { logEvent(EV.WHEEL_HINT_SHOWN, { board_id: boardIdRef.current }); } catch (_) {}
@@ -5943,6 +6038,10 @@ export function CanvasSurface({
       // e.code is layout-independent (Shift+1 reports e.key '!').
       if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit1') { e.preventDefault(); fitToContent(); return; }
       if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit2') { e.preventDefault(); zoomToSelection(); return; }
+
+      // While W A S D movement is on, those four keys are the movement
+      // listener's (lib/wasdPan.js): A and D must not also pick Arrow and Free-draw.
+      if (!isPublic && getWasdPan() && wasdCodeOf(e)) return;
 
       // Bare-key tool + arrange shortcuts (no Cmd/Ctrl/Alt). The isEditorTarget
       // guard above already suppresses these while typing.

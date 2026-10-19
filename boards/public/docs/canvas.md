@@ -2,7 +2,7 @@
 
 > A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-10-19_
 
 The canvas is a cluster's Board view, and where a new cluster opens. It is an unbounded surface —
 position means something here, which is the whole point. Two images side by side
@@ -28,6 +28,12 @@ If scrolling to zoom is the habit you arrived with — it is how PureRef and Mir
 work — **Settings → Appearance → Scroll wheel** swaps the two, so a plain scroll
 zooms at the pointer and `⌘`, `Alt` or `Shift` pans. Pinching a trackpad zooms
 in either setting. See [keyboard shortcuts](/docs/keyboard-shortcuts).
+
+If you would rather steer with the keyboard, **Settings → Appearance → Move with
+W A S D** lets you hold `W`, `A`, `S` or `D` to move around, with `⇧` to go
+faster. It is off until you turn it on, because `A` and `D` are also the Arrow
+and Free-draw keys — see
+[moving with W A S D](/docs/keyboard-shortcuts#moving-with-w-a-s-d).
 
 ## The tool rail
 

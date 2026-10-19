@@ -2,7 +2,7 @@
 
 > Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
-_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-10-19_
 
 Press `?` on any canvas to see this list in the app, where it shows the right
 modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl`.
@@ -14,8 +14,8 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 | `V` | Select / move |
 | `H` or `Space` | Pan the canvas |
 | `N` | Add a note |
-| `D` | Free-draw |
-| `A` | Arrow |
+| `D` | Free-draw — unless [W A S D movement](#moving-with-w-a-s-d) is on |
+| `A` | Arrow — unless [W A S D movement](#moving-with-w-a-s-d) is on |
 | `G` | Add a grid |
 | `Esc` | Back to select · close whatever is on top — a menu, a dialog, Settings |
 
@@ -71,6 +71,7 @@ In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused 
 | `⇧1` | Fit everything |
 | `⇧2` | Fit selection |
 | `Space`-drag | Pan with any tool active |
+| `W` `A` `S` `D` | Move around the board, `⇧` for faster — once you [turn it on](#moving-with-w-a-s-d) |
 | Scroll | Pan the canvas — or zoom, if you swap it |
 | `⌘`-scroll | Zoom at the pointer |
 
@@ -90,6 +91,21 @@ we picked for you.
 
 Pinching a trackpad zooms in either mode, and always will: a pinch reaches the
 browser as a `Ctrl`-scroll, so `Ctrl` means zoom whatever else is configured.
+
+### Moving with W A S D
+
+**Settings → Appearance → Move with W A S D.** Off until you turn it on. Then
+hold `W`, `A`, `S` or `D` to move up, left, down or right — two at once go
+diagonally — and add `⇧` to go faster. Letting go eases to a stop.
+
+It is off by default because two of those keys already have a job: `A` picks
+the Arrow tool and `D` picks Free-draw. While movement is on they move you
+instead, and both tools stay one click away on the tool rail. `⌘A` and `⌘D`
+(select all, duplicate) work as before.
+
+It goes by where the keys sit rather than the letters printed on them, so on an
+AZERTY keyboard it is `Z`, `Q`, `S` and `D`, and `A` stays the Arrow tool.
+Like the rest of Appearance, the setting follows your account to every device.
 
 ## Files
 

@@ -71,6 +71,7 @@ setJourneySink({ logEvent, logEventNow });
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { onSoleilInk } from './lib/accentInk.js';
 import { applyWheelModeNow, getWheelMode } from './lib/wheelMode.js';
+import { applyWasdPanNow } from './lib/wasdPan.js';
 import { applySidebarOpenNow, getSidebarOpen } from './lib/sidebarPref.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
@@ -1134,6 +1135,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // never seen it. The synchronous localStorage read in wheelMode.js covers
     // every load after the first, so there is no frame of the wrong gesture.
     setWheelModeState(applyWheelModeNow(ui.wheelMode));
+    // W A S D movement, the same way (lib/wasdPan.js). No state to mirror:
+    // only Settings names it, and Settings reads the module.
+    applyWasdPanNow(ui.wasdPan);
     // Same shape again — this is what carries the preference onto a device
     // that has never seen it, and what makes the Settings toggle take effect.
     setSidebarOpenState(applySidebarOpenNow(ui.sidebarOpen));

@@ -11,6 +11,7 @@ import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { applyThemeNow, osPrefersLight } from '../../lib/theme.js';
 import { WHEEL_MODES, getWheelMode, applyWheelModeNow } from '../../lib/wheelMode.js';
+import { getWasdPan, applyWasdPanNow } from '../../lib/wasdPan.js';
 import { Field, Toggle, SettingsCategory, AccentPicker, FontField } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 import { overlayPending, settlePending } from './pendingPatch.js';
@@ -72,6 +73,8 @@ export function AppearanceTab({ mySettings, refresh }) {
   // getWheelMode() rather than ui.wheelMode: the module is what the canvas
   // actually reads, so the pills can never show a mode the wheel isn't using.
   const wheelMode = getWheelMode();
+  // Same rule for W A S D movement: the canvas reads the module.
+  const wasdPan = getWasdPan();
 
   return (
     <div className="settings-section">
@@ -158,6 +161,19 @@ export function AppearanceTab({ mySettings, refresh }) {
             : `Scrolling pans the canvas. ${WHEEL_CMD}-scroll zooms.`}
           {' '}Pinching a trackpad always zooms.
         </p>
+
+        {/* Off by default: A and D are the Arrow and Free-draw keys, and only
+            somebody who chose this should find them moving the board instead
+            (lib/wasdPan.js). Applied at once as well as saved, like the wheel. */}
+        <Toggle
+          label="Move with W A S D"
+          desc="Hold W, A, S or D to move around a board, and add Shift to go faster. While it's on, A and D no longer pick the Arrow and Free-draw tools."
+          value={wasdPan}
+          onChange={(v) => {
+            applyWasdPanNow(v);
+            setUi({ wasdPan: v });
+            try { logEvent(EV.WASD_PAN_SET, { on: v }); } catch (_) {}
+          }} />
       </SettingsCategory>
     </div>
   );

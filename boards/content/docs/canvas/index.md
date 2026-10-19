@@ -5,7 +5,7 @@ h1: The canvas
 navLabel: Overview
 section: canvas
 order: 0
-updated: 2026-10-02
+updated: 2026-10-19
 answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 faq:
   - q: How big is the canvas?
@@ -44,6 +44,12 @@ If scrolling to zoom is the habit you arrived with — it is how PureRef and Mir
 work — **Settings → Appearance → Scroll wheel** swaps the two, so a plain scroll
 zooms at the pointer and `⌘`, `Alt` or `Shift` pans. Pinching a trackpad zooms
 in either setting. See [keyboard shortcuts](/docs/keyboard-shortcuts).
+
+If you would rather steer with the keyboard, **Settings → Appearance → Move with
+W A S D** lets you hold `W`, `A`, `S` or `D` to move around, with `⇧` to go
+faster. It is off until you turn it on, because `A` and `D` are also the Arrow
+and Free-draw keys — see
+[moving with W A S D](/docs/keyboard-shortcuts#moving-with-w-a-s-d).
 
 ## The tool rail
 

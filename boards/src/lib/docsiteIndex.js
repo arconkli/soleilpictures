@@ -237,7 +237,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-12",
+    "updated": "2026-10-19",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -297,6 +297,10 @@ export const DOCS_PAGES = [
       {
         "q": "Can the scroll wheel zoom instead of scrolling the board around?",
         "a": "Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type \"scroll wheel\". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way."
+      },
+      {
+        "q": "Can I move around a board with W, A, S and D?",
+        "a": "Yes, once you turn it on in Settings → Appearance → Move with W A S D. Hold a key to move that way and add Shift to go faster. It is off by default because A and D also pick the Arrow and Free-draw tools, which they stop doing while it is on."
       },
       {
         "q": "Do these work on Windows?",
@@ -368,7 +372,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-10-02",
+    "updated": "2026-10-19",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2604,7 +2608,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-10-17",
+    "updated": "2026-10-19",
     "navLabel": "Settings",
     "headings": [
       {
@@ -2757,10 +2761,10 @@ export const DOCS_PAGES = [
     "title": "Theme, Fonts and Defaults — Soleil Clusters",
     "metaDescription": "Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.",
     "h1": "Theme and defaults",
-    "answer": "Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, and what a plain scroll wheel does. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
+    "answer": "Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
     "section": "account",
     "order": 2,
-    "updated": "2026-08-26",
+    "updated": "2026-10-19",
     "navLabel": "Theme and defaults",
     "headings": [
       {

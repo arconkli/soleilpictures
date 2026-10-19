@@ -1826,7 +1826,22 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Free-draw"
+       "v": "Free-draw — unless "
+      },
+      {
+       "t": "link",
+       "v": "W A S D movement",
+       "href": "#moving-with-w-a-s-d",
+       "children": [
+        {
+         "t": "text",
+         "v": "W A S D movement"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " is on"
       }
      ]
     ],
@@ -1840,7 +1855,22 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Arrow"
+       "v": "Arrow — unless "
+      },
+      {
+       "t": "link",
+       "v": "W A S D movement",
+       "href": "#moving-with-w-a-s-d",
+       "children": [
+        {
+         "t": "text",
+         "v": "W A S D movement"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " is on"
       }
      ]
     ],
@@ -2459,6 +2489,63 @@ export const DOCS_CONTENT = {
     [
      [
       {
+       "t": "code",
+       "v": "W"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "A"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "S"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "D"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move around the board, "
+      },
+      {
+       "t": "code",
+       "v": "⇧"
+      },
+      {
+       "t": "text",
+       "v": " for faster — once you "
+      },
+      {
+       "t": "link",
+       "v": "turn it on",
+       "href": "#moving-with-w-a-s-d",
+       "children": [
+        {
+         "t": "text",
+         "v": "turn it on"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
        "t": "text",
        "v": "Scroll"
       }
@@ -2615,6 +2702,167 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " means zoom whatever else is configured."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Moving with W A S D",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving with W A S D"
+    }
+   ],
+   "id": "moving-with-w-a-s-d"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Settings → Appearance → Move with W A S D.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Appearance → Move with W A S D."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Off until you turn it on. Then hold "
+    },
+    {
+     "t": "code",
+     "v": "W"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "A"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "S"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "D"
+    },
+    {
+     "t": "text",
+     "v": " to move up, left, down or right — two at once go diagonally — and add "
+    },
+    {
+     "t": "code",
+     "v": "⇧"
+    },
+    {
+     "t": "text",
+     "v": " to go faster. Letting go eases to a stop."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It is off by default because two of those keys already have a job: "
+    },
+    {
+     "t": "code",
+     "v": "A"
+    },
+    {
+     "t": "text",
+     "v": " picks the Arrow tool and "
+    },
+    {
+     "t": "code",
+     "v": "D"
+    },
+    {
+     "t": "text",
+     "v": " picks Free-draw. While movement is on they move you instead, and both tools stay one click away on the tool rail. "
+    },
+    {
+     "t": "code",
+     "v": "⌘A"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "⌘D"
+    },
+    {
+     "t": "text",
+     "v": " (select all, duplicate) work as before."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It goes by where the keys sit rather than the letters printed on them, so on an AZERTY keyboard it is "
+    },
+    {
+     "t": "code",
+     "v": "Z"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "Q"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "S"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "D"
+    },
+    {
+     "t": "text",
+     "v": ", and "
+    },
+    {
+     "t": "code",
+     "v": "A"
+    },
+    {
+     "t": "text",
+     "v": " stays the Arrow tool. Like the rest of Appearance, the setting follows your account to every device."
     }
    ]
   },
@@ -5475,6 +5723,100 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "keyboard shortcuts"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you would rather steer with the keyboard, "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Appearance → Move with W A S D",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Appearance → Move with W A S D"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lets you hold "
+    },
+    {
+     "t": "code",
+     "v": "W"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "A"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "S"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "D"
+    },
+    {
+     "t": "text",
+     "v": " to move around, with "
+    },
+    {
+     "t": "code",
+     "v": "⇧"
+    },
+    {
+     "t": "text",
+     "v": " to go faster. It is off until you turn it on, because "
+    },
+    {
+     "t": "code",
+     "v": "A"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "D"
+    },
+    {
+     "t": "text",
+     "v": " are also the Arrow and Free-draw keys — see "
+    },
+    {
+     "t": "link",
+     "v": "moving with W A S D",
+     "href": "/docs/keyboard-shortcuts#moving-with-w-a-s-d",
+     "children": [
+      {
+       "t": "text",
+       "v": "moving with W A S D"
       }
      ]
     },
@@ -34122,7 +34464,37 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " or zooms it. Pinching a trackpad zooms either way."
+      "v": " or zooms it (pinching a trackpad zooms either way), and whether holding "
+     },
+     {
+      "t": "strong",
+      "v": "W, A, S or D",
+      "children": [
+       {
+        "t": "text",
+        "v": "W, A, S or D"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " moves you around a board. That one is off until you turn it on, because "
+     },
+     {
+      "t": "code",
+      "v": "A"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "D"
+     },
+     {
+      "t": "text",
+      "v": " are also the Arrow and Free-draw keys."
      }
     ]
    ]
@@ -36572,6 +36944,93 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " pans)"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Move with W A S D",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move with W A S D"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — off by default. Hold "
+     },
+     {
+      "t": "code",
+      "v": "W"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "A"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "S"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "D"
+     },
+     {
+      "t": "text",
+      "v": " to move around a board, and add "
+     },
+     {
+      "t": "code",
+      "v": "⇧"
+     },
+     {
+      "t": "text",
+      "v": " to go faster. While it is on, "
+     },
+     {
+      "t": "code",
+      "v": "A"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "D"
+     },
+     {
+      "t": "text",
+      "v": " stop picking the Arrow and Free-draw tools; see "
+     },
+     {
+      "t": "link",
+      "v": "keyboard shortcuts",
+      "href": "/docs/keyboard-shortcuts#moving-with-w-a-s-d",
+      "children": [
+       {
+        "t": "text",
+        "v": "keyboard shortcuts"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ]
    ]
