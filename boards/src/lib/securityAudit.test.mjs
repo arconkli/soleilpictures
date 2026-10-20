@@ -722,7 +722,7 @@ test('a client analytics row names its own sender and a sane time, or is quarant
   assert.ok(latestMatch(/create trigger analytics_events_a_caller_guard\s+before insert on public\.analytics_events/));
   assert.ok('analytics_events_a_caller_guard' < 'analytics_events_divert_synthetic', 'the guard fires before the divert');
   assert.match(latestDefinition('_tg_divert_synthetic_events').body,
-    /new\.props->>'synthetic_reason' in \('uid_mismatch', 'stale'\)/);
+    /new\.props->>'synthetic_reason' in \('uid_mismatch', 'stale'(?:, '[a-z_]+')*\)/);
 });
 
 // ── 0386: the cron secret lives in Vault ────────────────────────────────────
@@ -1060,4 +1060,49 @@ test('the party /file-share route is dispatched before the auth check and never 
   assert.ok(start > 0 && body.includes('FILE_SHARE_CACHE_CONTROL'), 'presigns with the private cache header');
   assert.ok(!body.includes('READ_RESPONSE_CACHE_CONTROL'), 'never the public/immutable one');
   assert.match(body, /get_file_share/, 'access is decided by the RPC as the caller');
+});
+
+// ── 0470: the record is the caller's, dated on arrival ──────────────────────
+
+test('time in app credits only the account that is calling', () => {
+  const bump = latestDefinition('bump_seconds_in_app').body;
+  const take = bump.indexOf('p_user_id := auth.uid();');
+  assert.ok(take > 0, 'p_user_id is overwritten with the caller');
+  assert.ok(take < bump.indexOf('insert into public.heartbeat_session'), 'before anything is credited');
+  assert.match(bump, /seconds\s+= public\.user_active_day\.seconds \+ excluded\.seconds;/, '0460\'s seconds stay');
+});
+
+test('every analytics row is dated on arrival and takes its subject\'s country, and the archive keeps the whole row', () => {
+  const guard = latestDefinition('_tg_event_caller_guard').body;
+  const roleCheck = guard.indexOf("if current_user not in ('anon', 'authenticated') then");
+  assert.ok(guard.indexOf('new.received_at := now();') > 0, 'received_at is the server\'s clock');
+  assert.ok(guard.indexOf('new.received_at := now();') < roleCheck, 'stamped before the server-role return, so on every row');
+  assert.ok(guard.indexOf('new.country := public.request_country();') > roleCheck, 'a client row takes the edge country, whatever it sent');
+
+  const stamp = latestDefinition('_tg_stamp_event_country').body;
+  assert.match(stamp, /security definer/i, 'it reads profiles whoever inserted');
+  assert.doesNotMatch(stamp, /current_user/, 'inside a definer current_user is always the owner');
+  assert.match(stamp, /if new\.country is null then\s+if new\.user_id is not null and new\.user_id is distinct from auth\.uid\(\) then\s+new\.country := \(select p\.country from public\.profiles p where p\.user_id = new\.user_id\);/,
+    'a server row about someone else takes their country');
+  assert.ok(latestMatch(/alter trigger analytics_events_stamp_country on public\.analytics_events\s+rename to analytics_events_b_stamp_country;/),
+    'the stamp is renamed to fire before the divert');
+  assert.ok('analytics_events_a_caller_guard' < 'analytics_events_b_stamp_country'
+    && 'analytics_events_b_stamp_country' < 'analytics_events_divert_synthetic', 'guard, stamp, divert');
+
+  const divert = latestDefinition('_tg_divert_synthetic_events').body;
+  assert.match(divert, /'synthetic_reason' in \('uid_mismatch', 'stale', 'preview', 'dev'\)/);
+  assert.match(divert, /new\.occurred_at, new\.country, new\.app_session_id, new\.received_at, v_reason\);/,
+    'the archive keeps the session and the arrival');
+  assert.match(divert, /exception when others then\s+(?:--[^\n]*\n\s*)*raise warning/, 'a failed archive write is said');
+});
+
+test('an account made on a preview or dev build is internal, and is not sent to the preview', () => {
+  const src = latestDefinition('set_first_source').body;
+  assert.match(src, /v_src := v_src - 'env';/, 'the env is never stored');
+  assert.match(src, /if v_env in \('preview', 'dev'\)\s+and exists \(select 1 from auth\.users u\s+where u\.id = v_uid and u\.created_at > now\(\) - interval '1 day'\)/,
+    'only a brand-new account: an old one opening a preview was made somewhere else');
+  assert.match(src, /insert into public\.internal_accounts \(user_id, reason\)\s+values \(v_uid, v_env \|\| '_signup'\)\s+on conflict \(user_id\) do nothing;/);
+  assert.match(src, /set first_source = v_src\b/, 'what is stored is the source without the env');
+  assert.match(latestDefinition('get_staging_redirect').body,
+    /coalesce\(ia\.reason, ''\) not in \('preview_signup', 'dev_signup'\)/, 'the redirect stays the team\'s');
 });

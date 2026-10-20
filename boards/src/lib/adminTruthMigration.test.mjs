@@ -362,12 +362,16 @@ test('each rewrite is its previous definition with only the listed lines changed
   for (const [fn, want] of Object.entries(REWRITES)) {
     const prev = previousDefinition(fn);
     assert.equal(prev.file, want.prev, `${fn} was last defined in ${want.prev}`);
-    const def = defOf(fn);
-    assert.equal(def.file, FILE, `the live ${fn} is this one`);
     const before = bodyLines(prev.body);
-    const after = bodyLines(def.body);
+    const after = bodyLines(ownDefinition(fn).body);
     assert.deepEqual(after.filter((l) => !before.includes(l)), want.added, `${fn}: the lines 0460 added`);
     assert.deepEqual(before.filter((l) => !after.includes(l)), want.removed, `${fn}: the lines 0460 removed`);
+    // A later migration may restate it (0470 makes bump_seconds_in_app credit
+    // only its caller), but what is live keeps what 0460 wrote.
+    const live = defOf(fn);
+    const liveLines = bodyLines(live.body);
+    assert.deepEqual(want.added.filter((l) => !liveLines.includes(l)), [], `${fn}: the live one (${live.file}) keeps 0460's lines`);
+    assert.deepEqual(want.removed.filter((l) => liveLines.includes(l)), [], `${fn}: the live one (${live.file}) does not bring back what 0460 removed`);
   }
 });
 
@@ -462,9 +466,17 @@ test('capture_metrics_daily records the day it is given, and the cron closes yes
 test('user_active_day.seconds is a catalog-only column, written only by the heartbeat', () => {
   assert.match(src, /alter table public\.user_active_day add column if not exists seconds integer not null default 0;/);
   assert.doesNotMatch(code, /grant [^;]*on (table )?public\.user_active_day/i, 'no new table grant: clients read it, never write it');
+  // A later migration may restate the heartbeat (0470 did); nothing else may
+  // write the column.
+  const writes = /seconds\s*=\s*public\.user_active_day\.seconds/;
+  const heartbeat = new RegExp(definitionRe('bump_seconds_in_app').source, 'gi');
   const writers = migrationFiles().filter((f) => f >= FILE)
-    .filter((f) => /seconds\s*=\s*public\.user_active_day\.seconds/.test(readFileSync(join(MIGRATIONS_DIR, f), 'utf8')));
-  assert.deepEqual(writers, [FILE]);
+    .filter((f) => writes.test(readFileSync(join(MIGRATIONS_DIR, f), 'utf8')));
+  assert.equal(writers[0], FILE);
+  for (const f of writers) {
+    assert.doesNotMatch(readFileSync(join(MIGRATIONS_DIR, f), 'utf8').replace(heartbeat, ''), writes,
+      `${f} writes user_active_day.seconds outside bump_seconds_in_app`);
+  }
 });
 
 test('admin_growth_series is admin_weekly_series, then the long-run columns', () => {
