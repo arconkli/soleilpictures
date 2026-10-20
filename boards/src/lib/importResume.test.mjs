@@ -3,8 +3,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   IMPORT_LOCK, lockImport, runningImportIds, findStoppedImports, loadImportSeed, stoppedTitle, matchStopped, askToRead,
+  STOPPED_WITHIN_DAYS,
 } from './importResume.js';
 
 // navigator.locks, as far as these use it: request() grants at once unless
@@ -127,4 +129,11 @@ test('askToRead: asks only what isn\'t granted yet, and stops at the first refus
   assert.deepEqual(asked, ['c']);
   assert.equal(await askToRead([{ name: 'safari' }]), false, 'no permission API: drop it again');
   assert.equal(await askToRead([]), false);
+});
+
+test('the ledger is purged only after a stopped import stops being offered (0440)', () => {
+  const sql = readFileSync(new URL('../../../supabase/migrations/0440_import_ledger_purge.sql', import.meta.url), 'utf8');
+  const m = sql.match(/cron\.schedule\('purge-import-ledger', '[^']+', \$\$select public\.purge_old_import_ledger\((\d+)\)\$\$\)/);
+  assert.ok(m, 'the purge job is scheduled in 0440');
+  assert.ok(Number(m[1]) > STOPPED_WITHIN_DAYS, `the purge (${m[1]} days) must outlast the offer (${STOPPED_WITHIN_DAYS} days)`);
 });
