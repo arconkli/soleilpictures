@@ -603,7 +603,97 @@ const PAGES = [
       { q: 'Is there an online version of PureRef?', a: 'No. PureRef is a desktop app for Windows, macOS and Linux, and its boards are files on your machine. If you want the same drop-and-arrange reference board in a browser — opened on any device and shared with one link — Clusters is built for that. The trade is the connection: PureRef works offline, Clusters needs one.' },
       { q: 'How does an online reference board compare to PureRef?', a: 'PureRef is a beloved offline desktop app — free to use personally, and excellent when the board never leaves your machine. Clusters trades offline for a board that follows you across devices and shares with a link. Our full PureRef comparison breaks it down feature by feature.' },
     ],
-    related: ['/vs/pureref', '/tools/shared-reference-board', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/use-cases', '/tools/ai-mood-board-maker'],
+    related: ['/vs/pureref', '/tools/shared-reference-board', '/tools/video-reference-board', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/use-cases', '/tools/ai-mood-board-maker'],
+  },
+  // /tools/video-reference-board — PRE-REGISTERED 2026-10-20 (the CLAUDE.md
+  // ritual). The one new page of the any-file pass. The reference-board pages
+  // are the family that converts, and PureRef's own format list is images and
+  // animated GIFs, with no video formats on it (pureref.com support page, read
+  // 2026-10-20); people search for PureRef and video together, and whole apps
+  // exist only to add video to a reference wall. Every behaviour below was
+  // confirmed in the card and player code on production that day, and matches
+  // content/docs/files/video-and-audio.md (identical on production and main).
+  //   Predicate: path = '/tools/video-reference-board', query = '' (page
+  //     level), search_type = 'web'.
+  //   +14 days from the PRODUCTION deploy: indexed (URL Inspection), and showing
+  //     in the partial per-query rows for at least one of "video reference
+  //     board", "reference board with video", "pureref video", "mood board
+  //     with video".
+  //   +28 days: CTR and impression-weighted position, read only past 200
+  //     post-ship web impressions — under the floor it is ungradable, and we
+  //     say so. No title or meta edit before that read.
+  //   +60 days: signups whose first landing is this path, internal excluded.
+  //   Never graded inside 3 days of the deploy. Baselines are in the project
+  //   notes, not in this public file.
+  {
+    path: '/tools/video-reference-board',
+    kind: 'tool',
+    title: 'Video Reference Board — Clips, GIFs and Stills Together',
+    metaDescription:
+      'A free reference board that plays video: drop clips, GIFs and stills on one canvas, scrub frame by frame, loop a clip like a GIF, share it with one link.',
+    h1: 'A Reference Board That Plays Video',
+    subhead:
+      'Clips, GIFs and stills on one canvas in the browser: step to the exact frame, loop the move you are studying, and share the whole wall with one link.',
+    answer:
+      `Soleil Clusters is a free reference board that plays video: clips, GIFs and stills share one canvas in the browser, a clip steps frame by frame or loops like a GIF, and one link shares the board. PureRef’s format list is images and animated GIFs. The free plan holds ${freeLimitSentence()}.`,
+    updated: '2026-10-20',
+    cta: { label: 'Make a video reference board', sub: 'Free to start. Nothing to install.' },
+    stepsHeading: 'How to make a video reference board',
+    steps: [
+      { t: 'Start a board', d: 'Open Clusters in the browser and make a cluster for the project — there is nothing to install.' },
+      { t: 'Drop in clips, GIFs and stills', d: 'Drag video files, GIFs and frames onto the canvas together. A clip lands as a card showing its poster frame and its length, and a big file uploads in parts.' },
+      { t: 'Find the frame', d: 'Hover a clip to step one frame back or forward, scrub and read the timecode — or open the review player for J, K and L, in and out points and a loop.' },
+      { t: 'Loop what you are studying', d: 'Right-click a clip for Autoplay (muted) and Loop, and it moves on the board like a GIF while it stays a real video you can scrub and download.' },
+      { t: 'Share it', d: 'Send one link for a read-only view in any browser, or invite the team to add to it live. Comments pin to the clip they are about.' },
+    ],
+    sections: [
+      {
+        heading: 'Motion reference, beside the stills',
+        body: 'A reference wall for animation, VFX, fight choreography or camera movement is half moving pictures. In Clusters a clip is a card like any other: it sits next to the stills it belongs with, plays where it is, and shows its poster frame and length at rest. Hover it to step a frame back or forward, scrub along its bottom edge, read the timecode and mute it — the controls stay a usable size at any zoom. GIFs keep moving on the board too.',
+        bullets: [
+          'Clips play in place, next to the stills',
+          'Frame steps, a scrubber and timecode on every clip',
+          'GIFs animate on the canvas',
+        ],
+      },
+      {
+        heading: 'A review player for the exact frame',
+        body: 'Double-click a clip, or click ⤢, and it opens full size in a dark room on the frame you were on. Step frame by frame with the arrow keys, shuttle with J, K and L, set in and out points and loop between them, run it from a quarter speed to double, and lay framing guides — 2.39, 16:9 and more — over the picture. A copied link opens the player paused on that frame, for anyone who can open the cluster.',
+        bullets: [
+          'J, K, L and frame-by-frame keys',
+          'In and out points, a loop, ¼× to 2× speed',
+          'Framing guides, and a link to the exact frame',
+        ],
+      },
+      {
+        heading: 'Loop a clip like a GIF, and keep the real file',
+        body: 'Right-click a clip for Autoplay (muted) and Loop and it becomes the moving still a GIF used to be on a reference wall — while the file stays a real video you can scrub, download and hand to an editor. Autoplay is always muted, because browsers block clips that start themselves with sound, and a clip only plays while it is on screen, so a board of twenty takes does not stutter.',
+      },
+      {
+        heading: 'Big files, and the ones a browser can’t play',
+        body: `No plan has a size or length limit on video: a reference clip, a cut-down and a full-resolution master land the same way, and a large file uploads in parts that pick up again after a dropped connection. The drive is the only limit — ${FREE_STORAGE_LABEL} free, ${CREATOR_STORAGE_LABEL} on Creator. A clip your browser can’t decode, such as ProRes outside Safari, says so instead of showing a black frame, and you can still download it. Anything else — a PSD, a zip, a project file — lands as a card you can download too.`,
+      },
+      {
+        heading: 'One wall for the whole team',
+        body: 'A board in a browser tab travels: the same wall opens on the studio workstation, the laptop and the iPad, and one link shows it read-only to a supervisor without an account. Invite the team as editors — free on every plan — and everyone adds to the same wall at once, with comments pinned to the clip they are about.',
+      },
+      {
+        heading: 'Where PureRef still wins',
+        body: 'If your reference has to float always-on-top over a paint or 3D app, offline, PureRef does that and Clusters does not: Clusters lives in a browser tab and needs a connection. And if your reference never moves, PureRef is hard to beat — its format list is images, PSD, RAW and EXR among them, plus animated GIFs it can step through frame by frame.',
+      },
+    ],
+    faq: [
+      { q: 'Does PureRef play video?', a: 'Not according to its own format list, which is images — PSD, RAW and EXR among them — and animated GIFs, with frame-by-frame GIF playback since version 2.0. Clusters plays video clips on the board itself, beside the stills, and can loop them like a GIF.' },
+      { q: 'Can a mood board include video?', a: 'Yes. On a Clusters board a clip is a card like an image: it plays in place, can autoplay muted and loop, and sits with the stills, notes and palettes it belongs with. Audio files play on the board too, with a waveform drawn from the file.' },
+      { q: 'Which video formats play?', a: 'Whatever your browser can play; H.264 MP4 is the safe choice everywhere. A clip the browser can’t decode, such as ProRes outside Safari, says so instead of showing a black frame, and you can still download it from the board.' },
+      { q: 'Is there a size or length limit on clips?', a: `No, on any plan. A large file uploads in parts and picks up again after a dropped connection; the only limit is the drive — ${FREE_STORAGE_LABEL} free, ${CREATOR_STORAGE_LABEL} on Creator.` },
+      { q: 'Can a clip loop like a GIF?', a: 'Yes. Right-click the card for Autoplay (muted) and Loop. Autoplay is always muted, because browsers block clips that start themselves with sound, and a clip plays only while it is on screen.' },
+      { q: 'Can I trim or edit a clip?', a: 'No. Clusters plays video; it does not edit it. Trim in your editor and drop in the version you want on the board.' },
+      { q: 'Is it free?', a: `Yes. The free plan holds ${freeLimitSentence()}, every cluster counts as one card, and editors you invite are free. Creator (${PRICING.monthly.billedLabel}) removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
+    ],
+    docsLinks: [{ path: '/docs/files/video-and-audio', label: 'Video and audio, in the docs' }],
+    siblingListicle: { path: '/best/pureref-alternatives', label: 'See every PureRef alternative, ranked by a film studio.' },
+    related: ['/tools/reference-board-maker', '/vs/pureref', '/best/pureref-alternatives', '/tools/cinematography-lookbook', '/tools/shared-reference-board'],
   },
 
   // ────────────────────────────────────────────────────────────────────────
@@ -948,7 +1038,7 @@ const PAGES = [
       { q: 'Can the colourist see it without an account?', a: 'Yes, through a view-only link that opens in any browser and can expire after 7 or 30 days. To comment, invite them — free on every plan.' },
       { q: 'Is it free?', a: `Free for ${freeLimitSentence()} — each cluster counts as one card — with free editors. A full lookbook can outgrow that; Creator removes the card cap and raises the drive to ${CREATOR_STORAGE_LABEL} for the whole workspace. See “What it costs” on this page.` },
     ],
-    related: ['/tools/storyboard-maker', '/tools/shot-list-maker', '/tools/directors-treatment', '/tools/production-design-mood-board', '/tools/look-book-maker'],
+    related: ['/tools/storyboard-maker', '/tools/shot-list-maker', '/tools/video-reference-board', '/tools/directors-treatment', '/tools/production-design-mood-board', '/tools/look-book-maker'],
   },
 
   // ────────────────────────────────────────────────────────────────────────
@@ -1748,6 +1838,8 @@ const EXAMPLES_BY_PATH = {
   '/tools/production-design-mood-board':  ['japandi-living-room', 'film-noir-look-book', 'neon-noir-look-book'],
   '/tools/costume-design-mood-board':     ['neon-noir-look-book', 'sage-terracotta-wedding', 'film-noir-look-book'],
   '/tools/cinematography-lookbook':       ['film-noir-look-book', 'neon-noir-look-book', 'short-film-shot-list'],
+  // Each of these three holds a video card.
+  '/tools/video-reference-board':         ['film-noir-look-book', 'neon-noir-look-book', 'world-cup-2026-moodboard'],
 };
 
 // Hero eyebrow — the category kicker above the h1 (brand display face, gold).
@@ -1771,6 +1863,7 @@ const EYEBROW_BY_PATH = {
   '/tools/production-design-mood-board':  'For the art department',
   '/tools/costume-design-mood-board':     'For costume designers',
   '/tools/cinematography-lookbook':       'For cinematographers',
+  '/tools/video-reference-board':         'For motion reference',
 };
 
 // Attach the signup CTA href to each page (campaign = last path segment).

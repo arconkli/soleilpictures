@@ -5,7 +5,8 @@
 _Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-12_
 
 Both play in place on the canvas — the clip is a card among the reference
-stills it belongs with. A video also opens in a full review player when you
+stills it belongs with, which is what a
+[video reference board](/tools/video-reference-board) is. A video also opens in a full review player when you
 need to look at it frame by frame.
 
 ## Video

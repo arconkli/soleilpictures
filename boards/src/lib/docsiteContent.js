@@ -16054,7 +16054,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Both play in place on the canvas — the clip is a card among the reference stills it belongs with. A video also opens in a full review player when you need to look at it frame by frame."
+     "v": "Both play in place on the canvas — the clip is a card among the reference stills it belongs with, which is what a "
+    },
+    {
+     "t": "link",
+     "v": "video reference board",
+     "href": "/tools/video-reference-board",
+     "children": [
+      {
+       "t": "text",
+       "v": "video reference board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is. A video also opens in a full review player when you need to look at it frame by frame."
     }
    ]
   },
