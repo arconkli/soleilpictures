@@ -19,6 +19,7 @@ import { ImportWaitRow } from '../components/ImportWaitRow.jsx';
 //   ?menu=1 opens the sidebar's Upload menu
 //   ?land=night|wait|coming|plain   an imported cluster's empty canvas
 //   ?row=1 adds a cluster's Files, with its "waiting for room" row while ?state waits
+// window.__importQa.put / .drop add and take away imports, as App does.
 // Imported only behind main.jsx's `import.meta.env.DEV &&` guard.
 
 const GB = 1024 ** 3;
@@ -171,6 +172,7 @@ export function ImportQaHarness() {
   }, [state, dialog]);
 
   useEffect(() => {
+    window.__importQa = { put: putImportJob, drop: dropImportJob };
     document.getElementById('root')?.setAttribute('data-importqa-ready', '1');
   }, []);
 
