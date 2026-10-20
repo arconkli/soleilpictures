@@ -123,8 +123,22 @@ const RETIRED_PAGES = new Map([
   ['/vs/studiobinder', '/best/storyboard-software'],
 ]);
 
+// META PRE-REGISTERED 2026-10-20 (the CLAUDE.md ritual). The homepage
+// description names what the any-file pass sells (video, PDFs and any other
+// file on the canvas beside the references) and comes back under META_MAX; it
+// ran a character over. index.html carries the same sentence three times, and
+// seoLanding.test.mjs fails if any of the four drift apart. One surface, this
+// commit only. The title is untouched, because the prober pins "Soleil Clusters".
+//   Predicate: path = '/', query = '' (page level), search_type = 'web'; CTR
+//     and impression-weighted position, ±7 and ±14 days around the PRODUCTION
+//     deploy, never inside 3 days of it. Floor: 200 post-change impressions.
+//   Expectation: no material change. Nearly every search for this page is the
+//     brand name, which clicks through whatever the snippet says, so the read
+//     can only show harm (CTR on the brand query falling), never a win. Never
+//     blend this page's CTR into anything else.
+//   Baselines are in the project notes, not in this public file.
 const DEFAULT_DESCRIPTION =
-  'Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.';
+  'Soleil Clusters is a creative workspace and moodboard for film, photo, design and brand teams: references, video, PDFs and any other file on one canvas.';
 const ROUTE_META = {
   '/': {
     title: 'Soleil Clusters — Creative Workspace & Moodboard for Production Teams',
