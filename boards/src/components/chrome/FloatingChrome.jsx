@@ -78,10 +78,23 @@ function MoreMenu({ items }) {
 }
 
 export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
+  // The right island publishes its width, so the left one (the trail) stops
+  // short of it however narrow the surface gets — a tablet held sideways with
+  // the files beside the clusters left the two islands overlapping.
+  const layerRef = useRef(null);
+  const rightRef = useRef(null);
+  useEffect(() => {
+    const layer = layerRef.current;
+    const island = rightRef.current;
+    if (!layer || !island || typeof ResizeObserver !== 'function') return undefined;
+    const ro = new ResizeObserver(() => layer.style.setProperty('--chrome-right-w', `${Math.ceil(island.getBoundingClientRect().width)}px`));
+    ro.observe(island);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <div className="chrome-layer">
+    <div className="chrome-layer" ref={layerRef}>
       <nav className="chrome-island chrome-left" aria-label="Where you are">{left}</nav>
-      <div className="chrome-island chrome-right" role="toolbar" aria-label="This cluster">
+      <div className="chrome-island chrome-right" role="toolbar" aria-label="This cluster" ref={rightRef}>
         {right}
         {menuItems.length > 0 && <MoreMenu items={menuItems} />}
       </div>

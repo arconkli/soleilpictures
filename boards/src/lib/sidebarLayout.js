@@ -16,7 +16,14 @@
 // with the button is `pinned`: it stays however narrow it's dragged, until the
 // button stacks them again (owner, 2026-10-19). A window too narrow for side by
 // side keeps them stacked (SIDE_FITS_QUERY; KEPT_FITS_QUERY for side by side
-// the button keeps, which can be narrower), and so does a touch screen.
+// the button keeps, which can be narrower).
+//
+// A touch screen with the floating cards (a tablet held sideways) keeps its
+// own: side by side by default, two full-height columns (owner, 2026-10-20:
+// stacked, the files card showed about one file under 44px rows), with only
+// the button to stack them — a finger sizing a card never flips them — and
+// sizes of its own (`touchArr`, `touchSide`), so a desktop layout never lands
+// on a tablet or the other way round.
 //
 // The files can be hidden (owner, 2026-10-19: "a way to hide/unhide the files
 // bar. it needs to be SUPER easy and SUPER obvious on how to get it back"):
@@ -59,6 +66,9 @@ export const LAYOUT_DEFAULT = Object.freeze({
   filesHidden: false,
   stack: Object.freeze({ tw: 312, fw: 312, th: 'hug', bottom: 'full' }),
   side: Object.freeze({ tw: 240, fw: 384, tBottom: 'hug', fBottom: 'full' }),
+  // A tablet: about 470px of a 1133–1366px screen, both cards full height.
+  touchArr: 'side',
+  touchSide: Object.freeze({ tw: 208, fw: 248, tBottom: 'full', fBottom: 'full' }),
 });
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -69,7 +79,10 @@ const width = (v, lo, hi, d) => (num(v) == null ? d : Math.round(clamp(v, lo, hi
 const bottom = (v, tokens, lowest, d) => (tokens.includes(v) ? v : num(v) == null ? d : Math.round(Math.max(lowest, v)));
 
 export function defaultLayout() {
-  return { arr: 'stack', pinned: false, filesHidden: false, stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side } };
+  return {
+    arr: 'stack', pinned: false, filesHidden: false, stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side },
+    touchArr: LAYOUT_DEFAULT.touchArr, touchSide: { ...LAYOUT_DEFAULT.touchSide },
+  };
 }
 
 // Whatever came out of storage, as a layout.
@@ -78,6 +91,7 @@ export function sanitizeLayout(raw) {
   if (!raw || typeof raw !== 'object') return d;
   const st = raw.stack && typeof raw.stack === 'object' ? raw.stack : {};
   const sd = raw.side && typeof raw.side === 'object' ? raw.side : {};
+  const ts = raw.touchSide && typeof raw.touchSide === 'object' ? raw.touchSide : {};
   return {
     arr: raw.arr === 'side' ? 'side' : 'stack',
     pinned: raw.arr === 'side' && raw.pinned === true,
@@ -93,6 +107,13 @@ export function sanitizeLayout(raw) {
       fw: width(sd.fw, SIZES.filesMinW, SIZES.filesMaxW, d.side.fw),
       tBottom: bottom(sd.tBottom, ['hug', 'full'], EDGE + SIZES.treeMinH, 'hug'),
       fBottom: bottom(sd.fBottom, ['full'], EDGE + SIZES.filesMinH, 'full'),
+    },
+    touchArr: raw.touchArr === 'stack' ? 'stack' : 'side',
+    touchSide: {
+      tw: width(ts.tw, SIZES.treeMinW, SIZES.treeMaxW, d.touchSide.tw),
+      fw: width(ts.fw, SIZES.filesMinW, SIZES.filesMaxW, d.touchSide.fw),
+      tBottom: bottom(ts.tBottom, ['hug', 'full'], EDGE + SIZES.treeMinH, d.touchSide.tBottom),
+      fBottom: bottom(ts.fBottom, ['full'], EDGE + SIZES.filesMinH, d.touchSide.fBottom),
     },
   };
 }
@@ -138,11 +159,15 @@ export const SIDE_LEAST = EDGE + SIZES.treeMinW + EDGE + SIZES.filesMinW;
 export const SIDE_FITS_QUERY = `(min-width: ${SIZES.room + SIZES.sideMinFootprint}px)`;
 export const KEPT_FITS_QUERY = `(min-width: ${SIZES.room + SIDE_LEAST}px)`;
 
-// The arrangement in force. `fit`: { coarse (a touch screen, whose rows are
-// taller and whose finger needs the width), roomy (SIDE_FITS_QUERY matches),
-// snug (KEPT_FITS_QUERY matches) }.
-export const arrangementOf = (layout, { coarse = false, roomy = true, snug = true } = {}) =>
-  (!coarse && layout?.arr === 'side' && (roomy || (snug && !!layout.pinned)) ? 'side' : 'stack');
+// The arrangement in force. `fit`: { coarse (a touch screen: its own
+// arrangement and side-by-side sizes, touchArr and touchSide), roomy
+// (SIDE_FITS_QUERY matches), snug (KEPT_FITS_QUERY matches) }.
+export const arrangementOf = (layout, { coarse = false, roomy = true, snug = true } = {}) => (coarse
+  ? (roomy && layout?.touchArr !== 'stack' ? 'side' : 'stack')
+  : (layout?.arr === 'side' && (roomy || (snug && !!layout.pinned)) ? 'side' : 'stack'));
+// Where the side-by-side sizes in force live: a touch screen keeps its own.
+export const sideKey = (fit) => (fit?.coarse ? 'touchSide' : 'side');
+const sideSizes = (l, fit) => l[sideKey(fit)] || LAYOUT_DEFAULT[sideKey(fit)];
 // What the cards show: the arrangement in force, or 'hidden' while the files'
 // card is folded to its heading under the clusters' card (which keeps the
 // width it has in the arrangement in force).
@@ -155,8 +180,9 @@ export const withFilesHidden = (layout, hidden) => ({ ...sanitizeLayout(layout),
 export function sidebarFootprint(layout, fit = {}) {
   const l = layout || LAYOUT_DEFAULT;
   const arr = arrangementOf(l, fit);
-  if (l.filesHidden) return EDGE + l[arr].tw;
-  if (arr === 'side') return EDGE + l.side.tw + EDGE + l.side.fw;
+  const sd = sideSizes(l, fit);
+  if (l.filesHidden) return EDGE + (arr === 'side' ? sd : l.stack).tw;
+  if (arr === 'side') return EDGE + sd.tw + EDGE + sd.fw;
   return EDGE + Math.max(l.stack.tw, l.stack.fw);
 }
 
@@ -167,11 +193,11 @@ export function frameVars(layout, fit = {}) {
   if (l.filesHidden) {
     // The clusters' card as tall as its list (as much of the window as that
     // takes), the folded files under it at its width.
-    const tw = `${l[arrangementOf(l, fit)].tw}px`;
+    const tw = `${(arrangementOf(l, fit) === 'side' ? sideSizes(l, fit) : l.stack).tw}px`;
     return { '--sbf-tw': tw, '--sbf-fw': tw, '--sbf-th': 'auto', '--sbf-fh': 'auto', '--sbf-frame-h': '100%', '--sbf-nav-max': 'none' };
   }
   if (arrangementOf(l, fit) === 'side') {
-    const s = l.side;
+    const s = sideSizes(l, fit);
     return {
       '--sbf-tw': `${s.tw}px`,
       '--sbf-fw': `${s.fw}px`,
@@ -195,9 +221,10 @@ export function frameVars(layout, fit = {}) {
 // The arrangement the button switches to from the one `shown` (which a narrow
 // window can make stacked when side by side was chosen), each with its own
 // sizes. Side by side from the button stays put (pinned) until the button
-// stacks them.
-export function toggledLayout(layout, shown = layout?.arr) {
+// stacks them. A touch screen switches its own arrangement only.
+export function toggledLayout(layout, shown = layout?.arr, { coarse = false } = {}) {
   const arr = shown === 'side' ? 'stack' : 'side';
+  if (coarse) return { ...sanitizeLayout(layout), touchArr: arr };
   return { ...sanitizeLayout(layout), arr, pinned: arr === 'side' };
 }
 
@@ -234,7 +261,9 @@ export function handleSpecs(arr, { t, f }, { coarse = false } = {}) {
   const R = RADIUS;
   const at = {};
   const put = (id, x, y, w, h) => { at[id] = { x, y, w: Math.max(0, w), h: Math.max(0, h) }; };
-  const corner = (id, r) => put(id, r.x + r.w - 18, r.y + r.h - 18, 24, 24);
+  // A corner square, a little bigger under a finger.
+  const c = coarse ? 32 : 24;
+  const corner = (id, r) => put(id, r.x + r.w - (c - 6), r.y + r.h - (c - 6), c, c);
   if (arr === 'hidden') {
     put('treeRight', t.x + t.w - z / 2, t.y + R, z, t.h - 2 * R);
   } else if (arr === 'side') {
@@ -275,6 +304,7 @@ export function dragLayout(start, id, dx, dy) {
   const { t, f, top, full, hug, vw, coarse } = start;
   const canFlip = !coarse && start.flips !== false;
   const layout = sanitizeLayout(start.layout);
+  const sk = sideKey({ coarse });
   const ys = (y) => Math.round(y - top);                  // viewport y → a stored bottom
   const fullB = ys(full);
   const left = t.x - EDGE;                                 // the sidebar's left edge
@@ -285,8 +315,8 @@ export function dragLayout(start, id, dx, dy) {
   if (start.arr === 'hidden') {
     // The files hidden: the clusters' card's width in the arrangement in
     // force, and nothing changes the arrangement.
-    const under = start.under === 'side' ? 'side' : 'stack';
-    const most = under === 'side' ? SIZES.treeMaxW : SIZES.stackMaxW;
+    const under = start.under === 'side' ? sk : 'stack';
+    const most = under === 'stack' ? SIZES.stackMaxW : SIZES.treeMaxW;
     if (id === 'treeRight') {
       layout[under].tw = Math.round(clamp(t.w + dx, SIZES.treeMinW, Math.max(SIZES.treeMinW, Math.min(most, widest - EDGE))));
     }
@@ -298,7 +328,7 @@ export function dragLayout(start, id, dx, dy) {
   };
 
   if (start.arr === 'side') {
-    const s = layout.side;
+    const s = layout[sk];
     if (id === 'split' || id === 'treeCorner') {
       const sum = t.w + f.w;
       const tw = Math.round(clamp(t.w + dx, SIZES.treeMinW, Math.min(SIZES.treeMaxW, sum - SIZES.filesMinW)));
@@ -379,25 +409,39 @@ export function dragLayout(start, id, dx, dy) {
 
 // A handle double-clicked: what it sizes goes back to how it started.
 // `under`: with the files hidden ('hidden'), the arrangement in force.
-export function resetLayout(layout, arr, id, under = 'stack') {
+// `fit.coarse`: a touch screen, whose side-by-side sizes are its own.
+export function resetLayout(layout, arr, id, under = 'stack', fit = {}) {
   const l = sanitizeLayout(layout);
   const d = defaultLayout();
+  const sk = sideKey(fit);
   if (arr === 'hidden') {
-    const k = under === 'side' ? 'side' : 'stack';
+    const k = under === 'side' ? sk : 'stack';
     if (id === 'treeRight') l[k].tw = d[k].tw;
     return l;
   }
   if (arr === 'side') {
-    if (id === 'split' || id === 'treeCorner') { l.side.tw = d.side.tw; l.side.fw = d.side.fw; }
-    if (id === 'right' || id === 'corner') l.side.fw = d.side.fw;
-    if (id === 'bottom' || id === 'corner') l.side.fBottom = 'full';
-    if (id === 'treeBottom' || id === 'treeCorner') l.side.tBottom = 'hug';
+    const s = l[sk];
+    if (id === 'split' || id === 'treeCorner') { s.tw = d[sk].tw; s.fw = d[sk].fw; }
+    if (id === 'right' || id === 'corner') s.fw = d[sk].fw;
+    if (id === 'bottom' || id === 'corner') s.fBottom = d[sk].fBottom;
+    if (id === 'treeBottom' || id === 'treeCorner') s.tBottom = d[sk].tBottom;
     return l;
   }
   if (id === 'treeRight') l.stack.tw = d.stack.tw;
   if (id === 'filesRight' || id === 'corner') l.stack.fw = d.stack.fw;
   if (id === 'divider') l.stack.th = 'hug';
   if (id === 'bottom' || id === 'corner') l.stack.bottom = 'full';
+  return l;
+}
+
+// Every size of the arrangement in force back to how it started, the
+// arrangement itself kept: what "Reset sizes" does, for a touch screen that has
+// no double-click to do it a handle at a time.
+export function resetAllSizes(layout, fit = {}) {
+  const l = sanitizeLayout(layout);
+  const d = defaultLayout();
+  if (arrangementOf(l, fit) === 'side') { const sk = sideKey(fit); l[sk] = d[sk]; }
+  else l.stack = d.stack;
   return l;
 }
 

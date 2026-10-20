@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   EDGE, SIZES, LAYOUT_DEFAULT, SIDEBAR_LAYOUT_KEY, OLD_SIDEBAR_W_KEY,
   defaultLayout, sanitizeLayout, layoutFromOldWidth, readSidebarLayout, writeSidebarLayout,
-  sidebarFootprint, arrangementOf, frameVars, toggledLayout, handleSpecs, dragLayout, resetLayout, keyLayout,
+  sidebarFootprint, arrangementOf, frameVars, toggledLayout, handleSpecs, dragLayout, resetLayout, resetAllSizes, keyLayout,
   SIDE_FITS_QUERY, KEPT_FITS_QUERY, shownArrangement, withFilesHidden, handleList,
 } from './sidebarLayout.js';
 
@@ -31,9 +31,9 @@ const sideBySide = (layout = { ...defaultLayout(), arr: 'side' }, over = {}) => 
 test('the defaults are the sidebar as it was: 320 stacked, 640 side by side', () => {
   assert.equal(sidebarFootprint(defaultLayout()), 320);
   assert.equal(sidebarFootprint({ ...defaultLayout(), arr: 'side' }), 640);
-  // A touch screen keeps the files under the clusters.
-  assert.equal(arrangementOf({ ...defaultLayout(), arr: 'side' }, { coarse: true }), 'stack');
-  assert.equal(sidebarFootprint({ ...defaultLayout(), arr: 'side' }, { coarse: true }), 320);
+  // A touch screen keeps its own: side by side, whatever the desktop chose.
+  assert.equal(arrangementOf(defaultLayout(), { coarse: true }), 'side');
+  assert.equal(sidebarFootprint(defaultLayout(), { coarse: true }), 472);
   // A window too narrow for side by side keeps the files under the clusters, whatever was chosen.
   assert.equal(SIDE_FITS_QUERY, '(min-width: 920px)');
   assert.equal(KEPT_FITS_QUERY, '(min-width: 864px)');
@@ -51,6 +51,51 @@ test('the defaults are the sidebar as it was: 320 stacked, 640 side by side', ()
   assert.deepEqual([fromShown.arr, fromShown.pinned], ['side', true]);
   assert.deepEqual(toggledLayout(defaultLayout()).arr, 'side');
   assert.deepEqual(toggledLayout(toggledLayout(defaultLayout())), defaultLayout());
+});
+
+test('a touch screen: side by side and full height by default, sizes of its own, and only its button stacks them', () => {
+  const d = defaultLayout();
+  assert.equal(arrangementOf(d, { coarse: true }), 'side');
+  // Both cards the whole height: about 470px of a tablet held sideways.
+  const v = frameVars(d, { coarse: true });
+  assert.deepEqual([v['--sbf-tw'], v['--sbf-fw'], v['--sbf-th'], v['--sbf-fh']], ['208px', '248px', '100%', '100%']);
+  assert.equal(sidebarFootprint(d, { coarse: true }), EDGE + 208 + EDGE + 248);
+  // The button stacks them on the touch screen only; the desktop's choice stays as it was.
+  const stackedHere = toggledLayout(d, 'side', { coarse: true });
+  assert.equal(stackedHere.touchArr, 'stack');
+  assert.deepEqual([stackedHere.arr, stackedHere.pinned], [d.arr, d.pinned]);
+  assert.equal(arrangementOf(stackedHere, { coarse: true }), 'stack');
+  assert.equal(toggledLayout(stackedHere, 'stack', { coarse: true }).touchArr, 'side');
+  // And the desktop's side by side never reaches a touch screen.
+  assert.equal(arrangementOf({ ...stackedHere, arr: 'side', pinned: true }, { coarse: true }), 'stack');
+  // A window too narrow for side by side stacks a touch screen too.
+  assert.equal(arrangementOf(d, { coarse: true, roomy: false }), 'stack');
+  // What storage holds is checked as the desktop's is.
+  const l = sanitizeLayout({ touchArr: 'sideways', touchSide: { tw: 10, fw: 9999, tBottom: 'hug', fBottom: 'x' } });
+  assert.equal(l.touchArr, 'side');
+  assert.deepEqual(l.touchSide, { tw: SIZES.treeMinW, fw: SIZES.filesMaxW, tBottom: 'hug', fBottom: 'full' });
+  assert.equal(sanitizeLayout({ touchArr: 'stack' }).touchArr, 'stack');
+  // Corners a finger can find.
+  const corner = handleSpecs('side', { t: rect(8, 8, 208, 884), f: rect(224, 8, 248, 884) }, { coarse: true }).find((h) => h.id === 'corner');
+  assert.deepEqual([corner.w, corner.h], [32, 32]);
+});
+
+test('a finger sizing side by side changes the touch sizes only, and never stacks them', () => {
+  const d = defaultLayout();
+  const start = { ...VIEW, coarse: true, layout: d, arr: 'side', t: rect(8, 8, 208, 884), f: rect(224, 8, 248, 884), x: 472 };
+  // Pulled far narrower than side by side allows: still side by side, at the files' least.
+  const narrow = dragLayout(start, 'right', -400, 0);
+  assert.equal(narrow.flip, null);
+  assert.equal(narrow.layout.touchArr, 'side');
+  assert.equal(narrow.layout.touchSide.fw, SIZES.filesMinW);
+  assert.deepEqual(narrow.layout.side, d.side, 'the desktop sizes are untouched');
+  assert.equal(dragLayout(start, 'right', 100, 0).layout.touchSide.fw, 348);
+  // The gap trades width, and a reset (one handle, or every size) puts the touch defaults back.
+  const moved = dragLayout(start, 'split', 10, 0).layout;
+  assert.deepEqual([moved.touchSide.tw, moved.touchSide.fw], [218, 238]);
+  assert.deepEqual(resetLayout(moved, 'side', 'split', 'stack', { coarse: true }).touchSide, d.touchSide);
+  assert.deepEqual(resetAllSizes(moved, { coarse: true }).touchSide, d.touchSide);
+  assert.deepEqual(resetAllSizes(moved, { coarse: true }).touchArr, 'side');
 });
 
 test('whatever storage holds comes back as a layout', () => {

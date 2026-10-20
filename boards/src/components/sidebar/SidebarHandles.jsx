@@ -281,7 +281,7 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
              tabIndex={h.focus ? 0 : -1}
              title={`${h.label} · double-click to put it back`}
              onPointerDown={(e) => onPointerDown(e, h.id, h.kind)}
-             onDoubleClick={() => { sizeAtOnce(frameRef.current); onLayout?.(resetLayout(layout, arr, h.id, arrangementOf(layout, fit())), { commit: true }); }}
+             onDoubleClick={() => { sizeAtOnce(frameRef.current); onLayout?.(resetLayout(layout, arr, h.id, arrangementOf(layout, fit()), fit()), { commit: true }); }}
              onKeyDown={h.focus ? (e) => onKeyDown(e, h.id, h.kind) : undefined}>
           {h.kind === 'corner' && (
             <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d={ARC} /></svg>

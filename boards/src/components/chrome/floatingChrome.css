@@ -20,7 +20,12 @@
           backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: var(--shadow-1);
 }
-.chrome-left { left: 10px; max-width: min(46%, 640px); min-width: 0; }
+/* Never under the right island: what it leaves, less a gap (FloatingChrome
+   publishes its width). */
+.chrome-left {
+  left: 10px; min-width: 0;
+  max-width: min(46%, 640px, calc(100% - 28px - var(--upgrade-chip-gutter, 0px) - var(--chrome-right-w, 0px)));
+}
 /* Clear of the free plan's upgrade chip, which sits fixed at the top right and
    publishes its own width (UpgradeChip.jsx). */
 .chrome-right { right: calc(10px + var(--upgrade-chip-gutter, 0px)); }

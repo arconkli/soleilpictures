@@ -368,20 +368,22 @@ export function ClusterSidebar({
   };
 
   // ── The two cards ─────────────────────────────────────────────────────────
-  // Side by side or stacked (a touch screen, and a window too narrow for side
-  // by side, always stack), each card its own size; the button above the
-  // files switches, keeping each arrangement's sizes. Side by side from the
-  // button stays however narrow it's dragged (kept), until the button again.
+  // Side by side or stacked (a window too narrow for side by side always
+  // stacks), each card its own size; the button above the files switches,
+  // keeping each arrangement's sizes. Side by side from the button stays
+  // however narrow it's dragged (kept), until the button again. A touch
+  // screen keeps its own: side by side, full height, until its button stacks
+  // them (lib/sidebarLayout.js).
   // Hidden, the files fold to their heading under the clusters, in either.
   const folded = floating && !!onLayout && !!layout?.filesHidden;
   const side = floating && !folded && arrangementOf(layout, { coarse, roomy, snug }) === 'side';
-  const kept = side && !!layout?.pinned;
+  const kept = side && !coarse && !!layout?.pinned;
   const frameRef = useRef(null);
   const treeCardRef = useRef(null);
   const filesCardRef = useRef(null);
   const ownNavRef = useRef(null);
   const navRef = listRef || ownNavRef;
-  const toggleSide = () => { sizeAtOnce(frameRef.current); onLayout?.(toggledLayout(layout, side ? 'side' : 'stack'), { commit: true }); };
+  const toggleSide = () => { sizeAtOnce(frameRef.current); onLayout?.(toggledLayout(layout, side ? 'side' : 'stack', { coarse }), { commit: true }); };
 
   // ── Hiding the files ──────────────────────────────────────────────────────
   // Hide moves focus to Show and Show back to Hide, so the way back is where
@@ -1004,7 +1006,7 @@ export function ClusterSidebar({
               );
             })}
           </div>
-          {floating && !coarse && snug && onLayout && (
+          {floating && onLayout && (coarse || snug) && (
             <button type="button" className={`sbf-iconbtn is-reveal${kept ? ' is-kept' : ''}`}
                     aria-label={side ? 'Show files under the clusters' : 'Show files beside the clusters'}
                     title={side ? (kept ? 'Kept side by side · show files under the clusters' : 'Show files under the clusters') : 'Show files beside the clusters'}
