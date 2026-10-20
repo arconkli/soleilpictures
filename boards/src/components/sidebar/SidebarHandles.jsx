@@ -7,10 +7,10 @@
 // The layout is handed to App once, when the pointer lets go. A drag that
 // changes the arrangement (a stacked card pulled wider than the stacked
 // sidebar gets, or side by side pulled narrow) renders the other
-// arrangement's handles here and carries on. Double-click puts back what a
-// handle sizes; a focused edge moves with the arrow keys. A new arrangement
-// slides the files' card to its new place. With the files hidden, the
-// clusters' card's width is the one handle.
+// arrangement's handles here and carries on. Double-click (a double tap, under
+// a finger) puts back what a handle sizes; a focused edge moves with the arrow
+// keys. A new arrangement slides the files' card to its new place. With the
+// files hidden, the clusters' card's width is the one handle.
 //
 // The handles sit in a fixed layer over the window and are placed from where
 // the cards actually are (the CSS has the last word on a card's size: a
@@ -19,6 +19,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { EDGE, SIZES, arrangementOf, dragLayout, frameVars, handleList, handleSpecs, keyLayout, resetLayout, shownArrangement, sidebarFootprint } from '../../lib/sidebarLayout.js';
+import { tapIsDouble } from '../../lib/doubleTap.js';
 
 const CURSOR = { v: 'ew-resize', h: 'ns-resize', grip: 'ns-resize', corner: 'nwse-resize' };
 // A card's rounded corner, 12px, with a little of each edge (the corner sits
@@ -187,6 +188,15 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
     return { layout: lay, arr: at, under: arrangementOf(lay, fit()), t: tr, f: fr, top: box.top, full: box.bottom - EDGE, hug, x, vw: window.innerWidth, coarse: live.current.coarse };
   };
 
+  // What the handle sizes, back to how it started.
+  const resetHandle = (id) => {
+    sizeAtOnce(frameRef.current);
+    onLayout?.(resetLayout(layout, arr, id, arrangementOf(layout, fit()), fit()), { commit: true });
+  };
+  // A finger's double tap: two taps on one handle that don't move it. (A
+  // dblclick doesn't come reliably from a pointer this layer takes.)
+  const tapsRef = useRef({});
+
   const onMove = useRef(null);
   const onUp = useRef(null);
   onMove.current = (e) => {
@@ -216,9 +226,10 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
     showGuide(r.align, r.alignX);
     place();
   };
-  onUp.current = () => {
+  onUp.current = (e) => {
     const d = dragRef.current;
     if (!d) return;
+    const tap = e?.type === 'pointerup' && e.pointerType !== 'mouse' && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 6;
     dragRef.current = null;
     window.removeEventListener('pointermove', moveListener);
     window.removeEventListener('pointerup', upListener);
@@ -228,6 +239,7 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
     showGuide(null);
     setHeld(null);
     setDragArr(null);
+    if (tap && tapIsDouble(tapsRef, e, { key: d.id })) { resetHandle(d.id); return; }
     live.current.onLayout?.(d.layout, { commit: true });
   };
   // Stable, so they can be taken off the window again.
@@ -281,7 +293,7 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
              tabIndex={h.focus ? 0 : -1}
              title={`${h.label} · double-click to put it back`}
              onPointerDown={(e) => onPointerDown(e, h.id, h.kind)}
-             onDoubleClick={() => { sizeAtOnce(frameRef.current); onLayout?.(resetLayout(layout, arr, h.id, arrangementOf(layout, fit()), fit()), { commit: true }); }}
+             onDoubleClick={() => resetHandle(h.id)}
              onKeyDown={h.focus ? (e) => onKeyDown(e, h.id, h.kind) : undefined}>
           {h.kind === 'corner' && (
             <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d={ARC} /></svg>

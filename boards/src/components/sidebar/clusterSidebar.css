@@ -82,6 +82,15 @@
 .app.sb-files.is-floating-chrome:not(.sb-collapsed) {
   grid-template-columns: min(var(--sb-w, 320px), max(240px, calc(100vw - 420px))) 1fr;
 }
+/* The mobile shell (a phone, a portrait tablet: styles.css's query) is one
+   column, as it is without the files sidebar. The sidebar is a drawer there,
+   out of the grid, so .main is the grid's first item: under the two tracks
+   above it took the sidebar's, which the shell sets to 0px, and the board,
+   Files and Home drew nothing. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .app.sb-files, .app.sb-files.sb-collapsed { grid-template-columns: 1fr; }
+}
 /* The handles straddle the cards' edges, but the sidebar is its own stacking
    context (the grain layer isolates it), so their z-index can't lift them
    over the surface next door. Lifting the sidebar does. */
@@ -191,7 +200,9 @@
 @media (prefers-reduced-motion: reduce) { .sbf-files-bar { animation: none; } }
 @media (pointer: coarse) {
   .sbf-files-bar { height: 48px; }
-  .sbf-files-hide { height: 36px; padding: 0 12px; }
+  .sbf-files-hide { height: 40px; padding: 0 12px; }
+  /* Its row holds the 40px Hide whole: a full list squeezed it to 32. */
+  .sbf-files-heading { flex-shrink: 0; min-height: 40px; padding-top: 2px; }
 }
 
 /* ── The handles (SidebarHandles) ────────────────────────────────────────── */
@@ -222,6 +233,16 @@
 .sbf-handle.is-held::after, .sbf-handle:focus-visible::after { opacity: 1; background: var(--soleil); transition-delay: 0s; }
 .sbf-handle.is-held svg, .sbf-handle:focus-visible svg { opacity: 1; transition-delay: 0s; }
 .sbf-handle.is-held svg path, .sbf-handle:focus-visible svg path { stroke: var(--soleil); }
+/* A finger has no hover to find them by: each edge between a card and what's
+   beside it shows a grip at rest, a short pill like the stacked cards' (and a
+   tablet's own split view's), gold while held. The corner's square sits mostly
+   outside its card under a finger (lib/sidebarLayout.js), so its arc moves out
+   onto the card's corner. */
+@media (pointer: coarse) {
+  .sbf-handle.is-v::after { top: 50%; bottom: auto; height: 28px; width: 3px; margin: -14px 0 0 -1.5px; border-radius: 2px; }
+  .sbf-handle.is-v::after, .sbf-handle.is-grip::after { opacity: 1; }
+  .sbf-handle.is-corner svg { left: -10px; top: -10px; }
+}
 /* Where two edges line up while you drag one to the other: the bottoms (a
    line across), or stacked, the right edges (a line down). */
 .sbf-guide { position: absolute; left: 0; top: 0; width: 0; height: 0; border-top: 1px dashed var(--soleil); opacity: 0; transition: opacity .1s var(--ease); }
@@ -820,6 +841,19 @@ body.sbf-sizing .app,
   .sbf-meter-text { font-size: 13px; }
   .sbf-upload { height: 36px; padding: 0 14px 0 12px; font-size: 14px; }
   .app.sb-files .sb-foot .sb-foot-icon, .app.sb-files .sb-foot .sb-foot-avatar { width: 40px; height: 40px; }
+  /* The rest a finger met under 40px (tests/touch/touch-targets.spec.js). */
+  .app.sb-files .sb-top .sb-ws-trigger { height: 40px; }
+  .app.sb-files .sb-mid .sb-boards-head,
+  .app.sb-files .sb-mid .sb-tags-head,
+  .app.sb-files .sb-mid .sb-shared-head { min-height: 40px; }
+  .sbf-more-btn { min-height: 44px; }
+  .sbf-meter-text { align-self: stretch; }
+  .sbf-upload { height: 40px; }
+  .sbf-upitem { padding-top: 13px; padding-bottom: 13px; }
+  .sbf-search-clear { width: 40px; height: 40px; margin-right: -4px; }
+  .sbf-away { height: 44px; }
+  .sbf-away-btn { height: 40px; }
+  .sbf-switch-clear { width: 40px; height: 40px; }
 }
 
 /* ── The phone drawer: one scroll for everything ─────────────────────────── */
@@ -836,6 +870,17 @@ body.sbf-sizing .app,
 .app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-nav { max-height: none; overflow: visible; }
 .app.sb-files .sidebar.is-mobile-open .sbf-files { overflow: visible; border-radius: 0; border-top: 1px solid var(--line-1); padding-top: 6px; }
 .app.sb-files .sidebar.is-mobile-open .sbf-files-list { overflow: visible; -webkit-mask-image: none; mask-image: none; }
+/* The meter with Upload, and the foot under it, stay at the drawer's bottom
+   while the rest scrolls under them: adding files shouldn't wait for the end
+   of every shelf. The meter sits on the foot, as tall as its icons (28px; 40
+   under a finger, below) and its 8px under them. */
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter,
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sb-foot { position: sticky; z-index: 1; background-color: var(--bg-1); }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sb-foot { bottom: 0; }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter { bottom: calc(28px + 8px); }
+@media (pointer: coarse) {
+  .app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter { bottom: calc(40px + 8px); }
+}
 
 /* ── Another cluster's files, and dragging them (owner, round 11) ─────────── */
 /* The cluster tab switches: "Feature film ⌄" opens every cluster of the

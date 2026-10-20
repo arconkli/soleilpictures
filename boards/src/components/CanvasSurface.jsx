@@ -4901,11 +4901,12 @@ export function CanvasSurface({
   // back every file in the chosen folder with its webkitRelativePath, which
   // lib/folderWalk turns into the same tree a drop gives. Not offered where the
   // browser cannot pick a folder (iOS Safari ignores webkitdirectory and would
-  // open an ordinary file picker under a "Folder" label), or in the mobile shell.
+  // open an ordinary file picker under a "Folder" label), or in the mobile shell,
+  // or on any touch screen: iPadOS reports webkitdirectory and still can't.
   const canPickFolder = useMemo(() => {
-    if (mobileShell || !onImportFolder) return false;
+    if (mobileShell || isTouch || !onImportFolder) return false;
     try { return 'webkitdirectory' in document.createElement('input'); } catch (_) { return false; }
-  }, [mobileShell, onImportFolder]);
+  }, [mobileShell, isTouch, onImportFolder]);
   const openFolderPicker = useCallback((pos) => {
     const input = document.createElement('input');
     input.type = 'file';

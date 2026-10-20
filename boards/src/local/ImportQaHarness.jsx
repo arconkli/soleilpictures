@@ -26,6 +26,7 @@ import { shellOf } from '../lib/deviceShell.js';
 //          (over ?state's import, which shows again when the guide closes)
 //   ?land=night|wait|coming|plain   an imported cluster's empty canvas
 //   ?row=1 adds a cluster's Files, with its "waiting for room" row while ?state waits
+//   ?msg=1 as with the Messages card open: the tray folds to its chip, left of the card
 // window.__importQa.put / .drop add and take away imports, as App does;
 // .openGuide opens the guide. The guide's drops and picks log "[importqa] guide".
 // Imported only behind main.jsx's `import.meta.env.DEV &&` guard.
@@ -153,10 +154,10 @@ const ROOMS = {
   paid: { own: true, plan: 'paid', cardsLeft: null, bytesLeft: 412 * GB },
   guest: { own: false, plan: 'free', cardsLeft: 12, bytesLeft: 3.8 * GB },
 };
-const guideProps = ({ mobileShell }) => ({
+const guideProps = ({ mobileShell, coarse }) => ({
   target: params.get('target') === '0' ? null : 'Studio',
   room: ROOMS[params.get('plan')] || ROOMS.free,
-  canFolder: !mobileShell,
+  canFolder: !mobileShell && !coarse,
   onImport: (input) => {
     const [kind, list] = input.zips ? ['zips', input.zips] : input.pickedFiles ? ['folder', input.pickedFiles]
       : input.entries ? ['entries', input.entries] : ['files', input.files || []];
@@ -234,7 +235,8 @@ export function ImportQaHarness() {
         ? <LandQa which={params.get('land')} />
         : <>
             {params.get('row') === '1' && <RowQa />}
-            <ImportTray aboveNav={shell.mobileShell} initialMinimized={params.get('min') === '1'} guide={guideProps(shell)} />
+            <ImportTray aboveNav={shell.mobileShell} initialMinimized={params.get('min') === '1'} guide={guideProps(shell)}
+                        besideMessages={params.get('msg') === '1'} />
           </>}
     </div>
   );

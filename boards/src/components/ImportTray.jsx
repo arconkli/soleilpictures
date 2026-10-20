@@ -12,6 +12,8 @@ import {
 import { captureDropEntries, captureDropHandles, hasDirectory } from '../lib/folderWalk.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { useMatchMedia } from '../hooks/useMatchMedia.js';
+import { useScreenAwake } from '../hooks/useScreenAwake.js';
 import './importTray.css';
 
 // The bulk import's tray (the owner's pick A, 2026-10-19): bottom-right, just
@@ -152,12 +154,12 @@ function Guide({ app, guide, aboveNav }) {
   );
 }
 
-function Chip({ m, onOpen, aboveNav }) {
+function Chip({ m, onOpen, aboveNav, besideMessages }) {
   const { chip } = m;
   const dash = chip.pct === null ? RING_C / 4 : (RING_C * chip.pct) / 100;
   const Glyph = GLYPHS[chip.icon];
   return (
-    <button type="button" className={'imptray-chip' + (aboveNav ? ' is-above-nav' : '')}
+    <button type="button" className={'imptray-chip' + (aboveNav ? ' is-above-nav' : '') + (besideMessages ? ' is-beside-msg' : '')}
             aria-label={chip.label} title={chip.label} onClick={onOpen}>
       {chip.kind === 'ring' ? (
         <svg className={chip.pct === null ? 'is-spin' : undefined} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{ display: 'block' }}>
@@ -171,14 +173,26 @@ function Chip({ m, onOpen, aboveNav }) {
   );
 }
 
+// Still moving files: read, made into clusters, or sent. Not paused, not
+// waiting for room, not finished.
+const GOING = new Set(['idle', 'creating', 'running']);
+const isGoing = (e) => e.phase === 'reading' || (e.phase === 'job' && GOING.has(e.snap?.status || 'idle'));
+
 // guide: { target, room, canFolder, onImport(input) } from App — the cluster a
 // drop goes into, the room line's numbers, and how the guide's drops and
-// picks start an import.
-export function ImportTray({ aboveNav = false, initialMinimized = false, guide = null }) {
+// picks start an import. besideMessages: the Messages card is open at the
+// right edge, so the tray folds to its chip and both sit left of the card.
+export function ImportTray({ aboveNav = false, initialMinimized = false, guide = null, besideMessages = false }) {
   const { list } = useSyncExternalStore(subscribeImportJobs, importJobsSnapshot, importJobsSnapshot);
   const g = useSyncExternalStore(subscribeImportGuide, importGuideSnapshot, importGuideSnapshot);
   const { lead, more } = trayEntries(list);
   const [minimized, setMinimized] = useState(initialMinimized);
+  // A phone or a tablet that locks itself stops the import: while files are
+  // moving it stays awake, and the words ask for the tab to stay in front.
+  const touch = useMatchMedia('(hover: none) and (pointer: coarse)');
+  useScreenAwake(touch && list.some(isGoing));
+  // Messages opening is where the attention went: out of its way, still live.
+  useEffect(() => { if (besideMessages) setMinimized(true); }, [besideMessages]);
   const leadKey = lead?.key;
   // A new import opens expanded, whatever the last one was folded to.
   // (Not for the first import to show: initialMinimized is its own choice.)
@@ -207,13 +221,13 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
   if (g.open) return <Guide app={g.app} guide={guide} aboveNav={aboveNav} />;
   if (!lead) return null;
 
-  const m = trayCopy(lead);
+  const m = trayCopy(lead, { touch });
   const act = (id) => lead.act?.(id);
-  if (minimized) return <Chip m={m} aboveNav={aboveNav} onOpen={() => setMinimized(false)} />;
+  if (minimized) return <Chip m={m} aboveNav={aboveNav} besideMessages={besideMessages} onOpen={() => setMinimized(false)} />;
 
   const fin = m.finished;
   return (
-    <section className={'imptray' + (aboveNav ? ' is-above-nav' : '')} aria-label="Imports">
+    <section className={'imptray' + (aboveNav ? ' is-above-nav' : '') + (besideMessages ? ' is-beside-msg' : '')} aria-label="Imports">
       <header className="imptray-head">
         <span className="imptray-title"><span aria-live="polite">{m.title}</span></span>
         {m.close === 'close' ? (

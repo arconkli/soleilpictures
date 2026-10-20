@@ -46,6 +46,7 @@
 .impask-btn.is-primary { background: var(--soleil); border-color: var(--soleil); color: #1a1205; font-weight: 600; }
 .impask-btn.is-primary:hover { filter: brightness(1.06); }
 .impask-btn.is-default { border-color: color-mix(in srgb, var(--ink-0) 34%, transparent); color: var(--ink-0); }
+@media (hover: none) and (pointer: coarse) { .impask-btn { min-height: 40px; } }
 
 /* ImportZipDialog: the list of zips being added. */
 .impzip { width: min(460px, calc(100vw - 32px)); }

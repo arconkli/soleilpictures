@@ -16220,7 +16220,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in Quick look opens the clip full size in a dark room, on the frame you were on. Click the picture to play or pause; double-click for full screen. When you close it, the card shows the frame you left on."
+     "v": " in Quick look opens the clip full size in a dark room, on the frame you were on. Click the picture to play or pause; double-click for full screen. In full screen the controls step aside while it plays and come back when the pointer moves; on a touch screen, a tap brings them back without pausing. When you close it, the card shows the frame you left on."
     }
    ]
   },
@@ -18081,7 +18081,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " does the same from a picker, on a desktop browser."
+     "v": " does the same from a picker, on a desktop browser. A phone's or a tablet's browser can't pick a folder, so the menu leaves it out there."
     }
    ]
   },

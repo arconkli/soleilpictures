@@ -26,7 +26,7 @@
 // hanging below it would sit under the canvas.
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { Plus, Folder } from '../lib/icons.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -78,8 +78,16 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
     // another door logs its own view when it is shown.
     if (via === 'topbar') nudge('view');
   };
-  const showRef = useRef(show);
-  showRef.current = show;
+  // Open, and on the same tap put the cursor in the field: iOS raises the
+  // keyboard only for a focus made inside the tap, and the effect below runs
+  // too late for that. The flush places the popover first, so it can take focus.
+  const showNow = (via, opts) => {
+    flushSync(() => show(via, opts));
+    const el = fieldRef.current;
+    if (el && document.activeElement !== el) { el.focus({ preventScroll: true }); el.select(); }
+  };
+  const showRef = useRef(showNow);
+  showRef.current = showNow;
   useEffect(() => {
     const onOpen = (e) => {
       const d = e.detail;
@@ -144,7 +152,7 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
       <button type="button" ref={btnRef} className="tb-btn tb-newcluster"
               aria-haspopup="dialog" aria-expanded={open}
               title={n ? `New cluster from the ${n} ${cardsWord(n)} you picked` : 'New cluster (C)'}
-              onClick={() => (open ? close({ dismissed: true }) : show('topbar'))}>
+              onClick={() => (open ? close({ dismissed: true }) : showNow('topbar'))}>
         <Icon as={Plus} size={14} weight="regular" />
         <span className="tb-btn-label">New cluster</span>
         {n > 0 && !(open && sweep) && <span className="ncl-count" aria-label={`${n} ${cardsWord(n)} picked`}>{n}</span>}

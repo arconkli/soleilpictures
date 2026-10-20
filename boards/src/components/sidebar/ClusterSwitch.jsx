@@ -24,6 +24,7 @@ import { Icon } from '../Icon.jsx';
 import { Search, Check, XCircle } from '../../lib/icons.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { clustersInTreeOrder, findClusters } from '../../lib/clusterSwitchList.js';
+import { keyboardInset } from '../../lib/keyboardInset.js';
 
 const STEP = 16;          // a level of nesting, as in the tree
 const SHEET_STEP = 18;
@@ -31,7 +32,8 @@ const SHEET_STEP = 18;
 // Where the list opens: under the tabs, as wide as the Files card's contents,
 // down to the meter. When it doesn't all fit there and the room under the
 // tabs is short (a tall tree above leaves the Files card low), it opens over
-// the tabs instead if there's more room above, as menus do.
+// the tabs instead if there's more room above, as menus do. A touch keyboard
+// up for the find box is a floor too: the list stops above it.
 const ROOM = 260;
 function placeSwitch(tabs, card, want) {
   if (!tabs) return null;
@@ -43,7 +45,8 @@ function placeSwitch(tabs, card, want) {
   const width = Math.min(vw - 16, Math.max(240, c ? c.width - inset * 2 : t.width));
   const left = Math.max(8, Math.min(t.left, vw - width - 8));
   const meter = card?.querySelector('.sbf-meter');
-  const floor = Math.min(vh - 8, meter ? meter.getBoundingClientRect().top - 8 : (c ? c.bottom - 8 : vh - 8));
+  const low = vh - keyboardInset(window) - 8;
+  const floor = Math.min(low, meter ? meter.getBoundingClientRect().top - 8 : (c ? c.bottom - 8 : low));
   const top = t.bottom + 6;
   const below = floor - top;
   const above = t.top - 14;
@@ -85,7 +88,7 @@ export function ClusterSwitch({
   const away = !!boardId && shownId !== boardId;
 
   // Placed before it paints, and again as the window moves under it (not as
-  // its own list scrolls).
+  // its own list scrolls) or a keyboard comes up over it.
   useLayoutEffect(() => {
     if (sheet) return undefined;
     const place = (e) => {
@@ -96,11 +99,16 @@ export function ClusterSwitch({
       setPos(placeSwitch(tabsRef?.current, cardRef?.current, want));
     };
     place();
+    const vv = window.visualViewport;
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
+    vv?.addEventListener('resize', place);
+    vv?.addEventListener('scroll', place);
     return () => {
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
+      vv?.removeEventListener('resize', place);
+      vv?.removeEventListener('scroll', place);
     };
   }, [sheet, tabsRef, cardRef]);
 

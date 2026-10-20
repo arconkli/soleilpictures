@@ -261,9 +261,12 @@ export function handleSpecs(arr, { t, f }, { coarse = false } = {}) {
   const R = RADIUS;
   const at = {};
   const put = (id, x, y, w, h) => { at[id] = { x, y, w: Math.max(0, w), h: Math.max(0, h) }; };
-  // A corner square, a little bigger under a finger.
+  // A corner square, a little bigger under a finger, and then reaching into
+  // the card no further than an edge does: further, it took the taps meant for
+  // the account button in the files' corner.
   const c = coarse ? 32 : 24;
-  const corner = (id, r) => put(id, r.x + r.w - (c - 6), r.y + r.h - (c - 6), c, c);
+  const inside = coarse ? z / 2 : c - 6;
+  const corner = (id, r) => put(id, r.x + r.w - inside, r.y + r.h - inside, c, c);
   if (arr === 'hidden') {
     put('treeRight', t.x + t.w - z / 2, t.y + R, z, t.h - 2 * R);
   } else if (arr === 'side') {

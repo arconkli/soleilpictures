@@ -201,8 +201,10 @@
 .ch-card .ch-cover { height: 156px; aspect-ratio: auto; border-radius: 9px; }
 
 /* ── The bottom: find and new; and the empty workspace's one line ──────── */
+/* --kb-inset: how much of the window a touch keyboard covers while the find
+   field or the naming card is in use (ClustersHome); both rise above it. */
 .ch-bar {
-  position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: calc(24px + var(--kb-inset, 0px)); transform: translateX(-50%);
   display: flex; align-items: center; gap: 4px; height: 48px; padding: 0 6px; box-sizing: border-box; border-radius: 14px;
 }
 .ch-find {
@@ -225,8 +227,10 @@
   color: var(--ink-2); font: 400 12px/1 var(--font-sans); text-shadow: 0 0 10px rgba(0, 0, 0, .7);
 }
 [data-theme='light'] .ch-hint { text-shadow: none; }
+/* Centred with translate, not transform: the entrance animates transform, and
+   would otherwise start it half its width to the right. */
 .ch-naming {
-  position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%); width: 336px; box-sizing: border-box;
+  position: absolute; left: 50%; bottom: calc(88px + var(--kb-inset, 0px)); translate: -50% 0; width: 336px; box-sizing: border-box;
   padding: 12px; border-radius: 14px; animation: chCardIn .18s var(--ease);
 }
 .ch-naming-field input {
@@ -258,6 +262,8 @@
 .ch-root.is-rows .ch-ws-name { text-shadow: none; }
 .ch-find-row { display: flex; align-items: center; gap: 8px; margin: 20px 0 8px; }
 .ch-find-row .ch-find { flex: 1; width: auto; }
+/* New cluster names it right under the search, before the rows. */
+.ch-root.is-rows .ch-naming { position: static; translate: none; width: auto; margin: 0 0 12px; }
 .ch-rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .ch-row {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 6px; box-sizing: border-box;
@@ -279,6 +285,14 @@
   .ch-ws-acts { margin-left: 30px; padding-left: 0; border-left: 0; flex-basis: 100%; }
 }
 @media (pointer: coarse) {
-  .ch-word, .ch-quiet { height: 40px; }
-  .ch-inword { height: 36px; }
+  .ch-word, .ch-quiet, .ch-primary { height: 40px; }
+  .ch-inword { height: 40px; }
+  .ch-ws-switch { width: 40px; height: 40px; margin-left: -10px; }
+  .ch-x::before { content: ''; position: absolute; inset: -7px; }
+  .ch-find { height: 40px; }
+  /* Under 16px iOS zooms the page in on focus. */
+  .ch-find input { align-self: stretch; font-size: 16px; }
+  .ch-naming-field input { height: 40px; font-size: 16px; }
+  /* A star's name stays 26px drawn; a finger gets 40. */
+  .hg-name::before { content: ''; position: absolute; inset: -7px -2px; border-radius: inherit; }
 }

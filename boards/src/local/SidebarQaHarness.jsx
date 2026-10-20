@@ -21,7 +21,10 @@ import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Settings } from '../lib/icons.js';
+import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Settings, Maximize2, LayoutGrid } from '../lib/icons.js';
+import { ClustersMark } from '../components/SoleilWordmark.jsx';
+import { NewClusterButton } from '../components/NewClusterButton.jsx';
+import { clusterNudgesAllowed } from '../lib/appHost.js';
 import { SidebarWho } from '../components/sidebar/SidebarWho.jsx';
 import { whoLine } from '../lib/sidebarWho.js';
 import { ClustersHome } from '../components/home/ClustersHome.jsx';
@@ -273,9 +276,9 @@ export function SidebarQaHarness() {
   const allBoards = useMemo(() => ({ ...BOARDS }), [boardsVersion]);
   // The shell App would give this screen (lib/deviceShell.js). In the mobile
   // shell — a phone, a portrait tablet — the sidebar is the app's drawer, open
-  // as the menu button would leave it, at the drawer's width.
+  // as the menu button would leave it, and as in App nothing sets --sb-w: the
+  // drawer floats over a main that is the whole width.
   const { mobileShell, coarse } = shellOf(useBreakpoint());
-  const drawerW = mobileShell ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : 0;
   // The cards' layout, kept and remembered as App keeps it.
   const [layout, setLayout] = useState(() => readSidebarLayout());
   const roomy = useMatchMedia(SIDE_FITS_QUERY);
@@ -395,7 +398,7 @@ export function SidebarQaHarness() {
     <>
     <style>{QA_STYLE}</style>
     <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${SURFACE === 'home' ? ' is-home' : ''}`}
-         style={{ '--sb-w': `${collapsed ? 0 : mobileShell ? drawerW : sidebarFootprint(layout, { coarse, roomy, snug })}px`, height: '100vh' }} data-sidebarqa-ready="1">
+         style={{ ...(mobileShell ? null : { '--sb-w': `${collapsed ? 0 : sidebarFootprint(layout, { coarse, roomy, snug })}px` }), height: '100vh' }} data-sidebarqa-ready="1">
       <aside className={`sidebar${mobileShell && DRAWER ? ' is-mobile-open' : ''}`}>
         <div className="sb-mid">
           <ClusterSidebar
@@ -468,8 +471,11 @@ export function SidebarQaHarness() {
                     <Icon as={PanelLeftOpen} size={16} />
                   </button>
                 )}
-                <button className="tb-icon" aria-label="Back" disabled><Icon as={ChevronLeft} size={15} /></button>
-                <button className="tb-icon" aria-label="Forward" disabled><Icon as={ChevronRight} size={15} /></button>
+                <button className="tb-brand" aria-label="Clusters home" onClick={() => say('home')}>
+                  <ClustersMark size={20} />
+                </button>
+                <button className="tb-icon tb-hist" aria-label="Back" disabled><Icon as={ChevronLeft} size={15} /></button>
+                <button className="tb-icon tb-hist" aria-label="Forward" disabled><Icon as={ChevronRight} size={15} /></button>
                 <div className="crumbs" data-tour="nav">
                   {[...(BOARDS[active]?.parent_board_id ? [BOARDS[BOARDS[active].parent_board_id]] : []), BOARDS[active]].map((b, i, all) => (
                     <span key={b.id} style={{ display: 'contents' }}>
@@ -478,17 +484,26 @@ export function SidebarQaHarness() {
                     </span>
                   ))}
                 </div>
+                {SURFACE === 'board' && !VIEWER && clusterNudgesAllowed() && (
+                  <NewClusterButton boardId={active} paneId="main" boardName={BOARDS[active]?.name}
+                                    onUnhandled={(name) => say(`new cluster ${name || ''}`)} />
+                )}
               </>
             )}
             right={(
               <>
-                <button className="tb-admin-btn" onClick={() => say('admin')}>Admin</button>
+                {!coarse && <button className="tb-admin-btn" onClick={() => say('admin')}>Admin</button>}
                 <button className="tb-icon" aria-label="Undo"><Icon as={Undo} size={16} /></button>
                 <button className="tb-icon" aria-label="Redo" disabled><Icon as={Redo} size={16} /></button>
                 <button className="tb-icon" aria-label="Search"><Icon as={Search} size={16} /></button>
-                <button className="tb-icon" aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>
+                {!coarse && <button className="tb-icon" aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>}
                 <span className="chrome-sep" aria-hidden="true" />
                 <span className="sbqa-faces" aria-label="2 people here">AC · JR</span>
+                {coarse && (
+                  <button className="tb-icon tb-icon-focus" aria-label="Enter focus view" onClick={() => say('focus')}>
+                    <Icon as={Maximize2} size={16} />
+                  </button>
+                )}
                 <button className="tb-btn tb-share" aria-label="Share this cluster" onClick={() => say('share')}>
                   <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
                 </button>
@@ -498,6 +513,10 @@ export function SidebarQaHarness() {
               { id: 'versions', label: 'Version history', icon: History, run: () => say('versions') },
               { id: 'trash', label: 'Deleted clusters', icon: Trash2, run: () => say('trash') },
               { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => say('split') },
+              ...(coarse ? [
+                { id: 'theme', label: 'Light theme', icon: Sun, run: () => say('theme') },
+                { id: 'admin', label: 'Admin dashboard', icon: LayoutGrid, run: () => say('admin') },
+              ] : []),
               { sep: true },
               { id: 'help', label: 'Help & feedback', icon: Question, run: () => say('help') },
             ]}

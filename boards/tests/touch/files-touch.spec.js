@@ -41,6 +41,15 @@ async function middle(loc) {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
 
+// A tap in the middle of what it's for. Playwright scrolls a target only as
+// far as the list's edge, and once earlier taps have scrolled the list, a
+// tile can sit half under the sticky header, where its middle is the header's
+// (a finger taps the half it can see).
+async function tapClear(loc) {
+  await loc.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await loc.tap();
+}
+
 // Held until the menu shows, then Select.
 async function holdToSelect(page, loc) {
   await hold(page, await middle(loc));
@@ -114,17 +123,17 @@ test.describe('Files', () => {
     for (const o of opacities) expect(o).toBe('1');
     await expect(files(page).locator('.ft .row-check')).toHaveCount(await files(page).locator('.ft').count());
     // A tap picks, and opens nothing.
-    await tile(page, 'home-image').tap();
+    await tapClear(tile(page, 'home-image'));
     await expect(bar(page)).toContainText('2 selected');
     await expect(quickLook(page)).toHaveCount(0);
     // Files only: the bar copies them too, with no right-click to find it.
     await expect(bar(page).getByRole('button', { name: 'Copy to…' })).toBeVisible();
     // A second tap takes one back out.
-    await tile(page, 'home-note').tap();
+    await tapClear(tile(page, 'home-note'));
     await expect(bar(page)).toContainText('1 selected');
     await expect(tile(page, 'home-note')).not.toHaveClass(/is-selected/);
     // A folder is picked, not opened.
-    await folder(page, 'Stills').tap();
+    await tapClear(folder(page, 'Stills'));
     await expect(bar(page)).toContainText('2 selected');
     await expect(folder(page, 'Stills')).toHaveClass(/is-selected/);
     await expect(bar(page).getByRole('button', { name: 'Copy to…' })).toHaveCount(0);
@@ -134,7 +143,7 @@ test.describe('Files', () => {
     await expect(bar(page)).toHaveCount(0);
     await expect(files(page).locator('.row-check')).toHaveCount(0);
     // And a tap opens again.
-    await tile(page, 'home-note').tap();
+    await tapClear(tile(page, 'home-note'));
     await expect(quickLook(page)).toBeVisible();
   });
 

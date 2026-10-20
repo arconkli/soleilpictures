@@ -9,6 +9,7 @@ import { HomeEmptyState } from './HomeEmptyState.jsx';
 import { HomeGraph2DFallback } from './HomeGraph2DFallback.jsx';
 import { prefetchEntity } from '../lib/prefetchKinds.js';
 import { orbitJitter, targetId } from '../lib/hashJitter.js';
+import { useMatchMedia } from '../hooks/useMatchMedia.js';
 
 // All entity kinds visible by default; users navigate the graph by hovering
 // + right-clicking to open. The HUD/filter chips were removed — they were
@@ -94,6 +95,7 @@ export function HomeGraph({
   const mapRef = useRef({});
   mapRef.current = { labels, selectedId, litIds, insets };
   const hoverRef = useRef(null);          // the cluster whose star or name the pointer is on
+  const touch = useMatchMedia('(hover: none) and (pointer: coarse)');
   const objectsRef = useRef(new Map());   // node id → its planet, so a search can dim it
   const lastClickRef = useRef({ id: null, t: 0 });
   const reduceMotionRef = useRef(false);
@@ -780,7 +782,7 @@ export function HomeGraph({
                     }}
                     className={`hg-name is-${l.kind}${selectedId === l.boardId ? ' is-sel' : ''}${litIds ? (litIds.has(l.boardId) ? ' is-hit' : ' is-faded') : ''}`}
                     aria-pressed={selectedId === l.boardId}
-                    title={l.kind === 'nested' ? undefined : 'Click to see it · double-click to open it'}
+                    title={l.kind === 'nested' ? undefined : touch ? 'Tap to see it · double-tap to open it' : 'Click to see it · double-click to open it'}
                     onClick={(e) => pickStar(l.boardId, { keyboard: e.detail === 0 })}
                     onPointerEnter={() => { hoverRef.current = l.boardId; }}
                     onPointerLeave={() => { if (hoverRef.current === l.boardId) hoverRef.current = null; }}

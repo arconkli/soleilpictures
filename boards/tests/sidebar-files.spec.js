@@ -727,9 +727,12 @@ test.describe('sidebar files wiring (App.jsx)', () => {
     expect(app).toContain("const shrinkToSidebar = { shrinkLabel: 'Shrink back to the sidebar'");
     expect(app).toMatch(/onShrink: filesSidebar \? \(\) => applyFilesEvent\('board', 'shrink_button'\)/);
     expect(read('src/components/ListSurface.jsx')).toContain("aria-label={dockControls.shrinkLabel || 'Beside board'}");
-    // Admins keep the Admin pill in view, in the right island.
+    // Admins keep the Admin pill in view, in the right island; under a finger
+    // it waits in ⋯ with the theme, so the trail keeps its room.
     const right = app.slice(app.indexOf('right={('), app.indexOf('menuItems={['));
-    expect(right).toMatch(/myTier\.tier === 'admin' && \(\s*<button className="tb-admin-btn"/);
+    expect(right).toMatch(/myTier\.tier === 'admin' && !isTouch && \(\s*<button className="tb-admin-btn"/);
+    const menu = app.slice(app.indexOf('menuItems={['), app.indexOf("{ id: 'help', label: 'Help & feedback'"));
+    expect(menu).toMatch(/\.\.\.\(isTouch \? \[[\s\S]*\{ id: 'admin', label: 'Admin dashboard'/);
   });
 });
 

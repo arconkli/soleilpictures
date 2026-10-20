@@ -233,8 +233,12 @@ const FAILS_SHOWN = 5;
 // entry: { phase: 'reading'|'job', title, reading: { files, folders, bytes },
 //          snap (importJob state), offer, plan, own, ownerName, source, zips,
 //          targetName }
-export function trayCopy(entry) {
+// touch: a phone or a tablet, where a locked screen or another app in front
+// suspends the page (ImportTray keeps the screen awake while it uploads).
+export function trayCopy(entry, { touch = false } = {}) {
   const title = entry.title || 'Import';
+  const keepOpen = touch ? 'keep this tab on screen' : 'keep this tab open';
+  const KeepOpen = keepOpen[0].toUpperCase() + keepOpen.slice(1);
   if (entry.phase === 'queued') {
     const r = entry.reading || {};
     return {
@@ -310,14 +314,14 @@ export function trayCopy(entry) {
       return {
         ...base, title: `Importing ${title}`,
         line: [`Making ${nOf(s.totals?.clusters || 0, 'cluster')}…`],
-        bar: { pct: 0 }, meta: 'Keep this tab open',
+        bar: { pct: 0 }, meta: KeepOpen,
         foot: { meta: null, actions: [{ id: 'cancel', label: 'Cancel' }] },
         chip: { kind: 'ring', pct: 0, text: '0%', label: `Importing ${title}: making its clusters. Open the import` },
       };
     case 'running':
       return {
         ...base, title: `Importing ${title}`, line: progressLine, bar: { pct: bytesPct },
-        meta: eta ? `${eta} · keep this tab open` : 'Keep this tab open', rows,
+        meta: eta ? `${eta} · ${keepOpen}` : KeepOpen, rows,
         foot: { meta: null, actions: [{ id: 'pause', label: 'Pause', icon: 'pause' }, { id: 'cancel', label: 'Cancel' }] },
         chip: { kind: 'ring', pct: bytesPct, text: `${Math.floor(bytesPct)}%`, label: `Importing ${title}: ${countLabel(landedN)} of ${countLabel(total)} files${eta ? `, ${eta.toLowerCase()}` : ''}. Open the import` },
       };

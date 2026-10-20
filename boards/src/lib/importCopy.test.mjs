@@ -129,6 +129,14 @@ test('the tray, running: the mockup\'s line, the ETA, the rows, Pause and Cancel
   assert.equal(t.chip.label, 'Importing Night Shift: 1,846 of 6,193 files, about 1 hr 10 min left. Open the import');
 });
 
+test('the tray on a touch screen asks for the tab to stay in front, not just open', () => {
+  const run = trayCopy({ phase: 'job', title: 'Night Shift', snap: snap() }, { touch: true });
+  assert.equal(run.meta, 'About 1 hr 10 min left · keep this tab on screen');
+  assert.equal(trayCopy({ phase: 'job', title: 'Night Shift', snap: snap({ etaMs: null }) }, { touch: true }).meta, 'Keep this tab on screen');
+  assert.equal(trayCopy({ phase: 'job', title: 'Night Shift', snap: snap({ status: 'creating' }) }, { touch: true }).meta, 'Keep this tab on screen');
+  assert.equal(trayCopy({ phase: 'job', title: 'Night Shift', snap: snap({ status: 'creating' }) }).meta, 'Keep this tab open');
+});
+
 test('the tray, waiting on the free plan: the trial, "picks up by itself", no Try again', () => {
   const t = trayCopy({ phase: 'job', title: 'Night Shift', own: true, plan: 'free', offer: 'trial',
     snap: snap({ status: 'waiting', waitingReason: 'cards', landed: { files: 12 }, waiting: { files: 6181 } }) });

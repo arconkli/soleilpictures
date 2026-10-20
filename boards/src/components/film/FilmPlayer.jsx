@@ -811,6 +811,15 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   }, []);
   useEffect(() => { if (isFull && playing) wake(); else { clearTimeout(idleTimer.current); setIdle(false); } }, [isFull, playing, wake]);
   useEffect(() => () => clearTimeout(idleTimer.current), []);
+  // A finger moves nothing between taps: in full screen, a tap while the
+  // controls are away brings them back and doesn't pause, as a phone's own
+  // player does. (The tap's click reads this; see onStageClick.)
+  const tapWoke = useRef(false);
+  const onRootPointerDown = (e) => {
+    hideTip(e);
+    tapWoke.current = isFull && idle && e.pointerType !== 'mouse';
+    if (isFull && e.pointerType !== 'mouse') wake();
+  };
 
   // ── Compact: sized to the card as it appears on screen ────────────────────
   // The canvas scales cards with its zoom; the controls shouldn't shrink to
@@ -1181,6 +1190,8 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     const d = downAt.current;
     downAt.current = null;
     if (e.target.closest?.('button, input, .film-error, .film-sheet-scrim, .film-overlay.is-live')) return;
+    // The tap that brought the controls back does only that.
+    if (tapWoke.current) { tapWoke.current = false; return; }
     // A drag (moving the card, or a selection) isn't a click.
     if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
     // The second click of a double-click doesn't toggle again.
@@ -1243,7 +1254,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
          style={{ '--ar': pictureAr }}
          onPointerMove={isFull ? wake : compact || preview ? onCompactMove : undefined}
          onPointerOver={compact ? undefined : onTipOver} onPointerOut={compact ? undefined : onTipOut}
-         onPointerDownCapture={compact ? undefined : hideTip}
+         onPointerDownCapture={compact ? undefined : onRootPointerDown}
          onPointerEnter={compact ? () => { ensureFacts(); measureUi(); } : undefined}>
       <div className="film-stage" ref={setStageEl}
            onPointerDown={(e) => { onStagePointerDown(e); onZoomPanDown(e); }}

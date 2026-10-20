@@ -16,7 +16,7 @@
 // Held: App renders it only with the files sidebar and never on a phone, which
 // keeps its bar.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { MoreHorizontal } from '../../lib/icons.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
@@ -77,23 +77,72 @@ function MoreMenu({ items }) {
   );
 }
 
+// The trail keeps at least TRAIL_MIN before the left island's words go, and
+// TRAIL_FLOOR before Back and Forward go too: what is left says where you are,
+// and the clusters beside it are the way around.
+const TRAIL_MIN = 88;
+const TRAIL_FLOOR = 64;
+
+// How wide these are in their row, each with the gap after it.
+const widthInRow = (els) => els.reduce((w, el) => (
+  w + el.getBoundingClientRect().width + (parseFloat(getComputedStyle(el.parentElement).columnGap) || 0)
+), 0);
+
 export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
   // The right island publishes its width, so the left one (the trail) stops
   // short of it however narrow the surface gets — a tablet held sideways with
-  // the files beside the clusters left the two islands overlapping.
+  // the files beside the clusters left the two islands overlapping. Where even
+  // then the trail would get less than TRAIL_MIN (a finger's 40px buttons
+  // beside the files), the left island's words go, New cluster keeping its +;
+  // under TRAIL_FLOOR, Back and Forward (.tb-hist) go as well. Each comes back
+  // once it fits. .chrome-room is the width the island may take.
   const layerRef = useRef(null);
+  const leftRef = useRef(null);
   const rightRef = useRef(null);
-  useEffect(() => {
+  const roomRef = useRef(null);
+  const [tight, setTight] = useState(0);   // 0, 1 (words gone), 2 (and Back, Forward)
+  useLayoutEffect(() => {
     const layer = layerRef.current;
     const island = rightRef.current;
-    if (!layer || !island || typeof ResizeObserver !== 'function') return undefined;
-    const ro = new ResizeObserver(() => layer.style.setProperty('--chrome-right-w', `${Math.ceil(island.getBoundingClientRect().width)}px`));
+    const lefty = leftRef.current;
+    const room = roomRef.current;
+    if (!layer || !island || !lefty || !room || typeof ResizeObserver !== 'function') return undefined;
+    let level = 0;
+    let words = 0;
+    let hist = 0;
+    const check = () => {
+      layer.style.setProperty('--chrome-right-w', `${Math.ceil(island.getBoundingClientRect().width)}px`);
+      // Shown, they are measured; gone, they count as what they took.
+      if (level < 1) words = widthInRow([...lefty.querySelectorAll('.tb-btn-label')]);
+      if (level < 2) hist = widthInRow([...lefty.querySelectorAll('.tb-hist')]);
+      // Everything in the left island but the trail, which gives way first,
+      // as it would be with all of it shown.
+      const crumbs = lefty.querySelector('.crumbs');
+      const own = lefty.scrollWidth - (crumbs ? crumbs.getBoundingClientRect().width : 0)
+        + (level >= 1 ? words : 0) + (level >= 2 ? hist : 0);
+      const fits = room.clientWidth;
+      const next = own + TRAIL_MIN <= fits ? 0 : own - words + TRAIL_FLOOR <= fits ? 1 : 2;
+      if (next !== level) { level = next; setTight(next); }
+    };
+    // Once before the first paint, then on the frame after anything resizes,
+    // not inside the observer's own pass: what check sets (the right island's
+    // width, the classes) resizes what it watches, which inside the pass is a
+    // "ResizeObserver loop" error.
+    check();
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(check);
+    });
     ro.observe(island);
-    return () => ro.disconnect();
+    ro.observe(lefty);
+    ro.observe(room);
+    return () => { cancelAnimationFrame(frame); ro.disconnect(); };
   }, []);
   return (
-    <div className="chrome-layer" ref={layerRef}>
-      <nav className="chrome-island chrome-left" aria-label="Where you are">{left}</nav>
+    <div className={`chrome-layer${tight ? ' is-tight' : ''}${tight > 1 ? ' is-tighter' : ''}`} ref={layerRef}>
+      <div className="chrome-room" ref={roomRef} aria-hidden="true" />
+      <nav className="chrome-island chrome-left" aria-label="Where you are" ref={leftRef}>{left}</nav>
       <div className="chrome-island chrome-right" role="toolbar" aria-label="This cluster" ref={rightRef}>
         {right}
         {menuItems.length > 0 && <MoreMenu items={menuItems} />}

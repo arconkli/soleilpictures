@@ -9,7 +9,10 @@
 
 .app.is-floating-chrome { --chrome-band: 50px; }
 
-.chrome-layer { position: relative; height: 0; flex-shrink: 0; z-index: 30; }
+.chrome-layer {
+  position: relative; height: 0; flex-shrink: 0; z-index: 30;
+  --chrome-left-max: min(46%, 640px, calc(100% - 28px - var(--upgrade-chip-gutter, 0px) - var(--chrome-right-w, 0px)));
+}
 
 .chrome-island {
   position: absolute; top: 8px; height: 36px; box-sizing: border-box;
@@ -21,11 +24,18 @@
   box-shadow: var(--shadow-1);
 }
 /* Never under the right island: what it leaves, less a gap (FloatingChrome
-   publishes its width). */
-.chrome-left {
-  left: 10px; min-width: 0;
-  max-width: min(46%, 640px, calc(100% - 28px - var(--upgrade-chip-gutter, 0px) - var(--chrome-right-w, 0px)));
-}
+   publishes its width). .chrome-room is that width, empty, for FloatingChrome
+   to measure. */
+.chrome-left { left: 10px; min-width: 0; max-width: var(--chrome-left-max); }
+.chrome-room { position: absolute; left: 10px; top: 0; width: var(--chrome-left-max); height: 0; visibility: hidden; pointer-events: none; }
+/* Too narrow for the trail and the words both (FloatingChrome): the words go,
+   New cluster is its + in a finger-wide pill, and the trail is the name of
+   the cluster you're in (the sidebar's tree goes up). Narrower still, Back
+   and Forward go too, before the name is down to a letter. */
+.chrome-layer.is-tight .chrome-left .tb-btn-label,
+.chrome-layer.is-tight .chrome-left :is(.crumb.clk, .crumb-sep) { display: none; }
+.chrome-layer.is-tight .chrome-left .tb-btn { min-width: 40px; padding: 0 10px; justify-content: center; }
+.chrome-layer.is-tighter .chrome-left .tb-hist { display: none; }
 /* Clear of the free plan's upgrade chip, which sits fixed at the top right and
    publishes its own width (UpgradeChip.jsx). */
 .chrome-right { right: calc(10px + var(--upgrade-chip-gutter, 0px)); }
@@ -72,3 +82,20 @@
 .app.is-floating-chrome .ph-root,
 .app.is-floating-chrome .tag-detail { padding-top: var(--chrome-band); box-sizing: border-box; }
 .app.is-floating-chrome .home-graph-hud { top: calc(var(--chrome-band) + 16px); }
+
+/* ── Under a finger (a tablet held sideways) ─────────────────────────────── */
+/* The islands grow to 44px so the 40px buttons a finger gets sit inside them
+   (at 36 they poked out), and the band they float in grows with them. What
+   is drawn smaller, Share and New cluster, takes a finger with a clear
+   ::before, so the bar keeps its look. */
+@media (hover: none) and (pointer: coarse) {
+  .app.is-floating-chrome { --chrome-band: 58px; }
+  .chrome-island { height: 44px; }
+  .chrome-island .tb-icon { width: 40px; height: 40px; }
+  .chrome-island .tb-brand { height: 40px; min-width: 40px; justify-content: center; }
+  .chrome-island .crumb { padding-top: 14px; padding-bottom: 13px; }
+  .chrome-island .tb-btn { position: relative; }
+  .chrome-island .tb-btn::before { content: ''; position: absolute; inset: -8px 0; }
+  .chrome-island .crumb.clk { min-width: 40px; }
+  .chrome-menu-item { height: 44px; font-size: 15px; }
+}

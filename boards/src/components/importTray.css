@@ -18,6 +18,10 @@
 }
 .imptray.is-above-nav,
 .imptray-chip.is-above-nav { bottom: calc(68px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); }
+/* The Messages card is open at the right edge (8px in, 360px wide; see
+   messagesCard.css): left of it, the same 14px clear. */
+.imptray.is-beside-msg,
+.imptray-chip.is-beside-msg { right: calc(14px + 368px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px)); }
 
 .imptray {
   width: 372px;
@@ -187,6 +191,17 @@ a.imptray-btn svg { color: var(--ink-2); }
 .imptray-chip.is-above-nav { transition: opacity 220ms var(--ease); }
 body[data-zooming='1'] .imptray.is-above-nav,
 body[data-zooming='1'] .imptray-chip.is-above-nav { opacity: 0; pointer-events: none; }
+
+/* A finger: 40px buttons, as the sidebar's. */
+@media (hover: none) and (pointer: coarse) {
+  /* Above the zoom control, which is a finger's size here. */
+  .imptray, .imptray-chip { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+  .imptray-btn, .imptray-btn.is-sm { min-height: 40px; }
+  .imptray-ib { width: 40px; height: 40px; }
+  .imptray-guide-tab { height: 40px; font-size: 13px; }
+  /* The corner chip stays small; a clear rim takes the finger. */
+  .imptray-chip::before { content: ''; position: absolute; inset: -5px -2px; border-radius: inherit; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .imptray-bar.is-reading span,

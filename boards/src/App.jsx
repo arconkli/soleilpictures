@@ -6596,7 +6596,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         cardsLeft: myTier.tier == null ? null : (myTier.effectiveCardLimit || DEMO_CARD_LIMIT) - (Number(myTier.demoCardCount) || 0),
         bytesLeft: st && !st.loading && !st.error && st.remaining != null ? Number(st.remaining) : null,
       },
-      canFolder: !mobileShell,
+      // A touch screen picks no folders: iPadOS's browser reports
+      // webkitdirectory and still opens a file picker, and other tablets'
+      // can't be counted on either. The guide says zip it.
+      canFolder: !mobileShell && !isTouch,
       onImport: (input) => uploadTreeFromSidebar({ ...input, askZips: false, source: 'guide' }, 'Import into…'),
     };
   };
@@ -10353,7 +10356,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               }}
               onOpenPlan={() => openSettings('billing')}
               onUpload={uploadFromSidebar}
-              onUploadFolder={bulkImportAllowed() && !mobileShell ? uploadFolderFromSidebar : undefined}
+              onUploadFolder={bulkImportAllowed() && !mobileShell && !isTouch ? uploadFolderFromSidebar : undefined}
               onUploadZips={bulkImportAllowed() ? uploadZipsFromSidebar : undefined}
               onOpenBoard={openSidebarCluster}
               onShowFile={showSidebarFile}
@@ -10497,11 +10500,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                         onClick={() => setCurrentSurface('home')}>
                   <ClustersMark size={20} />
                 </button>
-                <button className="tb-icon" title="Back" aria-label="Back"
+                <button className="tb-icon tb-hist" title="Back" aria-label="Back"
                         disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
                   <Icon as={ChevronLeft} size={15} />
                 </button>
-                <button className="tb-icon" title="Forward" aria-label="Forward"
+                <button className="tb-icon tb-hist" title="Forward" aria-label="Forward"
                         disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
                   <Icon as={ChevronRight} size={15} />
                 </button>
@@ -10527,8 +10530,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
             right={(
               <>
-                {/* Admins keep their pill in view, as in the bar. */}
-                {myTier.tier === 'admin' && (
+                {/* Admins keep their pill in view, as in the bar. Under a finger
+                    the bar's buttons are 40px and the trail needs the room
+                    beside the files, so the pill and the theme wait in ⋯. */}
+                {myTier.tier === 'admin' && !isTouch && (
                   <button className="tb-admin-btn" title="Admin dashboard"
                           onClick={() => window.location.assign('/admin')}>
                     Admin
@@ -10543,13 +10548,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <button className="tb-icon" title="Search (⌘K)" aria-label="Search" onClick={() => setPaletteOpen(true)}>
                   <Icon as={Search} size={16} />
                 </button>
-                <button className="tb-icon tb-icon-theme" title="Toggle theme" aria-label="Toggle theme"
-                        onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
-                  <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
-                </button>
+                {!isTouch && (
+                  <button className="tb-icon tb-icon-theme" title="Toggle theme" aria-label="Toggle theme"
+                          onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
+                    <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
+                  </button>
+                )}
                 <span className="chrome-sep" aria-hidden="true" />
                 <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
                                         workspaceId={workspace.id} max={4} onJumpTo={jumpToPeer} />
+                {/* In view on touch, as in the bar: a tablet has no ⌘. for clean mode. */}
+                {isTouch && (
+                  <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
+                          title="Focus view — hide everything but the cluster"
+                          aria-label="Enter focus view">
+                    <Icon as={Maximize2} size={16} />
+                  </button>
+                )}
                 <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
                   <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
                 </button>
@@ -10561,7 +10576,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               splitId
                 ? { id: 'split', label: 'Close split view', icon: Columns2, run: () => setSplitId(null) }
                 : { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => setSplitPickerOpen(true) },
-              ...(isTouch ? [{ id: 'focus', label: 'Focus view', icon: Maximize2, run: () => setFocusMode(true) }] : []),
+              ...(isTouch ? [
+                { id: 'theme', label: themeMode === 'dark' ? 'Light theme' : 'Dark theme', icon: themeMode === 'dark' ? Sun : Moon,
+                  run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
+                ...(myTier.tier === 'admin' ? [{ id: 'admin', label: 'Admin dashboard', icon: LayoutGrid, run: () => window.location.assign('/admin') }] : []),
+              ] : []),
               { sep: true },
               { id: 'help', label: 'Help & feedback', icon: Question, run: () => openHelpHub('topbar') },
             ]}
@@ -11237,7 +11256,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {/* A bulk import (lib/importStart.js): the tray, or its corner chip. */}
-      {bulkImportAllowed() && <ImportTray aboveNav={mobileShell} guide={importGuideProps()} />}
+      {bulkImportAllowed() && <ImportTray aboveNav={mobileShell} guide={importGuideProps()}
+                                          besideMessages={floatingChrome && !!tweak.showMessages} />}
       {bulkAsk && (
         <ImportAskDialog
           model={bulkAsk.model}

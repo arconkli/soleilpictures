@@ -28,6 +28,7 @@
 // the Share window); the rules are lib/homeMap.js's.
 
 import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { R2Image } from '../R2Image.jsx';
 import { Icon } from '../Icon.jsx';
 import { Plus, X, Search } from '../../lib/icons.js';
@@ -38,6 +39,8 @@ import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { HomeWorkspace } from './HomeWorkspace.jsx';
 import { ThumbnailCropModal } from '../ThumbnailCropModal.jsx';
 import { anyModalOpen } from '../../lib/modalGuard.js';
+import { useMatchMedia } from '../../hooks/useMatchMedia.js';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
 import './clustersHome.css';
 
 const cardsOf = (b) => Number(b?.card_count) || 0;
@@ -197,6 +200,14 @@ export function ClustersHome({
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState('');
   const [naming, setNaming] = useState(false);
+  // A finger taps where a mouse clicks: the hint says so.
+  const touch = useMatchMedia('(hover: none) and (pointer: coarse)');
+  // While a field is in use on a touch screen, how much of the window the
+  // keyboard covers: the find bar and the naming card rise above it.
+  const [findFocused, setFindFocused] = useState(false);
+  const kbInset = useKeyboardInset(touch && (naming || findFocused));
+  const kbStyle = kbInset ? { '--kb-inset': `${kbInset}px` } : undefined;
+  const namingRef = useRef(null);
   const [draft, setDraft] = useState('');
   const findRef = useRef(null);
   const coverRef = useRef(null);
@@ -268,6 +279,9 @@ export function ClustersHome({
 
   const open = (id, via) => onOpenBoard?.(id, via);
   const startNaming = () => { setSelectedId(null); setDraft(''); setNaming(true); };
+  // From a tap: the field takes focus inside it, so iOS raises the keyboard
+  // (autoFocus on mount comes too late for that).
+  const startNamingNow = () => { flushSync(startNaming); namingRef.current?.focus(); };
   const makeCluster = () => { const name = draft.trim(); setNaming(false); onNewProject?.(name || null); };
   const wsName = (workspace?.name || '').trim() || 'your workspace';
 
@@ -307,6 +321,23 @@ export function ClustersHome({
     />
   ) : null;
 
+  // Naming a new cluster: over the map's bottom bar, or under a phone's search.
+  const namingForm = (
+    <form className="ch-naming" aria-label="New cluster" onSubmit={(e) => { e.preventDefault(); makeCluster(); }}>
+      <label className="ch-naming-field">
+        <span className="ch-sr">Name the new cluster</span>
+        <input ref={namingRef} autoFocus value={draft} maxLength={120} placeholder="Name it" aria-label="Name the new cluster"
+               onChange={(e) => setDraft(e.target.value)}
+               onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setNaming(false); } }} />
+      </label>
+      <p className="ch-naming-sub">At the top of {wsName} · Enter to make it and go in</p>
+      <div className="ch-card-acts">
+        <button type="submit" className="ch-primary">Make cluster</button>
+        <button type="button" className="ch-word" onClick={() => setNaming(false)}>Cancel</button>
+      </div>
+    </form>
+  );
+
   // ── A phone: no universe; the workspace, a search, and the clusters as rows.
   if (!Graph) {
     const rows = (lit ? found.map(id => boards[id]) : labels.filter(l => l.kind !== 'nested').map(l => boards[l.boardId])).filter(Boolean);
@@ -320,11 +351,13 @@ export function ClustersHome({
                    value={query} onChange={(e) => setQuery(e.target.value)} />
           </label>
           {canCreate && (
-            <button type="button" className="ch-quiet" onClick={() => onNewProject?.(null)}>
+            <button type="button" className={`ch-quiet${naming ? ' is-on' : ''}`} aria-pressed={naming}
+                    onClick={naming ? () => setNaming(false) : startNamingNow}>
               <Icon as={Plus} size={14} weight="regular" />New cluster
             </button>
           )}
         </div>
+        {naming && namingForm}
         <ul className="ch-rows" aria-label="Clusters">
           {rows.map(b => (
             <li key={b.id}>
@@ -372,7 +405,7 @@ export function ClustersHome({
                  litIds={lit} insets={insets} refreshKey={refreshKey} card={card} />
         </Suspense>
       </div>
-      <div className="ch-root" ref={rootRef}>
+      <div className="ch-root" ref={rootRef} style={kbStyle}>
         {header}
 
         {onlyStudio && !naming && (
@@ -386,21 +419,7 @@ export function ClustersHome({
           </div>
         )}
 
-        {naming && (
-          <form className="ch-naming" aria-label="New cluster" onSubmit={(e) => { e.preventDefault(); makeCluster(); }}>
-            <label className="ch-naming-field">
-              <span className="ch-sr">Name the new cluster</span>
-              <input autoFocus value={draft} maxLength={120} placeholder="Name it" aria-label="Name the new cluster"
-                     onChange={(e) => setDraft(e.target.value)}
-                     onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setNaming(false); } }} />
-            </label>
-            <p className="ch-naming-sub">At the top of {wsName} · Enter to make it and go in</p>
-            <div className="ch-card-acts">
-              <button type="submit" className="ch-primary">Make cluster</button>
-              <button type="button" className="ch-word" onClick={() => setNaming(false)}>Cancel</button>
-            </div>
-          </form>
-        )}
+        {naming && namingForm}
 
         {!onlyStudio && (
           <div className="ch-bar" ref={barRef} role="toolbar" aria-label="Your clusters">
@@ -408,6 +427,7 @@ export function ClustersHome({
               <Icon as={Search} size={15} weight="regular" />
               <input ref={findRef} type="search" placeholder="Find a cluster" aria-label="Find a cluster"
                      value={query} onChange={(e) => setQuery(e.target.value)}
+                     onFocus={() => setFindFocused(true)} onBlur={() => setFindFocused(false)}
                      onKeyDown={(e) => {
                        if (e.key === 'Enter' && found.length) { e.preventDefault(); setSelectedId(found[0]); }
                        // The card a search opened goes first, then the search.
@@ -422,14 +442,14 @@ export function ClustersHome({
             {canCreate && (
               <>
                 <span className="ch-bar-sep" aria-hidden="true" />
-                <button type="button" className={`ch-quiet${naming ? ' is-on' : ''}`} aria-pressed={naming} onClick={naming ? () => setNaming(false) : startNaming}>
+                <button type="button" className={`ch-quiet${naming ? ' is-on' : ''}`} aria-pressed={naming} onClick={naming ? () => setNaming(false) : startNamingNow}>
                   <Icon as={Plus} size={14} weight="regular" />New cluster
                 </button>
               </>
             )}
           </div>
         )}
-        {!onlyStudio && <p className="ch-hint">Click a star to see it · Double-click to open it</p>}
+        {!onlyStudio && <p className="ch-hint">{touch ? 'Tap a star to see it · Double-tap to open it' : 'Click a star to see it · Double-click to open it'}</p>}
         {coverInput}
         {cropWindow}
       </div>

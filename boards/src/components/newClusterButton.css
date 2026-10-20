@@ -97,3 +97,10 @@
    at Share's 28px it all but touched the top and bottom. */
 .chrome-island .ncl-wrap { margin-left: 6px; }
 .chrome-island .tb-btn.tb-newcluster { height: 26px; padding: 0 12px 0 10px; }
+
+/* A finger: under 16px iOS zooms the page in on focus, and the buttons are
+   40px to take. */
+@media (hover: none) and (pointer: coarse) {
+  .ncl-field { height: 40px; font-size: 16px; }
+  .ncl-cancel, .ncl-create { height: 40px; padding: 0 16px; font-size: 14px; }
+}

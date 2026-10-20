@@ -75,9 +75,10 @@ test('a touch screen: side by side and full height by default, sizes of its own,
   assert.equal(l.touchArr, 'side');
   assert.deepEqual(l.touchSide, { tw: SIZES.treeMinW, fw: SIZES.filesMaxW, tBottom: 'hug', fBottom: 'full' });
   assert.equal(sanitizeLayout({ touchArr: 'stack' }).touchArr, 'stack');
-  // Corners a finger can find.
+  // Corners a finger can find, reaching into the card no further than an edge
+  // (8px), clear of the account button in the files' corner.
   const corner = handleSpecs('side', { t: rect(8, 8, 208, 884), f: rect(224, 8, 248, 884) }, { coarse: true }).find((h) => h.id === 'corner');
-  assert.deepEqual([corner.w, corner.h], [32, 32]);
+  assert.deepEqual([corner.x, corner.y, corner.w, corner.h], [464, 884, 32, 32]);
 });
 
 test('a finger sizing side by side changes the touch sizes only, and never stacks them', () => {

@@ -27,7 +27,8 @@ named after the folder. Each folder inside it becomes a cluster nested inside
 that one, the same shape your folders had, and every file becomes a card in
 the cluster it was in — photos laid out in rows, everything else in a grid,
 each keeping its file name. **Add → Folder…** does the same from a picker, on a
-desktop browser.
+desktop browser. A phone's or a tablet's browser can't pick a folder, so the
+menu leaves it out there.
 
 While it runs, a bar at the bottom of the screen counts the files and has a
 **Cancel**: what has landed is kept, and nothing empty is left behind. When it
