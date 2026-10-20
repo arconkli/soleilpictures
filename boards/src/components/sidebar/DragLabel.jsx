@@ -17,7 +17,8 @@
 // board says where it is with 'soleil-card-drag-over' ({ el, x, y, mods,
 // drag: { files, sourceName, workspaceId } }) and stops with
 // 'soleil-card-drag-end'. The label answers in the event (detail.decision),
-// so the board does what it said. A pointer that holds still sends nothing,
+// so the board does what it said; a board that already knows the answer
+// hands its words (detail.label). A pointer that holds still sends nothing,
 // so that label stays until the end.
 
 import { useEffect, useRef, useState } from 'react';
@@ -86,7 +87,8 @@ export function DragLabel({ resolve, idle = 'Drop on a cluster or a board' }) {
     };
     const onCardOver = (ev) => {
       const d0 = ev.detail || {};
-      const d = d0.el ? resolveRef.current?.(d0.el, d0.mods || {}, d0.drag || null) : null;
+      const d = d0.label ? { action: 'none', effect: 'none', label: d0.label }
+        : d0.el ? resolveRef.current?.(d0.el, d0.mods || {}, d0.drag || null) : null;
       d0.decision = d;
       const label = d?.label?.top ? d.label : { top: idle, sub: '', hint: '', no: false, idle: true };
       cardLast = { x: d0.x, y: d0.y, label, n: d0.drag?.files?.length || 0 };

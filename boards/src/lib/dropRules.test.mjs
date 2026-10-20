@@ -121,3 +121,15 @@ test('what is being dragged, in words', () => {
   assert.equal(whatOf([photo('a'), { id: 'd', kind: 'doc' }]), '2 files');
   assert.equal(whatOf([{ id: 'x', kind: 'palette' }]), '1 file');
 });
+
+test('a file from a cluster shared from another workspace goes nowhere here; beside ones that can, it stays put', () => {
+  const grade = photo('g', { boardId: 'grade', workspaceId: 'ws-2', name: 'grade-01.jpg' });
+  const d = decide({ files: [grade], target: row() });
+  assert.equal(d.action, 'none');
+  assert.equal(d.reason, 'workspace');
+  assert.deepEqual(d.label, { top: 'grade-01.jpg is in another workspace', sub: 'Files stay in their own workspace', hint: '', no: true });
+  assert.equal(decide({ files: [grade], target: board(), copy: true }).action, 'none', 'not even a copy, onto a board');
+  const mixed = decide({ files: [photo('a', { workspaceId: 'ws' }), grade], target: row(), sourceName: '' });
+  assert.deepEqual(mixed.moveIds, ['a']);
+  assert.equal(decide({ files: [photo('a', { workspaceId: 'ws' })], target: row() }).action, 'move', 'its own workspace: as before');
+});

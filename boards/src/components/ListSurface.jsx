@@ -1056,7 +1056,7 @@ export function ListSurface({
     // A browsed cluster shows its saved snapshot: fetch it again with them in.
     try { invalidateBoardPreview(targetId); } catch (_) {}
     return true;
-  }, [canEdit, board.id, cards, feedback, mutators, onMoveFiles]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canEdit, board.id, cards, feedback, mutators, onMoveFiles, itemById]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // New cluster from the selected cards: named at birth, made where they sit
   // on the board, filled through moveCardsTo, and undone by its toast — which
@@ -1188,7 +1188,7 @@ export function ListSurface({
       what: whatOf(ready.map((c) => ({ kind: c.kind, name: itemNameOf(c) }))), kinds: ready.map((c) => c.kind),
     });
     if (ok) { try { invalidateBoardPreview(picked.id); } catch (_) {} }
-  }, [onPickCluster, onMoveFiles, selectedCards, cards, board.id, feedback]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onPickCluster, onMoveFiles, selectedCards, cards, board.id, feedback, itemById]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rename in place (F2, the right-click menu). Files rename the field their
   // name shows from (lib/fileRename.js) — downloads keep the original name;
@@ -1713,7 +1713,10 @@ export function ListSurface({
     beginDragSession(el, rulesOn ? {
       kind: 'files', sourceBoardId: board.id, sourceName: board.name || '',
       workspaceId: board.workspace_id || workspaceId || null, thumbs,
-      files: list.map((c) => ({ id: c.id, kind: c.kind, name: itemNameOf(c), boardId: board.id, uploading: false, canMove: canEditId(board.id) })),
+      files: list.map((c) => ({
+        id: c.id, kind: c.kind, name: itemNameOf(c), boardId: board.id, uploading: false,
+        canMove: canEditId(board.id), workspaceId: board.workspace_id || workspaceId || null,
+      })),
     } : { kind: 'files', sourceBoardId: board.id });
     if (list.length > 1 && !labelled) {
       const ghost = document.createElement('div');
@@ -1944,6 +1947,9 @@ export function ListSurface({
         try { e.dataTransfer.dropEffect = effect; } catch (_) {}
         const lit = effect === 'none' ? null : b.id;
         if (dropTileId !== lit) setDropTileId(lit);
+        // The folder is where they'd go, not the list around it.
+        if (dragOver) setDragOver(false);
+        if (dragNote) setDragNote(null);
         return;
       }
       if (t.includes(FILES_DRAG_MIME)) {

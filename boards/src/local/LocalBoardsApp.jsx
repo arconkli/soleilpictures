@@ -217,6 +217,9 @@ const MIX_QA_COUNT = typeof window !== 'undefined' && import.meta.env.DEV
 const FILES_RULES_QA = typeof window !== 'undefined' && import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('filesrules') === '1'
   : false;
+// …and &viewonly=1: the board as one this person may only look at (not a
+// public link): what's left is copying out.
+const FILES_RULES_VIEW_ONLY = FILES_RULES_QA && new URLSearchParams(window.location.search).get('viewonly') === '1';
 const filesRulesQaMove = FILES_RULES_QA
   ? (payload, at, opts = {}) => {
       const qa = (window.__filesRulesQa ||= { calls: [] });
@@ -2071,7 +2074,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 // view-only, public — so the read-only interaction rules can be
                 // driven by Playwright without a share token. DEV-only (the
                 // predicate is import.meta.env.DEV-guarded), default false.
-                canEdit={!readOnlyQa}
+                canEdit={!readOnlyQa && !FILES_RULES_VIEW_ONLY}
                 isPublic={readOnlyQa}
                 /* ?firstboard=1|<kind> — the first-board panel variant. Dead code in production. */
                 boardReady={true}

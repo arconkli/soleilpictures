@@ -59,8 +59,9 @@ export function whatOf(files) {
 }
 
 // files     what's being dragged: [{ id, kind, name?, boardId, uploading?,
-//           canMove? }] — canMove false: its cluster is view only, so it can
-//           only be copied out
+//           canMove?, workspaceId? }] — canMove false: its cluster is view
+//           only, so it can only be copied out; workspaceId: its cluster's,
+//           when that might not be the files' (a cluster shared with you)
 // target    where it would land: { boardId, name, where: 'files' | 'board',
 //           workspaceId, writable, and for another workspace's cluster its
 //           owner's name or the workspace's own: owner?, workspaceName? }
@@ -94,8 +95,17 @@ export function decideDrop({
   }
   if (!target.writable) return none('view-only', `${name} is view only`, 'You can’t add files to it');
 
-  const here = files.filter((f) => f.boardId === target.boardId);
-  const away = files.filter((f) => f.boardId !== target.boardId);
+  // A file in a cluster shared with you from another workspace stays in that
+  // workspace: nothing here takes it. Beside files that can go, it stays put.
+  const abroad = target.workspaceId
+    ? files.filter((f) => f.workspaceId && f.workspaceId !== target.workspaceId) : [];
+  if (abroad.length === files.length) {
+    return none('workspace', `${whatOf(files)} ${files.length === 1 ? 'is' : 'are'} in another workspace`, 'Files stay in their own workspace');
+  }
+  const ours = abroad.length ? files.filter((f) => !abroad.includes(f)) : files;
+
+  const here = ours.filter((f) => f.boardId === target.boardId);
+  const away = ours.filter((f) => f.boardId !== target.boardId);
   const ready = away.filter((f) => !f.uploading);
 
   if (!ready.length) {

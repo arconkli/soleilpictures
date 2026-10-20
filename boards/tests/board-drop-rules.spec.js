@@ -82,6 +82,14 @@ test.describe('dropping files from Files onto a board', () => {
     expect(await calls(page)).toHaveLength(0);
   });
 
+  test('a file from a cluster in another workspace is refused here too', async ({ page }) => {
+    await open(page);
+    expect(await holdOverBoard(page, { files: [{ ...sundown, workspaceId: 'someone-elses' }] })).toBe('none');
+    await letGo(page);
+    await page.waitForTimeout(150);
+    expect(await calls(page)).toHaveLength(0);
+  });
+
   test('its own file goes where it is let go, on the board, without the route', async ({ page }) => {
     await open(page);
     const card = page.locator('[data-card-id="home-image"]');
@@ -112,21 +120,39 @@ test.describe('dropping files from Files onto a board', () => {
   });
 });
 
+// A submenu opens on hover (a click on an open one closes it again): hover,
+// and wait for it.
+async function openSub(page, label) {
+  await page.locator('.ctx-menu .ctx-item', { hasText: label }).hover();
+  await expect(page.locator('.ctx-submenu')).toBeVisible();
+}
+
 test.describe('the card menu and full Files, by the rules', () => {
   test('Move to cluster… and Copy to cluster… on a card go by the route', async ({ page }) => {
     await open(page);
     const card = page.locator('.card[data-card-id="home-image"]');
     await card.click({ button: 'right' });
-    await page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster…' }).click();
+    await openSub(page, 'Move to cluster…');
     await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(1);
     expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: false });
 
     await card.click({ button: 'right' });
-    await page.locator('.ctx-menu .ctx-item', { hasText: 'Copy to cluster…' }).click();
+    await openSub(page, 'Copy to cluster…');
     await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(2);
     expect((await calls(page))[1]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
+  });
+
+  test('a board you can only view still offers Copy to cluster…, and no Move', async ({ page }) => {
+    await page.goto('/?local=1&reset=1&filesrules=1&viewonly=1');
+    await page.waitForSelector('.canvas-wrap.is-readonly');
+    await page.locator('.card[data-card-id="home-image"]').click({ button: 'right' });
+    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster…' })).toHaveCount(0);
+    await openSub(page, 'Copy to cluster…');
+    await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
+    await expect.poll(async () => (await calls(page)).length).toBe(1);
+    expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
   });
 
   test('in full Files, a file dropped on a folder goes into that cluster\'s files; the copy key copies it', async ({ page }) => {
@@ -221,6 +247,18 @@ test.describe('a card dragged off the board onto a cluster in the sidebar', () =
     const after = await card.boundingBox();
     expect(Math.round(after.x)).toBe(Math.round(before.x));
     expect(Math.round(after.y)).toBe(Math.round(before.y));
+  });
+
+  test('a cluster card and a file together are refused: they go separately', async ({ page }) => {
+    await open(page);
+    await page.locator('.card[data-card-id="home-image"]').click();
+    await page.locator('.card[data-card-id="b-halcyon"]').click({ modifiers: ['Shift'] });
+    await dragCardTo(page, '.card[data-card-id="home-image"]', '.sbqa-rules-rows [data-drop-board="b-sundown"]', { release: false });
+    await expect(page.locator('.sbf-draglabel')).toContainText('Clusters and files go separately');
+    await expect(page.locator('.sbqa-rules-rows [data-drop-board="b-sundown"]')).not.toHaveAttribute('data-card-drop', '');
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    expect(await calls(page)).toHaveLength(0);
   });
 
   test('a cluster you can only view says so and takes nothing; the card goes back', async ({ page }) => {

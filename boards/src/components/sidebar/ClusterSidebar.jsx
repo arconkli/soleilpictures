@@ -642,9 +642,10 @@ export function ClusterSidebar({
       files: group.map((x) => ({
         id: x.cardId, kind: x.kind, name: x.name || '', boardId: x.boardId,
         uploading: isStillUploading(cardFromItem(x)), canMove: canEdit(x.boardId),
+        workspaceId: allBoards?.[x.boardId]?.workspace_id || null,
       })),
     });
-  }, [selected, workspaceId, canEdit]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected, workspaceId, canEdit, allBoards]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // What letting go over `target` would do (lib/dropRules.js). The files come
   // from the drag session; at a drop the session missed, from the payload; for
@@ -661,6 +662,7 @@ export function ClusterSidebar({
       files: p.cards.map((c) => ({
         id: c.id, kind: c.kind, name: c.title || '', boardId: c.sourceBoardId || p.sourceBoardId,
         canMove: canEdit(c.sourceBoardId || p.sourceBoardId),
+        workspaceId: allBoards?.[c.sourceBoardId || p.sourceBoardId]?.workspace_id || null,
       })),
     };
   };

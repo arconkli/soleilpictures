@@ -6437,9 +6437,9 @@ export function CanvasSurface({
   // Files): by the route, like every other move between clusters — the same
   // cards, kept in that cluster's Files, with Undo and Put on board in App's
   // toast. A move keeps a snapshot of this board first, as a drag does.
-  const sendCardsByRoute = (ids, targetId, list, copy) => {
+  const sendCardsByRoute = async (ids, targetId, list, copy) => {
     if (!copy && ydoc && board?.id) {
-      saveBoardVersion(board.id, ydoc, {
+      await saveBoardVersion(board.id, ydoc, {
         triggerKind: 'pre-drop', sessionId, userId, label: 'pre-move-to-cluster',
         opSummary: { action: 'move-to-cluster', via: 'menu', target_board: targetId, card_count: ids.length },
       });
@@ -6987,6 +6987,7 @@ export function CanvasSurface({
       .map((dc) => ({
         id: dc.id, kind: dc.kind, name: dc.title || dc.label || dc.fileName || '',
         boardId: board.id, uploading: isStillUploading(dc), canMove: true,
+        workspaceId: board.workspace_id || workspaceId || null,
       })));
     const clustersOfDrag = () => dragIds.map((id) => cardById[id]).filter(Boolean)
       .map((dc) => (dc.kind === 'board' ? dc.id : dc.kind === 'boardlink' ? dc.target : null));
@@ -7006,10 +7007,14 @@ export function CanvasSurface({
     // answers with lib/dropRules.js; clusters nest under a tree row.
     const decideOutside = (el, ev) => {
       if (dragFiles().length) {
+        // Clusters and files together go nowhere (as Move to cluster… offers
+        // neither): one nests, the other is kept in Files.
+        const mixed = clustersOfDrag().some(Boolean);
         const detail = {
           el, x: ev.clientX, y: ev.clientY,
           mods: { altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey },
           drag: { files: dragFiles(), sourceName: board.name || '', workspaceId: board.workspace_id || workspaceId || null },
+          label: mixed ? { top: 'Clusters and files go separately', sub: 'Drag the clusters, then the files', hint: '', no: true } : null,
           decision: null,
         };
         document.dispatchEvent(new CustomEvent('soleil-card-drag-over', { detail }));
@@ -7539,9 +7544,10 @@ export function CanvasSurface({
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
       // Drop onto a different canvas pane.
       if (dropWrap && sourceWrap && dropWrap !== sourceWrap && Math.abs(dx) + Math.abs(dy) > 4) {
-        // Into another pane's cluster the copy key copies (lib/dropRules.js),
-        // as ⌘/Ctrl always did; ⌥ only means "don't snap" inside one board.
-        const isCopy = ev.metaKey || ev.ctrlKey || copyKeyHeld(ev);
+        // Into another pane's cluster ⌘/Ctrl copies, and with the drop rules
+        // (lib/dropRules.js) the copy key too; ⌥ only means "don't snap"
+        // inside one board.
+        const isCopy = ev.metaKey || ev.ctrlKey || (!!onMoveFilesRef.current && copyKeyHeld(ev));
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
         document.dispatchEvent(new CustomEvent('soleil-cross-pane-drop', {
           detail: {
@@ -8202,8 +8208,26 @@ export function CanvasSurface({
         metaItems.push({ id: 'info', label: `Info (${selected.size})`, shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [...selected], follow: infoFollow }) });
       }
+      // The drop rules: out of a cluster you can only view, files can still be
+      // copied — into this workspace's clusters, by the route.
+      const copyItems = [];
+      if (onMoveFilesRef.current && !isPublic && (!board.workspace_id || board.workspace_id === workspaceId)) {
+        const copying = (multi ? [...selected] : [c.id])
+          .map((id) => (cards || []).find((x) => x.id === id))
+          .filter((cc) => cc && cc.kind !== 'board' && cc.kind !== 'boardlink');
+        const targets = copying.length ? cardMoveTargets(boards, { workspaceId, fromId: board.id }) : [];
+        if (targets.length) {
+          const ids = copying.map((cc) => cc.id);
+          copyItems.push({
+            id: 'copy-cards-to-board',
+            label: ids.length > 1 ? `Copy ${ids.length} cards to…` : 'Copy to cluster…',
+            submenu: targets.map((t) => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, copying, true) })),
+          });
+        }
+      }
       return composeMenuSections([
         { items: openItems },
+        { items: copyItems },
         { items: metaItems },
       ]);
     }
@@ -10998,6 +11022,9 @@ export function CanvasSurface({
       sourceName = payload.sourceName || '';
     }
     if (!files || !board?.id) return null;
+    // Only from clusters this person has here: a drag from another page can
+    // carry our type too. Refused before the drop as well as at it.
+    files = files.filter((f) => boards?.[f.boardId]);
     return decideDrop({
       files, sourceName, workspaceId: fromWs, copy: copyKeyHeld(e),
       target: {
@@ -11012,7 +11039,6 @@ export function CanvasSurface({
   // (App moveFilesHere) — one request, and one Undo, per cluster they come
   // from. Each lot lands beside the last, not on it.
   const dropFilesByRules = (e, payload, at) => {
-    if (!boards?.[payload.sourceBoardId]) return;
     const d = filesDropRules(e, payload);
     if (!d || d.action === 'none') return;
     const byCluster = (list) => {
@@ -11327,9 +11353,10 @@ export function CanvasSurface({
     // View-only board: accept the event (no browser navigation) but show a
     // no-drop cursor and don't highlight — the drop handler will reject it.
     if (!canEdit) { e.dataTransfer.dropEffect = 'none'; return; }
-    // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl, or the copy key, to copy.
+    // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl (with the drop
+    // rules, the copy key too) to copy.
     if (types.includes(CARD_TRANSFER_MIME)) {
-      e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey || copyKeyHeld(e)) ? 'copy' : 'move';
+      e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey || (!!onMoveFilesRef.current && copyKeyHeld(e))) ? 'copy' : 'move';
     } else if (types.includes(FILES_DRAG_MIME)) {
       // From Files, where the sidebar's Files is on: what the rules say letting
       // go here does (a move, a copy, or nothing — then no outline either).
@@ -11676,7 +11703,7 @@ export function CanvasSurface({
       try { payload = JSON.parse(e.dataTransfer.getData(CARD_TRANSFER_MIME)); }
       catch (_) { return; }
       if (!payload?.card) return;
-      const isCopy = e.metaKey || e.ctrlKey || copyKeyHeld(e);
+      const isCopy = e.metaKey || e.ctrlKey || (!!onMoveFilesRef.current && copyKeyHeld(e));
       // Pre-drop safety snapshot. Fire-and-forget; never block the actual drop.
       if (ydoc && board?.id) {
         saveBoardVersion(board.id, ydoc, {
