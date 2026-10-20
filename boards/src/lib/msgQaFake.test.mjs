@@ -240,3 +240,15 @@ test('find_or_create_dm reuses a DM, creates one otherwise; add_conversation_par
   assert.deepEqual(added, ['priya']);
   assert.deepEqual((await fake.rpc('list_messageable_users', { p_workspace: WORKSPACE_ID, p_query: 'pri' })).data.map((u) => u.user_id), ['priya']);
 });
+
+test('analytics_events takes inserts (rows land in qa.events) and nothing else', async () => {
+  const { fake } = make();
+  const row = { event: 'msg_send', props: { ok: true }, user_id: SELF_ID };
+  assert.deepEqual(await fake.from('analytics_events').insert([row]), { data: null, error: null });
+  assert.deepEqual(fake.qa.events, [row]);
+  assert.ok(fake.qa.calls.some((c) => c.target === 'insert:analytics_events'));
+  fake.qa.failNext('insert:analytics_events');
+  assert.equal((await fake.from('analytics_events').insert([row])).error.code, 'QA000');
+  assert.equal(fake.qa.events.length, 1);
+  assert.equal((await fake.from('analytics_events').update({ event: 'x' }).eq('event', 'msg_send')).error.code, '0A000');
+});

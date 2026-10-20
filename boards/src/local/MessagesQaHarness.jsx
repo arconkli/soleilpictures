@@ -11,7 +11,8 @@
 //
 // window.__msgQa drives it: peer(id).send/type/react/edit/delete/pin/read,
 // setLatency, failNext, dropSocket, openConversation, openPeer, permalink,
-// close, calls, db. The page sets <html data-msgqa-ready="1"> once mounted.
+// close, calls, events (analytics rows), db. The page sets
+// <html data-msgqa-ready="1"> once mounted.
 //
 // The fake and the attachment resolver are installed at module scope, before
 // anything renders. The seam is supabase.js's installSupabaseForQa, which is a

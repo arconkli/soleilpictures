@@ -47,6 +47,7 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
   db.conversation_participants ||= [];
   db.people ||= [];
   db.storage ||= new Map();
+  db.analytics_events ||= [];
 
   let latencyCfg = latency;
   const failures = []; // { target, times, error }
@@ -429,6 +430,12 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
             db.conversation_participants.push(row);
             emitChange(t, 'INSERT', row);
             made.push(row);
+          } else if (t === 'analytics_events') {
+            // Insert-only, as RLS has it for a client. The rows are qa.events,
+            // for a spec to check what the panel logged.
+            const row = clone(r);
+            db.analytics_events.push(row);
+            made.push(row);
           } else {
             return { data: null, error: err(`insert into ${t} is not supported by the fake`, '0A000') };
           }
@@ -794,6 +801,9 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
   const qa = {
     db,
     calls,
+    // analytics_events rows as inserted ({ event, props, user_id, path, … }).
+    // The queue flushes on a 5s timer; the pagehide beacon skips the fake.
+    events: db.analytics_events,
     clock,
     peer,
     setLatency(v) { latencyCfg = typeof v === 'number' ? v : { ...(typeof latencyCfg === 'object' ? latencyCfg : { default: latencyCfg }), ...v }; },
