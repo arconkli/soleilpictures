@@ -4,6 +4,9 @@ import { Icon } from './Icon.jsx';
 import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit, ArrowDown } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
 import { useStickToBottom } from '../hooks/useStickToBottom.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
+import { MessageActionSheet } from './MessageActionSheet.jsx';
 import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
@@ -698,6 +701,35 @@ export function MessageThread({
     broadcastConversationTyping({ conversationId, userId });
   }, [conversationId, userId]);
 
+  // ── Press and hold (a finger) ────────────────────────────────────────
+  // Under a finger there's no hover chip: holding a message opens its
+  // actions in a sheet. The click that ends the hold is eaten (it would open
+  // a link or an attachment under the finger), and the long-press menu
+  // Android raises a moment later is turned away.
+  const [sheetId, setSheetId] = useState(null);
+  const heldAtRef = useRef(0);
+  useLongPress(scrollRef, (x, y, e) => {
+    const id = e?.target?.closest?.('[data-msg-id]')?.getAttribute('data-msg-id');
+    const m = id ? messagesById.get(id) : null;
+    if (!m || m.sendState || m.kind === 'system') return;
+    heldAtRef.current = Date.now();
+    swallowNextClick({ held: true });
+    setSheetId(id);
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  const sheetMsg = sheetId ? messagesById.get(sheetId) || null : null;
+  const onThreadContextMenu = (e) => { if (Date.now() - heldAtRef.current < 1500) e.preventDefault(); };
+  const handleCopyText = useCallback(async (msg) => {
+    try {
+      await navigator.clipboard.writeText(msg.body || '');
+      feedback.toast({ type: 'success', message: 'Copied' });
+    } catch (_) {
+      feedback.toast({ type: 'error', message: "Couldn't copy — your browser blocked the clipboard." });
+    }
+  }, [feedback]);
+  const requestEdit = useCallback((msg) => {
+    document.dispatchEvent(new CustomEvent('soleil-msg-edit', { detail: { id: msg.id } }));
+  }, []);
+
   const handleAttachmentDragStart = attachmentDragStart;
 
   // ── Group chat actions ───────────────────────────────────────────────
@@ -907,7 +939,7 @@ export function MessageThread({
       )}
 
       <div className="msg-thread-scroll">
-      <div className={`msg-thread-body${card ? (isDm ? ' is-dm' : ' is-group') : ''}`} ref={scrollRef} onScroll={onScroll}>
+      <div className={`msg-thread-body${card ? (isDm ? ' is-dm' : ' is-group') : ''}`} ref={scrollRef} onScroll={onScroll} onContextMenu={onThreadContextMenu}>
         <div className="msg-thread-content" ref={contentRef}>
         {!searchOpen && hasOlder && (
           <button
@@ -1028,6 +1060,21 @@ export function MessageThread({
         />
       ) : (
         <ReadOnlyComposerNotice reason={readOnlyReason} />
+      )}
+
+      {sheetMsg && (
+        <MessageActionSheet
+          msg={sheetMsg}
+          selfId={userId}
+          onClose={() => setSheetId(null)}
+          onReact={handleReact}
+          onReply={handleReply}
+          onCopyText={handleCopyText}
+          onCopyLink={handleCopyLink}
+          onPin={handlePin}
+          onEdit={requestEdit}
+          onDelete={handleDelete}
+        />
       )}
     </div>
   );

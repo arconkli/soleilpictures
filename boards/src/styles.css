@@ -16456,6 +16456,33 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (prefers-reduced-motion: reduce) {
   .msg-panel[data-state="closing"] { animation: none; }
 }
+/* A message's actions under a finger (MessageActionSheet): what it says, a
+   row of reactions, then one action a row, each a finger's size. Over a doc
+   overlay the panel is lifted, so the sheet goes above it. */
+body[data-doc-overlay='1'] .sheet-root.msg-sheet { z-index: 2147483604; }
+.msg-sheet-quote {
+  padding: 2px 4px 12px;
+  color: var(--ink-2); font: 400 14px/1.4 var(--font-sans);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.msg-sheet-reactions { display: flex; justify-content: space-between; gap: 4px; padding: 0 0 10px; }
+.msg-sheet-emoji {
+  appearance: none; border: 0; background: var(--bg-3);
+  width: 44px; height: 44px; border-radius: 999px;
+  font-size: 22px; line-height: 1; cursor: pointer;
+}
+.msg-sheet-emoji.is-on { background: var(--soleil-soft); box-shadow: inset 0 0 0 1px var(--soleil); }
+.msg-sheet-actions { display: flex; flex-direction: column; border-top: 1px solid var(--line-1); }
+.msg-sheet-actions button {
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 14px;
+  min-height: 48px; padding: 0 6px;
+  color: var(--ink-0); font: 500 15px/1.2 var(--font-sans); text-align: left;
+  border-bottom: 1px solid var(--line-1);
+  cursor: pointer;
+}
+.msg-sheet-actions button:last-child { border-bottom: 0; }
+.msg-sheet-actions button.is-danger { color: var(--msg-err); }
 
 /* While a doc-card overlay is up, lift the messages panel above it.
    .doc-card-modal is z-index 2147483600 and portals to <body>, so fullscreen
@@ -17420,6 +17447,7 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
    too for the iPad in landscape, which is outside the phone block's 16px. */
 @media (pointer: coarse) {
   .msg-composer-input,
+  .msg-search-input,
   .share-input,
   .canvas-comment-draft-input,
   .canvas-comment-reply-input,
@@ -21577,11 +21605,12 @@ button, [role="button"], a {
   /* Labeled pills (font picker, screenplay toggle) grow to match. */
   .doc-tb-pill { height: 40px; }
 
-  /* MessageBubble row action buttons that fade in on hover are
-     unreachable on touch. Make the per-row action stack always visible
-     on coarse pointer (per-component opacity audit lands in P3.5;
-     this is the global safety net). */
-  .msg-row-actions { opacity: 1 !important; }
+  /* Messages: a message's actions are a press and hold away under a finger
+     (MessageActionSheet), so the hover chip, which a tap only flashed, stays
+     out of the way; and a hold opens the sheet rather than starting a text
+     selection or raising the system's callout. */
+  .msg-bubble-actions { display: none !important; }
+  .msg-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
   /* Hover-reveal affordances across cards/docs/palettes. On a real
      mouse, parent:hover reveals these; on touch there's no hover so

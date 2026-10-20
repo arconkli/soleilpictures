@@ -17,6 +17,10 @@ import { readOnlyCopy } from '../lib/messageAccess.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { usePanelPresence } from './MessagesPresence.jsx';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { useKeyboardInset } from '../hooks/useKeyboardInset.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
+import { touchKeyboard } from '../lib/composerKeys.js';
 
 const NO_PARTICIPANTS = [];
 
@@ -237,6 +241,9 @@ export function MessagesPanel({
   // place for when you come back. Closing plays an exit (MessagesPresence).
   const presence = usePanelPresence();
   const threadOpen = !!openConversationId;
+  // Under a finger the on-screen keyboard covers the bottom of the window,
+  // and the box you type in with it: the panel ends above the keyboard.
+  const keyboard = useKeyboardInset(presence === 'open' && touchKeyboard());
   const thread = threadOpen && (
       <MessageThread
         // One instance per conversation: nothing a thread holds (a reply
@@ -265,7 +272,8 @@ export function MessagesPanel({
   );
 
   return (
-    <div className="msg-panel" ref={rootRef} tabIndex={-1} data-state={presence} data-view={threadOpen ? 'thread' : 'list'}>
+    <div className="msg-panel" ref={rootRef} tabIndex={-1} data-state={presence} data-view={threadOpen ? 'thread' : 'list'}
+         style={keyboard > 0 ? { bottom: keyboard + 8 } : undefined}>
       <div className="msg-pane msg-pane-list" inert={threadOpen ? '' : undefined}>
       <div className="msg-panel-head">
         <div className="msg-panel-title">
@@ -380,6 +388,17 @@ export function MessagesPanel({
 
 function ConversationRow({ card = false, conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
   const isUnread = unreadCount > 0;
+  // Under a finger the row's menu is a press and hold away: iOS never sends a
+  // long press as contextmenu. Android does, a moment after the hold: that
+  // one is turned away, and the click the hold ends with is eaten (it would
+  // open the conversation under the menu).
+  const rowRef = useRef(null);
+  const heldAtRef = useRef(0);
+  useLongPress(rowRef, (x, y) => {
+    heldAtRef.current = Date.now();
+    swallowNextClick({ held: true });
+    onMenu(x, y);
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   const peers = participants.filter(p => p.user_id !== currentUserId && !p.left_at);
   const isDm = isDmConversation(participants); // rows, not active members (COMMS-17)
 
@@ -412,10 +431,12 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
 
   return (
     <button
+      ref={rowRef}
       className={`msg-row ${isUnread ? 'is-unread' : ''}${card ? ' is-card' : ''}`}
       onClick={onOpen}
       onContextMenu={(e) => {
         e.preventDefault();
+        if (Date.now() - heldAtRef.current < 1500) return;
         // Keyboard context-menu key: no pointer position, so anchor on the row.
         const r = e.currentTarget.getBoundingClientRect();
         const x = e.clientX || r.left + 24;

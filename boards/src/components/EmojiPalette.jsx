@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-const EMOJIS = ['👍', '❤️', '🎉', '😂', '🙏', '🔥', '👀', '✨'];
+// The quick reactions: this palette, and the row along the top of a
+// message's press-and-hold sheet.
+export const QUICK_EMOJIS = ['👍', '❤️', '🎉', '😂', '🙏', '🔥', '👀', '✨'];
 
 // A row of quick emoji under the button that opened it, or above it when
 // there's no room below (the composer sits at the bottom of the screen).
@@ -44,7 +46,7 @@ export function EmojiPalette({ anchor, trigger = null, onPick, onClose }) {
   return createPortal(
     <div ref={popRef} className="emoji-palette surface-frosted"
          style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, visibility: pos ? 'visible' : 'hidden' }}>
-      {EMOJIS.map(e => (
+      {QUICK_EMOJIS.map(e => (
         <button key={e} className="emoji-palette-btn" onClick={() => { onPick?.(e); onClose?.(); }}>{e}</button>
       ))}
     </div>,

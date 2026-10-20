@@ -29,6 +29,7 @@ Direct and group conversations in one list, ordered by recency.
 - **Edits and deletes** — your own messages; a deleted message goes at once, with Undo on the notice that follows
 - **Seen** — in a direct message, “Seen” appears under your latest message once the other person has read it
 - **Permalinks** — a link to one specific message, which opens the thread scrolled to it
+- **Press and hold** — on a phone or tablet, hold a message for its actions: react, reply, copy its text or a link to it, pin it, and edit or delete your own. Hold a conversation in the list to hide it or leave
 
 ## Writing
 

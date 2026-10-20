@@ -31766,6 +31766,22 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": " — a link to one specific message, which opens the thread scrolled to it"
      }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Press and hold",
+      "children": [
+       {
+        "t": "text",
+        "v": "Press and hold"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — on a phone or tablet, hold a message for its actions: react, reply, copy its text or a link to it, pin it, and edit or delete your own. Hold a conversation in the list to hide it or leave"
+     }
     ]
    ]
   },

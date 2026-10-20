@@ -72,6 +72,10 @@ body[data-sb-files] .msg-panel-icon:disabled { opacity: .3; }
 .msg-find input::-webkit-search-cancel-button { display: none; }
 body[data-sb-files] .msg-search-input { font: 500 13px/1 var(--font-sans); }
 body[data-sb-files] .msg-search-input:focus { outline: none; box-shadow: none; }
+/* Under a finger: 16px, or iOS zooms the page in on focus and leaves it so. */
+@media (pointer: coarse) {
+  .msg-find input, body[data-sb-files] .msg-search-input { font-size: 16px; }
+}
 
 /* ── The list: two lines, the person first; unread is weight and a pill ── */
 body[data-sb-files] .msg-panel-body { padding: 2px 7px 8px; }
