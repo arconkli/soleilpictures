@@ -418,6 +418,7 @@ export const EV = Object.freeze({
   INVITE_NUDGE_CTA:        'invite_nudge_cta',            // banner CTA clicked → Share panel (must-land)
   INVITE_NUDGE_DISMISS:    'invite_nudge_dismiss',        // banner dismissed {surface}
   INVITE_SENT:             'invite_sent',                 // collaborator invite(s) submitted {role,result:'granted'|'pending',n,surface,reward_note:'free'|'paid'} (must-land). The setup's invite panel also sends method:'email' and surface 'setup'|'reask'
+  INVITE_LIMIT_REACHED:    'invite_limit_reached',        // the server's invite budget (0358/0375) stopped a send {surface:'setup'|'reask', method:'email', kind:'first_day'|'daily'|'paused', unsent (addresses it never sent)} (must-land). Only the setup's invite panel sends it so far; the share panel doesn't
 
   // ── Invite links ("anyone with this link joins as editor/viewer", 0189) ──
   INVITE_LINK_CREATED:     'invite_link_created',         // link minted/reused in ShareModal {role,expiry,board_id,surface} (must-land)

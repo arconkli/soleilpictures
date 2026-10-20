@@ -29,6 +29,15 @@ export function inviteLimitReason(msg) {
   return String(msg ?? '').replace(/^invite limit reached:\s*/i, '');
 }
 
+// Which budget it was (0375), for the abuse read: an account paused while it
+// is reviewed, a new account's first day, or the everyday one.
+export function inviteLimitKind(msg) {
+  const s = String(msg ?? '');
+  if (/paused/i.test(s)) return 'paused';
+  if (/first day/i.test(s)) return 'first_day';
+  return 'daily';
+}
+
 // Send to each address in order. send(email) resolves 'granted' (they had an
 // account; access is live now), 'pending' (no account yet: an invite email
 // went out and it is claimed when they sign up) or 'already_member', and

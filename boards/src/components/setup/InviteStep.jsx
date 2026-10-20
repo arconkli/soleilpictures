@@ -16,7 +16,7 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { inviteWorkspaceMember } from '../../lib/boardsApi.js';
 import { createWorkspaceInviteLink, getWorkspaceInviteLinkTerms } from '../../lib/inviteApi.js';
 import { workspaceInviteUrl } from '../../lib/workspaceLink.js';
-import { parseEmails, runInvites } from '../../lib/inviteSubmit.js';
+import { parseEmails, runInvites, inviteLimitKind } from '../../lib/inviteSubmit.js';
 import { inviteRewardCopy } from '../../lib/inviteReward.js';
 import { MAX_INVITE_ROWS, linkTermsLine } from '../../lib/workspaceSetup.js';
 
@@ -118,7 +118,10 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
     let stopped = null;
     for (const role of ['editor', 'viewer']) {
       const emails = byRole[role];
-      if (emails.length === 0 || stopped) continue;
+      if (emails.length === 0) continue;
+      // Past the limit every address is refused the same way, so a role not
+      // reached yet stays in its rows for tomorrow too.
+      if (stopped) { stopped.unsent.push(...emails); continue; }
       const r = await runInvites(emails, (email) => inviteWorkspaceMember({ workspaceId, email, role }));
       for (const e of r.granted) next.push({ email: e, ok: true, label: 'Added' });
       for (const e of r.pending) next.push({ email: e, ok: true, label: 'Invite sent' });
@@ -134,7 +137,12 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
       if (r.limit) stopped = r.limit;
     }
     setResults((prev) => [...prev, ...next]);
-    if (stopped) setLimit(sentence(stopped.reason));
+    if (stopped) {
+      setLimit(sentence(stopped.reason));
+      try {
+        logEventNow(EV.INVITE_LIMIT_REACHED, { surface, method: 'email', kind: inviteLimitKind(stopped.reason), unsent: stopped.unsent.length });
+      } catch (_) { /* analytics never breaks a send */ }
+    }
     // Sent rows clear; whatever the limit stopped stays, ready for tomorrow.
     const keep = stopped ? new Set(stopped.unsent.map((e) => e.toLowerCase())) : new Set();
     setRows((rs) => {

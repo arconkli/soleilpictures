@@ -317,6 +317,26 @@ test('the email limit keeps what it stopped and points at the link', async ({ pa
   await expect(page.getByRole('button', { name: 'Open Northlight' })).toBeVisible();
 });
 
+test('the email limit is logged, and a viewer row it never reached stays for tomorrow', async ({ page }) => {
+  await open(page, 'setup=B&resume=invite&invitelimit=1');
+  await expect(page.getByRole('heading', { name: 'Invite the people you work with' })).toBeVisible({ timeout: 20000 });
+  await page.getByLabel('Email address').fill('ana@studio.com');
+  await page.getByRole('button', { name: 'Add another' }).click();
+  await page.getByLabel('Email address 2').fill('bo@studio.com');
+  await page.getByRole('button', { name: 'Add another' }).click();
+  await page.getByLabel('Email address 3').fill('cy@studio.com');
+  await page.getByRole('button', { name: 'Access: Can edit' }).nth(2).click();
+  await expect(page.getByRole('button', { name: 'Access: Can view' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Send 3 invites' }).click();
+  await expect(page.locator('.su-res')).toHaveText(['ana@studio.com' + 'Invite sent']);
+  // Editors go first; the limit stopped bo, and cy (a viewer) was never tried.
+  await expect(page.getByLabel('Email address', { exact: true })).toHaveValue('bo@studio.com');
+  await expect(page.getByLabel('Email address 2')).toHaveValue('cy@studio.com');
+  await expect(page.getByRole('button', { name: 'Access: Can view' })).toHaveCount(1);
+  expect((await db(page)).invites.map((i) => i.email)).toEqual(['ana@studio.com']);
+  expect(pick(await events(page), 'invite_limit_reached', { surface: 'setup', method: 'email', kind: 'first_day', unsent: 2 })).toHaveLength(1);
+});
+
 test('each address gets its own answer, and a row can invite a viewer', async ({ page }) => {
   await open(page, 'setup=B&resume=invite');
   await expect(page.getByRole('heading', { name: 'Invite the people you work with' })).toBeVisible({ timeout: 20000 });
