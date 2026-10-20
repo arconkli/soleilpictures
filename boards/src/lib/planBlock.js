@@ -51,7 +51,7 @@
 // scripts/gen-docs.mjs (the .md twins), so the three cannot say different things.
 
 import {
-  PLAN_NAME, PRICING, PRICING_PAGE, CREATOR_BENEFITS, DEMO_FEATURES, CREATOR_STORAGE_LABEL,
+  PLAN_NAME, PRICING, PRICING_PAGE, CREATOR_BENEFITS, DEMO_FEATURES,
 } from './billingCopy.js';
 
 export const PLAN_BLOCK_ID = 'what-it-costs';
@@ -65,14 +65,16 @@ export function hasPlanBlock(spec) {
   return spec.kind === 'compare' || spec.planBlock === true;
 }
 
-// The Creator lines the block shows. Titles only, with two corrections:
-// "No size limits" alone read as no limit at all, when there is a drive behind
-// it — so the line names the drive. And the workspace benefit is dropped,
-// because the block's closing note says the same thing in full one line later.
+// The Creator lines the block shows: the titles, without the workspace
+// benefit, because the block's closing note says the same thing in full one
+// line later. The storage line used to read "No size limits", which sounded
+// like no limit at all, so the drive was appended to it. Since 0413 the title
+// IS the drive ("A 1TB drive"), and the suffix printed "A 1TB drive, on a 1TB
+// drive" on every page carrying the block (production 2026-10-17 to the fix).
 function creatorLines() {
   return CREATOR_BENEFITS
     .filter((b) => b.key !== 'workspace')
-    .map((b) => (b.key === 'storage' ? `${b.title}, on a ${CREATOR_STORAGE_LABEL} drive` : b.title));
+    .map((b) => b.title);
 }
 
 export function planBlockModel() {

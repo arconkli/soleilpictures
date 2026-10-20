@@ -68,7 +68,7 @@ Start free. Pay when you outgrow it.
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- A 1TB drive, on a 1TB drive
+- A 1TB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 

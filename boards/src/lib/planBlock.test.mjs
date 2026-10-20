@@ -38,16 +38,22 @@ test('the block is on every comparison page and every flagged page — and nowhe
   assert.equal(hasPlanBlock({ kind: 'compare' }), true);
 });
 
-test('the size line names the drive, and the workspace line is not said twice', () => {
+test('the storage line names the drive once, and the workspace line is not said twice', () => {
   const m = planBlockModel();
   const storage = CREATOR_BENEFITS.find((b) => b.key === 'storage');
-  assert.ok(m.creator.lines.includes(`${storage.title}, on a ${CREATOR_STORAGE_LABEL} drive`),
-    'a bare "No size limits" reads as no limit at all — name the drive behind it');
+  // A bare "No size limits" read as no limit at all, so the line must name the
+  // drive. Once: since 0413 the title IS the drive, and the old suffix printed
+  // "A 1TB drive, on a 1TB drive" on every page carrying the block.
+  assert.ok(m.creator.lines.includes(storage.title), 'the storage title is shown as it stands');
+  const drive = m.creator.lines.filter((l) => l.includes(CREATOR_STORAGE_LABEL));
+  assert.equal(drive.length, 1, 'one line names the drive');
+  assert.equal(drive[0].split(CREATOR_STORAGE_LABEL).length - 1, 1, `the drive is named once: "${drive[0]}"`);
   const workspace = CREATOR_BENEFITS.find((b) => b.key === 'workspace');
   assert.ok(!m.creator.lines.includes(workspace.title), 'the closing note already says it');
   assert.ok(m.note.includes('whole workspace'));
   for (const out of [planBlockHtml('/x'), planBlockMarkdown().join('\n')]) {
-    assert.ok(out.includes(`on a ${CREATOR_STORAGE_LABEL} drive`));
+    assert.ok(out.includes(`${CREATOR_STORAGE_LABEL} drive`));
+    assert.ok(!out.includes(`drive, on a ${CREATOR_STORAGE_LABEL} drive`), 'the drive is not said twice');
     assert.equal(out.split('whole workspace').length - 1, 1, 'the workspace claim appears exactly once');
   }
 });
