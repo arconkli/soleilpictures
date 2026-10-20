@@ -408,7 +408,7 @@ export const EV = Object.freeze({
   INVITE_NUDGE_VIEW:       'invite_nudge_view',           // "build this together" banner shown {surface}
   INVITE_NUDGE_CTA:        'invite_nudge_cta',            // banner CTA clicked → Share panel (must-land)
   INVITE_NUDGE_DISMISS:    'invite_nudge_dismiss',        // banner dismissed {surface}
-  INVITE_SENT:             'invite_sent',                 // collaborator invite(s) submitted {role,result:'granted'|'pending',n,surface,reward_note:'free'|'paid'} (must-land)
+  INVITE_SENT:             'invite_sent',                 // collaborator invite(s) submitted {role,result:'granted'|'pending',n,surface,reward_note:'free'|'paid'} (must-land). The setup's invite panel also sends method:'email' and surface 'setup'|'reask'
 
   // ── Invite links ("anyone with this link joins as editor/viewer", 0189) ──
   INVITE_LINK_CREATED:     'invite_link_created',         // link minted/reused in ShareModal {role,expiry,board_id,surface} (must-land)
@@ -421,6 +421,23 @@ export const EV = Object.freeze({
   // 'noop' all return early and left the funnel dark (join clicks with neither
   // a success nor a failure recorded). {status} (must-land)
   INVITE_LINK_CLAIM_RESULT:'invite_link_claim_result',
+
+  // ── First-run setup (workspace_setup arm B, components/setup) ──
+  // Name the workspace, who and what it's for, invite — before the canvas.
+  // setup_*, not welcome_*: welcome_* is the waitlist page's. Every step logs
+  // its view and the move that left it, with the time spent on it.
+  SETUP_STEP:              'setup_step',                  // {step:'name'|'who'|'invite'|'invitee', action:'view'|'done'|'skip'|'back', ms (on leaving), invitee, phone, chars (name), team, work}
+  SETUP_DONE:              'setup_done',                  // the steps ended and the app opens {invitee, team, work, invite:'sent'|'skipped'|null, emails, links, ms_total, phone} (must-land)
+  SETUP_ERROR:             'setup_error',                 // a step's write or read failed {op:'workspace'|'settings'|'link', surface, reason}
+
+  // ── Workspace invite links ("anyone with this link joins the workspace", 0450) ──
+  // The whole-workspace sibling of invite_link_*: ?wsjoin=<token> on the app's
+  // root. One funnel: created → shared → landed → claim result (server: claimed).
+  WORKSPACE_LINK_CREATED:  'workspace_link_created',      // made or reused as an invite panel opened {surface:'setup'|'reask', role}
+  WORKSPACE_LINK_SHARED:   'workspace_link_shared',       // {surface, method:'copy'|'share', ok (copy reached the clipboard), completed (the share sheet finished; closing it still counts as out)} (must-land)
+  WORKSPACE_LINK_LANDED:   'workspace_link_landed',       // someone opened a ?wsjoin link {status:'live'|'member'|'dead'|'error', signed_in}
+  WORKSPACE_LINK_CLAIM_RESULT:'workspace_link_claim_result', // a claim's outcome, every branch {status:'joined'|'member'|'dead'|'error', at:'signup'|'card', reason} (must-land)
+  WORKSPACE_LINK_CLAIMED:  'workspace_link_claimed',      // SERVER: claim_workspace_invite_link let someone in {workspace_id, role, status}
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}
@@ -526,6 +543,7 @@ export const JOURNEY_PHASE = Object.freeze({
   TIER_GATE:    'tier_gate',     // tier resolved, routing decision made
   WAITLIST:     'waitlist',      // routed to the waitlist /welcome branch
   AD_WELCOME:   'ad_welcome',    // the one-time AdWelcome price-first offer
+  SETUP:        'setup',         // the first-run setup steps (workspace_setup arm B), before App
   APP_ENTER:    'app_enter',     // the App workspace mounted
   SEED:         'seed',          // onboarding seed effect running
   COACHMARK:    'coachmark',     // first-card coachmark visible
@@ -538,7 +556,7 @@ export const JOURNEY_PHASE = Object.freeze({
 });
 
 export const JOURNEY_PHASE_ORDER = Object.freeze([
-  'signup', 'boot', 'tier_gate', 'waitlist', 'ad_welcome', 'app_enter',
+  'signup', 'boot', 'tier_gate', 'waitlist', 'ad_welcome', 'setup', 'app_enter',
   'seed', 'coachmark', 'first_intent', 'blocked', 'stuck',
   'first_card', 'nest', 'populated',
 ]);

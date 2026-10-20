@@ -213,7 +213,9 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed } from './lib/appHost.js';
+import { getSetupOutcome } from './lib/setupGate.js';
+import { workToFirstBoardKind } from './lib/workspaceSetup.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
@@ -7131,6 +7133,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (_) {}
   }, []);
   const tourActive = onboardingArmB && (onboardingUiActive || desktopHandoff);
+  // workspace_setup arm B already asked what the work is, before the canvas
+  // (lib/setupGate.js): the tour opens on its content step with that answer
+  // and the first board's headline names it. The gate's answer from this page
+  // load first, else the profile's record on a later visit. Where the setup can
+  // run at all, the tour waits for the profile rather than flash the old ask.
+  const setupOutcome = getSetupOutcome(user?.id);
+  const setupWelcome = setupOutcome?.welcome || mySettings?.welcome || null;
+  const setupDone = !!setupWelcome?.done && !setupWelcome.invitee;
+  const setupKind = setupDone ? workToFirstBoardKind(setupWelcome.work) : null;
+  const tourStart = useMemo(() => (setupDone ? { skipIntent: true, intent: setupKind } : null), [setupDone, setupKind]);
+  const setupUnread = !setupOutcome && !mySettingsLoaded && workspaceSetupAllowed();
   const tour = useOnboardingTour({
     onboarding: myTier.onboarding,
     persist: persistTour,
@@ -7138,8 +7151,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Paused while the Creator offer they asked for on /pricing is open: a tour
     // step anchored behind a modal is a step nobody can do. `enabled` only
     // gates which step is surfaced, so progress is kept and it resumes on close.
-    enabled: tourActive && upgradeReason !== 'pricing-intent',
+    enabled: tourActive && upgradeReason !== 'pricing-intent' && !setupUnread,
     variant: tourVariantRef.current,
+    start: tourStart,
   });
   // Only feed tour events while the tour is actually running — otherwise a
   // non-arm-B (or finished) user's card/nav actions would advance + persist +
@@ -7152,10 +7166,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     let src = {};
     try { src = getFirstSource() || {}; } catch (_) { src = {}; }
     return firstBoardKindFrom({
-      intent: tour?.state?.intent || myTier.onboarding?.intent || null,
+      intent: tour?.state?.intent || myTier.onboarding?.intent || setupKind || null,
       landingPath: src.landing_path, referrerHost: src.referrer_host, utmSource: src.utm_source,
     });
-  }, [tour?.state?.intent, myTier.onboarding?.intent]);
+  }, [tour?.state?.intent, myTier.onboarding?.intent, setupKind]);
   // Finishing the last step (or Skip) closes the onboarding UI. A genuine
   // completion (not Skip — Skip leaves `step` on the step it bailed from with
   // no terminal advance emitted; we key off the ref set by the emit below)
@@ -7305,7 +7319,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // App mounts — see experiments.js). Stamping it here too would double-log the
         // enrollment and could disagree with TierRouter's render decision, so the seed
         // loop leaves it alone.
-        if (key === 'instant_entry') continue;
+        // workspace_setup is the same: TierRouter decides and stamps it before
+        // App mounts (lib/setupGate.js), and its arm is carried over below.
+        if (key === 'instant_entry' || key === 'workspace_setup') continue;
         // Hardened: a throw here (bad weights, a thenable without .catch, a
         // throwing logEvent) must NEVER escape and abort the rest of the seed —
         // that blanked the board for every new user. See the .then(undefined,…)
@@ -7323,6 +7339,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           supabase.rpc('set_experiment_arm', { p_key: key, p_arm: arm }).then(undefined, () => {});
           logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
         } catch (_) { /* one experiment failing must not block the seed */ }
+      }
+      // setEnrolledExperiments replaces the cache, so the setup gate's arm (set
+      // this page load, never an override) rides along rather than being wiped.
+      {
+        const so = getSetupOutcome(user.id);
+        if (so?.arm && !so.override) enrolled.exp_workspace_setup = so.arm;
       }
       if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
 

@@ -6,8 +6,8 @@
 // never the problem (most new accounts place a first card); coming back and
 // bringing people in are, so every answer here has to visibly change something
 // next: the name is the workspace's name, the team answer sets how the invite
-// step asks and how many email rows it opens with, and the work answer is what
-// the first board's headline and the tour's content step say.
+// step asks, and the work answer is what the first board's headline and the
+// tour's content step say.
 //
 // It runs as a randomized test (experiments.js `workspace_setup`): arm A is
 // today's flow, arm B these steps. Skippers in arm B get exactly one more ask
@@ -97,20 +97,43 @@ export function workToFirstBoardKind(work) {
   return null;
 }
 
-// How the invite step asks, by the team answer. `rows` is how many email rows
-// it opens with.
+// How the invite step asks, by the team answer. The link leads and one email
+// row follows it for every answer ("I tuned", owner 2026-10-20): people share
+// links far more than they type addresses, and the people who came in through
+// a link were the ones who went on to add cards. `rows` stays so the step has
+// one place that says how many rows it opens with.
 export function inviteCopyFor(team, workspaceName) {
   const ws = normalizeWorkspaceName(workspaceName) || 'your workspace';
   if (team === 'solo') {
     return { head: 'Want a second pair of eyes?', sub: `Invite a collaborator, a client or a friend to ${ws}. They see what you add, as you add it.`, rows: 1 };
   }
   if (team === 'few') {
-    return { head: `Who’s working on ${ws} with you?`, sub: `Invite them now and start together. They’ll see every cluster and file in ${ws}.`, rows: 2 };
+    return { head: 'Invite the people you work with', sub: `They’ll see every cluster and file in ${ws}, and what you add as you add it.`, rows: 1 };
   }
   if (team === 'team') {
-    return { head: `Bring your team into ${ws}`, sub: 'Add a few emails, or share one link with everyone.', rows: 3 };
+    return { head: `Bring your team into ${ws}`, sub: 'Add a few emails, or share one link with everyone.', rows: 1 };
   }
   return { head: `Invite people to ${ws}`, sub: 'They’ll see every cluster and file in it, and what you add as you add it.', rows: 1 };
+}
+
+// What a workspace invite link does, from its row (0451), never typed in: a
+// new account's link is shorter and smaller than an older one's. null until
+// the terms are known, and the step says only the first sentence.
+export function linkTermsLine({ workspaceName, role, expiresAt, maxUses, uses = 0, now } = {}) {
+  const ws = normalizeWorkspaceName(workspaceName) || 'your workspace';
+  const lead = role === 'viewer'
+    ? `Anyone with the link can join ${ws} and see everything in it.`
+    : `Anyone with the link can join ${ws} and edit.`;
+  const end = Date.parse(expiresAt || '');
+  const at = Number.isFinite(now) ? now : Date.parse(now || '');
+  const left = Math.max(0, (Number(maxUses) || 0) - (Number(uses) || 0));
+  if (!Number.isFinite(end) || !Number.isFinite(at) || !(Number(maxUses) > 0)) return lead;
+  const days = Math.max(1, Math.round((end - at) / 86400000));
+  const span = days === 1 ? 'a day' : `${days} days`;
+  const who = Number(uses) > 0
+    ? (left === 1 ? 'one more person' : `${left} more people`)
+    : (left === 1 ? 'one person' : `up to ${left} people`);
+  return `${lead} It works for ${span}, for ${who}.`;
 }
 
 // ── Progress ────────────────────────────────────────────────────────────────

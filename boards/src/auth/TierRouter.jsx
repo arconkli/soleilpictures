@@ -22,6 +22,7 @@ import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { assignArm } from '../lib/experiments.js';
 import { trackAdLead } from '../lib/metaPixel.js';
 import { setJourneySink, beginJourney, setJourneyState, journey } from '../lib/journey.js';
+import { useSetupGate } from '../hooks/useSetupGate.js';
 
 // Wire the post-signup journey's emitter at module load (journey.js can't import
 // analytics.js statically — it must stay node-importable for its unit test). This
@@ -35,6 +36,8 @@ import { PricingSuccess } from './PricingSuccess.jsx';
 // Lazy: AdminPage pulls in recharts (~133KB gz) but only the /admin route (admins
 // only) renders it. Keeping it lazy means no other user downloads the charts lib.
 const AdminPage = lazyWithReload(() => import('../pages/AdminPage.jsx').then(m => ({ default: m.AdminPage })));
+// Lazy: only a new account in workspace_setup's arm B ever renders it.
+const WorkspaceSetup = lazyWithReload(() => import('../components/setup/WorkspaceSetup.jsx'));
 import { UpgradeChip } from '../components/UpgradeChip.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
 
@@ -43,6 +46,13 @@ export function TierRouter({ children }) {
   const { tier, loading, banned, adOfferPending, refetch, onboarding } = useMyTier({ userId: user?.id });
   const [hasEntry, setHasEntry] = useState(null);
   const path = window.location.pathname;
+
+  // ── workspace_setup: the first-run setup, decided HERE before App mounts ──
+  // A new account is put in an arm and stamped either way (lib/setupGate.js);
+  // arm B names its workspace, says who and what it's for and invites people
+  // before the canvas. Everyone else resolves to 'off' on the first render
+  // without a read, and production stays off through workspaceSetupAllowed.
+  const setup = useSetupGate({ user, tier, loading, onboarding });
 
   // ── instant_entry: SHIPPED at 100% arm B (decided HERE, before App mounts) ──
   // Every brand-new demo user drops STRAIGHT into their seeded board; the price-first
@@ -109,8 +119,9 @@ export function TierRouter({ children }) {
     if (loading) return;
     if (tier === 'waitlist') setJourneyState({ phase: JOURNEY_PHASE.WAITLIST, route: window.location.pathname });
     else if (tier === 'demo' && adOfferPending && entryArm !== 'B') setJourneyState({ phase: JOURNEY_PHASE.AD_WELCOME, route: window.location.pathname });
+    else if (setup.status === 'show') setJourneyState({ phase: JOURNEY_PHASE.SETUP, route: window.location.pathname });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, tier, adOfferPending, entryArm]);
+  }, [loading, tier, adOfferPending, entryArm, setup.status]);
 
   // instant_entry: enroll BOTH arms at the gate DECISION (not at seed time) so arm-A
   // users who bounce on AdWelcome are still counted — otherwise arm A's denominator
@@ -191,6 +202,17 @@ export function TierRouter({ children }) {
 
   // tier in (admin, paid, demo) — signed-in-only side pages
   if (path === '/admin')             return <Suspense fallback={<Splash />}><AdminPage /></Suspense>;
+
+  // The setup steps, while a new account in arm B has them to do. 'pending' is
+  // the one read of how far they got, so a reload resumes the step they left.
+  if (setup.status === 'pending') return <Splash />;
+  if (setup.status === 'show') {
+    return (
+      <Suspense fallback={<Splash />}>
+        <WorkspaceSetup user={user} initialState={setup.welcome} invitee={setup.invitee} onDone={setup.finish} />
+      </Suspense>
+    );
+  }
 
   // Default → app, with the UpgradeChip overlay for demo users.
   return (

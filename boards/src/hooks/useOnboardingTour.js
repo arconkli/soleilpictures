@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { advanceTour, currentStep, readTourState } from '../lib/onboardingTour.js';
+import { advanceTour, currentStep, readTourState, startTourState } from '../lib/onboardingTour.js';
 
 // Controller for the first-run guided tour. Keeps the engine pure and injects
 // side effects (persistence + analytics) so it stays testable:
@@ -8,8 +8,11 @@ import { advanceTour, currentStep, readTourState } from '../lib/onboardingTour.j
 //   - `emit({ action, step, ... })` reports view / advance / skip for the funnel.
 //   - `enabled` gates whether a step is surfaced at all (e.g. only arm B on the
 //     root board for a fresh signup), without losing persisted progress.
-export function useOnboardingTour({ onboarding, persist, emit, enabled = true, variant = 'full' } = {}) {
-  const [state, setState] = useState(() => readTourState(onboarding, variant));
+//   - `start` ({ skipIntent, intent }) is where a fresh tour begins when the
+//     first-run setup already asked what the work is (lib/onboardingTour.js
+//     startTourState).
+export function useOnboardingTour({ onboarding, persist, emit, enabled = true, variant = 'full', start = null } = {}) {
+  const [state, setState] = useState(() => readTourState(onboarding, variant, start));
   const stateRef = useRef(state);
   stateRef.current = state;
   const viewedRef = useRef(new Set());
@@ -30,11 +33,25 @@ export function useOnboardingTour({ onboarding, persist, emit, enabled = true, v
       // Pass the session variant so a persisted record for the OTHER variant
       // (e.g. a finished mobile_lite tour, read on desktop) doesn't clobber the
       // freshly-started session tour — readTourState restarts it instead.
-      const synced = readTourState(onboarding, variant);
+      const synced = readTourState(onboarding, variant, start);
       stateRef.current = synced;
       setState(synced);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboarding, variant]);
+
+  // On a later visit the setup's answer comes from the profile, after the
+  // first render: adopt it while the tour still sits, untouched, on the ask.
+  const skipIntent = !!start?.skipIntent;
+  const startIntent = start?.intent ?? null;
+  useEffect(() => {
+    if (!skipIntent || touchedRef.current) return;
+    const cur = stateRef.current;
+    if (cur.done || cur.variant !== 'project_first' || cur.step !== 'pick_intent') return;
+    const next = startTourState(variant, { skipIntent, intent: startIntent });
+    stateRef.current = next;
+    setState(next);
+  }, [skipIntent, startIntent, variant]);
 
   const fire = useCallback((event) => {
     const prev = stateRef.current;

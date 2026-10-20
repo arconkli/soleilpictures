@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  linkTermsLine,
   SETUP_EPOCH, NAME_MAX, REASK_MIN_CARDS, TEAM_OPTIONS, WORK_OPTIONS,
   stepsForSetup, isSetupCandidate, normalizeWorkspaceName, validateWorkspaceName,
   workToFirstBoardKind, inviteCopyFor, initialSetupState, nextSetupState, reaskDue,
@@ -58,8 +59,8 @@ test('the work answer names the first board', () => {
 
 test('the team answer changes how the invite step asks', () => {
   assert.equal(inviteCopyFor('solo', 'Lost Time').rows, 1);
-  assert.equal(inviteCopyFor('few', 'Lost Time').rows, 2);
-  assert.equal(inviteCopyFor('team', 'Lost Time').rows, 3);
+  assert.equal(inviteCopyFor('few', 'Lost Time').rows, 1, 'the link leads; one email row for every answer');
+  assert.equal(inviteCopyFor('team', 'Lost Time').rows, 1);
   assert.equal(inviteCopyFor(null, 'Lost Time').rows, 1);
   assert.match(inviteCopyFor('team', 'Lost Time').head, /Lost Time/);
   assert.match(inviteCopyFor(null, '  ').head, /your workspace/);
@@ -137,4 +138,18 @@ test('the re-ask comes once, to arm B skippers, after real work, inside the wind
   assert.equal(reaskDue({ ...base, now: '2026-11-15T10:00:00Z' }), true, 'day 14 still counts');
   assert.equal(reaskDue({ ...base, createdAt: null }), false);
   assert.equal(reaskDue(), false);
+});
+
+test('the link says what it does, from its own row', () => {
+  const now = Date.parse('2026-10-21T10:00:00Z');
+  const week = '2026-10-28T10:00:00Z';
+  assert.equal(linkTermsLine({ workspaceName: 'Lost Time', role: 'editor', expiresAt: week, maxUses: 5, now }),
+    'Anyone with the link can join Lost Time and edit. It works for 7 days, for up to 5 people.');
+  assert.equal(linkTermsLine({ workspaceName: 'Lost Time', role: 'editor', expiresAt: '2026-11-20T10:00:00Z', maxUses: 25, uses: 3, now }),
+    'Anyone with the link can join Lost Time and edit. It works for 30 days, for 22 more people.');
+  assert.equal(linkTermsLine({ workspaceName: 'Lost Time', role: 'viewer', expiresAt: '2026-10-21T20:00:00Z', maxUses: 1, now }),
+    'Anyone with the link can join Lost Time and see everything in it. It works for a day, for one person.');
+  assert.equal(linkTermsLine({ workspaceName: 'Lost Time', role: 'editor' }),
+    'Anyone with the link can join Lost Time and edit.', 'terms not known yet: the first sentence only');
+  assert.match(linkTermsLine({ workspaceName: '  ', role: 'editor' }), /join your workspace/);
 });

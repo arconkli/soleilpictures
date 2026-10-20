@@ -102,3 +102,12 @@ test('only the preview is callable signed out; the helpers are not callable by c
     assert.ok(latestMatch(re), `${sig} is not revoked from public, anon`);
   }
 });
+
+// 0451: a link's terms, for the people who can share it.
+test('only a manager of the link\'s workspace reads its terms, and never signed out', () => {
+  const b = body('get_workspace_invite_link_terms');
+  assert.ok(b.includes('auth.uid() is null or not public._actor_active()'));
+  assert.ok(b.includes('public.can_manage_workspace(v_link.workspace_id)'));
+  assert.ok(latestMatch(/revoke all on function public\.get_workspace_invite_link_terms\(uuid\) from public, anon/));
+  assert.ok(latestMatch(/grant execute on function public\.get_workspace_invite_link_terms\(uuid\) to authenticated, service_role/));
+});

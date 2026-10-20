@@ -90,6 +90,18 @@ export async function createWorkspaceInviteLink(workspaceId, role = 'editor') {
   return data;
 }
 
+// Authed call — what a link does, for the owner or a co-owner of its
+// workspace (0451): { role, expires_at, max_uses, uses, live }, or null for
+// anyone else. A new account's link is shorter and smaller than an older
+// one's, so the copy reads these rather than typing them in.
+export async function getWorkspaceInviteLinkTerms(token) {
+  const { data, error } = await supabase
+    .rpc('get_workspace_invite_link_terms', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row || null;
+}
+
 // Authed call — the owner or a co-owner turns a link off for good. Returns nothing.
 export async function revokeWorkspaceInviteLink(token) {
   const { error } = await supabase

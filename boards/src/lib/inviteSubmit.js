@@ -1,0 +1,59 @@
+// inviteSubmit.js — sending invitations to a list of addresses, one way for
+// every surface that sends them: the share panel, and the first-run setup's
+// invite step and its one re-ask. Pure over an injected sender, so it runs in
+// node and the surfaces only differ in what they say about the result.
+
+// Addresses out of a free-form field: commas, semicolons, whitespace or
+// newlines between them. Loose on purpose: anything with "@" and a dot in the
+// domain part. Invalid entries come back, so a typo'd address never looks like
+// it was invited, and the same address twice in a paste is one person.
+export function parseEmails(raw) {
+  const parts = String(raw ?? '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+  const valid = parts.filter((s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+  const invalid = parts.filter((s) => !valid.includes(s));
+  const seen = new Set();
+  const unique = valid.filter((s) => {
+    const k = s.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return { valid: unique, invalid };
+}
+
+// The server's daily invite budget (0358) refuses with "invite limit reached:
+// <why>". Once it does, every address after it would be refused the same way.
+export const INVITE_LIMIT_RE = /invite limit reached/i;
+
+export function inviteLimitReason(msg) {
+  return String(msg ?? '').replace(/^invite limit reached:\s*/i, '');
+}
+
+// Send to each address in order. send(email) resolves 'granted' (they had an
+// account; access is live now), 'pending' (no account yet: an invite email
+// went out and it is claimed when they sign up) or 'already_member', and
+// throws on a failure. Stops at the invite limit, returning the addresses it
+// never reached, so a surface can keep them for tomorrow.
+//   → { granted: [email], pending: [email], fail: [{email, reason}],
+//       limit: null | { reason, unsent: [email] } }
+export async function runInvites(emails, send) {
+  const granted = [];
+  const pending = [];
+  const fail = [];
+  let limit = null;
+  const list = Array.isArray(emails) ? emails : [];
+  for (let i = 0; i < list.length; i += 1) {
+    const email = list[i];
+    try {
+      const status = await send(email);
+      if (status === 'already_member') { fail.push({ email, reason: 'already a member' }); continue; }
+      if (status === 'pending') pending.push(email);
+      else granted.push(email);
+    } catch (e) {
+      const msg = e?.message || String(e);
+      if (INVITE_LIMIT_RE.test(msg)) { limit = { reason: inviteLimitReason(msg), unsent: list.slice(i) }; break; }
+      fail.push({ email, reason: msg });
+    }
+  }
+  return { granted, pending, fail, limit };
+}

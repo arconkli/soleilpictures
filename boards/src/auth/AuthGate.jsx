@@ -20,7 +20,7 @@
 //     regressed it to 'demo'). TierRouter sends waitlist users to
 //     /welcome where they pick between requesting demo access or paying.
 
-import { useEffect, useRef, useState, createContext, useContext } from 'react';
+import { useEffect, useRef, useState, createContext, useContext, lazy, Suspense } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
 import { logEvent, logEventNow, logEventOnce, getFirstSource } from '../lib/analytics.js';
@@ -28,9 +28,11 @@ import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { getWebviewInfo } from '../lib/webview.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { recordSeen } from '../lib/returnVisit.js';
-import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink } from '../lib/inviteApi.js';
+import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink, peekWorkspaceInviteLink, claimWorkspaceInviteLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
+import { WSJOIN_PARAM, parseWsJoinParam, stashWsJoin, readWsJoin, clearWsJoin } from '../lib/workspaceLink.js';
+import { workspaceSetupAllowed } from '../lib/appHost.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
@@ -300,6 +302,54 @@ async function consumePendingJoin(userId) {
   }
 }
 
+// Capture ?wsjoin=<token> (a whole-workspace invite link, 0450) and stash it
+// across the OTP hop, like ?join=. Held with the setup steps until the
+// sidebar's release.
+function captureWsJoinToken() {
+  if (typeof window === 'undefined' || !workspaceSetupAllowed()) return;
+  const url = new URL(window.location.href);
+  const token = parseWsJoinParam(url.searchParams.get(WSJOIN_PARAM));
+  if (!token) return;
+  stashWsJoin(token);
+  url.searchParams.delete(WSJOIN_PARAM);
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+}
+
+// Set just before the sign-in form verifies a code, so the session it makes is
+// known to come from someone who read "Join {workspace}" above the form and
+// signed in to do it. A session that was already there never claims on its
+// own: it gets the join card and an explicit Join (components/WorkspaceJoinCard).
+let signingInByForm = false;
+
+// Point the app at a workspace before it mounts (useWorkspace reads this).
+function openWorkspaceNext(userId, workspaceId) {
+  try {
+    localStorage.setItem(`soleil.boards.session.${userId}.workspace`, JSON.stringify({ activeWorkspaceId: workspaceId }));
+  } catch (_) { /* the app opens on its own default */ }
+}
+
+// Claim a stashed workspace link for a session the sign-in form just made.
+// Best-effort and never throws upward; the stash clears on any outcome, so a
+// dead link can't retry forever.
+async function consumePendingWsJoin(userId) {
+  if (typeof window === 'undefined' || !userId || !signingInByForm || !workspaceSetupAllowed()) return;
+  const token = readWsJoin();
+  if (!token) return;
+  try {
+    const row = await claimWorkspaceInviteLink(token);
+    const status = row?.status || 'unknown';
+    try { logEventNow(EV.WORKSPACE_LINK_CLAIM_RESULT, { status, at: 'signup' }); } catch (_) {}
+    if (status === 'joined') {
+      try { logEvent(EV.ACCESS_GRANTED, { how: 'workspace_link', role: `workspace:${row.role || 'editor'}`, board_id: null, surface: 'wsjoin' }); } catch (_) {}
+    }
+    if (row?.workspace_id && (status === 'joined' || status === 'member')) openWorkspaceNext(userId, row.workspace_id);
+  } catch (e) {
+    try { logEventNow(EV.WORKSPACE_LINK_CLAIM_RESULT, { status: 'error', at: 'signup', reason: String(e?.hint || e?.code || e?.message || e).slice(0, 80) }); } catch (_) {}
+  } finally {
+    clearWsJoin();
+  }
+}
+
 // Attach a freshly-made account to the Scout waitlist row for the number they
 // left on /scout, so when Scout eventually reaches them their photos land in
 // the workspace they already have rather than in a new shell account.
@@ -475,6 +525,9 @@ function hasStoredSession() {
   return false;
 }
 
+// Only someone already signed in who opens a workspace invite link sees it.
+const WorkspaceJoinCard = lazy(() => import('../components/WorkspaceJoinCard.jsx'));
+
 export function AuthGate({ children, signedOut = null }) {
   const localMode = isLocalQaMode();
   const devWithoutSupabase = !isSupabaseConfigured;
@@ -484,6 +537,9 @@ export function AuthGate({ children, signedOut = null }) {
   // restore that never produced one; a sign-out from a live session (Use a
   // different email on the account pricing page) still wants the email box.
   const hadSession = useRef(false);
+  // A workspace invite link opened by someone already signed in: asked, never
+  // claimed on the visit alone.
+  const [wsJoinAsk, setWsJoinAsk] = useState(null);
 
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
@@ -492,6 +548,7 @@ export function AuthGate({ children, signedOut = null }) {
     // mount BEFORE any auth roundtrip, so they survive the OTP redirect dance.
     captureInviteToken();
     captureJoinToken();
+    captureWsJoinToken();
     captureRemixSource();
     captureShareReturn();
     captureFileReturn();
@@ -512,9 +569,15 @@ export function AuthGate({ children, signedOut = null }) {
           consumeDeepLink(data.session.user.id);
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
+          await consumePendingWsJoin(data.session.user.id);
           await consumeScoutClaim(data.session.user.id);
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
+          // Already signed in when the link was opened: ask first.
+          if (!signingInByForm && workspaceSetupAllowed()) {
+            const ws = readWsJoin();
+            if (ws && !cancelled) setWsJoinAsk(ws);
+          }
         }
         if (data.session) hadSession.current = true;
         if (!cancelled) setSession(data.session);
@@ -551,6 +614,7 @@ export function AuthGate({ children, signedOut = null }) {
           consumeDeepLink(sess.user.id);
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
+          await consumePendingWsJoin(sess.user.id);
           await consumeScoutClaim(sess.user.id);
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
@@ -607,6 +671,12 @@ export function AuthGate({ children, signedOut = null }) {
     <AuthContext.Provider value={{ user: session.user, signOut }}>
       <PresenceTicker user={session.user} />
       {children}
+      {wsJoinAsk && (
+        <Suspense fallback={null}>
+          <WorkspaceJoinCard token={wsJoinAsk} userId={session.user.id}
+            onClose={() => { clearWsJoin(); setWsJoinAsk(null); }} />
+        </Suspense>
+      )}
     </AuthContext.Provider>
   );
 }
@@ -671,6 +741,8 @@ function SignIn() {
   // no email to pre-fill (the link is multi-use, not addressed to anyone), so
   // the payoff is purely context: name the cluster they were invited to.
   const [joinHint, setJoinHint] = useState(null);
+  // ?wsjoin= names the workspace and who sent it (peek_workspace_invite_link).
+  const [wsJoinHint, setWsJoinHint] = useState(null);
   // Non-null when "Get Creator" on /pricing sent them here (creatorIntent.js).
   // Read once: an expired entry is removed on read and simply shows nothing.
   const [creatorHint] = useState(() => { try { return readCreatorIntent(); } catch (_) { return null; } });
@@ -762,6 +834,26 @@ function SignIn() {
         logEvent(EV.LANDING_JOIN_PREFILL, { had_name: !!name });
       })
       .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Name the workspace behind a stashed ?wsjoin=<token> and who sent it. A
+  // link that no longer works says so here, before anyone signs up for it.
+  useEffect(() => {
+    let cancelled = false;
+    const token = workspaceSetupAllowed() ? readWsJoin() : null;
+    if (!token) return undefined;
+    peekWorkspaceInviteLink(token).then((row) => {
+      if (cancelled) return;
+      const status = row?.status || 'dead';
+      // 'Someone' is the server's stand-in for a maker with no name to show.
+      const inviter = row?.inviter_name && row.inviter_name !== 'Someone' ? row.inviter_name : '';
+      setWsJoinHint({ status, name: row?.workspace_name || '', inviter });
+      try { logEvent(EV.WORKSPACE_LINK_LANDED, { status, signed_in: false }); } catch (_) {}
+      if (status === 'dead') clearWsJoin();
+    }, () => {
+      if (!cancelled) { try { logEvent(EV.WORKSPACE_LINK_LANDED, { status: 'error', signed_in: false }); } catch (_) {} }
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -863,6 +955,7 @@ function SignIn() {
     if (token.length < 6) { setError('Enter the 6-digit code from your email.'); return; }
     setError(null);
     setBusy(true);
+    signingInByForm = true;
     try {
       const { error } = await supabase.auth.verifyOtp({
         email: email.trim().toLowerCase(),
@@ -885,6 +978,7 @@ function SignIn() {
       clearPendingCode(window.localStorage);
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
+      signingInByForm = false;
       logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e), sends });
       setError(humanError(e, { resent: sends > 1 }));
       // Ready for the next try: the field was disabled while verifying (which
@@ -944,11 +1038,26 @@ function SignIn() {
         </div>
       )}
 
+      {/* ?wsjoin= — a whole workspace, named, with who invited them. */}
+      {!inviteHint && !joinHint && wsJoinHint && (wsJoinHint.status === 'dead' ? (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          That invite link has expired or was turned off. Ask whoever sent it for a new one.
+        </div>
+      ) : (
+        <div className="auth-wsjoin" role="note">
+          <span className="auth-wsjoin-av" aria-hidden="true">{(wsJoinHint.name || '?').trim().charAt(0).toUpperCase()}</span>
+          <span className="auth-wsjoin-t">
+            <b>{wsJoinHint.name ? `Join ${wsJoinHint.name}` : 'Join a workspace'}</b>
+            <span>{wsJoinHint.inviter ? `${wsJoinHint.inviter} invited you. ` : ''}Sign in or sign up to join.</span>
+          </span>
+        </div>
+      ))}
+
       {/* "Get Creator" on /pricing sends a signed-out visitor here. Without a
           line saying so, the sign-in screen looked like the free signup they
           had just declined, and nothing said the offer was still coming. The
           labels were written in by /pricing (creatorIntent.js). */}
-      {!inviteHint && !joinHint && creatorHint && (
+      {!inviteHint && !joinHint && !wsJoinHint && creatorHint && (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
           Sign in to finish getting <b>{creatorHint.planName || 'the paid plan'}</b>
           {creatorHint.priceLabel ? <> at <b>{creatorHint.priceLabel}</b></> : null}
