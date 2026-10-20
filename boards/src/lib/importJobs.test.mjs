@@ -5,7 +5,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   putImportJob, dropImportJob, importJobsSnapshot, subscribeImportJobs, trayEntries,
-  hasActiveImport, importJobEntry, importForBoard, __resetImportJobsForTests,
+  hasActiveImport, importJobEntry, importForBoard, importKeyForBoard, __resetImportJobsForTests,
 } from './importJobs.js';
 
 beforeEach(() => __resetImportJobsForTests());
@@ -67,6 +67,17 @@ test('importForBoard: what the latest import that made a cluster knows about it,
   dropImportJob('k2');
   dropImportJob('k1');
   assert.equal(importForBoard('b1'), null, 'closed in the tray, forgotten');
+});
+
+test('importKeyForBoard: the key of the import that made a cluster, a string a view can select', () => {
+  putImportJob('k1', { phase: 'job', snap: { status: 'done', byBoard: { b1: { path: 'A', waiting: 0 } } } });
+  putImportJob('k2', { phase: 'job', snap: { status: 'waiting', byBoard: { b1: { path: 'A', waiting: 5 }, b2: { path: 'B', waiting: 1 } } } });
+  assert.equal(importKeyForBoard('b1'), 'k2', 'the later import speaks');
+  assert.equal(importKeyForBoard('b2'), 'k2');
+  assert.equal(importKeyForBoard('nope'), null);
+  assert.equal(importKeyForBoard(null), null);
+  dropImportJob('k2');
+  assert.equal(importKeyForBoard('b1'), 'k1');
 });
 
 test('an import a reload stopped holds nothing: shown when nothing runs, never ahead of what does', () => {

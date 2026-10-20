@@ -7,6 +7,7 @@ import { ImportZipDialog } from '../components/ImportZipDialog.jsx';
 import { SidebarMeter } from '../components/sidebar/SidebarMeter.jsx';
 import { askCopy, zipAskCopy } from '../lib/importCopy.js';
 import { UnplacedOffer } from '../components/UnplacedOffer.jsx';
+import { ImportWaitRow } from '../components/ImportWaitRow.jsx';
 
 // Dev-only bulk-import QA page (?importqa=1), no backend. Renders the tray, its
 // chip and the ask dialog from fixtures shaped like lib/importCopy.test.mjs.
@@ -17,6 +18,7 @@ import { UnplacedOffer } from '../components/UnplacedOffer.jsx';
 //   ?theme=light|dark   ?dialog=free|creator|trial|guest|zip-takeout|zip-one|zip-many
 //   ?menu=1 opens the sidebar's Upload menu
 //   ?land=night|wait|coming|plain   an imported cluster's empty canvas
+//   ?row=1 adds a cluster's Files, with its "waiting for room" row while ?state waits
 // Imported only behind main.jsx's `import.meta.env.DEV &&` guard.
 
 const GB = 1024 ** 3;
@@ -27,11 +29,14 @@ const ROWS = [
   ['Script', 14, 14], ['Stills', 535, 4518], ['Storyboards', 0, 128], ['Wardrobe', 0, 236],
 ].map(([name, landed, files]) => ({ key: name === 'Night Shift' ? name : `Night Shift/${name}`, name, files, landed }));
 
+// What importJob's byBoard says of one cluster the import made, its files still to come.
+const camera = (status, reason = null) => ({ 'b-camera': { path: 'Night Shift › Camera tests', waiting: 52, status, reason } });
+
 const snap = (over = {}) => ({
   status: 'running', totals: { files: 6193, bytes: 26.4 * GB, clusters: 17 }, landed: { files: 1846, bytes: 13 * GB },
   sentBytes: 13.2 * GB, waiting: { files: 0 }, failed: [], etaMs: 70 * 60000, currentRow: 'Night Shift/Stills',
   tops: [{ key: 'Night Shift', name: 'Night Shift', files: 6193, landed: 1846, boardId: 'b-night' }],
-  rows: ROWS,
+  rows: ROWS, byBoard: camera('running'),
   ...over,
 });
 
@@ -43,7 +48,7 @@ const FAILS = [
 
 function fixture(state) {
   const job = { phase: 'job', title: 'Night Shift', targetName: 'Studio' };
-  const wait = (more, extra) => ({ ...job, ...extra, snap: snap({ status: 'waiting', landed: { files: 12 }, waiting: { files: 6181 }, ...more }) });
+  const wait = (more, extra) => ({ ...job, ...extra, snap: snap({ status: 'waiting', landed: { files: 12 }, waiting: { files: 6181 }, byBoard: camera('waiting', more.waitingReason), ...more }) });
   switch (state) {
     case 'reading': return { phase: 'reading', title: 'Night Shift', reading: { files: 2410, folders: 6, bytes: 9.1 * GB } };
     case 'creating': return { ...job, snap: snap({ status: 'creating', rows: [] }) };
@@ -121,6 +126,16 @@ function LandQa({ which }) {
   );
 }
 
+// The Files of "Camera tests" (?row=1), as the sidebar's files card shows it.
+function RowQa() {
+  return (
+    <div className="sbf-card is-files" style={{ position: 'fixed', left: 8, top: 8, bottom: 8, width: 312, display: 'flex', flexDirection: 'column' }}>
+      <ImportWaitRow boardId="b-camera" />
+      <div style={{ flex: 1 }} />
+    </div>
+  );
+}
+
 function MenuQa() {
   const ref = useRef(null);
   useEffect(() => {
@@ -174,7 +189,10 @@ export function ImportQaHarness() {
         ? <MenuQa />
         : params.get('land')
         ? <LandQa which={params.get('land')} />
-        : <ImportTray aboveNav={params.get('phone') === '1'} initialMinimized={params.get('min') === '1'} />}
+        : <>
+            {params.get('row') === '1' && <RowQa />}
+            <ImportTray aboveNav={params.get('phone') === '1'} initialMinimized={params.get('min') === '1'} />
+          </>}
     </div>
   );
 }

@@ -82,6 +82,17 @@ export function importForBoard(boardId, entries = list) {
   return null;
 }
 
+// The tray entry of that same import: its key, a string, so a view selects it
+// through useSyncExternalStore without re-rendering on every tick, and reads
+// the entry (its act(id), its plan) with importJobEntry when it needs it.
+export function importKeyForBoard(boardId, entries = list) {
+  if (!boardId) return null;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].snap?.byBoard?.[boardId]) return entries[i].key;
+  }
+  return null;
+}
+
 // What the tray shows: the first entry still going (the dialog speaks for one
 // being asked about), else the latest finished one; and how many others are
 // still to come after it.

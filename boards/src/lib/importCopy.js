@@ -404,6 +404,25 @@ function waitBox({ reason, offer, plan, own, ownerName, thing }) {
   return { text: ['Your drive is full. It picks up by itself once deleting files or emptying the trash makes room.'], action: null, aside: null };
 }
 
+// ── The Files row of a cluster whose files wait for room (r5-Land-Wait) ─────
+// At the top of the cluster's Files while its import waits: how many, why,
+// and the tray's one step (waitBox's action, so the two never disagree).
+// name: the cluster's own name; the rest as trayCopy's entry. → null when
+// nothing of it waits.
+export function waitRowCopy({ waiting = 0, name = '', reason = null, offer, plan, own, ownerName, trialOffer, addon, source, zips, tops } = {}) {
+  if (!(Number(waiting) > 0)) return null;
+  const pick = offer !== undefined ? offer : offerFor({ own, plan, stoppedBy: reason, trialOffer, addon });
+  const box = waitBox({ reason, offer: pick, plan, own, ownerName, thing: thingOf({ source, zips, tops }) });
+  const byItself = (when = 'once there’s room') => `with this tab open they come in by themselves ${when}.`;
+  let why;
+  if (!own) why = `${ownerName ? `${ownerName}’s` : 'The owner’s'} plan is full; ${byItself()}`;
+  else if (plan === 'trial' && reason === 'storage') why = box.text.join('');
+  else if (pick === 'trial' || pick === 'upgrade') why = `Your free ${reason === 'storage' ? 'storage' : 'plan'} is full; ${byItself()}`;
+  else if (box.action) why = `Your drive is full; ${byItself()}`;
+  else why = `Your drive is full; ${byItself('once deleting files or emptying the trash makes room')}`;
+  return { title: `${countLabel(waiting)} waiting for room`, sub: `${name ? `The rest of ${name}. ` : ''}${why}`, action: box.action };
+}
+
 // ── Where the files land (r5-Land-*) ────────────────────────────────────────
 // The empty canvas of a cluster whose files are in Files. `total` files are in
 // Files, `ready` of them finished (the rest still coming in: they can't go on

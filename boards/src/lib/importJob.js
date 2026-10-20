@@ -229,16 +229,20 @@ export function createImportJob({
     }
     return pathOf.get(key);
   };
+  // Each made cluster: its folder path, its files not in yet, and the job's
+  // status and waiting reason (a Files row says "waiting for room" only while
+  // the job is). A new object only when one of those changes.
   let byBoardMemo = null;
   const byBoard = () => {
-    if (byBoardMemo && byBoardMemo.rest === rest && byBoardMemo.made === created.size) return byBoardMemo.out;
+    const m = byBoardMemo;
+    if (m && m.rest === rest && m.made === created.size && m.status === status && m.reason === waitingReason) return m.out;
     const waitingIn = new Map();
     for (const it of rest) waitingIn.set(it.clusterKey, (waitingIn.get(it.clusterKey) || 0) + 1);
     const out = {};
     for (const [key, boardId] of created) {
-      if (byKey.has(key)) out[boardId] = { path: namePath(key), waiting: waitingIn.get(key) || 0 };
+      if (byKey.has(key)) out[boardId] = { path: namePath(key), waiting: waitingIn.get(key) || 0, status, reason: waitingReason };
     }
-    byBoardMemo = { rest, made: created.size, out };
+    byBoardMemo = { rest, made: created.size, status, reason: waitingReason, out };
     return out;
   };
 

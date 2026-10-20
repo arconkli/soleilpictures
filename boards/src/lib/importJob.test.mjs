@@ -267,18 +267,20 @@ test('the tray\'s rows: one folder shows its own files, then a row per subfolder
   assert.deepEqual(both.state.rows.map((r) => [r.name, r.files]), [['Night', 5], ['Wardrobe', 1]]);
 });
 
-test('byBoard: each made cluster\'s folder path and its own waiting files, the same object between changes', async () => {
+test('byBoard: each made cluster\'s folder path, its own waiting files and the job\'s status, the same object between changes', async () => {
   const h = harness({ cap: 3 });
   const job = createImportJob({ plan: planFor(0), deps: h.deps, clusterCost: 0, limits: { uploads: 1 } });
   const mid = await job.start();
   const id = (key) => [...h.boards.entries()].find(([, b]) => b.key === key)[0];
-  assert.deepEqual(mid.byBoard[id('Night')], { path: 'Night', waiting: 0 });
-  assert.deepEqual(mid.byBoard[id('Night/Stills')], { path: 'Night › Stills', waiting: 2 }, 'd and e wait; c came in');
-  assert.deepEqual(mid.byBoard[id('Wardrobe')], { path: 'Wardrobe', waiting: 1 });
+  const waitingFor = { status: 'waiting', reason: 'cards' };
+  assert.deepEqual(mid.byBoard[id('Night')], { path: 'Night', waiting: 0, ...waitingFor });
+  assert.deepEqual(mid.byBoard[id('Night/Stills')], { path: 'Night › Stills', waiting: 2, ...waitingFor }, 'd and e wait; c came in');
+  assert.deepEqual(mid.byBoard[id('Wardrobe')], { path: 'Wardrobe', waiting: 1, ...waitingFor });
   assert.equal(job.state.byBoard, mid.byBoard, 'a view selecting it sees no change on a mere tick');
   h.s.cap = Infinity;
   const end = await job.release();
-  assert.equal(end.byBoard[id('Night/Stills')].waiting, 0);
+  assert.notEqual(end.byBoard, mid.byBoard);
+  assert.deepEqual(end.byBoard[id('Night/Stills')], { path: 'Night › Stills', waiting: 0, status: 'done', reason: null });
   assert.equal(end.byBoard[id('Wardrobe')].waiting, 0);
 });
 

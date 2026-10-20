@@ -3,8 +3,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askCopy, trayCopy, offerFor, sizeLabel, etaLabel, labelBytes, failReason, countLabel, landingCopy } from './importCopy.js';
-import { CREATOR_STORAGE_LABEL, TRIAL_STORAGE_LABEL, STORAGE_ADDON_BLOCK_LABEL, PRICING, CREATOR_TRIAL_DAYS } from './billingCopy.js';
+import { askCopy, trayCopy, offerFor, sizeLabel, etaLabel, labelBytes, failReason, countLabel, landingCopy, waitRowCopy } from './importCopy.js';
+import { CREATOR_STORAGE_LABEL, TRIAL_STORAGE_LABEL, STORAGE_ADDON_BLOCK_LABEL, PRICING, CREATOR_TRIAL_DAYS, CTA } from './billingCopy.js';
 
 const GB = 1024 ** 3;
 const NIGHT = {
@@ -288,4 +288,36 @@ test('stopped by a reload: Resume where the browser kept the folder, else drop i
   assert.match(trayCopy(entry({ stopped: { source: 'zip', zips: ['takeout-001.zip'] }, title: 'Drive' })).meta, /Drop takeout-001\.zip on Studio again/);
   assert.match(trayCopy(entry({ targetName: null })).meta, /Drop Night Shift again to bring the rest/);
   assert.equal(r.chip.text, 'Stopped');
+});
+
+test('waitRowCopy: the Files row of a cluster whose files wait for room, with the tray\'s one step', () => {
+  const free = waitRowCopy({ waiting: 52, name: 'Camera tests', reason: 'cards', own: true, plan: 'free', offer: 'trial' });
+  assert.equal(free.title, '52 waiting for room');
+  assert.equal(free.sub, 'The rest of Camera tests. Your free plan is full; with this tab open they come in by themselves once there’s room.');
+  assert.deepEqual(free.action, { id: 'upgrade', label: CTA.tryCreatorShort });
+  assert.match(waitRowCopy({ waiting: 3, name: 'A', reason: 'storage', own: true, plan: 'free', offer: 'upgrade' }).sub, /Your free storage is full;/);
+  assert.deepEqual(waitRowCopy({ waiting: 3, name: 'A', reason: 'cards', own: true, plan: 'free', offer: 'upgrade' }).action, { id: 'upgrade', label: 'Upgrade' });
+
+  const addon = waitRowCopy({ waiting: 1200, name: 'Takes', reason: 'storage', own: true, plan: 'paid', offer: 'addon' });
+  assert.equal(addon.title, '1,200 waiting for room');
+  assert.equal(addon.sub, 'The rest of Takes. Your drive is full; with this tab open they come in by themselves once there’s room.');
+  assert.deepEqual(addon.action, { id: 'addon', label: `Add ${STORAGE_ADDON_BLOCK_LABEL}` });
+
+  const atMax = waitRowCopy({ waiting: 4, name: 'Takes', reason: 'storage', own: true, plan: 'paid', offer: null });
+  assert.equal(atMax.action, null);
+  assert.match(atMax.sub, /once deleting files or emptying the trash makes room\.$/);
+
+  const trial = waitRowCopy({ waiting: 9, name: 'Stills', reason: 'storage', own: true, plan: 'trial', offer: null });
+  assert.equal(trial.action, null);
+  assert.match(trial.sub, new RegExp(`^The rest of Stills\\. Your trial’s ${TRIAL_STORAGE_LABEL} drive is full\\. Your first payment makes it ${CREATOR_STORAGE_LABEL}; drop the folder again then`));
+  assert.match(waitRowCopy({ waiting: 9, reason: 'storage', own: true, plan: 'trial', offer: null, tops: 2 }).sub, /drop the folders again then/);
+
+  const guest = waitRowCopy({ waiting: 2, name: 'Mood', reason: 'cards', own: false, ownerName: 'Maya Ortiz' });
+  assert.equal(guest.sub, 'The rest of Mood. Maya Ortiz’s plan is full; with this tab open they come in by themselves once there’s room.');
+  assert.equal(guest.action, null);
+  assert.match(waitRowCopy({ waiting: 2, own: false }).sub, /^The owner’s plan is full;/);
+
+  // The offer is worked out as the tray does when the entry doesn't carry one.
+  assert.deepEqual(waitRowCopy({ waiting: 5, name: 'A', reason: 'cards', own: true, plan: 'free', trialOffer: true }).action, { id: 'upgrade', label: CTA.tryCreatorShort });
+  assert.equal(waitRowCopy({ waiting: 0, name: 'A', own: true, plan: 'free' }), null);
 });
