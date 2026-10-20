@@ -6,9 +6,11 @@
 // puts an entry in when an import starts and keeps its fields current; the
 // tray reads, and calls an entry's `act(id)` for its buttons.
 //
-// An entry: { key, phase: 'reading' | 'asking' | 'job', title, reading:
-// { files, folders, bytes }, snap (importJob state), act(id), and the words'
-// inputs: offer, plan, own, ownerName, source, zips, targetName }.
+// An entry: { key, phase: 'reading' | 'queued' | 'asking' | 'job' | 'stopped',
+// title, reading: { files, folders, bytes }, snap (importJob state), act(id),
+// and the words' inputs: offer, plan, own, ownerName, source, zips,
+// targetName }. A 'stopped' entry is an import a reload stopped, from its
+// ledger (importStart.offerStopped): { stopped, landed, total, canResume }.
 // `act` ids: pause · resume · cancel · upgrade · addon · open · remove · retry.
 
 const ACTIVE = new Set(['idle', 'creating', 'running', 'paused', 'waiting']);
@@ -55,8 +57,9 @@ export function importJobEntry(key) {
 }
 
 // Is the entry still going: being read, asked about, or a job not finished?
+// One a reload stopped isn't: nothing of it runs in this tab.
 export function isActiveEntry(e) {
-  if (!e) return false;
+  if (!e || e.phase === 'stopped') return false;
   if (e.phase === 'reading' || e.phase === 'asking') return true;
   return ACTIVE.has(e.snap?.status || 'idle');
 }

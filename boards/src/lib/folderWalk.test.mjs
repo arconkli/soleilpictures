@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  captureDropEntries, hasDirectory, walkEntries, treeFromRelativePaths, classifyEntryName, FOLDER_LIMITS,
+  captureDropEntries, captureDropHandles, entryOfHandle, hasDirectory, walkEntries, treeFromRelativePaths, classifyEntryName, FOLDER_LIMITS,
 } from './folderWalk.js';
 
 // Fakes with Chrome's behaviour: readEntries hands back at most 100 entries a
@@ -142,4 +142,38 @@ test('a file whose folder merged upward keeps its own path in origins', async ()
   assert.deepEqual(dcim2.files.map((x) => picked.origins.get(x)).sort(), own);
   assert.equal(picked.origins.get(picked.root.dirs[0].files[0]), undefined);
   assert.equal(picked.clusters, 2);
+});
+
+// Chromium's FileSystemHandles: kind, name, getFile(), and an async iterator.
+const fileHandle = (name) => ({ kind: 'file', name, getFile: async () => ({ name, size: 10, type: '' }) });
+const dirHandle = (name, children) => ({
+  kind: 'directory', name,
+  values() { let i = 0; return { next: async () => (i < children.length ? { done: false, value: children[i++] } : { done: true }) }; },
+});
+
+test('captureDropHandles asks every file item for its handle during the drop, and none fails the drop', async () => {
+  const h = dirHandle('Shoot', []);
+  const dt = { items: [
+    { kind: 'file', getAsFileSystemHandle: () => Promise.resolve(h) },
+    { kind: 'string', getAsFileSystemHandle: () => Promise.resolve(null) },
+    { kind: 'file', getAsFileSystemHandle: () => Promise.reject(new Error('gone')) },
+    { kind: 'file' },   // not Chromium
+  ] };
+  const got = captureDropHandles(dt);
+  assert.equal(got.length, 2);
+  assert.deepEqual(await Promise.all(got), [h, null]);
+  assert.deepEqual(captureDropHandles(null), []);
+});
+
+test('a stored handle walks like the drop it came from: past the 100-entry batch, junk left out', async () => {
+  const many = Array.from({ length: 150 }, (_, i) => fileHandle(`frame_${i + 1}.jpg`));
+  const top = dirHandle('Diner', [dirHandle('Day 2', [fileHandle('a.jpg')]), fileHandle('.DS_Store'), ...many]);
+  const { root, files, clusters, skipped } = await walkEntries([entryOfHandle(top)], { limits: { ...FOLDER_LIMITS, maxFiles: 1000 } });
+  assert.equal(root.dirs[0].name, 'Diner');
+  assert.equal(root.dirs[0].files.length, 150);
+  assert.deepEqual(root.dirs[0].dirs.map((d) => [d.name, names(d)]), [['Day 2', ['a.jpg']]]);
+  assert.equal(files, 151);
+  assert.equal(clusters, 2);
+  assert.equal(skipped.junk, 1);
+  assert.equal(entryOfHandle(null), null);
 });

@@ -246,6 +246,30 @@ export function trayCopy(entry) {
       chip: { kind: 'glyph', icon: 'clock', text: 'Queued', label: `${title} starts when the import before it has finished. Open the import` },
     };
   }
+  // Stopped by a reload or a closed tab (mockup r4-Tray-Reload / Tray-Drop):
+  // where this browser kept the folder, Resume; elsewhere, drop it again.
+  if (entry.phase === 'stopped') {
+    const landedN = Number(entry.landed) || 0;
+    const total = Number(entry.total) || 0;
+    const st = entry.stopped || {};
+    const tops = st.tops || [];
+    const zips = st.zips || [];
+    const what = st.source === 'zip'
+      ? (zips.length === 1 ? String(zips[0]) : zips.length ? `the ${zips.length} zips` : title)
+      : (tops.length > 1 ? `the ${tops.length} folders` : title);
+    const where = entry.targetName ? ` on ${entry.targetName}` : '';
+    return {
+      title: `${title} stopped`, close: 'collapse',
+      line: [{ b: countLabel(landedN) }, ` of ${countLabel(total)} files are in`],
+      bar: { pct: pctOf(landedN, total) },
+      meta: entry.canResume
+        ? 'The page reloaded, so the upload stopped. Resume picks up where it left off; your browser asks to read the folder again first.'
+        : `The page reloaded, so the upload stopped. Drop ${what}${where} again to bring the rest — files already in are skipped.`,
+      rows: [], wait: null, fails: null, foot: null,
+      finished: { open: null, remove: true, resume: !!entry.canResume },
+      chip: { kind: 'glyph', icon: 'x', text: 'Stopped', label: `${title} stopped at ${countLabel(landedN)} of ${countLabel(total)} files. Open the import` },
+    };
+  }
   if (entry.phase === 'reading') {
     const r = entry.reading || {};
     return {

@@ -267,3 +267,25 @@ test('landing: a mixed set is files, one is singular, no import says no "From", 
   assert.equal(big.title, '2,400 photos are in Files');
   assert.equal(big.put, 'Put the first 500 on the board');
 });
+
+test('stopped by a reload: Resume where the browser kept the folder, else drop it again on its cluster', () => {
+  const entry = (over = {}) => ({
+    phase: 'stopped', title: 'Night Shift', landed: 1846, total: 6193, targetName: 'Studio',
+    stopped: { source: 'folder', tops: ['Night Shift'], zips: [] }, ...over,
+  });
+  const r = trayCopy(entry({ canResume: true }));
+  assert.equal(r.title, 'Night Shift stopped');
+  assert.deepEqual(r.line, [{ b: '1,846' }, ' of 6,193 files are in']);
+  assert.equal(r.bar.pct, 29.8);
+  assert.equal(r.meta, 'The page reloaded, so the upload stopped. Resume picks up where it left off; your browser asks to read the folder again first.');
+  assert.deepEqual(r.finished, { open: null, remove: true, resume: true });
+  assert.equal(r.close, 'collapse');
+
+  const d = trayCopy(entry({ canResume: false }));
+  assert.equal(d.meta, 'The page reloaded, so the upload stopped. Drop Night Shift on Studio again to bring the rest — files already in are skipped.');
+  assert.equal(d.finished.resume, false);
+  assert.match(trayCopy(entry({ stopped: { source: 'folder', tops: ['A', 'B'] }, title: '2 folders' })).meta, /Drop the 2 folders on Studio again/);
+  assert.match(trayCopy(entry({ stopped: { source: 'zip', zips: ['takeout-001.zip'] }, title: 'Drive' })).meta, /Drop takeout-001\.zip on Studio again/);
+  assert.match(trayCopy(entry({ targetName: null })).meta, /Drop Night Shift again to bring the rest/);
+  assert.equal(r.chip.text, 'Stopped');
+});

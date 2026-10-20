@@ -214,7 +214,7 @@ import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from '../lib/fileIngest.js';
 import { saveWebImageCopy } from '../lib/webImageClient.js';
 import { pickHotlinks, isHotlinkImage, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
-import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
+import { captureDropEntries, captureDropHandles, hasDirectory } from '../lib/folderWalk.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
@@ -11195,6 +11195,11 @@ export function CanvasSurface({
     // A FOLDER has to be read off the drop before this handler's first await:
     // Chrome empties dataTransfer.items the moment it yields (lib/folderWalk).
     const dropEntries = types && types.includes && types.includes('Files') ? captureDropEntries(e.dataTransfer) : [];
+    // And, for a bulk import, the same items' handles (Chromium), kept so an
+    // import a reload stops can read its folder again (lib/importResume.js).
+    const dropHandles = dropEntries.length && bulkImportAllowed()
+      && (hasDirectory(dropEntries) || Array.from(e.dataTransfer.files || []).some(isZipFile))
+      ? captureDropHandles(e.dataTransfer) : [];
 
     // Dragged out of Files (lib/filesDrag.js). Before everything else: the
     // payload is ours and nothing else in this drag means anything.
@@ -11554,7 +11559,7 @@ export function CanvasSurface({
       e.preventDefault();
       const boardWasEmpty = !(cards || []).length;
       const out = await onImportFolder({
-        entries: dropEntries, at: { x: cx, y: cy }, boardId: board?.id, mutators,
+        entries: dropEntries, handles: dropHandles, at: { x: cx, y: cy }, boardId: board?.id, mutators,
         canAttemptFiles, source: 'drop', boardWasEmpty,
       });
       if (out?.loose?.length) await ingestFiles(out.loose, cx, cy);
@@ -11581,7 +11586,7 @@ export function CanvasSurface({
     if (files && files.length > 0 && onImportFolder && bulkImportAllowed() && Array.from(files).some(isZipFile)) {
       e.preventDefault();
       const out = await onImportFolder({
-        files: Array.from(files), at: { x: cx, y: cy }, boardId: board?.id, mutators,
+        files: Array.from(files), handles: dropHandles, at: { x: cx, y: cy }, boardId: board?.id, mutators,
         canAttemptFiles, source: 'drop', boardWasEmpty: !(cards || []).length,
       });
       if (out?.loose?.length) await ingestFiles(out.loose, cx, cy);

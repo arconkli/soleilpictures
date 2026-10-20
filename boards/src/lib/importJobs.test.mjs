@@ -68,3 +68,11 @@ test('importForBoard: what the latest import that made a cluster knows about it,
   dropImportJob('k1');
   assert.equal(importForBoard('b1'), null, 'closed in the tray, forgotten');
 });
+
+test('an import a reload stopped holds nothing: shown when nothing runs, never ahead of what does', () => {
+  putImportJob('stopped-j9', { phase: 'stopped', title: 'Night Shift', landed: 3, total: 9 });
+  assert.equal(hasActiveImport(), false, 'no leave-page guard for what is not running');
+  assert.equal(trayEntries().lead.key, 'stopped-j9');
+  putImportJob('run', { phase: 'job', snap: { status: 'running' } });
+  assert.deepEqual([trayEntries().lead.key, trayEntries().more], ['run', 0]);
+});

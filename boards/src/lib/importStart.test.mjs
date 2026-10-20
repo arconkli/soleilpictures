@@ -4,7 +4,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { startBulkImport, pokeImport } from './importStart.js';
+import { startBulkImport, pokeImport, offerStopped } from './importStart.js';
+import { matchStopped } from './importResume.js';
 import { storedZip } from './zipFixture.mjs';
 
 const jpg = (name, size = 10) => ({ name, size, lastModified: 1, type: 'image/jpeg' });
@@ -317,4 +318,145 @@ test('a folder and a zip in one drop: one import, side by side', async () => {
   assert.equal(store.get(out.key).title, '2 folders');
   assert.equal(store.get(out.key).source, 'folder');
   assert.equal(server.s.appended, 6, 'four from the folder, two from the zip');
+});
+
+// ── An import a reload stopped (lib/importResume.js) ───────────────────────
+// The resume side of App's env, over the same store.
+function withResume({ env, store, seen }, { seed = null, jobs = [], live = () => true, handles = {} } = {}) {
+  Object.assign(seen, { seeds: [], locks: [], unlocks: [], saved: new Map(), savedLog: [], dropped: [], statuses: [], pruned: null });
+  Object.assign(env, {
+    stoppedFor: ({ boardId, tops }) => {
+      const e = matchStopped([...store.entries()].map(([key, v]) => ({ key, ...v })), { boardId, tops });
+      return e ? { jobId: e.stopped.jobId, key: e.key } : null;
+    },
+    loadSeed: async (jobId) => { seen.seeds.push(jobId); return { jobId, created: [], landed: [], cardIds: [], ...seed }; },
+    lock: (jobId) => { seen.locks.push(jobId); return () => seen.unlocks.push(jobId); },
+    saveHandles: async (jobId, record) => { seen.saved.set(jobId, record); seen.savedLog.push([jobId, record]); return true; },
+    loadHandles: async (jobId) => handles[jobId] || null,
+    dropHandles: (jobId) => { seen.dropped.push(jobId); seen.saved.delete(jobId); },
+    pruneHandles: (ids) => { seen.pruned = ids; },
+    findStopped: async () => jobs,
+    isLive: live,
+    has: (key) => store.has(key),
+    setJobStatus: async (jobId, status) => { seen.statuses.push([jobId, status]); },
+  });
+  return env;
+}
+// What the ledger of a stopped Night import says: both clusters made, a in, b started.
+const SEED = { created: [['Night', 'bN'], ['Night/Stills', 'bS']], landed: ['Night/a.jpg'], cardIds: [['Night/b.jpg', 'c-old']] };
+const STOPPED_JOB = {
+  id: 'job-9', target_board_id: 'target', source: 'folder', source_ref: { tops: ['Night'] }, status: 'running',
+  totals: { files: 4 }, done: { files: 1 }, root_board_ids: ['bN'],
+};
+const recordUploads = (server) => {
+  const ids = [];
+  const upload = server.deps.upload;
+  server.deps.upload = async (item, f, o) => { ids.push([item.file.relPath, o.cardId]); return upload(item, f, o); };
+  return ids;
+};
+
+test('the same folders dropped again on the same cluster go on with the stopped import: no question, what landed skipped', async () => {
+  const server = fakeServer({ cardsLeft: 2 });
+  const ctx = fakeEnv({ server, answer: 'fit' });
+  const { env, store, seen } = withResume(ctx, { seed: SEED }) && ctx;
+  const ids = recordUploads(server);
+  store.set('stopped-job-9', { phase: 'stopped', stopped: { jobId: 'job-9', targetBoardId: 'target', tops: ['Night'] } });
+  const out = await drop(env);
+  await until(() => store.get(out.key)?.snap?.status === 'waiting');
+  assert.equal(seen.asks.length, 0, 'asked when it began, not again');
+  assert.deepEqual(seen.seeds, ['job-9']);
+  assert.equal(store.has('stopped-job-9'), false, 'its stopped entry made way');
+  assert.equal(store.get(out.key).snap.id, 'job-9');
+  assert.equal(server.s.jobs, 0, 'no second job');
+  assert.equal(server.s.created, 0, 'no second set of clusters');
+  assert.deepEqual(ids, [['Night/b.jpg', 'c-old'], ['Night/Stills/c.jpg', 'c-Night/Stills/c.jpg']], 'a skipped; b under the card it already has');
+  assert.ok(seen.logs.some(([n, p]) => n === 'import_job' && p === 'restart'));
+
+  const other = fakeEnv();
+  withResume(other, { seed: SEED });
+  other.store.set('stopped-job-9', { phase: 'stopped', stopped: { jobId: 'job-9', targetBoardId: 'target', tops: ['Night'] } });
+  await drop(other.env, { boardId: 'elsewhere' });
+  assert.deepEqual(other.seen.seeds, [], 'on another cluster it is a new import');
+  assert.equal(other.store.has('stopped-job-9'), true);
+});
+
+const dirHandle = (name, answer = 'granted') => ({
+  kind: 'directory', name, asked: 0,
+  queryPermission: async () => 'prompt',
+  async requestPermission() { this.asked++; return answer; },
+  values() { return { next: async () => ({ done: true }) }; },
+});
+
+test('a stopped import is offered once; Resume asks to read its folder inside the click, then goes on from its ledger', async () => {
+  const server = fakeServer();
+  const ctx = fakeEnv({ server });
+  const night = dirHandle('Night');
+  withResume(ctx, { seed: SEED, jobs: [STOPPED_JOB], handles: { 'job-9': { kind: 'folder', handles: [night] } } });
+  const { env, store, seen } = ctx;
+  let walkedFrom = null;
+  env.walk = async (entries, { onProgress }) => { walkedFrom = entries; onProgress?.({ files: 5, clusters: 2 }); return walked(); };
+  await offerStopped(env);
+  await offerStopped(env);
+  const offered = [...store.entries()].filter(([, e]) => e.phase === 'stopped');
+  assert.equal(offered.length, 1, 'one entry a job');
+  const [key, entry] = offered[0];
+  assert.deepEqual([entry.title, entry.canResume, entry.landed, entry.total, entry.targetName], ['Night', true, 1, 4, 'Studio']);
+
+  await entry.act('resume');
+  assert.equal(night.asked, 1, 'the browser was asked, once');
+  assert.deepEqual([walkedFrom[0].name, walkedFrom[0].isDirectory], ['Night', true], 'the kept handle walks like a drop');
+  assert.equal(store.has(key), false);
+  await until(() => [...store.values()].some((e) => e.snap?.id === 'job-9' && e.snap.status === 'done'));
+  assert.equal(seen.asks.length, 0);
+  assert.equal(server.s.jobs, 0);
+  assert.ok(seen.logs.some(([n, p]) => n === 'import_job' && p === 'restart'));
+  assert.deepEqual(seen.unlocks, ['job-9'], 'held while it ran, let go when done');
+  assert.ok(seen.dropped.includes('job-9'), 'finished: nothing kept to go on with');
+
+  const refused = fakeEnv();
+  withResume(refused, { jobs: [STOPPED_JOB], handles: { 'job-9': { kind: 'folder', handles: [dirHandle('Night', 'denied')] } } });
+  await offerStopped(refused.env);
+  await refused.store.get('stopped-job-9').act('resume');
+  assert.deepEqual(refused.seen.seeds, []);
+  assert.equal(refused.store.has('stopped-job-9'), true, 'still offered: it can be dropped again');
+  assert.match(refused.seen.toasts[0].message, /Drop it on Studio again/);
+});
+
+test('offerStopped: none for a job whose clusters are gone; Remove ends the job and takes what came in to the trash', async () => {
+  const ctx = fakeEnv();
+  withResume(ctx, { jobs: [STOPPED_JOB, { ...STOPPED_JOB, id: 'job-gone', root_board_ids: ['trashed'] }], live: (id) => id !== 'trashed' });
+  const { env, store, seen } = ctx;
+  assert.deepEqual(await offerStopped(env), ['stopped-job-9'], 'what it put up, for the workspace to take back');
+  assert.deepEqual([...store.keys()], ['stopped-job-9']);
+  assert.deepEqual(seen.pruned, ['job-9'], 'what other jobs kept in this browser is let go');
+  const entry = store.get('stopped-job-9');
+  assert.equal(entry.canResume, false, 'nothing kept here: drop it again');
+  await entry.act('remove');
+  assert.equal(store.has('stopped-job-9'), false);
+  assert.deepEqual(seen.statuses, [['job-9', 'cancelled']]);
+  assert.deepEqual(seen.dropped, ['job-9']);
+  assert.deepEqual(seen.removed, [{ topIds: ['bN'], title: 'Night' }]);
+
+  const left = fakeEnv();
+  withResume(left, { jobs: [STOPPED_JOB] });
+  const ctl = new AbortController();
+  ctl.abort();
+  assert.deepEqual(await offerStopped(left.env, { signal: ctl.signal }), [], 'a workspace already gone puts nothing up');
+  assert.equal(left.store.size, 0);
+});
+
+test('a new import keeps the folder it was dropped from once it has an id, holds its lock while it runs, and lets both go when done', async () => {
+  const server = fakeServer();
+  const ctx = fakeEnv({ server });
+  withResume(ctx);
+  const { env, store, seen } = ctx;
+  const upload = server.deps.upload;
+  // Nothing uploads until it is kept: kept while it runs, not after.
+  server.deps.upload = async (...a) => { await until(() => seen.savedLog.length > 0); return upload(...a); };
+  const out = await drop(env, { handles: [Promise.resolve({ kind: 'directory', name: 'Night' }), Promise.resolve({ kind: 'file', name: 'loose.jpg' }), Promise.resolve(null)] });
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  assert.deepEqual(seen.savedLog, [['job-1', { kind: 'folder', handles: [{ kind: 'directory', name: 'Night' }] }]], 'its folder, not the photo beside it');
+  assert.deepEqual(seen.locks, ['job-1']);
+  assert.deepEqual(seen.unlocks, ['job-1']);
+  assert.equal(seen.saved.has('job-1'), false, 'finished: nothing kept to go on with');
 });

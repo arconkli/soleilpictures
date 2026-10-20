@@ -237,11 +237,13 @@ import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMet
 import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles, layoutTops } from './lib/folderImport.js';
-import { startBulkImport, pokeImport } from './lib/importStart.js';
+import { startBulkImport, pokeImport, offerStopped } from './lib/importStart.js';
+import { findStoppedImports, loadImportSeed, lockImport, matchStopped } from './lib/importResume.js';
+import { saveImportHandles, loadImportHandles, dropImportHandles, pruneImportHandles } from './lib/importHandles.js';
 import { setCoverMosaics } from './lib/coverMosaic.js';
 import { makeImportDeps } from './lib/importDeps.js';
 import { IMPORT_LIMITS } from './lib/importTree.js';
-import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs } from './lib/importJobs.js';
+import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs, importJobsSnapshot, importJobEntry } from './lib/importJobs.js';
 import { ImportTray } from './components/ImportTray.jsx';
 import { ImportAskDialog } from './components/ImportAskDialog.jsx';
 import { ImportZipDialog } from './components/ImportZipDialog.jsx';
@@ -6363,6 +6365,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     toast: (t) => feedback.toast(t),
     now: () => Date.now(),
     clusterCost: CLUSTER_CARD_COST,
+    // An import a reload stopped (lib/importResume.js): found on the server,
+    // told from one another tab runs by its Web Lock, and gone on with from
+    // its ledger and, where this browser kept them, its folders' handles.
+    findStopped: () => findStoppedImports({ supabase, workspaceId: workspace?.id, locks: navigator.locks }),
+    stoppedFor: ({ boardId, tops }) => {
+      const e = matchStopped(importJobsSnapshot().list, { boardId, tops });
+      return e ? { jobId: e.stopped.jobId, key: e.key } : null;
+    },
+    loadSeed: (jobId) => loadImportSeed({ supabase, jobId }),
+    lock: (jobId) => lockImport(navigator.locks, jobId),
+    saveHandles: saveImportHandles,
+    loadHandles: loadImportHandles,
+    dropHandles: dropImportHandles,
+    pruneHandles: pruneImportHandles,
+    isLive: (boardId) => !!boardsRef.current?.[boardId],
+    has: (key) => !!importJobEntry(key),
+    setJobStatus: async (jobId, status) => {
+      const { error } = await supabase.from('import_jobs').update({ status }).eq('id', jobId);
+      if (error) throw error;
+    },
   }), [workspace?.id, workspace?.created_by, workspace?.name, user?.id, myTier, boardCapacity, feedback, refreshBoards, pitchStorageGate, openCapWall]);
   const startBulkImportHere = useCallback((args) => {
     const muts = args.mutators;
@@ -6390,6 +6412,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   };
   const uploadFolderFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ pickedFiles: files, source: 'picker' }, 'Import into…') : null);
   const uploadZipsFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ zips: files, askZips: false, source: 'zip' }, 'Unpack into…') : null);
+  // Imports a reload or a closed tab stopped, offered in the tray once this
+  // workspace's clusters are known (a job whose clusters are gone isn't). The
+  // tray's store outlives a workspace switch, which remounts this: the
+  // entries leave with the workspace they belong to.
+  useEffect(() => {
+    if (!bulkImportAllowed() || !user?.id || !workspace?.id || boardsLoading) return undefined;
+    const ctl = new AbortController();
+    const offered = [];
+    offerStopped(bulkImportEnv(), { signal: ctl.signal, offered });
+    return () => {
+      ctl.abort();
+      for (const k of offered) if (importJobEntry(k)?.phase === 'stopped') dropImportJob(k);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, workspace?.id, boardsLoading]);
   // The held-drop watcher released an import's hold (the plan or the drive
   // grew): its job looks for room now.
   useEffect(() => {

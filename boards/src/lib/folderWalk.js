@@ -12,6 +12,10 @@
 //     captureDropEntries is synchronous and a caller runs it first.
 //   · a PICKER — <input type=file webkitdirectory> hands back flat Files whose
 //     webkitRelativePath ("Shoot/Day 2/a.jpg") carries the structure.
+//   · a stored HANDLE — Chromium's FileSystemHandle, taken from the same drop
+//     (captureDropHandles) and kept so a bulk import stopped by a reload can
+//     read its folder again (lib/importResume.js). entryOfHandle makes one
+//     look like an entry, so it walks by the same rules.
 //
 // Shape: { name, files: File[], dirs: Node[] }, under a virtual root (name null)
 // that holds whatever sat at the top level of the drop.
@@ -60,6 +64,55 @@ export function captureDropEntries(dataTransfer) {
     if (entry) out.push(entry);
   }
   return out;
+}
+
+// SYNCHRONOUS, like captureDropEntries and beside it: the drop's items as
+// FileSystemHandles (Chromium), one promise per file item, null where the
+// browser has none. A handle outlives the page; an entry does not.
+export function captureDropHandles(dataTransfer) {
+  const items = dataTransfer?.items;
+  if (!items || typeof items.length !== 'number') return [];
+  const out = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it || it.kind !== 'file' || typeof it.getAsFileSystemHandle !== 'function') continue;
+    let p = null;
+    try { p = Promise.resolve(it.getAsFileSystemHandle()).catch(() => null); } catch (_) { p = null; }
+    if (p) out.push(p);
+  }
+  return out;
+}
+
+// A FileSystemHandle as a FileSystemEntry, as far as visit() reads one:
+// name, isFile/isDirectory, file(), and a reader that hands back a hundred at
+// a time and then an empty batch.
+export function entryOfHandle(handle) {
+  if (!handle) return null;
+  if (handle.kind === 'file') {
+    return { name: handle.name, isFile: true, isDirectory: false, file: (ok, bad) => { handle.getFile().then(ok, bad); } };
+  }
+  return {
+    name: handle.name, isFile: false, isDirectory: true,
+    createReader() {
+      let it = null;
+      let ended = false;
+      return {
+        readEntries(ok, bad) {
+          (async () => {
+            const batch = [];
+            if (ended) return batch;
+            it = it || handle.values();
+            while (batch.length < 100) {
+              const next = await it.next();
+              if (next.done) { ended = true; break; }
+              batch.push(entryOfHandle(next.value));
+            }
+            return batch;
+          })().then(ok, bad);
+        },
+      };
+    },
+  };
 }
 
 export function hasDirectory(entries) {

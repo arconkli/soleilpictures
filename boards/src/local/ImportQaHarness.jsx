@@ -11,7 +11,8 @@ import { UnplacedOffer } from '../components/UnplacedOffer.jsx';
 // Dev-only bulk-import QA page (?importqa=1), no backend. Renders the tray, its
 // chip and the ask dialog from fixtures shaped like lib/importCopy.test.mjs.
 //   ?state=reading|creating|run|paused|wait-free|wait-storage-paid|wait-trial|
-//          wait-guest|done|done-fails|cancelled|failed   (default run)
+//          wait-guest|done|done-fails|cancelled|failed|reload|redrop   (default run)
+//          (reload / redrop: stopped by a reload, with and without a kept folder)
 //   ?min=1 starts folded to the chip   ?phone=1 lifts it over the phone nav
 //   ?theme=light|dark   ?dialog=free|creator|trial|guest|zip-takeout|zip-one|zip-many
 //   ?menu=1 opens the sidebar's Upload menu
@@ -55,6 +56,11 @@ function fixture(state) {
     case 'done-fails': return { ...job, snap: snap({ status: 'done', landed: { files: 6190 }, failed: FAILS }) };
     case 'cancelled': return { ...job, snap: snap({ status: 'cancelled' }) };
     case 'failed': return { ...job, snap: snap({ status: 'failed', error: 'Failed to fetch' }) };
+    case 'reload':
+    case 'redrop': return {
+      phase: 'stopped', title: 'Night Shift', targetName: 'Studio', landed: 1846, total: 6193, canResume: state === 'reload',
+      stopped: { jobId: 'qa-job', targetBoardId: 'b-studio', source: 'folder', tops: ['Night Shift'], zips: [] },
+    };
     default: return { ...job, snap: snap() };
   }
 }
