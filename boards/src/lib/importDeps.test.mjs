@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as Y from 'yjs';
-import { encodeClusterDoc, makeImportDeps } from './importDeps.js';
+import { encodeClusterDoc, makeImportDeps, readBudgets } from './importDeps.js';
 import { buildClusterCards } from './folderImport.js';
 
 function fakeSupabase({ rpcError = null, writeError = null } = {}) {
@@ -104,4 +104,19 @@ test('indexClusterCards writes card_index rows for the new clusters\' cluster ca
   assert.equal(rows[0].card_id, 'kid');
   assert.equal(rows[0].kind, 'board');
   assert.deepEqual(opts, { onConflict: 'board_id,card_id' });
+});
+
+test('readBudgets: the owner\'s cards left from the cap the trigger enforces, the drive from the upload\'s own dry run', async () => {
+  const rpc = (data, error = null, board = 'b') => ({ rpc: async (fn, args) => { assert.equal(fn, 'get_board_capacity'); assert.deepEqual(args, { p_board_id: board }); return { data, error }; } });
+  const room = async () => ({ used: 30, quota: 100, remaining: 70 });
+  assert.deepEqual(await readBudgets({ supabase: rpc([{ is_capped: true, used: 38, cap: 50 }]), boardId: 'b', storageRoom: room }),
+    { capped: true, cardsLeft: 12, bytesLeft: 70, bytesUsed: 30, quota: 100 });
+  const paid = await readBudgets({ supabase: rpc([{ is_capped: false, used: 0, cap: 0 }]), boardId: 'b', storageRoom: async () => null });
+  assert.equal(paid.cardsLeft, Infinity);
+  assert.equal(paid.bytesLeft, Infinity, 'a drive that can\'t be read fails open');
+  const over = await readBudgets({ supabase: rpc([{ is_capped: true, used: 60, cap: 50 }]), boardId: 'b' });
+  assert.equal(over.cardsLeft, 0);
+  await assert.rejects(readBudgets({ supabase: rpc(null, { code: '42501', message: 'no access' }), boardId: 'b' }), (e) => e.code === '42501');
+  const deps = makeImportDeps(base({ budgets: null, supabase: rpc([{ is_capped: true, used: 1, cap: 50 }], null, 'target-1'), storageRoom: room }));
+  assert.equal((await deps.budgets()).cardsLeft, 49, 'the default budgets read the target');
 });

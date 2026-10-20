@@ -253,3 +253,76 @@ test('spotFor puts file cards in a grid under the cluster cards', () => {
   assert.deepEqual(spotFor([], 0), { x: 80, y: 80 });
   assert.deepEqual(spotFor([{ x: 80, y: 80, w: 280, h: 220 }], 9), { x: 80 + 264, y: 324 + 264 });
 });
+
+test('the tray\'s rows: one folder shows its own files, then a row per subfolder; several show their tops', async () => {
+  const one = { name: null, relPath: '', files: [], dirs: [ROOT.dirs[0]] };
+  const h = harness();
+  const job = createImportJob({ plan: planBulk(one, { clusterCost: 0, classify }), deps: h.deps, clusterCost: 0 });
+  assert.deepEqual(job.state.rows.map((r) => [r.name, r.files, r.landed]), [['Night', 2, 0], ['Stills', 3, 0]]);
+  const end = await job.start();
+  assert.deepEqual(end.rows.map((r) => [r.name, r.landed]), [['Night', 2], ['Stills', 3]]);
+  assert.equal(end.tops[0].boardId, [...h.boards.entries()].find(([, b]) => b.key === 'Night')[0], 'Open knows the cluster');
+
+  const both = createImportJob({ plan: planFor(0), deps: harness().deps, clusterCost: 0 });
+  assert.deepEqual(both.state.rows.map((r) => [r.name, r.files]), [['Night', 5], ['Wardrobe', 1]]);
+});
+
+test('a folder split by the ceiling is one row: its parts are its own files', () => {
+  const big = { name: null, relPath: '', files: [], dirs: [dir('Big', [file('Big/1.jpg'), file('Big/2.jpg'), file('Big/3.jpg')], [dir('Big/Sub', [file('Big/Sub/4.jpg')])])] };
+  const job = createImportJob({ plan: planBulk(big, { clusterCost: 0, classify, ceiling: 2 }), deps: harness().deps, clusterCost: 0 });
+  assert.deepEqual(job.state.rows.map((r) => [r.name, r.files]), [['Big', 3], ['Sub', 1]]);
+});
+
+test('next: what the first waiting file needs, clusters it would pay for included', async () => {
+  const h = harness({ budgets: () => ({ cardsLeft: 2, bytesLeft: Infinity }) });
+  const job = createImportJob({ plan: planFor(1), deps: h.deps, clusterCost: 1, limits: { uploads: 1 } });
+  const mid = await job.start();
+  assert.equal(mid.status, 'waiting');
+  assert.equal(mid.landed.files, 1, 'Night (1) + a (1)');
+  assert.deepEqual(mid.next, { cards: 1, bytes: 10 }, 'b is in a cluster already made');
+  const video = createImportJob({
+    plan: planBulk({ name: null, relPath: '', files: [], dirs: [dir('V', [file('V/clip.mov', 5)])] },
+      { clusterCost: 1, classify: () => ({ route: 'video', kind: 'video', w: 320, h: 180 }), cardsLeft: 0 }),
+    deps: harness().deps, clusterCost: 1,
+  });
+  assert.equal(video.state.next.cards, 2, 'the file and its cluster');
+  assert.ok(video.state.next.bytes > 5, 'video carries the media slack');
+});
+
+test('pending cards carry the app\'s audit stamp, so the abandoned-upload sweep can judge them', async () => {
+  const h = harness();
+  const seen = [];
+  const append = h.deps.appendCards;
+  h.deps.appendCards = async (boardId, cards) => { seen.push(...cards); return append(boardId, cards); };
+  h.deps.stamp = () => ({ createdBy: 'u-1', createdAt: '2026-10-19T00:00:00.000Z', updatedBy: 'u-1', updatedAt: '2026-10-19T00:00:00.000Z' });
+  await createImportJob({ plan: planFor(0), deps: h.deps, clusterCost: 0 }).start();
+  assert.ok(seen.length === 6 && seen.every((c) => c.createdAt === '2026-10-19T00:00:00.000Z' && c.createdBy === 'u-1' && c.pending === true));
+  assert.equal(pendingCard({ file: { name: 'a.jpg', size: 1 }, kind: 'image', route: 'image', w: 1, h: 1 }, 'x', { x: 0, y: 0 }, { createdAt: 'then', id: 'not-this' }).id, 'x', 'the stamp never overrides the card');
+});
+
+test('retryFailed: the failed files go again, in order, under the same card ids', async () => {
+  const h = harness({ failOn: ['Night/Stills/d.jpg'] });
+  const job = createImportJob({ plan: planFor(0), deps: h.deps, clusterCost: 0, limits: { uploads: 1 } });
+  const first = await job.start();
+  assert.equal(first.status, 'done');
+  assert.deepEqual(first.failed.map((f) => f.relPath), ['Night/Stills/d.jpg']);
+  assert.equal(h.boardByKey('Night/Stills').cards.has('c-Night/Stills/d.jpg'), false, 'its card was taken back');
+
+  h.log.length = 0;
+  const end = await job.retryFailed();
+  assert.equal(end.status, 'done', 'still failing is still done');
+  assert.equal(end.failed.length, 1);
+  assert.ok(h.log.some((e) => e[0] === 'items' && e[1].includes('Night/Stills/d.jpg:waiting')), 'the ledger is told again');
+
+  const h2 = harness({ failOn: ['Night/Stills/d.jpg'] });
+  const job2 = createImportJob({ plan: planFor(0), deps: h2.deps, clusterCost: 0, limits: { uploads: 1 } });
+  await job2.start();
+  // The folder can be read now: the same file goes through.
+  const fixed = new Set();
+  h2.deps.upload = async (item, f, o) => { fixed.add(item.file.relPath); return { src: `r2:${o.cardId}`, key: o.cardId, width: 1, height: 1 }; };
+  const end2 = await job2.retryFailed();
+  assert.equal(end2.failed.length, 0);
+  assert.equal(end2.landed.files, 6);
+  assert.deepEqual([...fixed], ['Night/Stills/d.jpg'], 'only the failed file goes again');
+  assert.equal(h2.boardByKey('Night/Stills').cards.get('c-Night/Stills/d.jpg').pending, false);
+});

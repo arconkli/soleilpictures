@@ -66,7 +66,9 @@ export function subscribeHeld(fn) {
 }
 
 // Hold what a drop could not place.
-//   via    'canvas' | 'list' | 'folder' — which entry point gets it back
+//   via    'canvas' | 'list' | 'folder' — which entry point gets it back;
+//          'import' is a bulk import waiting in the tray (lib/importStart.js),
+//          held only so a checkout opens in a new tab and a release pokes it
 //   limit  'storage' | 'cards' — what stopped it, and so what releases it
 //   files  File[] (canvas, list), or `folder` for a folder import: the
 //          original { entries | pickedFiles, at, ... } args plus count/bytes

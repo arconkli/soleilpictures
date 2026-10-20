@@ -152,7 +152,11 @@ test('a canceled checkout stops the wait; a new build does not reload the files 
 });
 
 test('a released folder waits for a running import instead of being refused and lost', () => {
-  const fn = region(app, 'const importFolder = useCallback(async (args = {}) => {', '}, [importFolderOnce, feedback]);');
+  const fn = region(app, 'const importFolder = useCallback(async (args = {}) => {', '}, [importFolderOnce, feedback, startBulkImportHere]);');
+  // Behind its gate the bulk import takes every folder but one held by this
+  // old path, which goes back the way it came.
+  assert.match(fn, /if \(bulkImportAllowed\(\) && args\.source !== 'held'\) return startBulkImportHere\(args\);/);
+  assert.ok(fn.indexOf('startBulkImportHere(args)') < fn.indexOf('while (folderImportBusyRef'), 'before the old path\'s wait');
   assert.match(fn, /while \(folderImportBusyRef\.current && args\.source === 'held'\) await folderImportIdleRef\.current;/);
   assert.ok(fn.indexOf("args.source === 'held'") < fn.indexOf('A folder is still importing'), 'it waits before the refusal');
   assert.match(fn, /finally \{ folderImportBusyRef\.current = false; idle\(\); \}/);

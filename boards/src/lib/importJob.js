@@ -42,6 +42,7 @@
 //   upload(item, file, { boardId, cardId, signal, onProgress(0..1) }) → up
 //   placeTops([{ key, id, name }])?        indexClusterCards([{ boardId, cards }])?
 //   newId() → uuid · cardId(item, n) · encodeDoc(cards) → base64 · now() · sleep(ms)
+//   stamp()? → { createdBy, createdAt, updatedBy, updatedAt } for new cards
 
 import { buildClusterCards } from './folderImport.js';
 import { cardFromUpload, cardKindFor, measuredSize } from './cardFromUpload.js';
@@ -49,6 +50,7 @@ import { fileMetaFor } from './fileIngest.js';
 import { parseLoopMeta } from './loopMeta.js';
 import { CLUSTER_CARD_COST } from './gridCount.js';
 import { fillInOrder } from './importPlan.js';
+import { MEDIA_SLACK_BYTES } from './importPreflight.js';
 
 export const JOB_LIMITS = Object.freeze({
   createRows: 500,        // clusters per import_create_clusters call (its own cap)
@@ -71,11 +73,14 @@ const messageOf = (e) => String(e?.message || e || 'Failed').slice(0, 300);
 // list needs to show it while it comes in. The same rules as the sidebar and
 // List view's pending cards (App.jsx ingestFilesArranged), plus the file's own
 // date, which only the source knows. `item` is a planBulk item; its `file` is
-// an importTree descriptor (name, size, type, lastModified).
-export function pendingCard(item, id, at) {
+// an importTree descriptor (name, size, type, lastModified). `stamp` is the
+// app's audit stamp (createdBy/createdAt…): the abandoned-upload sweep judges
+// a pending card by its createdAt, so a tab closed mid-batch leaves cards it
+// can clean up, not ones that spin and count for ever.
+export function pendingCard(item, id, at, stamp = null) {
   const f = item.file;
   const kind = cardKindFor(item);
-  const card = { id, kind, x: at.x, y: at.y, w: item.w, h: item.h, pending: true, unplaced: true };
+  const card = { ...(stamp || {}), id, kind, x: at.x, y: at.y, w: item.w, h: item.h, pending: true, unplaced: true };
   if (Number.isFinite(f.lastModified)) card.fileModified = f.lastModified;
   const ext = (f.name?.split('.').pop() || '').toLowerCase();
   if (kind === 'image' || kind === 'video') Object.assign(card, fileMetaFor(f));
@@ -139,10 +144,33 @@ export function createImportJob({
   const done = { files: 0, bytes: 0 };
   const tops = new Map();
   for (const c of clusters) if (c.parentKey == null) tops.set(c.key, { key: c.key, name: c.name, files: 0, landed: 0 });
+  // The tray's rows: one per top cluster, or for an import of one folder, the
+  // folder's own files and then one row per subfolder (with everything below
+  // it). A part of a folder split by the ceiling is that folder's own files.
+  const soleTop = tops.size === 1 ? [...tops.keys()][0] : null;
+  const groupOf = (key) => {
+    if (soleTop == null) return topOf(key);
+    let k = key;
+    while (parentOf.get(k) != null && parentOf.get(k) !== soleTop) k = parentOf.get(k);
+    return k === soleTop || byKey.get(k)?.part ? soleTop : k;
+  };
+  const rows = new Map();
+  for (const c of clusters) {
+    const g = groupOf(c.key);
+    if (!rows.has(g)) rows.set(g, { key: g, name: byKey.get(g)?.name || c.name, files: 0, landed: 0 });
+  }
+  const count = (it, n) => {
+    const t = tops.get(topOf(it.clusterKey));
+    if (t) t.landed += n;
+    const r = rows.get(groupOf(it.clusterKey));
+    if (r) r.landed += n;
+  };
   for (const it of all) {
     const t = tops.get(topOf(it.clusterKey));
     if (t) t.files++;
-    if (landed.has(it.file.relPath)) { done.files++; done.bytes += it.bytes; if (t) t.landed++; }
+    const r = rows.get(groupOf(it.clusterKey));
+    if (r) r.files++;
+    if (landed.has(it.file.relPath)) { done.files++; done.bytes += it.bytes; count(it, 1); }
   }
   const totals = { files: all.length, bytes: all.reduce((s, it) => s + it.bytes, 0), clusters: clusters.length };
 
@@ -169,6 +197,15 @@ export function createImportJob({
   let lastEmit = 0;
   const sent = () => done.bytes + [...inflight.values()].reduce((s, b) => s + b, 0);
   const sumBytes = (list) => list.reduce((s, it) => s + it.bytes, 0);
+  // What the first waiting file needs before it can come in — the fill's own
+  // charge — so a watcher can tell when room has appeared without a write.
+  const nextNeed = () => {
+    const it = rest[0];
+    if (!it) return null;
+    let cards = 1;
+    if (clusterCost > 0) for (let k = it.clusterKey; k != null && !created.has(k); k = parentOf.get(k)) cards += clusterCost;
+    return { cards, bytes: it.bytes + (it.kind === 'video' || it.kind === 'audio' ? MEDIA_SLACK_BYTES : 0) };
+  };
 
   const snapshot = () => {
     const open = [...batchOpen];
@@ -182,7 +219,10 @@ export function createImportJob({
       waiting: { files: rest.length, bytes: sumBytes(rest) },
       queued: { files: queue.length + open.length, bytes: queuedBytes },
       failed: failed.slice(),
-      tops: [...tops.values()].map((t) => ({ ...t })),
+      tops: [...tops.values()].map((t) => ({ ...t, boardId: created.get(t.key) || null })),
+      rows: [...rows.values()].filter((r) => r.files > 0).map((r) => ({ ...r })),
+      currentRow: current ? groupOf(current) : null,
+      next: nextNeed(),
       current: current ? byKey.get(current)?.name || null : null,
       bytesPerSec: rate,
       etaMs: rate > 0 && leftBytes > 0 ? Math.round((leftBytes / rate) * 1000) : null,
@@ -317,7 +357,8 @@ export function createImportJob({
       const base = used.get(key) || 0;
       const cards = docCards.get(key) || buildClusterCards((childrenOf.get(key) || []).map((ck) => created.get(ck)).filter(Boolean), []);
       try {
-        await call(() => deps.appendCards(boardId, part.map((it, i) => pendingCard(it, idOf(it), spotFor(cards, base + i)))));
+        const stamp = deps.stamp?.() || null;
+        await call(() => deps.appendCards(boardId, part.map((it, i) => pendingCard(it, idOf(it), spotFor(cards, base + i), stamp))));
         used.set(key, base + part.length);
         break;
       } catch (e) {
@@ -371,8 +412,7 @@ export function createImportJob({
       landed.add(rel);
       done.files++;
       done.bytes += it.bytes;
-      const t = tops.get(topOf(it.clusterKey));
-      if (t) t.landed++;
+      count(it, 1);
       ledger.push(ledgerRow(it, 'landed', { board_id: boardId, card_id: id }));
       push(patches, boardId, { id, fields: finishFields(it, up, id) });
       sample();
@@ -453,11 +493,15 @@ export function createImportJob({
     await call(() => deps.setJob(jobId, { status: 'cancelled' }));
   }
 
-  const guarded = async (fn) => {
-    if (busy) return snapshot();
+  let running = null;   // the guarded run in progress, for cancel() to wait on
+  const guarded = (fn) => {
+    if (busy) return Promise.resolve(snapshot());
     busy = true;
-    try { await fn(); } catch (e) { await fail(e); } finally { busy = false; }
-    return snapshot();
+    running = (async () => {
+      try { await fn(); } catch (e) { await fail(e); } finally { busy = false; running = null; }
+      return snapshot();
+    })();
+    return running;
   };
 
   return {
@@ -487,14 +531,28 @@ export function createImportJob({
       if (queue.length) await loop();
       else { await call(() => deps.setJob(jobId, { status: 'waiting', waiting_reason: plannedStop || waitingReason })); emit(); }
     }),
+    // "Try these again": the files that failed go back to the front, in
+    // reading order, and come in like any other (their cards were removed, so
+    // re-adding them is a fresh add under the same ids).
+    retryFailed: () => guarded(async () => {
+      if (status !== 'done' || !failed.length) return;
+      const again = new Set(failed.map((f) => f.relPath));
+      failed.length = 0;
+      rest = [...all.filter((it) => again.has(it.file.relPath)), ...rest];
+      stopFlag = null;
+      await refill();
+      if (queue.length) await loop();
+      else await stop(plannedStop || 'cards');
+    }),
+    // Resolves once it has stopped: a running batch is aborted and its loop
+    // takes the cancel at the next turn, which this waits for.
     async cancel() {
       if (['done', 'cancelled', 'failed'].includes(status)) return snapshot();
       stopFlag = 'cancel';
       abort.abort();
-      if (!busy) {
-        busy = true;
-        try { await finishCancel(); } catch (e) { await fail(e); } finally { busy = false; }
-      }
+      if (busy) { await running; return snapshot(); }
+      busy = true;
+      try { await finishCancel(); } catch (e) { await fail(e); } finally { busy = false; }
       return snapshot();
     },
   };

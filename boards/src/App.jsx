@@ -191,7 +191,7 @@ import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './li
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { storageRoom } from './lib/storageRoom.js';
-import { holdDrop, claimReady, setHeldBaseline, subscribeHeld, announceBillingChange } from './lib/heldUploads.js';
+import { holdDrop, claimReady, setHeldBaseline, subscribeHeld, announceBillingChange, heldEntries, discardHeld, listenBillingChange } from './lib/heldUploads.js';
 import { useHeldUploads } from './hooks/useHeldUploads.js';
 import { HeldUploadsBar } from './components/HeldUploadsBar.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
@@ -212,7 +212,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed } from './lib/appHost.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
@@ -221,7 +221,7 @@ import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, withFilesHidde
 import { whoLine } from './lib/sidebarWho.js';
 import { SidebarWho } from './components/sidebar/SidebarWho.jsx';
 import { useMatchMedia } from './hooks/useMatchMedia.js';
-import { moveFiles, failureMessage, appendCards } from './lib/clustersApi.js';
+import { moveFiles, failureMessage, appendCards, patchCards, removeCards } from './lib/clustersApi.js';
 import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
 import { useStorageUsage } from './hooks/useStorageUsage.js';
 import {
@@ -236,7 +236,13 @@ import { lowMemoryDevice } from './lib/device.js';
 import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from './lib/fileIngest.js';
 import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
-import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
+import { runFolderImport, undoFolderImport, countFiles, layoutTops } from './lib/folderImport.js';
+import { startBulkImport, pokeImport } from './lib/importStart.js';
+import { makeImportDeps } from './lib/importDeps.js';
+import { IMPORT_LIMITS } from './lib/importTree.js';
+import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs } from './lib/importJobs.js';
+import { ImportTray } from './components/ImportTray.jsx';
+import { ImportAskDialog } from './components/ImportAskDialog.jsx';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { unopenableClusterNotice, waitUntil } from './lib/clusterOpen.js';
@@ -6256,6 +6262,149 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     return { loose: plan.loose, walked, plan, res };
   }, [workspace?.id, user?.id, currentBoard?.id, feedback, refreshBoards, pitchStorageGate]);
+  // ── Bulk import (lib/importStart.js, behind bulkImportAllowed) ────────────
+  // The same drop and picker hand a folder here instead of importFolderOnce:
+  // the clusters are made first, each file lands in its cluster's Files, and
+  // what doesn't fit the plan waits in this tab (the tray, components/
+  // ImportTray.jsx) until there is room. App's part is the env: everything
+  // with a network, React or browser side.
+  const [bulkAsk, setBulkAsk] = useState(null);   // { model, resolve }
+  const bulkImportEnv = useCallback(() => ({
+    newKey: () => `imp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    put: putImportJob,
+    drop: dropImportJob,
+    walk: (entries, opts) => walkEntries(entries, { limits: IMPORT_LIMITS, ...opts }),
+    walkPicked: (files, opts) => treeFromRelativePaths(files, { limits: IMPORT_LIMITS, ...opts }),
+    // Whose plan the files count against, and what could make room on it —
+    // the same reading as the drop preflight's capSource.
+    who: (boardId) => {
+      const b = boardsRef.current?.[boardId];
+      const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
+      const mt = myTierRef.current || myTier;
+      const paid = ['paid', 'admin'].includes(mt.tier);
+      const trialing = paid && mt.subscriptionStatus === 'trialing';
+      const end = trialing && mt.currentPeriodEnd ? new Date(mt.currentPeriodEnd) : null;
+      return {
+        own,
+        plan: own ? (paid ? (trialing ? 'trial' : 'paid') : 'free') : (boardCapacity.get(boardId)?.isCapped === false ? 'paid' : 'free'),
+        ownerName: null,
+        workspaceName: own ? null : (b?.workspace_id === workspace?.id ? workspace?.name || null : null),
+        targetName: b?.name || null,
+        trialOffer: own && creatorTrialEligibility({
+          tier: mt.tier, cards: mt.serverCardCount, cardLimit: mt.effectiveCardLimit, trialStartedAt: mt.creatorTrialStartedAt,
+        }).eligible,
+        addon: own && paid && !trialing && !STORAGE_ADDON_HELD,
+        interval: 'month',
+        firstPayment: end && Number.isFinite(end.getTime()) ? end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null,
+      };
+    },
+    makeDeps: ({ targetBoardId, canAttemptFiles, sourceRef, placeTops }) => makeImportDeps({
+      supabase, clusters: { appendCards, patchCards, removeCards },
+      uploads: { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile },
+      workspaceId: boardsRef.current?.[targetBoardId]?.workspace_id || workspace.id,
+      targetBoardId, userId: user.id, source: 'folder', sourceRef, storageRoom, placeTops, canAttemptFiles,
+    }),
+    ask: (model) => new Promise((resolve) => setBulkAsk({ model, resolve })),
+    upgrade: (offer, { stoppedBy } = {}) => {
+      if (offer === 'addon') window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'import' } }));
+      else if (stoppedBy === 'storage') pitchStorageGate({ force: true });
+      else openCapWall();
+    },
+    // A hold is what opens a checkout in a new tab while files wait here
+    // (checkout.js); HeldUploadsBar leaves import holds to the tray.
+    hold: ({ key, boardId, limit, count, bytes, quota }) => holdDrop({
+      boardId, via: 'import', limit, folder: { key, count, bytes },
+      tier: (myTierRef.current || myTier).tier || null, quota,
+    }),
+    unhold: (id) => discardHeld([id], 'released'),
+    openBoard: (id) => openBoardRef.current?.(id),
+    // To the trash with its subfolders (soft_delete_board takes the subtree),
+    // with the house Undo. Its card on the parent hides itself while the
+    // cluster is gone and is back with it.
+    removeImport: async ({ topIds, title }) => {
+      for (const id of topIds) {
+        try { await deleteBoard(id); } catch (e) { console.error('[import] remove failed', id, e); }
+      }
+      try { await refreshBoards(); } catch (_) {}
+      myTierRef.current?.refetch?.();
+      feedback.toast({
+        type: 'info', message: `Removed ${title} — its clusters are in the trash.`, ttl: 10000,
+        action: { label: 'Undo', onClick: async () => {
+          await restoreBoardsAnnouncing(topIds, feedback);
+          try { await refreshBoards(); } catch (_) {}
+          myTierRef.current?.refetch?.();
+        } },
+      });
+    },
+    wake: (fn) => {
+      const onFocus = () => fn();
+      window.addEventListener('focus', onFocus);
+      const offBilling = listenBillingChange(() => fn());
+      return () => { window.removeEventListener('focus', onFocus); offBilling(); };
+    },
+    every: (ms, fn) => {
+      const t = setInterval(() => { if (document.visibilityState !== 'hidden') fn(); }, ms);
+      return () => clearInterval(t);
+    },
+    log: (name, props) => { try { logEvent(name, props); } catch (_) {} },
+    toast: (t) => feedback.toast(t),
+    now: () => Date.now(),
+    clusterCost: CLUSTER_CARD_COST,
+  }), [workspace?.id, workspace?.created_by, workspace?.name, user?.id, myTier, boardCapacity, feedback, refreshBoards, pitchStorageGate, openCapWall]);
+  const startBulkImportHere = useCallback((args) => {
+    const muts = args.mutators;
+    // The top clusters' cards on the open canvas, where the folder was
+    // dropped, through its own add (one cap wall). Without an open canvas the
+    // drift reconcile places them when the cluster is next opened.
+    const placeTops = muts?.addCard ? (tops) => {
+      const rects = layoutTops(tops.length, args.at);
+      tops.forEach((t, i) => muts.addCard({ id: t.id, kind: 'board', ...rects[i] }));
+      Promise.resolve(refreshBoards()).catch(() => {});
+    } : null;
+    return startBulkImport({ ...args, placeTops }, bulkImportEnv());
+  }, [bulkImportEnv, refreshBoards]);
+  // The held-drop watcher released an import's hold (the plan or the drive
+  // grew): its job looks for room now.
+  useEffect(() => {
+    if (!bulkImportAllowed()) return undefined;
+    const take = () => {
+      const ready = heldEntries().filter((e) => e.via === 'import' && e.ready);
+      for (const boardId of new Set(ready.map((e) => e.boardId))) {
+        for (const e of claimReady({ boardId, via: 'import' })) pokeImport(e.folder?.key);
+      }
+    };
+    let queued = false;
+    const later = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => { queued = false; take(); });
+    };
+    take();
+    return subscribeHeld(later);
+  }, []);
+  // An import in this tab: the browser asks before the tab is left, and the
+  // build watcher may not reload it (lib/buildWatch.js). Waiting counts: the
+  // rest of the folder only comes in while this tab is open.
+  useEffect(() => {
+    if (!bulkImportAllowed()) return undefined;
+    const guard = (ev) => { ev.preventDefault(); ev.returnValue = ''; return ''; };
+    let release = null;
+    const sync = () => {
+      const on = hasActiveImport();
+      if (on && !release) {
+        window.addEventListener('beforeunload', guard);
+        const letReload = holdReload();
+        release = () => { window.removeEventListener('beforeunload', guard); letReload(); };
+      } else if (!on && release) {
+        release();
+        release = null;
+      }
+    };
+    sync();
+    const off = subscribeImportJobs(sync);
+    return () => { off(); release?.(); };
+  }, []);
+
   // One folder import at a time. There is one progress banner and one Cancel,
   // and a second import running alongside wrote its counts into the first's
   // banner, and whichever finished first took the banner (and the other's only
@@ -6267,6 +6416,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // be lost: it waits its turn instead.
   const folderImportIdleRef = useRef(Promise.resolve());
   const importFolder = useCallback(async (args = {}) => {
+    // A folder held by the old path (via 'folder') goes back the old way.
+    if (bulkImportAllowed() && args.source !== 'held') return startBulkImportHere(args);
     while (folderImportBusyRef.current && args.source === 'held') await folderImportIdleRef.current;
     if (folderImportBusyRef.current) {
       feedback.toast({ type: 'info', message: 'A folder is still importing. Drop this one again when it has finished.', ttl: 6000 });
@@ -6277,7 +6428,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     folderImportIdleRef.current = new Promise((r) => { idle = r; });
     try { return await importFolderOnce(args); }
     finally { folderImportBusyRef.current = false; idle(); }
-  }, [importFolderOnce, feedback]);
+  }, [importFolderOnce, feedback, startBulkImportHere]);
 
   // Held drops (lib/heldUploads.js): the release watcher, and the claimers App
   // owns. Each CanvasSurface claims its own cluster's canvas drops and
@@ -10768,6 +10919,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </span>
           <button type="button" className="folder-import-cancel" onClick={folderImport.cancel}>Cancel</button>
         </div>
+      )}
+
+      {/* A bulk import (lib/importStart.js): the tray, or its corner chip. */}
+      {bulkImportAllowed() && <ImportTray aboveNav={mobileShell} />}
+      {bulkAsk && (
+        <ImportAskDialog
+          model={bulkAsk.model}
+          onChoose={(id) => { bulkAsk.resolve(id); setBulkAsk(null); }}
+        />
       )}
 
       {/* Files a drop kept in this tab until there is room (lib/heldUploads.js). */}

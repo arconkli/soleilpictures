@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startBuildWatch } from './lib/buildWatch.js';
@@ -384,6 +384,16 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <GridQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isImportQaMode()) {
+  // Bulk-import QA (?importqa=1). Renders the tray, chip and ask dialog from
+  // fixtures. DEV guard drops it from production builds.
+  import('./local/ImportQaHarness.jsx').then(({ ImportQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ImportQaHarness />
       </StrictMode>
     );
   });

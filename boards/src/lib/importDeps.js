@@ -32,6 +32,29 @@ function dbError(error, what) {
   return Object.assign(new Error(error.message || `${what} failed`), { code: error.code, retry: unreachable });
 }
 
+// What the target cluster's owner has room for, read fresh each time the
+// import fills: the two answers the drop preflight asks (App buildMutators).
+// get_board_capacity is what the card cap trigger enforces (0333), and
+// authorize_image_upload's dry run (storageRoom) is what each upload will be
+// told. A budget that can't be read is unlimited, as the preflight fails open:
+// the server still decides every card and every file.
+export async function readBudgets({ supabase, boardId, storageRoom = null }) {
+  const [cap, room] = await Promise.all([
+    supabase.rpc('get_board_capacity', { p_board_id: boardId }),
+    storageRoom ? storageRoom(boardId) : null,
+  ]);
+  if (cap?.error) throw dbError(cap.error, 'get_board_capacity');
+  const row = Array.isArray(cap?.data) ? cap.data[0] : cap?.data;
+  const capped = Boolean(row?.is_capped);
+  return {
+    capped,
+    cardsLeft: capped ? Math.max(0, Number(row.cap) - Number(row.used)) : Infinity,
+    bytesLeft: room ? room.remaining : Infinity,
+    bytesUsed: room ? room.used : null,
+    quota: room ? room.quota : null,
+  };
+}
+
 // The first doc of a new cluster, as import_create_clusters stores it.
 export function encodeClusterDoc(cards) {
   const doc = new Y.Doc();
@@ -42,7 +65,7 @@ export function encodeClusterDoc(cards) {
 
 export function makeImportDeps({
   supabase, clusters, uploads, workspaceId, targetBoardId, userId, source, sourceRef = {},
-  budgets, placeTops = null, canAttemptFiles = false,
+  budgets = null, storageRoom = null, placeTops = null, canAttemptFiles = false,
   newId = () => crypto.randomUUID(),
   now = () => Date.now(),
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -63,7 +86,7 @@ export function makeImportDeps({
       if (error) throw dbError(error, 'import_jobs');
       return id;
     },
-    budgets,
+    budgets: budgets || (() => readBudgets({ supabase, boardId: targetBoardId, storageRoom })),
     createClusters: (jobId, rows) => rpc('import_create_clusters', { p_job: jobId, p_rows: rows }),
     putItems: (jobId, rows) => rpc('import_items_put', { p_job: jobId, p_items: rows }),
     async setJob(jobId, fields) {
@@ -104,6 +127,11 @@ export function makeImportDeps({
     },
 
     newId,
+    // The stamp the app's own adds carry (App buildMutators stampCreate).
+    stamp: () => {
+      const at = new Date(now()).toISOString();
+      return { createdBy: userId || null, createdAt: at, updatedBy: userId || null, updatedAt: at };
+    },
     cardId: (item, n) => cardIdFor(item, n),
     encodeDoc: encodeClusterDoc,
     now,

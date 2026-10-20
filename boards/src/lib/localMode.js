@@ -115,6 +115,13 @@ export function isGridQaMode() {
   return new URLSearchParams(window.location.search).get('gridqa') === '1';
 }
 
+// Dev-only bulk-import QA page (?importqa=1): the tray, chip and ask dialog in
+// every state with no backend. See ../local/ImportQaHarness.jsx.
+export function isImportQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('importqa') === '1';
+}
+
 // Dev-only Schedule QA bridge. Active ONLY in a DEV build with ?schedqa=1
 // (same trust boundary as isGridQaMode). Publishes the PURE schedule date
 // math + slot-key grammar + calendar layout + graft helpers on
