@@ -247,7 +247,7 @@ const referralCards = referralSql?.match(/c_reward_cards\s+constant\s+integer\s*
 const referralPer30 = referralSql?.match(/c_per_30_days\s+constant\s+integer\s*:=\s*(\d+)/);
 const referralLinkDays = latestSqlDefining('claim_collab_link')
   ?.match(/created_at > now\(\) - interval '(\d+) days'\) into v_is_new_user/i);
-const friendCards = ['ensure_profile_for_new_user', 'claim_collab_link'].map((fn) => latestDefinition(fn)
+const friendCards = ['ensure_profile_for_new_user', 'claim_collab_link', 'claim_workspace_invite_link'].map((fn) => latestDefinition(fn)
   ?.body.match(/bonus_card_credits\s*=\s*coalesce\(bonus_card_credits,\s*0\)\s*\+\s*(\d+)/i)?.[1]);
 const inviteStorage = latestSqlDefining('_referral_bonus_storage_bytes')
   ?.match(/function\s+public\._referral_bonus_storage_bytes\s*\(\s*\)[\s\S]*?select\s+(\d+)::bigint/i);

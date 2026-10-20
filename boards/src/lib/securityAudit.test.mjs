@@ -376,11 +376,12 @@ test('a banned account\'s shares and published clusters stop serving, and its in
 });
 
 test('a suspended account acts on nothing: links, workspaces, keys, OAuth, self-delete', () => {
-  for (const fn of ['create_public_link', 'create_collab_link']) {
+  for (const fn of ['create_public_link', 'create_collab_link', 'create_workspace_invite_link']) {
     assert.match(latestDefinition(fn).body, /if not public\._actor_can_send\(\) then/, `${fn}: a held or banned account makes no link`);
   }
   for (const fn of ['set_public_link_indexing', 'set_public_link_subboards', 'transfer_workspace_ownership',
-    'delete_workspace', 'create_workspace_with_root', 'claim_pending_invite', 'claim_collab_link']) {
+    'delete_workspace', 'create_workspace_with_root', 'claim_pending_invite', 'claim_collab_link',
+    'claim_workspace_invite_link', 'revoke_workspace_invite_link']) {
     assert.match(latestDefinition(fn).body, /if not public\._actor_active\(\) then/, `${fn} must check the caller`);
   }
   assert.match(latestDefinition('api_token_resolve').body,
