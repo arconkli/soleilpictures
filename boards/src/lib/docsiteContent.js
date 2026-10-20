@@ -31657,17 +31657,17 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Per-thread drafts",
+      "v": "Drafts",
       "children": [
        {
         "t": "text",
-        "v": "Per-thread drafts"
+        "v": "Drafts"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — a half-written message survives closing the drawer"
+      "v": " — a half-written message waits in its conversation, with its attachments and the message it replies to, when you switch conversations, close the drawer or reload the page"
      }
     ],
     [
@@ -31732,6 +31732,158 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " — a link to one specific message, which opens the thread scrolled to it"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Writing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Writing"
+    }
+   ],
+   "id": "writing"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " sends and "
+     },
+     {
+      "t": "strong",
+      "v": "Shift+Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shift+Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " starts a new line; "
+     },
+     {
+      "t": "strong",
+      "v": "⌘/Ctrl+Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "⌘/Ctrl+Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " sends too"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone or tablet the return key starts a new line, and the "
+     },
+     {
+      "t": "strong",
+      "v": "Send",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button sends"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The box grows as you write, then scrolls once it's tall"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Attach files with the paperclip, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; "
+     },
+     {
+      "t": "strong",
+      "v": "Send",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " waits until they're all in, and one that fails says so, with "
+     },
+     {
+      "t": "strong",
+      "v": "Retry",
+      "children": [
+       {
+        "t": "text",
+        "v": "Retry"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Editing one of your messages works the same way: "
+     },
+     {
+      "t": "strong",
+      "v": "Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " saves, "
+     },
+     {
+      "t": "strong",
+      "v": "Esc",
+      "children": [
+       {
+        "t": "text",
+        "v": "Esc"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " cancels"
      }
     ]
    ]

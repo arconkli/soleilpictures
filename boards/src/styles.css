@@ -17306,7 +17306,9 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   padding: 9px 10px;
   outline: none;
   min-height: 38px;
-  max-height: 120px;
+  /* Its height follows the text, up to 8 lines or 40% of the panel
+     (useAutosizeTextarea sets it), then it scrolls inside itself. */
+  overflow-y: hidden;
   transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
 .msg-composer-input::placeholder { color: var(--ink-3); }
@@ -17387,7 +17389,7 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  padding: 4px 8px;
+  padding: 4px 4px 4px 8px;
   font: 500 11px/1 var(--font-sans);
   color: var(--ink-1);
 }
@@ -17417,6 +17419,7 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
 .emoji-palette {
   position: fixed;
   z-index: 2147483647;
+  max-width: 100%; min-width: 0;
   display: flex; gap: 4px;
   padding: 6px;
   border-radius: var(--radius-md);
@@ -17424,6 +17427,36 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
 }
 .emoji-palette-btn {
   background: transparent; border: 0;
+/* Each staged file is its own chip: a thumbnail for a picture, then
+   "Uploading…" until it lands, or "Couldn't upload" with Retry. */
+.msg-composer-att-chip:has(.msg-composer-att-thumb) { padding-left: 4px; }
+.msg-composer-att-thumb {
+  width: 22px; height: 22px; flex-shrink: 0;
+  border-radius: 4px; object-fit: cover;
+  background: var(--bg-act);
+}
+.msg-composer-att-name { min-width: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-composer-att-state { flex-shrink: 0; color: var(--ink-3); }
+.msg-composer-att-chip.is-uploading .msg-composer-att-thumb { opacity: .55; }
+.msg-composer-att-chip.is-uploading .msg-composer-att-state { animation: msg-att-pulse 1.4s var(--ease) infinite; }
+@keyframes msg-att-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .msg-composer-att-chip.is-uploading .msg-composer-att-state { animation: none; }
+}
+.msg-composer-att-chip.is-failed { border-color: color-mix(in srgb, var(--msg-err) 45%, var(--line-2)); }
+.msg-composer-att-chip.is-failed .msg-composer-att-state { color: var(--msg-err); }
+.msg-composer-att-chip .msg-composer-att-retry {
+  flex-shrink: 0;
+  padding: 2px 6px; border-radius: var(--radius);
+  color: var(--ink-1); font: 600 11px/1 var(--font-sans);
+}
+.msg-composer-att-chip .msg-composer-att-retry:hover { color: var(--ink-0); background: var(--bg-act); }
+.msg-composer-att-chip .msg-composer-att-x {
+  flex-shrink: 0;
+  width: 18px; height: 18px; border-radius: 4px;
+  display: grid; place-items: center;
+}
+.msg-composer-att-chip .msg-composer-att-x:hover { color: var(--ink-0); background: var(--bg-act); }
   font-size: 20px;
   width: 28px; height: 28px;
   border-radius: var(--radius);

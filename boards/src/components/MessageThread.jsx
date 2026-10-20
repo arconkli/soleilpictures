@@ -17,6 +17,8 @@ import {
 } from '../lib/messageRealtime.js';
 import { MessageBubble } from './MessageBubble.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
+import { useDraftValue } from '../hooks/useDraft.js';
+import { replyTarget, updateDraft } from '../lib/draftStore.js';
 import { INBOX_MIME } from '../lib/dragMimes.js';
 import { inboxPayloadFor } from '../lib/messageAttachments.js';
 import { SoleilMark } from './primitives.jsx';
@@ -225,8 +227,13 @@ export function MessageThread({
   // ── Replies ──────────────────────────────────────────────────────────
   // A reply sits in the conversation with what it answers quoted above it
   // (there's no separate thread view). replyTo is what your next send answers;
-  // the composer shows it as "Replying to …", and Escape lets it go.
-  const [replyTo, setReplyTo] = useState(null);
+  // the composer shows it as "Replying to …", and Escape lets it go. It's part
+  // of the conversation's draft, so it waits with your text if you go elsewhere.
+  const replyTo = useDraftValue(conversationId || '', (d) => d.replyTo);
+  const setReplyTo = useCallback((m) => updateDraft(conversationId || '', (d) => {
+    const next = replyTarget(m);
+    return (d.replyTo?.id || null) === (next?.id || null) ? d : { ...d, replyTo: next };
+  }), [conversationId]);
 
   // Search results borrow the scroller: hands off while they're up, and back
   // to where you were after.

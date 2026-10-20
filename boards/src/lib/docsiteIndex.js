@@ -2360,6 +2360,10 @@ export const DOCS_PAGES = [
         "text": "Threads"
       },
       {
+        "id": "writing",
+        "text": "Writing"
+      },
+      {
         "id": "unread",
         "text": "Unread"
       },

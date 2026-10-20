@@ -421,3 +421,161 @@ test('a quote of an old message beyond the loaded pages is read by id, and click
   await reply.locator('.msg-reply-preview').click();
   await expect(page.locator(`[data-msg-id="${oldId}"]`)).toBeInViewport({ timeout: 10000 });
 });
+
+// ── The composer (C2.8) ────────────────────────────────────────────────
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+const png = (name) => ({ name, mimeType: 'image/png', buffer: PNG });
+const uploadCalls = (page) => qa(page, () => window.__msgQa.calls.filter((c) => c.kind === 'storage' && c.target === 'upload').length);
+const attach = (page, files) => page.locator('.msg-composer input[type="file"]').setInputFiles(files);
+const messageCount = (page) => qa(page, () => window.__msgQa.db.messages.length);
+
+test('Enter while an input method is composing picks the word; it doesn’t send', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const input = page.locator('.msg-composer-input');
+  await input.fill('こんにちは');
+  const before = await messageCount(page);
+  for (const init of [{ isComposing: true }, { keyCode: 229 }]) {
+    await input.evaluate((el, extra) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...extra })), init);
+  }
+  await page.waitForTimeout(200);
+  await expect(input).toHaveValue('こんにちは');
+  expect(await messageCount(page)).toBe(before);
+  await input.press('Enter');
+  await expect(page.locator('.msg-bubble-body', { hasText: 'こんにちは' })).toBeVisible();
+});
+
+test('Shift+Enter makes a new line and ⌘/Ctrl+Enter sends', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const input = page.locator('.msg-composer-input');
+  await input.click();
+  await page.keyboard.type('first');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('second');
+  await expect(input).toHaveValue('first\nsecond');
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await expect(page.locator('.msg-bubble-body', { hasText: 'second' })).toBeVisible();
+  await expect(input).toHaveValue('');
+});
+
+test('the field grows with what you write up to its cap, then scrolls, and the thread stays at the bottom', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const input = page.locator('.msg-composer-input');
+  await expect(page.locator('.msg-bubble-body', { hasText: 'Thanks! Talk tomorrow.' })).toBeVisible();
+  const h0 = await input.evaluate((el) => el.offsetHeight);
+  await input.fill('x');
+  expect(await input.evaluate((el) => el.offsetHeight), 'one line at rest and with one line in it').toBe(h0);
+  await input.fill('one\ntwo\nthree');
+  expect(await input.evaluate((el) => el.offsetHeight)).toBeGreaterThan(h0 + 20);
+  await input.fill(Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n'));
+  const m = await input.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const chrome = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    return { h: el.offsetHeight, cap: parseFloat(cs.lineHeight) * 8 + chrome, scrolls: el.scrollHeight > el.clientHeight + 1, overflow: cs.overflowY };
+  });
+  expect(m.h).toBeLessThanOrEqual(Math.ceil(m.cap) + 1);
+  expect(m.scrolls).toBe(true);
+  expect(m.overflow).toBe('auto');
+  await expect.poll(() => fromBottom(page)).toBeLessThan(2);
+  await input.fill('');
+  expect(await input.evaluate((el) => el.offsetHeight)).toBe(h0);
+});
+
+test('files upload while you type, three at a time, each on its own chip; Send waits for them', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await qa(page, () => window.__msgQa.setLatency({ upload: 1500 }));
+  await attach(page, [1, 2, 3, 4, 5].map((i) => png(`frame-${i}.png`)));
+  await expect(page.locator('.msg-composer-att-chip.is-uploading')).toHaveCount(5);
+  await expect(page.locator('.msg-composer-att-chip.is-uploading .msg-composer-att-thumb')).toHaveCount(5);
+  const input = page.locator('.msg-composer-input');
+  await expect(input).toBeEnabled();
+  await input.fill('five frames');
+  await expect(input).toHaveValue('five frames');
+  await expect(page.locator('.msg-composer-send')).toBeDisabled();
+  await input.press('Enter');
+  expect(await page.locator('.msg-bubble-body', { hasText: 'five frames' }).count()).toBe(0);
+  await expect.poll(() => uploadCalls(page)).toBe(3);
+  await page.waitForTimeout(500);
+  expect(await uploadCalls(page)).toBe(3);
+  await expect(page.locator('.msg-composer-att-chip.is-done')).toHaveCount(5, { timeout: 10000 });
+  await expect(page.locator('.msg-composer-send')).toBeEnabled();
+  await input.press('Enter');
+  await expect(bubble(page, 'five frames').locator('.msg-attachment-image')).toHaveCount(5);
+  await expect(page.locator('.msg-composer-att-chip')).toHaveCount(0);
+});
+
+test('a file that fails to upload says so on its chip, and Retry sends it up again', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await qa(page, () => window.__msgQa.failNext('upload'));
+  await attach(page, png('frame.png'));
+  const failed = page.locator('.msg-composer-att-chip.is-failed');
+  await expect(failed).toContainText("Couldn't upload");
+  await expect(page.locator('.msg-composer-send')).toBeDisabled();
+  await failed.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.locator('.msg-composer-att-chip.is-done')).toHaveCount(1);
+  await expect(page.locator('.msg-composer-send')).toBeEnabled();
+  expect(await uploadCalls(page)).toBe(2);
+});
+
+test('a file removed while it uploads stays removed when the upload lands', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await qa(page, () => window.__msgQa.setLatency({ upload: 800 }));
+  await attach(page, png('frame.png'));
+  await page.locator('.msg-composer-att-chip.is-uploading').getByRole('button', { name: 'Remove attachment' }).click();
+  await expect(page.locator('.msg-composer-att-chip')).toHaveCount(0);
+  await page.waitForTimeout(1200);
+  await expect(page.locator('.msg-composer-att-chip')).toHaveCount(0);
+});
+
+test('a draft waits in its conversation — text, a file still uploading, the reply — and none of it shows in another', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await qa(page, () => window.__msgQa.setLatency({ upload: 900 }));
+  const original = bubble(page, 'Thanks! Talk tomorrow.');
+  await original.hover();
+  await original.locator('button[title="Reply"]').click();
+  const input = page.locator('.msg-composer-input');
+  await input.fill('half a thought');
+  await attach(page, png('frame.png'));
+  await qa(page, () => window.__msgQa.openConversation('c-cast'));
+  await expect(page.locator('.msg-panel-title')).toContainText('Casting');
+  await expect(input).toHaveValue('');
+  await expect(page.locator('.msg-composer-att-chip')).toHaveCount(0);
+  await expect(page.locator('.msg-reply-bar')).toHaveCount(0);
+  await page.waitForTimeout(1300); // the upload lands while you're away
+  await qa(page, () => window.__msgQa.openConversation('c-maya'));
+  await expect(input).toHaveValue('half a thought');
+  await expect(page.locator('.msg-composer-att-chip.is-done')).toHaveCount(1);
+  await expect(page.locator('.msg-reply-bar-who')).toHaveText(/^Replying to /);
+  await input.press('Enter');
+  const sent = bubble(page, 'half a thought');
+  await expect(sent.locator('.msg-reply-preview-body')).toContainText('Thanks! Talk tomorrow.');
+  await expect(sent.locator('.msg-attachment-image')).toHaveCount(1);
+});
+
+test('a draft survives a reload straight after typing', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await page.locator('.msg-composer-input').fill('typed, then reloaded');
+  await page.reload();
+  await page.waitForSelector('html[data-msgqa-ready="1"]');
+  await expect(page.locator('.msg-composer-input')).toHaveValue('typed, then reloaded');
+  await page.locator('.msg-composer-input').press('Enter');
+  await page.reload();
+  await page.waitForSelector('html[data-msgqa-ready="1"]');
+  await expect(page.locator('.msg-composer-input')).toHaveValue('', { timeout: 5000 });
+});
+
+test('the emoji palette opens clear of its button and inside the window, and the button closes it again', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const btn = page.locator('.msg-composer button[title="Emoji"]');
+  await btn.click();
+  const pal = page.locator('.emoji-palette');
+  await expect(pal).toBeVisible();
+  const [p, b, vh] = await Promise.all([pal.boundingBox(), btn.boundingBox(), page.evaluate(() => window.innerHeight)]);
+  expect(p.y + p.height <= b.y + 1 || p.y >= b.y + b.height - 1).toBe(true);
+  expect(p.y + p.height).toBeLessThanOrEqual(vh);
+  await btn.click();
+  await expect(pal).toHaveCount(0);
+  await btn.click();
+  await pal.locator('button').first().click();
+  await expect(pal).toHaveCount(0);
+  await expect(page.locator('.msg-composer-input')).toHaveValue('👍');
+});

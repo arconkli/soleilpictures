@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
 import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download } from '../lib/icons.js';
 import { EmojiPalette } from './EmojiPalette.jsx';
+import { GrowingTextarea } from './GrowingTextarea.jsx';
+import { isComposingKey, messageKeyAction, touchKeyboard } from '../lib/composerKeys.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { renderMessageBody } from '../lib/renderMessageBody.jsx';
@@ -39,6 +41,7 @@ export function MessageBubble({
   const within15min = msg.created_at && (Date.now() - new Date(msg.created_at).getTime()) < 15 * 60 * 1000;
   const [hover, setHover] = useState(false);
   const [emojiAnchor, setEmojiAnchor] = useState(null);
+  const reactBtnRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(msg.body);
   const [, force] = useState(0);
@@ -174,7 +177,7 @@ export function MessageBubble({
         )}
         <span className={`msg-bubble-actions ${hover && !editing && !sendState ? 'is-visible' : ''}`}>
           {onReply && <button title="Reply" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
-          <button title="React" onClick={(e) => setEmojiAnchor(e.currentTarget.getBoundingClientRect())}><Icon as={Smile} size={12} /></button>
+          <button title="React" ref={reactBtnRef} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor((a) => (a ? null : r)); }}><Icon as={Smile} size={12} /></button>
           {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
           {onCopyLink && <button title="Copy link" onClick={() => onCopyLink(msg)}><Icon as={LinkIcon} size={12} /></button>}
           {isMine && within15min && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
@@ -183,13 +186,15 @@ export function MessageBubble({
       </div>
       {editing ? (
         <form onSubmit={(e) => { e.preventDefault(); submitEdit(); }}>
-          <textarea autoFocus value={editBody}
+          <GrowingTextarea focusAtEnd value={editBody} maxLines={12}
                     onChange={(e) => setEditBody(e.target.value)}
-                    className="msg-composer-input" rows={2}
+                    className="msg-composer-input"
                     onKeyDown={(e) => {
+                      if (isComposingKey(e)) return;
                       if (e.key === 'Escape') { e.preventDefault(); setEditing(false); return; }
-                      // Enter submits (matches the main composer); Shift+Enter = newline.
-                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(); }
+                      // The composer's rule: Enter saves on a desktop keyboard,
+                      // Shift+Enter (or Enter on a touch one) makes a new line.
+                      if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); submitEdit(); }
                     }} />
           <div className="msg-bubble-edit-actions">
             <button type="button" onClick={() => setEditing(false)}>Cancel</button>
@@ -277,6 +282,7 @@ export function MessageBubble({
       {emojiAnchor && (
         <EmojiPalette
           anchor={emojiAnchor}
+          trigger={reactBtnRef.current}
           onPick={(emoji) => onReact?.(msg, emoji)}
           onClose={() => setEmojiAnchor(null)}
         />
