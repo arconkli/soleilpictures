@@ -8,9 +8,10 @@
 //   newKey() · put(key, fields) · drop(key)        the tray's store
 //   walk(entries, { signal, onProgress })          a drop (folderWalk)
 //   walkPicked(files, { onProgress })              a picker's files
+//   askZip(model) → 'unpack' | 'keep' | 'cancel'    the zip question (zipAskCopy)
 //   who(boardId) → { own, plan, ownerName, workspaceName, targetName,
 //                    trialOffer, addon, interval, firstPayment, tier }
-//   makeDeps({ targetBoardId, canAttemptFiles, source, sourceRef, placeTops })
+//   makeDeps({ targetBoardId, canAttemptFiles, source, kind, sourceRef, placeTops })
 //   ask(model) → 'cancel' | 'fit' | 'all'           the question (askCopy)
 //   upgrade(offer, { stoppedBy })                    the cap wall, the storage
 //                                                    gate or extra storage
@@ -38,7 +39,8 @@
 import { createImportJob } from './importJob.js';
 import { planBulk } from './importPlan.js';
 import { treeFromWalk, combineTrees } from './importTree.js';
-import { askCopy } from './importCopy.js';
+import { askCopy, zipAskCopy } from './importCopy.js';
+import { isZipFile, canUnpackZips, zipGroups, readZips } from './importZips.js';
 import { EV } from './analyticsEvents.js';
 
 export const WAIT_POLL_MS = 30000;
@@ -62,45 +64,84 @@ function takeLane() {
 }
 
 // The name an import goes by before its folder has been read.
-function firstName(input) {
+function firstName(input, zips) {
   const e = input.entries?.[0];
   if (e?.name) return input.entries.length > 1 ? `${input.entries.length} folders` : e.name;
   const p = input.pickedFiles?.[0]?.webkitRelativePath;
   if (p) return p.split('/')[0];
+  if (zips.length) return zips.length > 1 ? `${zips.length} zips` : String(zips[0].name || 'Zip').replace(/\.zip$/i, '');
   return input.title || 'Folder';
 }
 
+// input: { entries (a drop's) | pickedFiles (a folder picker's) | walked,
+//          zips, files (loose; the zips among them are asked about),
+//          askZips (false: picked as zips to unpack), boardId,
+//          canAttemptFiles, source, placeTops }
+// → { loose (files to add the ordinary way), key (the tray entry, or null) }
 export async function startBulkImport(input, env) {
-  const key = env.newKey();
   const source = input.source || 'drop';
+
+  // 0. Zips: unpack them into clusters, or add them as they are. Asked from
+  // names and sizes before anything is read, outside the lane (nothing can be
+  // dropped behind an open question), and not at all when the person picked
+  // them to unpack. Escape lets go of the whole drop, as the cap question does.
+  const given = Array.from(input.files || []);
+  let zips = [...Array.from(input.zips || []), ...given.filter(isZipFile)];
+  const extra = given.filter((f) => !isZipFile(f));
+  if (zips.length) {
+    let unpack = canUnpackZips() && input.askZips === false;
+    if (canUnpackZips() && input.askZips !== false) {
+      const choice = await env.askZip(zipAskCopy({ zips: zips.map((z) => ({ name: z.name, size: z.size })), groups: zipGroups(zips) }));
+      env.log(EV.IMPORT_JOB, { source: `bulk_${source}`, board_id: input.boardId, phase: 'zip_question', choice, n_zips: zips.length });
+      if (choice === 'cancel') return { loose: [], key: null };
+      unpack = choice === 'unpack';
+    }
+    if (!unpack) { extra.push(...zips); zips = []; }
+  }
+  const folder = !!(input.walked || input.entries?.length || input.pickedFiles?.length);
+  if (!folder && !zips.length) return { loose: extra, key: null };
+  const kind = folder ? 'folder' : 'zip';
+
+  const key = env.newKey();
   const reader = new AbortController();
-  let title = firstName(input);
+  let title = firstName(input, zips);
   const started = env.now();
   let stopped = false;
   // Cancel before the job exists: the tray lets go at once, and the flow
   // stops at its next step (the walk aborts; a queued one never takes its turn).
   const act = (id) => { if (id === 'cancel') { stopped = true; reader.abort(); env.drop(key); } };
-  env.put(key, { phase: 'reading', title, source, reading: { files: 0, folders: 0, bytes: 0 }, act });
+  env.put(key, { phase: 'reading', title, source: kind, zips: zips.length, reading: { files: 0, folders: 0, bytes: 0 }, act });
 
-  // 1. Read the folder.
-  let walked;
+  // 1. Read the folder, then the zips' directories.
+  let walked = null;
+  let unzipped = null;
   try {
-    const onProgress = ({ files = 0, clusters = 0 } = {}) => env.put(key, { reading: { files, folders: clusters, bytes: 0 } });
-    walked = input.walked || (input.entries
-      ? await env.walk(input.entries, { signal: reader.signal, onProgress })
-      : await env.walkPicked(input.pickedFiles || [], { onProgress }));
+    let walkedSoFar = { files: 0, folders: 0 };
+    const show = ({ files = 0, folders = 0, bytes = 0 } = {}) => env.put(key, {
+      reading: { files: walkedSoFar.files + files, folders: walkedSoFar.folders + folders, bytes },
+    });
+    if (folder) {
+      const onProgress = ({ files = 0, clusters = 0 } = {}) => { walkedSoFar = { files, folders: clusters }; show(); };
+      walked = input.walked || (input.entries
+        ? await env.walk(input.entries, { signal: reader.signal, onProgress })
+        : await env.walkPicked(input.pickedFiles, { onProgress }));
+      walkedSoFar = { files: walked?.files || 0, folders: walked?.clusters || 0 };
+    }
+    if (zips.length && !stopped) unzipped = await readZips(zips, { signal: reader.signal, onProgress: show });
   } catch (e) {
     env.drop(key);
-    env.toast({ type: 'error', message: `The folder could not be read: ${e?.message || e}`, ttl: 8000 });
+    env.toast({ type: 'error', message: `The ${kind} could not be read: ${e?.message || e}`, ttl: 8000 });
     return { loose: [], key: null };
   }
-  const loose = Array.from(walked?.root?.files || []);
+  // What isn't part of the tree is added the ordinary way: files beside the
+  // folder, zips kept as they are, and a ".zip" that turned out not to be one.
+  const loose = [...extra, ...Array.from(walked?.root?.files || []), ...(unzipped?.notZips || [])];
   if (stopped) { env.drop(key); return { loose: [], key: null }; }
-  const tree = combineTrees([treeFromWalk(walked)]);
+  const tree = combineTrees([...(walked ? [treeFromWalk(walked)] : []), ...(unzipped?.trees || [])]);
   const tops = tree.root.dirs;
   if (!tops.length) { env.drop(key); return { loose, key: null }; }
   title = tops.length === 1 ? tops[0].name : `${tops.length} folders`;
-  env.put(key, { phase: 'queued', title, reading: { files: walked.files || 0, folders: walked.clusters || 0, bytes: 0 } });
+  env.put(key, { phase: 'queued', title, reading: { files: tree.stats.files || 0, folders: tree.stats.clusters || 0, bytes: 0 } });
 
   // 2. Its turn: one question and one running job at a time.
   const turn = takeLane();
@@ -112,8 +153,12 @@ export async function startBulkImport(input, env) {
     const who = { ...(await env.who(input.boardId)) };
     const placeTops = input.placeTops || null;
     const deps = env.makeDeps({
-      targetBoardId: input.boardId, canAttemptFiles: input.canAttemptFiles, source,
-      sourceRef: { tops: tops.map((d) => d.name).slice(0, 50) }, placeTops,
+      targetBoardId: input.boardId, canAttemptFiles: input.canAttemptFiles, source, kind,
+      sourceRef: {
+        tops: tops.map((d) => d.name).slice(0, 50),
+        ...(unzipped ? { zips: zips.map((z) => z.name).slice(0, 50) } : {}),
+      },
+      placeTops,
     });
 
     // 3. Plan it against the room there is now. A budget that can't be read
@@ -141,8 +186,8 @@ export async function startBulkImport(input, env) {
     if (plan.waiting.length) {
       env.put(key, { phase: 'asking' });
       model = askCopy({
-        title, source: input.source === 'zip' ? 'zip' : 'folder', tops: tops.length,
-        folders: walked.clusters || plan.clusters.length,
+        title, source: kind, zips: zips.length, tops: tops.length,
+        folders: tree.stats.clusters || plan.clusters.length,
         splits: plan.clusters.filter((c) => c.part?.index === 1).map((c) => ({ name: c.name.replace(/ · 1 of \d+$/, ''), of: c.part.of })),
         totals: plan.totals, fit: plan.fitTotals, waiting: { files: plan.waiting.length },
         stoppedBy: plan.stoppedBy, budgets, clusterCost: env.clusterCost, ...who,

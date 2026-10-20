@@ -28,13 +28,14 @@ import {
 export const countLabel = (n) => Math.max(0, Math.round(Number(n) || 0)).toLocaleString('en-US');
 const nOf = (n, one, many = `${one}s`) => `${countLabel(n)} ${Number(n) === 1 ? one : many}`;
 
-// "26.4 GB", "241 GB", "1.2 TB": one decimal until three digits.
-export function sizeLabel(bytes) {
+// "26.4 GB", "241 GB", "1.2 TB": one decimal until three digits. `fixed`
+// keeps a whole number's ".0", for a column of sizes ("2.0 GB" over "1.9 GB").
+export function sizeLabel(bytes, { fixed = false } = {}) {
   const b = Math.max(0, Number(bytes) || 0);
   for (const [u, n] of [['TB', 1024 ** 4], ['GB', 1024 ** 3], ['MB', 1024 ** 2], ['KB', 1024]]) {
     if (b >= n) {
       const v = b / n;
-      return `${v >= 100 ? Math.round(v) : Math.round(v * 10) / 10} ${u}`;
+      return `${v >= 100 ? Math.round(v) : fixed ? v.toFixed(1) : Math.round(v * 10) / 10} ${u}`;
     }
   }
   return `${Math.round(b)} B`;
@@ -172,10 +173,54 @@ export function askCopy({
   };
 }
 
+// ── The zip question ───────────────────────────────────────────────────────
+// Asked when zips are dropped, before anything is read: unpack them into
+// clusters, or add them as they are. Built from names and sizes alone, so a
+// "keep" costs nothing. zips: [{ name, size }] in drop order; groups:
+// zipRead.groupArchives(names) (several parts of one export make one group).
+const word = (n) => WORDS[n] || countLabel(n);
+const ZIP_ROWS = 4;
+
+function exportOf(name) {
+  if (/^takeout-\d{8}T\d{6}Z-\d{3}\.zip$/i.test(name)) return 'one Google Takeout export';
+  if (/^drive-download-\d{8}T\d{6}Z-\d{3}\.zip$/i.test(name)) return 'one Google Drive download';
+  return null;
+}
+
+export function zipAskCopy({ zips = [], groups = [] } = {}) {
+  const n = zips.length;
+  const many = n !== 1;
+  const total = zips.reduce((t, z) => t + (Number(z.size) || 0), 0);
+  const oneExport = groups.length === 1 && n > 1;
+  const what = oneExport ? (exportOf(String(zips[0]?.name || '')) || `one export in ${word(n)} parts`) : null;
+  const lede = oneExport
+    ? `Unpacked, the ${word(n)} parts become one tree: every folder in it becomes a cluster, and its files go to that cluster’s Files.`
+    : !many
+      ? 'Unpacked, every folder in it becomes a cluster, and its files go to that cluster’s Files.'
+      : `Unpacked, each ${groups.length < n ? 'export' : 'zip'} becomes a cluster with a cluster for every folder in it, and each file goes to its cluster’s Files.`;
+  return {
+    kicker: many ? 'Zip files' : 'Zip file',
+    title: many ? 'Unpack these into clusters?' : 'Unpack this into clusters?',
+    sub: [`${nOf(n, 'zip')}`, sizeLabel(total), what].filter(Boolean).join(' · '),
+    rows: zips.slice(0, ZIP_ROWS).map((z) => ({ name: String(z.name || ''), size: sizeLabel(z.size, { fixed: true }) })),
+    more: n > ZIP_ROWS ? `and ${countLabel(n - ZIP_ROWS)} more` : null,
+    lede,
+    note: many ? `Or add them as ${word(n)} zip files, each kept whole in Files.` : 'Or add it as a zip file, kept whole in Files.',
+    actions: [
+      { id: 'keep', label: many ? `Add as ${countLabel(n)} zip files` : 'Add as a zip file', tone: null },
+      { id: 'unpack', label: 'Unpack into clusters', tone: 'default' },
+    ],
+  };
+}
+
 // ── The tray ────────────────────────────────────────────────────────────────
-// A failure in words a person can act on.
+// A failure in words a person can act on. The zip reader's own failures come
+// first: "more than its declared size" is a damaged entry, not a plan limit.
 export function failReason(message) {
   const m = String(message || '');
+  if (/to unpack here/i.test(m)) return 'Too large to unpack here — unzip it on your computer';
+  if (/cannot decompress/i.test(m)) return 'This browser can’t unpack it';
+  if (/declared size|checksum|damaged|incomplete|past the end/i.test(m)) return 'Damaged inside the zip';
   if (/NotReadable|NotFound|could not be read|couldn.t be read|permission/i.test(m)) return 'Couldn’t be read from the folder';
   if (/changed|modified/i.test(m)) return 'It changed while it was uploading';
   if (/too large|too big|size limit|exceeds/i.test(m)) return 'Too large for this plan';

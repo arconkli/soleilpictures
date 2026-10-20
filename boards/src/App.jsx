@@ -243,6 +243,7 @@ import { IMPORT_LIMITS } from './lib/importTree.js';
 import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs } from './lib/importJobs.js';
 import { ImportTray } from './components/ImportTray.jsx';
 import { ImportAskDialog } from './components/ImportAskDialog.jsx';
+import { ImportZipDialog } from './components/ImportZipDialog.jsx';
 import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { unopenableClusterNotice, waitUntil } from './lib/clusterOpen.js';
@@ -6269,6 +6270,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ImportTray.jsx) until there is room. App's part is the env: everything
   // with a network, React or browser side.
   const [bulkAsk, setBulkAsk] = useState(null);   // { model, resolve }
+  const [zipAsk, setZipAsk] = useState(null);     // { model, resolve }
   const bulkImportEnv = useCallback(() => ({
     newKey: () => `imp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     put: putImportJob,
@@ -6298,13 +6300,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         firstPayment: end && Number.isFinite(end.getTime()) ? end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null,
       };
     },
-    makeDeps: ({ targetBoardId, canAttemptFiles, sourceRef, placeTops }) => makeImportDeps({
+    makeDeps: ({ targetBoardId, canAttemptFiles, kind, sourceRef, placeTops }) => makeImportDeps({
       supabase, clusters: { appendCards, patchCards, removeCards },
       uploads: { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile },
       workspaceId: boardsRef.current?.[targetBoardId]?.workspace_id || workspace.id,
-      targetBoardId, userId: user.id, source: 'folder', sourceRef, storageRoom, placeTops, canAttemptFiles,
+      targetBoardId, userId: user.id, source: kind || 'folder', sourceRef, storageRoom, placeTops, canAttemptFiles,
     }),
     ask: (model) => new Promise((resolve) => setBulkAsk({ model, resolve })),
+    askZip: (model) => new Promise((resolve) => setZipAsk({ model, resolve })),
     upgrade: (offer, { stoppedBy } = {}) => {
       if (offer === 'addon') window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'import' } }));
       else if (stoppedBy === 'storage') pitchStorageGate({ force: true });
@@ -6363,6 +6366,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } : null;
     return startBulkImport({ ...args, placeTops }, bulkImportEnv());
   }, [bulkImportEnv, refreshBoards]);
+  // The sidebar's Upload menu: "A folder…" and "A zip or Google Takeout…",
+  // into the open cluster when it can be edited, else one the person picks
+  // (as its "Files…" does). What isn't part of the tree goes in as files.
+  const uploadTreeFromSidebar = async (input, placeholder) => {
+    const here = currentSurface === 'board' ? currentBoard?.id : null;
+    const target = here && canEditBoard(here) ? here : (await requestClusterPick({ placeholder }))?.id;
+    if (!target || !boardsRef.current?.[target]) return;
+    const out = await importFolder({
+      ...input, boardId: target, canAttemptFiles: bulkImportEnv().who(target).plan !== 'free', boardWasEmpty: false,
+    });
+    if (out?.loose?.length) dropFilesOnCluster(target, out.loose);
+  };
+  const uploadFolderFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ pickedFiles: files, source: 'picker' }, 'Import into…') : null);
+  const uploadZipsFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ zips: files, askZips: false, source: 'zip' }, 'Unpack into…') : null);
   // The held-drop watcher released an import's hold (the plan or the drive
   // grew): its job looks for room now.
   useEffect(() => {
@@ -10045,6 +10062,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               }}
               onOpenPlan={() => openSettings('billing')}
               onUpload={uploadFromSidebar}
+              onUploadFolder={bulkImportAllowed() && !mobileShell ? uploadFolderFromSidebar : undefined}
+              onUploadZips={bulkImportAllowed() ? uploadZipsFromSidebar : undefined}
               onOpenBoard={openSidebarCluster}
               onShowFile={showSidebarFile}
               onOpenShelf={(boardId, shelfId) => {
@@ -10927,6 +10946,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <ImportAskDialog
           model={bulkAsk.model}
           onChoose={(id) => { bulkAsk.resolve(id); setBulkAsk(null); }}
+        />
+      )}
+      {zipAsk && (
+        <ImportZipDialog
+          model={zipAsk.model}
+          onChoose={(id) => { zipAsk.resolve(id); setZipAsk(null); }}
         />
       )}
 

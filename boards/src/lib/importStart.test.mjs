@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startBulkImport, pokeImport } from './importStart.js';
+import { storedZip } from './zipFixture.mjs';
 
 const jpg = (name, size = 10) => ({ name, size, lastModified: 1, type: 'image/jpeg' });
 // A walked folder as folderWalk returns it: Night (a, b) / Stills (c, d), plus a loose file.
@@ -36,9 +37,9 @@ function fakeServer({ cardsLeft = Infinity } = {}) {
   return { s, deps };
 }
 
-function fakeEnv({ server = fakeServer(), answer = 'fit', who = {} } = {}) {
+function fakeEnv({ server = fakeServer(), answer = 'fit', who = {}, zipAnswer = 'unpack' } = {}) {
   const store = new Map();
-  const seen = { puts: [], asks: [], holds: [], unholds: [], upgrades: [], removed: [], logs: [], toasts: [], wakes: new Set(), polls: new Set() };
+  const seen = { puts: [], asks: [], zipAsks: [], deps: null, holds: [], unholds: [], upgrades: [], removed: [], logs: [], toasts: [], wakes: new Set(), polls: new Set() };
   let k = 0;
   const env = {
     newKey: () => `k${++k}`,
@@ -47,8 +48,9 @@ function fakeEnv({ server = fakeServer(), answer = 'fit', who = {} } = {}) {
     walk: async (entries, { onProgress }) => { onProgress?.({ files: 5, clusters: 2 }); return entries[0].walked; },
     walkPicked: async () => walked(),
     who: async () => ({ own: true, plan: 'free', trialOffer: true, addon: false, targetName: 'Studio', ...who }),
-    makeDeps: () => server.deps,
+    makeDeps: (a) => { seen.deps = a; return server.deps; },
     ask: async (model) => { seen.asks.push(model); return typeof answer === 'function' ? answer(model) : answer; },
+    askZip: async (model) => { seen.zipAsks.push(model); return zipAnswer; },
     upgrade: (offer, o) => seen.upgrades.push([offer, o?.stoppedBy, seen.holds.length]),
     hold: (h) => { seen.holds.push(h); return `held-${seen.holds.length}`; },
     unhold: (id) => seen.unholds.push(id),
@@ -254,4 +256,65 @@ test('Remove: the job stops, its clusters go to the trash (App\'s undo), and the
   assert.equal(seen.removed[0].topIds.length, 1, 'the top cluster; its subfolders go with it');
   await flush(); await flush();
   assert.equal(store.has(out.key), false, 'a late snapshot does not bring it back');
+});
+
+// ── Zips ────────────────────────────────────────────────────────────────────
+const nightZip = () => storedZip([{ path: 'Night/a.jpg', bytes: 'a' }, { path: 'Night/Stills/c.jpg', bytes: 'c' }], 'Night.zip');
+const photo = () => new File(['p'], 'p.jpg', { type: 'image/jpeg' });
+const dropFiles = (env, files, over = {}) => startBulkImport({ files, boardId: 'target', canAttemptFiles: true, source: 'drop', ...over }, env);
+
+test('a dropped zip is asked about; Unpack makes its folders the tree and the photo beside it goes the ordinary way', async () => {
+  const { env, store, seen, server } = fakeEnv({ zipAnswer: 'unpack' });
+  const out = await dropFiles(env, [photo(), nightZip()]);
+  assert.equal(seen.zipAsks.length, 1);
+  assert.equal(seen.zipAsks[0].title, 'Unpack this into clusters?');
+  assert.deepEqual(out.loose.map((f) => f.name), ['p.jpg']);
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  assert.equal(server.s.appended, 2, 'a.jpg and Stills/c.jpg, read out of the zip');
+  assert.deepEqual([store.get(out.key).title, store.get(out.key).source, store.get(out.key).zips], ['Night', 'zip', 1]);
+  assert.equal(seen.deps.kind, 'zip');
+  assert.deepEqual(seen.deps.sourceRef.zips, ['Night.zip']);
+  assert.deepEqual(seen.logs.filter(([n]) => n === 'import_job').map(([, p]) => p).slice(0, 1), ['zip_question']);
+});
+
+test('Add as zip files: nothing is read and no tray appears; the zips come back to be added as they are', async () => {
+  const { env, store, seen } = fakeEnv({ zipAnswer: 'keep' });
+  const out = await dropFiles(env, [nightZip(), photo()]);
+  assert.equal(out.key, null);
+  assert.deepEqual(out.loose.map((f) => f.name).sort(), ['Night.zip', 'p.jpg']);
+  assert.equal(store.size + seen.puts.length, 0);
+});
+
+test('Escape on the zip question lets go of the whole drop', async () => {
+  const { env, store } = fakeEnv({ zipAnswer: 'cancel' });
+  const out = await dropFiles(env, [nightZip(), photo()]);
+  assert.deepEqual(out, { loose: [], key: null });
+  assert.equal(store.size, 0);
+});
+
+test('picked as a zip to unpack: no question', async () => {
+  const { env, store, seen, server } = fakeEnv();
+  const out = await startBulkImport({ zips: [nightZip()], askZips: false, boardId: 'target', canAttemptFiles: true, source: 'zip' }, env);
+  assert.equal(seen.zipAsks.length, 0);
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  assert.equal(server.s.appended, 2);
+});
+
+test('a ".zip" that isn\'t one is added as a file, and the real one still comes in', async () => {
+  const { env, store, server } = fakeEnv();
+  const fake = new File(['only words'], 'Notes.zip', { type: 'application/zip' });
+  const out = await dropFiles(env, [fake, nightZip()]);
+  assert.deepEqual(out.loose.map((f) => f.name), ['Notes.zip']);
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  assert.equal(server.s.appended, 2);
+});
+
+test('a folder and a zip in one drop: one import, side by side', async () => {
+  const { env, store, server } = fakeEnv();
+  const out = await startBulkImport({ entries: [{ name: 'Day', walked: walked('Day') }], files: [nightZip()], boardId: 'target', canAttemptFiles: true, source: 'drop' }, env);
+  assert.deepEqual(out.loose.map((f) => f.name), ['loose.jpg']);
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  assert.equal(store.get(out.key).title, '2 folders');
+  assert.equal(store.get(out.key).source, 'folder');
+  assert.equal(server.s.appended, 6, 'four from the folder, two from the zip');
 });

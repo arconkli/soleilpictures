@@ -5,7 +5,8 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, boardGroundAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, boardGroundAllowed, bulkImportAllowed } from '../lib/appHost.js';
+import { isZipFile } from '../lib/importZips.js';
 import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { secondIdeaDue } from '../lib/secondIdea.js';
@@ -11537,6 +11538,17 @@ export function CanvasSurface({
         await addVersionFromFile(versionEnv(), over.id, files[0]);
         return;
       }
+    }
+    // Zips, behind the bulk import: App asks whether to unpack them into
+    // clusters or add them as they are, and hands back what lands here.
+    if (files && files.length > 0 && onImportFolder && bulkImportAllowed() && Array.from(files).some(isZipFile)) {
+      e.preventDefault();
+      const out = await onImportFolder({
+        files: Array.from(files), at: { x: cx, y: cy }, boardId: board?.id, mutators,
+        canAttemptFiles, source: 'drop', boardWasEmpty: !(cards || []).length,
+      });
+      if (out?.loose?.length) await ingestFiles(out.loose, cx, cy);
+      return;
     }
     if (files && files.length > 0) {
       e.preventDefault();

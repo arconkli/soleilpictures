@@ -144,6 +144,8 @@ export function ClusterSidebar({
   meterProps,             // { isPaid, cardsUsed, cardLimit, storage }
   onOpenPlan,
   onUpload,               // (files) => void
+  onUploadFolder,         // (files) => void — a picked folder; omit (with onUploadZips) for a plain file picker
+  onUploadZips,           // (files) => void — picked zips
   onOpenBoard,            // (boardId) => void
   onShowFile,             // (boardId, cardId, { unplaced }) => void
   onOpenShelf,            // (boardId, shelfId) => void — the shelf in the full-page Files view
@@ -913,7 +915,7 @@ export function ClusterSidebar({
         )}
       </section>
 
-      <SidebarMeter {...meterProps} onOpenPlan={onOpenPlan} onUpload={onUpload} />
+      <SidebarMeter {...meterProps} onOpenPlan={onOpenPlan} onUpload={onUpload} onUploadFolder={onUploadFolder} onUploadZips={onUploadZips} />
       {foot}
       </div>
       </div>

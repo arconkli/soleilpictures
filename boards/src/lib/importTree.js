@@ -35,7 +35,11 @@
 import { classifyEntryName } from './folderWalk.js';
 import { openEntry } from './zipRead.js';
 
-export const IMPORT_LIMITS = Object.freeze({ maxFiles: 50000, maxDepth: 12, maxClusters: 5000 });
+// maxInflateBytes: a compressed file in a zip is inflated whole in the
+// browser before it uploads (zipRead.openEntry), so one over this fails with
+// a reason — unzip it on the computer — instead of taking the tab down. A
+// stored file is a slice of the zip and has no such limit.
+export const IMPORT_LIMITS = Object.freeze({ maxFiles: 50000, maxDepth: 12, maxClusters: 5000, maxInflateBytes: 4 * 1024 ** 3 });
 
 const MIME = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
@@ -173,7 +177,10 @@ export function treeFromZip(merged, zips, { limits = IMPORT_LIMITS, open = openE
       size,
       lastModified,
       type,
-      open: async () => new File([await open(zips[f.zip], f.entry)], name, { type, lastModified }),
+      open: async () => {
+        if (f.entry?.method !== 0 && size > (limits.maxInflateBytes ?? Infinity)) throw new Error('Too large to unpack here.');
+        return new File([await open(zips[f.zip], f.entry)], name, { type, lastModified });
+      },
     });
     files++;
   }

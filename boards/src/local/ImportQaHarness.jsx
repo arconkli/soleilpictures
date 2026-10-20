@@ -1,16 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import '../components/sidebar/clusterSidebar.css';
 import { ImportTray } from '../components/ImportTray.jsx';
 import { ImportAskDialog } from '../components/ImportAskDialog.jsx';
 import { putImportJob, dropImportJob } from '../lib/importJobs.js';
-import { askCopy } from '../lib/importCopy.js';
+import { ImportZipDialog } from '../components/ImportZipDialog.jsx';
+import { SidebarMeter } from '../components/sidebar/SidebarMeter.jsx';
+import { askCopy, zipAskCopy } from '../lib/importCopy.js';
 
 // Dev-only bulk-import QA page (?importqa=1), no backend. Renders the tray, its
 // chip and the ask dialog from fixtures shaped like lib/importCopy.test.mjs.
 //   ?state=reading|creating|run|paused|wait-free|wait-storage-paid|wait-trial|
 //          wait-guest|done|done-fails|cancelled|failed   (default run)
 //   ?min=1 starts folded to the chip   ?phone=1 lifts it over the phone nav
-//   ?theme=light|dark   ?dialog=free|creator|trial|guest
+//   ?theme=light|dark   ?dialog=free|creator|trial|guest|zip-takeout|zip-one|zip-many
+//   ?menu=1 opens the sidebar's Upload menu
 // Imported only behind main.jsx's `import.meta.env.DEV &&` guard.
 
 const GB = 1024 ** 3;
@@ -65,6 +68,31 @@ const DIALOGS = {
   guest: { ...NIGHT, fit: { files: 12 }, waiting: { files: 6181 }, stoppedBy: 'cards', plan: 'free', own: false, ownerName: 'Maya Ortiz', workspaceName: 'Lost Time' },
 };
 
+const MB = 1024 ** 2;
+const ZIPS = {
+  'zip-takeout': { zips: [{ name: 'takeout-20261019T091522Z-001.zip', size: 2.0 * GB }, { name: 'takeout-20261019T091522Z-002.zip', size: 1.9 * GB }], groups: [[0, 1]] },
+  'zip-one': { zips: [{ name: 'Lookbook.zip', size: 300 * MB }], groups: [[0]] },
+  'zip-many': { zips: ['Casting.zip', 'Locations.zip', 'Wardrobe.zip', 'Storyboards.zip', 'Camera tests.zip', 'Final stills.zip']
+    .map((name, i) => ({ name, size: (180 + i * 95) * MB })), groups: [[0], [1], [2], [3], [4], [5]] },
+};
+
+function MenuQa() {
+  const ref = useRef(null);
+  useEffect(() => {
+    // Deferred so StrictMode's throwaway first mount is cleaned up before it clicks.
+    const t = setTimeout(() => ref.current?.querySelector('.sbf-upload')?.click(), 50);
+    return () => clearTimeout(t);
+  }, []);
+  const log = (k) => (files) => console.log('[importqa]', k, files.length);
+  return (
+    <div className="sbf-card is-files" ref={ref} style={{ position: 'fixed', left: 8, bottom: 8, width: 312, height: params.get('short') === '1' ? 140 : 560, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1 }} />
+      <SidebarMeter cardsUsed={38} cardLimit={50} storage={{ used: 1.2 * 1024 ** 3, quota: 5 * 1024 ** 3 }}
+                    onUpload={log('files')} onUploadFolder={log('folder')} onUploadZips={log('zips')} />
+    </div>
+  );
+}
+
 export function ImportQaHarness() {
   const state = params.get('state') || 'run';
   const dialog = params.get('dialog');
@@ -77,7 +105,7 @@ export function ImportQaHarness() {
   }, [theme]);
 
   useEffect(() => {
-    if (dialog) return undefined;
+    if (dialog || params.get('menu') === '1') return undefined;
     putImportJob('qa', { ...fixture(state), act: (id) => console.log('[importqa] act', id) });
     return () => dropImportJob('qa');
   }, [state, dialog]);
@@ -93,8 +121,12 @@ export function ImportQaHarness() {
         <button type="button">100%</button>
         <button type="button">+</button>
       </div>
-      {dialog && DIALOGS[dialog]
+      {dialog && ZIPS[dialog]
+        ? <ImportZipDialog model={zipAskCopy(ZIPS[dialog])} onChoose={(id) => console.log('[importqa] zip', id)} />
+        : dialog && DIALOGS[dialog]
         ? <ImportAskDialog model={askCopy(DIALOGS[dialog])} onChoose={(id) => console.log('[importqa] choose', id)} />
+        : params.get('menu') === '1'
+        ? <MenuQa />
         : <ImportTray aboveNav={params.get('phone') === '1'} initialMinimized={params.get('min') === '1'} />}
     </div>
   );

@@ -188,3 +188,43 @@ test('the tray, reading and stopped', () => {
   assert.equal(c.finished.remove, false, 'nothing was made, nothing to remove');
   assert.equal(failReason('TypeError: Failed to fetch'), 'The connection dropped');
 });
+
+test('the zip question: one Takeout in two parts, as the mockup', async () => {
+  const { zipAskCopy } = await import('./importCopy.js');
+  const zips = [{ name: 'takeout-20261019T091522Z-001.zip', size: 2.0 * GB }, { name: 'takeout-20261019T091522Z-002.zip', size: 1.9 * GB }];
+  const q = zipAskCopy({ zips, groups: [[0, 1]] });
+  assert.equal(q.kicker, 'Zip files');
+  assert.equal(q.title, 'Unpack these into clusters?');
+  assert.equal(q.sub, '2 zips · 3.9 GB · one Google Takeout export');
+  assert.deepEqual(q.rows, [{ name: 'takeout-20261019T091522Z-001.zip', size: '2.0 GB' }, { name: 'takeout-20261019T091522Z-002.zip', size: '1.9 GB' }]);
+  assert.equal(q.lede, 'Unpacked, the two parts become one tree: every folder in it becomes a cluster, and its files go to that cluster’s Files.');
+  assert.equal(q.note, 'Or add them as two zip files, each kept whole in Files.');
+  assert.deepEqual(q.actions.map((a) => [a.id, a.label, a.tone]), [['keep', 'Add as 2 zip files', null], ['unpack', 'Unpack into clusters', 'default']]);
+  assert.equal(q.more, null);
+});
+
+test('the zip question: one zip, unrelated zips, and a long list', async () => {
+  const { zipAskCopy } = await import('./importCopy.js');
+  const one = zipAskCopy({ zips: [{ name: 'Lookbook.zip', size: 300 * 1024 ** 2 }], groups: [[0]] });
+  assert.deepEqual([one.kicker, one.title, one.sub], ['Zip file', 'Unpack this into clusters?', '1 zip · 300 MB']);
+  assert.equal(one.note, 'Or add it as a zip file, kept whole in Files.');
+  assert.equal(one.actions[0].label, 'Add as a zip file');
+  const two = zipAskCopy({ zips: [{ name: 'a.zip', size: 1 }, { name: 'b.zip', size: 1 }], groups: [[0], [1]] });
+  assert.match(two.lede, /^Unpacked, each zip becomes a cluster/);
+  const drive = zipAskCopy({ zips: [{ name: 'drive-download-20261019T091522Z-001.zip', size: 1 }, { name: 'drive-download-20261019T091522Z-002.zip', size: 1 }], groups: [[0, 1]] });
+  assert.match(drive.sub, /one Google Drive download$/);
+  const lots = zipAskCopy({ zips: Array.from({ length: 12 }, (_, i) => ({ name: `p${i}.zip`, size: GB })), groups: Array.from({ length: 12 }, (_, i) => [i]) });
+  assert.equal(lots.rows.length, 4);
+  assert.equal(lots.more, 'and 8 more');
+  assert.equal(lots.note, 'Or add them as 12 zip files, each kept whole in Files.');
+  assert.doesNotMatch(JSON.stringify([one, two, lots]), /\b(he|she|his|her|they|their)\b/i);
+});
+
+test('a zip entry that fails says why, never "too large for this plan"', async () => {
+  const { failReason } = await import('./importCopy.js');
+  assert.equal(failReason('Entry inflates to more than its declared size.'), 'Damaged inside the zip');
+  assert.equal(failReason('Entry failed its checksum.'), 'Damaged inside the zip');
+  assert.equal(failReason('Too large to unpack here (4 GB in the zip)'), 'Too large to unpack here — unzip it on your computer');
+  assert.equal(failReason('This browser cannot decompress zip entries.'), 'This browser can’t unpack it');
+  assert.equal(failReason('File too large'), 'Too large for this plan');
+});
