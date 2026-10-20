@@ -20,7 +20,7 @@
 
 import { handleTagsRoute } from './worker-tags.js';
 import { handleClustersRoute } from './worker-clusters.js';
-import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
+import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
 import { handleApiRoute } from './worker-api.js';
@@ -1043,6 +1043,10 @@ const worker = {
       ctx.waitUntil(runWebhooks(env, { limit: 200 }));
     } else if (which === '15 * * * *') {
       ctx.waitUntil(runCompactionJob1(env));
+      // IndexNow (0480): the first tick on a build production has not pinged
+      // for tells Bing and Yandex which sitemap pages changed; every later tick
+      // is one indexed read that finds the ping already made.
+      ctx.waitUntil(runIndexNowForBuild(env, { sha: BUILD_SHA, date: BUILD_DATE }, () => sitemapUrls(env)));
     } else if (which === '0 4 * * *') {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
       // then the history-aware orphan sweep. Sequential so R2 ops don't spike.
@@ -2316,6 +2320,22 @@ export function buildLandingJsonLd(spec, url) {
 // MUST never 500 or shrink to empty (Google reads a sudden empty sitemap as a
 // deindex signal): on RPC failure we still emit the static set. Short-cached.
 async function handleSitemap(env, request) {
+  const urls = await sitemapUrls(env);
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
+    + urls.map((u) => `  <url><loc>${escapeHtml(u.loc)}</loc>`
+        + (u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : '')
+        + (u.changefreq ? `<changefreq>${u.changefreq}</changefreq>` : '')
+        + (u.priority ? `<priority>${u.priority}</priority>` : '')
+        + `</url>`).join('\n')
+    + `\n</urlset>\n`;
+  return sitemapResponse(body, request);
+}
+
+// The sitemap's entries, shared by the XML above and the cron's IndexNow ping
+// for a new build (runIndexNowForBuild), so the two can never disagree about
+// which pages exist or when each one last changed.
+async function sitemapUrls(env) {
   // lastmod policy: HONEST dates only (fabricated per-deploy freshness trains
   // Google to ignore the field). Landings carry their spec's `updated`; the
   // homepage the date its copy last changed; /explore the newest board;
@@ -2373,15 +2393,7 @@ async function handleSitemap(env, request) {
       priority: '0.7',
     });
   }
-  const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
-    + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
-    + urls.map((u) => `  <url><loc>${escapeHtml(u.loc)}</loc>`
-        + (u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : '')
-        + (u.changefreq ? `<changefreq>${u.changefreq}</changefreq>` : '')
-        + (u.priority ? `<priority>${u.priority}</priority>` : '')
-        + `</url>`).join('\n')
-    + `\n</urlset>\n`;
-  return sitemapResponse(body, request);
+  return urls;
 }
 
 // Shared sitemap response: strong ETag (content hash) + 304 support so

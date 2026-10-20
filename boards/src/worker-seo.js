@@ -63,7 +63,8 @@ function cors204() {
   });
 }
 
-// REST helpers (service-role) — used after the admin gate passes.
+// REST helpers (service-role) — used after the admin gate passes, and by the
+// cron's build ping (runIndexNowForBuild), which has no caller to gate.
 async function sbGet(env, path) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
     headers: {
@@ -89,6 +90,20 @@ async function sbUpsert(env, table, rows, onConflict) {
     signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error(`sbUpsert ${table} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+}
+async function sbInsert(env, table, row) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+      prefer: 'return=minimal',
+    },
+    body: JSON.stringify(row),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`sbInsert ${table} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
 }
 
 // Returns the caller's tier, or null if it cannot be established. Every caller
@@ -204,24 +219,99 @@ export function resolveIndexNowUrls(body) {
   return out;
 }
 
+// One POST to IndexNow → its HTTP status. Throws on a network failure or a
+// timeout; the caller decides what a non-2xx means.
+async function submitIndexNow(urlList) {
+  const res = await fetch('https://api.indexnow.org/indexnow', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      host: 'clusters.soleilpictures.com',
+      key: INDEXNOW_KEY,
+      keyLocation: `${SITE_ORIGIN}/${INDEXNOW_KEY}.txt`,
+      urlList,
+    }),
+    signal: AbortSignal.timeout(8_000),
+  });
+  return res.status;
+}
+
 async function handleIndexNow(env, body) {
   const urlList = resolveIndexNowUrls(body);
   if (!urlList.length) return json({ error: 'a valid slug, known public paths, or all:true required' }, 400);
   try {
-    const res = await fetch('https://api.indexnow.org/indexnow', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({
-        host: 'clusters.soleilpictures.com',
-        key: INDEXNOW_KEY,
-        keyLocation: `${SITE_ORIGIN}/${INDEXNOW_KEY}.txt`,
-        urlList,
-      }),
-      signal: AbortSignal.timeout(8_000),
-    });
-    return json({ submitted: urlList, count: urlList.length, status: res.status, note: 'Bing/Yandex only — Google ignores IndexNow.' });
+    const status = await submitIndexNow(urlList);
+    return json({ submitted: urlList, count: urlList.length, status, note: 'Bing/Yandex only — Google ignores IndexNow.' });
   } catch (e) {
     return json({ submitted: urlList, count: urlList.length, error: String(e?.message || e).slice(0, 120) });
+  }
+}
+
+// ── IndexNow for a new production build (0480) ──────────────────────────────
+// The admin button above is the only other way Bing hears about a change, and
+// in practice nobody pressed it. The Worker's hourly cron calls this instead:
+// the first tick on a build production has not pinged for submits the pages
+// whose sitemap lastmod moved since the last successful ping, and records the
+// attempt in indexnow_pings.
+//
+// "Moved" is a diff against the lastmod map the last ping stored, not a date
+// cutoff, because production is promoted by cherry-pick: a page edited on main
+// a week ago can reach production today carrying an `updated` older than the
+// previous ping. The first ping has nothing to diff against and submits the
+// whole sitemap once. Pages with no honest lastmod (/pricing, /legal/*) are
+// only ever in that first submission — the sitemap policy, not a gap here.
+//
+// Crons run only on the deployed Worker, never on a preview version, so this
+// cannot announce a build production is not serving.
+const INDEXNOW_OK = new Set([200, 202]);   // 202: received, key check pending
+const INDEXNOW_ATTEMPTS = 3;               // per build, an hour apart
+const INDEXNOW_MAX_URLS = 10_000;          // the protocol's per-request ceiling
+
+// Pure: the last successful ping's { loc: lastmod } map (null on the first run)
+// and the sitemap's entries → this build's map and the URLs to submit.
+// Exported for src/lib/indexCoverage.test.mjs.
+export function indexNowDiff(prev, entries) {
+  const lastmods = {};
+  for (const e of entries || []) {
+    if (typeof e?.loc === 'string' && e.loc) lastmods[e.loc] = e.lastmod || null;
+  }
+  const locs = Object.keys(lastmods);
+  const changed = prev && typeof prev === 'object'
+    ? locs.filter((loc) => !Object.prototype.hasOwnProperty.call(prev, loc) || prev[loc] !== lastmods[loc])
+    : locs;
+  return { lastmods, changed: changed.slice(0, INDEXNOW_MAX_URLS) };
+}
+
+export async function runIndexNowForBuild(env, build, getEntries) {
+  if (!env?.SUPABASE_SERVICE_ROLE_KEY) return;
+  const sha = String(build?.sha || '');
+  if (!/^[0-9a-f]{7,40}$/.test(sha)) return;   // an unstamped build ('dev', 'unknown')
+  try {
+    const mine = await sbGet(env, `indexnow_pings?build_sha=eq.${sha}&select=ok`);
+    if (mine.some((r) => r.ok) || mine.length >= INDEXNOW_ATTEMPTS) return;
+    const [base] = await sbGet(env, 'indexnow_pings?ok=is.true&select=lastmods&order=pinged_at.desc&limit=1');
+    const { lastmods, changed } = indexNowDiff(base?.lastmods ?? null, await getEntries());
+    // build_date is a date column: anything else would fail the insert, and a
+    // build with no row is pinged again on the next tick.
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(build?.date || '')) ? build.date : null;
+    const row = { build_sha: sha, build_date: date, sent: changed.length, urls: changed.slice(0, 500) };
+    if (!changed.length) {
+      row.ok = true;
+    } else {
+      try {
+        row.status = await submitIndexNow(changed);
+        row.ok = INDEXNOW_OK.has(row.status);
+      } catch (e) {
+        row.ok = false;
+        row.error = String(e?.message || e).slice(0, 300);
+      }
+    }
+    // Only a ping that landed becomes the next build's baseline.
+    if (row.ok) row.lastmods = lastmods;
+    await sbInsert(env, 'indexnow_pings', row);
+    console.log(`[indexnow] build ${sha}: ${changed.length} URL(s), ${row.ok ? 'ok' : 'failed'} ${row.status ?? row.error ?? ''}`);
+  } catch (e) {
+    console.error('[indexnow] build ping failed:', e?.message || e);
   }
 }
 
