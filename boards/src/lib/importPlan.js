@@ -35,7 +35,10 @@ import { MEDIA_SLACK_BYTES } from './importPreflight.js';
 // board_state's base64), which the room re-flushes whole on every change.
 // Every /append and /patch opens the whole doc, so one cluster's import moves
 // ~33 MB over its life at 2,000, but ~206 MB at 5,000 and ~0.8 GB at 10,000:
-// the cost grows as the square.
+// the cost grows as the square. And every write of board_state re-parses the
+// whole doc for its image keys (recompute_image_refs): ~58 ms at 2,000, ~147
+// ms at 5,000, measured on the database, paid again on every later edit of
+// that cluster, not only during the import.
 export const CLUSTER_FILE_CEILING = 2000;
 
 // null / undefined / NaN / Infinity / non-numbers → unlimited; negatives → 0.

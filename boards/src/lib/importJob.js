@@ -61,7 +61,11 @@ import { MEDIA_SLACK_BYTES } from './importPreflight.js';
 import { MOSAIC_PICS } from './coverMosaic.js';
 
 export const JOB_LIMITS = Object.freeze({
-  createRows: 500,        // clusters per import_create_clusters call (its own cap)
+  // Clusters per import_create_clusters call. It takes 500, but each costs
+  // ~6 ms of triggers (M5, 2026-10-20), autotagging growing with the
+  // workspace's tags, and a call is one statement under the 8 s timeout:
+  // 100 keeps it far inside for a workspace with hundreds of tags.
+  createRows: 100,
   appendBatch: 100,       // cards per /append (the route takes 200)
   batchBytes: 1024 ** 3,  // and about 1 GB a batch, so a pending card waits minutes, not hours
   uploads: 4,             // files in flight
