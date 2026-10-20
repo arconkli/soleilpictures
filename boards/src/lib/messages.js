@@ -133,13 +133,17 @@ export async function fetchMessageById(id) {
 
 // ── Send / Edit / Delete ────────────────────────────────────────────
 
+// `id`, when given, is the one the sender's bubble already shows
+// (messageStore.newMessageId): a retry of a send whose answer was lost fails
+// with 23505 instead of saving the message twice.
 export async function sendMessage({
-  workspaceId, conversationId, senderId, senderEmail,
+  id = null, workspaceId, conversationId, senderId, senderEmail,
   parentId, body, attachments = [], mentions = [], kind = 'user',
 }) {
   // sender_email is also stamped server-side via the
   // messages_set_sender_email trigger (migration 0019).
   const row = {
+    ...(id ? { id } : {}),
     workspace_id: workspaceId,
     conversation_id: conversationId,
     sender_id: senderId,

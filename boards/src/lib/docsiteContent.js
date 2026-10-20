@@ -31658,6 +31658,22 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Edits and deletes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edits and deletes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — your own messages; a deleted message goes at once, with Undo on the notice that follows"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Permalinks",
       "children": [
        {

@@ -209,6 +209,8 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   const confirmSend = useCallback((opId, row) => settle(opId, { row }), [settle]);
   const patchLocal = useCallback((id, patch) => addWrite(patchWrite(id, patch)), [addWrite]);
   const removeLocal = useCallback((id) => addWrite(removeWrite(id)), [addWrite]);
+  // Put a known row back (a delete's Undo).
+  const upsertLocal = useCallback((row) => addWrite(upsertWrite(row)), [addWrite]);
 
   // Rows a peer's nudge named, re-read from the database. A message older than
   // what is loaded stays off screen until the reader pages back to it.
@@ -350,6 +352,6 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   return {
     messages: view, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed,
     loading: !!conversationId && loadedFor !== conversationId,
-    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, settle, rollback,
+    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback,
   };
 }

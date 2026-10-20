@@ -72,3 +72,82 @@ test('a message from a peer appears in the open thread', async ({ page }) => {
   await qa(page, (id) => window.__msgQa.peer(id).send('c-maya', 'ping'), MAYA);
   await expect(page.locator('.msg-bubble-body', { hasText: /^ping$/ })).toBeVisible();
 });
+
+// ── Optimistic actions (C2.3) ──────────────────────────────────────────
+const bubble = (page, text) => page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: text }) }).last();
+async function send(page, text) {
+  const input = page.locator('.msg-composer-input');
+  await input.fill(text);
+  await input.press('Enter');
+  return bubble(page, text);
+}
+// Reads of the thread's newest page (200 rows), not the pinned list or a nudge's by-id read.
+const pageReads = (page) => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'select:messages' && c.args?.limit === 200).length);
+
+test('a send shows at once and keeps its element when the server confirms it, with no thread re-read', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await qa(page, () => window.__msgQa.setLatency({ 'insert:messages': 700 }));
+  const before = await pageReads(page);
+  const b = await send(page, 'optimistic hello');
+  await expect(b).toBeVisible({ timeout: 300 });
+  const handle = await b.elementHandle();
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'optimistic hello'))).toBe(true);
+  await expect(b.locator('.msg-bubble-time', { hasText: 'Sending…' })).toHaveCount(0);
+  expect(await handle.evaluate((n) => n.isConnected)).toBe(true);
+  await page.waitForTimeout(400);
+  expect(await pageReads(page)).toBe(before);
+});
+
+test('a failed send stays with Retry, and Retry saves it exactly once', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await qa(page, () => window.__msgQa.failNext('insert:messages'));
+  const b = await send(page, 'flaky send');
+  await expect(b.locator('.msg-bubble-failed')).toBeVisible();
+  await b.locator('.msg-bubble-failed button', { hasText: 'Retry' }).click();
+  await expect(b.locator('.msg-bubble-failed')).toHaveCount(0);
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.filter((m) => m.body === 'flaky send').length)).toBe(1);
+});
+
+test('a reaction shows before the server answers and rolls back with a toast when refused', async ({ page }) => {
+  await open(page, 'conv=c-cast');
+  await qa(page, () => window.__msgQa.setLatency({ 'rpc:toggle_message_reaction': 700 }));
+  const fire = bubble(page, 'Leaning toward the second one.').locator('.msg-reaction', { hasText: '🔥' });
+  await expect(fire.locator('.msg-reaction-count')).toHaveText('1');
+  await fire.click();
+  await expect(fire.locator('.msg-reaction-count')).toHaveText('2', { timeout: 300 });
+  await qa(page, () => window.__msgQa.failNext('rpc:toggle_message_reaction'));
+  await fire.click();
+  await expect(fire.locator('.msg-reaction-count')).toHaveText('1', { timeout: 300 });
+  await expect(fire.locator('.msg-reaction-count')).toHaveText('2');
+  await expect(page.locator('.toast-msg', { hasText: "Couldn't save your reaction" })).toBeVisible();
+});
+
+test('delete asks nothing, goes at once, and Undo brings it back', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const b = await send(page, 'delete me');
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'delete me'))).toBe(true);
+  await b.hover();
+  await b.locator('button[title="Delete"]').click();
+  await expect(page.locator('.feedback-dialog')).toHaveCount(0);
+  await expect(page.locator('.msg-bubble-body', { hasText: 'delete me' })).toHaveCount(0);
+  await page.locator('.toast-action', { hasText: 'Undo' }).click();
+  await expect(page.locator('.msg-bubble-body', { hasText: 'delete me' })).toBeVisible();
+  await expect.poll(() => qa(page, () => { const m = window.__msgQa.db.messages.find((x) => x.body === 'delete me'); return m ? m.deleted_at : 'gone'; })).toBe(null);
+});
+
+test('a failed edit shows at once, then reopens the editor with your text', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const b = await send(page, 'before edit');
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'before edit'))).toBe(true);
+  // Editing replaces the body with the editor: hold on to the bubble by its id.
+  const id = await b.getAttribute('data-msg-id');
+  const row = page.locator(`[data-msg-id="${id}"]`);
+  await qa(page, () => window.__msgQa.failNext('update:messages'));
+  await row.hover();
+  await row.locator('button[title="Edit"]').click();
+  await row.locator('textarea').fill('after edit');
+  await row.locator('textarea').press('Enter');
+  await expect(row.locator('textarea')).toHaveValue('after edit');
+  await expect(page.locator('.toast-msg', { hasText: 'Could not save your edit' })).toBeVisible();
+  expect(await qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'after edit'))).toBe(false);
+});

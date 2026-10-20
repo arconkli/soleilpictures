@@ -3350,7 +3350,7 @@ A: They are archived rather than deleted, so the record of a decision survives.
 ========================================================================
 # Messages
 URL: https://clusters.soleilpictures.com/docs/collaborate/messages
-Updated: 2026-08-08
+Updated: 2026-10-20
 
 Messages is a drawer for direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.
 
@@ -3372,6 +3372,7 @@ Attachments — send files, and drag one from a thread straight onto a canvas to
 Markdown and auto-links — formatting is rendered, URLs unfurl
 Mentions — @ a person, board, document or card; boards and cards become navigable links
 Per-thread drafts — a half-written message survives closing the drawer
+Edits and deletes — your own messages; a deleted message goes at once, with Undo on the notice that follows
 Permalinks — a link to one specific message, which opens the thread scrolled to it
 
 Unread

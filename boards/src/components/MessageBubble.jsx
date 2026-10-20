@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
 import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download } from '../lib/icons.js';
 import { EmojiPalette } from './EmojiPalette.jsx';
@@ -84,11 +84,18 @@ export function MessageBubble({
     return () => document.removeEventListener('soleil-msg-edit', onEditRequest);
   }, [canEdit, msg.id, msg.body]);
 
+  // The edit closes at once and shows (the thread applies it optimistically);
+  // a save that fails reopens it with your text (onEdit resolves false).
+  const savingRef = useRef(false);
   const submitEdit = async () => {
     const v = editBody.trim();
-    if (!v) return;
-    await onEdit?.(msg, v);
+    if (!v || savingRef.current) return;
+    if (v === msg.body) { setEditing(false); return; }
+    savingRef.current = true;
     setEditing(false);
+    const ok = await onEdit?.(msg, v);
+    savingRef.current = false;
+    if (ok === false) { setEditBody(v); setEditing(true); }
   };
 
   // iMessage-style parent preview shown on replies. Click → parent flashes

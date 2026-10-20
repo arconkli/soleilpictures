@@ -2,7 +2,7 @@
 
 > Messages is a drawer for direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/messages · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/messages · Updated 2026-10-20_
 
 Messaging exists so that the conversation about a board can happen next to the
 board.
@@ -25,6 +25,7 @@ Direct and group conversations in one list, ordered by recency.
 - **Markdown and auto-links** — formatting is rendered, URLs unfurl
 - **[Mentions](/docs/organize/links-and-mentions)** — `@` a person, board, document or card; boards and cards become navigable links
 - **Per-thread drafts** — a half-written message survives closing the drawer
+- **Edits and deletes** — your own messages; a deleted message goes at once, with Undo on the notice that follows
 - **Permalinks** — a link to one specific message, which opens the thread scrolled to it
 
 ## Unread

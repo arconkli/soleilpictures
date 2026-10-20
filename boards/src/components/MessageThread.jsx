@@ -6,7 +6,7 @@ import { useMessageThread } from '../hooks/useMessageThread.js';
 import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
-  searchMessagesInConversation,
+  searchMessagesInConversation, fetchMessagesByIds,
   fetchReplies, replyCountsFor, togglePin,
   listPinnedForConversation,
   addParticipants, leaveConversation, rejoinConversation, renameConversation,
@@ -24,6 +24,7 @@ import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
+import { newMessageId, toggleReactionMap } from '../lib/messageStore.js';
 import { showingConversation } from '../lib/threadAttention.js';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
@@ -51,7 +52,10 @@ export function MessageThread({
   // The dev QA harness's rows, when it provides them (lib/messagesFixture.js).
   const fixture = useContext(MessagesFixtureContext);
 
-  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading } = useMessageThread({
+  const {
+    messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading,
+    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback,
+  } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
   });
@@ -415,116 +419,139 @@ export function MessageThread({
   }, [messages, replyParent]);
 
   // ── Send / Edit / Delete / React / Reply / Pin / Copy-link ──────────
-  // Optimistic sends: the message renders instantly with a "Sending…"
-  // state; on failure it flips to a failed bubble with Retry/Discard (the
-  // composer already cleared, so the bubble owns recovery — plus an error
-  // toast in case the user has scrolled away).
-  const [pendingMsgs, setPendingMsgs] = useState([]);
-  useEffect(() => { setPendingMsgs([]); }, [conversationId]);
+  // Everything shows before the server answers (useMessageThread's local
+  // writes). A send appears at once with the id the server will keep, so its
+  // bubble never remounts or changes shape when it's confirmed; a reaction,
+  // edit, pin or delete shows at once and rolls back, with a toast, if the
+  // server refuses it. A failed send stays in the thread with Retry/Discard
+  // (the composer already cleared, so the bubble owns recovery) plus a toast
+  // in case you've scrolled away.
+  const sendOpsRef = useRef(new Map()); // message id → its send's write
 
-  const deliverPending = useCallback(async (tmp) => {
+  const deliverPending = useCallback(async (row) => {
+    const opId = sendOpsRef.current.get(row.id);
+    let saved = null;
     try {
-      const inserted = await sendMessage({
+      saved = await sendMessage({
+        id: row.id,
         workspaceId, conversationId,
         senderId: userId,
         senderEmail: currentUser?.email || null,
-        parentId: tmp.parent_id,
-        body: tmp.body, attachments: tmp.attachments, mentions: tmp.mentions,
+        parentId: row.parent_id,
+        body: row.body, attachments: row.attachments, mentions: row.mentions,
       });
-      const payload = { ...inserted, sender_name: currentUser?.name || currentUser?.email };
-      await broadcastConversationMessage({ conversationId, payload });
-      // refetch resolves after setMessages, so the real row is in place
-      // before the optimistic one unmounts — no flicker gap.
-      await refetch();
-      setPendingMsgs(p => p.filter(x => x.id !== tmp.id));
-      onChanged?.();
     } catch (e) {
-      console.warn('send failed', e);
-      setPendingMsgs(p => p.map(x => x.id === tmp.id ? { ...x, sendState: 'failed' } : x));
-      feedback.toast({ type: 'error', message: "Message didn't send — it's kept in the thread with a Retry button." });
+      // A retry whose first try was saved after all (its answer was lost)
+      // hits the id it already has: show the stored message, not a copy.
+      if (e?.code === '23505') saved = (await fetchMessagesByIds({ conversationId, ids: [row.id] }))?.[0] || null;
+      if (!saved) {
+        console.warn('send failed', e);
+        markSendState(opId, 'failed');
+        feedback.toast({ type: 'error', message: "Message didn't send — it's kept in the thread with a Retry button." });
+        return;
+      }
     }
-  }, [workspaceId, conversationId, userId, currentUser, refetch, onChanged, feedback]);
+    sendOpsRef.current.delete(row.id);
+    confirmSend(opId, saved);
+    // Tell the others once it's saved, without waiting on the socket: a slow
+    // or failed broadcast must never make a saved message look unsent. They
+    // re-read it by id; the payload carries nothing else.
+    broadcastConversationMessage({ conversationId, payload: { id: saved.id, sender_id: saved.sender_id } })
+      .then(null, (e) => console.warn('send broadcast failed', e));
+    onChanged?.();
+  }, [workspaceId, conversationId, userId, currentUser, markSendState, confirmSend, onChanged, feedback]);
 
   const handleSend = useCallback(async ({ body, attachments, mentions }) => {
     if (!conversationId) return false;
-    const tmp = {
-      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    const row = {
+      id: newMessageId(),
+      conversation_id: conversationId,
+      workspace_id: workspaceId,
+      kind: 'user',
       body, attachments, mentions,
       parent_id: replyParent?.id || null,
       sender_id: userId,
+      sender_email: currentUser?.email || null,
       sender_name: currentUser?.name || currentUser?.email,
+      reactions: {},
       created_at: new Date().toISOString(),
-      sendState: 'sending',
     };
-    setPendingMsgs(p => [...p, tmp]);
+    sendOpsRef.current.set(row.id, sendLocal(row));
     wasAtBottomRef.current = true;
-    deliverPending(tmp);
+    deliverPending(row);
     return true;
-  }, [conversationId, replyParent, userId, currentUser, deliverPending]);
+  }, [conversationId, workspaceId, replyParent, userId, currentUser, sendLocal, deliverPending]);
 
   const retryPending = useCallback((msg) => {
-    setPendingMsgs(p => p.map(x => x.id === msg.id ? { ...x, sendState: 'sending' } : x));
+    markSendState(sendOpsRef.current.get(msg.id), 'sending');
     deliverPending(msg);
-  }, [deliverPending]);
+  }, [markSendState, deliverPending]);
   const discardPending = useCallback((msg) => {
-    setPendingMsgs(p => p.filter(x => x.id !== msg.id));
-  }, []);
+    rollback(sendOpsRef.current.get(msg.id));
+    sendOpsRef.current.delete(msg.id);
+  }, [rollback]);
 
   const handleDelete = useCallback(async (msg) => {
-    // ("This can't be undone" was a lie — messages soft-delete via
-    // deleted_at. Keep the confirm because deletion is peer-visible, but be
-    // honest, and offer the Undo the mechanism always allowed.)
-    const ok = await feedback.confirm({
-      title: 'Delete message',
-      message: 'Delete this message? You can undo for a few seconds after.',
-      confirmLabel: 'Delete',
-      danger: true,
-    });
-    if (!ok) return;
+    // No confirm: it goes at once and the toast's Undo brings it back (the
+    // house convention for deleting). Messages soft-delete via deleted_at.
+    const opId = removeLocal(msg.id);
     try {
       await deleteMessage({ id: msg.id });
-      refetch();
-      // Peers only learn of a change already in the thread from a nudge:
-      // messages aren't in the realtime publication (COMMS-04).
-      broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
-      undoToast(feedback, {
-        message: 'Message deleted',
-        onUndo: async () => {
-          try {
-            await restoreMessage({ id: msg.id });
-            refetch();
-            broadcastConversationChange({ conversationId, changed: 'restore', id: msg.id });
-          }
-          catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' }); }
-        },
-      });
     } catch (e) {
       console.warn('delete failed', e);
+      rollback(opId);
       feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });
+      return;
     }
-  }, [conversationId, refetch, feedback]);
+    settle(opId);
+    // Peers only learn of a change already in the thread from a nudge:
+    // messages aren't in the realtime publication (COMMS-04).
+    broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
+    undoToast(feedback, {
+      message: 'Message deleted',
+      onUndo: async () => {
+        const back = upsertLocal({ ...msg, deleted_at: null });
+        try {
+          await restoreMessage({ id: msg.id });
+          settle(back);
+          broadcastConversationChange({ conversationId, changed: 'restore', id: msg.id });
+        }
+        catch (e) {
+          rollback(back);
+          feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' });
+        }
+      },
+    });
+  }, [conversationId, removeLocal, upsertLocal, settle, rollback, feedback]);
 
+  // Resolves false when the save failed, so the bubble reopens with your text.
   const handleEdit = useCallback(async (msg, newBody) => {
+    const opId = patchLocal(msg.id, { body: newBody, edited_at: new Date().toISOString() });
     try {
       await editMessage({ id: msg.id, body: newBody });
-      refetch();
-      broadcastConversationChange({ conversationId, changed: 'edit', id: msg.id });
     } catch (e) {
       console.warn('edit failed', e);
+      rollback(opId);
       feedback.toast({ type: 'error', message: 'Could not save your edit — try again.' });
+      return false;
     }
-  }, [conversationId, refetch, feedback]);
+    settle(opId);
+    broadcastConversationChange({ conversationId, changed: 'edit', id: msg.id });
+    return true;
+  }, [conversationId, patchLocal, settle, rollback, feedback]);
 
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
+    const opId = patchLocal(msg.id, { reactions: toggleReactionMap(msg.reactions, emoji, userId) });
     try {
-      await toggleReaction({ messageId: msg.id, emoji, userId });
-      refetch();
+      const reactions = await toggleReaction({ messageId: msg.id, emoji, userId });
+      settle(opId, reactions && typeof reactions === 'object' ? { patch: { reactions } } : {});
       broadcastConversationChange({ conversationId, changed: 'react', id: msg.id });
     } catch (e) {
+      rollback(opId);
       feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
     }
-  }, [conversationId, userId, refetch, feedback]);
+  }, [conversationId, userId, patchLocal, settle, rollback, feedback]);
 
   const handleReply = useCallback((msg) => {
     setReplyParent(msg);
@@ -532,14 +559,19 @@ export function MessageThread({
   }, []);
 
   const handlePin = useCallback(async (msg) => {
+    const opId = patchLocal(msg.id, { is_pinned: !msg.is_pinned });
     try {
-      await togglePin(msg.id);
-      refetch();
+      const isPinned = await togglePin(msg.id);
+      settle(opId, { patch: { is_pinned: isPinned } });
       broadcastConversationChange({ conversationId, changed: 'pin', id: msg.id });
       const rows = await listPinnedForConversation({ conversationId });
       setPinned(rows);
-    } catch (e) { console.warn('pin failed', e); }
-  }, [conversationId, refetch]);
+    } catch (e) {
+      console.warn('pin failed', e);
+      rollback(opId);
+      feedback.toast({ type: 'error', message: msg.is_pinned ? "Couldn't unpin the message — try again." : "Couldn't pin the message — try again." });
+    }
+  }, [conversationId, patchLocal, settle, rollback, feedback]);
 
   // Say whether it worked: a silent copy left you guessing (COMMS-24).
   const handleCopyLink = useCallback(async (msg) => {
@@ -841,7 +873,7 @@ export function MessageThread({
                 onAttachmentDragStart={handleAttachmentDragStart}
               />
             ))}
-            {pendingMsgs.filter(m => m.parent_id === replyParent.id).map(m => (
+            {messages.filter(m => m.sendState && m.parent_id === replyParent.id).map(m => (
               <MessageBubble key={m.id} msg={m} selfId={userId}
                 onRetrySend={retryPending} onDiscardSend={discardPending} />
             ))}
@@ -867,11 +899,9 @@ export function MessageThread({
                 onReply={handleReply}
                 onPin={handlePin}
                 onCopyLink={handleCopyLink}
+                onRetrySend={retryPending}
+                onDiscardSend={discardPending}
               />
-            ))}
-            {pendingMsgs.filter(m => !m.parent_id).map(m => (
-              <MessageBubble key={m.id} msg={m} selfId={userId}
-                onRetrySend={retryPending} onDiscardSend={discardPending} />
             ))}
             {typingUsers.size > 0 && (
               <div className="msg-typing">
