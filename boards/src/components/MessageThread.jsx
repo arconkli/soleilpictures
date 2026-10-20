@@ -7,6 +7,9 @@ import { useStickToBottom } from '../hooks/useStickToBottom.js';
 import { useLongPress } from '../hooks/useLongPress.js';
 import { swallowNextClick } from '../lib/swallowClick.js';
 import { MessageActionSheet } from './MessageActionSheet.jsx';
+import { MessageMenu } from './MessageMenu.jsx';
+import { MessagePinsPopover } from './MessagePinsPopover.jsx';
+import { MessageFaces } from './MessageFaces.jsx';
 import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
@@ -22,7 +25,7 @@ import { MessageBubble } from './MessageBubble.jsx';
 import { RelTime } from './RelTime.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
 import { finePointer } from '../lib/composerKeys.js';
-import { lastEditableMessage } from '../lib/messageEdit.js';
+import { lastEditableMessage, withinEditWindow } from '../lib/messageEdit.js';
 import { snippetParts } from '../lib/messageSearchSnippet.js';
 import { useDraftValue } from '../hooks/useDraft.js';
 import { replyTarget, updateDraft } from '../lib/draftStore.js';
@@ -35,14 +38,14 @@ import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
 import { newMessageId, toggleReactionMap } from '../lib/messageStore.js';
-import { buildFeedItems, selectSeenMessageId } from '../lib/messageFeed.js';
+import { buildFeedItems, selectSeenMessageId, typingLabel } from '../lib/messageFeed.js';
 import { showingConversation } from '../lib/threadAttention.js';
 import { usePanelPresence } from './MessagesPresence.jsx';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
 import { isDmConversation } from '../lib/conversationState.js';
 import { useMessagesLook } from './messagesLook.js';
-import { membersLine } from '../lib/messagesCard.js';
+import { membersLine, dmSubline } from '../lib/messagesCard.js';
 import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -64,6 +67,7 @@ export function MessageThread({
   workspaceId, currentUser, conversation,
   onBack, onClose, onChanged, jumpToMessageId, onJumpConsumed,
   canSend = true, readOnlyReason = null, lastReadAt,
+  peerHere = false, // a DM's other person is in the workspace now (the card look's "Here now")
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
@@ -151,11 +155,27 @@ export function MessageThread({
     return u?.name || u?.email || 'Member';
   });
   const titleText = conversation?.title || (peerLabels.length ? peerLabels.join(', ') : 'New conversation');
+  // The card look's faces: the people in it besides you.
+  const peerPeople = peers.map(p => {
+    const u = userProfiles.get(p.user_id);
+    return { id: p.user_id, name: u?.name || u?.email || 'Member', color: u?.color || pickPresenceColor(p.user_id || '') };
+  });
+  const firstPeer = (peerLabels[0] || '').split(/[\s@]/)[0];
   // A first name for "Replying to …": you, or whoever wrote it.
   const replyName = (uid) => {
     if (uid === userId) return 'yourself';
     const u = userProfiles.get(uid);
     return (u?.name || u?.email || 'Member').split(/[\s@]/)[0];
+  };
+  // A face for someone in the card look: theirs, or yours.
+  const faceOf = (uid) => {
+    const u = userProfiles.get(uid);
+    const mine = uid === userId;
+    return {
+      id: uid,
+      name: u?.name || u?.email || (mine ? currentUser?.name || currentUser?.email : '') || 'Member',
+      color: u?.color || (mine ? currentUser?.color : null) || pickPresenceColor(uid || ''),
+    };
   };
   // Who wrote a search result.
   const senderName = (m) => {
@@ -519,9 +539,11 @@ export function MessageThread({
   // reply nor pinned; continuations drop their avatar/name/time header (see
   // MessageBubble's isContinuation). A message still sending is laid out
   // like the one it becomes, so it never changes shape when it's saved.
+  // The card look keeps a reply and a pin in their run: the quote sits inside
+  // the bubble, and "Pinned" in the line under it.
   const groupedMessages = useMemo(
-    () => buildFeedItems(messages, { selfId: userId, newAfter: newAfter || null }),
-    [messages, userId, newAfter],
+    () => buildFeedItems(messages, { selfId: userId, newAfter: newAfter || null, ...(card ? { breakOnPin: false, breakOnReply: false } : {}) }),
+    [messages, userId, newAfter, card],
   );
 
   // "Seen", in a DM only: under your newest message once the other person has
@@ -797,6 +819,65 @@ export function MessageThread({
     document.dispatchEvent(new CustomEvent('soleil-msg-edit', { detail: { id: msg.id } }));
   }, []);
 
+  // ── The card look: editing in the box, one menu, the pinned list ─────
+  // An edit happens in the box you type in, its message outlined in the
+  // thread: ↑ in an empty box, the `e` key, and a menu's or a sheet's Edit
+  // all ask for it (soleil-msg-edit). Saving shows at once; a save that
+  // fails reopens the edit with your words (handleEdit resolves false).
+  const [editingMsg, setEditingMsg] = useState(null); // { id, body, draft }
+  const messagesByIdRef = useRef(messagesById);
+  messagesByIdRef.current = messagesById;
+  const editingRef = useRef(null);
+  editingRef.current = editingMsg;
+  useEffect(() => {
+    if (!card) return undefined;
+    const onEditRequest = (e) => {
+      const m = messagesByIdRef.current.get(e.detail?.id);
+      if (!m || m.sender_id !== userId || m.sendState || !withinEditWindow(m.created_at)) return;
+      setEditingMsg({ id: m.id, body: m.body, draft: null });
+    };
+    document.addEventListener('soleil-msg-edit', onEditRequest);
+    return () => document.removeEventListener('soleil-msg-edit', onEditRequest);
+  }, [card, userId]);
+  // A message that goes (deleted here or by a peer) lets its edit go too.
+  useEffect(() => {
+    if (editingMsg && !messagesById.has(editingMsg.id)) setEditingMsg(null);
+  }, [editingMsg, messagesById]);
+  const cancelEdit = useCallback(() => setEditingMsg(null), []);
+  const saveEdit = useCallback(async (text) => {
+    const m = editingRef.current && messagesByIdRef.current.get(editingRef.current.id);
+    setEditingMsg(null);
+    if (!m || text === m.body) return;
+    const ok = await handleEdit(m, text);
+    // Reopened with your words, unless you've started another edit meanwhile
+    // (the toast still says this one didn't save).
+    if (ok === false && !editingRef.current) setEditingMsg({ id: m.id, body: m.body, draft: text });
+  }, [handleEdit]);
+
+  // A message's actions are one menu, from its ⋯ (which toggles it) or a
+  // right click.
+  const [menuFor, setMenuFor] = useState(null); // { id, anchor, trigger }
+  const openMenu = useCallback((msg, anchor, trigger) => {
+    setMenuFor(cur => (cur && trigger && cur.trigger === trigger ? null : { id: msg.id, anchor, trigger }));
+  }, []);
+  // Shut from inside (an action, Escape): focus goes home, as when anything
+  // that held it goes away; a press elsewhere keeps where it went.
+  const settleFocus = useCallback((back) => {
+    if (!back) return;
+    requestAnimationFrame(() => { if (!rootRef.current?.contains(document.activeElement)) focusHome(); });
+  }, [focusHome]);
+  const closeMenu = useCallback((back) => { setMenuFor(null); settleFocus(back); }, [settleFocus]);
+  const menuMsg = menuFor ? messagesById.get(menuFor.id) || null : null;
+  // A message that goes (deleted here or by a peer) takes its menu with it,
+  // so an Undo doesn't bring the menu back where it was.
+  useEffect(() => { if (menuFor && !menuMsg) setMenuFor(null); }, [menuFor, menuMsg]);
+
+  // The pinned messages open from the count in the header.
+  const [pinsFor, setPinsFor] = useState(null); // { anchor, trigger }
+  const closePins = useCallback((back) => { setPinsFor(null); settleFocus(back); }, [settleFocus]);
+  // Unpinning the last one empties the list: it shuts, and focus goes home.
+  useEffect(() => { if (pinsFor && !pinned.length) closePins(true); }, [pinsFor, pinned.length, closePins]);
+
   const handleAttachmentDragStart = attachmentDragStart;
 
   // ── Group chat actions ───────────────────────────────────────────────
@@ -855,6 +936,10 @@ export function MessageThread({
 
   // ── Render ───────────────────────────────────────────────────────────
   const isEmpty = !searchOpen && messages.length === 0;
+  // Who's typing, for the card look's dots: first names, or one's full name.
+  const typingIds = [...typingUsers.keys()];
+  const typingNames = typingIds.map(id => (userProfiles.get(id)?.name || userProfiles.get(id)?.email || 'Someone').split(/[\s@]/)[0]);
+  const typingFull = typingIds.length === 1 ? (userProfiles.get(typingIds[0])?.name || typingNames[0]) : '';
   const subtitle = isDm ? 'DIRECT MESSAGE' : 'GROUP CHAT';
 
   const showPinned = !searchOpen && pinned.length > 0;
@@ -866,6 +951,30 @@ export function MessageThread({
          onFocus={(e) => { lastFocusRef.current = e.target; }}
          onBlur={(e) => dropFocusIfOutside(e.relatedTarget)}>
       <div className="msg-panel-head">
+        {card && searchOpen ? (
+          // The card look searches in the header: the field, then Done.
+          <>
+            <label className="msg-search is-head">
+              <Icon as={Search} size={15} weight="regular" />
+              <input
+                ref={searchInputRef}
+                className="msg-search-input"
+                placeholder={`Search ${titleText}`}
+                aria-label="Search this conversation"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button type="button" className="msg-search-clear" aria-label="Clear the search"
+                        onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}>
+                  <Icon as={X} size={12} weight="regular" />
+                </button>
+              )}
+            </label>
+            <button type="button" className="msg-search-done" onClick={closeSearch}>Done</button>
+          </>
+        ) : (
+        <>
         <button
           className="msg-panel-icon"
           onClick={() => onBack?.()}
@@ -874,6 +983,7 @@ export function MessageThread({
         >
           <Icon as={ChevronLeft} size={14} />
         </button>
+        {card && <MessageFaces people={peerPeople} size={28} className="msg-panel-faces" />}
         <div className="msg-panel-title">
           {!card && <div className="t-eyebrow msg-panel-eyebrow">{subtitle}</div>}
           {renaming ? (
@@ -899,13 +1009,25 @@ export function MessageThread({
               {titleText}
             </button>
           )}
-          {card && (
+          {card && (isDm ? dmSubline(peerHere) : membersLine(peerLabels)) && (
             <div className="msg-panel-sub">
-              {isDm ? 'Direct message' : membersLine(peerLabels)}
+              {isDm ? dmSubline(peerHere) : membersLine(peerLabels)}
             </div>
           )}
         </div>
-        {!isDm && (
+        {card && pinned.length > 0 && (
+          <button
+            type="button"
+            className={`msg-pins-chip ${pinsFor ? 'is-active' : ''}`}
+            onClick={(e) => { const el = e.currentTarget; setPinsFor(cur => (cur ? null : { anchor: el.getBoundingClientRect(), trigger: el })); }}
+            title="Pinned messages"
+            aria-label={`${pinned.length} pinned message${pinned.length === 1 ? '' : 's'}`}
+            aria-expanded={!!pinsFor}
+          >
+            <Icon as={Pin} size={13} weight="regular" />{pinned.length}
+          </button>
+        )}
+        {!isDm && !card && (
           <button
             className="msg-panel-icon"
             onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
@@ -926,9 +1048,21 @@ export function MessageThread({
         >
           <Icon as={Search} size={14} />
         </button>
+        {!isDm && card && (
+          <button
+            className={`msg-panel-icon ${menuAnchor ? 'is-active' : ''}`}
+            onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
+            title="Conversation actions"
+            aria-label="Conversation actions"
+          >
+            <Icon as={MoreHorizontal} size={14} />
+          </button>
+        )}
         <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
           <Icon as={X} size={14} />
         </button>
+        </>
+        )}
       </div>
 
       {menuAnchor && (
@@ -960,7 +1094,7 @@ export function MessageThread({
         />
       )}
 
-      {searchOpen && (
+      {searchOpen && !card && (
         <div className="msg-search">
           <Icon as={Search} size={12} />
           <input
@@ -974,22 +1108,13 @@ export function MessageThread({
         </div>
       )}
 
-      {showPinned && (
+      {showPinned && !card && (
         <div className={`msg-pinned-strip ${pinnedExpanded ? 'is-expanded' : ''}`}>
-          {card ? (
-            // One row: the newest pin's words, then how many there are.
-            <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)} aria-expanded={pinnedExpanded}>
-              <Icon as={Pin} size={13} />
-              <span className="msg-pinned-text">{(pinned[pinned.length - 1]?.body || '').replace(/\s+/g, ' ').trim()}</span>
-              <span className="msg-pinned-n">{pinned.length} pinned</span>
-            </button>
-          ) : (
-            <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)}>
-              <Icon as={Pin} size={11} />
-              <span className="t-eyebrow">PINNED · {pinned.length}</span>
-              <span className="msg-pinned-chev">{pinnedExpanded ? '▾' : '▸'}</span>
-            </button>
-          )}
+          <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)}>
+            <Icon as={Pin} size={11} />
+            <span className="t-eyebrow">PINNED · {pinned.length}</span>
+            <span className="msg-pinned-chev">{pinnedExpanded ? '▾' : '▸'}</span>
+          </button>
           {pinnedExpanded && (
             <div className="msg-pinned-list">
               {pinned.map(p => (
@@ -1023,7 +1148,9 @@ export function MessageThread({
         {searchOpen && searchQuery.trim() ? (
           <>
             <div className="msg-search-summary t-meta">
-              {searching ? 'Searching…' : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
+              {searching ? 'Searching…' : card
+                ? `${searchResults.length} message${searchResults.length === 1 ? '' : 's'} in ${titleText}`
+                : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
             </div>
             {searchResults.length === 0 && !searching && (
               <div className="msg-empty">No matches for "{searchQuery}".</div>
@@ -1035,6 +1162,7 @@ export function MessageThread({
               const parts = snippetParts(m.body, searchQuery);
               return (
                 <button key={m.id} type="button" className="msg-search-result" onClick={() => { endSearch(true); jumpTo(m.id); }}>
+                  {card && <MessageFaces people={[faceOf(m.sender_id)]} size={26} />}
                   <span className="msg-search-result-head">
                     <span className="msg-search-result-who">{senderName(m)}</span>
                     <RelTime className="msg-search-result-time" iso={m.created_at} />
@@ -1057,14 +1185,25 @@ export function MessageThread({
             <button type="button" className="msg-retry-btn" onClick={() => refetch()}>Retry</button>
           </div>
         ) : isEmpty && loading ? (
-          // Still reading this conversation: not "No messages yet".
-          null
+          // Still reading this conversation: not "No messages yet". The card
+          // look shows the shape of a thread if the read takes a moment.
+          card ? <ThreadSkeleton /> : null
         ) : isEmpty ? (
-          <div className="msg-empty msg-empty-hero">
-            {!card && <SoleilMark size={32} color="var(--soleil)" glow />}
-            <div className="msg-empty-title">No messages yet</div>
-            <div className="msg-empty-sub">Say hi</div>
-          </div>
+          card ? (
+            <div className="msg-empty msg-empty-hero is-card">
+              <MessageFaces people={peerPeople} size={56} />
+              <div className="msg-empty-title">{titleText}</div>
+              <div className="msg-empty-sub">
+                {isDm && firstPeer ? `This is the start of your conversation with ${firstPeer}.` : `This is the start of ${titleText}.`}
+              </div>
+            </div>
+          ) : (
+            <div className="msg-empty msg-empty-hero">
+              <SoleilMark size={32} color="var(--soleil)" glow />
+              <div className="msg-empty-title">No messages yet</div>
+              <div className="msg-empty-sub">Say hi</div>
+            </div>
+          )
         ) : (
           <>
             {groupedMessages.map(g => g.kind === 'divider' ? (
@@ -1090,27 +1229,50 @@ export function MessageThread({
                 onRetrySend={retryPending}
                 onDiscardSend={discardPending}
                 seen={g.msg.id === seenId}
+                card={card}
+                inDm={isDm}
+                runStart={g.runStart}
+                joinUp={g.joinUp}
+                joinDown={g.joinDown}
+                runEnd={g.runEnd}
+                showTime={g.showTime}
+                editingHere={card && editingMsg?.id === g.msg.id}
+                menuOpen={card && menuFor?.id === g.msg.id}
+                onOpenMenu={card ? openMenu : undefined}
               />
             ))}
-            {typingUsers.size > 0 && (
+            {typingUsers.size > 0 && (card ? (
+              // The card look: a bubble of dots from them, named in a group.
+              <div className="msg-typing is-card" role="status" aria-label={typingLabel(typingNames)}>
+                {!isDm && <div className="msg-bubble-author">{typingNames.length === 1 ? typingFull : typingLabel(typingNames)}</div>}
+                <div className="msg-typing-bubble"><span className="msg-typing-dots"><span /><span /><span /></span></div>
+              </div>
+            ) : (
               <div className="msg-typing">
                 <span className="msg-typing-dots"><span /><span /><span /></span>
                 <span className="t-meta">{typingUsers.size === 1 ? 'Typing…' : `${typingUsers.size} typing…`}</span>
               </div>
-            )}
+            ))}
           </>
         )}
           <div className="msg-thread-end" ref={endRef} aria-hidden="true" />
         </div>
       </div>
 
-      {!searchOpen && !stick.stuck && (
+      {!searchOpen && !stick.stuck && (card ? (
+        // The card look: a round chip with how many are new on its corner.
+        <button type="button" className="msg-jump-pill is-round" onClick={jumpToBottom} title="Latest"
+                aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
+          <Icon as={ArrowDown} size={16} weight="regular" />
+          {unseenCount > 0 && <span className="msg-jump-n" aria-hidden="true">{unseenCount > 99 ? '99+' : unseenCount}</span>}
+        </button>
+      ) : (
         <button type="button" className="msg-jump-pill" onClick={jumpToBottom}
                 aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
           <Icon as={ArrowDown} size={13} />
           {unseenCount > 0 ? `${unseenCount} new message${unseenCount === 1 ? '' : 's'}` : 'Latest'}
         </button>
-      )}
+      ))}
       </div>
 
       {canSend ? (
@@ -1121,7 +1283,11 @@ export function MessageThread({
           workspaceId={workspaceId}
           userId={userId}
           draftKey={draftKey}
-          placeholder="Message…"
+          placeholder={card ? `Message ${isDm && firstPeer ? firstPeer : titleText}` : 'Message…'}
+          card={card}
+          editing={card ? editingMsg : null}
+          onSaveEdit={saveEdit}
+          onCancelEdit={cancelEdit}
           replyTo={replyTo}
           replyToName={replyTo ? replyName(replyTo.sender_id) : ''}
           onCancelReply={() => setReplyTo(null)}
@@ -1129,6 +1295,36 @@ export function MessageThread({
         />
       ) : (
         <ReadOnlyComposerNotice reason={readOnlyReason} />
+      )}
+
+      {menuMsg && (
+        <MessageMenu
+          msg={menuMsg}
+          selfId={userId}
+          anchor={menuFor.anchor}
+          trigger={menuFor.trigger}
+          onClose={closeMenu}
+          onReact={handleReact}
+          onReply={handleReply}
+          onCopyText={handleCopyText}
+          onCopyLink={handleCopyLink}
+          onPin={handlePin}
+          onEdit={requestEdit}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {card && pinsFor && pinned.length > 0 && (
+        <MessagePinsPopover
+          anchor={pinsFor.anchor}
+          trigger={pinsFor.trigger}
+          title={titleText}
+          pinned={pinned}
+          selfId={userId}
+          onJump={jumpTo}
+          onUnpin={handlePin}
+          onClose={closePins}
+        />
       )}
 
       {sheetMsg && (
@@ -1145,6 +1341,24 @@ export function MessageThread({
           onDelete={handleDelete}
         />
       )}
+    </div>
+  );
+}
+
+// The shape of a thread while its first page loads (the card look), shown
+// only once the read has taken a moment, so a quick one doesn't flash it.
+function ThreadSkeleton() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShown(true), 150);
+    return () => clearTimeout(t);
+  }, []);
+  if (!shown) return null;
+  return (
+    <div className="msg-thread-skel" role="status" aria-label="Loading messages">
+      {[[58, 0], [72, 0], [44, 1], [64, 0], [52, 1], [30, 1]].map(([w, mine], i) => (
+        <span key={i} className={`msg-skel-bubble${mine ? ' is-mine' : ''}`} style={{ width: `${w}%` }} />
+      ))}
     </div>
   );
 }

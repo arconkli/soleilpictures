@@ -218,7 +218,7 @@ test.describe('Messages in the sidebar\'s card', () => {
     const vw = page.viewportSize().width;
     expect(Math.round(r.top)).toBe(52);
     expect(Math.round(vw - r.right)).toBe(8);
-    expect(Math.round(r.width)).toBe(360);
+    expect(Math.round(r.width)).toBe(400);
     await expect(panel(page).locator('.msg-panel-name')).toHaveText('Messages');
     await expect(panel(page).locator('.msg-row-dot')).toHaveCount(0);                     // no gold dot
     const maya = panel(page).locator('.msg-row', { hasText: 'Maya Ortiz' });
@@ -231,18 +231,24 @@ test.describe('Messages in the sidebar\'s card', () => {
     await expect(panel(page).locator('.msg-empty')).toHaveText(/No conversations match/);
   });
 
-  test('a group thread: who is in it, the pinned row, bubbles, yours on the right, a neutral Send', async ({ page }) => {
+  test('a group thread: who is in it, the pinned count, bubbles, yours on the right, a neutral Send', async ({ page }) => {
     await open(page, '&messages=1&conv=c-cast');
     await expect(panel(page).locator('.msg-pane-thread .msg-panel-name')).toHaveText('Casting · Feature film');
     await expect(panel(page).locator('.msg-panel-sub')).toHaveText('Lena, Jon, Sam and you');
-    await expect(panel(page).locator('.msg-pinned-text')).toHaveText('Callback list v3 is the source of truth.');
-    await expect(panel(page).locator('.msg-pinned-n')).toHaveText('1 pinned');
+    await expect(panel(page).locator('.msg-pane-thread .msg-faces.is-pair')).toHaveCount(1);
+    const pins = panel(page).locator('.msg-pins-chip');
+    await expect(pins).toHaveAttribute('aria-label', '1 pinned message');
+    await pins.click();
+    await expect(page.locator('.msg-pins-body')).toHaveText('Callback list v3 is the source of truth.');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.msg-pins-pop')).toHaveCount(0);
     await expect(panel(page).locator('.msg-thread-body.is-group')).toHaveCount(1);
     const p = await rect(panel(page));
     const mine = await rect(panel(page).locator('.msg-bubble--mine .msg-bubble-body').first());
     const theirs = await rect(panel(page).locator('.msg-bubble:not(.msg-bubble--mine) .msg-bubble-body').last());
     expect(p.right - mine.right).toBeLessThan(24);                                       // yours on the right
-    expect(theirs.left - p.left).toBeGreaterThan(40);                                    // theirs past the marks
+    expect(theirs.left - p.left).toBeLessThan(24);                                       // theirs on the left, no face beside
+    await expect(panel(page).locator('.msg-bubble-author').first()).toBeVisible();         // a group names who spoke
     // Replies sit in the conversation, quoting what they answer: no thread badge.
     await expect(panel(page).locator('.msg-bubble-replies')).toHaveCount(0);
     const send = panel(page).locator('.msg-composer-send');
@@ -251,9 +257,11 @@ test.describe('Messages in the sidebar\'s card', () => {
 
   test('a direct message has no marks beside its bubbles; a viewer gets the notice', async ({ page }) => {
     await open(page, '&messages=1&conv=c-maya');
-    await expect(panel(page).locator('.msg-panel-sub')).toHaveText('Direct message');
+    // Under the name, only "Here now" while they are (this harness says nobody is).
+    await expect(panel(page).locator('.msg-panel-sub')).toHaveCount(0);
     await expect(panel(page).locator('.msg-thread-body.is-dm')).toHaveCount(1);
-    await expect(panel(page).locator('.msg-bubble-avatar').first()).toBeHidden();
+    await expect(panel(page).locator('.msg-bubble-avatar')).toHaveCount(0);
+    await expect(panel(page).locator('.msg-bubble-author')).toHaveCount(0);
     await open(page, '&messages=1&conv=c-maya&readonly=1');
     await expect(panel(page).locator('.msg-composer')).toHaveCount(0);
     await expect(panel(page).locator('.msg-composer-readonly')).toBeVisible();

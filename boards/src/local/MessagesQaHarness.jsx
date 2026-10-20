@@ -8,6 +8,7 @@
 //   &peer=<userId>      open (or start) a DM with them
 //   &readonly=viewer    a viewer: reading only        &theme=light
 //   &latency=<ms>       every fake call takes this long
+//   &here=maya,jon      who's in the workspace now ("Here now" in a DM); the default
 //
 // window.__msgQa drives it: peer(id).send/type/react/edit/delete/pin/read,
 // setLatency, failNext, dropSocket, openConversation, openPeer, permalink,
@@ -25,7 +26,7 @@ import '../components/sidebar/clusterSidebar.css';
 import '../components/messagesCard.css';
 import { MessagesPanel } from '../components/MessagesPanel.jsx';
 import { MessagesPresence } from '../components/MessagesPresence.jsx';
-import { MessagesLookContext } from '../components/messagesLook.js';
+import { MessagesLookContext, MessagesBoardsContext } from '../components/messagesLook.js';
 import { FeedbackProvider, useFeedback } from '../components/AppFeedback.jsx';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from '../hooks/useEntityNameTrie.js';
@@ -74,6 +75,16 @@ const ACCESS = messagingAccess({
   role: VIEWER ? 'viewer' : 'owner',
   userId: SELF_ID,
 });
+// Who's in the workspace now, as App reads it from workspace presence.
+const HERE = new Set((QS.get('here') ?? 'maya,jon').split(',').map((s) => s.trim()).filter(Boolean));
+
+// The clusters messages carry, with real covers, as App's boards give them.
+const QA_BOARDS = {
+  'board-locations': { name: 'Locations', parentName: 'Feature film', cards: 12, thumbKey: PHOTOS.alley || null },
+  'board-casting': { name: 'Casting', parentName: 'Feature film', cards: 30, thumbKey: PHOTOS.interior || null },
+};
+const boardInfo = (id) => QA_BOARDS[id] || null;
+
 const CURRENT_USER = { id: SELF_ID, name: PEOPLE.find((p) => p.user_id === SELF_ID)?.name, email: PEOPLE.find((p) => p.user_id === SELF_ID)?.email, color: PEOPLE.find((p) => p.user_id === SELF_ID)?.color };
 
 const CSS = `
@@ -144,6 +155,7 @@ function Inner() {
         )}
         <MessagesPresence open={open}>{() => createPortal((
           <MessagesLookContext.Provider value={LOOK === 'card' ? 'card' : null}>
+          <MessagesBoardsContext.Provider value={boardInfo}>
             <MessagesPanel
               workspaceId={WORKSPACE_ID}
               currentUser={CURRENT_USER}
@@ -160,7 +172,9 @@ function Inner() {
               onPermalinkConsumed={() => setPermalink(null)}
               onPeerConsumed={() => setPeerId(null)}
               onClose={() => setOpen(false)}
+              presentUserIds={HERE}
             />
+          </MessagesBoardsContext.Provider>
           </MessagesLookContext.Provider>
         ), document.body)}</MessagesPresence>
       </EntityTrieContext.Provider>

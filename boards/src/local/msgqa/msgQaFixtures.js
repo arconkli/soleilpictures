@@ -69,7 +69,7 @@ export function buildMsgQaDb(now = Date.now()) {
   M('07', 'maya', 'Roughly 3m. Truck access is fine, but the lane is gravel.', yest(14, 20), { parent_id: 'maya-06' });
   M('08', SELF_ID, 'Great. Can you ask about the generator?', yest(14, 25));
   M('09', 'maya', "The owner's reply:\n> No generators in the yard before 8am. Sound carries across the valley.\nSo we plan around it.", yest(14, 31));
-  M('10', SELF_ID, 'Pinned Barn exterior in Locations so Jon can see it.', yest(15, 2), {
+  M('10', SELF_ID, 'Pinned Barn exterior in @Locations so Jon can see it.', yest(15, 2), {
     attachments: [
       { kind: 'card', boardId: 'board-locations', cardId: 'card-barn', title: 'Barn exterior' },
       { kind: 'board', boardId: 'board-locations', title: 'Locations' },

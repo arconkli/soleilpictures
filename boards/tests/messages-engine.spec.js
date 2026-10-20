@@ -81,6 +81,20 @@ async function send(page, text) {
   await input.press('Enter');
   return bubble(page, text);
 }
+// A message's actions in the card look the harness opens by default: its ⋯
+// opens one menu, the reactions along its top. (The drawer, production's look
+// until the sidebar ships, keeps its hover chip: the drawer block below.)
+async function menu(page, b) {
+  await b.hover();
+  await b.locator('.msg-bubble-more').click();
+  return page.locator('.msg-menu');
+}
+async function act(page, b, name) {
+  const m = await menu(page, b);
+  await m.locator('.msg-menu-item', { hasText: name }).click();
+}
+// The card look edits in the box you type in.
+const editBar = (page) => page.locator('.msg-reply-bar.is-edit');
 // Reads of the thread's newest page (200 rows), not the pinned list or a nudge's by-id read.
 const pageReads = (page) => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'select:messages' && c.args?.limit === 200).length);
 
@@ -106,7 +120,8 @@ test('a failed send stays with Retry, and Retry saves it exactly once', async ({
   await qa(page, () => window.__msgQa.failNext('insert:messages'));
   const b = await send(page, 'flaky send');
   await expect(b.locator('.msg-bubble-failed')).toBeVisible();
-  await b.locator('.msg-bubble-failed button', { hasText: 'Retry' }).click();
+  await expect(b.locator('.msg-bubble-failed')).toContainText('Not sent');
+  await b.locator('.msg-bubble-failed button', { hasText: 'Try again' }).click();
   await expect(b.locator('.msg-bubble-failed')).toHaveCount(0);
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.filter((m) => m.body === 'flaky send').length)).toBe(1);
 });
@@ -129,8 +144,7 @@ test('delete asks nothing, goes at once, and Undo brings it back', async ({ page
   await open(page, 'conv=c-maya');
   const b = await send(page, 'delete me');
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'delete me'))).toBe(true);
-  await b.hover();
-  await b.locator('button[title="Delete"]').click();
+  await act(page, b, /^Delete/);
   await expect(page.locator('.feedback-dialog')).toHaveCount(0);
   await expect(page.locator('.msg-bubble-body', { hasText: 'delete me' })).toHaveCount(0);
   await page.locator('.toast-action', { hasText: 'Undo' }).click();
@@ -138,21 +152,48 @@ test('delete asks nothing, goes at once, and Undo brings it back', async ({ page
   await expect.poll(() => qa(page, () => { const m = window.__msgQa.db.messages.find((x) => x.body === 'delete me'); return m ? m.deleted_at : 'gone'; })).toBe(null);
 });
 
-test('a failed edit shows at once, then reopens the editor with your text', async ({ page }) => {
+test('a failed edit shows at once, then reopens the edit with your words', async ({ page }) => {
   await open(page, 'conv=c-maya');
   const b = await send(page, 'before edit');
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'before edit'))).toBe(true);
-  // Editing replaces the body with the editor: hold on to the bubble by its id.
   const id = await b.getAttribute('data-msg-id');
   const row = page.locator(`[data-msg-id="${id}"]`);
+  await qa(page, () => window.__msgQa.setLatency({ 'update:messages': 500 }));
   await qa(page, () => window.__msgQa.failNext('update:messages'));
-  await row.hover();
-  await row.locator('button[title="Edit"]').click();
-  await row.locator('textarea').fill('after edit');
-  await row.locator('textarea').press('Enter');
-  await expect(row.locator('textarea')).toHaveValue('after edit');
+  await act(page, row, /^Edit/);
+  const input = page.locator('.msg-composer-input');
+  await expect(editBar(page)).toBeVisible();
+  await expect(input).toHaveValue('before edit');
+  await expect(row).toHaveClass(/is-editing/);
+  await input.fill('after edit');
+  await input.press('Enter');
+  await expect(row.locator('.msg-bubble-body')).toContainText('after edit', { timeout: 300 });
+  await expect(input).toHaveValue('after edit');
+  await expect(editBar(page)).toBeVisible();
+  await expect(row.locator('.msg-bubble-body')).toContainText('before edit');
   await expect(page.locator('.toast-msg', { hasText: 'Could not save your edit' })).toBeVisible();
   expect(await qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'after edit'))).toBe(false);
+});
+
+test('an edit in the box keeps what you were writing, and Escape lets it go', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const sent = await send(page, 'fix me later');
+  await expect(sent).not.toHaveClass(/msg-bubble--pending/);
+  const mine = page.locator(`[data-msg-id="${await sent.getAttribute('data-msg-id')}"]`);
+  const input = page.locator('.msg-composer-input');
+  await input.fill('a draft in progress');
+  await act(page, mine, /^Edit/);
+  await expect(input).toHaveValue('fix me later');
+  await input.press('Escape');
+  await expect(editBar(page)).toHaveCount(0);
+  await expect(input).toHaveValue('a draft in progress');
+  await expect(page.locator('.msg-panel')).toBeVisible();
+  await act(page, mine, /^Edit/);
+  await input.fill('fixed now');
+  await input.press('Enter');
+  await expect(mine.locator('.msg-bubble-body')).toContainText('fixed now');
+  await expect(input).toHaveValue('a draft in progress');
+  await expect(mine.locator('.msg-bubble-meta')).toContainText('Edited');
 });
 
 // ── Staying where the reader is (C2.4) ─────────────────────────────────
@@ -187,9 +228,10 @@ test('a peer’s message while you read history doesn’t move you; the jump but
   await scrollTo(page, 3000);
   await page.waitForTimeout(100);
   const before = await topAnchor(page);
-  await expect(page.locator('.msg-jump-pill')).toHaveText(/Latest/);
+  await expect(page.locator('.msg-jump-pill')).toHaveAttribute('aria-label', 'Jump to the latest');
   await qa(page, () => window.__msgQa.peer('jon').send('c-long', 'news while you read'));
-  await expect(page.locator('.msg-jump-pill')).toHaveText(/1 new message/);
+  await expect(page.locator('.msg-jump-pill')).toHaveAttribute('aria-label', 'Jump to the latest, 1 new');
+  await expect(page.locator('.msg-jump-n')).toHaveText('1');
   const after = await topAnchor(page);
   expect(after.id).toBe(before.id);
   expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(1);
@@ -254,7 +296,7 @@ test('a thread is marked read only once its newest message has been on screen', 
   await page.waitForTimeout(150);
   const marked = await reads();
   await qa(page, () => window.__msgQa.peer('jon').send('c-long', 'unseen for now'));
-  await expect(page.locator('.msg-jump-pill')).toHaveText(/1 new message/);
+  await expect(page.locator('.msg-jump-pill')).toHaveAttribute('aria-label', /1 new/);
   await page.waitForTimeout(300);
   expect(await reads()).toBe(marked);
   await page.locator('.msg-jump-pill').click();
@@ -315,10 +357,9 @@ test('two edits while a read is out: the second one stays', async ({ page }) => 
   const row = page.locator(`[data-msg-id="${id}"]`);
   await readInFlight(page);
   for (const text of ['first edit', 'second edit']) {
-    await row.hover();
-    await row.locator('button[title="Edit"]').click();
-    await row.locator('textarea').fill(text);
-    await row.locator('textarea').press('Enter');
+    await act(page, row, /^Edit/);
+    await page.locator('.msg-composer-input').fill(text);
+    await page.locator('.msg-composer-input').press('Enter');
     await expect(row.locator('.msg-bubble-body')).toContainText(text);
   }
   await page.waitForTimeout(1800); // the read lands
@@ -332,8 +373,7 @@ test('delete and Undo while a read is out: the message comes back and stays', as
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'undo me mid-read'))).toBe(true);
   const id = await b.getAttribute('data-msg-id');
   await readInFlight(page);
-  await b.hover();
-  await b.locator('button[title="Delete"]').click();
+  await act(page, b, /^Delete/);
   await page.locator('.toast-action', { hasText: 'Undo' }).click();
   await page.waitForTimeout(1800);
   await expect(page.locator(`[data-msg-id="${id}"]`)).toBeVisible();
@@ -369,12 +409,13 @@ test('Seen shows under your newest message once they read it, and goes when they
   await open(page, 'conv=c-maya');
   const mine = await send(page, 'did you get the permit?');
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'did you get the permit?'))).toBe(true);
-  await expect(page.locator('.msg-bubble-seen')).toHaveCount(0);
+  const seenLines = page.locator('.msg-bubble-meta', { hasText: 'Seen' });
+  await expect(seenLines).toHaveCount(0);
   await qa(page, () => window.__msgQa.peer('maya').read('c-maya'));
-  await expect(mine.locator('.msg-bubble-seen')).toHaveText('Seen');
-  await expect(page.locator('.msg-bubble-seen')).toHaveCount(1);
+  await expect(mine.locator('.msg-bubble-meta')).toHaveText(/ · Seen$/);
+  await expect(seenLines).toHaveCount(1);
   await qa(page, () => window.__msgQa.peer('maya').send('c-maya', 'yes, signed'));
-  await expect(page.locator('.msg-bubble-seen')).toHaveCount(0);
+  await expect(seenLines).toHaveCount(0);
 });
 
 test('a peer whose client never says it read catches up on the next resync', async ({ page }) => {
@@ -383,7 +424,7 @@ test('a peer whose client never says it read catches up on the next resync', asy
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'ping from an old client test'))).toBe(true);
   // No chat-read from this client: a resync (or any list refresh) still finds it.
   await qa(page, () => { const p = window.__msgQa.peer('maya'); p.legacy = true; p.read('c-maya'); window.__msgQa.dropSocket(); });
-  await expect(page.locator('.msg-bubble-seen')).toHaveCount(1);
+  await expect(page.locator('.msg-bubble-meta', { hasText: 'Seen' })).toHaveCount(1);
 });
 
 test('a group never says Seen', async ({ page }) => {
@@ -392,7 +433,7 @@ test('a group never says Seen', async ({ page }) => {
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'room 4 confirmed'))).toBe(true);
   await qa(page, () => { for (const id of ['lena', 'jon', 'sam']) window.__msgQa.peer(id).read('c-cast'); });
   await page.waitForTimeout(400);
-  await expect(page.locator('.msg-bubble-seen')).toHaveCount(0);
+  await expect(page.locator('.msg-bubble-meta', { hasText: 'Seen' })).toHaveCount(0);
 });
 
 // ── Replies, inline (C2.7) ─────────────────────────────────────────────
@@ -400,12 +441,11 @@ test('a reply quotes what it answers, in the conversation, with no thread view',
   await open(page, 'conv=c-maya');
   const original = page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: 'Thanks! Talk tomorrow.' }) }).last();
   const originalId = await original.getAttribute('data-msg-id');
-  await original.hover();
-  await original.locator('button[title="Reply"]').click();
+  await act(page, original, /^Reply/);
   await expect(page.locator('.msg-reply-bar-who')).toHaveText(/^Replying to /);
   await expect(page.locator('.msg-composer-input')).toBeFocused();
   const reply = await send(page, 'same time works');
-  await expect(reply.locator('.msg-reply-preview-body')).toContainText('Thanks! Talk tomorrow.');
+  await expect(reply.locator('.msg-reply-quote-text')).toContainText('Thanks! Talk tomorrow.');
   await expect(page.locator('.msg-reply-bar')).toHaveCount(0);
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.find((m) => m.body === 'same time works')?.parent_id)).toBe(originalId);
   await expect(page.locator('.msg-bubble-replies, .msg-thread-header')).toHaveCount(0);
@@ -414,8 +454,7 @@ test('a reply quotes what it answers, in the conversation, with no thread view',
 test('Escape lets a reply go and keeps the panel open', async ({ page }) => {
   await open(page, 'conv=c-maya');
   const original = page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: 'Thanks! Talk tomorrow.' }) }).last();
-  await original.hover();
-  await original.locator('button[title="Reply"]').click();
+  await act(page, original, /^Reply/);
   await expect(page.locator('.msg-reply-bar')).toBeVisible();
   await page.locator('.msg-composer-input').press('Escape');
   await expect(page.locator('.msg-reply-bar')).toHaveCount(0);
@@ -424,7 +463,7 @@ test('Escape lets a reply go and keeps the panel open', async ({ page }) => {
 
 test('a reply to a deleted message says the original is gone', async ({ page }) => {
   await open(page, 'conv=c-cast');
-  await expect(page.locator('.msg-reply-preview.is-gone')).toContainText('Original message deleted');
+  await expect(page.locator('.msg-reply-quote.is-gone')).toContainText('Original message deleted');
 });
 
 test('a quote of an old message beyond the loaded pages is read by id, and clicking it pages back to it', async ({ page }) => {
@@ -433,8 +472,9 @@ test('a quote of an old message beyond the loaded pages is read by id, and click
     .sort((a, b) => a.created_at.localeCompare(b.created_at))[5].id);
   await qa(page, (id) => window.__msgQa.peer('jon').send('c-long', 'about that early one', { parentId: id }), oldId);
   const reply = page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: 'about that early one' }) });
-  await expect(reply.locator('.msg-reply-preview-body')).not.toHaveText('…');
-  await reply.locator('.msg-reply-preview').click();
+  await expect(reply.locator('.msg-reply-quote-text')).not.toHaveText('Attachment');
+  await expect(reply.locator('.msg-reply-quote-text')).toHaveText(/\(#6\)/);
+  await reply.locator('.msg-reply-quote').click();
   await expect(page.locator(`[data-msg-id="${oldId}"]`)).toBeInViewport({ timeout: 10000 });
 });
 
@@ -515,7 +555,7 @@ test('files upload while you type, three at a time, each on its own chip; Send w
   await expect(page.locator('.msg-composer-att-chip.is-done')).toHaveCount(5, { timeout: 10000 });
   await expect(page.locator('.msg-composer-send')).toBeEnabled();
   await input.press('Enter');
-  await expect(bubble(page, 'five frames').locator('.msg-attachment-image')).toHaveCount(5);
+  await expect(bubble(page, 'five frames').locator('.msg-thing.is-image')).toHaveCount(5);
   await expect(page.locator('.msg-composer-att-chip')).toHaveCount(0);
 });
 
@@ -546,8 +586,7 @@ test('a draft waits in its conversation — text, a file still uploading, the re
   await open(page, 'conv=c-maya');
   await qa(page, () => window.__msgQa.setLatency({ upload: 900 }));
   const original = bubble(page, 'Thanks! Talk tomorrow.');
-  await original.hover();
-  await original.locator('button[title="Reply"]').click();
+  await act(page, original, /^Reply/);
   const input = page.locator('.msg-composer-input');
   await input.fill('half a thought');
   await attach(page, png('frame.png'));
@@ -563,8 +602,8 @@ test('a draft waits in its conversation — text, a file still uploading, the re
   await expect(page.locator('.msg-reply-bar-who')).toHaveText(/^Replying to /);
   await input.press('Enter');
   const sent = bubble(page, 'half a thought');
-  await expect(sent.locator('.msg-reply-preview-body')).toContainText('Thanks! Talk tomorrow.');
-  await expect(sent.locator('.msg-attachment-image')).toHaveCount(1);
+  await expect(sent.locator('.msg-reply-quote-text')).toContainText('Thanks! Talk tomorrow.');
+  await expect(sent.locator('.msg-thing.is-image')).toHaveCount(1);
 });
 
 test('a draft survives a reload straight after typing', async ({ page }) => {
@@ -618,21 +657,25 @@ test('↑ in an empty box edits your last message; saving puts you back in the b
   const input = composerInput(page);
   await input.fill('typing something');
   await input.press('ArrowUp');
-  await expect(page.locator(`.msg-bubble[data-msg-id="${id}"] textarea`)).toHaveCount(0);
+  await expect(editBar(page)).toHaveCount(0);
   await input.fill('');
   await input.press('ArrowUp');
-  const box = page.locator(`.msg-bubble[data-msg-id="${id}"] textarea`);
-  await expect(box).toBeFocused();
-  await expect(box).toHaveValue('a message to fix');
+  await expect(editBar(page)).toBeVisible();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('a message to fix');
+  await expect(page.locator(`.msg-bubble[data-msg-id="${id}"]`)).toHaveClass(/is-editing/);
+  await page.keyboard.press('End');
   await page.keyboard.type(', fixed');
   await page.keyboard.press('Enter');
   await expect(page.locator(`.msg-bubble[data-msg-id="${id}"] .msg-bubble-body`)).toContainText('a message to fix, fixed');
   await expect(input).toBeFocused();
+  await expect(input).toHaveValue('');
   await input.press('ArrowUp');
-  await expect(box).toBeFocused();
+  await expect(editBar(page)).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(box).toHaveCount(0);
+  await expect(editBar(page)).toHaveCount(0);
   await expect(input).toBeFocused();
+  await expect(input).toHaveValue('');
   await expect(page.locator('.msg-panel')).toBeVisible();
 });
 
@@ -657,12 +700,13 @@ test('search results are plain rows; one jumps to its message, and closing searc
   await expect(composerInput(page)).toBeFocused();
 });
 
-test('reacting from a message’s palette puts you back in the box', async ({ page }) => {
+test('reacting from a message’s menu puts you back in the box', async ({ page }) => {
   await open(page, 'conv=c-maya');
   const theirs = bubble(page, 'Thanks! Talk tomorrow.');
-  await theirs.hover();
-  await theirs.locator('button[title="React"]').click();
-  await page.locator('.emoji-palette button', { hasText: '🎉' }).click();
+  const m = await menu(page, theirs);
+  await expect(m.locator('.msg-menu-emoji').first()).toBeFocused();
+  await m.locator('.msg-menu-emoji', { hasText: '🎉' }).click();
+  await expect(page.locator('.msg-menu')).toHaveCount(0);
   await expect(theirs.locator('.msg-reaction', { hasText: '🎉' })).toBeVisible();
   await expect(composerInput(page)).toBeFocused();
 });
@@ -719,12 +763,175 @@ test('a peer’s pin, even of a message older than the pages loaded, updates the
     .sort((a, b) => a.created_at.localeCompare(b.created_at))[3].id);
   await expect(page.locator(`[data-msg-id="${oldId}"]`)).toHaveCount(0);
   await qa(page, (id) => window.__msgQa.peer('jon').pin(id), oldId);
-  await expect(page.locator('.msg-pinned-strip')).toBeVisible();
+  await expect(page.locator('.msg-pins-chip')).toHaveAttribute('aria-label', '1 pinned message');
 });
 
-test('times move on by the shared clock, and Edit goes when the edit window closes', async ({ page }) => {
+test('Edit leaves a message’s menu when the edit window closes', async ({ page }) => {
   await page.clock.install();
   await open(page, 'conv=c-empty');
+  const mine = await send(page, 'clockwork');
+  await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+  await expect(mine.locator('.msg-bubble-meta')).toHaveText(/^\d{1,2}:\d{2}/);
+  await page.clock.fastForward('05:30');
+  let m = await menu(page, mine);
+  await expect(m.locator('.msg-menu-item', { hasText: /^Edit/ })).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await page.clock.fastForward('11:00');
+  m = await menu(page, mine);
+  await expect(m.locator('.msg-menu-item', { hasText: /^Edit/ })).toHaveCount(0);
+  await expect(m.locator('.msg-menu-item', { hasText: /^Delete/ })).toHaveCount(1);
+});
+
+test('the ⋯ shows on hover and keyboard focus; its menu stays in the panel and Escape leaves the panel open', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const mine = await send(page, 'menu check');
+  await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+  const more = mine.locator('.msg-bubble-more');
+  await page.mouse.move(2, 2);
+  await expect(more).toHaveCSS('opacity', '0');
+  await mine.hover();
+  await expect(more).toHaveCSS('opacity', '1');
+  await more.click();
+  const m = page.locator('.msg-menu');
+  await expect(m).toBeVisible();
+  const p = await page.locator('.msg-panel').boundingBox();
+  const r = await m.boundingBox();
+  expect(r.x).toBeGreaterThanOrEqual(p.x);
+  expect(r.x + r.width).toBeLessThanOrEqual(p.x + p.width);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Escape');
+  await expect(m).toHaveCount(0);
+  await expect(page.locator('.msg-panel')).toBeVisible();
+  await expect(composerInput(page)).toBeFocused();
+  // A right click on a bubble opens the same menu.
+  await mine.locator('.msg-bubble-body').click({ button: 'right' });
+  await expect(m).toBeVisible();
+  await page.mouse.click(2, 2);
+  await expect(m).toHaveCount(0);
+});
+
+test('the pinned count opens the pinned list; unpinning the last one shuts it, and a later pin brings back only the count', async ({ page }) => {
+  await open(page, 'conv=c-cast');
+  const chip = page.locator('.msg-pins-chip');
+  await expect(chip).toHaveAttribute('aria-label', '1 pinned message');
+  await chip.click();
+  const pop = page.locator('.msg-pins-pop');
+  await expect(pop.locator('.msg-pins-go').first()).toBeFocused();
+  await expect(pop.locator('.msg-pins-body')).toHaveText('Callback list v3 is the source of truth.');
+  await pop.getByRole('button', { name: 'Unpin' }).click();
+  await expect(pop).toHaveCount(0);
+  await expect(chip).toHaveCount(0);
+  await expect(composerInput(page)).toBeFocused();
+  const id = await qa(page, () => window.__msgQa.db.messages.find((m) => m.body === 'Room 4 is free Thursday morning.').id);
+  await qa(page, (x) => window.__msgQa.peer('jon').pin(x), id);
+  await expect(page.locator('.msg-pins-chip')).toHaveAttribute('aria-label', '1 pinned message');
+  await expect(page.locator('.msg-pins-pop')).toHaveCount(0);
+});
+
+test('a message’s menu shuts when the thread scrolls under it', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  const b = page.locator('.msg-thread-body .msg-bubble').last();
+  await menu(page, b);
+  await expect(page.locator('.msg-menu')).toBeVisible();
+  await page.locator('.msg-thread-body').evaluate((el) => { el.scrollTop -= 300; });
+  await expect(page.locator('.msg-menu')).toHaveCount(0);
+});
+
+// ── The drawer (production's look until the sidebar ships) ─────────────
+// Its controls differ from the card look's: a hover chip, an edit inside the
+// bubble, Retry and Discard, relative times, the pinned row, Seen on its line.
+test.describe('the drawer', () => {
+  const openDrawer = (page, conv) => open(page, `look=drawer&conv=${conv}`);
+
+  test('a failed send stays with Retry; Retry saves it once; Discard takes it away', async ({ page }) => {
+    await openDrawer(page, 'c-maya');
+    await qa(page, () => window.__msgQa.failNext('insert:messages'));
+    const b = await send(page, 'flaky send');
+    await b.locator('.msg-bubble-failed button', { hasText: 'Retry' }).click();
+    await expect(b.locator('.msg-bubble-failed')).toHaveCount(0);
+    await expect.poll(() => qa(page, () => window.__msgQa.db.messages.filter((m) => m.body === 'flaky send').length)).toBe(1);
+    await qa(page, () => window.__msgQa.failNext('insert:messages'));
+    const gone = await send(page, 'never mind');
+    await gone.locator('.msg-bubble-failed button', { hasText: 'Discard' }).click();
+    await expect(page.locator('.msg-bubble-body', { hasText: 'never mind' })).toHaveCount(0);
+  });
+
+  test('the chip deletes with Undo, replies with the quote above, and reacts from its palette', async ({ page }) => {
+    await openDrawer(page, 'c-maya');
+    const b = await send(page, 'delete me');
+    await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'delete me'))).toBe(true);
+    await b.hover();
+    await b.locator('button[title="Delete"]').click();
+    await expect(page.locator('.msg-bubble-body', { hasText: 'delete me' })).toHaveCount(0);
+    await page.locator('.toast-action', { hasText: 'Undo' }).click();
+    await expect(page.locator('.msg-bubble-body', { hasText: 'delete me' })).toBeVisible();
+    const original = bubble(page, 'Thanks! Talk tomorrow.');
+    await original.hover();
+    await original.locator('button[title="Reply"]').click();
+    const reply = await send(page, 'same time works');
+    await expect(reply.locator('.msg-reply-preview-body')).toContainText('Thanks! Talk tomorrow.');
+    await original.hover();
+    await original.locator('button[title="React"]').click();
+    await page.locator('.emoji-palette button', { hasText: '🎉' }).click();
+    await expect(original.locator('.msg-reaction', { hasText: '🎉' })).toBeVisible();
+    await expect(composerInput(page)).toBeFocused();
+  });
+
+  test('↑ edits your last message in its bubble; a failed save reopens it with your words', async ({ page }) => {
+    await openDrawer(page, 'c-maya');
+    const mine = await send(page, 'a message to fix');
+    await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+    const id = await mine.getAttribute('data-msg-id');
+    const box = page.locator(`.msg-bubble[data-msg-id="${id}"] textarea`);
+    await composerInput(page).press('ArrowUp');
+    await expect(box).toBeFocused();
+    await expect(box).toHaveValue('a message to fix');
+    await qa(page, () => window.__msgQa.failNext('update:messages'));
+    await box.fill('after edit');
+    await box.press('Enter');
+    await expect(box).toHaveValue('after edit');
+    await expect(page.locator('.toast-msg', { hasText: 'Could not save your edit' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(box).toHaveCount(0);
+    await expect(page.locator('.msg-panel')).toBeVisible();
+  });
+
+  test('Seen on its own line, the jump pill in words, the pinned row', async ({ page }) => {
+    await openDrawer(page, 'c-maya');
+    const mine = await send(page, 'did you get the permit?');
+    await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'did you get the permit?'))).toBe(true);
+    await qa(page, () => window.__msgQa.peer('maya').read('c-maya'));
+    await expect(mine.locator('.msg-bubble-seen')).toHaveText('Seen');
+    await openDrawer(page, 'c-long');
+    await scrollTo(page, 3000);
+    await expect(page.locator('.msg-jump-pill')).toHaveText(/Latest/);
+    await qa(page, () => window.__msgQa.peer('jon').send('c-long', 'news while you read'));
+    await expect(page.locator('.msg-jump-pill')).toHaveText(/1 new message/);
+    await openDrawer(page, 'c-cast');
+    await expect(page.locator('.msg-pinned-strip')).toBeVisible();
+  });
+
+  test('the actions chip shows on hover and keyboard focus, and not while editing', async ({ page }) => {
+    await openDrawer(page, 'c-maya');
+    const mine = await send(page, 'chip check');
+    await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+    const chip = mine.locator('.msg-bubble-actions');
+    await page.mouse.move(2, 2);
+    await expect(chip).toHaveCSS('opacity', '0');
+    await mine.hover();
+    await expect(chip).toHaveCSS('opacity', '1');
+    await mine.locator('button[title="Edit"]').click();
+    await expect(chip).toBeHidden();
+    await page.keyboard.press('Escape');
+    await page.mouse.move(2, 2);
+    await mine.locator('button[title="Reply"]').focus();
+    await expect(chip).toHaveCSS('opacity', '1');
+  });
+});
+
+test('the drawer’s times move on by the shared clock, and Edit goes when the edit window closes', async ({ page }) => {
+  await page.clock.install();
+  await open(page, 'look=drawer&conv=c-empty');
   const mine = await send(page, 'clockwork');
   await expect(mine).not.toHaveClass(/msg-bubble--pending/);
   await expect(mine.locator('.msg-bubble-time')).toHaveText('just now');
@@ -735,23 +942,6 @@ test('times move on by the shared clock, and Edit goes when the edit window clos
   await page.clock.fastForward('11:00');
   await expect(mine.locator('.msg-bubble-time')).toHaveText('16m ago');
   await expect(mine.locator('button[title="Edit"]')).toHaveCount(0);
-});
-
-test('the actions chip shows on hover and keyboard focus, and not while editing', async ({ page }) => {
-  await open(page, 'conv=c-maya');
-  const mine = await send(page, 'chip check');
-  await expect(mine).not.toHaveClass(/msg-bubble--pending/);
-  const chip = mine.locator('.msg-bubble-actions');
-  await page.mouse.move(2, 2);
-  await expect(chip).toHaveCSS('opacity', '0');
-  await mine.hover();
-  await expect(chip).toHaveCSS('opacity', '1');
-  await mine.locator('button[title="Edit"]').click();
-  await expect(chip).toBeHidden();
-  await page.keyboard.press('Escape');
-  await page.mouse.move(2, 2);
-  await mine.locator('button[title="Reply"]').focus();
-  await expect(chip).toHaveCSS('opacity', '1');
 });
 
 // ── One panel (C2.11) ──────────────────────────────────────────────────

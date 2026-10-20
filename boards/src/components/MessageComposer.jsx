@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
-import { Paperclip, Smile, Link as LinkIcon, Reply, X } from '../lib/icons.js';
+import { Paperclip, Smile, Link as LinkIcon, Reply, X, Plus, ArrowUp, Check, Edit } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
 import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { caretRect } from '../lib/caretRect.js';
@@ -76,6 +76,13 @@ function chipLabel(item) {
 //   onEditLast — ↑ in an empty box: edit your last message; true if it did.
 //   ref — { focus() }: where the thread puts you on open and when something
 //   that had focus (an edit box, a palette, a menu) goes away.
+//   card — the files sidebar's look: one rounded field, + inside it on the
+//   left, the emoji and Send (an arrow, in your colour once there's something
+//   to send) on the right, no separate link button (a pasted link is a link).
+//   editing / onSaveEdit / onCancelEdit — the card look edits a message here:
+//   { id, body, draft } fills the box (draft: your words from a save that
+//   failed), Enter or ✓ saves, Escape lets it go. What you were writing waits
+//   in the draft meanwhile.
 //
 // Everything typed or staged here is the conversation's draft (useDraft): it's
 // there when you come back, files still uploading included. The field grows
@@ -83,6 +90,7 @@ function chipLabel(item) {
 export const MessageComposer = forwardRef(function MessageComposer({
   onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…',
   replyTo = null, replyToName = '', onCancelReply, onEditLast,
+  card = false, editing = null, onSaveEdit, onCancelEdit,
 }, ref) {
   const key = draftKey || `tmp:${workspaceId || 'unknown'}`;
   const [draft, update] = useDraft(key);
@@ -115,6 +123,26 @@ export const MessageComposer = forwardRef(function MessageComposer({
     prevReplyRef.current = replyId;
     if (replyId && replyId !== prev) inputRef.current?.focus({ preventScroll: true });
   }, [replyId]);
+  // An edit's words live here, not in the draft.
+  const editingId = editing?.id || null;
+  const editSeed = editing ? (editing.draft ?? editing.body ?? '') : '';
+  const [editText, setEditText] = useState('');
+  useEffect(() => {
+    if (!editingId) return;
+    setEditText(editSeed);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus({ preventScroll: true });
+      const n = el.value.length;
+      try { el.setSelectionRange(n, n); } catch (_) {}
+    });
+  }, [editingId, editSeed]);
+  const saveEdit = () => {
+    const v = editText.trim();
+    if (!v) return;
+    onSaveEdit?.(v);
+  };
   const lastTypingRef = useRef(0);
   // Drag-over state for the visual drop affordance. enterCount tracks
   // dragenter/leave nesting so the highlight doesn't flicker when the
@@ -157,12 +185,14 @@ export const MessageComposer = forwardRef(function MessageComposer({
   };
 
   const handlePaste = (e) => {
+    // An edit changes words only: a pasted file isn't staged behind it.
+    if (editing) return;
     const files = [...e.clipboardData?.files || []];
     if (files.length) { e.preventDefault(); handleFiles(files); }
   };
 
   const handleDragEnter = (e) => {
-    if (!hasDragData(e)) return;
+    if (!hasDragData(e) || editing) return;
     e.preventDefault();
     enterCountRef.current++;
     setDragOver(true);
@@ -175,6 +205,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
     e.preventDefault();
     enterCountRef.current = 0;
     setDragOver(false);
+    if (editing) return; // an edit changes words only
     // 1. Universal entity refs (dragged from EntityLink chip, picker
     //    row, or canvas card). Push into pendingEntityRefs[].
     const refListJson = e.dataTransfer?.getData(ENTITY_REF_LIST_MIME);
@@ -259,10 +290,11 @@ export const MessageComposer = forwardRef(function MessageComposer({
   const insertEmoji = (emoji) => {
     if (!emoji) return;
     const el = inputRef.current;
-    if (!el) { setBody((b) => (b || '') + emoji); return; }
+    const setField = editing ? setEditText : setBody;
+    if (!el) { setField((b) => (b || '') + emoji); return; }
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? el.value.length;
-    setBody(el.value.slice(0, start) + emoji + el.value.slice(end));
+    setField(el.value.slice(0, start) + emoji + el.value.slice(end));
     const pos = start + emoji.length;
     requestAnimationFrame(() => {
       el.focus();
@@ -270,15 +302,71 @@ export const MessageComposer = forwardRef(function MessageComposer({
     });
   };
 
+  // The box you type in, the same in both looks.
+  const field = (
+      <GrowingTextarea
+        ref={inputRef}
+        className="msg-composer-input"
+        placeholder={editing ? 'Edit your message' : placeholder}
+        value={editing ? editText : body}
+        onPaste={handlePaste}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (editing) { setEditText(v); return; }
+          setBody(v);
+          const tok = detectMentionToken(v, e.target.selectionEnd);
+          setMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
+          const now = Date.now();
+          if (now - lastTypingRef.current > 1500 && v.length > 0) {
+            lastTypingRef.current = now;
+            onTyping?.();
+          }
+        }}
+        onKeyDown={(e) => {
+          // Mid-composition (Japanese, Chinese, Korean…) keys belong to the IME.
+          if (isComposingKey(e)) return;
+          if (editing) {
+            // Escape lets the edit go (the panel stays open); Enter saves.
+            if (e.key === 'Escape') { e.preventDefault(); onCancelEdit?.(); return; }
+            if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); saveEdit(); }
+            return;
+          }
+          // Escape lets a reply go first; the panel stays open.
+          if (e.key === 'Escape' && replyTo && !mention) { e.preventDefault(); onCancelReply?.(); return; }
+          if (mention) return; // the picker takes Enter
+          // ↑ in an empty box edits your last message, as in Slack.
+          if (e.key === 'ArrowUp' && !body && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && onEditLast?.()) {
+            e.preventDefault();
+            return;
+          }
+          // Enter sends on a desktop keyboard; on a touch one it makes a line.
+          if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); send(); }
+        }}
+      />
+  );
+  const canSend = !isBusy && (!!body.trim() || hasPayload);
+
   return (
-    <form className={`msg-composer ${dragOver ? 'is-drop-target' : ''}`}
-          onSubmit={(e) => { e.preventDefault(); send(); }}
+    <form className={`msg-composer ${dragOver ? 'is-drop-target' : ''}${card ? ' is-card' : ''}${editing ? ' is-editing' : ''}`}
+          onSubmit={(e) => { e.preventDefault(); if (editing) saveEdit(); else send(); }}
           onDragEnter={handleDragEnter}
           onDragOver={(e) => { if (hasDragData(e)) e.preventDefault(); }}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}>
       {dragOver && <div className="msg-composer-drop">Drop to attach</div>}
-      {replyTo && (
+      {editing ? (
+        <div className="msg-reply-bar is-edit">
+          <Icon as={Edit} size={14} weight="regular" />
+          <span className="msg-reply-bar-text">
+            <span className="msg-reply-bar-who">Editing your message</span>
+            {!touchKeyboard() && <span className="msg-reply-bar-body">Enter saves, Esc cancels</span>}
+          </span>
+          <button type="button" className="msg-reply-bar-x" aria-label="Cancel the edit" title="Cancel (Esc)"
+                  onClick={() => { onCancelEdit?.(); inputRef.current?.focus({ preventScroll: true }); }}>
+            <Icon as={X} size={12} />
+          </button>
+        </div>
+      ) : replyTo && (
         <div className="msg-reply-bar">
           <Icon as={Reply} size={13} />
           <span className="msg-reply-bar-text">
@@ -291,7 +379,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
           </button>
         </div>
       )}
-      {(items.length > 0 || pendingEntityRefs.length > 0) && (
+      {!editing && (items.length > 0 || pendingEntityRefs.length > 0) && (
         <div className="msg-composer-attachments">
           {items.map((item) => {
             const label = chipLabel(item);
@@ -323,41 +411,38 @@ export const MessageComposer = forwardRef(function MessageComposer({
           ))}
         </div>
       )}
-      <GrowingTextarea
-        ref={inputRef}
-        className="msg-composer-input"
-        placeholder={placeholder}
-        value={body}
-        onPaste={handlePaste}
-        onChange={(e) => {
-          const v = e.target.value;
-          setBody(v);
-          const tok = detectMentionToken(v, e.target.selectionEnd);
-          setMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
-          const now = Date.now();
-          if (now - lastTypingRef.current > 1500 && v.length > 0) {
-            lastTypingRef.current = now;
-            onTyping?.();
-          }
-        }}
-        onKeyDown={(e) => {
-          // Mid-composition (Japanese, Chinese, Korean…) keys belong to the IME.
-          if (isComposingKey(e)) return;
-          // Escape lets a reply go first; the panel stays open.
-          if (e.key === 'Escape' && replyTo && !mention) { e.preventDefault(); onCancelReply?.(); return; }
-          if (mention) return; // the picker takes Enter
-          // ↑ in an empty box edits your last message, as in Slack.
-          if (e.key === 'ArrowUp' && !body && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && onEditLast?.()) {
-            e.preventDefault();
-            return;
-          }
-          // Enter sends on a desktop keyboard; on a touch one it makes a line.
-          if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); send(); }
-        }}
-      />
+      {card ? (
+        <div className="msg-composer-field">
+          {!editing && (
+            <button type="button" className="msg-composer-btn msg-composer-attach" title="Attach files" aria-label="Attach files"
+                    onClick={() => fileInputRef.current?.click()}>
+              <Icon as={Plus} size={17} weight="regular" />
+            </button>
+          )}
+          {field}
+          <button type="button" ref={emojiBtnRef}
+                  className={`msg-composer-btn ${emojiAnchor ? 'is-active' : ''}`}
+                  title="Emoji" aria-label="Emoji"
+                  onClick={(e) => setEmojiAnchor(emojiAnchor ? null : e.currentTarget.getBoundingClientRect())}>
+            <Icon as={Smile} size={17} weight="regular" />
+          </button>
+          {editing ? (
+            <button type="submit" className={`msg-composer-send is-icon${editText.trim() ? ' is-armed' : ''}`} disabled={!editText.trim()}
+                    title="Save (Enter)" aria-label="Save the edit">
+              <Icon as={Check} size={16} weight="bold" />
+            </button>
+          ) : (
+            <button type="submit" className={`msg-composer-send is-icon${canSend ? ' is-armed' : ''}`} disabled={!canSend}
+                    title={uploading ? 'Sending waits for your uploads' : 'Send'}
+                    aria-label={uploading ? 'Send, once the uploads finish' : 'Send'}>
+              <Icon as={ArrowUp} size={16} weight="bold" />
+            </button>
+          )}
+        </div>
+      ) : field}
       <input ref={fileInputRef} type="file" hidden multiple
              onChange={(e) => { handleFiles([...e.target.files]); e.target.value = ''; }} />
-      {linkOpen && (
+      {!card && linkOpen && (
         <div className="msg-composer-link">
           <input
             className="msg-composer-link-input"
@@ -375,7 +460,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
           <button type="button" className="msg-composer-btn" onClick={cancelLink}>Cancel</button>
         </div>
       )}
-      <div className="msg-composer-actions">
+      {!card && <div className="msg-composer-actions">
         <button type="button" className="msg-composer-btn" title="Attach"
                 onClick={() => fileInputRef.current?.click()}>
           <Icon as={Paperclip} size={14} />
@@ -395,7 +480,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
         <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && !hasPayload)}>
           {uploading ? 'Uploading…' : 'Send'}
         </button>
-      </div>
+      </div>}
 
       {mention && (
         <EntityPicker

@@ -157,7 +157,7 @@ import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { MessagesPresence } from './components/MessagesPresence.jsx';
-import { MessagesLookContext } from './components/messagesLook.js';
+import { MessagesLookContext, MessagesBoardsContext } from './components/messagesLook.js';
 import { NotificationsPanel } from './components/NotificationsPanel.jsx';
 import { addShootDays, scaffoldShootDay, nextDayNumber } from './lib/productionDay.js';
 import { useNotifications } from './hooks/useNotifications.js';
@@ -8538,6 +8538,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     userProfiles.populateFromPeers(wsPeers);
   }, [wsPeers]);
+  // Messages' card look: who's here now (a DM with them says "Here now", by
+  // the rule of the sidebar's "Maya and Jon are here"), and a cluster a
+  // message carries, with its cover.
+  const msgPresentIds = useMemo(() => new Set((wsPeers || [])
+    .filter(p => p?.user?.id && p.user.id !== user.id && p?.location?.isActive !== false)
+    .map(p => p.user.id)), [wsPeers, user.id]);
+  const msgBoardInfo = useCallback((id) => {
+    const b = boards[id];
+    if (!b || b.deleted_at) return null;
+    return {
+      name: b.name,
+      parentName: boards[b.parent_board_id]?.name || null,
+      cards: Number(b.card_count) || 0,
+      thumbKey: b.thumb_key || null,
+      bust: b.thumb_updated_at || b.thumb_version || undefined,
+    };
+  }, [boards]);
   // Who is on each cluster now, for the card of a cluster picked on the files
   // sidebar's Home (hooks/useHomeRail.js), and which clusters are starred
   // (hooks/useClusterStars.js). Off elsewhere.
@@ -11200,6 +11217,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <MessagesPresence open={!!tweak.showMessages}>{() => createPortal((
         // With the files sidebar Messages wears its card (messagesLook.js).
         <MessagesLookContext.Provider value={filesSidebar ? 'card' : null}>
+        <MessagesBoardsContext.Provider value={msgBoardInfo}>
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
@@ -11222,7 +11240,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onPermalinkConsumed={() => setPermalinkTarget(null)}
           onPeerConsumed={() => setPendingDmPeerId(null)}
           onClose={() => setTweak('showMessages', false)}
+          presentUserIds={msgPresentIds}
         />
+        </MessagesBoardsContext.Provider>
         </MessagesLookContext.Provider>
       ), document.body)}</MessagesPresence>
 

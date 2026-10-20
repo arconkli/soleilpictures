@@ -20,6 +20,12 @@ async function send(page, text) {
   await composerInput(page).press('Enter');
   return bubble(page, text);
 }
+// A message's actions in the card look: its ⋯, then the item in its menu.
+async function act(page, b, name) {
+  await b.hover();
+  await b.locator('.msg-bubble-more').click();
+  await page.locator('.msg-menu .msg-menu-item', { hasText: name }).click();
+}
 const props = (page, name) => qa(page, (n) => window.__msgQa.events.filter((e) => e.event === n).map((e) => e.props), name);
 const msgEventsText = (page) => qa(page, () => JSON.stringify(window.__msgQa.events.filter((e) => e.event.startsWith('msg_'))));
 const FLUSH = { timeout: 15_000 };
@@ -40,7 +46,7 @@ test('a failed send logs its code, and Retry logs the second attempt', async ({ 
   await open(page, 'conv=c-maya');
   await qa(page, () => window.__msgQa.failNext('insert:messages'));
   const b = await send(page, 'flaky send');
-  await b.locator('.msg-bubble-failed button', { hasText: 'Retry' }).click();
+  await b.locator('.msg-bubble-failed button', { hasText: 'Try again' }).click();
   await expect(b.locator('.msg-bubble-failed')).toHaveCount(0);
   await expect.poll(async () => pick(['ok', 'attempt', 'code'])(await props(page, 'msg_send')), FLUSH)
     .toEqual([{ ok: false, attempt: 1, code: 'QA000' }, { ok: true, attempt: 2, code: undefined }]);
@@ -50,7 +56,7 @@ test('a failed send that is discarded says how many tries it had', async ({ page
   await open(page, 'conv=c-maya');
   await qa(page, () => window.__msgQa.failNext('insert:messages'));
   const b = await send(page, 'never mind');
-  await b.locator('.msg-bubble-failed button', { hasText: 'Discard' }).click();
+  await b.locator('.msg-bubble-failed button', { hasText: 'Delete' }).click();
   await expect.poll(async () => pick(['action', 'attempts'])(await props(page, 'msg_action')), FLUSH)
     .toEqual([{ action: 'discard', attempts: 1 }]);
 });
@@ -59,8 +65,7 @@ test('a delete and its Undo each log how they went', async ({ page }) => {
   await open(page, 'conv=c-maya');
   const b = await send(page, 'delete me');
   await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'delete me'))).toBe(true);
-  await b.hover();
-  await b.locator('button[title="Delete"]').click();
+  await act(page, b, /^Delete/);
   await page.locator('.toast-action', { hasText: 'Undo' }).click();
   await expect(page.locator('.msg-bubble-body', { hasText: 'delete me' })).toBeVisible();
   await expect.poll(async () => pick(['action', 'ok'])(await props(page, 'msg_action')), FLUSH)

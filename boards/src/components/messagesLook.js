@@ -10,3 +10,14 @@ export const MessagesLookContext = createContext(null);
 export function useMessagesLook() {
   return useContext(MessagesLookContext);
 }
+
+// A cluster a message carries or names, as the card look draws it: its name,
+// the cluster it sits in, how many cards and its cover. App provides a lookup
+// over its boards (the QA harness its own); without one a cluster is its name.
+//   (boardId) → { name, parentName, cards, thumbKey, bust } | null
+export const MessagesBoardsContext = createContext(null);
+
+export function useMessagesBoard(boardId) {
+  const lookup = useContext(MessagesBoardsContext);
+  return boardId && lookup ? lookup(boardId) : null;
+}

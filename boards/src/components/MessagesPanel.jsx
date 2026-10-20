@@ -4,7 +4,7 @@ import { Icon } from './Icon.jsx';
 import { Plus, X, EyeOff, LogOut, Search } from '../lib/icons.js';
 import { useConversationList } from '../hooks/useConversationList.js';
 import { useMessagesLook } from './messagesLook.js';
-import { conversationMatches } from '../lib/messagesCard.js';
+import { conversationMatches, previewText } from '../lib/messagesCard.js';
 import './messagesCard.css';
 import { findOrCreateDm, leaveConversation, rejoinConversation } from '../lib/messages.js';
 import { hiddenFromInbox, isDmConversation } from '../lib/conversationState.js';
@@ -39,6 +39,8 @@ const NO_PARTICIPANTS = [];
 //                               user and open it (used by avatar-click)
 //   refreshTick               — bumped externally to invalidate caches
 //   onRefreshRequested        — called by children when they need a list refresh
+//   presentUserIds            — who's in the workspace now (a Set): a DM with
+//                               one of them says "Here now" (the card look)
 //   onClose
 export function MessagesPanel({
   workspaceId, currentUser,
@@ -49,6 +51,7 @@ export function MessagesPanel({
   onClose,
   canSendMessages = true, // false → a viewer here, or on the waitlist (lib/messageAccess.js)
   readOnlyReason = null,  // why not: 'viewer' | 'waitlist'
+  presentUserIds = null,
 }) {
   const userId = currentUser?.id;
   const {
@@ -235,6 +238,8 @@ export function MessagesPanel({
     title: openConv?.title || null,
     participants: openParts,
   }), [openConversationId, openConv?.title, openParts]);
+  const openPeerId = openIsDm ? openParts.find(p => p.user_id !== userId)?.user_id || null : null;
+  const peerHere = !!(openPeerId && presentUserIds?.has?.(openPeerId));
 
   // One panel for the list and every conversation. Opening one doesn't
   // remount the panel (or replay its entrance): the conversation is a pane
@@ -260,6 +265,7 @@ export function MessagesPanel({
         canSend={canSendMessages && !(myOpenState?.left_at && !openIsDm)}
         readOnlyReason={canSendMessages ? 'left' : readOnlyReason}
         conversation={threadConversation}
+        peerHere={peerHere}
         jumpToMessageId={pendingJump?.convId === openConversationId ? pendingJump.messageId : null}
         onJumpConsumed={() => setPendingJump(null)}
         onChanged={onRefreshRequested}
@@ -413,12 +419,20 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
   }));
   const title = conv.title || peerProfiles.map(p => p.name).join(', ') || 'New conversation';
 
-  // Avatar: 1 peer = single circle. Multi = stacked 2-3.
-  const avatarPeers = peerProfiles.slice(0, 3);
+  // Avatar: 1 peer = single circle. Multi = stacked 2-3 (two faces in the card look).
+  const avatarPeers = peerProfiles.slice(0, card ? 2 : 3);
 
-  // Last-message preview: prefix with sender for group chats.
+  // Last-message preview: prefix with sender for group chats. The card look
+  // shows the words without their markdown, and says when it was a file.
   let preview = conv.last_message_body || '';
-  if (conv.last_message_kind === 'system') {
+  if (card && conv.last_message_kind !== 'system') {
+    const words = previewText(conv.last_message_body);
+    const mine = conv.last_message_sender_id === currentUserId;
+    const who = mine ? 'You' : (userProfiles.get(conv.last_message_sender_id)?.name || conv.last_message_sender_email || 'Someone').split(/[\s@]/)[0];
+    preview = words
+      ? (mine ? `You: ${words}` : !isDm && conv.last_message_sender_id ? `${who}: ${words}` : words)
+      : conv.last_message_at ? `${who} sent an attachment` : '';
+  } else if (conv.last_message_kind === 'system') {
     preview = preview || '— event —';
   } else if (!isDm && conv.last_message_sender_id && conv.last_message_sender_id !== currentUserId) {
     const senderName =

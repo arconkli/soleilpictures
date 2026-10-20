@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 // The message composer under a finger (Messages QA harness, ?msgqa=1): the
 // return key on a touch keyboard makes a new line and the Send button sends,
-// in the composer and in the edit box alike.
+// and the same while a message is being edited in it.
 
 async function open(page) {
   await page.goto('/?msgqa=1&phone=1&conv=c-maya');
@@ -24,7 +24,7 @@ test('the return key makes a new line, and Send sends', async ({ page }) => {
   await expect(input).toHaveValue('');
 });
 
-test('editing a message: return makes a new line, Save saves', async ({ page }) => {
+test('editing a message in the box: return makes a new line, ✓ saves', async ({ page }) => {
   await open(page);
   const input = page.locator('.msg-composer-input');
   await input.tap();
@@ -33,16 +33,16 @@ test('editing a message: return makes a new line, Save saves', async ({ page }) 
   const sent = page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: 'to be edited' }) }).last();
   await expect(sent).not.toHaveClass(/msg-bubble--pending/); // only a saved message can be edited
   const id = await sent.getAttribute('data-msg-id');
-  // The body gives way to the edit box, so find the message by its id from here.
   const mine = page.locator(`.msg-bubble[data-msg-id="${id}"]`);
   await page.evaluate((msgId) => document.dispatchEvent(new CustomEvent('soleil-msg-edit', { detail: { id: msgId } })), id);
-  const box = mine.locator('textarea.msg-composer-input');
-  await expect(box).toBeFocused();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('to be edited');
   await page.keyboard.press('Enter'); // the caret starts after the text
   await page.keyboard.type('and more');
-  await expect(box).toHaveValue('to be edited\nand more');
-  await mine.getByRole('button', { name: 'Save' }).tap();
+  await expect(input).toHaveValue('to be edited\nand more');
+  await page.getByRole('button', { name: 'Save the edit' }).tap();
   await expect(mine.locator('.msg-bubble-body')).toContainText('and more');
+  await expect(input).toHaveValue('');
 });
 
 test('a conversation opens without raising the keyboard: the panel has focus, not the box', async ({ page }) => {

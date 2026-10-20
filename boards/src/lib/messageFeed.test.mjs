@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFeedItems, selectSeenMessageId, typingLabel, dayLabel, RUN_WINDOW_MS } from './messageFeed.js';
+import { buildFeedItems, selectSeenMessageId, typingLabel, dayLabel, RUN_WINDOW_MS, PAUSE_MS, messageThings, hasBubble } from './messageFeed.js';
 
 const T0 = Date.UTC(2026, 9, 20, 9, 0, 0);
 const at = (min) => new Date(T0 + min * 60 * 1000).toISOString();
@@ -95,4 +95,45 @@ test('day labels: today, yesterday, then weekday, then date', () => {
   assert.equal(dayLabel(at(0), NOW), 'Today');
   assert.equal(dayLabel(at(-24 * 60), NOW), 'Yesterday');
   assert.equal(dayLabel('', NOW), '');
+});
+
+test('the card look keeps a reply in the run (its quote sits inside the bubble)', () => {
+  const rows = [m('a', 'u2', 0), m('b', 'me', 1), m('c', 'me', 2, { parent_id: 'a', body: 'yes' })];
+  const items = msgs(buildFeedItems(rows, { now: NOW, breakOnReply: false }));
+  assert.deepEqual(items.map((i) => i.isContinuation), [false, false, true]);
+  assert.deepEqual(items.map((i) => i.runStart), [true, true, false]);
+});
+
+test('bubbles of a run join corners unless something is drawn between them', () => {
+  const pic = { kind: 'image', storage_path: 'x.jpg' };
+  const rows = [
+    m('a', 'u2', 0, { body: 'one' }), m('b', 'u2', 1, { body: 'two' }),
+    m('c', 'u2', 2, { body: 'three', attachments: [pic] }), m('d', 'u2', 3, { body: 'four' }),
+    m('e', 'u2', 4, { body: 'five', reactions: { '👍': ['me'] } }), m('f', 'u2', 4, { body: 'six', edited_at: at(4) }),
+    m('g', 'u2', 4, { body: '', attachments: [pic] }),
+  ];
+  const items = msgs(buildFeedItems(rows, { now: NOW }));
+  assert.deepEqual(items.map((i) => [i.joinUp, i.joinDown]), [
+    [false, true], [true, true], [true, false], [false, true], [true, false], [false, false], [false, false],
+  ]);
+});
+
+test('a time goes under a run after a pause, a break, and under the newest run', () => {
+  const rows = [
+    m('a', 'u2', 0), m('b', 'me', 10), m('c', 'u2', 12),
+    m('d', 'me', 12 + PAUSE_MS / 60000), m('e', 'u2', 50),
+    m('s', null, 51, { kind: 'system' }), m('f', 'me', 52), m('g', 'u2', 53), m('h', 'u2', 54),
+  ];
+  const items = msgs(buildFeedItems(rows, { now: NOW })).filter((i) => i.msg.kind !== 'system');
+  const shown = items.filter((i) => i.showTime).map((i) => i.msg.id);
+  assert.deepEqual(shown, ['a', 'd', 'f', 'h'], 'the first run of the day, after 30 minutes, after a system row, the newest');
+  assert.equal(items.find((i) => i.msg.id === 'g').showTime, false, 'only the run’s last message carries it');
+});
+
+test('things are pictures, files, links and clusters; a bubble needs words or a quote', () => {
+  const row = { attachments: [{ kind: 'image' }, { kind: 'board' }, { kind: 'tag' }, null, { kind: 'url' }] };
+  assert.deepEqual(messageThings(row).map((a) => a.kind), ['image', 'board', 'url']);
+  assert.equal(hasBubble({ body: '  ' }), false);
+  assert.equal(hasBubble({ body: '', parent_id: 'x' }), true);
+  assert.equal(hasBubble({ body: 'hi' }), true);
 });

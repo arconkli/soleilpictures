@@ -1,9 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download } from '../lib/icons.js';
+import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download, MoreHorizontal, WarningCircle } from '../lib/icons.js';
 import { EmojiPalette } from './EmojiPalette.jsx';
 import { GrowingTextarea } from './GrowingTextarea.jsx';
-import { isComposingKey, messageKeyAction, touchKeyboard } from '../lib/composerKeys.js';
+import { isComposingKey, messageKeyAction, touchKeyboard, finePointer } from '../lib/composerKeys.js';
 import { withinEditWindow } from '../lib/messageEdit.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
@@ -17,6 +17,7 @@ import { attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLink
 import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { RelTime } from './RelTime.jsx';
 import { useMinuteNow } from '../hooks/useMinuteNow.js';
+import { MessageThings } from './MessageThings.jsx';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -31,6 +32,12 @@ import { useMinuteNow } from '../hooks/useMinuteNow.js';
 //   isFocused        — keyboard-nav highlight ring
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
 //
+// The files sidebar's card look (card, messagesCard.css) draws it as a chat
+// bubble: inDm, and the run it sits in from lib/messageFeed.js (runStart,
+// joinUp / joinDown, runEnd, showTime). There its actions are one menu
+// (onOpenMenu, from the ⋯ or a right click) and an edit happens in the box
+// you type in (editingHere outlines the message being edited).
+//
 // Memoized: a thread of hundreds re-renders only the bubbles whose props
 // changed (the thread keeps its handlers and rows stable). The time moves on
 // through <RelTime>, and an edit window that closes through the shared clock.
@@ -40,6 +47,8 @@ export const MessageBubble = memo(function MessageBubble({
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
   onRetrySend, onDiscardSend, // optimistic-send bubbles only
+  card = false, inDm = false, runStart = true, joinUp = false, joinDown = false, runEnd = true, showTime = false,
+  editingHere = false, menuOpen = false, onOpenMenu,
 }) {
   const isMine = msg.sender_id === selfId;
   // 'sending' | 'failed' | null — optimistic messages that haven't been
@@ -97,8 +106,9 @@ export const MessageBubble = memo(function MessageBubble({
   // message, inside the edit window, the same rule as the button. ↑ in an
   // empty composer asks the same way (lib/messageEdit.js picks the message).
   const canEdit = isMine && inEditWindow && !sendState;
+  // The card look edits in the box you type in: the thread listens there.
   useEffect(() => {
-    if (!canEdit) return;
+    if (!canEdit || card) return;
     const onEditRequest = (e) => {
       if (e.detail?.id !== msg.id) return;
       setEditBody(msg.body);
@@ -106,7 +116,7 @@ export const MessageBubble = memo(function MessageBubble({
     };
     document.addEventListener('soleil-msg-edit', onEditRequest);
     return () => document.removeEventListener('soleil-msg-edit', onEditRequest);
-  }, [canEdit, msg.id, msg.body]);
+  }, [canEdit, card, msg.id, msg.body]);
 
   // The edit closes at once and shows (the thread applies it optimistically);
   // a save that fails reopens it with your text (onEdit resolves false).
@@ -132,6 +142,92 @@ export const MessageBubble = memo(function MessageBubble({
     : '';
   const parentColor = parent ? (parentProfile?.color || pickPresenceColor(parent.sender_id || '')) : '';
   const parentExcerpt = parent ? (parent.body || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+
+  const reactions = msg.reactions && Object.keys(msg.reactions).length > 0 && (
+    <div className="msg-bubble-reactions">
+      {Object.entries(msg.reactions).map(([emoji, ids]) => (
+        <button key={emoji} className={`msg-reaction ${ids?.includes(selfId) ? 'own' : ''}`} onClick={() => onReact?.(msg, emoji)}>
+          <span>{emoji}</span>
+          <span className="msg-reaction-count">{ids?.length || 0}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  if (card) {
+    const hasText = !!String(msg.body || '').trim();
+    const showAuthor = !isMine && !inDm && runStart;
+    // One quiet line under the run: its time where the talk had paused, and
+    // what's news (edited, pinned, seen). A message mid-run says only its news.
+    const news = [msg.edited_at ? 'Edited' : '', msg.is_pinned ? 'Pinned' : ''].filter(Boolean);
+    let meta = '';
+    if (sendState === 'sending') meta = runEnd ? 'Sending…' : '';
+    else if (!sendState && runEnd && (showTime || news.length || seen)) {
+      meta = [shortClock(msg.created_at), ...news, seen ? 'Seen' : ''].filter(Boolean).join(' · ');
+    } else if (!sendState && !runEnd && news.length) meta = news.join(' · ');
+    const openMenu = (e) => {
+      if (!onOpenMenu || sendState) return;
+      onOpenMenu(msg, e.currentTarget.getBoundingClientRect(), e.currentTarget);
+    };
+    // A right click opens the same menu where there's a mouse; on a link or a
+    // picture the browser's own stays (open in a new tab, save the image).
+    const onContext = (e) => {
+      if (!onOpenMenu || sendState || !finePointer() || e.target.closest?.('a, img')) return;
+      // A long press on a touch screen is the press-and-hold sheet's.
+      if (e.nativeEvent?.pointerType === 'touch') return;
+      e.preventDefault();
+      onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }, null);
+    };
+    const more = !sendState && onOpenMenu && (
+      <button type="button" className="msg-bubble-more" aria-label="Message actions" aria-haspopup="menu"
+              aria-expanded={menuOpen} title="Message actions" onClick={openMenu}>
+        <Icon as={MoreHorizontal} size={16} weight="regular" />
+      </button>
+    );
+    const things = <MessageThings msg={msg} workspaceId={workspaceId} onDragStart={onAttachmentDragStart} />;
+    const bubble = (hasText || parent) && (
+      <div className="msg-bubble-body">
+        {parent && (parentGone ? (
+          <span className="msg-reply-quote is-gone">
+            {parentGone === 'deleted' ? 'Original message deleted' : 'Original message unavailable'}
+          </span>
+        ) : (
+          <button type="button" className="msg-reply-quote" title={`Go to ${parentName}'s message`}
+                  onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
+            {!inDm && <span className="msg-reply-quote-who">{parent.sender_id === selfId ? 'You' : parentName}</span>}
+            <span className="msg-reply-quote-text">{parentExcerpt || 'Attachment'}</span>
+          </button>
+        ))}
+        {hasText && body}
+      </div>
+    );
+    return (
+      <div className={`msg-bubble is-card ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${joinUp ? 'joins-up' : ''} ${joinDown ? 'joins-down' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${sendState ? `msg-bubble--pending is-${sendState}` : ''} ${editingHere ? 'is-editing' : ''}`}
+           data-msg-id={msg.id}
+           id={`msg-${msg.id}`}
+           onContextMenu={onContext}>
+        {showAuthor && <div className="msg-bubble-author">{senderName}</div>}
+        {bubble ? (
+          <>
+            <div className="msg-bubble-line">{bubble}{more}</div>
+            {things}
+          </>
+        ) : (
+          <div className="msg-bubble-line">{things}{more}</div>
+        )}
+        {reactions}
+        {sendState === 'failed' && (
+          <div className="msg-bubble-failed" role="alert">
+            <Icon as={WarningCircle} size={14} weight="regular" />
+            <span>Not sent</span>
+            <button type="button" onClick={() => onRetrySend?.(msg)}>Try again</button>
+            <button type="button" onClick={() => onDiscardSend?.(msg)}>Delete</button>
+          </div>
+        )}
+        {meta && <div className="msg-bubble-meta" title={fullTime}>{meta}</div>}
+      </div>
+    );
+  }
 
   return (
     <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''} ${editing ? 'is-editing' : ''}`}
@@ -279,16 +375,7 @@ export const MessageBubble = memo(function MessageBubble({
           ))}
         </div>
       )}
-      {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-        <div className="msg-bubble-reactions">
-          {Object.entries(msg.reactions).map(([emoji, ids]) => (
-            <button key={emoji} className={`msg-reaction ${ids?.includes(selfId) ? 'own' : ''}`} onClick={() => onReact?.(msg, emoji)}>
-              <span>{emoji}</span>
-              <span className="msg-reaction-count">{ids?.length || 0}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {reactions}
       {seen && <div className="msg-bubble-seen">Seen</div>}
       {emojiAnchor && (
         <EmojiPalette

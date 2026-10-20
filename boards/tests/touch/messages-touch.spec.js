@@ -21,14 +21,16 @@ async function holdBubble(page, loc) {
   await expect(page.locator('.msg-sheet')).toBeVisible();
 }
 
-test('no hover chip under a finger, and the fields are 16px', async ({ page }) => {
+test('no hover chip or ⋯ under a finger, and the fields are 16px', async ({ page }) => {
   await open(page, 'conv=c-maya');
   const theirs = bubble(page, 'Thanks! Talk tomorrow.');
   await expect(theirs).toBeVisible();
   await expect(theirs.locator('.msg-bubble-actions')).toBeHidden();
+  await expect(theirs.locator('.msg-bubble-more')).toBeHidden();
   await expect(page.locator('.msg-composer-input')).toHaveCSS('font-size', '16px');
   await page.locator('.msg-pane-thread .msg-panel-icon[aria-label="Search messages"]').tap();
   await expect(page.locator('.msg-search-input')).toHaveCSS('font-size', '16px');
+  await page.locator('.msg-search-done').tap();
   await page.locator('.msg-pane-thread .msg-panel-icon[aria-label="Back"]').tap();
   await expect(page.locator('.msg-find input')).toHaveCSS('font-size', '16px');
 });
@@ -55,7 +57,7 @@ test('hold a message, Reply: the composer says what it answers', async ({ page, 
   await expect(page.locator('.msg-reply-bar-body')).toContainText('Thanks! Talk tomorrow.');
 });
 
-test('hold your own message: Edit opens its box, and Delete goes with Undo', async ({ page, browserName }) => {
+test('hold your own message: Edit puts it in the box you type in, and Delete goes with Undo', async ({ page, browserName }) => {
   needsHold(test, browserName);
   await open(page, 'conv=c-maya');
   const input = page.locator('.msg-composer-input');
@@ -67,8 +69,11 @@ test('hold your own message: Edit opens its box, and Delete goes with Undo', asy
   const id = await mine.getAttribute('data-msg-id');
   await holdBubble(page, mine);
   await page.locator('.msg-sheet').getByRole('button', { name: 'Edit' }).tap();
-  await expect(page.locator(`.msg-bubble[data-msg-id="${id}"] textarea`)).toBeVisible();
-  await page.locator(`.msg-bubble[data-msg-id="${id}"]`).getByRole('button', { name: 'Cancel' }).tap();
+  await expect(page.locator('.msg-reply-bar.is-edit')).toBeVisible();
+  await expect(input).toHaveValue('held and edited');
+  await expect(page.locator(`.msg-bubble[data-msg-id="${id}"]`)).toHaveClass(/is-editing/);
+  await page.getByRole('button', { name: 'Cancel the edit' }).tap();
+  await expect(page.locator('.msg-reply-bar.is-edit')).toHaveCount(0);
   await holdBubble(page, page.locator(`.msg-bubble[data-msg-id="${id}"]`));
   await page.locator('.msg-sheet').getByRole('button', { name: 'Delete' }).tap();
   await expect(page.locator(`.msg-bubble[data-msg-id="${id}"]`)).toHaveCount(0);

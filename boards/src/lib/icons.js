@@ -112,6 +112,7 @@ export {
   Question,
   Info,
   Warning,
+  WarningCircle,
   ArrowLeft,
   ArrowUp,
   ArrowDown,
